@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Windows.Forms;
+using System.Globalization;
 
 namespace Kalendarz1
 {
     public partial class ObliczenieAut : Form
     {
+        private MojeObliczenia obliczenia = new MojeObliczenia();
         private TextBox sztuki;
         private TextBox sztukNaSzuflade;
         private Label label10;
@@ -22,9 +24,14 @@ namespace Kalendarz1
         private Button button1;
         private Label label11;
 
-        public ObliczenieAut()
+        public ObliczenieAut(string sztukiNaSzufladeValue, string iloscAutValue, string iloscSztukValue)
         {
             InitializeComponent();
+
+            // Przypisz wartości do właściwości
+            sztukiNaSzuflade = sztukiNaSzufladeValue;
+            iloscAut = iloscAutValue;
+            iloscSztuk = iloscSztukValue;
         }
 
         private void InitializeComponent()
@@ -75,6 +82,7 @@ namespace Kalendarz1
             sztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
             sztukNaSzuflade.TabIndex = 28;
             sztukNaSzuflade.TextAlign = HorizontalAlignment.Center;
+            sztukNaSzuflade.TextChanged += sztukNaSzuflade_TextChanged;
             // 
             // label10
             // 
@@ -245,7 +253,16 @@ namespace Kalendarz1
         }
         private void ObliczenieAut_Load_1(object? sender, EventArgs e)
         {
+            // Przypisz wartości właściwości do kontrolek TextBox
+            sztukNaSzuflade.Text = sztukiNaSzuflade;
+            obliczeniaAut.Text = iloscAut;
+            sztuki.Text = iloscSztuk;
+        }
 
+        private void sztukNaSzuflade_TextChanged(object sender, EventArgs e)
+        {
+            //obliczenia.ProponowanaIloscNaSkrzynke2(sztukNaSzuflade, sztuki, obliczeniaAut);
+            //obliczenia.IleautOblcizenie(obliczeniaAut,sztuki, TextBox wyliczone)
         }
     }
 }

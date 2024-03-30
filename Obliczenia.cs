@@ -5,6 +5,7 @@ namespace Kalendarz1
 {
     internal class MojeObliczenia // Zmieniona nazwa klasy na uniknięcie konfliktu
     {
+        
         public void ObliczWageDni(TextBox WagaDni, TextBox RoznicaDni)
         {
             // Sprawdzenie, czy RoznicaDni zawiera wartość
@@ -19,28 +20,21 @@ namespace Kalendarz1
                 WagaDni.Text = string.Empty;
             }
         }
-        public int ObliczRozniceDni(DateTimePicker dataWstawienia, TextBox dataDostawy)
+        //Obliczanie róznicy dni
+        public int ObliczRozniceDni(DateTimePicker dataWstawienia, DateTimePicker dataDostawy)
         {
             // Deklaracja zmiennych do przechowywania dat i różnicy
-            DateTime dataPierwsza;
-            DateTime dataDruga;
+            DateTime dataPierwsza = dataWstawienia.Value;
+            DateTime dataDruga = dataDostawy.Value;
             int roznicaDni;
 
-            // Sprawdzenie, czy oba teksty reprezentują daty
-            if (DateTime.TryParse(dataWstawienia.Text, out dataPierwsza) && DateTime.TryParse(dataDostawy.Text, out dataDruga))
-            {
-                // Obliczenie różnicy w dniach
-                TimeSpan roznica = dataDruga - dataPierwsza;
-                roznicaDni = roznica.Days;
-            }
-            else
-            {
-                // Ustawienie wartości domyślnej, jeśli daty nie są prawidłowe
-                roznicaDni = 0;
-            }
+            // Obliczenie różnicy w dniach
+            TimeSpan roznica = dataPierwsza - dataDruga;
+            roznicaDni = roznica.Days;
 
             return roznicaDni;
         }
+
         public void ileSztukOblcizenie(TextBox sztukNaSzuflade, TextBox Wyliczone)
         {
             double WyliczonaSuma;
@@ -114,6 +108,50 @@ namespace Kalendarz1
 
             // Wywołaj funkcję ileSztukOblcizenie
             ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
+        }
+
+        public void ProponowanaIloscNaSkrzynke2(TextBox sztukNaSzuflade, TextBox sztuki, TextBox obliczeniaAut)
+        {
+            double sredniaValue;
+            double KGsztuk;
+
+            // Sprawdź czy wartości są liczbami
+            if (double.TryParse(sztuki.Text, out double sztukiValue) && double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue))
+            {
+                // Sprawdź czy wartość sztukNaSzufladeValue jest różna od zera, aby uniknąć dzielenia przez zero
+                if (sztukNaSzufladeValue * 264 != 0)
+                {
+                    double result = sztukiValue / (sztukNaSzufladeValue * 264);
+                    obliczeniaAut.Text = result.ToString("0.00");
+                }
+                else
+                {
+                    MessageBox.Show("Nie można dzielić przez zero.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    return;
+                }
+            }
+        }
+        public static void IleautOblcizenie(TextBox ileaut, TextBox sztuki, TextBox wyliczone)
+        {
+            double wyliczonaSuma = 0;
+            double ileautValue = 0;
+
+            // Sprawdź, czy zawartość pola 'ileaut' jest liczbą
+            if (double.TryParse(ileaut.Text, out ileautValue))
+            {
+                // Jeśli tak, przekonwertuj zawartość na liczbę
+                // Oblicz wynik
+                wyliczonaSuma = ileautValue * Convert.ToDouble(wyliczone.Text);
+            }
+            else
+            {
+                // Jeśli zawartość pola 'ileaut' nie jest liczbą, ustaw wynik na 0 (lub inną wartość domyślną)
+                wyliczonaSuma = 0;
+            }
+
+            // Ustaw wynik w odpowiednim polu (np. TextBox)
+            // Poniżej zakładam, że wynik ma być ustawiony w polu 'sztuki'
+            sztuki.Text = wyliczonaSuma.ToString();
         }
 
 

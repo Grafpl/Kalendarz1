@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Forms;
 
 namespace Kalendarz1
 {
@@ -31,126 +32,1888 @@ namespace Kalendarz1
         /// </summary>
         private void InitializeComponent()
         {
-            HarmonogramDnia = new System.Windows.Forms.ListBox();
-            MyCalendar = new System.Windows.Forms.MonthCalendar();
-            Data = new System.Windows.Forms.DateTimePicker();
-            dataGridView1 = new System.Windows.Forms.DataGridView();
-            Datao = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Auta = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Sztuki = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Waga = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Status = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokKalendarza));
+            MyCalendar = new MonthCalendar();
+            dataGridView1 = new DataGridView();
+            checkBoxAnulowane = new CheckBox();
+            weekNumberTextBox = new TextBox();
+            userTextbox = new TextBox();
+            groupBox1 = new GroupBox();
+            pictureBox6 = new PictureBox();
+            pictureBox5 = new PictureBox();
+            groupBox4 = new GroupBox();
+            pictureBox4 = new PictureBox();
+            Cena = new TextBox();
+            label13 = new Label();
+            buttonCena = new Button();
+            Dodatek = new TextBox();
+            label14 = new Label();
+            Email = new TextBox();
+            Uwagi = new TextBox();
+            label36 = new Label();
+            lalv = new Label();
+            tel1 = new TextBox();
+            groupBox3 = new GroupBox();
+            dataWstawienia = new DateTimePicker();
+            label41 = new Label();
+            textBox5 = new TextBox();
+            label37 = new Label();
+            textboxObecnaDoba = new TextBox();
+            label34 = new Label();
+            pictureBox3 = new PictureBox();
+            label35 = new Label();
+            DataGridWstawienia = new DataGridView();
+            LpWstawienia = new ComboBox();
+            sztukiWstawienia = new TextBox();
+            label19 = new Label();
+            label29 = new Label();
+            info1 = new TextBox();
+            ktoStwo = new TextBox();
+            ktoMod = new TextBox();
+            tel2 = new TextBox();
+            label25 = new Label();
+            label24 = new Label();
+            info2 = new TextBox();
+            dataMod = new TextBox();
+            dataStwo = new TextBox();
+            label27 = new Label();
+            TypUmowy = new ComboBox();
+            label17 = new Label();
+            tel3 = new TextBox();
+            TypCeny = new ComboBox();
+            Status = new ComboBox();
+            info3 = new TextBox();
+            label2 = new Label();
+            tablicaHodowca = new GroupBox();
+            pictureBox1 = new PictureBox();
+            label7 = new Label();
+            Kurnik = new ComboBox();
+            KmK = new TextBox();
+            Dostawca = new ComboBox();
+            KmH = new TextBox();
+            MiejscK = new TextBox();
+            label1 = new Label();
+            label6 = new Label();
+            MiejscH = new TextBox();
+            KodPocztowyK = new TextBox();
+            label3 = new Label();
+            UlicaK = new TextBox();
+            label5 = new Label();
+            KodPocztowyH = new TextBox();
+            UlicaH = new TextBox();
+            label4 = new Label();
+            label26 = new Label();
+            label16 = new Label();
+            groupBox2 = new GroupBox();
+            pictureBox13 = new PictureBox();
+            pictureBox12 = new PictureBox();
+            pictureBox11 = new PictureBox();
+            pictureBox10 = new PictureBox();
+            pictureBox9 = new PictureBox();
+            pictureBox8 = new PictureBox();
+            pictureBox7 = new PictureBox();
+            label18 = new Label();
+            pictureBox2 = new PictureBox();
+            label23 = new Label();
+            wyliczone = new TextBox();
+            ObliczAuta = new Button();
+            Ubytek = new TextBox();
+            label15 = new Label();
+            obliczeniaAut = new TextBox();
+            RoznicaDni = new TextBox();
+            liczbaAut = new TextBox();
+            label12 = new Label();
+            KGwSkrzynce = new TextBox();
+            sztuki = new TextBox();
+            label11 = new Label();
+            sztukNaSzuflade = new TextBox();
+            label10 = new Label();
+            srednia = new TextBox();
+            label9 = new Label();
+            label8 = new Label();
+            Data = new DateTimePicker();
+            label20 = new Label();
+            label21 = new Label();
+            comboBox3 = new ComboBox();
+            textBox12 = new TextBox();
+            CalcSztukNaSzuflade = new TextBox();
+            label30 = new Label();
+            label31 = new Label();
+            textBox13 = new TextBox();
+            iloscPoj = new TextBox();
+            WagaTuszki = new TextBox();
+            WagaDni = new TextBox();
+            sztukiPelne = new TextBox();
+            dataUbiorka = new TextBox();
+            dataPelne = new TextBox();
+            SztukiUbiorka = new TextBox();
+            HarmonogramDnia = new ListBox();
+            SumAutDzien = new TextBox();
+            SumaSztukDzien = new TextBox();
+            textBox10 = new TextBox();
+            textBox11 = new TextBox();
+            checkBoxSprzedane = new CheckBox();
+            checkBoxDoWykupienia = new CheckBox();
+            label28 = new Label();
+            textBox1 = new TextBox();
+            label32 = new Label();
+            textBox3 = new TextBox();
+            label33 = new Label();
+            textBox4 = new TextBox();
+            CommandButton_Update = new Button();
+            button2 = new Button();
+            button3 = new Button();
+            CommandButton_Insert = new Button();
+            label38 = new Label();
+            textLaczona = new TextBox();
+            label39 = new Label();
+            textMinister = new TextBox();
+            label40 = new Label();
+            textRolnicza = new TextBox();
+            label42 = new Label();
+            textTuszki = new TextBox();
+            groupBox5 = new GroupBox();
+            buttonPokazTuszke = new Button();
+            textRolniczaPrzebitka = new TextBox();
+            textMinisterPrzebitka = new TextBox();
+            textLaczonaPrzebitka = new TextBox();
+            buttonWstawienie = new Button();
+            dataGridPartie = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            groupBox1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox5).BeginInit();
+            groupBox4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox4).BeginInit();
+            groupBox3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)DataGridWstawienia).BeginInit();
+            tablicaHodowca.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            groupBox2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox13).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox12).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox11).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox10).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox8).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox7).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            groupBox5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridPartie).BeginInit();
             SuspendLayout();
+            // 
+            // MyCalendar
+            // 
+            MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MyCalendar.Location = new System.Drawing.Point(18, 5);
+            MyCalendar.Margin = new Padding(2);
+            MyCalendar.Name = "MyCalendar";
+            MyCalendar.TabIndex = 1;
+            MyCalendar.DateChanged += MyCalendar_DateChanged_1;
+            // 
+            // dataGridView1
+            // 
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView1.Location = new System.Drawing.Point(0, 176);
+            dataGridView1.Name = "dataGridView1";
+            dataGridView1.RowTemplate.Height = 25;
+            dataGridView1.Size = new System.Drawing.Size(704, 839);
+            dataGridView1.TabIndex = 19;
+            dataGridView1.CellContentClick += DataGridView1_CellContentClick;
+            // 
+            // checkBoxAnulowane
+            // 
+            checkBoxAnulowane.AutoSize = true;
+            checkBoxAnulowane.Location = new System.Drawing.Point(616, 135);
+            checkBoxAnulowane.Name = "checkBoxAnulowane";
+            checkBoxAnulowane.Size = new System.Drawing.Size(86, 19);
+            checkBoxAnulowane.TabIndex = 20;
+            checkBoxAnulowane.Text = "Anulowane";
+            checkBoxAnulowane.UseVisualStyleBackColor = true;
+            // 
+            // weekNumberTextBox
+            // 
+            weekNumberTextBox.Location = new System.Drawing.Point(346, 152);
+            weekNumberTextBox.Multiline = true;
+            weekNumberTextBox.Name = "weekNumberTextBox";
+            weekNumberTextBox.Size = new System.Drawing.Size(26, 19);
+            weekNumberTextBox.TabIndex = 21;
+            // 
+            // userTextbox
+            // 
+            userTextbox.Location = new System.Drawing.Point(1643, 307);
+            userTextbox.Name = "userTextbox";
+            userTextbox.Size = new System.Drawing.Size(100, 23);
+            userTextbox.TabIndex = 23;
+            // 
+            // groupBox1
+            // 
+            groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
+            groupBox1.Controls.Add(pictureBox6);
+            groupBox1.Controls.Add(pictureBox5);
+            groupBox1.Controls.Add(groupBox4);
+            groupBox1.Controls.Add(Email);
+            groupBox1.Controls.Add(Uwagi);
+            groupBox1.Controls.Add(label36);
+            groupBox1.Controls.Add(lalv);
+            groupBox1.Controls.Add(tel1);
+            groupBox1.Controls.Add(groupBox3);
+            groupBox1.Controls.Add(label29);
+            groupBox1.Controls.Add(info1);
+            groupBox1.Controls.Add(ktoStwo);
+            groupBox1.Controls.Add(ktoMod);
+            groupBox1.Controls.Add(tel2);
+            groupBox1.Controls.Add(label25);
+            groupBox1.Controls.Add(label24);
+            groupBox1.Controls.Add(info2);
+            groupBox1.Controls.Add(dataMod);
+            groupBox1.Controls.Add(dataStwo);
+            groupBox1.Controls.Add(label27);
+            groupBox1.Controls.Add(TypUmowy);
+            groupBox1.Controls.Add(label17);
+            groupBox1.Controls.Add(tel3);
+            groupBox1.Controls.Add(TypCeny);
+            groupBox1.Controls.Add(Status);
+            groupBox1.Controls.Add(info3);
+            groupBox1.Controls.Add(label2);
+            groupBox1.Controls.Add(tablicaHodowca);
+            groupBox1.Controls.Add(label26);
+            groupBox1.Controls.Add(label16);
+            groupBox1.Controls.Add(groupBox2);
+            groupBox1.Location = new System.Drawing.Point(710, 5);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new System.Drawing.Size(940, 714);
+            groupBox1.TabIndex = 24;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Dostawa";
+            // 
+            // pictureBox6
+            // 
+            pictureBox6.Image = (System.Drawing.Image)resources.GetObject("pictureBox6.Image");
+            pictureBox6.Location = new System.Drawing.Point(6, 501);
+            pictureBox6.Name = "pictureBox6";
+            pictureBox6.Size = new System.Drawing.Size(66, 59);
+            pictureBox6.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox6.TabIndex = 105;
+            pictureBox6.TabStop = false;
+            // 
+            // pictureBox5
+            // 
+            pictureBox5.Image = (System.Drawing.Image)resources.GetObject("pictureBox5.Image");
+            pictureBox5.Location = new System.Drawing.Point(584, 334);
+            pictureBox5.Name = "pictureBox5";
+            pictureBox5.Size = new System.Drawing.Size(66, 59);
+            pictureBox5.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox5.TabIndex = 104;
+            pictureBox5.TabStop = false;
+            // 
+            // groupBox4
+            // 
+            groupBox4.BackColor = System.Drawing.Color.LightGreen;
+            groupBox4.Controls.Add(pictureBox4);
+            groupBox4.Controls.Add(Cena);
+            groupBox4.Controls.Add(label13);
+            groupBox4.Controls.Add(buttonCena);
+            groupBox4.Controls.Add(Dodatek);
+            groupBox4.Controls.Add(label14);
+            groupBox4.Location = new System.Drawing.Point(306, 502);
+            groupBox4.Name = "groupBox4";
+            groupBox4.Size = new System.Drawing.Size(344, 216);
+            groupBox4.TabIndex = 102;
+            groupBox4.TabStop = false;
+            groupBox4.Text = "Rozliczenie";
+            // 
+            // pictureBox4
+            // 
+            pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
+            pictureBox4.Location = new System.Drawing.Point(6, 22);
+            pictureBox4.Name = "pictureBox4";
+            pictureBox4.Size = new System.Drawing.Size(82, 47);
+            pictureBox4.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox4.TabIndex = 103;
+            pictureBox4.TabStop = false;
+            // 
+            // Cena
+            // 
+            Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cena.Location = new System.Drawing.Point(8, 106);
+            Cena.Name = "Cena";
+            Cena.Size = new System.Drawing.Size(50, 25);
+            Cena.TabIndex = 26;
+            Cena.TextAlign = HorizontalAlignment.Center;
+            Cena.TextChanged += Cena_TextChanged;
+            // 
+            // label13
+            // 
+            label13.Location = new System.Drawing.Point(8, 85);
+            label13.Name = "label13";
+            label13.Size = new System.Drawing.Size(50, 17);
+            label13.TabIndex = 25;
+            label13.Text = "Cena";
+            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // buttonCena
+            // 
+            buttonCena.BackColor = System.Drawing.Color.Chartreuse;
+            buttonCena.Location = new System.Drawing.Point(142, 149);
+            buttonCena.Name = "buttonCena";
+            buttonCena.Size = new System.Drawing.Size(110, 23);
+            buttonCena.TabIndex = 107;
+            buttonCena.Text = "Dodaj cene";
+            buttonCena.UseVisualStyleBackColor = false;
+            buttonCena.Click += buttonCena_Click;
+            // 
+            // Dodatek
+            // 
+            Dodatek.BackColor = System.Drawing.SystemColors.ScrollBar;
+            Dodatek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Dodatek.Location = new System.Drawing.Point(64, 106);
+            Dodatek.Name = "Dodatek";
+            Dodatek.Size = new System.Drawing.Size(62, 25);
+            Dodatek.TabIndex = 24;
+            Dodatek.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label14
+            // 
+            label14.Location = new System.Drawing.Point(64, 69);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(62, 34);
+            label14.TabIndex = 23;
+            label14.Text = "Dodatek do ceny";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // Email
+            // 
+            Email.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Email.Location = new System.Drawing.Point(656, 457);
+            Email.Name = "Email";
+            Email.Size = new System.Drawing.Size(267, 25);
+            Email.TabIndex = 102;
+            Email.TextAlign = HorizontalAlignment.Center;
+            // 
+            // Uwagi
+            // 
+            Uwagi.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Uwagi.Location = new System.Drawing.Point(78, 502);
+            Uwagi.Multiline = true;
+            Uwagi.Name = "Uwagi";
+            Uwagi.Size = new System.Drawing.Size(222, 216);
+            Uwagi.TabIndex = 28;
+            Uwagi.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label36
+            // 
+            label36.Location = new System.Drawing.Point(656, 440);
+            label36.Name = "label36";
+            label36.Size = new System.Drawing.Size(267, 18);
+            label36.TabIndex = 103;
+            label36.Text = "Email";
+            label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lalv
+            // 
+            lalv.Location = new System.Drawing.Point(570, 11);
+            lalv.Name = "lalv";
+            lalv.Size = new System.Drawing.Size(97, 21);
+            lalv.TabIndex = 101;
+            lalv.Text = "Kto stworzył";
+            lalv.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // tel1
+            // 
+            tel1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel1.Location = new System.Drawing.Point(656, 357);
+            tel1.Name = "tel1";
+            tel1.Size = new System.Drawing.Size(98, 25);
+            tel1.TabIndex = 63;
+            tel1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // groupBox3
+            // 
+            groupBox3.BackColor = System.Drawing.Color.LightYellow;
+            groupBox3.BackgroundImageLayout = ImageLayout.Stretch;
+            groupBox3.Controls.Add(dataWstawienia);
+            groupBox3.Controls.Add(label41);
+            groupBox3.Controls.Add(textBox5);
+            groupBox3.Controls.Add(label37);
+            groupBox3.Controls.Add(textboxObecnaDoba);
+            groupBox3.Controls.Add(label34);
+            groupBox3.Controls.Add(pictureBox3);
+            groupBox3.Controls.Add(label35);
+            groupBox3.Controls.Add(DataGridWstawienia);
+            groupBox3.Controls.Add(LpWstawienia);
+            groupBox3.Controls.Add(sztukiWstawienia);
+            groupBox3.Controls.Add(label19);
+            groupBox3.FlatStyle = FlatStyle.Flat;
+            groupBox3.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            groupBox3.Location = new System.Drawing.Point(6, 172);
+            groupBox3.Name = "groupBox3";
+            groupBox3.Size = new System.Drawing.Size(928, 156);
+            groupBox3.TabIndex = 96;
+            groupBox3.TabStop = false;
+            groupBox3.Text = "Wstawienie";
+            // 
+            // dataWstawienia
+            // 
+            dataWstawienia.CustomFormat = "yyyy-MM-dd";
+            dataWstawienia.Format = DateTimePickerFormat.Custom;
+            dataWstawienia.Location = new System.Drawing.Point(94, 48);
+            dataWstawienia.Name = "dataWstawienia";
+            dataWstawienia.Size = new System.Drawing.Size(66, 18);
+            dataWstawienia.TabIndex = 108;
+            dataWstawienia.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
+            dataWstawienia.ValueChanged += dataWstawienia_ValueChanged;
+            // 
+            // label41
+            // 
+            label41.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label41.Location = new System.Drawing.Point(377, 69);
+            label41.Name = "label41";
+            label41.Size = new System.Drawing.Size(170, 18);
+            label41.TabIndex = 107;
+            label41.Text = "Notatka wstawienia";
+            label41.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox5
+            // 
+            textBox5.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox5.Location = new System.Drawing.Point(375, 90);
+            textBox5.Multiline = true;
+            textBox5.Name = "textBox5";
+            textBox5.Size = new System.Drawing.Size(172, 60);
+            textBox5.TabIndex = 106;
+            textBox5.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label37
+            // 
+            label37.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label37.Location = new System.Drawing.Point(134, 71);
+            label37.Name = "label37";
+            label37.Size = new System.Drawing.Size(53, 26);
+            label37.TabIndex = 105;
+            label37.Text = "Obecna Doba";
+            label37.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // textboxObecnaDoba
+            // 
+            textboxObecnaDoba.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textboxObecnaDoba.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textboxObecnaDoba.Location = new System.Drawing.Point(94, 72);
+            textboxObecnaDoba.Name = "textboxObecnaDoba";
+            textboxObecnaDoba.Size = new System.Drawing.Size(34, 22);
+            textboxObecnaDoba.TabIndex = 104;
+            textboxObecnaDoba.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label34
+            // 
+            label34.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label34.Location = new System.Drawing.Point(6, 103);
+            label34.Name = "label34";
+            label34.Size = new System.Drawing.Size(76, 26);
+            label34.TabIndex = 96;
+            label34.Text = "Identyfikator wstawienia";
+            label34.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // pictureBox3
+            // 
+            pictureBox3.Image = (System.Drawing.Image)resources.GetObject("pictureBox3.Image");
+            pictureBox3.Location = new System.Drawing.Point(6, 27);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new System.Drawing.Size(66, 60);
+            pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 102;
+            pictureBox3.TabStop = false;
+            // 
+            // label35
+            // 
+            label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label35.Location = new System.Drawing.Point(166, 17);
+            label35.Name = "label35";
+            label35.Size = new System.Drawing.Size(64, 28);
+            label35.TabIndex = 97;
+            label35.Text = "Ilość szt wstawiona";
+            label35.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // DataGridWstawienia
+            // 
+            DataGridWstawienia.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            DataGridWstawienia.Location = new System.Drawing.Point(553, 10);
+            DataGridWstawienia.Name = "DataGridWstawienia";
+            DataGridWstawienia.RowTemplate.Height = 25;
+            DataGridWstawienia.Size = new System.Drawing.Size(345, 140);
+            DataGridWstawienia.TabIndex = 95;
+            // 
+            // LpWstawienia
+            // 
+            LpWstawienia.FormattingEnabled = true;
+            LpWstawienia.Location = new System.Drawing.Point(6, 130);
+            LpWstawienia.Name = "LpWstawienia";
+            LpWstawienia.Size = new System.Drawing.Size(76, 20);
+            LpWstawienia.TabIndex = 54;
+            LpWstawienia.SelectedIndexChanged += LpWstawienia_SelectedIndexChanged;
+            // 
+            // sztukiWstawienia
+            // 
+            sztukiWstawienia.BackColor = System.Drawing.SystemColors.ScrollBar;
+            sztukiWstawienia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukiWstawienia.Location = new System.Drawing.Point(166, 48);
+            sztukiWstawienia.Multiline = true;
+            sztukiWstawienia.Name = "sztukiWstawienia";
+            sztukiWstawienia.Size = new System.Drawing.Size(64, 20);
+            sztukiWstawienia.TabIndex = 56;
+            sztukiWstawienia.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label19
+            // 
+            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label19.Location = new System.Drawing.Point(94, 15);
+            label19.Name = "label19";
+            label19.Size = new System.Drawing.Size(66, 30);
+            label19.TabIndex = 31;
+            label19.Text = "Data \r\nWstawienia";
+            label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label29
+            // 
+            label29.Location = new System.Drawing.Point(787, 11);
+            label29.Name = "label29";
+            label29.Size = new System.Drawing.Size(97, 21);
+            label29.TabIndex = 83;
+            label29.Text = "Kto modyfikował";
+            label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // info1
+            // 
+            info1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info1.Location = new System.Drawing.Point(760, 356);
+            info1.Name = "info1";
+            info1.Size = new System.Drawing.Size(163, 25);
+            info1.TabIndex = 66;
+            info1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // ktoStwo
+            // 
+            ktoStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
+            ktoStwo.Location = new System.Drawing.Point(570, 31);
+            ktoStwo.Name = "ktoStwo";
+            ktoStwo.Size = new System.Drawing.Size(97, 23);
+            ktoStwo.TabIndex = 100;
+            ktoStwo.TextAlign = HorizontalAlignment.Center;
+            // 
+            // ktoMod
+            // 
+            ktoMod.BackColor = System.Drawing.SystemColors.ScrollBar;
+            ktoMod.Location = new System.Drawing.Point(787, 31);
+            ktoMod.Name = "ktoMod";
+            ktoMod.Size = new System.Drawing.Size(97, 23);
+            ktoMod.TabIndex = 82;
+            ktoMod.TextAlign = HorizontalAlignment.Center;
+            // 
+            // tel2
+            // 
+            tel2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel2.Location = new System.Drawing.Point(656, 384);
+            tel2.Name = "tel2";
+            tel2.Size = new System.Drawing.Size(98, 25);
+            tel2.TabIndex = 64;
+            tel2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label25
+            // 
+            label25.Location = new System.Drawing.Point(673, 11);
+            label25.Name = "label25";
+            label25.Size = new System.Drawing.Size(108, 21);
+            label25.TabIndex = 81;
+            label25.Text = "Data modyfikacji";
+            label25.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label24
+            // 
+            label24.Location = new System.Drawing.Point(456, 11);
+            label24.Name = "label24";
+            label24.Size = new System.Drawing.Size(108, 21);
+            label24.TabIndex = 80;
+            label24.Text = "Data stworzenia";
+            label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // info2
+            // 
+            info2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info2.Location = new System.Drawing.Point(760, 384);
+            info2.Name = "info2";
+            info2.Size = new System.Drawing.Size(163, 25);
+            info2.TabIndex = 67;
+            info2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataMod
+            // 
+            dataMod.BackColor = System.Drawing.SystemColors.ScrollBar;
+            dataMod.Location = new System.Drawing.Point(673, 31);
+            dataMod.Name = "dataMod";
+            dataMod.Size = new System.Drawing.Size(108, 23);
+            dataMod.TabIndex = 79;
+            dataMod.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataStwo
+            // 
+            dataStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
+            dataStwo.Location = new System.Drawing.Point(456, 31);
+            dataStwo.Name = "dataStwo";
+            dataStwo.Size = new System.Drawing.Size(108, 23);
+            dataStwo.TabIndex = 78;
+            dataStwo.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label27
+            // 
+            label27.Location = new System.Drawing.Point(760, 336);
+            label27.Name = "label27";
+            label27.Size = new System.Drawing.Size(163, 18);
+            label27.TabIndex = 70;
+            label27.Text = "Osoba";
+            label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // TypUmowy
+            // 
+            TypUmowy.FormattingEnabled = true;
+            TypUmowy.Location = new System.Drawing.Point(156, 31);
+            TypUmowy.Name = "TypUmowy";
+            TypUmowy.Size = new System.Drawing.Size(144, 23);
+            TypUmowy.TabIndex = 77;
+            // 
+            // label17
+            // 
+            label17.Location = new System.Drawing.Point(156, 11);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(144, 21);
+            label17.TabIndex = 76;
+            label17.Text = "Typ umowy";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // tel3
+            // 
+            tel3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel3.Location = new System.Drawing.Point(656, 412);
+            tel3.Name = "tel3";
+            tel3.Size = new System.Drawing.Size(98, 25);
+            tel3.TabIndex = 65;
+            tel3.TextAlign = HorizontalAlignment.Center;
+            // 
+            // TypCeny
+            // 
+            TypCeny.FormattingEnabled = true;
+            TypCeny.Location = new System.Drawing.Point(306, 31);
+            TypCeny.Name = "TypCeny";
+            TypCeny.Size = new System.Drawing.Size(144, 23);
+            TypCeny.TabIndex = 75;
+            // 
+            // Status
+            // 
+            Status.FormattingEnabled = true;
+            Status.Location = new System.Drawing.Point(6, 31);
+            Status.Name = "Status";
+            Status.Size = new System.Drawing.Size(144, 23);
+            Status.TabIndex = 73;
+            // 
+            // info3
+            // 
+            info3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info3.Location = new System.Drawing.Point(760, 412);
+            info3.Name = "info3";
+            info3.Size = new System.Drawing.Size(163, 25);
+            info3.TabIndex = 68;
+            info3.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label2
+            // 
+            label2.Location = new System.Drawing.Point(6, 17);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(144, 15);
+            label2.TabIndex = 72;
+            label2.Text = "Status";
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // tablicaHodowca
+            // 
+            tablicaHodowca.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            tablicaHodowca.Controls.Add(pictureBox1);
+            tablicaHodowca.Controls.Add(label7);
+            tablicaHodowca.Controls.Add(Kurnik);
+            tablicaHodowca.Controls.Add(KmK);
+            tablicaHodowca.Controls.Add(Dostawca);
+            tablicaHodowca.Controls.Add(KmH);
+            tablicaHodowca.Controls.Add(MiejscK);
+            tablicaHodowca.Controls.Add(label1);
+            tablicaHodowca.Controls.Add(label6);
+            tablicaHodowca.Controls.Add(MiejscH);
+            tablicaHodowca.Controls.Add(KodPocztowyK);
+            tablicaHodowca.Controls.Add(label3);
+            tablicaHodowca.Controls.Add(UlicaK);
+            tablicaHodowca.Controls.Add(label5);
+            tablicaHodowca.Controls.Add(KodPocztowyH);
+            tablicaHodowca.Controls.Add(UlicaH);
+            tablicaHodowca.Controls.Add(label4);
+            tablicaHodowca.Location = new System.Drawing.Point(6, 79);
+            tablicaHodowca.Name = "tablicaHodowca";
+            tablicaHodowca.RightToLeft = RightToLeft.No;
+            tablicaHodowca.Size = new System.Drawing.Size(928, 87);
+            tablicaHodowca.TabIndex = 71;
+            tablicaHodowca.TabStop = false;
+            tablicaHodowca.Text = "Dane Hodowcy";
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.Image = (System.Drawing.Image)resources.GetObject("pictureBox1.Image");
+            pictureBox1.Location = new System.Drawing.Point(6, 22);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(66, 58);
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 101;
+            pictureBox1.TabStop = false;
+            // 
+            // label7
+            // 
+            label7.Location = new System.Drawing.Point(86, 60);
+            label7.Name = "label7";
+            label7.Size = new System.Drawing.Size(66, 20);
+            label7.TabIndex = 16;
+            label7.Text = "Kurnik";
+            label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // Kurnik
+            // 
+            Kurnik.DropDownHeight = 300;
+            Kurnik.DropDownWidth = 200;
+            Kurnik.FormattingEnabled = true;
+            Kurnik.IntegralHeight = false;
+            Kurnik.Location = new System.Drawing.Point(158, 57);
+            Kurnik.Name = "Kurnik";
+            Kurnik.Size = new System.Drawing.Size(268, 23);
+            Kurnik.TabIndex = 0;
+            Kurnik.SelectedIndexChanged += Kurnik_SelectedIndexChanged;
+            // 
+            // KmK
+            // 
+            KmK.Location = new System.Drawing.Point(827, 57);
+            KmK.Name = "KmK";
+            KmK.Size = new System.Drawing.Size(43, 23);
+            KmK.TabIndex = 15;
+            KmK.TextAlign = HorizontalAlignment.Center;
+            // 
+            // Dostawca
+            // 
+            Dostawca.DropDownHeight = 300;
+            Dostawca.DropDownWidth = 200;
+            Dostawca.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Dostawca.FormattingEnabled = true;
+            Dostawca.IntegralHeight = false;
+            Dostawca.Location = new System.Drawing.Point(158, 31);
+            Dostawca.Name = "Dostawca";
+            Dostawca.Size = new System.Drawing.Size(268, 23);
+            Dostawca.TabIndex = 0;
+            Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
+            // 
+            // KmH
+            // 
+            KmH.Location = new System.Drawing.Point(827, 31);
+            KmH.Name = "KmH";
+            KmH.Size = new System.Drawing.Size(43, 23);
+            KmH.TabIndex = 15;
+            KmH.TextAlign = HorizontalAlignment.Center;
+            // 
+            // MiejscK
+            // 
+            MiejscK.Location = new System.Drawing.Point(677, 57);
+            MiejscK.Name = "MiejscK";
+            MiejscK.Size = new System.Drawing.Size(144, 23);
+            MiejscK.TabIndex = 13;
+            MiejscK.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label1
+            // 
+            label1.Location = new System.Drawing.Point(94, 31);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(58, 20);
+            label1.TabIndex = 1;
+            label1.Text = "Dostawca";
+            label1.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label6
+            // 
+            label6.Location = new System.Drawing.Point(827, 10);
+            label6.Name = "label6";
+            label6.Size = new System.Drawing.Size(43, 15);
+            label6.TabIndex = 14;
+            label6.Text = "KM";
+            label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // MiejscH
+            // 
+            MiejscH.Location = new System.Drawing.Point(677, 31);
+            MiejscH.Name = "MiejscH";
+            MiejscH.Size = new System.Drawing.Size(144, 23);
+            MiejscH.TabIndex = 13;
+            MiejscH.TextAlign = HorizontalAlignment.Center;
+            // 
+            // KodPocztowyK
+            // 
+            KodPocztowyK.Location = new System.Drawing.Point(582, 57);
+            KodPocztowyK.Name = "KodPocztowyK";
+            KodPocztowyK.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyK.TabIndex = 11;
+            KodPocztowyK.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label3
+            // 
+            label3.Location = new System.Drawing.Point(432, 10);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(144, 15);
+            label3.TabIndex = 5;
+            label3.Text = "Ulica";
+            label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // UlicaK
+            // 
+            UlicaK.Location = new System.Drawing.Point(432, 57);
+            UlicaK.Name = "UlicaK";
+            UlicaK.Size = new System.Drawing.Size(144, 23);
+            UlicaK.TabIndex = 9;
+            UlicaK.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label5
+            // 
+            label5.Location = new System.Drawing.Point(677, 10);
+            label5.Name = "label5";
+            label5.Size = new System.Drawing.Size(144, 15);
+            label5.TabIndex = 12;
+            label5.Text = "Miejscowosc";
+            label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // KodPocztowyH
+            // 
+            KodPocztowyH.Location = new System.Drawing.Point(582, 31);
+            KodPocztowyH.Name = "KodPocztowyH";
+            KodPocztowyH.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyH.TabIndex = 11;
+            KodPocztowyH.TextAlign = HorizontalAlignment.Center;
+            // 
+            // UlicaH
+            // 
+            UlicaH.Location = new System.Drawing.Point(432, 31);
+            UlicaH.Name = "UlicaH";
+            UlicaH.Size = new System.Drawing.Size(144, 23);
+            UlicaH.TabIndex = 9;
+            UlicaH.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label4
+            // 
+            label4.Location = new System.Drawing.Point(582, 10);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(89, 15);
+            label4.TabIndex = 10;
+            label4.Text = "Kod-Pocztowy";
+            label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label26
+            // 
+            label26.Location = new System.Drawing.Point(656, 336);
+            label26.Name = "label26";
+            label26.Size = new System.Drawing.Size(98, 18);
+            label26.TabIndex = 69;
+            label26.Text = "Numer Telefonu";
+            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label16
+            // 
+            label16.Location = new System.Drawing.Point(306, 11);
+            label16.Name = "label16";
+            label16.Size = new System.Drawing.Size(144, 21);
+            label16.TabIndex = 74;
+            label16.Text = "Typ Ceny";
+            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // groupBox2
+            // 
+            groupBox2.BackColor = System.Drawing.Color.FloralWhite;
+            groupBox2.Controls.Add(pictureBox13);
+            groupBox2.Controls.Add(pictureBox12);
+            groupBox2.Controls.Add(pictureBox11);
+            groupBox2.Controls.Add(pictureBox10);
+            groupBox2.Controls.Add(pictureBox9);
+            groupBox2.Controls.Add(pictureBox8);
+            groupBox2.Controls.Add(pictureBox7);
+            groupBox2.Controls.Add(label18);
+            groupBox2.Controls.Add(pictureBox2);
+            groupBox2.Controls.Add(label23);
+            groupBox2.Controls.Add(wyliczone);
+            groupBox2.Controls.Add(ObliczAuta);
+            groupBox2.Controls.Add(Ubytek);
+            groupBox2.Controls.Add(label15);
+            groupBox2.Controls.Add(obliczeniaAut);
+            groupBox2.Controls.Add(RoznicaDni);
+            groupBox2.Controls.Add(liczbaAut);
+            groupBox2.Controls.Add(label12);
+            groupBox2.Controls.Add(KGwSkrzynce);
+            groupBox2.Controls.Add(sztuki);
+            groupBox2.Controls.Add(label11);
+            groupBox2.Controls.Add(sztukNaSzuflade);
+            groupBox2.Controls.Add(label10);
+            groupBox2.Controls.Add(srednia);
+            groupBox2.Controls.Add(label9);
+            groupBox2.Controls.Add(label8);
+            groupBox2.Controls.Add(Data);
+            groupBox2.Location = new System.Drawing.Point(6, 334);
+            groupBox2.Name = "groupBox2";
+            groupBox2.RightToLeft = RightToLeft.No;
+            groupBox2.Size = new System.Drawing.Size(576, 162);
+            groupBox2.TabIndex = 25;
+            groupBox2.TabStop = false;
+            groupBox2.Text = "Dane Dostawy";
+            // 
+            // pictureBox13
+            // 
+            pictureBox13.Image = (System.Drawing.Image)resources.GetObject("pictureBox13.Image");
+            pictureBox13.Location = new System.Drawing.Point(94, 77);
+            pictureBox13.Name = "pictureBox13";
+            pictureBox13.Size = new System.Drawing.Size(89, 29);
+            pictureBox13.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox13.TabIndex = 112;
+            pictureBox13.TabStop = false;
+            // 
+            // pictureBox12
+            // 
+            pictureBox12.Image = (System.Drawing.Image)resources.GetObject("pictureBox12.Image");
+            pictureBox12.Location = new System.Drawing.Point(513, 76);
+            pictureBox12.Name = "pictureBox12";
+            pictureBox12.Size = new System.Drawing.Size(45, 29);
+            pictureBox12.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox12.TabIndex = 111;
+            pictureBox12.TabStop = false;
+            // 
+            // pictureBox11
+            // 
+            pictureBox11.Image = (System.Drawing.Image)resources.GetObject("pictureBox11.Image");
+            pictureBox11.Location = new System.Drawing.Point(442, 76);
+            pictureBox11.Name = "pictureBox11";
+            pictureBox11.Size = new System.Drawing.Size(62, 29);
+            pictureBox11.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox11.TabIndex = 110;
+            pictureBox11.TabStop = false;
+            // 
+            // pictureBox10
+            // 
+            pictureBox10.Image = (System.Drawing.Image)resources.GetObject("pictureBox10.Image");
+            pictureBox10.Location = new System.Drawing.Point(378, 77);
+            pictureBox10.Name = "pictureBox10";
+            pictureBox10.Size = new System.Drawing.Size(58, 29);
+            pictureBox10.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox10.TabIndex = 109;
+            pictureBox10.TabStop = false;
+            // 
+            // pictureBox9
+            // 
+            pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
+            pictureBox9.Location = new System.Drawing.Point(315, 77);
+            pictureBox9.Name = "pictureBox9";
+            pictureBox9.Size = new System.Drawing.Size(58, 29);
+            pictureBox9.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox9.TabIndex = 108;
+            pictureBox9.TabStop = false;
+            // 
+            // pictureBox8
+            // 
+            pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
+            pictureBox8.Location = new System.Drawing.Point(253, 76);
+            pictureBox8.Name = "pictureBox8";
+            pictureBox8.Size = new System.Drawing.Size(58, 29);
+            pictureBox8.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox8.TabIndex = 107;
+            pictureBox8.TabStop = false;
+            // 
+            // pictureBox7
+            // 
+            pictureBox7.Image = (System.Drawing.Image)resources.GetObject("pictureBox7.Image");
+            pictureBox7.Location = new System.Drawing.Point(189, 76);
+            pictureBox7.Name = "pictureBox7";
+            pictureBox7.Size = new System.Drawing.Size(58, 29);
+            pictureBox7.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox7.TabIndex = 106;
+            pictureBox7.TabStop = false;
+            // 
+            // label18
+            // 
+            label18.Location = new System.Drawing.Point(128, 111);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(37, 22);
+            label18.TabIndex = 103;
+            label18.Text = "Doba";
+            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
+            pictureBox2.Location = new System.Drawing.Point(6, 22);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(82, 73);
+            pictureBox2.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox2.TabIndex = 102;
+            pictureBox2.TabStop = false;
+            // 
+            // label23
+            // 
+            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label23.Location = new System.Drawing.Point(316, 11);
+            label23.Name = "label23";
+            label23.Size = new System.Drawing.Size(57, 35);
+            label23.TabIndex = 38;
+            label23.Text = "Waga skrzynki";
+            label23.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // wyliczone
+            // 
+            wyliczone.BackColor = System.Drawing.SystemColors.ScrollBar;
+            wyliczone.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            wyliczone.Location = new System.Drawing.Point(442, 131);
+            wyliczone.Name = "wyliczone";
+            wyliczone.Size = new System.Drawing.Size(62, 25);
+            wyliczone.TabIndex = 44;
+            wyliczone.TextAlign = HorizontalAlignment.Center;
+            // 
+            // ObliczAuta
+            // 
+            ObliczAuta.Location = new System.Drawing.Point(442, 106);
+            ObliczAuta.Name = "ObliczAuta";
+            ObliczAuta.Size = new System.Drawing.Size(62, 23);
+            ObliczAuta.TabIndex = 27;
+            ObliczAuta.Text = "Oblicz";
+            ObliczAuta.UseVisualStyleBackColor = true;
+            ObliczAuta.Click += ObliczAuta_Click;
+            // 
+            // Ubytek
+            // 
+            Ubytek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Ubytek.Location = new System.Drawing.Point(379, 49);
+            Ubytek.Name = "Ubytek";
+            Ubytek.Size = new System.Drawing.Size(57, 25);
+            Ubytek.TabIndex = 22;
+            Ubytek.TextAlign = HorizontalAlignment.Center;
+            Ubytek.TextChanged += Ubytek_TextChanged;
+            // 
+            // label15
+            // 
+            label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label15.Location = new System.Drawing.Point(379, 11);
+            label15.Name = "label15";
+            label15.Size = new System.Drawing.Size(57, 35);
+            label15.TabIndex = 21;
+            label15.Text = "Ubytek %";
+            label15.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // obliczeniaAut
+            // 
+            obliczeniaAut.BackColor = System.Drawing.SystemColors.ScrollBar;
+            obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obliczeniaAut.Location = new System.Drawing.Point(513, 108);
+            obliczeniaAut.Multiline = true;
+            obliczeniaAut.Name = "obliczeniaAut";
+            obliczeniaAut.Size = new System.Drawing.Size(45, 21);
+            obliczeniaAut.TabIndex = 27;
+            obliczeniaAut.TextAlign = HorizontalAlignment.Center;
+            // 
+            // RoznicaDni
+            // 
+            RoznicaDni.BackColor = System.Drawing.SystemColors.ScrollBar;
+            RoznicaDni.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            RoznicaDni.Location = new System.Drawing.Point(94, 111);
+            RoznicaDni.Name = "RoznicaDni";
+            RoznicaDni.Size = new System.Drawing.Size(34, 22);
+            RoznicaDni.TabIndex = 29;
+            RoznicaDni.TextAlign = HorizontalAlignment.Center;
+            // 
+            // liczbaAut
+            // 
+            liczbaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            liczbaAut.Location = new System.Drawing.Point(513, 49);
+            liczbaAut.Name = "liczbaAut";
+            liczbaAut.Size = new System.Drawing.Size(45, 25);
+            liczbaAut.TabIndex = 26;
+            liczbaAut.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label12
+            // 
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label12.Location = new System.Drawing.Point(513, 11);
+            label12.Name = "label12";
+            label12.Size = new System.Drawing.Size(45, 35);
+            label12.TabIndex = 25;
+            label12.Text = "Ilość aut";
+            label12.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // KGwSkrzynce
+            // 
+            KGwSkrzynce.BackColor = System.Drawing.SystemColors.ScrollBar;
+            KGwSkrzynce.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwSkrzynce.Location = new System.Drawing.Point(316, 49);
+            KGwSkrzynce.Name = "KGwSkrzynce";
+            KGwSkrzynce.Size = new System.Drawing.Size(57, 25);
+            KGwSkrzynce.TabIndex = 29;
+            KGwSkrzynce.TextAlign = HorizontalAlignment.Center;
+            // 
+            // sztuki
+            // 
+            sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztuki.Location = new System.Drawing.Point(442, 49);
+            sztuki.Name = "sztuki";
+            sztuki.Size = new System.Drawing.Size(62, 25);
+            sztuki.TabIndex = 24;
+            sztuki.TextAlign = HorizontalAlignment.Center;
+            sztuki.TextChanged += sztuki_TextChanged;
+            // 
+            // label11
+            // 
+            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label11.Location = new System.Drawing.Point(442, 17);
+            label11.Name = "label11";
+            label11.Size = new System.Drawing.Size(62, 28);
+            label11.TabIndex = 23;
+            label11.Text = "Dek.\r\nSztuki\r\n";
+            label11.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // sztukNaSzuflade
+            // 
+            sztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukNaSzuflade.Location = new System.Drawing.Point(253, 49);
+            sztukNaSzuflade.Name = "sztukNaSzuflade";
+            sztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
+            sztukNaSzuflade.TabIndex = 22;
+            sztukNaSzuflade.TextAlign = HorizontalAlignment.Center;
+            sztukNaSzuflade.TextChanged += sztukNaSzuflade_TextChanged;
+            // 
+            // label10
+            // 
+            label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label10.Location = new System.Drawing.Point(253, 11);
+            label10.Name = "label10";
+            label10.Size = new System.Drawing.Size(57, 35);
+            label10.TabIndex = 21;
+            label10.Text = "Sztuki na szuflade";
+            label10.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // srednia
+            // 
+            srednia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            srednia.Location = new System.Drawing.Point(189, 50);
+            srednia.Name = "srednia";
+            srednia.Size = new System.Drawing.Size(58, 25);
+            srednia.TabIndex = 20;
+            srednia.TextAlign = HorizontalAlignment.Center;
+            srednia.TextChanged += srednia_TextChanged;
+            // 
+            // label9
+            // 
+            label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label9.Location = new System.Drawing.Point(189, 14);
+            label9.Name = "label9";
+            label9.Size = new System.Drawing.Size(58, 33);
+            label9.TabIndex = 19;
+            label9.Text = "Waga";
+            label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label8
+            // 
+            label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label8.Location = new System.Drawing.Point(94, 13);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(89, 34);
+            label8.TabIndex = 18;
+            label8.Text = "Data \r\nDostawy";
+            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // Data
+            // 
+            Data.CustomFormat = "yyyy-MM-dd";
+            Data.Format = DateTimePickerFormat.Custom;
+            Data.Location = new System.Drawing.Point(94, 52);
+            Data.Name = "Data";
+            Data.Size = new System.Drawing.Size(89, 23);
+            Data.TabIndex = 17;
+            Data.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
+            Data.ValueChanged += Data_ValueChanged;
+            // 
+            // label20
+            // 
+            label20.Location = new System.Drawing.Point(1643, 270);
+            label20.Name = "label20";
+            label20.Size = new System.Drawing.Size(100, 33);
+            label20.TabIndex = 75;
+            label20.Text = "Zalogowany Użytkownik";
+            label20.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label21
+            // 
+            label21.Location = new System.Drawing.Point(292, 152);
+            label21.Name = "label21";
+            label21.Size = new System.Drawing.Size(50, 15);
+            label21.TabIndex = 76;
+            label21.Text = "Tydzień";
+            label21.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // comboBox3
+            // 
+            comboBox3.FormattingEnabled = true;
+            comboBox3.Location = new System.Drawing.Point(1699, 823);
+            comboBox3.Name = "comboBox3";
+            comboBox3.Size = new System.Drawing.Size(65, 23);
+            comboBox3.TabIndex = 78;
+            // 
+            // textBox12
+            // 
+            textBox12.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox12.Location = new System.Drawing.Point(1672, 766);
+            textBox12.Name = "textBox12";
+            textBox12.Size = new System.Drawing.Size(57, 25);
+            textBox12.TabIndex = 86;
+            textBox12.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CalcSztukNaSzuflade
+            // 
+            CalcSztukNaSzuflade.BackColor = System.Drawing.SystemColors.ScrollBar;
+            CalcSztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CalcSztukNaSzuflade.Location = new System.Drawing.Point(1672, 797);
+            CalcSztukNaSzuflade.Name = "CalcSztukNaSzuflade";
+            CalcSztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
+            CalcSztukNaSzuflade.TabIndex = 79;
+            CalcSztukNaSzuflade.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label30
+            // 
+            label30.Location = new System.Drawing.Point(1672, 825);
+            label30.Name = "label30";
+            label30.Size = new System.Drawing.Size(58, 35);
+            label30.TabIndex = 85;
+            label30.Text = "Ilość szt w poj.";
+            label30.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label31
+            // 
+            label31.Location = new System.Drawing.Point(1672, 900);
+            label31.Name = "label31";
+            label31.Size = new System.Drawing.Size(58, 35);
+            label31.TabIndex = 84;
+            label31.Text = "Waga tuszki";
+            label31.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox13
+            // 
+            textBox13.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox13.Location = new System.Drawing.Point(1673, 701);
+            textBox13.Name = "textBox13";
+            textBox13.Size = new System.Drawing.Size(57, 25);
+            textBox13.TabIndex = 83;
+            textBox13.TextAlign = HorizontalAlignment.Center;
+            // 
+            // iloscPoj
+            // 
+            iloscPoj.BackColor = System.Drawing.SystemColors.ScrollBar;
+            iloscPoj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            iloscPoj.Location = new System.Drawing.Point(1672, 863);
+            iloscPoj.Name = "iloscPoj";
+            iloscPoj.Size = new System.Drawing.Size(57, 25);
+            iloscPoj.TabIndex = 82;
+            iloscPoj.TextAlign = HorizontalAlignment.Center;
+            // 
+            // WagaTuszki
+            // 
+            WagaTuszki.BackColor = System.Drawing.SystemColors.ScrollBar;
+            WagaTuszki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            WagaTuszki.Location = new System.Drawing.Point(1673, 938);
+            WagaTuszki.Name = "WagaTuszki";
+            WagaTuszki.Size = new System.Drawing.Size(57, 25);
+            WagaTuszki.TabIndex = 81;
+            WagaTuszki.TextAlign = HorizontalAlignment.Center;
+            // 
+            // WagaDni
+            // 
+            WagaDni.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            WagaDni.Location = new System.Drawing.Point(1673, 729);
+            WagaDni.Name = "WagaDni";
+            WagaDni.Size = new System.Drawing.Size(57, 25);
+            WagaDni.TabIndex = 80;
+            WagaDni.TextAlign = HorizontalAlignment.Center;
+            // 
+            // sztukiPelne
+            // 
+            sztukiPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukiPelne.Location = new System.Drawing.Point(1678, 646);
+            sztukiPelne.Name = "sztukiPelne";
+            sztukiPelne.Size = new System.Drawing.Size(35, 25);
+            sztukiPelne.TabIndex = 55;
+            sztukiPelne.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataUbiorka
+            // 
+            dataUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dataUbiorka.Location = new System.Drawing.Point(1643, 969);
+            dataUbiorka.Name = "dataUbiorka";
+            dataUbiorka.Size = new System.Drawing.Size(86, 25);
+            dataUbiorka.TabIndex = 57;
+            dataUbiorka.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataPelne
+            // 
+            dataPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dataPelne.Location = new System.Drawing.Point(1673, 670);
+            dataPelne.Name = "dataPelne";
+            dataPelne.Size = new System.Drawing.Size(40, 25);
+            dataPelne.TabIndex = 58;
+            dataPelne.TextAlign = HorizontalAlignment.Center;
+            // 
+            // SztukiUbiorka
+            // 
+            SztukiUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SztukiUbiorka.Location = new System.Drawing.Point(1664, 615);
+            SztukiUbiorka.Name = "SztukiUbiorka";
+            SztukiUbiorka.Size = new System.Drawing.Size(65, 25);
+            SztukiUbiorka.TabIndex = 59;
+            SztukiUbiorka.TextAlign = HorizontalAlignment.Center;
             // 
             // HarmonogramDnia
             // 
             HarmonogramDnia.FormattingEnabled = true;
             HarmonogramDnia.ItemHeight = 15;
-            HarmonogramDnia.Location = new System.Drawing.Point(889, 328);
+            HarmonogramDnia.Location = new System.Drawing.Point(1558, 684);
             HarmonogramDnia.Name = "HarmonogramDnia";
-            HarmonogramDnia.Size = new System.Drawing.Size(731, 94);
-            HarmonogramDnia.TabIndex = 0;
+            HarmonogramDnia.Size = new System.Drawing.Size(405, 124);
+            HarmonogramDnia.TabIndex = 34;
             // 
-            // MyCalendar
+            // SumAutDzien
             // 
-            MyCalendar.Location = new System.Drawing.Point(794, 21);
-            MyCalendar.Name = "MyCalendar";
-            MyCalendar.TabIndex = 1;
-            MyCalendar.DateChanged += MyCalendar_DateChanged_1;
+            SumAutDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SumAutDzien.Location = new System.Drawing.Point(1558, 824);
+            SumAutDzien.Name = "SumAutDzien";
+            SumAutDzien.Size = new System.Drawing.Size(57, 25);
+            SumAutDzien.TabIndex = 44;
+            SumAutDzien.TextAlign = HorizontalAlignment.Center;
             // 
-            // Data
+            // SumaSztukDzien
             // 
-            Data.CustomFormat = "yyyy-MM-dd";
-            Data.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data.Location = new System.Drawing.Point(1361, 60);
-            Data.Name = "Data";
-            Data.Size = new System.Drawing.Size(89, 23);
-            Data.TabIndex = 18;
-            Data.Value = new DateTime(2024, 2, 12, 0, 0, 0, 0);
-            Data.ValueChanged += Data_ValueChanged_1;
+            SumaSztukDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SumaSztukDzien.Location = new System.Drawing.Point(1621, 824);
+            SumaSztukDzien.Name = "SumaSztukDzien";
+            SumaSztukDzien.Size = new System.Drawing.Size(57, 25);
+            SumaSztukDzien.TabIndex = 45;
+            SumaSztukDzien.TextAlign = HorizontalAlignment.Center;
             // 
-            // dataGridView1
+            // textBox10
             // 
-            dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { Datao, Dostawca, Auta, Sztuki, Waga, Status });
-            dataGridView1.Location = new System.Drawing.Point(5, 21);
-            dataGridView1.Name = "dataGridView1";
-            dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(777, 871);
-            dataGridView1.TabIndex = 19;
+            textBox10.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox10.Location = new System.Drawing.Point(1558, 855);
+            textBox10.Name = "textBox10";
+            textBox10.Size = new System.Drawing.Size(57, 25);
+            textBox10.TabIndex = 46;
+            textBox10.TextAlign = HorizontalAlignment.Center;
             // 
-            // Datao
+            // textBox11
             // 
-            Datao.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            Datao.FillWeight = 400F;
-            Datao.HeaderText = "Data";
-            Datao.Name = "Datao";
-            Datao.Width = 56;
+            textBox11.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox11.Location = new System.Drawing.Point(1621, 855);
+            textBox11.Name = "textBox11";
+            textBox11.Size = new System.Drawing.Size(57, 25);
+            textBox11.TabIndex = 47;
+            textBox11.TextAlign = HorizontalAlignment.Center;
             // 
-            // Dostawca
+            // checkBoxSprzedane
             // 
-            Dostawca.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            Dostawca.FillWeight = 400F;
-            Dostawca.HeaderText = "Dostawca";
-            Dostawca.Name = "Dostawca";
-            Dostawca.Width = 83;
+            checkBoxSprzedane.AutoSize = true;
+            checkBoxSprzedane.Location = new System.Drawing.Point(616, 118);
+            checkBoxSprzedane.Name = "checkBoxSprzedane";
+            checkBoxSprzedane.Size = new System.Drawing.Size(80, 19);
+            checkBoxSprzedane.TabIndex = 87;
+            checkBoxSprzedane.Text = "Sprzedane";
+            checkBoxSprzedane.UseVisualStyleBackColor = true;
             // 
-            // Auta
+            // checkBoxDoWykupienia
             // 
-            Auta.FillWeight = 30F;
-            Auta.HeaderText = "Auta";
-            Auta.Name = "Auta";
-            Auta.Width = 30;
+            checkBoxDoWykupienia.AutoSize = true;
+            checkBoxDoWykupienia.Location = new System.Drawing.Point(616, 151);
+            checkBoxDoWykupienia.Name = "checkBoxDoWykupienia";
+            checkBoxDoWykupienia.Size = new System.Drawing.Size(88, 19);
+            checkBoxDoWykupienia.TabIndex = 88;
+            checkBoxDoWykupienia.Text = "Wykupienia";
+            checkBoxDoWykupienia.UseVisualStyleBackColor = true;
             // 
-            // Sztuki
+            // label28
             // 
-            Sztuki.FillWeight = 70F;
-            Sztuki.HeaderText = "Sztuki";
-            Sztuki.Name = "Sztuki";
-            Sztuki.Width = 40;
+            label28.Location = new System.Drawing.Point(287, 66);
+            label28.Name = "label28";
+            label28.Size = new System.Drawing.Size(55, 19);
+            label28.TabIndex = 90;
+            label28.Text = "Kontrakt";
+            label28.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // Waga
+            // textBox1
             // 
-            Waga.FillWeight = 70F;
-            Waga.HeaderText = "Waga";
-            Waga.Name = "Waga";
-            Waga.Width = 40;
+            textBox1.Location = new System.Drawing.Point(346, 66);
+            textBox1.Multiline = true;
+            textBox1.Name = "textBox1";
+            textBox1.Size = new System.Drawing.Size(26, 19);
+            textBox1.TabIndex = 89;
             // 
-            // Status
+            // label32
             // 
-            Status.HeaderText = "Status";
-            Status.Name = "Status";
-            Status.Width = 150;
+            label32.Location = new System.Drawing.Point(300, 91);
+            label32.Name = "label32";
+            label32.Size = new System.Drawing.Size(42, 19);
+            label32.TabIndex = 92;
+            label32.Text = "Wolny";
+            label32.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox3
+            // 
+            textBox3.Location = new System.Drawing.Point(346, 91);
+            textBox3.Multiline = true;
+            textBox3.Name = "textBox3";
+            textBox3.Size = new System.Drawing.Size(26, 19);
+            textBox3.TabIndex = 91;
+            // 
+            // label33
+            // 
+            label33.Location = new System.Drawing.Point(303, 116);
+            label33.Name = "label33";
+            label33.Size = new System.Drawing.Size(39, 15);
+            label33.TabIndex = 94;
+            label33.Text = "Suma";
+            label33.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox4
+            // 
+            textBox4.Location = new System.Drawing.Point(346, 116);
+            textBox4.Multiline = true;
+            textBox4.Name = "textBox4";
+            textBox4.Size = new System.Drawing.Size(26, 19);
+            textBox4.TabIndex = 93;
+            // 
+            // CommandButton_Update
+            // 
+            CommandButton_Update.BackColor = System.Drawing.Color.FloralWhite;
+            CommandButton_Update.Location = new System.Drawing.Point(462, 5);
+            CommandButton_Update.Name = "CommandButton_Update";
+            CommandButton_Update.Size = new System.Drawing.Size(118, 23);
+            CommandButton_Update.TabIndex = 97;
+            CommandButton_Update.Text = "Modyfikuj dostawe";
+            CommandButton_Update.UseVisualStyleBackColor = false;
+            CommandButton_Update.Click += CommandButton_Update_Click;
+            // 
+            // button2
+            // 
+            button2.Location = new System.Drawing.Point(382, 5);
+            button2.Name = "button2";
+            button2.Size = new System.Drawing.Size(75, 23);
+            button2.TabIndex = 98;
+            button2.Text = "Anuluj";
+            button2.UseVisualStyleBackColor = true;
+            // 
+            // button3
+            // 
+            button3.BackColor = System.Drawing.SystemColors.ActiveCaptionText;
+            button3.ForeColor = System.Drawing.SystemColors.ControlLightLight;
+            button3.Location = new System.Drawing.Point(587, 32);
+            button3.Name = "button3";
+            button3.Size = new System.Drawing.Size(117, 23);
+            button3.TabIndex = 99;
+            button3.Text = "Usuń dostawe";
+            button3.UseVisualStyleBackColor = false;
+            // 
+            // CommandButton_Insert
+            // 
+            CommandButton_Insert.BackColor = System.Drawing.Color.FloralWhite;
+            CommandButton_Insert.Location = new System.Drawing.Point(462, 36);
+            CommandButton_Insert.Name = "CommandButton_Insert";
+            CommandButton_Insert.Size = new System.Drawing.Size(118, 23);
+            CommandButton_Insert.TabIndex = 100;
+            CommandButton_Insert.Text = "Dodaj dostawe";
+            CommandButton_Insert.UseVisualStyleBackColor = false;
+            CommandButton_Insert.Click += CommandButton_Insert_Click;
+            // 
+            // label38
+            // 
+            label38.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label38.Location = new System.Drawing.Point(115, 19);
+            label38.Name = "label38";
+            label38.Size = new System.Drawing.Size(50, 35);
+            label38.TabIndex = 106;
+            label38.Text = "Cena Łączona";
+            label38.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textLaczona
+            // 
+            textLaczona.Location = new System.Drawing.Point(115, 57);
+            textLaczona.Name = "textLaczona";
+            textLaczona.Size = new System.Drawing.Size(50, 23);
+            textLaczona.TabIndex = 105;
+            textLaczona.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label39
+            // 
+            label39.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label39.Location = new System.Drawing.Point(59, 19);
+            label39.Name = "label39";
+            label39.Size = new System.Drawing.Size(50, 35);
+            label39.TabIndex = 104;
+            label39.Text = "Cena Minister";
+            label39.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textMinister
+            // 
+            textMinister.Location = new System.Drawing.Point(59, 57);
+            textMinister.Name = "textMinister";
+            textMinister.Size = new System.Drawing.Size(50, 23);
+            textMinister.TabIndex = 103;
+            textMinister.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label40
+            // 
+            label40.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label40.Location = new System.Drawing.Point(3, 19);
+            label40.Name = "label40";
+            label40.Size = new System.Drawing.Size(51, 35);
+            label40.TabIndex = 102;
+            label40.Text = "Cena Rolnicza";
+            label40.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textRolnicza
+            // 
+            textRolnicza.Location = new System.Drawing.Point(3, 57);
+            textRolnicza.Name = "textRolnicza";
+            textRolnicza.Size = new System.Drawing.Size(50, 23);
+            textRolnicza.TabIndex = 101;
+            textRolnicza.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label42
+            // 
+            label42.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label42.Location = new System.Drawing.Point(171, 19);
+            label42.Name = "label42";
+            label42.Size = new System.Drawing.Size(50, 35);
+            label42.TabIndex = 109;
+            label42.Text = "Cena Tuszki";
+            label42.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textTuszki
+            // 
+            textTuszki.Location = new System.Drawing.Point(171, 57);
+            textTuszki.Name = "textTuszki";
+            textTuszki.Size = new System.Drawing.Size(50, 23);
+            textTuszki.TabIndex = 108;
+            textTuszki.TextAlign = HorizontalAlignment.Center;
+            // 
+            // groupBox5
+            // 
+            groupBox5.Controls.Add(buttonPokazTuszke);
+            groupBox5.Controls.Add(textRolniczaPrzebitka);
+            groupBox5.Controls.Add(label42);
+            groupBox5.Controls.Add(textMinisterPrzebitka);
+            groupBox5.Controls.Add(textLaczonaPrzebitka);
+            groupBox5.Controls.Add(textRolnicza);
+            groupBox5.Controls.Add(textTuszki);
+            groupBox5.Controls.Add(label40);
+            groupBox5.Controls.Add(textMinister);
+            groupBox5.Controls.Add(label38);
+            groupBox5.Controls.Add(label39);
+            groupBox5.Controls.Add(textLaczona);
+            groupBox5.Location = new System.Drawing.Point(382, 61);
+            groupBox5.Name = "groupBox5";
+            groupBox5.Size = new System.Drawing.Size(228, 110);
+            groupBox5.TabIndex = 110;
+            groupBox5.TabStop = false;
+            groupBox5.Text = "Ceny";
+            // 
+            // buttonPokazTuszke
+            // 
+            buttonPokazTuszke.Location = new System.Drawing.Point(171, 86);
+            buttonPokazTuszke.Name = "buttonPokazTuszke";
+            buttonPokazTuszke.Size = new System.Drawing.Size(50, 23);
+            buttonPokazTuszke.TabIndex = 112;
+            buttonPokazTuszke.Text = "Pokaz";
+            buttonPokazTuszke.UseVisualStyleBackColor = true;
+            buttonPokazTuszke.Click += buttonPokazTuszke_Click;
+            // 
+            // textRolniczaPrzebitka
+            // 
+            textRolniczaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textRolniczaPrzebitka.Location = new System.Drawing.Point(3, 86);
+            textRolniczaPrzebitka.Name = "textRolniczaPrzebitka";
+            textRolniczaPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textRolniczaPrzebitka.TabIndex = 112;
+            textRolniczaPrzebitka.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textMinisterPrzebitka
+            // 
+            textMinisterPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textMinisterPrzebitka.Location = new System.Drawing.Point(59, 86);
+            textMinisterPrzebitka.Name = "textMinisterPrzebitka";
+            textMinisterPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textMinisterPrzebitka.TabIndex = 113;
+            textMinisterPrzebitka.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textLaczonaPrzebitka
+            // 
+            textLaczonaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textLaczonaPrzebitka.Location = new System.Drawing.Point(115, 86);
+            textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
+            textLaczonaPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textLaczonaPrzebitka.TabIndex = 114;
+            textLaczonaPrzebitka.TextAlign = HorizontalAlignment.Center;
+            // 
+            // buttonWstawienie
+            // 
+            buttonWstawienie.BackColor = System.Drawing.Color.Yellow;
+            buttonWstawienie.Location = new System.Drawing.Point(586, 5);
+            buttonWstawienie.Name = "buttonWstawienie";
+            buttonWstawienie.Size = new System.Drawing.Size(118, 23);
+            buttonWstawienie.TabIndex = 112;
+            buttonWstawienie.Text = "Dodaj wstawienie";
+            buttonWstawienie.UseVisualStyleBackColor = false;
+            buttonWstawienie.Click += buttonWstawienie_Click;
+            // 
+            // dataGridPartie
+            // 
+            dataGridPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridPartie.Location = new System.Drawing.Point(710, 725);
+            dataGridPartie.Name = "dataGridPartie";
+            dataGridPartie.RowTemplate.Height = 25;
+            dataGridPartie.Size = new System.Drawing.Size(447, 226);
+            dataGridPartie.TabIndex = 113;
+            dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1518, 914);
-            Controls.Add(dataGridView1);
-            Controls.Add(Data);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(1742, 1061);
+            Controls.Add(label33);
+            Controls.Add(label32);
+            Controls.Add(label28);
+            Controls.Add(textBox4);
             Controls.Add(MyCalendar);
+            Controls.Add(textBox1);
+            Controls.Add(textBox3);
+            Controls.Add(dataGridPartie);
+            Controls.Add(buttonWstawienie);
+            Controls.Add(CommandButton_Insert);
+            Controls.Add(groupBox5);
+            Controls.Add(button3);
+            Controls.Add(button2);
+            Controls.Add(userTextbox);
+            Controls.Add(label20);
+            Controls.Add(CommandButton_Update);
+            Controls.Add(checkBoxDoWykupienia);
+            Controls.Add(checkBoxSprzedane);
+            Controls.Add(textBox12);
+            Controls.Add(CalcSztukNaSzuflade);
+            Controls.Add(label30);
+            Controls.Add(label31);
+            Controls.Add(textBox13);
+            Controls.Add(iloscPoj);
+            Controls.Add(WagaTuszki);
+            Controls.Add(WagaDni);
+            Controls.Add(comboBox3);
+            Controls.Add(label21);
+            Controls.Add(groupBox1);
+            Controls.Add(SztukiUbiorka);
+            Controls.Add(dataPelne);
+            Controls.Add(textBox11);
+            Controls.Add(dataUbiorka);
+            Controls.Add(textBox10);
+            Controls.Add(weekNumberTextBox);
+            Controls.Add(SumaSztukDzien);
+            Controls.Add(SumAutDzien);
+            Controls.Add(checkBoxAnulowane);
+            Controls.Add(sztukiPelne);
+            Controls.Add(dataGridView1);
             Controls.Add(HarmonogramDnia);
             Name = "WidokKalendarza";
-            Text = "Form1";
+            Text = "Dostawy";
+            FormClosing += WidokKalendarza_FormClosing;
+            Load += WidokKalendarza_Load_1;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox6).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox5).EndInit();
+            groupBox4.ResumeLayout(false);
+            groupBox4.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox4).EndInit();
+            groupBox3.ResumeLayout(false);
+            groupBox3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
+            ((System.ComponentModel.ISupportInitialize)DataGridWstawienia).EndInit();
+            tablicaHodowca.ResumeLayout(false);
+            tablicaHodowca.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            groupBox2.ResumeLayout(false);
+            groupBox2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox13).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox12).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox11).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox10).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox8).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox7).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            groupBox5.ResumeLayout(false);
+            groupBox5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridPartie).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
-
         #endregion
-
-        private System.Windows.Forms.ListBox HarmonogramDnia;
         private System.Windows.Forms.MonthCalendar MyCalendar;
-        private System.Windows.Forms.DateTimePicker Data;
         private System.Windows.Forms.DataGridView dataGridView1;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Datao;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Dostawca;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Auta;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Sztuki;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Waga;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Status;
+        private CheckBox checkBoxAnulowane;
+        private TextBox weekNumberTextBox;
+        private TextBox userTextbox;
+        private GroupBox groupBox1;
+        private GroupBox groupBox2;
+        private TextBox Uwagi;
+        private TextBox wyliczone;
+        private Label label19;
+        private Button ObliczAuta;
+        private Label label23;
+        private TextBox RoznicaDni;
+        private TextBox obliczeniaAut;
+        private TextBox liczbaAut;
+        private Label label12;
+        private TextBox sztuki;
+        private TextBox KGwSkrzynce;
+        private Label label11;
+        private TextBox sztukNaSzuflade;
+        private Label label10;
+        private TextBox srednia;
+        private Label label9;
+        private Label label8;
+        private DateTimePicker Data;
+        private TextBox Cena;
+        private Label label13;
+        private TextBox Dodatek;
+        private Label label14;
+        private TextBox Ubytek;
+        private Label label15;
+        private Label label27;
+        private Label label26;
+        private TextBox info3;
+        private TextBox info2;
+        private TextBox info1;
+        private TextBox tel3;
+        private TextBox tel2;
+        private TextBox tel1;
+        private GroupBox tablicaHodowca;
+        private Label label7;
+        private ComboBox Kurnik;
+        private TextBox KmK;
+        private ComboBox Dostawca;
+        private TextBox KmH;
+        private TextBox MiejscK;
+        private Label label1;
+        private Label label6;
+        private TextBox MiejscH;
+        private TextBox KodPocztowyK;
+        private Label label3;
+        private TextBox UlicaK;
+        private Label label5;
+        private TextBox KodPocztowyH;
+        private TextBox UlicaH;
+        private Label label4;
+        private Label label25;
+        private Label label24;
+        private TextBox dataMod;
+        private TextBox dataStwo;
+        private ComboBox TypUmowy;
+        private Label label17;
+        private ComboBox TypCeny;
+        private ComboBox Status;
+        private Label label2;
+        private Label label16;
+        private Label label20;
+        private Label label21;
+        private Label label29;
+        private TextBox ktoMod;
+        private ComboBox LpWstawienia;
+        private ComboBox comboBox3;
+        private TextBox textBox12;
+        private TextBox CalcSztukNaSzuflade;
+        private Label label30;
+        private Label label31;
+        private TextBox textBox13;
+        private TextBox iloscPoj;
+        private TextBox WagaTuszki;
+        private TextBox WagaDni;
+        private TextBox sztukiPelne;
+        private TextBox sztukiWstawienia;
+        private TextBox dataUbiorka;
+        private TextBox dataPelne;
+        private TextBox SztukiUbiorka;
+        private ListBox HarmonogramDnia;
+        private TextBox SumAutDzien;
+        private TextBox SumaSztukDzien;
+        private TextBox textBox10;
+        private TextBox textBox11;
+        private CheckBox checkBoxSprzedane;
+        private CheckBox checkBoxDoWykupienia;
+        private Label label28;
+        private TextBox textBox1;
+        private Label label32;
+        private TextBox textBox3;
+        private Label label33;
+        private TextBox textBox4;
+        private DataGridView DataGridWstawienia;
+        private GroupBox groupBox3;
+        private Label label35;
+        private Label label34;
+        private Button CommandButton_Update;
+        private Button button2;
+        private Button button3;
+        private Label lalv;
+        private TextBox ktoStwo;
+        private Button CommandButton_Insert;
+        private PictureBox pictureBox1;
+        private GroupBox groupBox4;
+        private PictureBox pictureBox3;
+        private PictureBox pictureBox2;
+        private PictureBox pictureBox4;
+        private Label label18;
+        private TextBox Email;
+        private Label label36;
+        private PictureBox pictureBox5;
+        private Label label37;
+        private TextBox textboxObecnaDoba;
+        private PictureBox pictureBox6;
+        private Label label38;
+        private TextBox textLaczona;
+        private Label label39;
+        private TextBox textMinister;
+        private Label label40;
+        private TextBox textRolnicza;
+        private Label label41;
+        private TextBox textBox5;
+        private PictureBox pictureBox7;
+        private Button buttonCena;
+        private Label label42;
+        private TextBox textTuszki;
+        private GroupBox groupBox5;
+        private PictureBox pictureBox8;
+        private PictureBox pictureBox13;
+        private PictureBox pictureBox12;
+        private PictureBox pictureBox11;
+        private PictureBox pictureBox10;
+        private PictureBox pictureBox9;
+        private TextBox textRolniczaPrzebitka;
+        private TextBox textMinisterPrzebitka;
+        private TextBox textLaczonaPrzebitka;
+        private Button buttonPokazTuszke;
+        private DateTimePicker dataWstawienia;
+        private Button buttonWstawienie;
+        private DataGridView dataGridPartie;
     }
 }
