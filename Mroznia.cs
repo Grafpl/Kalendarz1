@@ -156,6 +156,5 @@ namespace Kalendarz1
             form.Controls.Add(chart);
             form.ShowDialog();
         }
-
     }
 }

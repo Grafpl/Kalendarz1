@@ -97,6 +97,7 @@ namespace Kalendarz1
             Uwagi = new System.Windows.Forms.TextBox();
             label22 = new System.Windows.Forms.Label();
             groupBox1 = new System.Windows.Forms.GroupBox();
+            dataWstawienia = new System.Windows.Forms.DateTimePicker();
             Data = new System.Windows.Forms.DateTimePicker();
             UlicaK = new System.Windows.Forms.TextBox();
             KodPocztowyK = new System.Windows.Forms.TextBox();
@@ -117,7 +118,6 @@ namespace Kalendarz1
             label4 = new System.Windows.Forms.Label();
             Status = new System.Windows.Forms.ComboBox();
             label2 = new System.Windows.Forms.Label();
-            dataWstawienia = new System.Windows.Forms.DateTimePicker();
             groupBox2.SuspendLayout();
             groupBox1.SuspendLayout();
             tablicaHodowca.SuspendLayout();
@@ -455,11 +455,6 @@ namespace Kalendarz1
             // 
             // TypUmowy
             // 
-            TypUmowy.FormattingEnabled = true;
-            TypUmowy.Location = new System.Drawing.Point(162, 33);
-            TypUmowy.Name = "TypUmowy";
-            TypUmowy.Size = new System.Drawing.Size(144, 23);
-            TypUmowy.TabIndex = 22;
             // 
             // TypCeny
             // 
@@ -769,6 +764,16 @@ namespace Kalendarz1
             groupBox1.TabStop = false;
             groupBox1.Text = "Dane Dostawy";
             // 
+            // dataWstawienia
+            // 
+            dataWstawienia.CustomFormat = "yyyy-MM-dd";
+            dataWstawienia.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            dataWstawienia.Location = new System.Drawing.Point(6, 57);
+            dataWstawienia.Name = "dataWstawienia";
+            dataWstawienia.Size = new System.Drawing.Size(98, 23);
+            dataWstawienia.TabIndex = 46;
+            dataWstawienia.Value = new DateTime(2024, 2, 12, 0, 0, 0, 0);
+            // 
             // Data
             // 
             Data.CustomFormat = "yyyy-MM-dd";
@@ -828,6 +833,7 @@ namespace Kalendarz1
             label7.TabIndex = 16;
             label7.Text = "Kurnik";
             label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label7.Click += label7_Click;
             // 
             // tablicaHodowca
             // 
@@ -956,16 +962,6 @@ namespace Kalendarz1
             label2.TabIndex = 3;
             label2.Text = "Status";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // dataWstawienia
-            // 
-            dataWstawienia.CustomFormat = "yyyy-MM-dd";
-            dataWstawienia.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            dataWstawienia.Location = new System.Drawing.Point(6, 57);
-            dataWstawienia.Name = "dataWstawienia";
-            dataWstawienia.Size = new System.Drawing.Size(98, 23);
-            dataWstawienia.TabIndex = 46;
-            dataWstawienia.Value = new DateTime(2024, 2, 12, 0, 0, 0, 0);
             // 
             // Dostawa
             // 

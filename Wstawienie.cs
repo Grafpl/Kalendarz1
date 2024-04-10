@@ -666,5 +666,13 @@ namespace Kalendarz1
                 TypUmowy.Text = "Kontrakt";
             }
         }
+
+        private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(sztukiWstawienia.Text))
+            {
+                groupBoxDostawy.Visible = true;
+            }
+        }
     }
 }

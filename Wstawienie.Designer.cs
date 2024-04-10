@@ -34,6 +34,10 @@
             userTextbox = new System.Windows.Forms.TextBox();
             Email = new System.Windows.Forms.TextBox();
             groupBoxWstawienie = new System.Windows.Forms.GroupBox();
+            label14 = new System.Windows.Forms.Label();
+            textBox2 = new System.Windows.Forms.TextBox();
+            label13 = new System.Windows.Forms.Label();
+            textBox1 = new System.Windows.Forms.TextBox();
             label56 = new System.Windows.Forms.Label();
             iloscDostaw = new System.Windows.Forms.TextBox();
             label55 = new System.Windows.Forms.Label();
@@ -190,10 +194,6 @@
             dataGridView1 = new System.Windows.Forms.DataGridView();
             buttonWstawienie = new System.Windows.Forms.Button();
             button2 = new System.Windows.Forms.Button();
-            textBox1 = new System.Windows.Forms.TextBox();
-            label13 = new System.Windows.Forms.Label();
-            label14 = new System.Windows.Forms.Label();
-            textBox2 = new System.Windows.Forms.TextBox();
             groupBox1.SuspendLayout();
             groupBoxWstawienie.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -326,6 +326,48 @@
             groupBoxWstawienie.Text = "Wstawienie";
             groupBoxWstawienie.Visible = false;
             // 
+            // label14
+            // 
+            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label14.Location = new System.Drawing.Point(402, 11);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(75, 28);
+            label14.TabIndex = 115;
+            label14.Text = "Ilość szt wstawiona";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox2
+            // 
+            textBox2.BackColor = System.Drawing.SystemColors.HighlightText;
+            textBox2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox2.Location = new System.Drawing.Point(402, 44);
+            textBox2.Multiline = true;
+            textBox2.Name = "textBox2";
+            textBox2.Size = new System.Drawing.Size(75, 20);
+            textBox2.TabIndex = 114;
+            textBox2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label13
+            // 
+            label13.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label13.Location = new System.Drawing.Point(383, 75);
+            label13.Name = "label13";
+            label13.Size = new System.Drawing.Size(220, 26);
+            label13.TabIndex = 113;
+            label13.Text = "Ilość sztuk do wyzerowania";
+            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox1
+            // 
+            textBox1.BackColor = System.Drawing.SystemColors.HighlightText;
+            textBox1.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox1.Location = new System.Drawing.Point(384, 105);
+            textBox1.Multiline = true;
+            textBox1.Name = "textBox1";
+            textBox1.Size = new System.Drawing.Size(220, 38);
+            textBox1.TabIndex = 112;
+            textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
             // label56
             // 
             label56.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
@@ -444,6 +486,7 @@
             sztukiWstawienia.Size = new System.Drawing.Size(75, 20);
             sztukiWstawienia.TabIndex = 56;
             sztukiWstawienia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            sztukiWstawienia.TextChanged += sztukiWstawienia_TextChanged;
             // 
             // label19
             // 
@@ -1943,48 +1986,6 @@
             button2.TabIndex = 114;
             button2.Text = "Anuluj";
             button2.UseVisualStyleBackColor = true;
-            // 
-            // textBox1
-            // 
-            textBox1.BackColor = System.Drawing.SystemColors.HighlightText;
-            textBox1.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox1.Location = new System.Drawing.Point(384, 105);
-            textBox1.Multiline = true;
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(220, 38);
-            textBox1.TabIndex = 112;
-            textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // label13
-            // 
-            label13.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label13.Location = new System.Drawing.Point(383, 75);
-            label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(220, 26);
-            label13.TabIndex = 113;
-            label13.Text = "Ilość sztuk do wyzerowania";
-            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // label14
-            // 
-            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label14.Location = new System.Drawing.Point(402, 11);
-            label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(75, 28);
-            label14.TabIndex = 115;
-            label14.Text = "Ilość szt wstawiona";
-            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox2
-            // 
-            textBox2.BackColor = System.Drawing.SystemColors.HighlightText;
-            textBox2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox2.Location = new System.Drawing.Point(402, 44);
-            textBox2.Multiline = true;
-            textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(75, 20);
-            textBox2.TabIndex = 114;
-            textBox2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // Wstawienie
             // 
