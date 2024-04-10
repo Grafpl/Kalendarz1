@@ -120,6 +120,7 @@
             sprzedazZakupButton.Size = new System.Drawing.Size(262, 193);
             sprzedazZakupButton.TabIndex = 5;
             sprzedazZakupButton.UseVisualStyleBackColor = true;
+            sprzedazZakupButton.Click += sprzedazZakupButton_Click;
             // 
             // krojenieButton
             // 
@@ -164,6 +165,7 @@
             button1.Size = new System.Drawing.Size(262, 193);
             button1.TabIndex = 9;
             button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
             // 
             // button2
             // 

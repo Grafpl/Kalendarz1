@@ -70,5 +70,23 @@ namespace Kalendarz1
             // Wyświetlanie Form1
             mroznia.Show();
         }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji Form1
+            WidokAvilog widokAvilog = new WidokAvilog();
+
+            // Wyświetlanie Form1
+            widokAvilog.Show();
+        }
+
+        private void sprzedazZakupButton_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji Form1
+            WidokSprzeZakup widokSprzeZakup = new WidokSprzeZakup();
+
+            // Wyświetlanie Form1
+            widokSprzeZakup.Show();
+        }
     }
 }

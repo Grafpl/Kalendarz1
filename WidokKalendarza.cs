@@ -4,6 +4,8 @@ using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 using System.Drawing; // Dodaj tę dyrektywę
 using System.Globalization;
+using System.Collections.Generic;
+
 
 namespace Kalendarz1
 {
@@ -38,8 +40,6 @@ namespace Kalendarz1
             timer.Start(); // Rozpoczęcie pracy timera
         }
         // Metoda wywoływana podczas ładowania formularza
-
-
         private void Timer_Tick(object sender, EventArgs e)
         {
             // Ta metoda zostanie wywołana co określony interwał czasowy
@@ -150,7 +150,6 @@ namespace Kalendarz1
                 }
             }
         }
-
         private void WidokKalendarza_Load(object sender, EventArgs e)
         {
             BiezacePartie();
@@ -189,6 +188,10 @@ namespace Kalendarz1
         }
         private void DataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
+            dataWstawienia.Value = DateTime.Today;
+            LpWstawienia.Text = "0";
+            lpDostawa = "0";
+            DataGridWstawienia.Rows.Clear();
             // Sprawdź, czy wiersz i kolumna zostały kliknięte
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
@@ -537,7 +540,6 @@ namespace Kalendarz1
                 }
             }
         }
-
         // Metoda aktualizacji statusu bufora w bazie danych
         private void UpdateBufferStatus(string lp, string status)
         {
@@ -969,7 +971,6 @@ namespace Kalendarz1
             pokazCeneTuszki.Show();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
-
         private void buttonWstawienie_Click(object sender, EventArgs e)
         {
             Wstawienie wstawienie = new Wstawienie();
@@ -978,15 +979,93 @@ namespace Kalendarz1
             wstawienie.Show();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
-
         private void dataGridPartie_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
 
         }
-
         private void WidokKalendarza_Load_1(object sender, EventArgs e)
         {
 
+        }
+
+        private void KGwSkrzynce_TextChanged(object sender, EventArgs e)
+        {
+            // Sprawdź, czy KGwSkrzynce nie jest puste
+            if (!string.IsNullOrEmpty(KGwSkrzynce.Text))
+            {
+                // Spróbuj przekonwertować zawartość KGwSkrzynce na liczbę
+                if (double.TryParse(KGwSkrzynce.Text, out double value))
+                {
+                    // Pomnóż wartość przez 264 i wyświetl wynik w KGwSkrzynekWAucie
+                    double result = value * 264;
+                    KGwSkrzynekWAucie.Text = result.ToString("N0"); // "N0" formatuje do liczby całkowitej z separatorem tysięcy
+                }
+                else
+                {
+                    // Jeśli zawartość KGwSkrzynce nie jest liczbą, wyświetl komunikat
+                    MessageBox.Show("Wprowadzona wartość nie jest liczbą.");
+                }
+            }
+            else
+            {
+                // Jeśli KGwSkrzynce jest puste, wyczyść KGwSkrzynekWAucie
+                KGwSkrzynekWAucie.Clear();
+            }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            // Sprawdź, czy CheckBoxPaleciak jest zaznaczony
+            if (checkBox1.Checked)
+            {
+                // Jeśli zaznaczony, dodaj 3000 do KGwPaleciak.Text
+                if (!string.IsNullOrEmpty(KGwPaleciak.Text))
+                {
+                    // Spróbuj przekonwertować zawartość KGwPaleciak na liczbę
+                    if (double.TryParse(KGwPaleciak.Text.Replace(",", ""), out double value))
+                    {
+                        // Dodaj 3000 do wartości
+                        value += 3000;
+                        // Ustaw nową wartość z separatorem tysięcy
+                        KGwPaleciak.Text = value.ToString("N0");
+                    }
+                    else
+                    {
+                        // Jeśli zawartość KGwPaleciak nie jest liczbą, ustaw 3000
+                        KGwPaleciak.Text = "3000";
+                    }
+                }
+                else
+                {
+                    // Jeśli KGwPaleciak jest puste, ustaw 3000
+                    KGwPaleciak.Text = "3000";
+                }
+            }
+            else
+            {
+                // Jeśli niezaznaczony, wyczyść KGwPaleciak
+                KGwPaleciak.Clear();
+            }
+        }
+        private void SumujTextBoxes(object sender, EventArgs e)
+        {
+            double suma = 0;
+
+            // Sprawdź każdy TextBox, przetwarzając jego wartość i dodając do sumy
+            if (double.TryParse(KGwPaleciak.Text.Replace(",", ""), out double kgPaleciak))
+                suma += kgPaleciak;
+
+            if (double.TryParse(KGwSkrzynce.Text.Replace(",", ""), out double kgSkrzynce))
+                suma += kgSkrzynce;
+
+            if (double.TryParse(KGwSkrzynekWAucie.Text.Replace(",", ""), out double kgSkrzynekWAucie))
+                suma += kgSkrzynekWAucie;
+
+            if (double.TryParse(KGZestaw.Text.Replace(",", ""), out double kgZestaw))
+                suma += kgZestaw;
+
+            // Wyświetl sumę w TextBoxSuma
+            KGSuma.Text = suma.ToString("N0"); // Formatowanie do liczby całkowitej z separatorem tysięcy
         }
     }
 }

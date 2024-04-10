@@ -497,5 +497,10 @@ namespace Kalendarz1
                 MessageBox.Show($"Wystąpił błąd podczas Dodawania wstawienia: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -9,6 +9,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+
+//test2
+
 namespace Kalendarz1
 {
     public partial class Wstawienie : Form
@@ -661,6 +664,14 @@ namespace Kalendarz1
             if (Status.Text == "B.Kontr.")
             {
                 TypUmowy.Text = "Kontrakt";
+            }
+        }
+
+        private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(sztukiWstawienia.Text))
+            {
+                groupBoxDostawy.Visible = true;
             }
         }
     }
