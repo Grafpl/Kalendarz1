@@ -88,5 +88,14 @@ namespace Kalendarz1
             // Wyświetlanie Form1
             widokSprzeZakup.Show();
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji Form1
+            WidokMatryca Widokmatryca = new WidokMatryca();
+
+            // Wyświetlanie Form1
+            Widokmatryca.Show();
+        }
     }
 }
