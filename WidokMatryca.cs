@@ -225,7 +225,8 @@ namespace Kalendarz1
                     if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
                     {
 
-                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek) VALUES (@ID, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek)";
+                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, PriceTypeID) " +
+                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Cena)";
                         // Pobierz dane z wiersza DataGridView
                         string Dostawca = row.Cells["Dostawca"].Value.ToString();
                         string Kierowca = row.Cells["Kierowca"].Value.ToString();
@@ -233,6 +234,8 @@ namespace Kalendarz1
                         string Przyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string SztPoj = row.Cells["SztSzuflada"].Value.ToString();
                         string WagaDek = row.Cells["WagaDek"].Value.ToString();
+
+
 
                         // Znajdź ID kierowcy i dostawcy
                         int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
@@ -257,7 +260,8 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr) ? (object)DBNull.Value : Nr);
                             cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
-
+                            cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
+                            cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.ExecuteNonQuery();
                         }
                     }
