@@ -1,4 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.VisualBasic.ApplicationServices;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -7,7 +9,10 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
+using System.Windows.Controls;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Kalendarz1
 {
@@ -18,6 +23,7 @@ namespace Kalendarz1
         private int rowIndexFromMouseDown;
         private DataGridViewRow draggedRow;
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
 
         public WidokMatryca()
         {
@@ -41,7 +47,7 @@ namespace Kalendarz1
 
                 // Dodanie pozostałych kolumn do tabeli finalTable
                 DataTable finalTable = new DataTable();
-                finalTable.Columns.Add("Numer", typeof(int)); // Dodanie kolumny "Numer" na początku
+                finalTable.Columns.Add("Nr", typeof(int)); // Dodanie kolumny "Numer" na początku
                 finalTable.Columns.Add("Auta", typeof(int));
                 finalTable.Columns.Add("Dostawca", typeof(string));
                 finalTable.Columns.Add("WagaDek", typeof(double));
@@ -49,9 +55,10 @@ namespace Kalendarz1
                 finalTable.Columns.Add("Kierowca", typeof(string)); // Kolumna dla kierowcy
                 finalTable.Columns.Add("Pojazd", typeof(string)); // Kolumna dla pojazdu
                 finalTable.Columns.Add("Naczepa", typeof(string)); // Kolumna dla naczepy
-                finalTable.Columns.Add("Wyjazd", typeof(DateTime)); // Kolumna dla wyjazdu
-                finalTable.Columns.Add("Zaladunek", typeof(DateTime)); // Kolumna dla załadunku
-                finalTable.Columns.Add("Powrot", typeof(DateTime)); // Kolumna dla powrotu
+                finalTable.Columns.Add("Wyjazd", typeof(string)); // Kolumna dla wyjazdu (zmieniona na string)
+                finalTable.Columns.Add("Zaladunek", typeof(string)); // Kolumna dla załadunku
+                finalTable.Columns.Add("Powrot", typeof(string)); // Kolumna dla powrotu
+                finalTable.Columns.Add("Przyjazd", typeof(string)); // Kolumna dla przyjazdu (zmieniona na TimeSpan)
                 finalTable.Columns.Add("Wozek", typeof(string)); // Kolumna dla wózka
 
                 int numer = 1; // Początkowa wartość numeru
@@ -65,7 +72,7 @@ namespace Kalendarz1
                     for (int i = 0; i < autaValue; i++)
                     {
                         DataRow newRow = finalTable.NewRow();
-                        newRow["Numer"] = numer++; // Ustaw numer i zwiększ wartość
+                        newRow["Nr"] = numer++; // Ustaw numer i zwiększ wartość
                         newRow["Auta"] = row["Auta"];
                         newRow["Dostawca"] = row["Dostawca"];
                         newRow["WagaDek"] = row["WagaDek"];
@@ -73,9 +80,10 @@ namespace Kalendarz1
                         newRow["Kierowca"] = ""; // Pozostaw kolumnę Kierowca pustą
                         newRow["Pojazd"] = ""; // Pozostaw kolumnę Pojazd pustą
                         newRow["Naczepa"] = ""; // Pozostaw kolumnę Naczepa pustą
-                        newRow["Wyjazd"] = DBNull.Value; // Pozostaw kolumnę Wyjazd pustą
-                        newRow["Zaladunek"] = DBNull.Value; // Pozostaw kolumnę Zaladunek pustą
-                        newRow["Powrot"] = DBNull.Value; // Pozostaw kolumnę Powrot pustą
+                        newRow["Wyjazd"] = "00:00"; // Ustaw domyślną wartość dla kolumny Wyjazd
+                        newRow["Zaladunek"] = "00:00"; // Pozostaw kolumnę Zaladunek pustą
+                        newRow["Powrot"] = "00:00"; // Pozostaw kolumnę Powrot pustą
+                        newRow["Przyjazd"] = "00:00"; // Inicjalizacja wartości kolumny "Przyjazd" jako pustej
                         newRow["Wozek"] = ""; // Pozostaw kolumnę Wozek pustą
 
                         finalTable.Rows.Add(newRow);
@@ -85,7 +93,13 @@ namespace Kalendarz1
                 // Ustawienie źródła danych dla DataGridView
                 dataGridView1.DataSource = finalTable;
 
-                // Tworzenie DataGridViewComboBoxColumn dla kolumny "Kierowca"
+                // Automatyczne dopasowanie szerokości kolumn
+                foreach (DataGridViewColumn column in dataGridView1.Columns)
+                {
+                    column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                }
+
+                // Dodanie kolumny DataGridViewComboBoxColumn dla kolumny "Kierowca"
                 DataGridViewComboBoxColumn comboBoxColumn = new DataGridViewComboBoxColumn();
                 comboBoxColumn.Name = "Kierowca";
                 comboBoxColumn.HeaderText = "Kierowca";
@@ -105,8 +119,38 @@ namespace Kalendarz1
                 // Dodanie kolumny ComboBox do DataGridView
                 dataGridView1.Columns.Add(comboBoxColumn);
 
+                // Ustawienie zawsze ":" w kolumnie "Wyjazd"
+                dataGridView1.CellFormatting += (sender, e) =>
+                {
+                    // Sprawdź, czy aktualna kolumna to "Wyjazd", "Zaladunek", "Powrot" lub "Przyjazd"
+                    if ((dataGridView1.Columns.Contains("Wyjazd") && e.ColumnIndex == dataGridView1.Columns["Wyjazd"].Index) ||
+                        (dataGridView1.Columns.Contains("Zaladunek") && e.ColumnIndex == dataGridView1.Columns["Zaladunek"].Index) ||
+                        (dataGridView1.Columns.Contains("Powrot") && e.ColumnIndex == dataGridView1.Columns["Powrot"].Index) ||
+                        (dataGridView1.Columns.Contains("Przyjazd") && e.ColumnIndex == dataGridView1.Columns["Przyjazd"].Index))
+                    {
+                        // Sprawdź, czy wartość komórki nie jest pusta
+                        if (e.Value != null)
+                        {
+                            string value = e.Value.ToString();
+                            if (value.Length == 3)
+                            {
+                                // Dodaj "0" na początku i ":" na 3. miejscu
+                                e.Value = "0" + value.Substring(0, 1) + ":" + value.Substring(1);
+                            }
+                            else if (value.Length == 4)
+                            {
+                                // Wstaw ":" w 3. miejscu
+                                e.Value = value.Substring(0, 2) + ":" + value.Substring(2);
+                            }
+                        }
+                    }
+                };
+
             }
         }
+
+
+
 
         private int selectedRowIndex = -1; // Dodaj zmienną do przechowywania indeksu zaznaczonego wiersza
 
@@ -153,7 +197,7 @@ namespace Kalendarz1
         {
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
             {
-                dataGridView1.Rows[i].Cells["Numer"].Value = i + 1;
+                dataGridView1.Rows[i].Cells["Nr"].Value = i + 1;
             }
         }
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
@@ -169,6 +213,56 @@ namespace Kalendarz1
         private void button2_Click(object sender, EventArgs e)
         {
             MoveRowDown();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
+                    {
+
+                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek) VALUES (@ID, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek)";
+                        // Pobierz dane z wiersza DataGridView
+                        string Dostawca = row.Cells["Dostawca"].Value.ToString();
+                        string Kierowca = row.Cells["Kierowca"].Value.ToString();
+                        string Nr = row.Cells["Nr"].Value.ToString();
+                        string Przyjazd = row.Cells["Przyjazd"].Value.ToString();
+                        string SztPoj = row.Cells["SztSzuflada"].Value.ToString();
+                        string WagaDek = row.Cells["WagaDek"].Value.ToString();
+
+                        // Znajdź ID kierowcy i dostawcy
+                        int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
+                        int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
+
+                        // Znajdź największe ID w tabeli FarmerCalc
+                        long maxLP;
+                        string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
+                        using (SqlCommand command = new SqlCommand(maxLPSql, conn))
+                        {
+                            object result = command.ExecuteScalar();
+                            maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                        }
+                        
+
+                        // Wstaw dane do tabeli FarmerCalc
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", maxLP);
+                            cmd.Parameters.AddWithValue("@Dostawca", userId2);
+                            cmd.Parameters.AddWithValue("@Kierowca", userId);
+                            cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr) ? (object)DBNull.Value : Nr);
+                            cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
+                            cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
+
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
         }
     }
 }

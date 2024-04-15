@@ -267,8 +267,51 @@ namespace Kalendarz1
             }
         }
     }
+    public class ZapytaniaSQL
+    {
+        static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        public int ZnajdzIdKierowcy(string name)
+        {
+            int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("SELECT GID FROM dbo.Driver WHERE Name = @Name", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Name", name);
 
-        public class CenoweMetody
+                    object result = cmd.ExecuteScalar();
+                    if (result != null)
+                    {
+                        userId = Convert.ToInt32(result);
+                    }
+                }
+            }
+            return userId;
+        }
+        public int ZnajdzIdHodowcy(string name)
+        {
+            int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("SELECT GID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Name", name);
+
+                    object result = cmd.ExecuteScalar();
+                    if (result != null)
+                    {
+                        userId = Convert.ToInt32(result);
+                    }
+                }
+            }
+            return userId;
+        }
+
+    }
+    public class CenoweMetody
         {
             static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
             private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
