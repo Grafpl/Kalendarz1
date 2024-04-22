@@ -240,14 +240,15 @@ namespace Kalendarz1
                         string Ciagnik = row.Cells["Pojazd"].Value.ToString();
                         string Naczepa = row.Cells["Naczepa"].Value.ToString();
                         string Wozek = row.Cells["Wozek"].Value.ToString();
-                        //string Cena = row.Cells["Wozek"].Value.ToString();
 
+                        string Cena = row.Cells["Wozek"].Value.ToString();
+                        int CenaInt = zapytaniasql.ZnajdzIdCeny(Cena);
 
 
                         // Znajdź ID kierowcy i dostawcy
                         int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
                         int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
-                        //int Cena = zapytaniasql.ZnajdzIdCeny(Dostawca);
+                        
                         // Znajdź największe ID w tabeli FarmerCalc
                         long maxLP;
                         string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
@@ -269,7 +270,7 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
                             cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
-                            cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
+                            cmd.Parameters.AddWithValue("@Cena", CenaInt);
                             cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
                             cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
                             cmd.Parameters.AddWithValue("@Wozek", string.IsNullOrEmpty(Wozek) ? (object)DBNull.Value : Wozek);

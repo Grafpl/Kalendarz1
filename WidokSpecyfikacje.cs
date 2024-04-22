@@ -39,7 +39,7 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    SqlCommand command = new SqlCommand("SELECT CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                    SqlCommand command = new SqlCommand("SELECT CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -53,9 +53,9 @@ namespace Kalendarz1
                         foreach (DataRow row in dataTable.Rows)
                         {
                             dataGridView1.Rows.Add(
-                                row["CarLp"],          // Numer
-                                row["CustomerGID"],    // Dostawca
-                                row["DeclI1"],              // SztukiDek (pusta wartość)
+                                row["CarLp"],         // Numer
+                                row["CustomerGID"],   // Dostawca
+                                row["DeclI1"],        // SztukiDek (pusta wartość)
                                 row["DeclI2"],        // Padle
                                 row["DeclI3"],        // CH
                                 row["DeclI4"],        // NW
@@ -67,9 +67,12 @@ namespace Kalendarz1
                                 row["EmptyWeight"],   // TaraUbojni
                                 "",                   // NettoUbojni (pusta wartość)
                                 row["LumQnt"],        // LUMEL
+                                row["ProdQnt"],       // Prod Sztuki
+                                row["ProdWgt"],       // Prod Wagi
                                 row["Price"],         // Cena
-                                row["PriceTypeID"]    // TypCeny
-                                                      // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
+                                row["PriceTypeID"],   // TypCeny
+                                row["IncDeadConf"]    // Czy odliczamy padłe i konfiskaty
+                            // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
                             );
                         }
                     }
