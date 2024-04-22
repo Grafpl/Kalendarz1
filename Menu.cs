@@ -74,10 +74,10 @@ namespace Kalendarz1
         private void button1_Click(object sender, EventArgs e)
         {
             // Tworzenie nowej instancji Form1
-            WidokAvilog widokAvilog = new WidokAvilog();
+            WidokSpecyfikacje widokSpecyfikacje = new WidokSpecyfikacje();
 
             // Wyświetlanie Form1
-            widokAvilog.Show();
+            widokSpecyfikacje.Show();
         }
 
         private void sprzedazZakupButton_Click(object sender, EventArgs e)

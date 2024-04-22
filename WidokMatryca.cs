@@ -36,7 +36,7 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 // Tworzenie komendy SQL
-                string query = "SELECT Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
+                string query = "SELECT Lp, Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
 
@@ -48,6 +48,7 @@ namespace Kalendarz1
                 // Dodanie pozostałych kolumn do tabeli finalTable
                 DataTable finalTable = new DataTable();
                 finalTable.Columns.Add("Nr", typeof(int)); // Dodanie kolumny "Numer" na początku
+                finalTable.Columns.Add("Lp", typeof(int)); // Dodanie kolumny "Numer" na początku
                 finalTable.Columns.Add("Auta", typeof(int));
                 finalTable.Columns.Add("Dostawca", typeof(string));
                 finalTable.Columns.Add("WagaDek", typeof(double));
@@ -73,6 +74,7 @@ namespace Kalendarz1
                     {
                         DataRow newRow = finalTable.NewRow();
                         newRow["Nr"] = numer++; // Ustaw numer i zwiększ wartość
+                        newRow["Lp"] = row["Lp"];
                         newRow["Auta"] = row["Auta"];
                         newRow["Dostawca"] = row["Dostawca"];
                         newRow["WagaDek"] = row["WagaDek"];
@@ -225,22 +227,27 @@ namespace Kalendarz1
                     if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
                     {
 
-                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, PriceTypeID) " +
-                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Cena)";
+                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, PriceTypeID, CarID, TrailerID, NotkaWozek, LpDostawy) " +
+                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Cena, @Ciagnik, @Naczepa, @Wozek, @LpDostawy)";
                         // Pobierz dane z wiersza DataGridView
                         string Dostawca = row.Cells["Dostawca"].Value.ToString();
                         string Kierowca = row.Cells["Kierowca"].Value.ToString();
+                        string LpDostawy = row.Cells["Lp"].Value.ToString();
                         string Nr = row.Cells["Nr"].Value.ToString();
                         string Przyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string SztPoj = row.Cells["SztSzuflada"].Value.ToString();
                         string WagaDek = row.Cells["WagaDek"].Value.ToString();
+                        string Ciagnik = row.Cells["Pojazd"].Value.ToString();
+                        string Naczepa = row.Cells["Naczepa"].Value.ToString();
+                        string Wozek = row.Cells["Wozek"].Value.ToString();
+                        //string Cena = row.Cells["Wozek"].Value.ToString();
 
 
 
                         // Znajdź ID kierowcy i dostawcy
                         int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
                         int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
-
+                        //int Cena = zapytaniasql.ZnajdzIdCeny(Dostawca);
                         // Znajdź największe ID w tabeli FarmerCalc
                         long maxLP;
                         string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
@@ -257,11 +264,16 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@ID", maxLP);
                             cmd.Parameters.AddWithValue("@Dostawca", userId2);
                             cmd.Parameters.AddWithValue("@Kierowca", userId);
+                            cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy) ? (object)DBNull.Value : LpDostawy);
                             cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr) ? (object)DBNull.Value : Nr);
                             cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
                             cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
                             cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
+                            cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
+                            cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
+                            cmd.Parameters.AddWithValue("@Wozek", string.IsNullOrEmpty(Wozek) ? (object)DBNull.Value : Wozek);
+
                             cmd.ExecuteNonQuery();
                         }
                     }

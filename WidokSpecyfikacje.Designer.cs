@@ -57,6 +57,7 @@
             dateTimePicker1.Name = "dateTimePicker1";
             dateTimePicker1.Size = new System.Drawing.Size(200, 23);
             dateTimePicker1.TabIndex = 0;
+            dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
             // dataGridView1
             // 
@@ -198,6 +199,7 @@
             Controls.Add(dateTimePicker1);
             Name = "WidokSpecyfikacje";
             Text = "Form1";
+            Load += WidokSpecyfikacje_Load;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
         }

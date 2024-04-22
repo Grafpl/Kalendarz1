@@ -309,6 +309,25 @@ namespace Kalendarz1
             }
             return userId;
         }
+        public int ZnajdzIdCeny(string name)
+        {
+            int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE Name = @Name", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Name", name);
+
+                    object result = cmd.ExecuteScalar();
+                    if (result != null)
+                    {
+                        userId = Convert.ToInt32(result);
+                    }
+                }
+            }
+            return userId;
+        }
 
     }
     public class CenoweMetody
