@@ -29,7 +29,8 @@ namespace Kalendarz1
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
             // Obsługa zmiany daty w dateTimePicker1
-            LoadData(dateTimePicker1.Value);
+            // Użyj tylko daty bez informacji o czasie
+            LoadData(dateTimePicker1.Value.Date);
         }
         private void LoadData(DateTime selectedDate)
         {
@@ -38,7 +39,7 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    SqlCommand command = new SqlCommand("SELECT CarLp, CustomerGID, DeclI2, DeclI3, DeclI4, DeclI5, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, DeclI1, Price, PriceTypeID FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                    SqlCommand command = new SqlCommand("SELECT CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -54,18 +55,18 @@ namespace Kalendarz1
                             dataGridView1.Rows.Add(
                                 row["CarLp"],          // Numer
                                 row["CustomerGID"],    // Dostawca
-                                "",                   // SztukiDek (pusta wartość)
+                                row["DeclI1"],              // SztukiDek (pusta wartość)
                                 row["DeclI2"],        // Padle
                                 row["DeclI3"],        // CH
                                 row["DeclI4"],        // NW
                                 row["DeclI5"],        // ZM
                                 row["FullFarmWeight"],// BruttoHodowcy
                                 row["EmptyFarmWeight"],// TaraHodowcy
-                                "",                   // NettoHodowcy (pusta wartość)
+                                "",                   // NettoUbojni (pusta wartość)
                                 row["FullWeight"],    // BruttoUbojni
                                 row["EmptyWeight"],   // TaraUbojni
                                 "",                   // NettoUbojni (pusta wartość)
-                                row["DeclI1"],        // LUMEL
+                                row["LumQnt"],        // LUMEL
                                 row["Price"],         // Cena
                                 row["PriceTypeID"]    // TypCeny
                                                       // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
@@ -74,8 +75,7 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        // Obsługa przypadku, gdy nie ma danych dla wybranej daty
-                        MessageBox.Show("Brak danych dla wybranej daty.");
+
                     }
                 }
             }
