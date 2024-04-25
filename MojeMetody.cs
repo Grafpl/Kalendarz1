@@ -329,6 +329,35 @@ namespace Kalendarz1
             return userId;
         }
 
+        public static DateTime CombineDateAndTime(string godzina, DateTime data)
+        {
+            // Parsowanie godziny i minuty z formatu "00:00"
+            TimeSpan timeOfDay;
+            if (!TimeSpan.TryParseExact(godzina, "hh\\:mm", null, out timeOfDay))
+            {
+                throw new ArgumentException("Nieprawidłowy format godziny.");
+            }
+
+            // Tworzenie nowego obiektu DateTime z daty oraz godziny i minuty
+            DateTime combinedDateTime = new DateTime(data.Year, data.Month, data.Day, timeOfDay.Hours, timeOfDay.Minutes, 0);
+
+            return combinedDateTime;
+        }
+        public string DodajDwukropek(string input)
+        {
+            // Sprawdź, czy input ma co najmniej 3 znaki
+            if (input.Length >= 3)
+            {
+                // Dodaj ":" w trzecim miejscu i zwróć zmodyfikowany ciąg
+                return input.Substring(0, 2) + ":" + input.Substring(2);
+            }
+            else
+            {
+                // Jeśli input ma mniej niż 3 znaki, zwróć input bez zmian
+                return input;
+            }
+        }
+
     }
     public class CenoweMetody
         {

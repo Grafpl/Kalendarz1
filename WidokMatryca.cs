@@ -227,19 +227,25 @@ namespace Kalendarz1
                     if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
                     {
 
-                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, PriceTypeID, CarID, TrailerID, NotkaWozek, LpDostawy) " +
-                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Cena, @Ciagnik, @Naczepa, @Wozek, @LpDostawy)";
+                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, PriceTypeID, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Załadunek, Przyjazd) " +
+                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Cena, @Ciagnik, @Naczepa, @Wozek, @LpDostawy, @Wyjazd, @Załadunek, @Przyjazd)";
                         // Pobierz dane z wiersza DataGridView
                         string Dostawca = row.Cells["Dostawca"].Value.ToString();
                         string Kierowca = row.Cells["Kierowca"].Value.ToString();
                         string LpDostawy = row.Cells["Lp"].Value.ToString();
                         string Nr = row.Cells["Nr"].Value.ToString();
-                        string Przyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string SztPoj = row.Cells["SztSzuflada"].Value.ToString();
                         string WagaDek = row.Cells["WagaDek"].Value.ToString();
                         string Ciagnik = row.Cells["Pojazd"].Value.ToString();
                         string Naczepa = row.Cells["Naczepa"].Value.ToString();
                         string Wozek = row.Cells["Wozek"].Value.ToString();
+  
+
+                        
+                        string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
+                        string StringZaładunek = row.Cells["Zaladunek"].Value.ToString();
+                        string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
+
                         //string Cena = row.Cells["Wozek"].Value.ToString();
 
 
@@ -247,6 +253,14 @@ namespace Kalendarz1
                         // Znajdź ID kierowcy i dostawcy
                         int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
                         int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
+                        
+                        StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
+                        StringZaładunek = zapytaniasql.DodajDwukropek(StringZaładunek);
+                        StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
+
+                        DateTime data = dateTimePicker1.Value; // Przyjmijmy, że to wartość z DateTimePicker
+                        DateTime combinedDateTime = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
+
                         //int Cena = zapytaniasql.ZnajdzIdCeny(Dostawca);
                         // Znajdź największe ID w tabeli FarmerCalc
                         long maxLP;
@@ -269,6 +283,7 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
                             cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
+                            cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTime);
                             cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
                             cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
