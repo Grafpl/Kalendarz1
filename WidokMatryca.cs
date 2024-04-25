@@ -239,6 +239,7 @@ namespace Kalendarz1
                         string Ciagnik = row.Cells["Pojazd"].Value.ToString();
                         string Naczepa = row.Cells["Naczepa"].Value.ToString();
                         string Wozek = row.Cells["Wozek"].Value.ToString();
+<<<<<<< HEAD
   
 
                         
@@ -247,13 +248,18 @@ namespace Kalendarz1
                         string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
 
                         //string Cena = row.Cells["Wozek"].Value.ToString();
+=======
+>>>>>>> bc7579e3ad0b6e3d1b3742221f027669b7f40ff1
 
+                        string Cena = row.Cells["Wozek"].Value.ToString();
+                        int CenaInt = zapytaniasql.ZnajdzIdCeny(Cena);
 
 
                         // Znajdź ID kierowcy i dostawcy
                         int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
                         int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
                         
+<<<<<<< HEAD
                         StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
                         StringZaładunek = zapytaniasql.DodajDwukropek(StringZaładunek);
                         StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
@@ -262,6 +268,8 @@ namespace Kalendarz1
                         DateTime combinedDateTime = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
 
                         //int Cena = zapytaniasql.ZnajdzIdCeny(Dostawca);
+=======
+>>>>>>> bc7579e3ad0b6e3d1b3742221f027669b7f40ff1
                         // Znajdź największe ID w tabeli FarmerCalc
                         long maxLP;
                         string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
@@ -283,8 +291,12 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
                             cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
                             cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
+<<<<<<< HEAD
                             cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTime);
                             cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
+=======
+                            cmd.Parameters.AddWithValue("@Cena", CenaInt);
+>>>>>>> bc7579e3ad0b6e3d1b3742221f027669b7f40ff1
                             cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
                             cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
                             cmd.Parameters.AddWithValue("@Wozek", string.IsNullOrEmpty(Wozek) ? (object)DBNull.Value : Wozek);

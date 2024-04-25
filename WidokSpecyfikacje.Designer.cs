@@ -44,6 +44,7 @@
             TaraUbojni = new System.Windows.Forms.DataGridViewTextBoxColumn();
             NettoUbojni = new System.Windows.Forms.DataGridViewTextBoxColumn();
             LUMEL = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            SztukiWybijak = new System.Windows.Forms.DataGridViewTextBoxColumn();
             KilogramyWybijak = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -62,11 +63,11 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, KilogramyWybijak, Cena, TypCeny, PiK });
+            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK });
             dataGridView1.Location = new System.Drawing.Point(12, 50);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1232, 552);
+            dataGridView1.Size = new System.Drawing.Size(1414, 552);
             dataGridView1.TabIndex = 1;
             // 
             // Numer
@@ -163,25 +164,38 @@
             // 
             // LUMEL
             // 
+            LUMEL.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             LUMEL.HeaderText = "Sztuki LUMEL";
             LUMEL.Name = "LUMEL";
+            LUMEL.Width = 60;
+            // 
+            // SztukiWybijak
+            // 
+            SztukiWybijak.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            SztukiWybijak.HeaderText = "Sztuki Wybijak";
+            SztukiWybijak.Name = "SztukiWybijak";
+            SztukiWybijak.Width = 60;
             // 
             // KilogramyWybijak
             // 
+            KilogramyWybijak.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             KilogramyWybijak.HeaderText = "KG Wybijak";
             KilogramyWybijak.Name = "KilogramyWybijak";
+            KilogramyWybijak.Width = 60;
             // 
             // Cena
             // 
             Cena.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             Cena.HeaderText = "Cena";
             Cena.Name = "Cena";
-            Cena.Width = 35;
+            Cena.Width = 40;
             // 
             // TypCeny
             // 
+            TypCeny.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             TypCeny.HeaderText = "Typ Ceny";
             TypCeny.Name = "TypCeny";
+            TypCeny.Width = 60;
             // 
             // PiK
             // 
@@ -222,6 +236,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn TaraUbojni;
         private System.Windows.Forms.DataGridViewTextBoxColumn NettoUbojni;
         private System.Windows.Forms.DataGridViewTextBoxColumn LUMEL;
+        private System.Windows.Forms.DataGridViewTextBoxColumn SztukiWybijak;
         private System.Windows.Forms.DataGridViewTextBoxColumn KilogramyWybijak;
         private System.Windows.Forms.DataGridViewTextBoxColumn Cena;
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
