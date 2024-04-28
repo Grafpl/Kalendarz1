@@ -227,8 +227,8 @@ namespace Kalendarz1
                     if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
                     {
 
-                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, DriverGID, CarLp, SztPoj, WagaDek, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd) " +
-                            "VALUES (@ID, @Date, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @Wozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd)";
+                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, Loss, PriceTypeID) " +
+                            "VALUES (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @Wozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd, @Cena, @Ubytek, @TypCeny)";
                         // Pobierz dane z wiersza DataGridView
                         string Dostawca = row.Cells["Dostawca"].Value.ToString();
                         string Kierowca = row.Cells["Kierowca"].Value.ToString();
@@ -239,15 +239,19 @@ namespace Kalendarz1
                         string Ciagnik = row.Cells["Pojazd"].Value.ToString();
                         string Naczepa = row.Cells["Naczepa"].Value.ToString();
                         string Wozek = row.Cells["Wozek"].Value.ToString();
-
-
                         
                         string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
                         string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
 
-                        //string Cena = row.Cells["Wozek"].Value.ToString();
-                        //int CenaInt = zapytaniasql.ZnajdzIdCeny(Cena);
+                        double Ubytek;
+                        if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek)) Ubytek = 0.0;
+                        double Cena;
+                        if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena)) Cena = 0.0;
+                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
+                        int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+
+
 
 
                         // Znajdź ID kierowcy i dostawcy
@@ -290,7 +294,10 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
                             cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
                             cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
-                            cmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
+
+                            cmd.Parameters.AddWithValue("@Cena", Cena);
+                            cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
+                            cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
 
                             //cmd.Parameters.AddWithValue("@Cena", CenaInt);
 

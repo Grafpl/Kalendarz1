@@ -15,6 +15,7 @@ namespace Kalendarz1
     public partial class WidokSpecyfikacje : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        ZapytaniaSQL zapytaniasql = new ZapytaniaSQL(); // Tworzenie egzemplarza klasy ZapytaniaSQL
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -25,6 +26,7 @@ namespace Kalendarz1
             // Inicjalizacja formularza
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
         }
+
 
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
@@ -39,7 +41,7 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    SqlCommand command = new SqlCommand("SELECT CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                    SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -52,9 +54,23 @@ namespace Kalendarz1
                         dataGridView1.Rows.Clear(); // Wyczyszczenie istniejących danych
                         foreach (DataRow row in dataTable.Rows)
                         {
+
+                            // Pobranie wartości kolumny "CustomerGID" jako obiektu Int32
+                            int customerGID = ZapytaniaSQL.GetValueOrDefault<int>(row, "CustomerGID", defaultValue: -1);
+                            string Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(customerGID, "ShortName");
+
+                            // int? priceTypeID = row.Field<int?>("PriceTypeID");
+                            //int actualPriceTypeID = priceTypeID.HasValue ? priceTypeID.Value : -1;
+                            // string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(actualPriceTypeID);
+
+                            // Pobranie wartości kolumny "PriceTypeID" jako Nullable<int> (int?)
+                            int priceTypeID = ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", defaultValue: -1);
+                            string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(priceTypeID);
+
                             dataGridView1.Rows.Add(
+                                row["ID"],         // Numer
                                 row["CarLp"],         // Numer
-                                row["CustomerGID"],   // Dostawca
+                                Dostawca,             // Dostawca
                                 row["DeclI1"],        // SztukiDek (pusta wartość)
                                 row["DeclI2"],        // Padle
                                 row["DeclI3"],        // CH
@@ -70,11 +86,12 @@ namespace Kalendarz1
                                 row["ProdQnt"],       // Prod Sztuki
                                 row["ProdWgt"],       // Prod Wagi
                                 row["Price"],         // Cena
-                                row["PriceTypeID"],   // TypCeny
+                                typCeny,   // TypCeny
                                 row["IncDeadConf"]    // Czy odliczamy padłe i konfiskaty
-                            // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
+                                                      // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
                             );
                         }
+
                     }
                     else
                     {
@@ -85,6 +102,19 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show("Wystąpił błąd podczas ładowania danych: " + ex.Message);
+            }
+        }
+        private void DataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Sprawdź, czy wiersz i kolumna zostały kliknięte
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                // Pobierz wartość LP z klikniętego wiersza
+                string idSpecyfikacja = dataGridView1.Rows[e.RowIndex].Cells["ID"].Value.ToString();
+
+                // Wywołaj nowe okno Dostawa, przekazując wartość LP
+                WidokAvilog dostawaForm = new WidokAvilog(idSpecyfikacja);
+                dostawaForm.Show();
             }
         }
 

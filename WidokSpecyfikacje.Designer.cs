@@ -30,6 +30,7 @@
         {
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
+            ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Numer = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
             SztukiDek = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -63,12 +64,20 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK });
+            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK });
             dataGridView1.Location = new System.Drawing.Point(12, 50);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new System.Drawing.Size(1414, 552);
             dataGridView1.TabIndex = 1;
+            dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
+            // 
+            // ID
+            // 
+            ID.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            ID.HeaderText = "ID";
+            ID.Name = "ID";
+            ID.Width = 35;
             // 
             // Numer
             // 
@@ -222,6 +231,7 @@
 
         private System.Windows.Forms.DateTimePicker dateTimePicker1;
         private System.Windows.Forms.DataGridView dataGridView1;
+        private System.Windows.Forms.DataGridViewTextBoxColumn ID;
         private System.Windows.Forms.DataGridViewTextBoxColumn Numer;
         private System.Windows.Forms.DataGridViewTextBoxColumn Dostawca;
         private System.Windows.Forms.DataGridViewTextBoxColumn SztukiDek;

@@ -407,7 +407,6 @@ namespace Kalendarz1
                 }
             }
         }
-
         private void CommandButton_Update_Click(object sender, EventArgs e)
         {
             string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -497,7 +496,6 @@ namespace Kalendarz1
                 MessageBox.Show($"Wystąpił błąd podczas Dodawania wstawienia: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void label7_Click(object sender, EventArgs e)
         {
 

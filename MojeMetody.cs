@@ -290,13 +290,32 @@ namespace Kalendarz1
             }
             return userId;
         }
+        public string ZnajdzNazweKierowcy(int name)
+        {
+            string driverName = "Brak Kierowcy"; // Jeśli nie znajdziemy kierowcy, zwrócimy "Brak Kierowcy"
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("SELECT Name FROM dbo.Driver WHERE GID = @GID", conn))
+                {
+                    cmd.Parameters.AddWithValue("@GID", name);
+
+                    object result = cmd.ExecuteScalar();
+                    if (result != null)
+                    {
+                        driverName = Convert.ToString(result);
+                    }
+                }
+            }
+            return driverName;
+        }
         public int ZnajdzIdHodowcy(string name)
         {
             int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT GID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
                 {
                     cmd.Parameters.AddWithValue("@Name", name);
 
@@ -328,14 +347,13 @@ namespace Kalendarz1
             }
             return userId;
         }
-
         public static DateTime CombineDateAndTime(string godzina, DateTime data)
         {
             // Parsowanie godziny i minuty z formatu "00:00"
             TimeSpan timeOfDay;
             if (!TimeSpan.TryParseExact(godzina, "hh\\:mm", null, out timeOfDay))
             {
-                throw new ArgumentException("Nieprawidłowy format godziny.");
+                throw new ArgumentException("Nieprawidłowy format godziny. Albo jest tylko 00:00");
             }
 
             // Tworzenie nowego obiektu DateTime z daty oraz godziny i minuty
@@ -357,6 +375,122 @@ namespace Kalendarz1
                 return input;
             }
         }
+        public string PobierzInformacjeZBazyDanychKonkretne(string lp, string kolumna)
+        {
+            string wartosc = null;
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string strSQL = $"SELECT * FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LP = @lp";
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@lp", lp);
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = reader[kolumna].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return wartosc;
+        }
+        public string PobierzInformacjeZBazyDanychHodowcow(int id, string kolumna)
+        {
+            string wartosc = null;
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string strSQL = $"SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@id", id);
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = reader[kolumna].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return wartosc;
+        }
+        public string ZnajdzNazweCenyPoID(int id)
+        {
+            string wartosc = null;
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string strSQL = $"SELECT * FROM [LibraNet].[dbo].[PriceType] WHERE ID = @id";
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@id", id);
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = reader["Name"].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return wartosc;
+        }
+        public static T GetValueOrDefault<T>(DataRow row, string columnName, T defaultValue = default)
+        {
+            // Sprawdź, czy kolumna istnieje w wierszu
+            if (!row.Table.Columns.Contains(columnName))
+            {
+                // Jeśli kolumna nie istnieje, zwróć wartość domyślną
+                return defaultValue;
+            }
+
+            // Pobranie wartości kolumny jako obiektu
+            object valueObject = row[columnName];
+
+            // Jeśli wartość jest DBNull, zwróć wartość domyślną
+            if (valueObject == DBNull.Value)
+            {
+                return defaultValue;
+            }
+
+            // Jeśli wartość nie jest DBNull, spróbuj ją skonwertować do typu T
+            try
+            {
+                return (T)valueObject;
+            }
+            catch (InvalidCastException)
+            {
+                // Jeśli konwersja nie powiodła się, zwróć wartość domyślną
+                return defaultValue;
+            }
+        }
+
+
+
 
     }
     public class CenoweMetody
