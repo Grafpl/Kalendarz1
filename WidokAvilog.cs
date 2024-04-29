@@ -45,7 +45,7 @@ namespace Kalendarz1
             UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
-            ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
+            //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
         }
         private static void UstawgodzinyAviloga(int id, DateTimePicker wyjazdZakladData, DateTimePicker poczatekZaladunekData, DateTimePicker powrotZakladData)
         {
@@ -245,7 +245,7 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
+        /*private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
         {
             try
             {
@@ -284,8 +284,8 @@ namespace Kalendarz1
             {
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
-        }
-        private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
+        }*/
+        /*private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
         {
             try
             {
@@ -326,7 +326,7 @@ namespace Kalendarz1
             {
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
-        }
+        }*/
         private void Odejmowanie(TextBox textBox1, TextBox textBox2, TextBox resultTextBox)
         {
             // Sprawdzenie, czy wartości w textBox1 i textBox2 są liczbami
