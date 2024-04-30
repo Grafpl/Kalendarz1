@@ -403,6 +403,37 @@ namespace Kalendarz1
             }
             return wartosc;
         }
+        public string PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(int ID, string Bazadanych, string kolumna)
+        {
+            string wartosc = null;
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
+                    string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@ID", ID);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = reader[kolumna].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return wartosc;
+        }
         public string PobierzInformacjeZBazyDanychHodowcow(int id, string kolumna)
         {
             string wartosc = null;
@@ -488,10 +519,124 @@ namespace Kalendarz1
                 return defaultValue;
             }
         }
+        public void UzupelnijComboBoxHodowcami(ComboBox comboBox)
+        {
+            string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY where halt = '0'";
 
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
 
+                // Clear existing items
+                comboBox.Items.Clear();
 
+                while (reader.Read())
+                {
+                    string dostawca = reader["Name"].ToString();
+                    comboBox.Items.Add(dostawca);
+                }
 
+                reader.Close();
+            }
+        }
+        public void UzupelnijComboBoxKierowcami(ComboBox comboBox)
+        {
+            string query = "SELECT DISTINCT Name FROM dbo.Driver where halt = '0'";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                // Clear existing items
+                comboBox.Items.Clear();
+
+                while (reader.Read())
+                {
+                    string dostawca = reader["Name"].ToString();
+                    comboBox.Items.Add(dostawca);
+                }
+
+                reader.Close();
+            }
+        }
+        public void UzupelnijComboBoxCiagnikami(ComboBox comboBox)
+        {
+            string query = "SELECT DISTINCT ID FROM dbo.CarTrailer where kind = '1'";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                // Clear existing items
+                comboBox.Items.Clear();
+
+                while (reader.Read())
+                {
+                    string dostawca = reader["ID"].ToString();
+                    comboBox.Items.Add(dostawca);
+                }
+
+                reader.Close();
+            }
+        }
+        public void UzupelnijComboBoxNaczepami(ComboBox comboBox)
+        {
+            string query = "SELECT DISTINCT ID FROM dbo.CarTrailer where kind = '2'";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                // Clear existing items
+                comboBox.Items.Clear();
+
+                while (reader.Read())
+                {
+                    string dostawca = reader["ID"].ToString();
+                    comboBox.Items.Add(dostawca);
+                }
+
+                reader.Close();
+            }
+        }
+        public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miasto, TextBox miejscowosc,TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
+        {
+            string selectedValue = Dostawca.SelectedItem.ToString();
+            int idDostawcy = ZnajdzIdHodowcy(selectedValue);
+            string Zmienna;
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Address");
+            adres.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "PostalCode");
+            kodPocztowy.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "City");
+            miasto.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Distance");
+            dystans.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "City");
+            miejscowosc.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone1");
+            telefon1.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone2");
+            telefon2.Text = Zmienna.ToString();
+
+            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone3");
+            telefon3.Text = Zmienna.ToString();
+
+        }
     }
     public class CenoweMetody
         {

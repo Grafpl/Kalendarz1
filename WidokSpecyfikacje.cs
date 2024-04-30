@@ -109,8 +109,9 @@ namespace Kalendarz1
             // Sprawdź, czy wiersz i kolumna zostały kliknięte
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
-                // Pobierz wartość LP z klikniętego wiersza
-                string idSpecyfikacja = dataGridView1.Rows[e.RowIndex].Cells["ID"].Value.ToString();
+                // Pobierz wartość ID z klikniętego wiersza i przekonwertuj na int
+                int idSpecyfikacja = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells["ID"].Value);
+
 
                 // Wywołaj nowe okno Dostawa, przekazując wartość LP
                 WidokAvilog dostawaForm = new WidokAvilog(idSpecyfikacja);

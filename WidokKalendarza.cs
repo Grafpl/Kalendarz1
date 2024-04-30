@@ -19,6 +19,7 @@ namespace Kalendarz1
         private MojeObliczenia obliczenia = new MojeObliczenia();
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private CenoweMetody CenoweMetody = new CenoweMetody();
+        private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public WidokKalendarza()
         {
             InitializeComponent();
@@ -784,22 +785,7 @@ namespace Kalendarz1
         }
         private void FillComboBox()
         {
-            string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY";
-
-            using (SqlConnection connection = new SqlConnection(connectionPermission))
-            {
-                SqlCommand command = new SqlCommand(query, connection);
-                connection.Open();
-                SqlDataReader reader = command.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    string dostawca = reader["Name"].ToString();
-                    Dostawca.Items.Add(dostawca);
-                }
-
-                reader.Close();
-            }
+            zapytaniasql.UzupelnijComboBoxHodowcami(Dostawca);
         }
         private void SetupStatus()
         {

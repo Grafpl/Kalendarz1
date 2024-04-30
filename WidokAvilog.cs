@@ -19,10 +19,13 @@ namespace Kalendarz1
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         static string sqlDostawy = "SELECT * FROM [LibraNet].[dbo].[FarmerCalc] WHERE ID = @id";
         static string sqlDostawcy = "SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
+        static string idDostawcy, idrealDostawcy, idKurnika;
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public WidokAvilog()
         {
             InitializeComponent();
+            zapytaniasql.UzupelnijComboBoxHodowcami(Dostawca); zapytaniasql.UzupelnijComboBoxHodowcami(RealDostawca);
+            zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxCiagnikami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
             // Tablica zawierająca wszystkie kontrolki
             DateTimePicker[] dateTimePickers = { wyjazdZakladData, dojazdHodowcaData, poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData, poczatekUslugiData, powrotZakladData, koniecUslugiData };
             // Pętla ustawiająca właściwości dla każdej kontrolki w tablicy
@@ -35,17 +38,16 @@ namespace Kalendarz1
             }
 
         }
-        public WidokAvilog(string id) : this()
+        public WidokAvilog(int idSpecyfikacji) : this()
         {
-            idSpecyfikacjiString = id;
-            int idSpecyfikacji;
-            int.TryParse(idSpecyfikacjiString, out idSpecyfikacji);
+            idDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerGID");
+            idrealDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerRealGID");
+            UstawDostawce(idSpecyfikacji, Dostawca, RealDostawca);
             UstawgodzinyAviloga(idSpecyfikacji, wyjazdZakladData, poczatekZaladunekData, powrotZakladData);
             UstawKierowceAuta(idSpecyfikacji, Naczepa, Auto, Kierowca);
             UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
-            //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
         }
         private static void UstawgodzinyAviloga(int id, DateTimePicker wyjazdZakladData, DateTimePicker poczatekZaladunekData, DateTimePicker powrotZakladData)
         {
@@ -131,6 +133,47 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
+        private static void UstawDostawce(int id, ComboBox Dostawca, ComboBox RealDostawca)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    SqlCommand command = new SqlCommand(sqlDostawy, connection);
+                    command.Parameters.AddWithValue("@id", id);
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
+                    {
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
+                        {
+                            int DostawcaInfo = reader.GetInt32(reader.GetOrdinal("CustomerGID"));
+                            string kierowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(DostawcaInfo, "ShortName");
+                            Dostawca.Text = kierowcaNazwa.ToString(); // Konwersja wartości int na string
+                        }
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
+                        {
+                            int DostawcaInfo = reader.GetInt32(reader.GetOrdinal("CustomerRealGID"));
+                            string kierowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(DostawcaInfo, "ShortName");
+                            RealDostawca.Text = kierowcaNazwa.ToString(); // Konwersja wartości int na string
+                        }
+                    }
+                    else
+                    {
+                        // Obsłuż przypadki, gdy brak danych dla określonego identyfikatora
+                        Console.WriteLine("Brak danych dla określonego identyfikatora.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
+            }
+        }
+
         private static void UstawRozliczenia(int id, TextBox hBrutto, TextBox hTara, TextBox uBrutto, TextBox uTara, TextBox hLiczbaSztuk, TextBox uLiczbaSztuk, TextBox buforhLiczbaSztuk, TextBox hSrednia, TextBox buforhSrednia)
         {
             try
@@ -245,46 +288,6 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        /*private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
-        {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand(sqlDostawy, connection);
-                    command.Parameters.AddWithValue("@id", id);
-
-                    SqlDataReader reader = command.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            Dostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerRealGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            RealDostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                    }
-                    else
-                    {
-                        // Obsłuż przypadki, gdy brak danych dla określonego identyfikatora
-                        Console.WriteLine("Brak danych dla określonego identyfikatora.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
-            }
-        }*/
         /*private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
         {
             try
@@ -444,6 +447,16 @@ namespace Kalendarz1
         private void label38_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, UlicaH, MiejscH, KmH, Tel1, Tel2, Tel3);
+        }
+
+        private void RealDostawca_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(RealDostawca, UlicaR, KodPocztowyR, UlicaR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
         }
     }
 }

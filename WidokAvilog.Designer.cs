@@ -112,10 +112,10 @@
             label4 = new System.Windows.Forms.Label();
             label38 = new System.Windows.Forms.Label();
             RealDostawca = new System.Windows.Forms.ComboBox();
-            textBox1 = new System.Windows.Forms.TextBox();
-            textBox2 = new System.Windows.Forms.TextBox();
-            textBox3 = new System.Windows.Forms.TextBox();
-            textBox4 = new System.Windows.Forms.TextBox();
+            KmR = new System.Windows.Forms.TextBox();
+            MiejscR = new System.Windows.Forms.TextBox();
+            KodPocztowyR = new System.Windows.Forms.TextBox();
+            UlicaR = new System.Windows.Forms.TextBox();
             label39 = new System.Windows.Forms.Label();
             label40 = new System.Windows.Forms.Label();
             label41 = new System.Windows.Forms.Label();
@@ -124,19 +124,16 @@
             button1 = new System.Windows.Forms.Button();
             button2 = new System.Windows.Forms.Button();
             label44 = new System.Windows.Forms.Label();
-            textBox5 = new System.Windows.Forms.TextBox();
-            textBox6 = new System.Windows.Forms.TextBox();
-            textBox7 = new System.Windows.Forms.TextBox();
+            Tel1R = new System.Windows.Forms.TextBox();
+            Tel1 = new System.Windows.Forms.TextBox();
             label45 = new System.Windows.Forms.Label();
             label46 = new System.Windows.Forms.Label();
-            textBox8 = new System.Windows.Forms.TextBox();
-            textBox9 = new System.Windows.Forms.TextBox();
-            textBox10 = new System.Windows.Forms.TextBox();
+            Tel2R = new System.Windows.Forms.TextBox();
+            Tel2 = new System.Windows.Forms.TextBox();
             label47 = new System.Windows.Forms.Label();
             label48 = new System.Windows.Forms.Label();
-            textBox11 = new System.Windows.Forms.TextBox();
-            textBox12 = new System.Windows.Forms.TextBox();
-            textBox13 = new System.Windows.Forms.TextBox();
+            Tel3R = new System.Windows.Forms.TextBox();
+            Tel3 = new System.Windows.Forms.TextBox();
             label49 = new System.Windows.Forms.Label();
             groupBox4.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -248,6 +245,7 @@
             Dostawca.Name = "Dostawca";
             Dostawca.Size = new System.Drawing.Size(144, 23);
             Dostawca.TabIndex = 38;
+            Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
             // 
             // KmH
             // 
@@ -1003,38 +1001,39 @@
             RealDostawca.Name = "RealDostawca";
             RealDostawca.Size = new System.Drawing.Size(144, 23);
             RealDostawca.TabIndex = 55;
+            RealDostawca.SelectedIndexChanged += RealDostawca_SelectedIndexChanged;
             // 
-            // textBox1
+            // KmR
             // 
-            textBox1.Location = new System.Drawing.Point(400, 146);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(144, 23);
-            textBox1.TabIndex = 59;
-            textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            KmR.Location = new System.Drawing.Point(400, 146);
+            KmR.Name = "KmR";
+            KmR.Size = new System.Drawing.Size(144, 23);
+            KmR.TabIndex = 59;
+            KmR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox2
+            // MiejscR
             // 
-            textBox2.Location = new System.Drawing.Point(400, 117);
-            textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(144, 23);
-            textBox2.TabIndex = 58;
-            textBox2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            MiejscR.Location = new System.Drawing.Point(400, 117);
+            MiejscR.Name = "MiejscR";
+            MiejscR.Size = new System.Drawing.Size(144, 23);
+            MiejscR.TabIndex = 58;
+            MiejscR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox3
+            // KodPocztowyR
             // 
-            textBox3.Location = new System.Drawing.Point(400, 88);
-            textBox3.Name = "textBox3";
-            textBox3.Size = new System.Drawing.Size(144, 23);
-            textBox3.TabIndex = 57;
-            textBox3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            KodPocztowyR.Location = new System.Drawing.Point(400, 88);
+            KodPocztowyR.Name = "KodPocztowyR";
+            KodPocztowyR.Size = new System.Drawing.Size(144, 23);
+            KodPocztowyR.TabIndex = 57;
+            KodPocztowyR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox4
+            // UlicaR
             // 
-            textBox4.Location = new System.Drawing.Point(400, 60);
-            textBox4.Name = "textBox4";
-            textBox4.Size = new System.Drawing.Size(144, 23);
-            textBox4.TabIndex = 56;
-            textBox4.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            UlicaR.Location = new System.Drawing.Point(400, 60);
+            UlicaR.Name = "UlicaR";
+            UlicaR.Size = new System.Drawing.Size(144, 23);
+            UlicaR.TabIndex = 56;
+            UlicaR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label39
             // 
@@ -1108,29 +1107,21 @@
             label44.Text = "Tel1";
             label44.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // textBox5
+            // Tel1R
             // 
-            textBox5.Location = new System.Drawing.Point(400, 175);
-            textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(144, 23);
-            textBox5.TabIndex = 71;
-            textBox5.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel1R.Location = new System.Drawing.Point(400, 175);
+            Tel1R.Name = "Tel1R";
+            Tel1R.Size = new System.Drawing.Size(144, 23);
+            Tel1R.TabIndex = 71;
+            Tel1R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox6
+            // Tel1
             // 
-            textBox6.Location = new System.Drawing.Point(250, 175);
-            textBox6.Name = "textBox6";
-            textBox6.Size = new System.Drawing.Size(144, 23);
-            textBox6.TabIndex = 69;
-            textBox6.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // textBox7
-            // 
-            textBox7.Location = new System.Drawing.Point(100, 175);
-            textBox7.Name = "textBox7";
-            textBox7.Size = new System.Drawing.Size(144, 23);
-            textBox7.TabIndex = 70;
-            textBox7.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel1.Location = new System.Drawing.Point(100, 175);
+            Tel1.Name = "Tel1";
+            Tel1.Size = new System.Drawing.Size(144, 23);
+            Tel1.TabIndex = 70;
+            Tel1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label45
             // 
@@ -1150,29 +1141,21 @@
             label46.Text = "Tel2";
             label46.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // textBox8
+            // Tel2R
             // 
-            textBox8.Location = new System.Drawing.Point(400, 204);
-            textBox8.Name = "textBox8";
-            textBox8.Size = new System.Drawing.Size(144, 23);
-            textBox8.TabIndex = 76;
-            textBox8.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel2R.Location = new System.Drawing.Point(400, 204);
+            Tel2R.Name = "Tel2R";
+            Tel2R.Size = new System.Drawing.Size(144, 23);
+            Tel2R.TabIndex = 76;
+            Tel2R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox9
+            // Tel2
             // 
-            textBox9.Location = new System.Drawing.Point(250, 204);
-            textBox9.Name = "textBox9";
-            textBox9.Size = new System.Drawing.Size(144, 23);
-            textBox9.TabIndex = 74;
-            textBox9.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // textBox10
-            // 
-            textBox10.Location = new System.Drawing.Point(100, 204);
-            textBox10.Name = "textBox10";
-            textBox10.Size = new System.Drawing.Size(144, 23);
-            textBox10.TabIndex = 75;
-            textBox10.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel2.Location = new System.Drawing.Point(100, 204);
+            Tel2.Name = "Tel2";
+            Tel2.Size = new System.Drawing.Size(144, 23);
+            Tel2.TabIndex = 75;
+            Tel2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label47
             // 
@@ -1192,29 +1175,21 @@
             label48.Text = "Tel3";
             label48.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // textBox11
+            // Tel3R
             // 
-            textBox11.Location = new System.Drawing.Point(400, 232);
-            textBox11.Name = "textBox11";
-            textBox11.Size = new System.Drawing.Size(144, 23);
-            textBox11.TabIndex = 81;
-            textBox11.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel3R.Location = new System.Drawing.Point(400, 232);
+            Tel3R.Name = "Tel3R";
+            Tel3R.Size = new System.Drawing.Size(144, 23);
+            Tel3R.TabIndex = 81;
+            Tel3R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // textBox12
+            // Tel3
             // 
-            textBox12.Location = new System.Drawing.Point(250, 232);
-            textBox12.Name = "textBox12";
-            textBox12.Size = new System.Drawing.Size(144, 23);
-            textBox12.TabIndex = 79;
-            textBox12.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // textBox13
-            // 
-            textBox13.Location = new System.Drawing.Point(100, 232);
-            textBox13.Name = "textBox13";
-            textBox13.Size = new System.Drawing.Size(144, 23);
-            textBox13.TabIndex = 80;
-            textBox13.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            Tel3.Location = new System.Drawing.Point(100, 232);
+            Tel3.Name = "Tel3";
+            Tel3.Size = new System.Drawing.Size(144, 23);
+            Tel3.TabIndex = 80;
+            Tel3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label49
             // 
@@ -1231,19 +1206,16 @@
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(882, 624);
             Controls.Add(label48);
-            Controls.Add(textBox11);
-            Controls.Add(textBox12);
-            Controls.Add(textBox13);
+            Controls.Add(Tel3R);
+            Controls.Add(Tel3);
             Controls.Add(label49);
             Controls.Add(label46);
-            Controls.Add(textBox8);
-            Controls.Add(textBox9);
-            Controls.Add(textBox10);
+            Controls.Add(Tel2R);
+            Controls.Add(Tel2);
             Controls.Add(label47);
             Controls.Add(label44);
-            Controls.Add(textBox5);
-            Controls.Add(textBox6);
-            Controls.Add(textBox7);
+            Controls.Add(Tel1R);
+            Controls.Add(Tel1);
             Controls.Add(label45);
             Controls.Add(button2);
             Controls.Add(button1);
@@ -1254,10 +1226,10 @@
             Controls.Add(label43);
             Controls.Add(label38);
             Controls.Add(RealDostawca);
-            Controls.Add(textBox1);
-            Controls.Add(textBox2);
-            Controls.Add(textBox3);
-            Controls.Add(textBox4);
+            Controls.Add(KmR);
+            Controls.Add(MiejscR);
+            Controls.Add(KodPocztowyR);
+            Controls.Add(UlicaR);
             Controls.Add(label4);
             Controls.Add(groupBox4);
             Controls.Add(label22);
@@ -1377,10 +1349,10 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label38;
         private System.Windows.Forms.ComboBox RealDostawca;
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.TextBox textBox2;
-        private System.Windows.Forms.TextBox textBox3;
-        private System.Windows.Forms.TextBox textBox4;
+        private System.Windows.Forms.TextBox KmR;
+        private System.Windows.Forms.TextBox MiejscR;
+        private System.Windows.Forms.TextBox KodPocztowyR;
+        private System.Windows.Forms.TextBox UlicaR;
         private System.Windows.Forms.Label label39;
         private System.Windows.Forms.Label label40;
         private System.Windows.Forms.Label label41;
@@ -1389,19 +1361,16 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Label label44;
-        private System.Windows.Forms.TextBox textBox5;
-        private System.Windows.Forms.TextBox textBox6;
-        private System.Windows.Forms.TextBox textBox7;
+        private System.Windows.Forms.TextBox Tel1R;
+        private System.Windows.Forms.TextBox Tel1;
         private System.Windows.Forms.Label label45;
         private System.Windows.Forms.Label label46;
-        private System.Windows.Forms.TextBox textBox8;
-        private System.Windows.Forms.TextBox textBox9;
-        private System.Windows.Forms.TextBox textBox10;
+        private System.Windows.Forms.TextBox Tel2R;
+        private System.Windows.Forms.TextBox Tel2;
         private System.Windows.Forms.Label label47;
         private System.Windows.Forms.Label label48;
-        private System.Windows.Forms.TextBox textBox11;
-        private System.Windows.Forms.TextBox textBox12;
-        private System.Windows.Forms.TextBox textBox13;
+        private System.Windows.Forms.TextBox Tel3R;
+        private System.Windows.Forms.TextBox Tel3;
         private System.Windows.Forms.Label label49;
     }
 }
