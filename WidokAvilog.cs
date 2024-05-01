@@ -45,7 +45,7 @@ namespace Kalendarz1
             UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
-            //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
+            ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
         }
         private static void UstawgodzinyAviloga(int id, DateTimePicker wyjazdZakladData, DateTimePicker poczatekZaladunekData, DateTimePicker powrotZakladData)
         {
@@ -245,7 +245,7 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        /*private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
+        private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
         {
             try
             {
@@ -284,15 +284,15 @@ namespace Kalendarz1
             {
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
-        }*/
-        /*private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
+        }
+       /* private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
         {
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
 
-                    PobierzInformacjeZBazyDanychHodowcow(Nazwa, "ID");
+                    zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(Nazwa, "ID");
                     connection.Open();
                     SqlCommand command = new SqlCommand(sqlDostawcy, connection);
                     command.Parameters.AddWithValue("@id", id);
