@@ -135,6 +135,9 @@
             Tel3R = new System.Windows.Forms.TextBox();
             Tel3 = new System.Windows.Forms.TextBox();
             label49 = new System.Windows.Forms.Label();
+            info3 = new System.Windows.Forms.TextBox();
+            info2 = new System.Windows.Forms.TextBox();
+            info1 = new System.Windows.Forms.TextBox();
             groupBox4.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox2.SuspendLayout();
@@ -149,9 +152,11 @@
             groupBox4.Controls.Add(label28);
             groupBox4.Controls.Add(label29);
             groupBox4.Controls.Add(label30);
-            groupBox4.Location = new System.Drawing.Point(650, 12);
+            groupBox4.Location = new System.Drawing.Point(836, 18);
+            groupBox4.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             groupBox4.Name = "groupBox4";
-            groupBox4.Size = new System.Drawing.Size(220, 112);
+            groupBox4.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            groupBox4.Size = new System.Drawing.Size(283, 172);
             groupBox4.TabIndex = 53;
             groupBox4.TabStop = false;
             groupBox4.Text = "Avilog Polska";
@@ -159,59 +164,66 @@
             // Naczepa
             // 
             Naczepa.FormattingEnabled = true;
-            Naczepa.Location = new System.Drawing.Point(88, 79);
+            Naczepa.Location = new System.Drawing.Point(113, 121);
+            Naczepa.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Naczepa.Name = "Naczepa";
-            Naczepa.Size = new System.Drawing.Size(125, 23);
+            Naczepa.Size = new System.Drawing.Size(160, 31);
             Naczepa.TabIndex = 41;
             // 
             // Auto
             // 
             Auto.FormattingEnabled = true;
-            Auto.Location = new System.Drawing.Point(88, 48);
+            Auto.Location = new System.Drawing.Point(113, 74);
+            Auto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Auto.Name = "Auto";
-            Auto.Size = new System.Drawing.Size(125, 23);
+            Auto.Size = new System.Drawing.Size(160, 31);
             Auto.TabIndex = 35;
             // 
             // Kierowca
             // 
             Kierowca.FormattingEnabled = true;
-            Kierowca.Location = new System.Drawing.Point(88, 19);
+            Kierowca.Location = new System.Drawing.Point(113, 29);
+            Kierowca.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Kierowca.Name = "Kierowca";
-            Kierowca.Size = new System.Drawing.Size(125, 23);
+            Kierowca.Size = new System.Drawing.Size(160, 31);
             Kierowca.TabIndex = 34;
             // 
             // label28
             // 
-            label28.Location = new System.Drawing.Point(22, 78);
+            label28.Location = new System.Drawing.Point(28, 120);
+            label28.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label28.Name = "label28";
-            label28.Size = new System.Drawing.Size(60, 23);
+            label28.Size = new System.Drawing.Size(77, 35);
             label28.TabIndex = 40;
             label28.Text = "Naczepa";
             label28.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label29
             // 
-            label29.Location = new System.Drawing.Point(22, 48);
+            label29.Location = new System.Drawing.Point(28, 74);
+            label29.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label29.Name = "label29";
-            label29.Size = new System.Drawing.Size(60, 23);
+            label29.Size = new System.Drawing.Size(77, 35);
             label29.TabIndex = 38;
             label29.Text = "Ciągnik";
             label29.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label30
             // 
-            label30.Location = new System.Drawing.Point(22, 19);
+            label30.Location = new System.Drawing.Point(28, 29);
+            label30.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label30.Name = "label30";
-            label30.Size = new System.Drawing.Size(60, 23);
+            label30.Size = new System.Drawing.Size(77, 35);
             label30.TabIndex = 36;
             label30.Text = "Kierowca";
             label30.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label22
             // 
-            label22.Location = new System.Drawing.Point(250, 6);
+            label22.Location = new System.Drawing.Point(321, 9);
+            label22.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label22.Name = "label22";
-            label22.Size = new System.Drawing.Size(144, 20);
+            label22.Size = new System.Drawing.Size(185, 31);
             label22.TabIndex = 52;
             label22.Text = "Kurnik";
             label22.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -222,16 +234,18 @@
             Kurnik.DropDownWidth = 200;
             Kurnik.FormattingEnabled = true;
             Kurnik.IntegralHeight = false;
-            Kurnik.Location = new System.Drawing.Point(250, 29);
+            Kurnik.Location = new System.Drawing.Point(321, 44);
+            Kurnik.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Kurnik.Name = "Kurnik";
-            Kurnik.Size = new System.Drawing.Size(144, 23);
+            Kurnik.Size = new System.Drawing.Size(184, 31);
             Kurnik.TabIndex = 37;
             // 
             // KmK
             // 
-            KmK.Location = new System.Drawing.Point(250, 146);
+            KmK.Location = new System.Drawing.Point(321, 224);
+            KmK.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KmK.Name = "KmK";
-            KmK.Size = new System.Drawing.Size(144, 23);
+            KmK.Size = new System.Drawing.Size(184, 30);
             KmK.TabIndex = 50;
             KmK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
@@ -241,109 +255,122 @@
             Dostawca.DropDownWidth = 200;
             Dostawca.FormattingEnabled = true;
             Dostawca.IntegralHeight = false;
-            Dostawca.Location = new System.Drawing.Point(100, 29);
+            Dostawca.Location = new System.Drawing.Point(129, 44);
+            Dostawca.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Dostawca.Name = "Dostawca";
-            Dostawca.Size = new System.Drawing.Size(144, 23);
+            Dostawca.Size = new System.Drawing.Size(184, 31);
             Dostawca.TabIndex = 38;
             Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
             // 
             // KmH
             // 
-            KmH.Location = new System.Drawing.Point(100, 146);
+            KmH.Location = new System.Drawing.Point(129, 224);
+            KmH.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KmH.Name = "KmH";
-            KmH.Size = new System.Drawing.Size(144, 23);
+            KmH.Size = new System.Drawing.Size(184, 30);
             KmH.TabIndex = 51;
             KmH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // MiejscK
             // 
-            MiejscK.Location = new System.Drawing.Point(250, 117);
+            MiejscK.Location = new System.Drawing.Point(321, 179);
+            MiejscK.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             MiejscK.Name = "MiejscK";
-            MiejscK.Size = new System.Drawing.Size(144, 23);
+            MiejscK.Size = new System.Drawing.Size(184, 30);
             MiejscK.TabIndex = 47;
             MiejscK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label23
             // 
-            label23.Location = new System.Drawing.Point(100, 6);
+            label23.Location = new System.Drawing.Point(129, 9);
+            label23.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label23.Name = "label23";
-            label23.Size = new System.Drawing.Size(144, 20);
+            label23.Size = new System.Drawing.Size(185, 31);
             label23.TabIndex = 39;
             label23.Text = "Dostawca";
             label23.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label24
             // 
-            label24.Location = new System.Drawing.Point(5, 154);
+            label24.Location = new System.Drawing.Point(6, 236);
+            label24.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label24.Name = "label24";
-            label24.Size = new System.Drawing.Size(89, 15);
+            label24.Size = new System.Drawing.Size(114, 23);
             label24.TabIndex = 49;
             label24.Text = "KM";
             label24.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // MiejscH
             // 
-            MiejscH.Location = new System.Drawing.Point(100, 117);
+            MiejscH.Location = new System.Drawing.Point(129, 179);
+            MiejscH.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             MiejscH.Name = "MiejscH";
-            MiejscH.Size = new System.Drawing.Size(144, 23);
+            MiejscH.Size = new System.Drawing.Size(184, 30);
             MiejscH.TabIndex = 48;
             MiejscH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // KodPocztowyK
             // 
-            KodPocztowyK.Location = new System.Drawing.Point(250, 88);
+            KodPocztowyK.Location = new System.Drawing.Point(321, 135);
+            KodPocztowyK.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KodPocztowyK.Name = "KodPocztowyK";
-            KodPocztowyK.Size = new System.Drawing.Size(144, 23);
+            KodPocztowyK.Size = new System.Drawing.Size(184, 30);
             KodPocztowyK.TabIndex = 44;
             KodPocztowyK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label25
             // 
-            label25.Location = new System.Drawing.Point(5, 60);
+            label25.Location = new System.Drawing.Point(6, 92);
+            label25.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label25.Name = "label25";
-            label25.Size = new System.Drawing.Size(89, 18);
+            label25.Size = new System.Drawing.Size(114, 28);
             label25.TabIndex = 40;
             label25.Text = "Ulica";
             label25.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // UlicaK
             // 
-            UlicaK.Location = new System.Drawing.Point(250, 60);
+            UlicaK.Location = new System.Drawing.Point(321, 92);
+            UlicaK.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             UlicaK.Name = "UlicaK";
-            UlicaK.Size = new System.Drawing.Size(144, 23);
+            UlicaK.Size = new System.Drawing.Size(184, 30);
             UlicaK.TabIndex = 41;
             UlicaK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label26
             // 
-            label26.Location = new System.Drawing.Point(5, 125);
+            label26.Location = new System.Drawing.Point(6, 192);
+            label26.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label26.Name = "label26";
-            label26.Size = new System.Drawing.Size(89, 15);
+            label26.Size = new System.Drawing.Size(114, 23);
             label26.TabIndex = 46;
             label26.Text = "Miejscowosc";
             label26.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // KodPocztowyH
             // 
-            KodPocztowyH.Location = new System.Drawing.Point(100, 88);
+            KodPocztowyH.Location = new System.Drawing.Point(129, 135);
+            KodPocztowyH.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KodPocztowyH.Name = "KodPocztowyH";
-            KodPocztowyH.Size = new System.Drawing.Size(144, 23);
+            KodPocztowyH.Size = new System.Drawing.Size(184, 30);
             KodPocztowyH.TabIndex = 45;
             KodPocztowyH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // UlicaH
             // 
-            UlicaH.Location = new System.Drawing.Point(100, 60);
+            UlicaH.Location = new System.Drawing.Point(129, 92);
+            UlicaH.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             UlicaH.Name = "UlicaH";
-            UlicaH.Size = new System.Drawing.Size(144, 23);
+            UlicaH.Size = new System.Drawing.Size(184, 30);
             UlicaH.TabIndex = 42;
             UlicaH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label27
             // 
-            label27.Location = new System.Drawing.Point(5, 93);
+            label27.Location = new System.Drawing.Point(6, 143);
+            label27.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label27.Name = "label27";
-            label27.Size = new System.Drawing.Size(89, 15);
+            label27.Size = new System.Drawing.Size(114, 23);
             label27.TabIndex = 43;
             label27.Text = "Kod-Pocztowy";
             label27.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -383,9 +410,11 @@
             groupBox3.Controls.Add(uLiczbaSztuk);
             groupBox3.Controls.Add(uLiczbaSzuflad);
             groupBox3.Controls.Add(label15);
-            groupBox3.Location = new System.Drawing.Point(5, 261);
+            groupBox3.Location = new System.Drawing.Point(6, 400);
+            groupBox3.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             groupBox3.Name = "groupBox3";
-            groupBox3.Size = new System.Drawing.Size(634, 362);
+            groupBox3.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            groupBox3.Size = new System.Drawing.Size(815, 555);
             groupBox3.TabIndex = 36;
             groupBox3.TabStop = false;
             groupBox3.Text = "Ładunek";
@@ -394,10 +423,11 @@
             // 
             buforhLiczbaSztuk.BackColor = System.Drawing.SystemColors.InactiveCaption;
             buforhLiczbaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buforhLiczbaSztuk.Location = new System.Drawing.Point(113, 87);
+            buforhLiczbaSztuk.Location = new System.Drawing.Point(145, 133);
+            buforhLiczbaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             buforhLiczbaSztuk.Multiline = true;
             buforhLiczbaSztuk.Name = "buforhLiczbaSztuk";
-            buforhLiczbaSztuk.Size = new System.Drawing.Size(65, 40);
+            buforhLiczbaSztuk.Size = new System.Drawing.Size(82, 59);
             buforhLiczbaSztuk.TabIndex = 87;
             buforhLiczbaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             buforhLiczbaSztuk.TextChanged += buforhLiczbaSztuk_TextChanged;
@@ -406,10 +436,11 @@
             // 
             buforSumaSztuk.BackColor = System.Drawing.SystemColors.InactiveCaption;
             buforSumaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buforSumaSztuk.Location = new System.Drawing.Point(113, 132);
+            buforSumaSztuk.Location = new System.Drawing.Point(145, 202);
+            buforSumaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             buforSumaSztuk.Multiline = true;
             buforSumaSztuk.Name = "buforSumaSztuk";
-            buforSumaSztuk.Size = new System.Drawing.Size(65, 40);
+            buforSumaSztuk.Size = new System.Drawing.Size(82, 59);
             buforSumaSztuk.TabIndex = 86;
             buforSumaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
@@ -417,19 +448,21 @@
             // 
             buforhSrednia.BackColor = System.Drawing.SystemColors.InactiveCaption;
             buforhSrednia.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buforhSrednia.Location = new System.Drawing.Point(113, 182);
+            buforhSrednia.Location = new System.Drawing.Point(145, 279);
+            buforhSrednia.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             buforhSrednia.Multiline = true;
             buforhSrednia.Name = "buforhSrednia";
-            buforhSrednia.Size = new System.Drawing.Size(65, 40);
+            buforhSrednia.Size = new System.Drawing.Size(82, 59);
             buforhSrednia.TabIndex = 85;
             buforhSrednia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label20
             // 
             label20.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label20.Location = new System.Drawing.Point(523, 318);
+            label20.Location = new System.Drawing.Point(672, 488);
+            label20.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label20.Name = "label20";
-            label20.Size = new System.Drawing.Size(100, 40);
+            label20.Size = new System.Drawing.Size(129, 61);
             label20.TabIndex = 84;
             label20.Text = "Masa Netto";
             label20.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -437,9 +470,10 @@
             // label32
             // 
             label32.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label32.Location = new System.Drawing.Point(523, 272);
+            label32.Location = new System.Drawing.Point(672, 417);
+            label32.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label32.Name = "label32";
-            label32.Size = new System.Drawing.Size(100, 40);
+            label32.Size = new System.Drawing.Size(129, 61);
             label32.TabIndex = 83;
             label32.Text = "Tara";
             label32.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -447,9 +481,10 @@
             // label33
             // 
             label33.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label33.Location = new System.Drawing.Point(523, 226);
+            label33.Location = new System.Drawing.Point(672, 347);
+            label33.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label33.Name = "label33";
-            label33.Size = new System.Drawing.Size(100, 40);
+            label33.Size = new System.Drawing.Size(129, 61);
             label33.TabIndex = 82;
             label33.Text = "Masa Brutto";
             label33.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -457,9 +492,10 @@
             // label34
             // 
             label34.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label34.Location = new System.Drawing.Point(523, 182);
+            label34.Location = new System.Drawing.Point(672, 279);
+            label34.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label34.Name = "label34";
-            label34.Size = new System.Drawing.Size(100, 40);
+            label34.Size = new System.Drawing.Size(129, 61);
             label34.TabIndex = 81;
             label34.Text = "Masa Średnia Planowana";
             label34.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -467,9 +503,10 @@
             // label35
             // 
             label35.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label35.Location = new System.Drawing.Point(523, 132);
+            label35.Location = new System.Drawing.Point(672, 202);
+            label35.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label35.Name = "label35";
-            label35.Size = new System.Drawing.Size(100, 40);
+            label35.Size = new System.Drawing.Size(129, 61);
             label35.TabIndex = 80;
             label35.Text = "Suma Sztuk";
             label35.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -477,9 +514,10 @@
             // label36
             // 
             label36.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label36.Location = new System.Drawing.Point(523, 87);
+            label36.Location = new System.Drawing.Point(672, 133);
+            label36.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label36.Name = "label36";
-            label36.Size = new System.Drawing.Size(100, 40);
+            label36.Size = new System.Drawing.Size(129, 61);
             label36.TabIndex = 79;
             label36.Text = "Liczba Sztuk/Szuflada";
             label36.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -487,9 +525,10 @@
             // label37
             // 
             label37.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label37.Location = new System.Drawing.Point(523, 41);
+            label37.Location = new System.Drawing.Point(672, 63);
+            label37.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label37.Name = "label37";
-            label37.Size = new System.Drawing.Size(100, 40);
+            label37.Size = new System.Drawing.Size(129, 61);
             label37.TabIndex = 78;
             label37.Text = "Liczba szuflad";
             label37.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -497,9 +536,10 @@
             // label19
             // 
             label19.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(7, 318);
+            label19.Location = new System.Drawing.Point(9, 488);
+            label19.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label19.Name = "label19";
-            label19.Size = new System.Drawing.Size(100, 40);
+            label19.Size = new System.Drawing.Size(129, 61);
             label19.TabIndex = 77;
             label19.Text = "Masa Netto";
             label19.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -507,9 +547,10 @@
             // label18
             // 
             label18.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label18.Location = new System.Drawing.Point(7, 272);
+            label18.Location = new System.Drawing.Point(9, 417);
+            label18.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label18.Name = "label18";
-            label18.Size = new System.Drawing.Size(100, 40);
+            label18.Size = new System.Drawing.Size(129, 61);
             label18.TabIndex = 76;
             label18.Text = "Tara";
             label18.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -517,9 +558,10 @@
             // label17
             // 
             label17.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label17.Location = new System.Drawing.Point(7, 226);
+            label17.Location = new System.Drawing.Point(9, 347);
+            label17.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(100, 40);
+            label17.Size = new System.Drawing.Size(129, 61);
             label17.TabIndex = 75;
             label17.Text = "Masa Brutto";
             label17.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -527,9 +569,10 @@
             // label16
             // 
             label16.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label16.Location = new System.Drawing.Point(7, 182);
+            label16.Location = new System.Drawing.Point(9, 279);
+            label16.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label16.Name = "label16";
-            label16.Size = new System.Drawing.Size(100, 40);
+            label16.Size = new System.Drawing.Size(129, 61);
             label16.TabIndex = 74;
             label16.Text = "Masa Średnia Planowana";
             label16.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -537,9 +580,10 @@
             // label14
             // 
             label14.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label14.Location = new System.Drawing.Point(7, 132);
+            label14.Location = new System.Drawing.Point(9, 202);
+            label14.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(100, 40);
+            label14.Size = new System.Drawing.Size(129, 61);
             label14.TabIndex = 73;
             label14.Text = "Suma Sztuk";
             label14.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -547,9 +591,10 @@
             // label13
             // 
             label13.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label13.Location = new System.Drawing.Point(7, 87);
+            label13.Location = new System.Drawing.Point(9, 133);
+            label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(100, 40);
+            label13.Size = new System.Drawing.Size(129, 61);
             label13.TabIndex = 72;
             label13.Text = "Liczba Sztuk/Szuflada";
             label13.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -557,10 +602,11 @@
             // hNetto
             // 
             hNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hNetto.Location = new System.Drawing.Point(113, 318);
+            hNetto.Location = new System.Drawing.Point(145, 488);
+            hNetto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hNetto.Multiline = true;
             hNetto.Name = "hNetto";
-            hNetto.Size = new System.Drawing.Size(144, 40);
+            hNetto.Size = new System.Drawing.Size(184, 59);
             hNetto.TabIndex = 71;
             hNetto.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             hNetto.TextChanged += hNetto_TextChanged;
@@ -568,10 +614,11 @@
             // hTara
             // 
             hTara.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hTara.Location = new System.Drawing.Point(113, 272);
+            hTara.Location = new System.Drawing.Point(145, 417);
+            hTara.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hTara.Multiline = true;
             hTara.Name = "hTara";
-            hTara.Size = new System.Drawing.Size(144, 40);
+            hTara.Size = new System.Drawing.Size(184, 59);
             hTara.TabIndex = 70;
             hTara.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             hTara.TextChanged += hTara_TextChanged;
@@ -579,10 +626,11 @@
             // hBrutto
             // 
             hBrutto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hBrutto.Location = new System.Drawing.Point(113, 226);
+            hBrutto.Location = new System.Drawing.Point(145, 347);
+            hBrutto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hBrutto.Multiline = true;
             hBrutto.Name = "hBrutto";
-            hBrutto.Size = new System.Drawing.Size(144, 40);
+            hBrutto.Size = new System.Drawing.Size(184, 59);
             hBrutto.TabIndex = 69;
             hBrutto.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             hBrutto.TextChanged += hBrutto_TextChanged;
@@ -590,20 +638,22 @@
             // hSrednia
             // 
             hSrednia.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hSrednia.Location = new System.Drawing.Point(184, 182);
+            hSrednia.Location = new System.Drawing.Point(237, 279);
+            hSrednia.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hSrednia.Multiline = true;
             hSrednia.Name = "hSrednia";
-            hSrednia.Size = new System.Drawing.Size(73, 40);
+            hSrednia.Size = new System.Drawing.Size(93, 59);
             hSrednia.TabIndex = 68;
             hSrednia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // hSumaSztuk
             // 
             hSumaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hSumaSztuk.Location = new System.Drawing.Point(184, 132);
+            hSumaSztuk.Location = new System.Drawing.Point(237, 202);
+            hSumaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hSumaSztuk.Multiline = true;
             hSumaSztuk.Name = "hSumaSztuk";
-            hSumaSztuk.Size = new System.Drawing.Size(73, 40);
+            hSumaSztuk.Size = new System.Drawing.Size(93, 59);
             hSumaSztuk.TabIndex = 67;
             hSumaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             hSumaSztuk.TextChanged += hSumaSztuk_TextChanged;
@@ -611,10 +661,11 @@
             // hLiczbaSztuk
             // 
             hLiczbaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hLiczbaSztuk.Location = new System.Drawing.Point(184, 87);
+            hLiczbaSztuk.Location = new System.Drawing.Point(237, 133);
+            hLiczbaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hLiczbaSztuk.Multiline = true;
             hLiczbaSztuk.Name = "hLiczbaSztuk";
-            hLiczbaSztuk.Size = new System.Drawing.Size(73, 40);
+            hLiczbaSztuk.Size = new System.Drawing.Size(93, 59);
             hLiczbaSztuk.TabIndex = 66;
             hLiczbaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             hLiczbaSztuk.TextChanged += hLiczbaSztuk_TextChanged;
@@ -622,10 +673,11 @@
             // hLiczbaSzuflad
             // 
             hLiczbaSzuflad.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            hLiczbaSzuflad.Location = new System.Drawing.Point(113, 41);
+            hLiczbaSzuflad.Location = new System.Drawing.Point(145, 63);
+            hLiczbaSzuflad.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             hLiczbaSzuflad.Multiline = true;
             hLiczbaSzuflad.Name = "hLiczbaSzuflad";
-            hLiczbaSzuflad.Size = new System.Drawing.Size(144, 40);
+            hLiczbaSzuflad.Size = new System.Drawing.Size(184, 59);
             hLiczbaSzuflad.TabIndex = 65;
             hLiczbaSzuflad.Text = "264";
             hLiczbaSzuflad.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -634,9 +686,10 @@
             // label31
             // 
             label31.Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label31.Location = new System.Drawing.Point(113, 15);
+            label31.Location = new System.Drawing.Point(145, 23);
+            label31.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label31.Name = "label31";
-            label31.Size = new System.Drawing.Size(144, 23);
+            label31.Size = new System.Drawing.Size(185, 35);
             label31.TabIndex = 64;
             label31.Text = "Hodowca";
             label31.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
@@ -644,9 +697,10 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Segoe UI", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(377, 15);
+            label21.Location = new System.Drawing.Point(485, 23);
+            label21.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label21.Name = "label21";
-            label21.Size = new System.Drawing.Size(144, 23);
+            label21.Size = new System.Drawing.Size(185, 35);
             label21.TabIndex = 63;
             label21.Text = "Ubojnia";
             label21.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
@@ -654,10 +708,11 @@
             // uNetto
             // 
             uNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uNetto.Location = new System.Drawing.Point(377, 318);
+            uNetto.Location = new System.Drawing.Point(485, 488);
+            uNetto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uNetto.Multiline = true;
             uNetto.Name = "uNetto";
-            uNetto.Size = new System.Drawing.Size(144, 40);
+            uNetto.Size = new System.Drawing.Size(184, 59);
             uNetto.TabIndex = 61;
             uNetto.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             uNetto.TextChanged += uNetto_TextChanged;
@@ -665,10 +720,11 @@
             // uTara
             // 
             uTara.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uTara.Location = new System.Drawing.Point(377, 272);
+            uTara.Location = new System.Drawing.Point(485, 417);
+            uTara.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uTara.Multiline = true;
             uTara.Name = "uTara";
-            uTara.Size = new System.Drawing.Size(144, 40);
+            uTara.Size = new System.Drawing.Size(184, 59);
             uTara.TabIndex = 60;
             uTara.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             uTara.TextChanged += uTara_TextChanged;
@@ -676,10 +732,11 @@
             // uBrutto
             // 
             uBrutto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uBrutto.Location = new System.Drawing.Point(377, 226);
+            uBrutto.Location = new System.Drawing.Point(485, 347);
+            uBrutto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uBrutto.Multiline = true;
             uBrutto.Name = "uBrutto";
-            uBrutto.Size = new System.Drawing.Size(144, 40);
+            uBrutto.Size = new System.Drawing.Size(184, 59);
             uBrutto.TabIndex = 59;
             uBrutto.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             uBrutto.TextChanged += uBrutto_TextChanged;
@@ -687,20 +744,22 @@
             // uSrednia
             // 
             uSrednia.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uSrednia.Location = new System.Drawing.Point(377, 182);
+            uSrednia.Location = new System.Drawing.Point(485, 279);
+            uSrednia.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uSrednia.Multiline = true;
             uSrednia.Name = "uSrednia";
-            uSrednia.Size = new System.Drawing.Size(144, 40);
+            uSrednia.Size = new System.Drawing.Size(184, 59);
             uSrednia.TabIndex = 58;
             uSrednia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // uSumaSztuk
             // 
             uSumaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uSumaSztuk.Location = new System.Drawing.Point(377, 132);
+            uSumaSztuk.Location = new System.Drawing.Point(485, 202);
+            uSumaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uSumaSztuk.Multiline = true;
             uSumaSztuk.Name = "uSumaSztuk";
-            uSumaSztuk.Size = new System.Drawing.Size(144, 40);
+            uSumaSztuk.Size = new System.Drawing.Size(184, 59);
             uSumaSztuk.TabIndex = 57;
             uSumaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             uSumaSztuk.TextChanged += uSumaSztuk_TextChanged;
@@ -708,10 +767,11 @@
             // uLiczbaSztuk
             // 
             uLiczbaSztuk.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uLiczbaSztuk.Location = new System.Drawing.Point(377, 87);
+            uLiczbaSztuk.Location = new System.Drawing.Point(485, 133);
+            uLiczbaSztuk.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uLiczbaSztuk.Multiline = true;
             uLiczbaSztuk.Name = "uLiczbaSztuk";
-            uLiczbaSztuk.Size = new System.Drawing.Size(144, 40);
+            uLiczbaSztuk.Size = new System.Drawing.Size(184, 59);
             uLiczbaSztuk.TabIndex = 56;
             uLiczbaSztuk.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             uLiczbaSztuk.TextChanged += uLiczbaSztuk_TextChanged;
@@ -719,10 +779,11 @@
             // uLiczbaSzuflad
             // 
             uLiczbaSzuflad.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uLiczbaSzuflad.Location = new System.Drawing.Point(377, 41);
+            uLiczbaSzuflad.Location = new System.Drawing.Point(485, 63);
+            uLiczbaSzuflad.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             uLiczbaSzuflad.Multiline = true;
             uLiczbaSzuflad.Name = "uLiczbaSzuflad";
-            uLiczbaSzuflad.Size = new System.Drawing.Size(144, 40);
+            uLiczbaSzuflad.Size = new System.Drawing.Size(184, 59);
             uLiczbaSzuflad.TabIndex = 55;
             uLiczbaSzuflad.Text = "264";
             uLiczbaSzuflad.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
@@ -731,9 +792,10 @@
             // label15
             // 
             label15.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label15.Location = new System.Drawing.Point(7, 41);
+            label15.Location = new System.Drawing.Point(9, 63);
+            label15.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label15.Name = "label15";
-            label15.Size = new System.Drawing.Size(100, 40);
+            label15.Size = new System.Drawing.Size(129, 61);
             label15.TabIndex = 42;
             label15.Text = "Liczba szuflad";
             label15.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -746,59 +808,67 @@
             groupBox2.Controls.Add(label10);
             groupBox2.Controls.Add(kmPowrot);
             groupBox2.Controls.Add(label9);
-            groupBox2.Location = new System.Drawing.Point(650, 400);
+            groupBox2.Location = new System.Drawing.Point(836, 613);
+            groupBox2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new System.Drawing.Size(220, 113);
+            groupBox2.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            groupBox2.Size = new System.Drawing.Size(283, 173);
             groupBox2.TabIndex = 35;
             groupBox2.TabStop = false;
             groupBox2.Text = "Pojazd";
             // 
             // label12
             // 
-            label12.Location = new System.Drawing.Point(37, 79);
+            label12.Location = new System.Drawing.Point(48, 121);
+            label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label12.Name = "label12";
-            label12.Size = new System.Drawing.Size(104, 23);
+            label12.Size = new System.Drawing.Size(134, 35);
             label12.TabIndex = 40;
             label12.Text = "Dystans";
             label12.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // Dystans
             // 
-            Dystans.Location = new System.Drawing.Point(146, 80);
+            Dystans.Location = new System.Drawing.Point(188, 123);
+            Dystans.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Dystans.Name = "Dystans";
-            Dystans.Size = new System.Drawing.Size(67, 23);
+            Dystans.Size = new System.Drawing.Size(85, 30);
             Dystans.TabIndex = 39;
             // 
             // kmWyjazd
             // 
-            kmWyjazd.Location = new System.Drawing.Point(146, 20);
+            kmWyjazd.Location = new System.Drawing.Point(188, 31);
+            kmWyjazd.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             kmWyjazd.Name = "kmWyjazd";
-            kmWyjazd.Size = new System.Drawing.Size(67, 23);
+            kmWyjazd.Size = new System.Drawing.Size(85, 30);
             kmWyjazd.TabIndex = 37;
             kmWyjazd.TextChanged += kmWyjazd_TextChanged;
             // 
             // label10
             // 
-            label10.Location = new System.Drawing.Point(36, 19);
+            label10.Location = new System.Drawing.Point(46, 29);
+            label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label10.Name = "label10";
-            label10.Size = new System.Drawing.Size(104, 23);
+            label10.Size = new System.Drawing.Size(134, 35);
             label10.TabIndex = 38;
             label10.Text = "KM Wyjazd";
             label10.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // kmPowrot
             // 
-            kmPowrot.Location = new System.Drawing.Point(146, 51);
+            kmPowrot.Location = new System.Drawing.Point(188, 78);
+            kmPowrot.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             kmPowrot.Name = "kmPowrot";
-            kmPowrot.Size = new System.Drawing.Size(67, 23);
+            kmPowrot.Size = new System.Drawing.Size(85, 30);
             kmPowrot.TabIndex = 9;
             kmPowrot.TextChanged += kmPowrot_TextChanged;
             // 
             // label9
             // 
-            label9.Location = new System.Drawing.Point(36, 50);
+            label9.Location = new System.Drawing.Point(46, 77);
+            label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label9.Name = "label9";
-            label9.Size = new System.Drawing.Size(104, 23);
+            label9.Size = new System.Drawing.Size(134, 35);
             label9.TabIndex = 36;
             label9.Text = "KM Powrót";
             label9.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -821,9 +891,11 @@
             groupBox1.Controls.Add(poczatekZaladunekData);
             groupBox1.Controls.Add(dojazdHodowcaData);
             groupBox1.Controls.Add(wyjazdZakladData);
-            groupBox1.Location = new System.Drawing.Point(650, 130);
+            groupBox1.Location = new System.Drawing.Point(836, 199);
+            groupBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new System.Drawing.Size(220, 264);
+            groupBox1.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            groupBox1.Size = new System.Drawing.Size(283, 405);
             groupBox1.TabIndex = 34;
             groupBox1.TabStop = false;
             groupBox1.Text = "Godziny";
@@ -831,80 +903,89 @@
             // poczatekUslugiData
             // 
             poczatekUslugiData.CustomFormat = "HH:mm";
-            poczatekUslugiData.Location = new System.Drawing.Point(147, 27);
+            poczatekUslugiData.Location = new System.Drawing.Point(189, 41);
+            poczatekUslugiData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             poczatekUslugiData.Name = "poczatekUslugiData";
             poczatekUslugiData.ShowUpDown = true;
-            poczatekUslugiData.Size = new System.Drawing.Size(67, 23);
+            poczatekUslugiData.Size = new System.Drawing.Size(85, 30);
             poczatekUslugiData.TabIndex = 36;
             // 
             // label8
             // 
-            label8.Location = new System.Drawing.Point(37, 229);
+            label8.Location = new System.Drawing.Point(48, 351);
+            label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(104, 23);
+            label8.Size = new System.Drawing.Size(134, 35);
             label8.TabIndex = 35;
             label8.Text = "Koniec Usługi";
             label8.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label7
             // 
-            label7.Location = new System.Drawing.Point(37, 200);
+            label7.Location = new System.Drawing.Point(48, 307);
+            label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(104, 23);
+            label7.Size = new System.Drawing.Size(134, 35);
             label7.TabIndex = 34;
             label7.Text = "Powrót Zakład";
             label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label6
             // 
-            label6.Location = new System.Drawing.Point(37, 171);
+            label6.Location = new System.Drawing.Point(48, 262);
+            label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(104, 23);
+            label6.Size = new System.Drawing.Size(134, 35);
             label6.TabIndex = 33;
             label6.Text = "Wyjazd Hodowca";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label5
             // 
-            label5.Location = new System.Drawing.Point(22, 142);
+            label5.Location = new System.Drawing.Point(28, 218);
+            label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(119, 23);
+            label5.Size = new System.Drawing.Size(153, 35);
             label5.TabIndex = 32;
             label5.Text = "Koniec Załadunek";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label3
             // 
-            label3.Location = new System.Drawing.Point(6, 113);
+            label3.Location = new System.Drawing.Point(8, 173);
+            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(135, 23);
+            label3.Size = new System.Drawing.Size(174, 35);
             label3.TabIndex = 31;
             label3.Text = "Początek Załadunek";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label2
             // 
-            label2.Location = new System.Drawing.Point(37, 84);
+            label2.Location = new System.Drawing.Point(48, 129);
+            label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(104, 23);
+            label2.Size = new System.Drawing.Size(134, 35);
             label2.TabIndex = 30;
             label2.Text = "Dojazd Hodowca";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label1
             // 
-            label1.Location = new System.Drawing.Point(37, 55);
+            label1.Location = new System.Drawing.Point(48, 84);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(104, 23);
+            label1.Size = new System.Drawing.Size(134, 35);
             label1.TabIndex = 29;
             label1.Text = "Wyjazd Zakład";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label11
             // 
-            label11.Location = new System.Drawing.Point(37, 26);
+            label11.Location = new System.Drawing.Point(48, 40);
+            label11.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label11.Name = "label11";
-            label11.Size = new System.Drawing.Size(104, 23);
+            label11.Size = new System.Drawing.Size(134, 35);
             label11.TabIndex = 28;
             label11.Text = "Początek Usługi";
             label11.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -912,80 +993,89 @@
             // koniecUslugiData
             // 
             koniecUslugiData.CustomFormat = "HH:mm";
-            koniecUslugiData.Location = new System.Drawing.Point(147, 229);
+            koniecUslugiData.Location = new System.Drawing.Point(189, 351);
+            koniecUslugiData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             koniecUslugiData.Name = "koniecUslugiData";
             koniecUslugiData.ShowUpDown = true;
-            koniecUslugiData.Size = new System.Drawing.Size(67, 23);
+            koniecUslugiData.Size = new System.Drawing.Size(85, 30);
             koniecUslugiData.TabIndex = 27;
             // 
             // powrotZakladData
             // 
             powrotZakladData.CustomFormat = "HH:mm";
-            powrotZakladData.Location = new System.Drawing.Point(147, 200);
+            powrotZakladData.Location = new System.Drawing.Point(189, 307);
+            powrotZakladData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             powrotZakladData.Name = "powrotZakladData";
             powrotZakladData.ShowUpDown = true;
-            powrotZakladData.Size = new System.Drawing.Size(67, 23);
+            powrotZakladData.Size = new System.Drawing.Size(85, 30);
             powrotZakladData.TabIndex = 25;
             // 
             // wyjazdHodowcaData
             // 
             wyjazdHodowcaData.CustomFormat = "HH:mm";
-            wyjazdHodowcaData.Location = new System.Drawing.Point(147, 171);
+            wyjazdHodowcaData.Location = new System.Drawing.Point(189, 262);
+            wyjazdHodowcaData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             wyjazdHodowcaData.Name = "wyjazdHodowcaData";
             wyjazdHodowcaData.ShowUpDown = true;
-            wyjazdHodowcaData.Size = new System.Drawing.Size(67, 23);
+            wyjazdHodowcaData.Size = new System.Drawing.Size(85, 30);
             wyjazdHodowcaData.TabIndex = 23;
             // 
             // koniecZaladunekData
             // 
             koniecZaladunekData.CustomFormat = "HH:mm";
-            koniecZaladunekData.Location = new System.Drawing.Point(147, 142);
+            koniecZaladunekData.Location = new System.Drawing.Point(189, 218);
+            koniecZaladunekData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             koniecZaladunekData.Name = "koniecZaladunekData";
             koniecZaladunekData.ShowUpDown = true;
-            koniecZaladunekData.Size = new System.Drawing.Size(67, 23);
+            koniecZaladunekData.Size = new System.Drawing.Size(85, 30);
             koniecZaladunekData.TabIndex = 21;
             // 
             // poczatekZaladunekData
             // 
             poczatekZaladunekData.CustomFormat = "HH:mm";
-            poczatekZaladunekData.Location = new System.Drawing.Point(147, 113);
+            poczatekZaladunekData.Location = new System.Drawing.Point(189, 173);
+            poczatekZaladunekData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             poczatekZaladunekData.Name = "poczatekZaladunekData";
             poczatekZaladunekData.ShowUpDown = true;
-            poczatekZaladunekData.Size = new System.Drawing.Size(67, 23);
+            poczatekZaladunekData.Size = new System.Drawing.Size(85, 30);
             poczatekZaladunekData.TabIndex = 19;
             // 
             // dojazdHodowcaData
             // 
             dojazdHodowcaData.CustomFormat = "HH:mm";
-            dojazdHodowcaData.Location = new System.Drawing.Point(147, 84);
+            dojazdHodowcaData.Location = new System.Drawing.Point(189, 129);
+            dojazdHodowcaData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             dojazdHodowcaData.Name = "dojazdHodowcaData";
             dojazdHodowcaData.ShowUpDown = true;
-            dojazdHodowcaData.Size = new System.Drawing.Size(67, 23);
+            dojazdHodowcaData.Size = new System.Drawing.Size(85, 30);
             dojazdHodowcaData.TabIndex = 17;
             // 
             // wyjazdZakladData
             // 
             wyjazdZakladData.CustomFormat = "HH:mm";
-            wyjazdZakladData.Location = new System.Drawing.Point(147, 55);
+            wyjazdZakladData.Location = new System.Drawing.Point(189, 84);
+            wyjazdZakladData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             wyjazdZakladData.Name = "wyjazdZakladData";
             wyjazdZakladData.ShowUpDown = true;
-            wyjazdZakladData.Size = new System.Drawing.Size(67, 23);
+            wyjazdZakladData.Size = new System.Drawing.Size(85, 30);
             wyjazdZakladData.TabIndex = 15;
             // 
             // label4
             // 
-            label4.Location = new System.Drawing.Point(5, 29);
+            label4.Location = new System.Drawing.Point(6, 44);
+            label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(89, 15);
+            label4.Size = new System.Drawing.Size(114, 23);
             label4.TabIndex = 54;
             label4.Text = "Identyfikator";
             label4.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label38
             // 
-            label38.Location = new System.Drawing.Point(400, 6);
+            label38.Location = new System.Drawing.Point(514, 9);
+            label38.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label38.Name = "label38";
-            label38.Size = new System.Drawing.Size(144, 20);
+            label38.Size = new System.Drawing.Size(185, 31);
             label38.TabIndex = 60;
             label38.Text = "Powiązany Dostawca";
             label38.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -997,214 +1087,269 @@
             RealDostawca.DropDownWidth = 200;
             RealDostawca.FormattingEnabled = true;
             RealDostawca.IntegralHeight = false;
-            RealDostawca.Location = new System.Drawing.Point(400, 29);
+            RealDostawca.Location = new System.Drawing.Point(514, 44);
+            RealDostawca.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             RealDostawca.Name = "RealDostawca";
-            RealDostawca.Size = new System.Drawing.Size(144, 23);
+            RealDostawca.Size = new System.Drawing.Size(184, 31);
             RealDostawca.TabIndex = 55;
             RealDostawca.SelectedIndexChanged += RealDostawca_SelectedIndexChanged;
             // 
             // KmR
             // 
-            KmR.Location = new System.Drawing.Point(400, 146);
+            KmR.Location = new System.Drawing.Point(514, 224);
+            KmR.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KmR.Name = "KmR";
-            KmR.Size = new System.Drawing.Size(144, 23);
+            KmR.Size = new System.Drawing.Size(184, 30);
             KmR.TabIndex = 59;
             KmR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // MiejscR
             // 
-            MiejscR.Location = new System.Drawing.Point(400, 117);
+            MiejscR.Location = new System.Drawing.Point(514, 179);
+            MiejscR.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             MiejscR.Name = "MiejscR";
-            MiejscR.Size = new System.Drawing.Size(144, 23);
+            MiejscR.Size = new System.Drawing.Size(184, 30);
             MiejscR.TabIndex = 58;
             MiejscR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // KodPocztowyR
             // 
-            KodPocztowyR.Location = new System.Drawing.Point(400, 88);
+            KodPocztowyR.Location = new System.Drawing.Point(514, 135);
+            KodPocztowyR.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             KodPocztowyR.Name = "KodPocztowyR";
-            KodPocztowyR.Size = new System.Drawing.Size(144, 23);
+            KodPocztowyR.Size = new System.Drawing.Size(184, 30);
             KodPocztowyR.TabIndex = 57;
             KodPocztowyR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // UlicaR
             // 
-            UlicaR.Location = new System.Drawing.Point(400, 60);
+            UlicaR.Location = new System.Drawing.Point(514, 92);
+            UlicaR.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             UlicaR.Name = "UlicaR";
-            UlicaR.Size = new System.Drawing.Size(144, 23);
+            UlicaR.Size = new System.Drawing.Size(184, 30);
             UlicaR.TabIndex = 56;
             UlicaR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label39
             // 
-            label39.Location = new System.Drawing.Point(550, 29);
+            label39.Location = new System.Drawing.Point(707, 44);
+            label39.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label39.Name = "label39";
-            label39.Size = new System.Drawing.Size(89, 15);
+            label39.Size = new System.Drawing.Size(114, 23);
             label39.TabIndex = 65;
             label39.Text = "Identyfikator";
             label39.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // label40
             // 
-            label40.Location = new System.Drawing.Point(550, 154);
+            label40.Location = new System.Drawing.Point(707, 236);
+            label40.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label40.Name = "label40";
-            label40.Size = new System.Drawing.Size(89, 15);
+            label40.Size = new System.Drawing.Size(114, 23);
             label40.TabIndex = 64;
             label40.Text = "KM";
             label40.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // label41
             // 
-            label41.Location = new System.Drawing.Point(550, 60);
+            label41.Location = new System.Drawing.Point(707, 92);
+            label41.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label41.Name = "label41";
-            label41.Size = new System.Drawing.Size(89, 18);
+            label41.Size = new System.Drawing.Size(114, 28);
             label41.TabIndex = 61;
             label41.Text = "Ulica";
             label41.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // label42
             // 
-            label42.Location = new System.Drawing.Point(550, 125);
+            label42.Location = new System.Drawing.Point(707, 192);
+            label42.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label42.Name = "label42";
-            label42.Size = new System.Drawing.Size(89, 15);
+            label42.Size = new System.Drawing.Size(114, 23);
             label42.TabIndex = 63;
             label42.Text = "Miejscowosc";
             label42.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // label43
             // 
-            label43.Location = new System.Drawing.Point(550, 93);
+            label43.Location = new System.Drawing.Point(707, 143);
+            label43.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label43.Name = "label43";
-            label43.Size = new System.Drawing.Size(89, 15);
+            label43.Size = new System.Drawing.Size(114, 23);
             label43.TabIndex = 62;
             label43.Text = "Kod-Pocztowy";
             label43.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(754, 533);
+            button1.Location = new System.Drawing.Point(969, 817);
+            button1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(116, 79);
+            button1.Size = new System.Drawing.Size(149, 121);
             button1.TabIndex = 66;
             button1.Text = "Zapisz";
             button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
             // 
             // button2
             // 
-            button2.Location = new System.Drawing.Point(656, 569);
+            button2.Location = new System.Drawing.Point(843, 872);
+            button2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             button2.Name = "button2";
-            button2.Size = new System.Drawing.Size(59, 43);
+            button2.Size = new System.Drawing.Size(76, 66);
             button2.TabIndex = 67;
             button2.Text = "Anuluj";
             button2.UseVisualStyleBackColor = true;
             // 
             // label44
             // 
-            label44.Location = new System.Drawing.Point(550, 183);
+            label44.Location = new System.Drawing.Point(707, 281);
+            label44.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label44.Name = "label44";
-            label44.Size = new System.Drawing.Size(89, 15);
+            label44.Size = new System.Drawing.Size(114, 23);
             label44.TabIndex = 72;
             label44.Text = "Tel1";
             label44.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // Tel1R
             // 
-            Tel1R.Location = new System.Drawing.Point(400, 175);
+            Tel1R.Location = new System.Drawing.Point(514, 268);
+            Tel1R.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel1R.Name = "Tel1R";
-            Tel1R.Size = new System.Drawing.Size(144, 23);
+            Tel1R.Size = new System.Drawing.Size(184, 30);
             Tel1R.TabIndex = 71;
             Tel1R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // Tel1
             // 
-            Tel1.Location = new System.Drawing.Point(100, 175);
+            Tel1.Location = new System.Drawing.Point(129, 268);
+            Tel1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel1.Name = "Tel1";
-            Tel1.Size = new System.Drawing.Size(144, 23);
+            Tel1.Size = new System.Drawing.Size(104, 30);
             Tel1.TabIndex = 70;
             Tel1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label45
             // 
-            label45.Location = new System.Drawing.Point(5, 183);
+            label45.Location = new System.Drawing.Point(6, 281);
+            label45.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label45.Name = "label45";
-            label45.Size = new System.Drawing.Size(89, 15);
+            label45.Size = new System.Drawing.Size(114, 23);
             label45.TabIndex = 68;
             label45.Text = "Tel1";
             label45.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label46
             // 
-            label46.Location = new System.Drawing.Point(550, 212);
+            label46.Location = new System.Drawing.Point(707, 325);
+            label46.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label46.Name = "label46";
-            label46.Size = new System.Drawing.Size(89, 15);
+            label46.Size = new System.Drawing.Size(114, 23);
             label46.TabIndex = 77;
             label46.Text = "Tel2";
             label46.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // Tel2R
             // 
-            Tel2R.Location = new System.Drawing.Point(400, 204);
+            Tel2R.Location = new System.Drawing.Point(514, 313);
+            Tel2R.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel2R.Name = "Tel2R";
-            Tel2R.Size = new System.Drawing.Size(144, 23);
+            Tel2R.Size = new System.Drawing.Size(184, 30);
             Tel2R.TabIndex = 76;
             Tel2R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // Tel2
             // 
-            Tel2.Location = new System.Drawing.Point(100, 204);
+            Tel2.Location = new System.Drawing.Point(129, 313);
+            Tel2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel2.Name = "Tel2";
-            Tel2.Size = new System.Drawing.Size(144, 23);
+            Tel2.Size = new System.Drawing.Size(104, 30);
             Tel2.TabIndex = 75;
             Tel2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label47
             // 
-            label47.Location = new System.Drawing.Point(5, 212);
+            label47.Location = new System.Drawing.Point(6, 325);
+            label47.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label47.Name = "label47";
-            label47.Size = new System.Drawing.Size(89, 15);
+            label47.Size = new System.Drawing.Size(114, 23);
             label47.TabIndex = 73;
             label47.Text = "Tel2";
             label47.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label48
             // 
-            label48.Location = new System.Drawing.Point(550, 240);
+            label48.Location = new System.Drawing.Point(707, 368);
+            label48.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label48.Name = "label48";
-            label48.Size = new System.Drawing.Size(89, 15);
+            label48.Size = new System.Drawing.Size(114, 23);
             label48.TabIndex = 82;
             label48.Text = "Tel3";
             label48.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // Tel3R
             // 
-            Tel3R.Location = new System.Drawing.Point(400, 232);
+            Tel3R.Location = new System.Drawing.Point(514, 356);
+            Tel3R.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel3R.Name = "Tel3R";
-            Tel3R.Size = new System.Drawing.Size(144, 23);
+            Tel3R.Size = new System.Drawing.Size(184, 30);
             Tel3R.TabIndex = 81;
             Tel3R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // Tel3
             // 
-            Tel3.Location = new System.Drawing.Point(100, 232);
+            Tel3.Location = new System.Drawing.Point(129, 356);
+            Tel3.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Tel3.Name = "Tel3";
-            Tel3.Size = new System.Drawing.Size(144, 23);
+            Tel3.Size = new System.Drawing.Size(104, 30);
             Tel3.TabIndex = 80;
             Tel3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label49
             // 
-            label49.Location = new System.Drawing.Point(5, 240);
+            label49.Location = new System.Drawing.Point(6, 368);
+            label49.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             label49.Name = "label49";
-            label49.Size = new System.Drawing.Size(89, 15);
+            label49.Size = new System.Drawing.Size(114, 23);
             label49.TabIndex = 78;
             label49.Text = "Tel3";
             label49.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
+            // info3
+            // 
+            info3.Location = new System.Drawing.Point(241, 356);
+            info3.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            info3.Name = "info3";
+            info3.Size = new System.Drawing.Size(144, 30);
+            info3.TabIndex = 85;
+            info3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // info2
+            // 
+            info2.Location = new System.Drawing.Point(241, 313);
+            info2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            info2.Name = "info2";
+            info2.Size = new System.Drawing.Size(144, 30);
+            info2.TabIndex = 84;
+            info2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // info1
+            // 
+            info1.Location = new System.Drawing.Point(241, 268);
+            info1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            info1.Name = "info1";
+            info1.Size = new System.Drawing.Size(144, 30);
+            info1.TabIndex = 83;
+            info1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
             // WidokAvilog
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleDimensions = new System.Drawing.SizeF(9F, 23F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(882, 624);
+            ClientSize = new System.Drawing.Size(1134, 957);
+            Controls.Add(info3);
+            Controls.Add(info2);
+            Controls.Add(info1);
             Controls.Add(label48);
             Controls.Add(Tel3R);
             Controls.Add(Tel3);
@@ -1251,6 +1396,7 @@
             Controls.Add(groupBox3);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
+            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Name = "WidokAvilog";
             Text = "Form1";
             groupBox4.ResumeLayout(false);
@@ -1372,5 +1518,8 @@
         private System.Windows.Forms.TextBox Tel3R;
         private System.Windows.Forms.TextBox Tel3;
         private System.Windows.Forms.Label label49;
+        private System.Windows.Forms.TextBox info3;
+        private System.Windows.Forms.TextBox info2;
+        private System.Windows.Forms.TextBox info1;
     }
 }

@@ -15,7 +15,7 @@ namespace Kalendarz1
 {
     public partial class WidokAvilog : Form
     {
-        private string idSpecyfikacjiString;
+        private int id2Specyfikacji;
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         static string sqlDostawy = "SELECT * FROM [LibraNet].[dbo].[FarmerCalc] WHERE ID = @id";
         static string sqlDostawcy = "SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
@@ -25,7 +25,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             zapytaniasql.UzupelnijComboBoxHodowcami(Dostawca); zapytaniasql.UzupelnijComboBoxHodowcami(RealDostawca);
-            zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxCiagnikami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
+            zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxNaczepami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
             // Tablica zawierająca wszystkie kontrolki
             DateTimePicker[] dateTimePickers = { wyjazdZakladData, dojazdHodowcaData, poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData, poczatekUslugiData, powrotZakladData, koniecUslugiData };
             // Pętla ustawiająca właściwości dla każdej kontrolki w tablicy
@@ -40,6 +40,7 @@ namespace Kalendarz1
         }
         public WidokAvilog(int idSpecyfikacji) : this()
         {
+            id2Specyfikacji = idSpecyfikacji;
             idDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerGID");
             idrealDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerRealGID");
             UstawDostawce(idSpecyfikacji, Dostawca, RealDostawca);
@@ -289,88 +290,6 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        /*private static void ZczytajDane(int id, ComboBox Dostawca, ComboBox RealDostawca)
-        {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand(sqlDostawy, connection);
-                    command.Parameters.AddWithValue("@id", id);
-
-                    SqlDataReader reader = command.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            Dostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerRealGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            RealDostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                    }
-                    else
-                    {
-                        // Obsłuż przypadki, gdy brak danych dla określonego identyfikatora
-                        Console.WriteLine("Brak danych dla określonego identyfikatora.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
-            }
-        }*/
-        /*private static void ZczytajDaneHodowcy(ComboBox Nazwa, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox KM, TextBox Tel1, TextBox Tel2, TextBox Tel3)
-        {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-
-                    zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(Nazwa, "ID");
-                    connection.Open();
-                    SqlCommand command = new SqlCommand(sqlDostawcy, connection);
-                    command.Parameters.AddWithValue("@id", id);
-
-                    SqlDataReader reader = command.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            Dostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
-                        {
-                            int CustomerGID = reader.GetInt32(reader.GetOrdinal("CustomerRealGID"));
-                            string DostawcaString = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(CustomerGID, "ShortName");
-                            RealDostawca.Text = DostawcaString.ToString(); // Konwersja wartości int na string
-                        }
-
-                    }
-                    else
-                    {
-                        // Obsłuż przypadki, gdy brak danych dla określonego identyfikatora
-                        Console.WriteLine("Brak danych dla określonego identyfikatora.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
-            }
-        }*/
         private void Odejmowanie(TextBox textBox1, TextBox textBox2, TextBox resultTextBox)
         {
             // Sprawdzenie, czy wartości w textBox1 i textBox2 są liczbami
@@ -409,95 +328,85 @@ namespace Kalendarz1
         {
 
         }
-
         private void hBrutto_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(hBrutto, hTara, hNetto);
         }
-
         private void hTara_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(hBrutto, hTara, hNetto);
         }
-
         private void kmWyjazd_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(kmPowrot, kmWyjazd, Dystans);
         }
-
         private void kmPowrot_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(kmPowrot, kmWyjazd, Dystans);
         }
-
         private void uBrutto_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(uBrutto, uTara, uNetto);
         }
-
         private void uTara_TextChanged(object sender, EventArgs e)
         {
             Odejmowanie(uBrutto, uTara, uNetto);
         }
-
         private void uLiczbaSztuk_TextChanged(object sender, EventArgs e)
         {
             Mnożenie(uLiczbaSzuflad, uLiczbaSztuk, uSumaSztuk);
         }
-
         private void uLiczbaSzuflad_TextChanged(object sender, EventArgs e)
         {
             Mnożenie(uLiczbaSzuflad, uLiczbaSztuk, uSumaSztuk);
         }
-
         private void hLiczbaSzuflad_TextChanged(object sender, EventArgs e)
         {
             Mnożenie(hLiczbaSzuflad, hLiczbaSztuk, hSumaSztuk);
         }
-
         private void hLiczbaSztuk_TextChanged(object sender, EventArgs e)
         {
             Mnożenie(hLiczbaSzuflad, hLiczbaSztuk, hSumaSztuk);
         }
-
         private void buforhLiczbaSztuk_TextChanged(object sender, EventArgs e)
         {
             Mnożenie(hLiczbaSzuflad, buforhLiczbaSztuk, buforSumaSztuk);
         }
-
         private void uSumaSztuk_TextChanged(object sender, EventArgs e)
         {
             Dzielenie(uNetto, uSumaSztuk, uSrednia);
         }
-
         private void uNetto_TextChanged(object sender, EventArgs e)
         {
             Dzielenie(uNetto, uSumaSztuk, uSrednia);
         }
-
         private void hNetto_TextChanged(object sender, EventArgs e)
         {
             Dzielenie(hNetto, hSumaSztuk, hSrednia);
         }
-
         private void hSumaSztuk_TextChanged(object sender, EventArgs e)
         {
             Dzielenie(hNetto, hSumaSztuk, hSrednia);
         }
-
         private void label38_Click(object sender, EventArgs e)
         {
 
         }
-
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
             zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, UlicaH, MiejscH, KmH, Tel1, Tel2, Tel3);
         }
-
         private void RealDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
             zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(RealDostawca, UlicaR, KodPocztowyR, UlicaR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
+            zapytaniasql.UpdateDaneKontaktowe(Dostawca, Tel1, info1, Tel2, info2, Tel3, info3);
+            zapytaniasql.UpdateDaneRozliczenioweAvilog(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
+            zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
         }
     }
 }

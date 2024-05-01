@@ -41,7 +41,9 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, FullWeight, EmptyWeight, Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                    SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, " +
+                        "FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, FullWeight, EmptyWeight, " +
+                        "Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -78,7 +80,7 @@ namespace Kalendarz1
                                 row["DeclI5"],        // ZM
                                 row["FullFarmWeight"],// BruttoHodowcy
                                 row["EmptyFarmWeight"],// TaraHodowcy
-                                "",                   // NettoUbojni (pusta wartość)
+                                row["NettoFarmWeight"],               // NettoUbojni (pusta wartość)
                                 row["FullWeight"],    // BruttoUbojni
                                 row["EmptyWeight"],   // TaraUbojni
                                 "",                   // NettoUbojni (pusta wartość)
