@@ -758,7 +758,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        public void UpdateDaneRozliczenioweAvilog(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
+        public void UpdateDaneRozliczenioweAvilogHodowca(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
 
         {
             try
@@ -784,7 +784,7 @@ namespace Kalendarz1
                             command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
                             command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
                             command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
-                            command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
+                            command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
                             command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : int.Parse(PiecesFarm.Text));
                             command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
 
@@ -801,6 +801,56 @@ namespace Kalendarz1
                             }
                         }
                     }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        public void UpdateDaneRozliczenioweAvilogUbojnia(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
+
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    // Utworzenie zapytania SQL do aktualizacji danych
+                    string strSQL = @"UPDATE dbo.FarmerCalc
+                                  SET FullWeight = @FullFarmWeight,
+                                      EmptyWeight = @EmptyFarmWeight,
+                                      NettoWeight = @NettoFarmWeight,
+                                      AvWeight = @AvWeightFarm,
+                                      Pieces = @PiecesFarm,
+                                      SztPoj = @SztPoj
+                                  WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
+                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
+                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
+                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
+                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : int.Parse(PiecesFarm.Text));
+                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
+
+                        // Wykonanie zapytania SQL
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Zaktualizowano dane pomyślnie
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować DANYCH ROZLICZENIOWYCH", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
 
             }
             catch (Exception ex)
@@ -854,7 +904,106 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        public void UpdateDaneDystansu(int IdSpecyfikacji, TextBox KMstart, TextBox KMkoniec, TextBox KMdystans)
 
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+                    string strSQL = @"UPDATE dbo.FarmerCalc
+                                  SET StartKM = @KMstart,
+                                      StopKM = @KMkoniec,
+                                      DistanceKM = @KMdystans
+                                  WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        command.Parameters.AddWithValue("@KMstart", string.IsNullOrEmpty(KMstart.Text) ? (object)DBNull.Value : int.Parse(KMstart.Text));
+                        command.Parameters.AddWithValue("@KMkoniec", string.IsNullOrEmpty(KMkoniec.Text) ? (object)DBNull.Value : int.Parse(KMkoniec.Text));
+                        command.Parameters.AddWithValue("@KMdystans", string.IsNullOrEmpty(KMdystans.Text) ? (object)DBNull.Value : int.Parse(KMdystans.Text));
+                        // Wykonanie zapytania SQL
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Zaktualizowano dane pomyślnie
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować DANYCH Kilometrowych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        public void UpdateCzas(int IdSpecyfikacji, String kolumna, DateTimePicker PoczatekUslugi)
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    // Pobierz datę z kolumny CalcDate
+                    string queryDate = "SELECT CalcDate FROM dbo.FarmerCalc WHERE ID = @ID";
+                    using (SqlCommand dateCommand = new SqlCommand(queryDate, cnn))
+                    {
+                        dateCommand.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        DateTime calcDate = Convert.ToDateTime(dateCommand.ExecuteScalar());
+
+                        // Aktualizuj godzinę i minutę w zaktualizowanym PoczatekUslugi
+                        DateTime updatedDateTime = new DateTime(
+                            calcDate.Year,
+                            calcDate.Month,
+                            calcDate.Day,
+                            PoczatekUslugi.Value.Hour,
+                            PoczatekUslugi.Value.Minute,
+                            0 // Zeruj sekundy
+                        );
+
+                        // Jeśli godzina jest między 17 a 23, zmniejsz datę o jeden dzień
+                        if (PoczatekUslugi.Value.Hour >= 17 && PoczatekUslugi.Value.Hour <= 23)
+                        {
+                            updatedDateTime = updatedDateTime.AddDays(-1);
+                        }
+
+
+                        // Zaktualizuj rekord w bazie danych
+                        string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
+
+                        using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                        {
+                            command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                            command.Parameters.AddWithValue("@Zmienna", updatedDateTime);
+
+                            int rowsAffected = command.ExecuteNonQuery();
+
+                            if (rowsAffected > 0)
+                            {
+                                // Zaktualizowano dane pomyślnie
+                            }
+                            else
+                            {
+                                MessageBox.Show("Nie udało się zaktualizować danych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
     }
     public class CenoweMetody

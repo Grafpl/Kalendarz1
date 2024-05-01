@@ -44,14 +44,14 @@ namespace Kalendarz1
             idDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerGID");
             idrealDostawcy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(idSpecyfikacji, "FarmerCalc", "CustomerRealGID");
             UstawDostawce(idSpecyfikacji, Dostawca, RealDostawca);
-            UstawgodzinyAviloga(idSpecyfikacji, wyjazdZakladData, poczatekZaladunekData, powrotZakladData);
+            UstawgodzinyAviloga(idSpecyfikacji, poczatekUslugiData,  wyjazdZakladData,  dojazdHodowcaData,  poczatekZaladunekData,  koniecZaladunekData,  wyjazdHodowcaData,  powrotZakladData, koniecUslugiData);
             UstawKierowceAuta(idSpecyfikacji, Naczepa, Auto, Kierowca);
             UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
         }
-        private static void UstawgodzinyAviloga(int id, DateTimePicker wyjazdZakladData, DateTimePicker poczatekZaladunekData, DateTimePicker powrotZakladData)
+        private static void UstawgodzinyAviloga(int id, DateTimePicker poczatekUslugiData, DateTimePicker wyjazdZakladData, DateTimePicker dojazdHodowcaData, DateTimePicker poczatekZaladunekData, DateTimePicker koniecZaladunekData, DateTimePicker wyjazdHodowcaData, DateTimePicker powrotZakladData, DateTimePicker koniecUslugiData)
         {
             try
             {
@@ -65,9 +65,19 @@ namespace Kalendarz1
                     if (reader.Read())
                     {
                         // Przypisz wartości dat do odpowiednich DateTimePicker
+                        if (!reader.IsDBNull(reader.GetOrdinal("PoczatekUslugi")))
+                        {
+                            poczatekUslugiData.Value = reader.GetDateTime(reader.GetOrdinal("PoczatekUslugi"));
+                        }
+
                         if (!reader.IsDBNull(reader.GetOrdinal("Wyjazd")))
                         {
                             wyjazdZakladData.Value = reader.GetDateTime(reader.GetOrdinal("Wyjazd"));
+                        }
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("DojazdHodowca")))
+                        {
+                            dojazdHodowcaData.Value = reader.GetDateTime(reader.GetOrdinal("DojazdHodowca"));
                         }
 
                         if (!reader.IsDBNull(reader.GetOrdinal("Zaladunek")))
@@ -75,9 +85,24 @@ namespace Kalendarz1
                             poczatekZaladunekData.Value = reader.GetDateTime(reader.GetOrdinal("Zaladunek"));
                         }
 
+                        if (!reader.IsDBNull(reader.GetOrdinal("ZaladunekKoniec")))
+                        {
+                            koniecZaladunekData.Value = reader.GetDateTime(reader.GetOrdinal("ZaladunekKoniec"));
+                        }
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("WyjazdHodowca")))
+                        {
+                            wyjazdHodowcaData.Value = reader.GetDateTime(reader.GetOrdinal("WyjazdHodowca"));
+                        }
+
                         if (!reader.IsDBNull(reader.GetOrdinal("Przyjazd")))
                         {
                             powrotZakladData.Value = reader.GetDateTime(reader.GetOrdinal("Przyjazd"));
+                        }
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("KoniecUslugi")))
+                        {
+                            koniecUslugiData.Value = reader.GetDateTime(reader.GetOrdinal("KoniecUslugi"));
                         }
                     }
                     else
@@ -206,13 +231,13 @@ namespace Kalendarz1
                         if (!reader.IsDBNull(reader.GetOrdinal("EmptyWeight")))
                         {
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("EmptyWeight"));
-                            uBrutto.Text = waga.ToString(); // Konwersja wartości decimal na string
+                            uTara.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
 
                         if (!reader.IsDBNull(reader.GetOrdinal("FullWeight")))
                         {
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("FullWeight"));
-                            uTara.Text = waga.ToString(); // Konwersja wartości decimal na string
+                            uBrutto.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
                         if (!reader.IsDBNull(reader.GetOrdinal("WagaDek")))
                         {
@@ -405,8 +430,19 @@ namespace Kalendarz1
         {
             zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
             zapytaniasql.UpdateDaneKontaktowe(Dostawca, Tel1, info1, Tel2, info2, Tel3, info3);
-            zapytaniasql.UpdateDaneRozliczenioweAvilog(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
+            zapytaniasql.UpdateDaneRozliczenioweAvilogHodowca(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
+            zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
+            zapytaniasql.UpdateDaneDystansu(id2Specyfikacji, kmWyjazd, kmPowrot, Dystans);
+
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "PoczatekUslugi", poczatekUslugiData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "Wyjazd", wyjazdZakladData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "DojazdHodowca", dojazdHodowcaData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "Zaladunek", poczatekZaladunekData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "ZaladunekKoniec", koniecZaladunekData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "WyjazdHodowca", wyjazdHodowcaData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "Przyjazd", powrotZakladData);
+            zapytaniasql.UpdateCzas(id2Specyfikacji, "KoniecUslugi", koniecUslugiData);
         }
     }
 }

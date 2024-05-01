@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,7 @@ using System.Windows.Forms;
 
 namespace Kalendarz1
 {
-    
+
     public partial class WidokSpecyfikacje : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -42,7 +43,7 @@ namespace Kalendarz1
                 {
                     connection.Open();
                     SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, " +
-                        "FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, FullWeight, EmptyWeight, " +
+                        "FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, FullWeight, EmptyWeight, NettoWeight, " +
                         "Price, PriceTypeID, IncDeadConf FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
@@ -83,7 +84,7 @@ namespace Kalendarz1
                                 row["NettoFarmWeight"],               // NettoUbojni (pusta wartość)
                                 row["FullWeight"],    // BruttoUbojni
                                 row["EmptyWeight"],   // TaraUbojni
-                                "",                   // NettoUbojni (pusta wartość)
+                                row["NettoWeight"],                   // NettoUbojni (pusta wartość)
                                 row["LumQnt"],        // LUMEL
                                 row["ProdQnt"],       // Prod Sztuki
                                 row["ProdWgt"],       // Prod Wagi
@@ -121,7 +122,28 @@ namespace Kalendarz1
             }
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                string customerGID = "104";
+                DateTime date = new DateTime(DateTime.Now.Year, 4, 20);
+                string outputPath = @"C:\ESD\Report.xls";
 
+                ExcelReportGenerator reportGenerator = new ExcelReportGenerator(connectionString);
+                reportGenerator.GenerateExcelReport(customerGID, date, outputPath);
+
+                MessageBox.Show("Raport został wygenerowany pomyślnie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Otwórz wygenerowany plik Excel
+                Process.Start(outputPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd podczas generowania raportu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
     }
 }

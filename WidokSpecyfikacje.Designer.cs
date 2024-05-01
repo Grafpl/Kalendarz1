@@ -50,6 +50,7 @@
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
             PiK = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -112,21 +113,21 @@
             CH.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             CH.HeaderText = "CH";
             CH.Name = "CH";
-            CH.Width = 25;
+            CH.Width = 30;
             // 
             // NW
             // 
             NW.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             NW.HeaderText = "NW";
             NW.Name = "NW";
-            NW.Width = 25;
+            NW.Width = 30;
             // 
             // ZM
             // 
             ZM.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             ZM.HeaderText = "ZM";
             ZM.Name = "ZM";
-            ZM.Width = 25;
+            ZM.Width = 30;
             // 
             // BruttoHodowcy
             // 
@@ -213,11 +214,22 @@
             PiK.Name = "PiK";
             PiK.Width = 70;
             // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(575, 12);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(75, 23);
+            button1.TabIndex = 2;
+            button1.Text = "button1";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
             // WidokSpecyfikacje
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1459, 698);
+            Controls.Add(button1);
             Controls.Add(dataGridView1);
             Controls.Add(dateTimePicker1);
             Name = "WidokSpecyfikacje";
@@ -251,5 +263,6 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Cena;
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
         private System.Windows.Forms.DataGridViewTextBoxColumn PiK;
+        private System.Windows.Forms.Button button1;
     }
 }
