@@ -1,13 +1,11 @@
 ﻿using Microsoft.Data.SqlClient;
-<<<<<<< Updated upstream
 using Microsoft.IdentityModel.Tokens;
-=======
->>>>>>> Stashed changes
 using Microsoft.VisualBasic.ApplicationServices;
 using System;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Data;
 using System.Data.SqlTypes;
+using System.Threading.Channels;
 using System.Windows.Forms;
 using System.Windows.Input;
 
@@ -918,6 +916,82 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        public void AktualizujAvilogWartosci(string dataOdbioru, string dostawca, string auta, string kmH, string kmK, string kurnik, string sztukiDek, string wagaDek, string sztSzuflada, string typUmowy, string typCeny, string cena, string ubytek, string dodatek, string bufor, string lpDostawa, string lpW, string uwagi)
+        {
+            try
+            {
+                // Utworzenie połączenia z bazą danych
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    // Utworzenie zapytania SQL do aktualizacji danych
+                    string strSQL = @"
+                UPDATE dbo.HarmonogramDostaw
+                SET DataOdbioru = @DataOdbioru,
+                Dostawca = @Dostawca,
+                Auta = @Auta,
+                KmH = @KmH,
+                KmK = @KmK,
+                Kurnik = @Kurnik,
+                SztukiDek = @SztukiDek,
+                WagaDek = @WagaDek,
+                SztSzuflada = @SztSzuflada,
+                TypUmowy = @TypUmowy,
+                TypCeny = @TypCeny,
+                Cena = @Cena,
+                Ubytek = @Ubytek,
+                Dodatek = @Dodatek,
+                Bufor = @Bufor,
+                DataMod = @DataMod,
+                KtoMod = @KtoMod,
+                LpW = @LpW,
+                Uwagi = @Uwagi
+            WHERE Lp = @LpDostawa;";
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@DataOdbioru", string.IsNullOrEmpty(dataOdbioru) ? (object)DBNull.Value : DateTime.Parse(dataOdbioru).Date);
+                        command.Parameters.AddWithValue("@Dostawca", string.IsNullOrEmpty(dostawca) ? (object)DBNull.Value : dostawca);
+                        command.Parameters.AddWithValue("@Auta", string.IsNullOrEmpty(auta) ? (object)DBNull.Value : int.Parse(auta));
+                        command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH) ? (object)DBNull.Value : int.Parse(kmH));
+                        command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK) ? (object)DBNull.Value : int.Parse(kmK));
+                        command.Parameters.AddWithValue("@Kurnik", string.IsNullOrEmpty(kurnik) ? (object)DBNull.Value : int.Parse(kurnik));
+                        command.Parameters.AddWithValue("@SztukiDek", string.IsNullOrEmpty(sztukiDek) ? (object)DBNull.Value : int.Parse(sztukiDek));
+                        command.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(wagaDek) ? (object)DBNull.Value : decimal.Parse(wagaDek));
+                        command.Parameters.AddWithValue("@SztSzuflada", string.IsNullOrEmpty(sztSzuflada) ? (object)DBNull.Value : int.Parse(sztSzuflada));
+                        command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(typUmowy) ? (object)DBNull.Value : typUmowy);
+                        command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(typCeny) ? (object)DBNull.Value : typCeny);
+                        command.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(cena) ? (object)DBNull.Value : decimal.Parse(cena));
+                        command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek) ? (object)DBNull.Value : decimal.Parse(ubytek));
+                        command.Parameters.AddWithValue("@Dodatek", string.IsNullOrEmpty(dodatek) ? (object)DBNull.Value : decimal.Parse(dodatek));
+                        command.Parameters.AddWithValue("@Bufor", string.IsNullOrEmpty(bufor) ? (object)DBNull.Value : bufor);
+                        command.Parameters.AddWithValue("@DataMod", DateTime.Now);
+                       // command.Parameters.AddWithValue("@KtoMod", UserID);
+                        command.Parameters.AddWithValue("@LpW", string.IsNullOrEmpty(lpW) ? (object)DBNull.Value : int.Parse(lpW));
+                        command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi) ? (object)DBNull.Value : uwagi);
+                        command.Parameters.AddWithValue("@LpDostawa", int.Parse(lpDostawa));
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Zaktualizowano dane pomyślnie
+                            MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować DANYCH ROZLICZENIOWYCH", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         public void UpdateDaneAutKierowcy(int IdSpecyfikacji, ComboBox Kierowca, ComboBox Ciagnik, ComboBox Naczepa)
 
         {
@@ -1036,7 +1110,6 @@ namespace Kalendarz1
                             updatedDateTime = updatedDateTime.AddDays(-1);
                         }
 
-
                         // Zaktualizuj rekord w bazie danych
                         string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
 
@@ -1050,6 +1123,7 @@ namespace Kalendarz1
                             if (rowsAffected > 0)
                             {
                                 // Zaktualizowano dane pomyślnie
+                                MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                             else
                             {
@@ -1071,6 +1145,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
     }
     public class CenoweMetody
