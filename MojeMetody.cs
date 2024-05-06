@@ -1,11 +1,17 @@
 ﻿using Microsoft.Data.SqlClient;
+<<<<<<< HEAD
 using Microsoft.IdentityModel.Tokens;
+=======
+<<<<<<< Updated upstream
+using Microsoft.IdentityModel.Tokens;
+=======
+>>>>>>> Stashed changes
+>>>>>>> parent of 5159273 (Update MojeMetody.cs)
 using Microsoft.VisualBasic.ApplicationServices;
 using System;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Data;
 using System.Data.SqlTypes;
-using System.Threading.Channels;
 using System.Windows.Forms;
 using System.Windows.Input;
 
@@ -873,6 +879,7 @@ namespace Kalendarz1
                         command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : int.Parse(PiecesFarm.Text));
                         command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
 =======
+<<<<<<< HEAD
                         command.Parameters.AddWithValue("@DataOdbioru", string.IsNullOrEmpty(dataOdbioru) ? (object)DBNull.Value : DateTime.Parse(dataOdbioru).Date);
                         command.Parameters.AddWithValue("@Dostawca", string.IsNullOrEmpty(dostawca) ? (object)DBNull.Value : dostawca);
                         command.Parameters.AddWithValue("@Auta", string.IsNullOrEmpty(auta) ? (object)DBNull.Value : int.Parse(auta));
@@ -951,6 +958,8 @@ namespace Kalendarz1
                     using (SqlCommand command = new SqlCommand(strSQL, cnn))
                     {
                         // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+=======
+>>>>>>> parent of 5159273 (Update MojeMetody.cs)
                         command.Parameters.AddWithValue("@DataOdbioru", string.IsNullOrEmpty(dataOdbioru) ? (object)DBNull.Value : DateTime.Parse(dataOdbioru).Date);
                         command.Parameters.AddWithValue("@Dostawca", string.IsNullOrEmpty(dostawca) ? (object)DBNull.Value : dostawca);
                         command.Parameters.AddWithValue("@Auta", string.IsNullOrEmpty(auta) ? (object)DBNull.Value : int.Parse(auta));
@@ -967,17 +976,19 @@ namespace Kalendarz1
                         command.Parameters.AddWithValue("@Dodatek", string.IsNullOrEmpty(dodatek) ? (object)DBNull.Value : decimal.Parse(dodatek));
                         command.Parameters.AddWithValue("@Bufor", string.IsNullOrEmpty(bufor) ? (object)DBNull.Value : bufor);
                         command.Parameters.AddWithValue("@DataMod", DateTime.Now);
-                       // command.Parameters.AddWithValue("@KtoMod", UserID);
+                        command.Parameters.AddWithValue("@KtoMod", UserID);
                         command.Parameters.AddWithValue("@LpW", string.IsNullOrEmpty(lpW) ? (object)DBNull.Value : int.Parse(lpW));
                         command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi) ? (object)DBNull.Value : uwagi);
                         command.Parameters.AddWithValue("@LpDostawa", int.Parse(lpDostawa));
+>>>>>>> Stashed changes
 
+                        // Wykonanie zapytania SQL
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
+<<<<<<< Updated upstream
                             // Zaktualizowano dane pomyślnie
-                            MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else
                         {
@@ -985,13 +996,13 @@ namespace Kalendarz1
                         }
                     }
                 }
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         public void UpdateDaneAutKierowcy(int IdSpecyfikacji, ComboBox Kierowca, ComboBox Ciagnik, ComboBox Naczepa)
 
         {
@@ -1110,6 +1121,7 @@ namespace Kalendarz1
                             updatedDateTime = updatedDateTime.AddDays(-1);
                         }
 
+
                         // Zaktualizuj rekord w bazie danych
                         string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
 
@@ -1123,7 +1135,6 @@ namespace Kalendarz1
                             if (rowsAffected > 0)
                             {
                                 // Zaktualizowano dane pomyślnie
-                                MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                             else
                             {
@@ -1145,7 +1156,6 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
 
     }
     public class CenoweMetody
