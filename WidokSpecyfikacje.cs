@@ -5,10 +5,12 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
 
 namespace Kalendarz1
 {
@@ -17,9 +19,13 @@ namespace Kalendarz1
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         ZapytaniaSQL zapytaniasql = new ZapytaniaSQL(); // Tworzenie egzemplarza klasy ZapytaniaSQL
+
+
         public WidokSpecyfikacje()
         {
+            
             InitializeComponent();
+
         }
 
         private void WidokSpecyfikacje_Load(object sender, EventArgs e)
@@ -121,29 +127,97 @@ namespace Kalendarz1
                 dostawaForm.Show();
             }
         }
-
-        private void button1_Click(object sender, EventArgs e)
+        private void dataGridView1_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             try
             {
-                string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                string customerGID = "104";
-                DateTime date = new DateTime(DateTime.Now.Year, 4, 20);
-                string outputPath = @"C:\ESD\Report.xls";
+                DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
 
-                ExcelReportGenerator reportGenerator = new ExcelReportGenerator(connectionString);
-                reportGenerator.GenerateExcelReport(customerGID, date, outputPath);
+                // Pobierz ID z edytowanego wiersza
+                int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
 
-                MessageBox.Show("Raport został wygenerowany pomyślnie.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Pobierz nową wartość z edytowanej komórki
+                string newValue = editedRow.Cells[e.ColumnIndex].Value.ToString();
 
-                // Otwórz wygenerowany plik Excel
-                Process.Start(outputPath);
+                // Zaktualizuj odpowiednią kolumnę w bazie danych
+                UpdateDatabase(id, e.ColumnIndex, newValue);
+
+                MessageBox.Show("Wartość zaktualizowana pomyślnie!");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Wystąpił błąd podczas generowania raportu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Wystąpił błąd podczas aktualizacji danych: " + ex.Message);
             }
         }
+
+        private void UpdateDatabase(int id, int columnIndex, string newValue)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string columnName = GetColumnName(columnIndex); // Funkcja do pobrania nazwy kolumny na podstawie indeksu
+                    string strSQL = $@"UPDATE dbo.FarmerCalc
+                               SET {columnName} = @NewValue
+                               WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@ID", id);
+                        command.Parameters.AddWithValue("@NewValue", newValue);
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            MessageBox.Show("Dane zaktualizowane pomyślnie!");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować danych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd podczas aktualizacji danych: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private string GetColumnName(int columnIndex)
+        {
+            // Funkcja zwracająca nazwę kolumny na podstawie indeksu
+            switch (columnIndex)
+            {
+                case 0: return "CarLp"; // Załóżmy, że CarLp to nazwa kolumny w bazie danych
+                case 3: return "DeclI1"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 4: return "DeclI2"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 5: return "DeclI3"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 6: return "DeclI4"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 7: return "DeclI5"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 14: return "LumQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 15: return "ProdQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 16: return "ProdWgt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                default: throw new ArgumentException("Nieprawidłowy indeks kolumny.");
+            }
+        }
+
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji Form1
+            SzczegolyDrukowaniaSpecki PDFview = new SzczegolyDrukowaniaSpecki();
+
+            // Wyświetlanie Form1
+            PDFview.Show();
+        }
+
+
+
+
+
+
 
     }
 }

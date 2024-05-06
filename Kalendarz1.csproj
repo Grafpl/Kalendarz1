@@ -15,8 +15,21 @@
 
   <ItemGroup>
     <PackageReference Include="EPPlus" Version="7.1.2" />
+    <PackageReference Include="EPPlus.Interfaces" Version="6.1.1" />
+    <PackageReference Include="EPPlus.System.Drawing" Version="6.1.1" />
+    <PackageReference Include="itext7" Version="8.0.4" />
+    <PackageReference Include="itext7.pdfhtml" Version="5.0.4" />
+    <PackageReference Include="iTextSharp" Version="5.5.13.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />
+    <PackageReference Include="Microsoft.Office.Interop.Word" Version="15.0.4797.1004" />
+    <PackageReference Include="PDFsharp" Version="6.0.0" />
     <PackageReference Include="WinForms.DataVisualization" Version="1.9.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="itextsharp">
+      <HintPath>bin\Debug\net7.0-windows7.0\itextsharp.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

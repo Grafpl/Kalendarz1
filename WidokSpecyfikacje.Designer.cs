@@ -72,6 +72,7 @@
             dataGridView1.Size = new System.Drawing.Size(1414, 552);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
+            dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
             // 
             // ID
             // 
