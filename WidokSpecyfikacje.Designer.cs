@@ -30,6 +30,7 @@
         {
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
+            button1 = new System.Windows.Forms.Button();
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Numer = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -50,7 +51,6 @@
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
             PiK = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -73,6 +73,16 @@
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
+            // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(575, 12);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(75, 23);
+            button1.TabIndex = 2;
+            button1.Text = "button1";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
             // 
             // ID
             // 
@@ -206,7 +216,7 @@
             TypCeny.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             TypCeny.HeaderText = "Typ Ceny";
             TypCeny.Name = "TypCeny";
-            TypCeny.Width = 60;
+            TypCeny.Width = 85;
             // 
             // PiK
             // 
@@ -214,16 +224,6 @@
             PiK.HeaderText = "Czy odliczamy kg za PiK?";
             PiK.Name = "PiK";
             PiK.Width = 70;
-            // 
-            // button1
-            // 
-            button1.Location = new System.Drawing.Point(575, 12);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
-            button1.TabIndex = 2;
-            button1.Text = "button1";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
             // 
             // WidokSpecyfikacje
             // 
@@ -244,6 +244,7 @@
 
         private System.Windows.Forms.DateTimePicker dateTimePicker1;
         private System.Windows.Forms.DataGridView dataGridView1;
+        private System.Windows.Forms.Button button1;
         private System.Windows.Forms.DataGridViewTextBoxColumn ID;
         private System.Windows.Forms.DataGridViewTextBoxColumn Numer;
         private System.Windows.Forms.DataGridViewTextBoxColumn Dostawca;
@@ -264,6 +265,5 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Cena;
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
         private System.Windows.Forms.DataGridViewTextBoxColumn PiK;
-        private System.Windows.Forms.Button button1;
     }
 }

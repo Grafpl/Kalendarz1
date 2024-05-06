@@ -57,20 +57,25 @@ namespace Kalendarz1
                     DataTable dataTable = new DataTable();
                     adapter.Fill(dataTable);
 
+                    // Wyczyszczenie istniejących danych w DataGridView
+                    dataGridView1.Rows.Clear();
+
                     // Wypełnienie istniejących kolumn w DataGridView danymi z bazy danych
                     if (dataTable.Rows.Count > 0)
                     {
-                        dataGridView1.Rows.Clear(); // Wyczyszczenie istniejących danych
                         foreach (DataRow row in dataTable.Rows)
                         {
-
                             // Pobranie wartości kolumny "CustomerGID" jako obiektu Int32
                             int customerGID = ZapytaniaSQL.GetValueOrDefault<int>(row, "CustomerGID", defaultValue: -1);
                             string Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(customerGID, "ShortName");
 
-                            // int? priceTypeID = row.Field<int?>("PriceTypeID");
-                            //int actualPriceTypeID = priceTypeID.HasValue ? priceTypeID.Value : -1;
-                            // string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(actualPriceTypeID);
+                            string BruttoHodowcy = row["FullFarmWeight"] != DBNull.Value ? Convert.ToDecimal(row["FullFarmWeight"]).ToString("#,0") : null;
+                            string TaraHodowcy = row["EmptyFarmWeight"] != DBNull.Value ? Convert.ToDecimal(row["EmptyFarmWeight"]).ToString("#,0") : null;
+                            string NettoHodowcy = row["NettoFarmWeight"] != DBNull.Value ? Convert.ToDecimal(row["NettoFarmWeight"]).ToString("#,0") : null;
+
+                            string BruttoUbojni = row["FullWeight"] != DBNull.Value ? Convert.ToDecimal(row["FullWeight"]).ToString("#,0") : null;
+                            string TaraUbojni = row["EmptyWeight"] != DBNull.Value ? Convert.ToDecimal(row["EmptyWeight"]).ToString("#,0") : null;
+                            string NettoUbojni = row["NettoWeight"] != DBNull.Value ? Convert.ToDecimal(row["NettoWeight"]).ToString("#,0") : null;
 
                             // Pobranie wartości kolumny "PriceTypeID" jako Nullable<int> (int?)
                             int priceTypeID = ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", defaultValue: -1);
@@ -85,12 +90,12 @@ namespace Kalendarz1
                                 row["DeclI3"],        // CH
                                 row["DeclI4"],        // NW
                                 row["DeclI5"],        // ZM
-                                row["FullFarmWeight"],// BruttoHodowcy
-                                row["EmptyFarmWeight"],// TaraHodowcy
-                                row["NettoFarmWeight"],               // NettoUbojni (pusta wartość)
-                                row["FullWeight"],    // BruttoUbojni
-                                row["EmptyWeight"],   // TaraUbojni
-                                row["NettoWeight"],                   // NettoUbojni (pusta wartość)
+                                BruttoHodowcy,     // Zastosowanie sformatowanych wartości
+                                TaraHodowcy,       // Zastosowanie sformatowanych wartości
+                                NettoHodowcy,       // Zastosowanie sformatowanych wartości
+                                BruttoUbojni,     // Zastosowanie sformatowanych wartości
+                                TaraUbojni,       // Zastosowanie sformatowanych wartości
+                                NettoUbojni,       // Zastosowanie sformatowanych wartości
                                 row["LumQnt"],        // LUMEL
                                 row["ProdQnt"],       // Prod Sztuki
                                 row["ProdWgt"],       // Prod Wagi
@@ -104,7 +109,7 @@ namespace Kalendarz1
                     }
                     else
                     {
-
+                        // Obsługa przypadku braku danych
                     }
                 }
             }
@@ -113,6 +118,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd podczas ładowania danych: " + ex.Message);
             }
         }
+
         private void DataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             // Sprawdź, czy wiersz i kolumna zostały kliknięte
@@ -131,16 +137,34 @@ namespace Kalendarz1
         {
             try
             {
-                DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
+                // Sprawdź czy edytowana komórka jest w drugiej kolumnie i w pierwszym wierszu
+                if (e.ColumnIndex == 1 && e.RowIndex == 0)
+                {
+                    // Sprawdź czy wpisano liczbę w pierwszym wierszu pierwszej kolumny
+                    int newValue;
+                    if (int.TryParse(dataGridView1.Rows[0].Cells[0].Value?.ToString(), out newValue))
+                    {
+                        // Inkrementuj liczbę w dół dla pozostałych wierszy
+                        for (int i = 1; i < dataGridView1.Rows.Count; i++)
+                        {
+                            newValue++;
+                            dataGridView1.Rows[i].Cells[1].Value = newValue;
+                        }
+                    }
+                }
+                else
+                {
+                    DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
 
-                // Pobierz ID z edytowanego wiersza
-                int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
+                    // Pobierz ID z edytowanego wiersza
+                    int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
 
-                // Pobierz nową wartość z edytowanej komórki
-                string newValue = editedRow.Cells[e.ColumnIndex].Value.ToString();
+                    // Pobierz nową wartość z edytowanej komórki
+                    string newValue = editedRow.Cells[e.ColumnIndex].Value.ToString();
 
-                // Zaktualizuj odpowiednią kolumnę w bazie danych
-                UpdateDatabase(id, e.ColumnIndex, newValue);
+                    // Zaktualizuj odpowiednią kolumnę w bazie danych
+                    UpdateDatabase(id, e.ColumnIndex, newValue);
+                }
 
                 MessageBox.Show("Wartość zaktualizowana pomyślnie!");
             }
@@ -149,6 +173,9 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd podczas aktualizacji danych: " + ex.Message);
             }
         }
+
+
+
 
         private void UpdateDatabase(int id, int columnIndex, string newValue)
         {
