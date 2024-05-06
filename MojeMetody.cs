@@ -1,5 +1,8 @@
 ﻿using Microsoft.Data.SqlClient;
+<<<<<<< Updated upstream
 using Microsoft.IdentityModel.Tokens;
+=======
+>>>>>>> Stashed changes
 using Microsoft.VisualBasic.ApplicationServices;
 using System;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
@@ -644,6 +647,7 @@ namespace Kalendarz1
             telefon3.Text = Zmienna.ToString();
 
         }
+<<<<<<< Updated upstream
         public void UpdateDaneAdresoweDostawcy(ComboBox Dostawca, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox Dystans)
 
         {
@@ -813,11 +817,19 @@ namespace Kalendarz1
         {
             try
             {
+=======
+        public void AktualizujAvilogWartosci(string dataOdbioru, string dostawca, string auta, string kmH, string kmK, string kurnik, string sztukiDek, string wagaDek, string sztSzuflada, string typUmowy, string typCeny, string cena, string ubytek, string dodatek, string bufor, string lpDostawa, string lpW, string uwagi)
+        {
+            try
+            {
+                // Utworzenie połączenia z bazą danych
+>>>>>>> Stashed changes
                 using (SqlConnection cnn = new SqlConnection(connectionString))
                 {
                     cnn.Open();
 
                     // Utworzenie zapytania SQL do aktualizacji danych
+<<<<<<< Updated upstream
                     string strSQL = @"UPDATE dbo.FarmerCalc
                                   SET FullWeight = @FullFarmWeight,
                                       EmptyWeight = @EmptyFarmWeight,
@@ -826,10 +838,35 @@ namespace Kalendarz1
                                       Pieces = @PiecesFarm,
                                       SztPoj = @SztPoj
                                   WHERE ID = @ID";
+=======
+                    string strSQL = @"
+                UPDATE dbo.HarmonogramDostaw
+                SET DataOdbioru = @DataOdbioru,
+                    Dostawca = @Dostawca,
+                    Auta = @Auta,
+                    KmH = @KmH,
+                    KmK = @KmK,
+                    Kurnik = @Kurnik,
+                    SztukiDek = @SztukiDek,
+                    WagaDek = @WagaDek,
+                    SztSzuflada = @SztSzuflada,
+                    TypUmowy = @TypUmowy,
+                    TypCeny = @TypCeny,
+                    Cena = @Cena,
+                    Ubytek = @Ubytek,
+                    Dodatek = @Dodatek,
+                    Bufor = @Bufor,
+                    DataMod = @DataMod,
+                    KtoMod = @KtoMod,
+                    LpW = @LpW,
+                    Uwagi = @Uwagi
+                WHERE Lp = @LpDostawa;";
+>>>>>>> Stashed changes
 
                     using (SqlCommand command = new SqlCommand(strSQL, cnn))
                     {
                         // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+<<<<<<< Updated upstream
                         command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
                         command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
                         command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
@@ -837,12 +874,35 @@ namespace Kalendarz1
                         command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
                         command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : int.Parse(PiecesFarm.Text));
                         command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
+=======
+                        command.Parameters.AddWithValue("@DataOdbioru", string.IsNullOrEmpty(dataOdbioru) ? (object)DBNull.Value : DateTime.Parse(dataOdbioru).Date);
+                        command.Parameters.AddWithValue("@Dostawca", string.IsNullOrEmpty(dostawca) ? (object)DBNull.Value : dostawca);
+                        command.Parameters.AddWithValue("@Auta", string.IsNullOrEmpty(auta) ? (object)DBNull.Value : int.Parse(auta));
+                        command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH) ? (object)DBNull.Value : int.Parse(kmH));
+                        command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK) ? (object)DBNull.Value : int.Parse(kmK));
+                        command.Parameters.AddWithValue("@Kurnik", string.IsNullOrEmpty(kurnik) ? (object)DBNull.Value : int.Parse(kurnik));
+                        command.Parameters.AddWithValue("@SztukiDek", string.IsNullOrEmpty(sztukiDek) ? (object)DBNull.Value : int.Parse(sztukiDek));
+                        command.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(wagaDek) ? (object)DBNull.Value : decimal.Parse(wagaDek));
+                        command.Parameters.AddWithValue("@SztSzuflada", string.IsNullOrEmpty(sztSzuflada) ? (object)DBNull.Value : int.Parse(sztSzuflada));
+                        command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(typUmowy) ? (object)DBNull.Value : typUmowy);
+                        command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(typCeny) ? (object)DBNull.Value : typCeny);
+                        command.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(cena) ? (object)DBNull.Value : decimal.Parse(cena));
+                        command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek) ? (object)DBNull.Value : decimal.Parse(ubytek));
+                        command.Parameters.AddWithValue("@Dodatek", string.IsNullOrEmpty(dodatek) ? (object)DBNull.Value : decimal.Parse(dodatek));
+                        command.Parameters.AddWithValue("@Bufor", string.IsNullOrEmpty(bufor) ? (object)DBNull.Value : bufor);
+                        command.Parameters.AddWithValue("@DataMod", DateTime.Now);
+                        command.Parameters.AddWithValue("@KtoMod", UserID);
+                        command.Parameters.AddWithValue("@LpW", string.IsNullOrEmpty(lpW) ? (object)DBNull.Value : int.Parse(lpW));
+                        command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi) ? (object)DBNull.Value : uwagi);
+                        command.Parameters.AddWithValue("@LpDostawa", int.Parse(lpDostawa));
+>>>>>>> Stashed changes
 
                         // Wykonanie zapytania SQL
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
+<<<<<<< Updated upstream
                             // Zaktualizowano dane pomyślnie
                         }
                         else
@@ -995,6 +1055,13 @@ namespace Kalendarz1
                             {
                                 MessageBox.Show("Nie udało się zaktualizować danych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
+=======
+                            MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować danych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+>>>>>>> Stashed changes
                         }
                     }
                 }
