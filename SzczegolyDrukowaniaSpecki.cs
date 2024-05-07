@@ -22,93 +22,117 @@ namespace Kalendarz1
 
         private void GeneratePDFReport(string variable1, string variable2)
         {
-            Document doc = new Document(PageSize.A4.Rotate(), 50, 50, 25, 25);
-            string filePath = @"C:\ESD\raport.pdf";
+            // Set up the document in portrait mode
+            Document doc = new Document(PageSize.A4, 50, 50, 25, 25);
+            string filePath = @"\\192.168.0.170\Public\Przel\raport.pdf";
 
             using (FileStream fs = new FileStream(filePath, FileMode.Create))
             {
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
-                Font headerFont = FontFactory.GetFont(BaseFont.HELVETICA, 18, iTextSharp.text.Font.BOLD);
-                Font subHeaderFont = FontFactory.GetFont(BaseFont.HELVETICA, 14, iTextSharp.text.Font.BOLD);
-                Font textFont = FontFactory.GetFont(BaseFont.HELVETICA, 12, iTextSharp.text.Font.NORMAL);
+                // Load a BaseFont that supports Polish characters
+                BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
+                Font headerFont = new Font(baseFont, 18, iTextSharp.text.Font.BOLD);
+                Font textFont = new Font(baseFont, 12, iTextSharp.text.Font.NORMAL);
+                Font smallTextFont = new Font(baseFont, 8, iTextSharp.text.Font.NORMAL); // Small font for the data table
 
-                Image logo = Image.GetInstance(@"C:\ESD\logo.png");
-                logo.SetAbsolutePosition(doc.PageSize.Width - 36f - 130f, doc.PageSize.Height - 36f - 72f);
-                logo.ScaleAbsoluteWidth(50f);
-                logo.ScaleAbsoluteHeight(50f);
-                doc.Add(logo);
-
-                Paragraph header = new Paragraph("Specyfikacja przyjętego drobiu", headerFont);
+                // Header paragraph
+                Paragraph header = new Paragraph("Rozliczenie przyjętego drobiu", headerFont);
                 header.Alignment = Element.ALIGN_CENTER;
                 doc.Add(header);
 
-               // Paragraph subHeader = new Paragraph("Szczegóły przyjęcia", subHeaderFont);
-                //subHeader.Alignment = Element.ALIGN_CENTER;
-                //subHeader.SpacingBefore = 20f;
-                //subHeader.SpacingAfter = 30f;
-                //doc.Add(subHeader);
+                // Create a table for the seller and buyer info, each in its own cell
+                PdfPTable infoTable = new PdfPTable(2);
+                infoTable.WidthPercentage = 100;
+                infoTable.SetWidths(new float[] { 1f, 1f });
 
-                Paragraph companyInfo = new Paragraph("Ubojnia Drobiu Piórkowscy\nAdres: Koziołki 40, Dmosin\nNIP: 726-162-54-06", textFont);
-                companyInfo.Alignment = Element.ALIGN_LEFT;
-                companyInfo.SpacingAfter = 20f;
-                doc.Add(companyInfo);
+                // Seller information (left column)
+                PdfPCell sellerInfoCell = new PdfPCell(new Phrase("Ubojnia Drobiu Piórkowscy\nAdres: Koziołki 40, Dmosin\nNIP: 726-162-54-06", textFont))
+                {
+                    Border = PdfPCell.NO_BORDER,
+                    HorizontalAlignment = Element.ALIGN_LEFT,
+                    PaddingBottom = 20 // Increased padding between lines
+                };
+                infoTable.AddCell(sellerInfoCell);
 
-                //Paragraph content = new Paragraph("Imie : " + variable1 + "\nNazwisko : " + variable2, textFont);
-                //content.SpacingAfter = 20f;
-                //doc.Add(content);
+                // Buyer information (right column)
+                string buyerInfo = $"Nabywca:\nImię: {variable1}\nNazwisko: {variable2}";
+                PdfPCell buyerInfoCell = new PdfPCell(new Phrase(buyerInfo, textFont))
+                {
+                    Border = PdfPCell.NO_BORDER,
+                    HorizontalAlignment = Element.ALIGN_RIGHT,
+                    PaddingBottom = 20 // Increased padding between lines
+                };
+                infoTable.AddCell(buyerInfoCell);
 
-                PdfPTable table = new PdfPTable(new float[] { 0.6F, 0.6F, 0.6F, 0.4F, 0.4F, 0.4F, 0.4F, 0.35F, 0.6F, 0.5F });
-                table.WidthPercentage = 100;
+                // Add the info table to the document
+                infoTable.SpacingAfter = 20f;
+                doc.Add(infoTable);
 
-                AddTableHeader(table, "Waga Brutto", textFont);
-                AddTableHeader(table, "Waga Tara", textFont);
-                AddTableHeader(table, "Waga Netto", textFont);
-                AddTableHeader(table, "Padłe", textFont);
-                AddTableHeader(table, "Konfiskaty", textFont);
-                AddTableHeader(table, "Sztuki Zdatne", textFont);
-                AddTableHeader(table, "Sztuki ARIMR", textFont);
-                AddTableHeader(table, "Średnia Waga", textFont);
-                AddTableHeader(table, "Suma KG", textFont);
-                AddTableHeader(table, "Wartość", textFont);
+                // Create the data table with adjusted column widths if necessary
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.6F, 0.6F, 0.6F, 0.4F, 0.4F, 0.4F, 0.4F, 0.35F, 0.6F, 0.5F });
+                dataTable.WidthPercentage = 100;
 
-                // Dodawanie pierwszego wiersza
-                AddTableData(table, "20 000 kg", "15 000 kg", "5 000 kg", "10 szt", "12 szt", "4202 szt", "4224 szt", "3,01", "5 000 kg", "15 050 zł");
+                // Add headers to the data table
+                AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
+                AddTableHeader(dataTable, "Waga Tara", smallTextFont);
+                AddTableHeader(dataTable, "Waga Netto", smallTextFont);
+                AddTableHeader(dataTable, "Padłe", smallTextFont);
+                AddTableHeader(dataTable, "Konfiskaty", smallTextFont);
+                AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
+                AddTableHeader(dataTable, "Sztuki ARIMR", smallTextFont);
+                AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
+                AddTableHeader(dataTable, "Suma KG", smallTextFont);
+                AddTableHeader(dataTable, "Wartość", smallTextFont);
 
-                // Dodawanie drugiego wiersza z identycznymi danymi
-                AddTableData(table, "20 000 kg", "15 000 kg", "5 000 kg", "10 szt", "12 szt", "4202 szt", "4224 szt", "3,01", "5 000 kg", "15 050 zł");
+                // Add sample rows to the data table
+                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
+                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
 
-                doc.Add(table);
+                // Add the data table to the document
+                doc.Add(dataTable);
 
+                // Summary
                 Paragraph summary = new Paragraph("Suma: 15 050 zł", textFont);
                 summary.Alignment = Element.ALIGN_RIGHT;
                 summary.SpacingBefore = 20f;
                 doc.Add(summary);
 
+                // Close the document
                 doc.Close();
             }
 
+            // Notify the user and open the file
             MessageBox.Show("Raport PDF został wygenerowany.");
             System.Diagnostics.Process.Start(filePath);
         }
 
+        // Method to add table headers
         private void AddTableHeader(PdfPTable table, string columnName, Font font)
         {
-            PdfPCell header = new PdfPCell(new Phrase(columnName, font));
-            header.BackgroundColor = BaseColor.LIGHT_GRAY;
-            header.HorizontalAlignment = Element.ALIGN_CENTER;
-            table.AddCell(header);
+            PdfPCell cell = new PdfPCell(new Phrase(columnName, font))
+            {
+                BackgroundColor = BaseColor.LIGHT_GRAY,
+                HorizontalAlignment = Element.ALIGN_CENTER
+            };
+            table.AddCell(cell);
         }
 
-        private void AddTableData(PdfPTable table, params string[] values)
+        // Method to add table data
+        private void AddTableData(PdfPTable table, Font font, params string[] values)
         {
-            for (int i = 0; i < values.Length; i++)
+            foreach (string value in values)
             {
-                PdfPCell cell = new PdfPCell(new Phrase(values[i]));
-                cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                PdfPCell cell = new PdfPCell(new Phrase(value, font))
+                {
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                };
                 table.AddCell(cell);
             }
         }
+
+
+
     }
 }
