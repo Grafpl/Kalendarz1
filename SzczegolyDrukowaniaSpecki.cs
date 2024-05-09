@@ -109,14 +109,21 @@ namespace Kalendarz1
                 dataTable2.AddCell(mergedHeaderCell11);
 
                 // Add merged header for "Rozliczenie sztuk"
-                PdfPCell mergedHeaderCell22 = new PdfPCell(new Phrase("Waga Samochodowa", tytulTablicy));
-                mergedHeaderCell22.Colspan = 6;
+                PdfPCell mergedHeaderCell22 = new PdfPCell(new Phrase("Waga Hodowcy", tytulTablicy));
+                mergedHeaderCell22.Colspan = 3;
                 mergedHeaderCell22.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
                 mergedHeaderCell22.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable2.AddCell(mergedHeaderCell22);
 
+                // Add merged header for "Rozliczenie sztuk"
+                PdfPCell mergedHeaderCell44 = new PdfPCell(new Phrase("Waga Ubojni", tytulTablicy));
+                mergedHeaderCell44.Colspan = 3;
+                mergedHeaderCell44.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell44.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
+                dataTable2.AddCell(mergedHeaderCell44);
+
                 // Add merged header for "Rozliczenie kilogramów"
-                PdfPCell mergedHeaderCell33 = new PdfPCell(new Phrase("Ubytki ustalone i wyliczone", tytulTablicy));
+                PdfPCell mergedHeaderCell33 = new PdfPCell(new Phrase("Ubytki transportowe ustalone i wyliczone", tytulTablicy));
                 mergedHeaderCell33.Colspan = 5;
                 mergedHeaderCell33.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
                 mergedHeaderCell33.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
@@ -157,26 +164,32 @@ namespace Kalendarz1
                 AddTableData(dataTable2, smallTextFont, "9.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
                 AddTableData(dataTable2, smallTextFont, "10.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
 
-                dataTable2.SpacingAfter = 5f;
+                dataTable2.SpacingAfter = 10f;
                 // Add the data table to the document
                 doc.Add(dataTable2);
 
 
                 // Create the data table with adjusted column widths if necessary
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.40F, 0.3F, 0.3F, 0.3F, 0.4F, 0.20F, 0.5F });
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.40F, 0.3F, 0.3F, 0.3F, 0.4F, 0.2F, 0.3F, 0.20F, 0.5F });
                 dataTable.WidthPercentage = 100;
 
                 // Add merged header for "Waga samochodowa"
                 PdfPCell mergedHeaderCell1 = new PdfPCell(new Phrase("Waga samochodowa", tytulTablicy));
                 mergedHeaderCell1.Colspan = 4;
+                mergedHeaderCell1.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell1.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable.AddCell(mergedHeaderCell1);
                 // Add merged header for "Rozliczenie sztuk"
                 PdfPCell mergedHeaderCell2 = new PdfPCell(new Phrase("Rozliczenie sztuk", tytulTablicy));
                 mergedHeaderCell2.Colspan = 5;
+                mergedHeaderCell2.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell2.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable.AddCell(mergedHeaderCell2);
                 // Add merged header for "Rozliczenie kilogramów"
                 PdfPCell mergedHeaderCell3 = new PdfPCell(new Phrase("Rozliczenie kilogramów", tytulTablicy));
-                mergedHeaderCell3.Colspan = 7;
+                mergedHeaderCell3.Colspan = 9;
+                mergedHeaderCell3.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell3.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable.AddCell(mergedHeaderCell3);
 
                 AddTableHeader(dataTable, "Lp.", smallTextFont);
@@ -192,27 +205,28 @@ namespace Kalendarz1
 
 
                 // Add individual headers for remaining columns
-                AddTableHeader(dataTable, "Kilogramy Całość", smallTextFont);
-                AddTableHeader(dataTable, "Kilogramy Padłe", smallTextFont);
-                AddTableHeader(dataTable, "Kilogramy Konfiskaty", smallTextFont);
-                AddTableHeader(dataTable, "Kilogramy Potrąceń", smallTextFont);
+                AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Konfiskaty [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Opasienie [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Ubytek [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Klasa B [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Kilogramy do Zapłaty", smallTextFont);
                 AddTableHeader(dataTable, "Cena", smallTextFont);
                 AddTableHeader(dataTable, "Wartość", smallTextFont);
 
 
                 // Add sample rows to the data table
-                AddTableData(dataTable, smallTextFont, "1.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "2.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "3.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "4.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "5.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "6.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "7.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "8.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "9.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "10.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "10 377", "5.01", "51 988,77");
-                // Add the data table to the document
+                AddTableData(dataTable, smallTextFont, "1.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "2.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "3.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "4.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "5.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "6.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "7.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "8.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "9.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                AddTableData(dataTable, smallTextFont, "10.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
                 doc.Add(dataTable);
 
                 // Create a paragraph for italic text
