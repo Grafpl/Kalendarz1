@@ -23,12 +23,7 @@ namespace Kalendarz1
         private void GeneratePDFReport(string variable1, string variable2)
         {
             // Set up the document in portrait mode
-<<<<<<< HEAD
-            Document doc = new Document(PageSize.A4, 50, 50, 25, 25);
-=======
             Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
-
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
             string filePath = @"\\192.168.0.170\Public\Przel\raport.pdf";
 
             using (FileStream fs = new FileStream(filePath, FileMode.Create))
@@ -38,17 +33,12 @@ namespace Kalendarz1
 
                 // Load a BaseFont that supports Polish characters
                 BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
-                Font headerFont = new Font(baseFont, 18, iTextSharp.text.Font.BOLD);
-<<<<<<< HEAD
+                Font headerFont = new Font(baseFont, 15, iTextSharp.text.Font.BOLD);
                 Font textFont = new Font(baseFont, 12, iTextSharp.text.Font.NORMAL);
                 Font smallTextFont = new Font(baseFont, 8, iTextSharp.text.Font.NORMAL); // Small font for the data table
-=======
-                Font tytulTablicy = new Font(baseFont, 15, iTextSharp.text.Font.BOLD);
+                Font tytulTablicy = new Font(baseFont, 13, iTextSharp.text.Font.BOLD);
                 Font ItalicFont = new Font(baseFont, 8, iTextSharp.text.Font.ITALIC);
-                Font textFont = new Font(baseFont, 12, iTextSharp.text.Font.NORMAL);
-                Font smallTextFont = new Font(baseFont, 8, iTextSharp.text.Font.NORMAL); // Small font for the data table
                 Font smallerTextFont = new Font(baseFont, 7, iTextSharp.text.Font.NORMAL); // Small font for the data table
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
 
                 // Header paragraph
                 Paragraph header = new Paragraph("Rozliczenie przyjętego drobiu", headerFont);
@@ -61,57 +51,11 @@ namespace Kalendarz1
                 infoTable.SetWidths(new float[] { 1f, 1f });
 
                 // Seller information (left column)
-<<<<<<< HEAD
-=======
                 // Seller information (left column)
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
                 PdfPCell sellerInfoCell = new PdfPCell(new Phrase("Ubojnia Drobiu Piórkowscy\nAdres: Koziołki 40, Dmosin\nNIP: 726-162-54-06", textFont))
                 {
                     Border = PdfPCell.NO_BORDER,
                     HorizontalAlignment = Element.ALIGN_LEFT,
-<<<<<<< HEAD
-                    PaddingBottom = 20 // Increased padding between lines
-                };
-                infoTable.AddCell(sellerInfoCell);
-
-                // Buyer information (right column)
-                string buyerInfo = $"Nabywca:\nImię: {variable1}\nNazwisko: {variable2}";
-                PdfPCell buyerInfoCell = new PdfPCell(new Phrase(buyerInfo, textFont))
-                {
-                    Border = PdfPCell.NO_BORDER,
-                    HorizontalAlignment = Element.ALIGN_RIGHT,
-                    PaddingBottom = 20 // Increased padding between lines
-                };
-                infoTable.AddCell(buyerInfoCell);
-
-                // Add the info table to the document
-                infoTable.SpacingAfter = 20f;
-                doc.Add(infoTable);
-
-                // Create the data table with adjusted column widths if necessary
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.6F, 0.6F, 0.6F, 0.4F, 0.4F, 0.4F, 0.4F, 0.35F, 0.6F, 0.5F });
-                dataTable.WidthPercentage = 100;
-
-                // Add headers to the data table
-                AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
-                AddTableHeader(dataTable, "Waga Tara", smallTextFont);
-                AddTableHeader(dataTable, "Waga Netto", smallTextFont);
-                AddTableHeader(dataTable, "Padłe", smallTextFont);
-                AddTableHeader(dataTable, "Konfiskaty", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki ARIMR", smallTextFont);
-                AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
-                AddTableHeader(dataTable, "Suma KG", smallTextFont);
-                AddTableHeader(dataTable, "Wartość", smallTextFont);
-
-                // Add sample rows to the data table
-                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
-                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
-
-                // Add the data table to the document
-                doc.Add(dataTable);
-
-=======
                     PaddingBottom = 0 // Remove the existing padding
                 };
 
@@ -134,7 +78,7 @@ namespace Kalendarz1
                 };
 
                 // Split buyer info into lines and add empty lines between them
-                string[] buyerLines = { "Sprzedawca:", $"{variable1}", $"{variable2}", "", "" }; // Empty lines for spacing
+                string[] buyerLines = { "Nabywca:", $"{variable1}", $"{variable2}", "", "" }; // Empty lines for spacing
                 foreach (string line in buyerLines)
                 {
                     buyerInfoCell.AddElement(new Phrase(line, textFont));
@@ -152,6 +96,71 @@ namespace Kalendarz1
                 sredniaWaga.Alignment = Element.ALIGN_RIGHT;
                 sredniaWaga.SpacingAfter = 5f;
                 doc.Add(sredniaWaga);
+
+                // Create the data table with adjusted column widths if necessary
+                PdfPTable dataTable2 = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.40F, 0.3F, 0.3F, 0.3F, 0.4F, 0.20F, 0.5F });
+                dataTable2.WidthPercentage = 100;
+
+                // Add merged header for "Waga samochodowa"
+                PdfPCell mergedHeaderCell11 = new PdfPCell(new Phrase("Informacje Transportowe", tytulTablicy));
+                mergedHeaderCell11.Colspan = 5;
+                mergedHeaderCell11.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell11.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
+                dataTable2.AddCell(mergedHeaderCell11);
+
+                // Add merged header for "Rozliczenie sztuk"
+                PdfPCell mergedHeaderCell22 = new PdfPCell(new Phrase("Waga Samochodowa", tytulTablicy));
+                mergedHeaderCell22.Colspan = 6;
+                mergedHeaderCell22.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell22.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
+                dataTable2.AddCell(mergedHeaderCell22);
+
+                // Add merged header for "Rozliczenie kilogramów"
+                PdfPCell mergedHeaderCell33 = new PdfPCell(new Phrase("Ubytki ustalone i wyliczone", tytulTablicy));
+                mergedHeaderCell33.Colspan = 5;
+                mergedHeaderCell33.VerticalAlignment = Element.ALIGN_MIDDLE; // Wyprostowanie w pionie
+                mergedHeaderCell33.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
+                dataTable2.AddCell(mergedHeaderCell33);
+
+
+                AddTableHeader(dataTable2, "Lp.", smallTextFont);
+                AddTableHeader(dataTable2, "Nr. Auta", smallTextFont);
+                AddTableHeader(dataTable2, "Nr. Naczepy", smallTextFont);
+                AddTableHeader(dataTable2, "Czas Przyjazdu", smallTextFont);
+                AddTableHeader(dataTable2, "Czas Załadunku", smallTextFont);
+
+                AddTableHeader(dataTable2, "Hodowca Brutto", smallTextFont);
+                AddTableHeader(dataTable2, "Hodowca Tara", smallTextFont);
+                AddTableHeader(dataTable2, "Hodowca Netto", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Brutto", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Tara", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Netto", smallTextFont);
+
+
+                // Add individual headers for remaining columns
+                AddTableHeader(dataTable2, "Ubytek wyliczony [KG]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek wyliczony [%]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek ustalony [KG]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek ustalony [%]", smallTextFont);
+                AddTableHeader(dataTable2, "Różnica", smallTextFont);
+
+
+                // Add sample rows to the data table
+                AddTableData(dataTable2, smallTextFont, "1.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "2.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "3.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "4.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "5.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "6.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "7.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "8.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "9.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                AddTableData(dataTable2, smallTextFont, "10.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+
+                dataTable2.SpacingAfter = 5f;
+                // Add the data table to the document
+                doc.Add(dataTable2);
+
 
                 // Create the data table with adjusted column widths if necessary
                 PdfPTable dataTable = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.40F, 0.3F, 0.3F, 0.3F, 0.4F, 0.20F, 0.5F });
@@ -223,20 +232,18 @@ namespace Kalendarz1
                 typCena.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(typCena);
 
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
+
                 // Summary
                 Paragraph summary = new Paragraph("Suma: 15 050 zł", textFont);
                 summary.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(summary);
 
-<<<<<<< HEAD
-=======
                 // Summary
                 Paragraph platnosc = new Paragraph("Termin płatności : 45 dni", ItalicFont);
                 platnosc.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(platnosc);
 
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
+
                 // Close the document
                 doc.Close();
             }
@@ -246,11 +253,6 @@ namespace Kalendarz1
             //System.Diagnostics.Process.Start(filePath);
         }
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
         // Method to add table headers
         private void AddTableHeader(PdfPTable table, string columnName, Font font)
         {

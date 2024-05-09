@@ -30,7 +30,6 @@
         {
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
-            button1 = new System.Windows.Forms.Button();
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Numer = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -51,7 +50,11 @@
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
             PiK = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            button1 = new System.Windows.Forms.Button();
+            dataGridView2 = new System.Windows.Forms.DataGridView();
+            btnLoadData = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
             // 
             // dateTimePicker1
@@ -69,20 +72,10 @@
             dataGridView1.Location = new System.Drawing.Point(12, 50);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1414, 552);
+            dataGridView1.Size = new System.Drawing.Size(1260, 552);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
-            // 
-            // button1
-            // 
-            button1.Location = new System.Drawing.Point(575, 12);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
-            button1.TabIndex = 2;
-            button1.Text = "button1";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
             // 
             // ID
             // 
@@ -225,11 +218,42 @@
             PiK.Name = "PiK";
             PiK.Width = 70;
             // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(575, 12);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(75, 23);
+            button1.TabIndex = 2;
+            button1.Text = "button1";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
+            // dataGridView2
+            // 
+            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView2.Location = new System.Drawing.Point(1278, 50);
+            dataGridView2.Name = "dataGridView2";
+            dataGridView2.RowTemplate.Height = 25;
+            dataGridView2.Size = new System.Drawing.Size(396, 552);
+            dataGridView2.TabIndex = 3;
+            // 
+            // btnLoadData
+            // 
+            btnLoadData.Location = new System.Drawing.Point(1272, 18);
+            btnLoadData.Name = "btnLoadData";
+            btnLoadData.Size = new System.Drawing.Size(75, 23);
+            btnLoadData.TabIndex = 4;
+            btnLoadData.Text = "button2";
+            btnLoadData.UseVisualStyleBackColor = true;
+            btnLoadData.Click += btnLoadData_Click_1;
+            // 
             // WidokSpecyfikacje
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1459, 698);
+            ClientSize = new System.Drawing.Size(1633, 695);
+            Controls.Add(btnLoadData);
+            Controls.Add(dataGridView2);
             Controls.Add(button1);
             Controls.Add(dataGridView1);
             Controls.Add(dateTimePicker1);
@@ -237,6 +261,7 @@
             Text = "Form1";
             Load += WidokSpecyfikacje_Load;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
             ResumeLayout(false);
         }
 
@@ -265,5 +290,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Cena;
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
         private System.Windows.Forms.DataGridViewTextBoxColumn PiK;
+        private System.Windows.Forms.DataGridView dataGridView2;
+        private System.Windows.Forms.Button btnLoadData;
     }
 }
