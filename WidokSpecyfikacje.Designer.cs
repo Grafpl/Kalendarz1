@@ -59,9 +59,10 @@
             // 
             // dateTimePicker1
             // 
-            dateTimePicker1.Location = new System.Drawing.Point(12, 12);
+            dateTimePicker1.Location = new System.Drawing.Point(15, 18);
+            dateTimePicker1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(200, 23);
+            dateTimePicker1.Size = new System.Drawing.Size(256, 30);
             dateTimePicker1.TabIndex = 0;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
@@ -69,10 +70,11 @@
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK });
-            dataGridView1.Location = new System.Drawing.Point(12, 50);
+            dataGridView1.Location = new System.Drawing.Point(15, 77);
+            dataGridView1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1260, 552);
+            dataGridView1.Size = new System.Drawing.Size(1267, 846);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
@@ -220,43 +222,47 @@
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(575, 12);
+            button1.Location = new System.Drawing.Point(739, 18);
+            button1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
+            button1.Size = new System.Drawing.Size(96, 35);
             button1.TabIndex = 2;
-            button1.Text = "button1";
+            button1.Text = "Drukuj Specyfikacje";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
             // dataGridView2
             // 
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(1278, 50);
+            dataGridView2.Location = new System.Drawing.Point(1290, 77);
+            dataGridView2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(396, 552);
+            dataGridView2.Size = new System.Drawing.Size(509, 846);
             dataGridView2.TabIndex = 3;
             // 
             // btnLoadData
             // 
-            btnLoadData.Location = new System.Drawing.Point(1272, 18);
+            btnLoadData.Location = new System.Drawing.Point(1290, 32);
+            btnLoadData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             btnLoadData.Name = "btnLoadData";
-            btnLoadData.Size = new System.Drawing.Size(75, 23);
+            btnLoadData.Size = new System.Drawing.Size(96, 35);
             btnLoadData.TabIndex = 4;
-            btnLoadData.Text = "button2";
+            btnLoadData.Text = "Pokaż LUMEL";
             btnLoadData.UseVisualStyleBackColor = true;
             btnLoadData.Click += btnLoadData_Click_1;
             // 
             // WidokSpecyfikacje
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleDimensions = new System.Drawing.SizeF(9F, 23F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1633, 695);
+            ClientSize = new System.Drawing.Size(1924, 1058);
             Controls.Add(btnLoadData);
             Controls.Add(dataGridView2);
             Controls.Add(button1);
             Controls.Add(dataGridView1);
             Controls.Add(dateTimePicker1);
+            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Name = "WidokSpecyfikacje";
             Text = "Form1";
             Load += WidokSpecyfikacje_Load;

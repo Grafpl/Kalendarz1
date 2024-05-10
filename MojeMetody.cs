@@ -443,6 +443,40 @@ namespace Kalendarz1
             }
             return wartosc;
         }
+        public T PobierzInformacjeZBazyDanych<T>(int ID, string Bazadanych, string kolumna)
+        {
+            T wartosc = default(T); // Wartość domyślna dla typu generycznego
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
+                    string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@ID", ID);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = (T)reader[kolumna];
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return wartosc;
+        }
+
         public string PobierzInformacjeZBazyDanychHodowcow(int id, string kolumna)
         {
             string wartosc = null;

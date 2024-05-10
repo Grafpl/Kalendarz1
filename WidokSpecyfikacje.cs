@@ -235,10 +235,13 @@ namespace Kalendarz1
 
         private void button1_Click(object sender, EventArgs e)
         {
-            // Tworzenie nowej instancji Form1
-            SzczegolyDrukowaniaSpecki PDFview = new SzczegolyDrukowaniaSpecki();
+            // Odczytaj wartość z DateTimePicker
+            DateTime wybranaData = dateTimePicker1.Value;
 
-            // Wyświetlanie Form1
+            // Utwórz nowy formularz z przekazaną datą
+            SzczegolyDrukowaniaSpecki PDFview = new SzczegolyDrukowaniaSpecki(wybranaData);
+
+            // Wyświetl nowy formularz
             PDFview.Show();
         }
 
@@ -266,7 +269,7 @@ namespace Kalendarz1
 
                 // Utwórz listę do przechowywania danych
                 List<string[]> data = new List<string[]>();
-
+                DateTime selectedDate = dateTimePicker1.Value.Date;
                 // Dodaj wiersze do listy danych
                 foreach (string row in rows)
                 {
@@ -284,7 +287,7 @@ namespace Kalendarz1
                 dataGridView2.Columns.Add("Column2", "Godzina Końca Partii");
                 dataGridView2.Columns.Add("Column3", "Ilość sztuk");
 
-                DateTime selectedDate = dateTimePicker1.Value.Date;
+                
 
                 // Ustawienia regionalne do konwersji liczbowej
                 var numberFormat = new System.Globalization.NumberFormatInfo();
@@ -293,7 +296,7 @@ namespace Kalendarz1
                 foreach (string[] row in data)
                 {
                     // Sprawdź czy data w wierszu jest równa wybranej dacie
-                    if (DateTime.TryParse(row[0], out DateTime rowDate) && rowDate.Date == selectedDate)
+                    if (DateTime.TryParse(row[0], out DateTime rowDate) && rowDate.Date == selectedDate && row[2] != "0.0")
                     {
                         // Próba konwersji trzeciej kolumny na liczbową wartość zmiennoprzecinkową
                         if (double.TryParse(row[2], System.Globalization.NumberStyles.Any, numberFormat, out double quantity))

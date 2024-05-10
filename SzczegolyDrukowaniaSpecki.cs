@@ -1,6 +1,9 @@
 ﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
+using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Windows.Forms;
 
@@ -8,31 +11,122 @@ namespace Kalendarz1
 {
     public partial class SzczegolyDrukowaniaSpecki : Form
     {
-        public SzczegolyDrukowaniaSpecki()
+        private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        DataGridViewRow selectedRow; // Zmienna przechowująca zaznaczony wiersz
+        ZapytaniaSQL zapytaniasql = new ZapytaniaSQL(); // Tworzenie egzemplarza klasy ZapytaniaSQL
+        // Konstruktor z parametrem DateTime
+        public SzczegolyDrukowaniaSpecki(DateTime data)
         {
             InitializeComponent();
+
+            // Ustaw wartość DateTimePicker na tej formie (opcjonalne)
+            dateTimePicker1.Value = data;
+
+            dataGridView1.CellClick += DataGridView1_CellClick;
+            // Wyświetl dane na podstawie przekazanej daty
+            PokazWiersze(data);
         }
 
+        // Funkcja pobierająca dane z bazy i wyświetlająca je w DataGridView
+        private void PokazWiersze(DateTime data)
+        {
+            string query = @"
+            SELECT  CalcDate, ID, CustomerRealGid
+            FROM [LibraNet].[dbo].[FarmerCalc]
+            WHERE CAST(CalcDate AS DATE) = @CalcDate";
+
+            try
+            {
+                // Inicjalizuj połączenie SQL
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    // Przygotuj komendę SQL z parametrem
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        // Dodaj parametr do zapytania
+                        cmd.Parameters.Add("@CalcDate", SqlDbType.Date).Value = data.Date;
+
+                        // Otwórz połączenie
+                        conn.Open();
+
+                        // Wykonaj zapytanie i odbierz dane
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                        {
+                            // Wypełnij dane w DataTable
+                            DataTable dt = new DataTable();
+                            adapter.Fill(dt);
+
+                            // Wyświetl dane w kontrolce DataGridView
+                            dataGridView1.DataSource = dt;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Wyświetl błąd w razie problemu z połączeniem lub kwerendą
+                MessageBox.Show($"Błąd podczas pobierania danych: {ex.Message}");
+            }
+        }
         private void PrintButton_Click(object sender, EventArgs e)
         {
-            string variable1 = textBox1.Text;
-            string variable2 = textBox2.Text;
-            GeneratePDFReport(variable1, variable2);
+            if (selectedRow != null)
+            {
+                // Pobierz wartość CustomerRealGID z zaznaczonego wiersza
+                string selectedCustomerRealGID = selectedRow.Cells["CustomerRealGID"].Value?.ToString();
+
+                if (!string.IsNullOrEmpty(selectedCustomerRealGID))
+                {
+                    // Pobierz wszystkie wartości ID z kolumny "ID" dla wierszy z tym samym CustomerRealGID
+                    List<int> ids = new List<int>();
+
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
+                    {
+                        // Sprawdź, czy bieżący wiersz ma taką samą wartość CustomerRealGID
+                        string customerRealGID = row.Cells["CustomerRealGID"].Value?.ToString();
+
+                        if (!string.IsNullOrEmpty(customerRealGID) && customerRealGID.Equals(selectedCustomerRealGID))
+                        {
+                            // Pobierz ID i dodaj je do listy ids
+                            int id;
+                            if (int.TryParse(row.Cells["ID"].Value?.ToString(), out id))
+                            {
+                                ids.Add(id);
+                            }
+                        }
+                    }
+
+                    // Wywołaj metodę generowania raportu PDF z pobranymi identyfikatorami
+                    GeneratePDFReport(ids);
+                }
+                else
+                {
+                    MessageBox.Show("Nieprawidłowa wartość CustomerRealGID dla zaznaczonego wiersza.");
+                }
+            }
+            else
+            {
+                MessageBox.Show("Nie wybrano żadnego wiersza.");
+            }
         }
 
-        private void GeneratePDFReport(string variable1, string variable2)
+        private void DataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Sprawdzenie, czy kliknięto na wiersz (jeśli e.RowIndex jest większe lub równe zero)
+            if (e.RowIndex >= 0)
+            {
+                // Pobranie zaznaczonego wiersza
+                selectedRow = dataGridView1.Rows[e.RowIndex];
+
+                // Zaznaczenie całego wiersza
+                selectedRow.Selected = true;
+            }
+        }
+
+        private void GeneratePDFReport(List<int> ids)
         {
             // Set up the document in portrait mode
-<<<<<<< HEAD
-<<<<<<< HEAD
-            Document doc = new Document(PageSize.A4, 50, 50, 25, 25);
-=======
             Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
-
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
-            Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
             string filePath = @"\\192.168.0.170\Public\Przel\raport.pdf";
 
             using (FileStream fs = new FileStream(filePath, FileMode.Create))
@@ -42,25 +136,12 @@ namespace Kalendarz1
 
                 // Load a BaseFont that supports Polish characters
                 BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
-<<<<<<< HEAD
-                Font headerFont = new Font(baseFont, 18, iTextSharp.text.Font.BOLD);
-<<<<<<< HEAD
-                Font textFont = new Font(baseFont, 12, iTextSharp.text.Font.NORMAL);
-                Font smallTextFont = new Font(baseFont, 8, iTextSharp.text.Font.NORMAL); // Small font for the data table
-=======
-                Font tytulTablicy = new Font(baseFont, 15, iTextSharp.text.Font.BOLD);
-=======
                 Font headerFont = new Font(baseFont, 15, iTextSharp.text.Font.BOLD);
                 Font textFont = new Font(baseFont, 12, iTextSharp.text.Font.NORMAL);
                 Font smallTextFont = new Font(baseFont, 8, iTextSharp.text.Font.NORMAL); // Small font for the data table
                 Font tytulTablicy = new Font(baseFont, 13, iTextSharp.text.Font.BOLD);
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                 Font ItalicFont = new Font(baseFont, 8, iTextSharp.text.Font.ITALIC);
                 Font smallerTextFont = new Font(baseFont, 7, iTextSharp.text.Font.NORMAL); // Small font for the data table
-<<<<<<< HEAD
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
 
                 // Header paragraph
                 Paragraph header = new Paragraph("Rozliczenie przyjętego drobiu", headerFont);
@@ -73,64 +154,11 @@ namespace Kalendarz1
                 infoTable.SetWidths(new float[] { 1f, 1f });
 
                 // Seller information (left column)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
                 // Seller information (left column)
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
-                // Seller information (left column)
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                 PdfPCell sellerInfoCell = new PdfPCell(new Phrase("Ubojnia Drobiu Piórkowscy\nAdres: Koziołki 40, Dmosin\nNIP: 726-162-54-06", textFont))
                 {
                     Border = PdfPCell.NO_BORDER,
                     HorizontalAlignment = Element.ALIGN_LEFT,
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    PaddingBottom = 20 // Increased padding between lines
-                };
-                infoTable.AddCell(sellerInfoCell);
-
-                // Buyer information (right column)
-                string buyerInfo = $"Nabywca:\nImię: {variable1}\nNazwisko: {variable2}";
-                PdfPCell buyerInfoCell = new PdfPCell(new Phrase(buyerInfo, textFont))
-                {
-                    Border = PdfPCell.NO_BORDER,
-                    HorizontalAlignment = Element.ALIGN_RIGHT,
-                    PaddingBottom = 20 // Increased padding between lines
-                };
-                infoTable.AddCell(buyerInfoCell);
-
-                // Add the info table to the document
-                infoTable.SpacingAfter = 20f;
-                doc.Add(infoTable);
-
-                // Create the data table with adjusted column widths if necessary
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.6F, 0.6F, 0.6F, 0.4F, 0.4F, 0.4F, 0.4F, 0.35F, 0.6F, 0.5F });
-                dataTable.WidthPercentage = 100;
-
-                // Add headers to the data table
-                AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
-                AddTableHeader(dataTable, "Waga Tara", smallTextFont);
-                AddTableHeader(dataTable, "Waga Netto", smallTextFont);
-                AddTableHeader(dataTable, "Padłe", smallTextFont);
-                AddTableHeader(dataTable, "Konfiskaty", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki ARIMR", smallTextFont);
-                AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
-                AddTableHeader(dataTable, "Suma KG", smallTextFont);
-                AddTableHeader(dataTable, "Wartość", smallTextFont);
-
-                // Add sample rows to the data table
-                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
-                AddTableData(dataTable, smallTextFont, "20 000", "15 000", "5 000", "10", "12", "4202", "4224", "3,01", "5 000", "15 050");
-
-                // Add the data table to the document
-                doc.Add(dataTable);
-
-=======
-=======
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                     PaddingBottom = 0 // Remove the existing padding
                 };
 
@@ -144,7 +172,7 @@ namespace Kalendarz1
                 infoTable.AddCell(sellerInfoCell);
 
                 // Buyer information (right column)
-                string buyerInfo = $"Nabywca:\nImię: {variable1}\nNazwisko: {variable2}";
+                string buyerInfo = $"Nabywca:\nImię: \nNazwisko: ";
                 PdfPCell buyerInfoCell = new PdfPCell(new Phrase(buyerInfo, textFont))
                 {
                     Border = PdfPCell.NO_BORDER,
@@ -153,7 +181,7 @@ namespace Kalendarz1
                 };
 
                 // Split buyer info into lines and add empty lines between them
-                string[] buyerLines = { "Nabywca:", $"{variable1}", $"{variable2}", "", "" }; // Empty lines for spacing
+                string[] buyerLines = { "Nabywca:", $"", $"", "", "" }; // Empty lines for spacing
                 foreach (string line in buyerLines)
                 {
                     buyerInfoCell.AddElement(new Phrase(line, textFont));
@@ -165,12 +193,6 @@ namespace Kalendarz1
                 // Add the info table to the document
                 infoTable.SpacingAfter = 20f;
                 doc.Add(infoTable);
-
-                // Summary
-                Paragraph sredniaWaga = new Paragraph("Ogólna srednia waga: 3,01 kg", smallTextFont);
-                sredniaWaga.Alignment = Element.ALIGN_RIGHT;
-                sredniaWaga.SpacingAfter = 5f;
-                doc.Add(sredniaWaga);
 
                 // Create the data table with adjusted column widths if necessary
                 PdfPTable dataTable2 = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.40F, 0.3F, 0.3F, 0.3F, 0.4F, 0.20F, 0.5F });
@@ -227,17 +249,43 @@ namespace Kalendarz1
                 AddTableHeader(dataTable2, "Różnica", smallTextFont);
 
 
-                // Add sample rows to the data table
-                AddTableData(dataTable2, smallTextFont, "1.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "2.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "3.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "4.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "5.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "6.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "7.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "8.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "9.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
-                AddTableData(dataTable2, smallTextFont, "10.", "EBR1234", "EBR5678", "00:05", "00:23", "36 424", "26 000", "10 424", "37 424", "27 000", "10 424", "120", "2", "60", "1", "60");
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    int id = ids[i];
+
+                    // Tutaj możesz pobrać dane z bazy danych na podstawie ID
+                    // Załóżmy, że dane te pochodzą z obiektu o nazwie 'data' otrzymanego z bazy danych
+
+                    string numerAuta = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "CarID");
+                    string NumerNaczepy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "TrailerID");
+                    Decimal WagaUbojniaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
+                    Decimal WagaUbojniaTara = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
+                    Decimal WagaUbojniaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    // Konwertowanie wartości double na string
+                    string strWagaUbojniaBrutto = WagaUbojniaBrutto.ToString();
+                    string strWagaUbojniaTara = WagaUbojniaTara.ToString();
+                    string strWagaUbojniaNetto = WagaUbojniaNetto.ToString();
+
+                    Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
+                    Decimal WagaHodowcaTara = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
+                    Decimal WagaHodowcaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+
+                    // Konwertowanie wartości double na string
+                    string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString();
+                    string strWagaHodowcaTara = WagaHodowcaTara.ToString();
+                    string strWagaHodowcaNetto = WagaHodowcaNetto.ToString();
+
+                    Decimal wynikWagiRoznica = WagaHodowcaNetto - WagaUbojniaNetto;
+                    string strwynikWagiRoznica = wynikWagiRoznica.ToString();
+
+
+                    // Dodaj pobrane dane do tabeli danych
+                    AddTableData(dataTable2, smallTextFont, (i + 1).ToString(), numerAuta, NumerNaczepy, "sa:45", "00:23", strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strWagaUbojniaBrutto, strWagaUbojniaTara, strWagaUbojniaNetto, strwynikWagiRoznica, "2", "60", "1", "60");
+                }
+
+
+
 
                 dataTable2.SpacingAfter = 10f;
                 // Add the data table to the document
@@ -271,7 +319,7 @@ namespace Kalendarz1
                 AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
                 AddTableHeader(dataTable, "Waga Tara", smallTextFont);
                 AddTableHeader(dataTable, "Waga Netto", smallTextFont);
-                
+
                 AddTableHeader(dataTable, "Sztuki Całość", smallTextFont);
                 AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Padłe", smallTextFont);
@@ -292,16 +340,11 @@ namespace Kalendarz1
 
 
                 // Add sample rows to the data table
-                AddTableData(dataTable, smallTextFont, "1.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "2.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "3.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "4.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "5.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "6.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "7.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "8.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "9.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
-                AddTableData(dataTable, smallTextFont, "10.", "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(), "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                }
+
                 doc.Add(dataTable);
 
                 // Create a paragraph for italic text
@@ -321,31 +364,18 @@ namespace Kalendarz1
                 typCena.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(typCena);
 
-<<<<<<< HEAD
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
 
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                 // Summary
                 Paragraph summary = new Paragraph("Suma: 15 050 zł", textFont);
                 summary.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(summary);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                 // Summary
                 Paragraph platnosc = new Paragraph("Termin płatności : 45 dni", ItalicFont);
                 platnosc.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(platnosc);
 
-<<<<<<< HEAD
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
 
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
                 // Close the document
                 doc.Close();
             }
@@ -355,14 +385,6 @@ namespace Kalendarz1
             //System.Diagnostics.Process.Start(filePath);
         }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
-
->>>>>>> e8313c5da0ac4393a02ca5ecdee917aca0268e89
-=======
->>>>>>> 0a896a22e34e99e3654e05184b91dd082174024f
         // Method to add table headers
         private void AddTableHeader(PdfPTable table, string columnName, Font font)
         {
@@ -387,7 +409,13 @@ namespace Kalendarz1
             }
         }
 
+        private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
+        {
+            // Pobierz nową datę z DateTimePicker
+            DateTime wybranaData = dateTimePicker1.Value;
 
-
+            // Zaktualizuj dane w DataGridView na podstawie nowej daty
+            PokazWiersze(wybranaData);
+        }
     }
 }
