@@ -6,7 +6,9 @@ using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Printing;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -23,7 +25,7 @@ namespace Kalendarz1
 
         public WidokSpecyfikacje()
         {
-            
+
             InitializeComponent();
 
         }
@@ -240,11 +242,79 @@ namespace Kalendarz1
             PDFview.Show();
         }
 
+        private void btnLoadData_Click_1(object sender, EventArgs e)
 
+        {
+            string ftpUrl = "ftp://admin:wago@192.168.0.98/POMIARY.TXT";
+            string content;
 
+            // Pobierz zawartość pliku TXT z serwera FTP
+            try
+            {
+                FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftpUrl);
+                request.Method = WebRequestMethods.Ftp.DownloadFile;
 
+                using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
+                using (Stream responseStream = response.GetResponseStream())
+                using (StreamReader reader = new StreamReader(responseStream))
+                {
+                    content = reader.ReadToEnd();
+                }
 
+                // Podziel zawartość na wiersze
+                string[] rows = content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 
+                // Utwórz listę do przechowywania danych
+                List<string[]> data = new List<string[]>();
 
+                // Dodaj wiersze do listy danych
+                foreach (string row in rows)
+                {
+                    // Podziel wiersz na kolumny
+                    string[] columns = row.Split(';');
+                    data.Add(columns);
+                }
+
+                // Ustaw dane w DataGrid tylko dla wybranej daty
+                dataGridView2.Rows.Clear();
+                dataGridView2.Columns.Clear(); // Wyczyść istniejące kolumny
+
+                // Dodaj kolumny do DataGridView
+                dataGridView2.Columns.Add("Column1", "Data");
+                dataGridView2.Columns.Add("Column2", "Godzina Końca Partii");
+                dataGridView2.Columns.Add("Column3", "Ilość sztuk");
+
+                DateTime selectedDate = dateTimePicker1.Value.Date;
+
+                // Ustawienia regionalne do konwersji liczbowej
+                var numberFormat = new System.Globalization.NumberFormatInfo();
+                numberFormat.NumberDecimalSeparator = ".";  // Ustawienie kropki jako separatora dziesiętnego
+
+                foreach (string[] row in data)
+                {
+                    // Sprawdź czy data w wierszu jest równa wybranej dacie
+                    if (DateTime.TryParse(row[0], out DateTime rowDate) && rowDate.Date == selectedDate)
+                    {
+                        // Próba konwersji trzeciej kolumny na liczbową wartość zmiennoprzecinkową
+                        if (double.TryParse(row[2], System.Globalization.NumberStyles.Any, numberFormat, out double quantity))
+                        {
+                            double roundedQuantity = Math.Ceiling(quantity);
+                            string[] rowData = new string[] { row[0], row[1], roundedQuantity.ToString() };
+                            dataGridView2.Rows.Add(rowData);
+                        }
+                        else
+                        {
+                            // Logowanie nieudanej próby konwersji
+                            MessageBox.Show($"Nieprawidłowy format liczbowy w wierszu: {row[0]}, {row[1]}, {row[2]}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas pobierania danych: " + ex.Message);
+            }
+
+        }
     }
 }
