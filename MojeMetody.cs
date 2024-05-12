@@ -463,7 +463,10 @@ namespace Kalendarz1
                         {
                             if (reader.Read())
                             {
-                                wartosc = (T)reader[kolumna];
+                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna))) // Sprawdzenie, czy wartość w kolumnie nie jest DBNull
+                                {
+                                    wartosc = (T)reader[kolumna];
+                                }
                             }
                         }
                     }
@@ -476,6 +479,7 @@ namespace Kalendarz1
 
             return wartosc;
         }
+
 
         public string PobierzInformacjeZBazyDanychHodowcow(int id, string kolumna)
         {

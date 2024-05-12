@@ -258,30 +258,41 @@ namespace Kalendarz1
 
                     string numerAuta = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "CarID");
                     string NumerNaczepy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "TrailerID");
+
+                    // Waga Ubojnia
                     Decimal WagaUbojniaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
                     Decimal WagaUbojniaTara = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
                     Decimal WagaUbojniaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    string strWagaUbojniaBrutto = WagaUbojniaBrutto.ToString("0") + " kg";
+                    string strWagaUbojniaTara = WagaUbojniaTara.ToString("0") + " kg";
+                    string strWagaUbojniaNetto = WagaUbojniaNetto.ToString("0") + " kg";
 
-                    // Konwertowanie wartości double na string
-                    string strWagaUbojniaBrutto = WagaUbojniaBrutto.ToString();
-                    string strWagaUbojniaTara = WagaUbojniaTara.ToString();
-                    string strWagaUbojniaNetto = WagaUbojniaNetto.ToString();
-
+                    // Waga Hodowca
                     Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
                     Decimal WagaHodowcaTara = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
                     Decimal WagaHodowcaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString("0") + " kg";
+                    string strWagaHodowcaTara = WagaHodowcaTara.ToString("0") + " kg";
+                    string strWagaHodowcaNetto = WagaHodowcaNetto.ToString("0") + " kg";
+                    // Ubytek Wyliczony
+                    Decimal ubytekWyliczonyKG = WagaHodowcaNetto - WagaUbojniaNetto;
+                    string strUbytekWyliczonyKG = ubytekWyliczonyKG.ToString();
+                    //Decimal ubytekWyliczony = ubytekWyliczonyKG - WagaUbojniaNetto;
+                    //string strUbytekWyliczonyKG = ubytekWyliczonyKG.ToString();
 
-                    // Konwertowanie wartości double na string
-                    string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString();
-                    string strWagaHodowcaTara = WagaHodowcaTara.ToString();
-                    string strWagaHodowcaNetto = WagaHodowcaNetto.ToString();
+                    // Ubytek Ustalony
+                    Decimal ubytekUstalony = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    string strUbytekUstalony = ubytekUstalony.ToString();
+                    Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
+                    string strUbytekUstalonyKG = ubytekUstalonyKG.ToString();
 
-                    Decimal wynikWagiRoznica = WagaHodowcaNetto - WagaUbojniaNetto;
-                    string strwynikWagiRoznica = wynikWagiRoznica.ToString();
+                    // Ubytek Różnica
+                    Decimal roznicaUbytek = WagaHodowcaNetto * ubytekUstalony;
+                    string strRoznicaUbytek = roznicaUbytek.ToString();
 
 
                     // Dodaj pobrane dane do tabeli danych
-                    AddTableData(dataTable2, smallTextFont, (i + 1).ToString(), numerAuta, NumerNaczepy, "sa:45", "00:23", strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strWagaUbojniaBrutto, strWagaUbojniaTara, strWagaUbojniaNetto, strwynikWagiRoznica, "2", "60", "1", "60");
+                    AddTableData(dataTable2, smallTextFont, (i + 1).ToString(), numerAuta, NumerNaczepy, "sa:45", "00:23", strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strWagaUbojniaBrutto, strWagaUbojniaTara, strWagaUbojniaNetto, strUbytekWyliczonyKG, "2", strUbytekUstalonyKG, strUbytekUstalony, "60");
                 }
 
 
@@ -342,7 +353,60 @@ namespace Kalendarz1
                 // Add sample rows to the data table
                 for (int i = 0; i < ids.Count; i++)
                 {
-                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(), "36 424", "26 000", "10 424", "4224", "2,46", "10", "9", "4 208", "10 424", "25", "22", "", "120", "1000", "10 377", "5.01", "51 988,77");
+                    int id = ids[i];
+
+
+                    // Waga 
+                    Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
+                    Decimal WagaHodowcaTara = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
+                    Decimal WagaHodowcaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString("0") + " kg";
+                    string strWagaHodowcaTara = WagaHodowcaTara.ToString("0") + " kg";
+                    string strWagaHodowcaNetto = WagaHodowcaNetto.ToString("0") + " kg";
+
+                    // Konfiskaty
+                    int konfiskaty1 = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4");
+                    int konfiskaty2 = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3");
+                    int konfiskaty3 = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
+                    int konfiskatySuma = konfiskaty1 + konfiskaty2 + konfiskaty3;
+                    string strKonfiskatySuma = konfiskatySuma.ToString();
+
+                    // Padle
+                    int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
+                    string strPadle = padle.ToString();
+
+                    // Sztuki Zdatne
+                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskatySuma;
+                    string strSztZdatne = sztZdatne.ToString();
+
+                    // Sztuki Wszystkie
+                    int sztWszystkie = konfiskatySuma + padle + sztZdatne;
+                    string strSztWszystkie = sztWszystkie.ToString();
+
+                    // Średnia waga
+                    Decimal sredniaWaga = WagaHodowcaNetto / (padle + konfiskatySuma + sztWszystkie);
+                    string strSredniaWaga = sredniaWaga.ToString("0.00");
+
+                    // KG Padłe
+                    Decimal padleKG = padle * sredniaWaga;
+                    string strPadleKG = padleKG.ToString("0.00"); ;
+
+                    // KG Padłe
+                    Decimal konfiskatySumaKG = konfiskatySuma * sredniaWaga;
+                    string strKonfiskatySumaKG = konfiskatySumaKG.ToString("0.00");
+
+                    // Cena
+                    decimal Cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
+                    string strCena = Cena.ToString();
+
+                    // Wartosc
+                    decimal Wartosc = Cena * (WagaHodowcaNetto - padleKG - konfiskatySumaKG);
+                    string strWartosc = Wartosc.ToString("0.00");
+
+
+
+
+                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, "", "120", "1000", "10 377", strCena, strWartosc);
                 }
 
                 doc.Add(dataTable);
