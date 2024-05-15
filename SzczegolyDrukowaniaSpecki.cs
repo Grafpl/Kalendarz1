@@ -347,16 +347,19 @@ namespace Kalendarz1
                 mergedHeaderCell3.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable.AddCell(mergedHeaderCell3);
 
-                // Add table headers
                 AddTableHeader(dataTable, "Lp.", smallTextFont);
                 AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
                 AddTableHeader(dataTable, "Waga Tara", smallTextFont);
                 AddTableHeader(dataTable, "Waga Netto", smallTextFont);
+
                 AddTableHeader(dataTable, "Sztuki Całość (ARiMR)", smallTextFont);
                 AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Padłe", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Konfiskaty", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
+
+
+                // Add individual headers for remaining columns
                 AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Konfiskaty [KG]", smallTextFont);
@@ -367,13 +370,12 @@ namespace Kalendarz1
                 AddTableHeader(dataTable, "Cena", smallTextFont);
                 AddTableHeader(dataTable, "Wartość", smallTextFont);
 
-                // Variable to hold the total value
-                decimal totalValue = 0;
 
                 // Add sample rows to the data table
                 for (int i = 0; i < ids.Count; i++)
                 {
                     int id = ids[i];
+
 
                     // Waga 
                     Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
@@ -382,6 +384,7 @@ namespace Kalendarz1
                     string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString("N0") + " kg";
                     string strWagaHodowcaTara = WagaHodowcaTara.ToString("N0") + " kg";
                     string strWagaHodowcaNetto = WagaHodowcaNetto.ToString("N0") + " kg";
+
 
                     // Konfiskaty
                     int konfiskaty1 = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4");
@@ -410,7 +413,7 @@ namespace Kalendarz1
                     Decimal padleKG = padle * sredniaWaga;
                     string strPadleKG = Math.Round(padleKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
-                    // KG Konfiskaty
+                    // KG Padłe
                     Decimal konfiskatySumaKG = konfiskatySuma * sredniaWaga;
                     string strKonfiskatySumaKG = Math.Round(konfiskatySumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
@@ -418,10 +421,10 @@ namespace Kalendarz1
                     decimal opasienieKG = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie");
                     string strOpasienieKG = Math.Round(opasienieKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
-                    // KG Ubytek
+                    // KG uUbytek
                     Decimal ubytekUstalony = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
-                    string strUbytekUstalonyKG = Math.Round(ubytekUstalonyKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strUbytekUstalonyKG = Math.Round(ubytekUstalony, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Klasa B
                     decimal klasaB = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB");
@@ -431,6 +434,8 @@ namespace Kalendarz1
                     decimal sumaDoZaplaty = WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - ubytekUstalonyKG - klasaB;
                     string strSumaDoZaplaty = Math.Round(sumaDoZaplaty, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
+
+
                     // Cena
                     decimal Cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     string strCena = Cena.ToString("N0") + " zł/kg";
@@ -439,27 +444,12 @@ namespace Kalendarz1
                     decimal Wartosc = Cena * (WagaHodowcaNetto - padleKG - konfiskatySumaKG);
                     string strWartosc = Math.Round(Wartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
 
-                    // Add to total value
-                    totalValue += Wartosc;
+                    sumaWartosc = Wartosc + sumaWartosc;
+
+
 
                     AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strOpasienieKG, strUbytekUstalonyKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
                 }
-
-                // Add empty cells to fill all columns except the last one
-                for (int i = 0; i < 18; i++)
-                {
-                    dataTable.AddCell(new PdfPCell(new Phrase("")) { Border = PdfPCell.NO_BORDER });
-                }
-
-                // Add the total value cell in the last column
-                PdfPCell totalValueCell = new PdfPCell(new Phrase("Suma: " + Math.Round(totalValue, MidpointRounding.AwayFromZero).ToString("N0") + " zł", smallTextFont))
-                {
-                    Border = PdfPCell.NO_BORDER,
-                    HorizontalAlignment = Element.ALIGN_RIGHT
-                };
-                dataTable.AddCell(totalValueCell);
-
-
 
                 string strSumaWartosc = (Math.Round(sumaWartosc, 2)).ToString("#,0.00 zł");
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
