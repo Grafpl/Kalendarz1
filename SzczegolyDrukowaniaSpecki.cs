@@ -1,6 +1,7 @@
 ﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
 using Microsoft.Data.SqlClient;
+using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -179,8 +180,15 @@ namespace Kalendarz1
                     PaddingBottom = 0 // Remove the existing padding
                 };
 
+                // Variables for the seller
+                string czyjaWaga = "Waga Loco : Hodowca";
+                DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
+
+                // Format the DateTime value to the desired string format
+                string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
+
                 // Split delivery info into lines and add empty lines between them
-                string[] deliveryLines = { "Szczegóły dostawy", "Dzień ubojowy:", "Dzień tygodnia:", "", "" }; // Empty lines for spacing
+                string[] deliveryLines = { "Szczegóły dostawy", strDzienUbojowy, czyjaWaga, "", "" }; // Empty lines for spacing
                 foreach (string line in deliveryLines)
                 {
                     deliveryInfoCell.AddElement(new Phrase(line, textFont));
@@ -197,21 +205,29 @@ namespace Kalendarz1
                 };
 
                 // Variables for the seller
-                string sellerName = "Nazwa";
-                string sellerStreet = "Ulica";
-                string sellerNIP = "NIP";
+                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "ShortName");
+                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "Address");
+                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "PostalCode");
+                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City");
 
                 // Split seller details into lines and add empty lines between them
-                string[] sellerDetailsLines = { "Sprzedający:", sellerName, sellerStreet, sellerNIP, "", "" }; // Empty lines for spacing
+                string[] sellerDetailsLines = { "Sprzedający:", sellerName, sellerStreet, sellerKod + ", " + sellerMiejsc, "", "" }; // Empty lines for spacing
                 foreach (string line in sellerDetailsLines)
                 {
-                    sellerDetailsCell.AddElement(new Phrase(line, textFont));
+                    Phrase phrase = new Phrase();
+                    phrase.Add(new Chunk(line, textFont));
+                    sellerDetailsCell.AddElement(phrase);
                 }
 
                 infoTable.AddCell(sellerDetailsCell);
 
                 // Add the table to the document
                 doc.Add(infoTable);
+
+                // Add a blank paragraph for spacing
+                Paragraph spacing = new Paragraph(" ", textFont);
+                spacing.SpacingBefore = 10f; // Adjust the spacing value as needed (in points)
+                doc.Add(spacing);
 
 
 
@@ -299,11 +315,13 @@ namespace Kalendarz1
                     // Ubytek Wyliczony
                     Decimal ubytekWyliczonyKG = WagaHodowcaNetto - WagaUbojniaNetto;
                     string strUbytekWyliczonyKG = ubytekWyliczonyKG.ToString("N0") + " kg";
-                    Decimal ubytekWyliczony = ubytekWyliczonyKG / WagaUbojniaNetto;
+                    Decimal ubytekWyliczonyProcent = ubytekWyliczonyKG / WagaUbojniaNetto;
+                    Decimal ubytekWyliczony = ubytekWyliczonyProcent * 100;
                     string strUbytekWyliczony = ubytekWyliczony.ToString("0.00") + " %";
 
                     // Ubytek Ustalony
-                    Decimal ubytekUstalony = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    Decimal ubytekUstalonyProcent = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    Decimal ubytekUstalony = ubytekUstalonyProcent * 100;
                     string strUbytekUstalony = ubytekUstalony.ToString("0.00") + " %";
                     Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
                     string strUbytekUstalonyKG = ubytekUstalonyKG.ToString("N0") + " kg";
@@ -347,16 +365,19 @@ namespace Kalendarz1
                 mergedHeaderCell3.HorizontalAlignment = Element.ALIGN_CENTER; // Wyprostowanie w poziomie
                 dataTable.AddCell(mergedHeaderCell3);
 
-                // Add table headers
                 AddTableHeader(dataTable, "Lp.", smallTextFont);
                 AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
                 AddTableHeader(dataTable, "Waga Tara", smallTextFont);
                 AddTableHeader(dataTable, "Waga Netto", smallTextFont);
+
                 AddTableHeader(dataTable, "Sztuki Całość (ARiMR)", smallTextFont);
                 AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Padłe", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Konfiskaty", smallTextFont);
                 AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
+
+
+                // Add individual headers for remaining columns
                 AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Konfiskaty [KG]", smallTextFont);
@@ -367,13 +388,12 @@ namespace Kalendarz1
                 AddTableHeader(dataTable, "Cena", smallTextFont);
                 AddTableHeader(dataTable, "Wartość", smallTextFont);
 
-                // Variable to hold the total value
-                decimal totalValue = 0;
 
                 // Add sample rows to the data table
                 for (int i = 0; i < ids.Count; i++)
                 {
                     int id = ids[i];
+
 
                     // Waga 
                     Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
@@ -382,6 +402,7 @@ namespace Kalendarz1
                     string strWagaHodowcaBrutto = WagaHodowcaBrutto.ToString("N0") + " kg";
                     string strWagaHodowcaTara = WagaHodowcaTara.ToString("N0") + " kg";
                     string strWagaHodowcaNetto = WagaHodowcaNetto.ToString("N0") + " kg";
+
 
                     // Konfiskaty
                     int konfiskaty1 = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4");
@@ -408,28 +429,30 @@ namespace Kalendarz1
 
                     // KG Padłe
                     Decimal padleKG = padle * sredniaWaga;
-                    string strPadleKG = Math.Round(padleKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strPadleKG = "- " + Math.Round(padleKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
-                    // KG Konfiskaty
+                    // KG Padłe
                     Decimal konfiskatySumaKG = konfiskatySuma * sredniaWaga;
-                    string strKonfiskatySumaKG = Math.Round(konfiskatySumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strKonfiskatySumaKG = "- " + Math.Round(konfiskatySumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Opasienie
                     decimal opasienieKG = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie");
-                    string strOpasienieKG = Math.Round(opasienieKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strOpasienieKG = "- " + Math.Round(opasienieKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
-                    // KG Ubytek
+                    // KG uUbytek
                     Decimal ubytekUstalony = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
-                    string strUbytekUstalonyKG = Math.Round(ubytekUstalonyKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strUbytekUstalonyKG = "- " + Math.Round(ubytekUstalony, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Klasa B
                     decimal klasaB = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB");
-                    string strKlasaB = Math.Round(klasaB, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+                    string strKlasaB = "- " + Math.Round(klasaB, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // Suma KG do Zapłaty
                     decimal sumaDoZaplaty = WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - ubytekUstalonyKG - klasaB;
                     string strSumaDoZaplaty = Math.Round(sumaDoZaplaty, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+
+
 
                     // Cena
                     decimal Cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
@@ -439,27 +462,12 @@ namespace Kalendarz1
                     decimal Wartosc = Cena * (WagaHodowcaNetto - padleKG - konfiskatySumaKG);
                     string strWartosc = Math.Round(Wartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
 
-                    // Add to total value
-                    totalValue += Wartosc;
+                    sumaWartosc = Wartosc + sumaWartosc;
+
+
 
                     AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strOpasienieKG, strUbytekUstalonyKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
                 }
-
-                // Add empty cells to fill all columns except the last one
-                for (int i = 0; i < 18; i++)
-                {
-                    dataTable.AddCell(new PdfPCell(new Phrase("")) { Border = PdfPCell.NO_BORDER });
-                }
-
-                // Add the total value cell in the last column
-                PdfPCell totalValueCell = new PdfPCell(new Phrase("Suma: " + Math.Round(totalValue, MidpointRounding.AwayFromZero).ToString("N0") + " zł", smallTextFont))
-                {
-                    Border = PdfPCell.NO_BORDER,
-                    HorizontalAlignment = Element.ALIGN_RIGHT
-                };
-                dataTable.AddCell(totalValueCell);
-
-
 
                 string strSumaWartosc = (Math.Round(sumaWartosc, 2)).ToString("#,0.00 zł");
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
