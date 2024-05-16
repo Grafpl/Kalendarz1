@@ -52,7 +52,7 @@ namespace Kalendarz1
                     connection.Open();
                     SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, " +
                         "FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, FullWeight, EmptyWeight, NettoWeight, " +
-                        "Price, PriceTypeID, IncDeadConf, Loss FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                        "Price, PriceTypeID, IncDeadConf, Loss, Opasienie, KlasaB FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -104,8 +104,10 @@ namespace Kalendarz1
                                 row["Price"],         // Cena
                                 typCeny,   // TypCeny
                                 row["IncDeadConf"],    // Czy odliczamy padłe i konfiskaty
-                                row["Loss"]    // Czy odliczamy padłe i konfiskaty
-                                                      // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
+                                row["Loss"],    // Czy odliczamy padłe i konfiskaty
+                                row["Opasienie"],    // Czy odliczamy padłe i konfiskaty
+                                row["KlasaB"]    // Czy odliczamy padłe i konfiskaty
+                                               // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
                             );
                         }
 
@@ -229,10 +231,14 @@ namespace Kalendarz1
                 case 14: return "LumQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
                 case 15: return "ProdQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
                 case 16: return "ProdWgt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 17: return "Price"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 19: return "IncDeadConf"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 20: return "Loss"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 21: return "Opasienie"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 22: return "KlasaB"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
                 default: throw new ArgumentException("Nieprawidłowy indeks kolumny.");
             }
         }
-
 
         private void button1_Click(object sender, EventArgs e)
         {
