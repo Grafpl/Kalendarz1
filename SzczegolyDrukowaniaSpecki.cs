@@ -315,7 +315,7 @@ namespace Kalendarz1
                     // Ubytek Wyliczony
                     Decimal ubytekWyliczonyKG = WagaHodowcaNetto - WagaUbojniaNetto;
                     string strUbytekWyliczonyKG = ubytekWyliczonyKG.ToString("N0") + " kg";
-                    Decimal ubytekWyliczonyProcent = ubytekWyliczonyKG / WagaUbojniaNetto;
+                    Decimal ubytekWyliczonyProcent = ubytekWyliczonyKG / WagaHodowcaNetto;
                     Decimal ubytekWyliczony = ubytekWyliczonyProcent * 100;
                     string strUbytekWyliczony = ubytekWyliczony.ToString("0.00") + " %";
 
@@ -323,11 +323,11 @@ namespace Kalendarz1
                     Decimal ubytekUstalonyProcent = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     Decimal ubytekUstalony = ubytekUstalonyProcent * 100;
                     string strUbytekUstalony = ubytekUstalony.ToString("0.00") + " %";
-                    Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
+                    Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalonyProcent;
                     string strUbytekUstalonyKG = ubytekUstalonyKG.ToString("N0") + " kg";
 
                     //Ubytek Różnica
-                    Decimal ubytekRoznicaKG = WagaUbojniaNetto - WagaHodowcaNetto;
+                    Decimal ubytekRoznicaKG = ubytekWyliczonyKG - ubytekUstalonyKG;
                     string strubytekRoznicaKG = ubytekRoznicaKG.ToString("N0") + " kg";
 
                     // Dodaj pobrane dane do tabeli danych

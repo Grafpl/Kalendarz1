@@ -229,6 +229,8 @@ namespace Kalendarz1
                 case 14: return "LumQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
                 case 15: return "ProdQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
                 case 16: return "ProdWgt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 20: return "Loss"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+
                 default: throw new ArgumentException("Nieprawidłowy indeks kolumny.");
             }
         }

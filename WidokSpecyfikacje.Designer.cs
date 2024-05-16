@@ -30,6 +30,9 @@
         {
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
+            button1 = new System.Windows.Forms.Button();
+            dataGridView2 = new System.Windows.Forms.DataGridView();
+            btnLoadData = new System.Windows.Forms.Button();
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Numer = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -50,9 +53,7 @@
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
             PiK = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            button1 = new System.Windows.Forms.Button();
-            dataGridView2 = new System.Windows.Forms.DataGridView();
-            btnLoadData = new System.Windows.Forms.Button();
+            Ubytek = new System.Windows.Forms.DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
@@ -69,22 +70,54 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK });
+            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
             dataGridView1.Location = new System.Drawing.Point(15, 77);
             dataGridView1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1267, 846);
+            dataGridView1.Size = new System.Drawing.Size(1549, 846);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
+            // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(739, 18);
+            button1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(96, 35);
+            button1.TabIndex = 2;
+            button1.Text = "Drukuj Specyfikacje";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
+            // dataGridView2
+            // 
+            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView2.Location = new System.Drawing.Point(1572, 77);
+            dataGridView2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dataGridView2.Name = "dataGridView2";
+            dataGridView2.RowTemplate.Height = 25;
+            dataGridView2.Size = new System.Drawing.Size(339, 846);
+            dataGridView2.TabIndex = 3;
+            // 
+            // btnLoadData
+            // 
+            btnLoadData.Location = new System.Drawing.Point(1572, 32);
+            btnLoadData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            btnLoadData.Name = "btnLoadData";
+            btnLoadData.Size = new System.Drawing.Size(96, 35);
+            btnLoadData.TabIndex = 4;
+            btnLoadData.Text = "Pokaż LUMEL";
+            btnLoadData.UseVisualStyleBackColor = true;
+            btnLoadData.Click += btnLoadData_Click_1;
             // 
             // ID
             // 
             ID.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             ID.HeaderText = "ID";
             ID.Name = "ID";
-            ID.Width = 35;
+            ID.Width = 60;
             // 
             // Numer
             // 
@@ -220,37 +253,12 @@
             PiK.Name = "PiK";
             PiK.Width = 70;
             // 
-            // button1
+            // Ubytek
             // 
-            button1.Location = new System.Drawing.Point(739, 18);
-            button1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(96, 35);
-            button1.TabIndex = 2;
-            button1.Text = "Drukuj Specyfikacje";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
-            // 
-            // dataGridView2
-            // 
-            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(1290, 77);
-            dataGridView2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            dataGridView2.Name = "dataGridView2";
-            dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(509, 846);
-            dataGridView2.TabIndex = 3;
-            // 
-            // btnLoadData
-            // 
-            btnLoadData.Location = new System.Drawing.Point(1290, 32);
-            btnLoadData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            btnLoadData.Name = "btnLoadData";
-            btnLoadData.Size = new System.Drawing.Size(96, 35);
-            btnLoadData.TabIndex = 4;
-            btnLoadData.Text = "Pokaż LUMEL";
-            btnLoadData.UseVisualStyleBackColor = true;
-            btnLoadData.Click += btnLoadData_Click_1;
+            Ubytek.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            Ubytek.HeaderText = "Ubytek";
+            Ubytek.Name = "Ubytek";
+            Ubytek.Width = 65;
             // 
             // WidokSpecyfikacje
             // 
@@ -298,5 +306,6 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn PiK;
         private System.Windows.Forms.DataGridView dataGridView2;
         private System.Windows.Forms.Button btnLoadData;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Ubytek;
     }
 }
