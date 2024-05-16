@@ -188,7 +188,7 @@ namespace Kalendarz1
                 string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
 
                 // Split delivery info into lines and add empty lines between them
-                string[] deliveryLines = { "Szczegóły dostawy", strDzienUbojowy, czyjaWaga, "", "" }; // Empty lines for spacing
+                string[] deliveryLines = { "Szczegóły dostawy:", "Data Uboju :" + strDzienUbojowy, "Waga loco :" + czyjaWaga, "", "" }; // Empty lines for spacing
                 foreach (string line in deliveryLines)
                 {
                     deliveryInfoCell.AddElement(new Phrase(line, textFont));
