@@ -394,6 +394,8 @@ namespace Kalendarz1
                 {
                     int id = ids[i];
 
+                    bool czyUpadkiIKonfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<bool>(id, "[LibraNet].[dbo].[FarmerCalc]", "IncDeadConf");
+
 
                     // Waga 
                     Decimal WagaHodowcaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
@@ -424,15 +426,33 @@ namespace Kalendarz1
                     string strSztWszystkie = sztWszystkie.ToString() + " szt";
 
                     // Średnia waga
+
                     Decimal sredniaWaga = WagaHodowcaNetto / (padle + konfiskatySuma + sztWszystkie);
                     string strSredniaWaga = sredniaWaga.ToString("0.00") + " kg";
 
                     // KG Padłe
-                    Decimal padleKG = padle * sredniaWaga;
+                    Decimal padleKG;
+                    if (czyUpadkiIKonfiskaty == true)
+                    {
+                        padleKG = padle * sredniaWaga;
+                    }
+                    else
+                    {
+                        padleKG = 0;
+                    }
+                    
                     string strPadleKG = "- " + Math.Round(padleKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Padłe
-                    Decimal konfiskatySumaKG = konfiskatySuma * sredniaWaga;
+                    Decimal konfiskatySumaKG;
+                    if (czyUpadkiIKonfiskaty == true)
+                    {
+                        konfiskatySumaKG = konfiskatySuma * sredniaWaga;
+                    }
+                    else
+                    {
+                        konfiskatySumaKG = 0;
+                    }
                     string strKonfiskatySumaKG = "- " + Math.Round(konfiskatySumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Opasienie
@@ -452,15 +472,30 @@ namespace Kalendarz1
                     string strKlasaB = "- " + Math.Round(klasaB, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // Suma KG do Zapłaty
-                    decimal sumaDoZaplaty = WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - ubytekUstalonyKG - klasaB;
+                    
+
+                    decimal sumaDoZaplaty;
+
+                    if (czyUpadkiIKonfiskaty == true)
+                    {
+                        sumaDoZaplaty = WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - ubytekUstalonyKG - klasaB;
+                    }
+                    else
+                    {
+                        sumaDoZaplaty = WagaHodowcaNetto - opasienieKG - ubytekUstalonyKG - klasaB;
+                    }
+
                     string strSumaDoZaplaty = Math.Round(sumaDoZaplaty, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+
+
 
                     // Cena
                     decimal Cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
-                    string strCena = Cena.ToString("N0") + " zł/kg";
+                    string strCena = Cena.ToString("0.00") + " zł/kg";
 
                     // Wartosc
-                    decimal Wartosc = Cena * (WagaHodowcaNetto - padleKG - konfiskatySumaKG);
+                    decimal Wartosc = Cena * (WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - klasaB - ubytekUstalonyKG
+                        );
                     string strWartosc = Math.Round(Wartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
 
                     sumaWartosc = Wartosc + sumaWartosc;
@@ -470,7 +505,7 @@ namespace Kalendarz1
                     AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strOpasienieKG, strUbytekUstalonyKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
                 }
 
-                string strSumaWartosc = (Math.Round(sumaWartosc, 2)).ToString("#,0.00 zł");
+                string strSumaWartosc = Math.Round(sumaWartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
 
@@ -478,18 +513,11 @@ namespace Kalendarz1
                 doc.Add(dataTable);
 
                 // Create a paragraph for italic text
-                Paragraph italicText2 = new Paragraph("1.W celu uproszczenia wyliczeń, waga kurczaka wyrażona w kilogramach będzie zaokrąglana do pełnych kilogramów.", ItalicFont);
+                Paragraph italicText2 = new Paragraph("W celu uproszczenia wyliczeń, waga kurczaka wyrażona w kilogramach będzie zaokrąglana do pełnych kilogramów.", ItalicFont);
                 italicText2.Alignment = Element.ALIGN_CENTER;
 
                 // Add italic text to the document
                 doc.Add(italicText2);
-
-                // Create a paragraph for italic text
-                Paragraph italicText = new Paragraph("2.Zgodnie z Ustawą z dnia 22 maja 2009 roku o Funduszach promocji produktów rolno-spożywczych (Dz.U. nr 97, poz. 799), po otrzymaniu faktury, z kwoty netto zostanie obliczona i pobrana wpłata na Fundusz Promocji Mięsa w wysokości 0,1%. W związku z tym, fakturę VAT należy dostarczyć w terminie 10 dni.", ItalicFont);
-                italicText.Alignment = Element.ALIGN_CENTER;
-
-                // Add italic text to the document
-                doc.Add(italicText);
 
 
                 // Cena
@@ -504,7 +532,7 @@ namespace Kalendarz1
 
 
                 // Summary
-                Paragraph summary = new Paragraph($"Suma: {strSumaWartosc}", textFont);
+                Paragraph summary = new Paragraph($"Wartość Netto: {strSumaWartosc}", textFont);
                 summary.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(summary);
 

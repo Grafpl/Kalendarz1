@@ -210,7 +210,7 @@ namespace Kalendarz1
             // MyCalendar
             // 
             MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            MyCalendar.Location = new System.Drawing.Point(533, 4);
+            MyCalendar.Location = new System.Drawing.Point(519, 3);
             MyCalendar.Margin = new Padding(2);
             MyCalendar.Name = "MyCalendar";
             MyCalendar.TabIndex = 1;
@@ -1404,7 +1404,7 @@ namespace Kalendarz1
             // buttonCena
             // 
             buttonCena.BackColor = System.Drawing.Color.Chartreuse;
-            buttonCena.Location = new System.Drawing.Point(758, 62);
+            buttonCena.Location = new System.Drawing.Point(817, 50);
             buttonCena.Name = "buttonCena";
             buttonCena.Size = new System.Drawing.Size(75, 22);
             buttonCena.TabIndex = 107;
@@ -1671,10 +1671,10 @@ namespace Kalendarz1
             // 
             // textLaczona
             // 
-            textLaczona.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textLaczona.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textLaczona.Location = new System.Drawing.Point(93, 30);
             textLaczona.Name = "textLaczona";
-            textLaczona.Size = new System.Drawing.Size(37, 18);
+            textLaczona.Size = new System.Drawing.Size(37, 20);
             textLaczona.TabIndex = 105;
             textLaczona.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1690,10 +1690,10 @@ namespace Kalendarz1
             // 
             // textMinister
             // 
-            textMinister.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textMinister.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textMinister.Location = new System.Drawing.Point(50, 30);
             textMinister.Name = "textMinister";
-            textMinister.Size = new System.Drawing.Size(37, 18);
+            textMinister.Size = new System.Drawing.Size(37, 20);
             textMinister.TabIndex = 103;
             textMinister.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1709,10 +1709,10 @@ namespace Kalendarz1
             // 
             // textRolnicza
             // 
-            textRolnicza.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textRolnicza.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textRolnicza.Location = new System.Drawing.Point(6, 30);
             textRolnicza.Name = "textRolnicza";
-            textRolnicza.Size = new System.Drawing.Size(37, 18);
+            textRolnicza.Size = new System.Drawing.Size(37, 20);
             textRolnicza.TabIndex = 101;
             textRolnicza.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1728,10 +1728,10 @@ namespace Kalendarz1
             // 
             // textTuszki
             // 
-            textTuszki.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textTuszki.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textTuszki.Location = new System.Drawing.Point(136, 30);
             textTuszki.Name = "textTuszki";
-            textTuszki.Size = new System.Drawing.Size(37, 18);
+            textTuszki.Size = new System.Drawing.Size(37, 20);
             textTuszki.TabIndex = 108;
             textTuszki.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1749,7 +1749,7 @@ namespace Kalendarz1
             groupBox5.Controls.Add(label38);
             groupBox5.Controls.Add(label39);
             groupBox5.Controls.Add(textLaczona);
-            groupBox5.Location = new System.Drawing.Point(758, 90);
+            groupBox5.Location = new System.Drawing.Point(758, 97);
             groupBox5.Name = "groupBox5";
             groupBox5.Size = new System.Drawing.Size(177, 76);
             groupBox5.TabIndex = 110;
@@ -1770,30 +1770,30 @@ namespace Kalendarz1
             // textRolniczaPrzebitka
             // 
             textRolniczaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textRolniczaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textRolniczaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textRolniczaPrzebitka.Location = new System.Drawing.Point(6, 51);
             textRolniczaPrzebitka.Name = "textRolniczaPrzebitka";
-            textRolniczaPrzebitka.Size = new System.Drawing.Size(37, 18);
+            textRolniczaPrzebitka.Size = new System.Drawing.Size(37, 20);
             textRolniczaPrzebitka.TabIndex = 112;
             textRolniczaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
             // textMinisterPrzebitka
             // 
             textMinisterPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textMinisterPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textMinisterPrzebitka.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textMinisterPrzebitka.Location = new System.Drawing.Point(50, 51);
             textMinisterPrzebitka.Name = "textMinisterPrzebitka";
-            textMinisterPrzebitka.Size = new System.Drawing.Size(37, 18);
+            textMinisterPrzebitka.Size = new System.Drawing.Size(37, 20);
             textMinisterPrzebitka.TabIndex = 113;
             textMinisterPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
             // textLaczonaPrzebitka
             // 
             textLaczonaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textLaczonaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textLaczonaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             textLaczonaPrzebitka.Location = new System.Drawing.Point(93, 52);
             textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
-            textLaczonaPrzebitka.Size = new System.Drawing.Size(37, 18);
+            textLaczonaPrzebitka.Size = new System.Drawing.Size(37, 20);
             textLaczonaPrzebitka.TabIndex = 114;
             textLaczonaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
