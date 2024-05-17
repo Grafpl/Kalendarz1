@@ -39,6 +39,19 @@ namespace Kalendarz1
             weekNumberTextBox = new TextBox();
             userTextbox = new TextBox();
             groupBox1 = new GroupBox();
+            groupBox4 = new GroupBox();
+            label8 = new Label();
+            Status = new ComboBox();
+            label2 = new Label();
+            TypUmowy = new ComboBox();
+            label17 = new Label();
+            TypCeny = new ComboBox();
+            label16 = new Label();
+            Data = new DateTimePicker();
+            RoznicaDni = new TextBox();
+            label18 = new Label();
+            label46 = new Label();
+            label47 = new Label();
             groupBox6 = new GroupBox();
             label45 = new Label();
             KGSuma = new TextBox();
@@ -55,23 +68,18 @@ namespace Kalendarz1
             label23 = new Label();
             KGwSkrzynce = new TextBox();
             pictureBox9 = new PictureBox();
-            pictureBox6 = new PictureBox();
-            pictureBox5 = new PictureBox();
-            groupBox4 = new GroupBox();
-            pictureBox4 = new PictureBox();
-            Cena = new TextBox();
-            label13 = new Label();
-            Dodatek = new TextBox();
-            label14 = new Label();
+            label41 = new Label();
+            NotatkaHodowca = new TextBox();
             Email = new TextBox();
+            textBox5 = new TextBox();
             Uwagi = new TextBox();
-            label36 = new Label();
             lalv = new Label();
+            label36 = new Label();
             tel1 = new TextBox();
+            info1 = new TextBox();
+            label29 = new Label();
             groupBox3 = new GroupBox();
             dataWstawienia = new DateTimePicker();
-            label41 = new Label();
-            textBox5 = new TextBox();
             label37 = new Label();
             textboxObecnaDoba = new TextBox();
             label34 = new Label();
@@ -80,24 +88,10 @@ namespace Kalendarz1
             LpWstawienia = new ComboBox();
             sztukiWstawienia = new TextBox();
             label19 = new Label();
-            label29 = new Label();
-            info1 = new TextBox();
-            ktoStwo = new TextBox();
-            ktoMod = new TextBox();
-            tel2 = new TextBox();
-            label25 = new Label();
-            label24 = new Label();
             info2 = new TextBox();
-            dataMod = new TextBox();
-            dataStwo = new TextBox();
+            tel2 = new TextBox();
+            ktoStwo = new TextBox();
             label27 = new Label();
-            TypUmowy = new ComboBox();
-            label17 = new Label();
-            tel3 = new TextBox();
-            TypCeny = new ComboBox();
-            Status = new ComboBox();
-            info3 = new TextBox();
-            label2 = new Label();
             tablicaHodowca = new GroupBox();
             label7 = new Label();
             Kurnik = new ComboBox();
@@ -115,23 +109,25 @@ namespace Kalendarz1
             KodPocztowyH = new TextBox();
             UlicaH = new TextBox();
             label4 = new Label();
-            label26 = new Label();
-            label16 = new Label();
+            ktoMod = new TextBox();
+            label25 = new Label();
             groupBox2 = new GroupBox();
+            Dodatek = new TextBox();
+            Cena = new TextBox();
+            label14 = new Label();
+            label13 = new Label();
+            pictureBox4 = new PictureBox();
             checkBox1 = new CheckBox();
-            pictureBox13 = new PictureBox();
             pictureBox12 = new PictureBox();
             pictureBox11 = new PictureBox();
             pictureBox10 = new PictureBox();
             pictureBox8 = new PictureBox();
             pictureBox7 = new PictureBox();
-            label18 = new Label();
             wyliczone = new TextBox();
             ObliczAuta = new Button();
             Ubytek = new TextBox();
             label15 = new Label();
             obliczeniaAut = new TextBox();
-            RoznicaDni = new TextBox();
             liczbaAut = new TextBox();
             label12 = new Label();
             sztuki = new TextBox();
@@ -140,8 +136,12 @@ namespace Kalendarz1
             label10 = new Label();
             srednia = new TextBox();
             label9 = new Label();
-            label8 = new Label();
-            Data = new DateTimePicker();
+            tel3 = new TextBox();
+            label24 = new Label();
+            label26 = new Label();
+            info3 = new TextBox();
+            dataStwo = new TextBox();
+            dataMod = new TextBox();
             buttonCena = new Button();
             label20 = new Label();
             label21 = new Label();
@@ -165,12 +165,6 @@ namespace Kalendarz1
             textBox11 = new TextBox();
             checkBoxSprzedane = new CheckBox();
             checkBoxDoWykupienia = new CheckBox();
-            label28 = new Label();
-            textBox1 = new TextBox();
-            label32 = new Label();
-            textBox3 = new TextBox();
-            label33 = new Label();
-            textBox4 = new TextBox();
             CommandButton_Update = new Button();
             button2 = new Button();
             button3 = new Button();
@@ -192,21 +186,18 @@ namespace Kalendarz1
             dataGridPartie = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
+            groupBox4.SuspendLayout();
             groupBox6.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox16).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox14).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox17).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox15).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox5).BeginInit();
-            groupBox4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox4).BeginInit();
             groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)DataGridWstawienia).BeginInit();
             tablicaHodowca.SuspendLayout();
             groupBox2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox13).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox4).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox12).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox10).BeginInit();
@@ -219,7 +210,7 @@ namespace Kalendarz1
             // MyCalendar
             // 
             MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            MyCalendar.Location = new System.Drawing.Point(18, 5);
+            MyCalendar.Location = new System.Drawing.Point(533, 4);
             MyCalendar.Margin = new Padding(2);
             MyCalendar.Name = "MyCalendar";
             MyCalendar.TabIndex = 1;
@@ -228,26 +219,27 @@ namespace Kalendarz1
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(0, 176);
+            dataGridView1.Location = new System.Drawing.Point(0, 24);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(610, 839);
+            dataGridView1.Size = new System.Drawing.Size(530, 991);
             dataGridView1.TabIndex = 19;
             dataGridView1.CellContentClick += DataGridView1_CellContentClick;
             // 
             // checkBoxAnulowane
             // 
             checkBoxAnulowane.AutoSize = true;
-            checkBoxAnulowane.Location = new System.Drawing.Point(616, 135);
+            checkBoxAnulowane.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxAnulowane.Location = new System.Drawing.Point(140, 4);
             checkBoxAnulowane.Name = "checkBoxAnulowane";
-            checkBoxAnulowane.Size = new System.Drawing.Size(86, 19);
+            checkBoxAnulowane.Size = new System.Drawing.Size(65, 15);
             checkBoxAnulowane.TabIndex = 20;
             checkBoxAnulowane.Text = "Anulowane";
             checkBoxAnulowane.UseVisualStyleBackColor = true;
             // 
             // weekNumberTextBox
             // 
-            weekNumberTextBox.Location = new System.Drawing.Point(346, 152);
+            weekNumberTextBox.Location = new System.Drawing.Point(211, 4);
             weekNumberTextBox.Multiline = true;
             weekNumberTextBox.Name = "weekNumberTextBox";
             weekNumberTextBox.Size = new System.Drawing.Size(26, 19);
@@ -255,7 +247,7 @@ namespace Kalendarz1
             // 
             // userTextbox
             // 
-            userTextbox.Location = new System.Drawing.Point(1494, 144);
+            userTextbox.Location = new System.Drawing.Point(1350, 140);
             userTextbox.Name = "userTextbox";
             userTextbox.Size = new System.Drawing.Size(100, 23);
             userTextbox.TabIndex = 23;
@@ -263,44 +255,182 @@ namespace Kalendarz1
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            groupBox1.Controls.Add(groupBox6);
-            groupBox1.Controls.Add(pictureBox6);
-            groupBox1.Controls.Add(pictureBox5);
             groupBox1.Controls.Add(groupBox4);
+            groupBox1.Controls.Add(label46);
+            groupBox1.Controls.Add(label47);
+            groupBox1.Controls.Add(groupBox6);
+            groupBox1.Controls.Add(label41);
+            groupBox1.Controls.Add(NotatkaHodowca);
             groupBox1.Controls.Add(Email);
+            groupBox1.Controls.Add(textBox5);
             groupBox1.Controls.Add(Uwagi);
-            groupBox1.Controls.Add(label36);
             groupBox1.Controls.Add(lalv);
+            groupBox1.Controls.Add(label36);
             groupBox1.Controls.Add(tel1);
-            groupBox1.Controls.Add(groupBox3);
-            groupBox1.Controls.Add(label29);
             groupBox1.Controls.Add(info1);
-            groupBox1.Controls.Add(ktoStwo);
-            groupBox1.Controls.Add(ktoMod);
-            groupBox1.Controls.Add(tel2);
-            groupBox1.Controls.Add(label25);
-            groupBox1.Controls.Add(label24);
+            groupBox1.Controls.Add(label29);
+            groupBox1.Controls.Add(groupBox3);
             groupBox1.Controls.Add(info2);
-            groupBox1.Controls.Add(dataMod);
-            groupBox1.Controls.Add(dataStwo);
+            groupBox1.Controls.Add(tel2);
+            groupBox1.Controls.Add(ktoStwo);
             groupBox1.Controls.Add(label27);
-            groupBox1.Controls.Add(TypUmowy);
-            groupBox1.Controls.Add(label17);
-            groupBox1.Controls.Add(tel3);
-            groupBox1.Controls.Add(TypCeny);
-            groupBox1.Controls.Add(Status);
-            groupBox1.Controls.Add(info3);
-            groupBox1.Controls.Add(label2);
             groupBox1.Controls.Add(tablicaHodowca);
-            groupBox1.Controls.Add(label26);
-            groupBox1.Controls.Add(label16);
+            groupBox1.Controls.Add(ktoMod);
+            groupBox1.Controls.Add(label25);
             groupBox1.Controls.Add(groupBox2);
-            groupBox1.Location = new System.Drawing.Point(616, 176);
+            groupBox1.Controls.Add(tel3);
+            groupBox1.Controls.Add(label24);
+            groupBox1.Controls.Add(label26);
+            groupBox1.Controls.Add(info3);
+            groupBox1.Controls.Add(dataStwo);
+            groupBox1.Controls.Add(dataMod);
+            groupBox1.FlatStyle = FlatStyle.Flat;
+            groupBox1.Location = new System.Drawing.Point(616, 179);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new System.Drawing.Size(886, 614);
+            groupBox1.Size = new System.Drawing.Size(834, 582);
             groupBox1.TabIndex = 24;
             groupBox1.TabStop = false;
             groupBox1.Text = "Dostawa";
+            groupBox1.Enter += groupBox1_Enter;
+            // 
+            // groupBox4
+            // 
+            groupBox4.BackColor = System.Drawing.Color.Khaki;
+            groupBox4.Controls.Add(label8);
+            groupBox4.Controls.Add(Status);
+            groupBox4.Controls.Add(label2);
+            groupBox4.Controls.Add(TypUmowy);
+            groupBox4.Controls.Add(label17);
+            groupBox4.Controls.Add(TypCeny);
+            groupBox4.Controls.Add(label16);
+            groupBox4.Controls.Add(Data);
+            groupBox4.Controls.Add(RoznicaDni);
+            groupBox4.Controls.Add(label18);
+            groupBox4.Location = new System.Drawing.Point(9, 22);
+            groupBox4.Name = "groupBox4";
+            groupBox4.RightToLeft = RightToLeft.No;
+            groupBox4.Size = new System.Drawing.Size(310, 96);
+            groupBox4.TabIndex = 111;
+            groupBox4.TabStop = false;
+            groupBox4.Text = "Dane Hodowcy";
+            // 
+            // label8
+            // 
+            label8.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label8.Location = new System.Drawing.Point(5, 51);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(95, 12);
+            label8.TabIndex = 78;
+            label8.Text = "Data Dostawy";
+            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // Status
+            // 
+            Status.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Status.FormattingEnabled = true;
+            Status.Location = new System.Drawing.Point(6, 30);
+            Status.Name = "Status";
+            Status.Size = new System.Drawing.Size(95, 20);
+            Status.TabIndex = 73;
+            // 
+            // label2
+            // 
+            label2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label2.Location = new System.Drawing.Point(6, 16);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(95, 15);
+            label2.TabIndex = 72;
+            label2.Text = "Status";
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // TypUmowy
+            // 
+            TypUmowy.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TypUmowy.FormattingEnabled = true;
+            TypUmowy.Location = new System.Drawing.Point(107, 30);
+            TypUmowy.Name = "TypUmowy";
+            TypUmowy.Size = new System.Drawing.Size(95, 20);
+            TypUmowy.TabIndex = 77;
+            // 
+            // label17
+            // 
+            label17.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label17.Location = new System.Drawing.Point(107, 16);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(95, 15);
+            label17.TabIndex = 76;
+            label17.Text = "Typ umowy";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // TypCeny
+            // 
+            TypCeny.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TypCeny.FormattingEnabled = true;
+            TypCeny.Location = new System.Drawing.Point(208, 29);
+            TypCeny.Name = "TypCeny";
+            TypCeny.Size = new System.Drawing.Size(95, 20);
+            TypCeny.TabIndex = 75;
+            // 
+            // label16
+            // 
+            label16.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label16.Location = new System.Drawing.Point(208, 15);
+            label16.Name = "label16";
+            label16.Size = new System.Drawing.Size(95, 15);
+            label16.TabIndex = 74;
+            label16.Text = "Typ Ceny";
+            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // Data
+            // 
+            Data.CustomFormat = "yyyy-MM-dd";
+            Data.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Data.Format = DateTimePickerFormat.Custom;
+            Data.Location = new System.Drawing.Point(6, 63);
+            Data.Name = "Data";
+            Data.Size = new System.Drawing.Size(95, 22);
+            Data.TabIndex = 17;
+            Data.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
+            Data.ValueChanged += Data_ValueChanged;
+            // 
+            // RoznicaDni
+            // 
+            RoznicaDni.BackColor = System.Drawing.SystemColors.ScrollBar;
+            RoznicaDni.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            RoznicaDni.Location = new System.Drawing.Point(106, 63);
+            RoznicaDni.Name = "RoznicaDni";
+            RoznicaDni.Size = new System.Drawing.Size(34, 22);
+            RoznicaDni.TabIndex = 29;
+            RoznicaDni.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label18
+            // 
+            label18.Location = new System.Drawing.Point(140, 63);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(37, 22);
+            label18.TabIndex = 103;
+            label18.Text = "Doba";
+            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label46
+            // 
+            label46.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label46.Location = new System.Drawing.Point(9, 420);
+            label46.Name = "label46";
+            label46.Size = new System.Drawing.Size(242, 18);
+            label46.TabIndex = 109;
+            label46.Text = "Notatka Hodowcy";
+            label46.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label47
+            // 
+            label47.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label47.Location = new System.Drawing.Point(11, 304);
+            label47.Name = "label47";
+            label47.Size = new System.Drawing.Size(223, 15);
+            label47.TabIndex = 110;
+            label47.Text = "Notatka dostawy";
+            label47.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // groupBox6
             // 
@@ -323,9 +453,9 @@ namespace Kalendarz1
             groupBox6.Controls.Add(KGwSkrzynce);
             groupBox6.Controls.Add(pictureBox9);
             groupBox6.FlatStyle = FlatStyle.Flat;
-            groupBox6.Location = new System.Drawing.Point(524, 305);
+            groupBox6.Location = new System.Drawing.Point(503, 306);
             groupBox6.Name = "groupBox6";
-            groupBox6.Size = new System.Drawing.Size(360, 148);
+            groupBox6.Size = new System.Drawing.Size(325, 132);
             groupBox6.TabIndex = 106;
             groupBox6.TabStop = false;
             // 
@@ -333,9 +463,9 @@ namespace Kalendarz1
             // 
             label45.BackColor = System.Drawing.Color.Honeydew;
             label45.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label45.Location = new System.Drawing.Point(275, 28);
+            label45.Location = new System.Drawing.Point(259, 15);
             label45.Name = "label45";
-            label45.Size = new System.Drawing.Size(57, 35);
+            label45.Size = new System.Drawing.Size(57, 47);
             label45.TabIndex = 123;
             label45.Text = "Suma KG";
             label45.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -344,7 +474,7 @@ namespace Kalendarz1
             // 
             KGSuma.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGSuma.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGSuma.Location = new System.Drawing.Point(275, 66);
+            KGSuma.Location = new System.Drawing.Point(259, 65);
             KGSuma.Name = "KGSuma";
             KGSuma.Size = new System.Drawing.Size(57, 25);
             KGSuma.TabIndex = 122;
@@ -353,7 +483,7 @@ namespace Kalendarz1
             // pictureBox16
             // 
             pictureBox16.Image = (System.Drawing.Image)resources.GetObject("pictureBox16.Image");
-            pictureBox16.Location = new System.Drawing.Point(274, 94);
+            pictureBox16.Location = new System.Drawing.Point(258, 93);
             pictureBox16.Name = "pictureBox16";
             pictureBox16.Size = new System.Drawing.Size(58, 29);
             pictureBox16.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -364,7 +494,7 @@ namespace Kalendarz1
             // 
             label43.BackColor = System.Drawing.Color.Honeydew;
             label43.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label43.Location = new System.Drawing.Point(84, 15);
+            label43.Location = new System.Drawing.Point(68, 14);
             label43.Name = "label43";
             label43.Size = new System.Drawing.Size(57, 48);
             label43.TabIndex = 120;
@@ -375,7 +505,7 @@ namespace Kalendarz1
             // 
             KGwSkrzynekWAucie.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynekWAucie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynekWAucie.Location = new System.Drawing.Point(84, 66);
+            KGwSkrzynekWAucie.Location = new System.Drawing.Point(68, 65);
             KGwSkrzynekWAucie.Name = "KGwSkrzynekWAucie";
             KGwSkrzynekWAucie.Size = new System.Drawing.Size(57, 25);
             KGwSkrzynekWAucie.TabIndex = 119;
@@ -384,7 +514,7 @@ namespace Kalendarz1
             // pictureBox14
             // 
             pictureBox14.Image = (System.Drawing.Image)resources.GetObject("pictureBox14.Image");
-            pictureBox14.Location = new System.Drawing.Point(83, 94);
+            pictureBox14.Location = new System.Drawing.Point(67, 93);
             pictureBox14.Name = "pictureBox14";
             pictureBox14.Size = new System.Drawing.Size(58, 29);
             pictureBox14.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -395,9 +525,9 @@ namespace Kalendarz1
             // 
             label44.BackColor = System.Drawing.Color.Honeydew;
             label44.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label44.Location = new System.Drawing.Point(212, 28);
+            label44.Location = new System.Drawing.Point(196, 14);
             label44.Name = "label44";
-            label44.Size = new System.Drawing.Size(57, 35);
+            label44.Size = new System.Drawing.Size(57, 48);
             label44.TabIndex = 116;
             label44.Text = "Waga Samochodu";
             label44.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -406,7 +536,7 @@ namespace Kalendarz1
             // 
             KGZestaw.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGZestaw.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGZestaw.Location = new System.Drawing.Point(212, 66);
+            KGZestaw.Location = new System.Drawing.Point(196, 65);
             KGZestaw.Name = "KGZestaw";
             KGZestaw.Size = new System.Drawing.Size(57, 25);
             KGZestaw.TabIndex = 115;
@@ -415,7 +545,7 @@ namespace Kalendarz1
             // pictureBox17
             // 
             pictureBox17.Image = (System.Drawing.Image)resources.GetObject("pictureBox17.Image");
-            pictureBox17.Location = new System.Drawing.Point(211, 94);
+            pictureBox17.Location = new System.Drawing.Point(195, 93);
             pictureBox17.Name = "pictureBox17";
             pictureBox17.Size = new System.Drawing.Size(58, 29);
             pictureBox17.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -426,7 +556,7 @@ namespace Kalendarz1
             // 
             label22.BackColor = System.Drawing.Color.Honeydew;
             label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label22.Location = new System.Drawing.Point(148, 15);
+            label22.Location = new System.Drawing.Point(132, 14);
             label22.Name = "label22";
             label22.Size = new System.Drawing.Size(57, 48);
             label22.TabIndex = 110;
@@ -437,7 +567,7 @@ namespace Kalendarz1
             // 
             KGwPaleciak.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwPaleciak.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwPaleciak.Location = new System.Drawing.Point(148, 66);
+            KGwPaleciak.Location = new System.Drawing.Point(132, 65);
             KGwPaleciak.Name = "KGwPaleciak";
             KGwPaleciak.Size = new System.Drawing.Size(57, 25);
             KGwPaleciak.TabIndex = 109;
@@ -446,7 +576,7 @@ namespace Kalendarz1
             // pictureBox15
             // 
             pictureBox15.Image = (System.Drawing.Image)resources.GetObject("pictureBox15.Image");
-            pictureBox15.Location = new System.Drawing.Point(147, 94);
+            pictureBox15.Location = new System.Drawing.Point(131, 93);
             pictureBox15.Name = "pictureBox15";
             pictureBox15.Size = new System.Drawing.Size(58, 29);
             pictureBox15.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -457,7 +587,7 @@ namespace Kalendarz1
             // 
             label23.BackColor = System.Drawing.Color.Honeydew;
             label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label23.Location = new System.Drawing.Point(21, 15);
+            label23.Location = new System.Drawing.Point(5, 14);
             label23.Name = "label23";
             label23.Size = new System.Drawing.Size(57, 48);
             label23.TabIndex = 38;
@@ -468,7 +598,7 @@ namespace Kalendarz1
             // 
             KGwSkrzynce.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce.Location = new System.Drawing.Point(21, 66);
+            KGwSkrzynce.Location = new System.Drawing.Point(5, 65);
             KGwSkrzynce.Name = "KGwSkrzynce";
             KGwSkrzynce.Size = new System.Drawing.Size(57, 25);
             KGwSkrzynce.TabIndex = 29;
@@ -478,150 +608,115 @@ namespace Kalendarz1
             // pictureBox9
             // 
             pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
-            pictureBox9.Location = new System.Drawing.Point(20, 94);
+            pictureBox9.Location = new System.Drawing.Point(4, 93);
             pictureBox9.Name = "pictureBox9";
             pictureBox9.Size = new System.Drawing.Size(58, 29);
             pictureBox9.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox9.TabIndex = 108;
             pictureBox9.TabStop = false;
             // 
-            // pictureBox6
+            // label41
             // 
-            pictureBox6.Image = (System.Drawing.Image)resources.GetObject("pictureBox6.Image");
-            pictureBox6.Location = new System.Drawing.Point(6, 459);
-            pictureBox6.Name = "pictureBox6";
-            pictureBox6.Size = new System.Drawing.Size(66, 59);
-            pictureBox6.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox6.TabIndex = 105;
-            pictureBox6.TabStop = false;
+            label41.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label41.Location = new System.Drawing.Point(257, 421);
+            label41.Name = "label41";
+            label41.Size = new System.Drawing.Size(170, 17);
+            label41.TabIndex = 107;
+            label41.Text = "Notatka wstawienia";
+            label41.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // pictureBox5
+            // NotatkaHodowca
             // 
-            pictureBox5.Image = (System.Drawing.Image)resources.GetObject("pictureBox5.Image");
-            pictureBox5.Location = new System.Drawing.Point(585, 460);
-            pictureBox5.Name = "pictureBox5";
-            pictureBox5.Size = new System.Drawing.Size(66, 59);
-            pictureBox5.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox5.TabIndex = 104;
-            pictureBox5.TabStop = false;
-            // 
-            // groupBox4
-            // 
-            groupBox4.BackColor = System.Drawing.Color.LightGreen;
-            groupBox4.Controls.Add(pictureBox4);
-            groupBox4.Controls.Add(Cena);
-            groupBox4.Controls.Add(label13);
-            groupBox4.Controls.Add(Dodatek);
-            groupBox4.Controls.Add(label14);
-            groupBox4.Location = new System.Drawing.Point(306, 460);
-            groupBox4.Name = "groupBox4";
-            groupBox4.Size = new System.Drawing.Size(276, 148);
-            groupBox4.TabIndex = 102;
-            groupBox4.TabStop = false;
-            groupBox4.Text = "Rozliczenie";
-            // 
-            // pictureBox4
-            // 
-            pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
-            pictureBox4.Location = new System.Drawing.Point(6, 22);
-            pictureBox4.Name = "pictureBox4";
-            pictureBox4.Size = new System.Drawing.Size(82, 47);
-            pictureBox4.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox4.TabIndex = 103;
-            pictureBox4.TabStop = false;
-            // 
-            // Cena
-            // 
-            Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Cena.Location = new System.Drawing.Point(94, 44);
-            Cena.Name = "Cena";
-            Cena.Size = new System.Drawing.Size(50, 25);
-            Cena.TabIndex = 26;
-            Cena.TextAlign = HorizontalAlignment.Center;
-            Cena.TextChanged += Cena_TextChanged;
-            // 
-            // label13
-            // 
-            label13.Location = new System.Drawing.Point(94, 23);
-            label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(50, 17);
-            label13.TabIndex = 25;
-            label13.Text = "Cena";
-            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // Dodatek
-            // 
-            Dodatek.BackColor = System.Drawing.SystemColors.ScrollBar;
-            Dodatek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Dodatek.Location = new System.Drawing.Point(150, 44);
-            Dodatek.Name = "Dodatek";
-            Dodatek.Size = new System.Drawing.Size(62, 25);
-            Dodatek.TabIndex = 24;
-            Dodatek.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label14
-            // 
-            label14.Location = new System.Drawing.Point(150, 7);
-            label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(62, 34);
-            label14.TabIndex = 23;
-            label14.Text = "Dodatek do ceny";
-            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            NotatkaHodowca.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            NotatkaHodowca.Location = new System.Drawing.Point(9, 441);
+            NotatkaHodowca.Multiline = true;
+            NotatkaHodowca.Name = "NotatkaHodowca";
+            NotatkaHodowca.Size = new System.Drawing.Size(242, 128);
+            NotatkaHodowca.TabIndex = 108;
+            NotatkaHodowca.TextAlign = HorizontalAlignment.Center;
             // 
             // Email
             // 
-            Email.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Email.Location = new System.Drawing.Point(657, 583);
+            Email.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Email.Location = new System.Drawing.Point(234, 399);
             Email.Name = "Email";
-            Email.Size = new System.Drawing.Size(227, 25);
+            Email.Size = new System.Drawing.Size(190, 18);
             Email.TabIndex = 102;
             Email.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox5
+            // 
+            textBox5.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox5.Location = new System.Drawing.Point(257, 442);
+            textBox5.Multiline = true;
+            textBox5.Name = "textBox5";
+            textBox5.Size = new System.Drawing.Size(172, 71);
+            textBox5.TabIndex = 106;
+            textBox5.TextAlign = HorizontalAlignment.Center;
             // 
             // Uwagi
             // 
             Uwagi.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Uwagi.Location = new System.Drawing.Point(78, 459);
+            Uwagi.Location = new System.Drawing.Point(9, 318);
             Uwagi.Multiline = true;
             Uwagi.Name = "Uwagi";
-            Uwagi.Size = new System.Drawing.Size(222, 149);
+            Uwagi.Size = new System.Drawing.Size(221, 99);
             Uwagi.TabIndex = 28;
             Uwagi.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label36
-            // 
-            label36.Location = new System.Drawing.Point(657, 566);
-            label36.Name = "label36";
-            label36.Size = new System.Drawing.Size(227, 18);
-            label36.TabIndex = 103;
-            label36.Text = "Email";
-            label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // lalv
             // 
             lalv.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            lalv.Location = new System.Drawing.Point(414, 17);
+            lalv.Location = new System.Drawing.Point(550, 536);
             lalv.Name = "lalv";
             lalv.Size = new System.Drawing.Size(97, 15);
             lalv.TabIndex = 101;
             lalv.Text = "Kto stworzył";
             lalv.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // label36
+            // 
+            label36.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label36.Location = new System.Drawing.Point(318, 386);
+            label36.Name = "label36";
+            label36.Size = new System.Drawing.Size(33, 14);
+            label36.TabIndex = 103;
+            label36.Text = "Email";
+            label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // tel1
             // 
-            tel1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel1.Location = new System.Drawing.Point(657, 483);
+            tel1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel1.Location = new System.Drawing.Point(234, 318);
             tel1.Name = "tel1";
-            tel1.Size = new System.Drawing.Size(98, 25);
+            tel1.Size = new System.Drawing.Size(98, 19);
             tel1.TabIndex = 63;
             tel1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // info1
+            // 
+            info1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info1.Location = new System.Drawing.Point(333, 318);
+            info1.Name = "info1";
+            info1.Size = new System.Drawing.Size(90, 19);
+            info1.TabIndex = 66;
+            info1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label29
+            // 
+            label29.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label29.Location = new System.Drawing.Point(754, 536);
+            label29.Name = "label29";
+            label29.Size = new System.Drawing.Size(97, 15);
+            label29.TabIndex = 83;
+            label29.Text = "Kto modyfikował";
+            label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // groupBox3
             // 
             groupBox3.BackColor = System.Drawing.Color.LightYellow;
             groupBox3.BackgroundImageLayout = ImageLayout.Stretch;
             groupBox3.Controls.Add(dataWstawienia);
-            groupBox3.Controls.Add(label41);
-            groupBox3.Controls.Add(textBox5);
             groupBox3.Controls.Add(label37);
             groupBox3.Controls.Add(textboxObecnaDoba);
             groupBox3.Controls.Add(label34);
@@ -632,9 +727,9 @@ namespace Kalendarz1
             groupBox3.Controls.Add(label19);
             groupBox3.FlatStyle = FlatStyle.Flat;
             groupBox3.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            groupBox3.Location = new System.Drawing.Point(6, 146);
+            groupBox3.Location = new System.Drawing.Point(439, 124);
             groupBox3.Name = "groupBox3";
-            groupBox3.Size = new System.Drawing.Size(878, 156);
+            groupBox3.Size = new System.Drawing.Size(389, 175);
             groupBox3.TabIndex = 96;
             groupBox3.TabStop = false;
             groupBox3.Text = "Wstawienie";
@@ -643,39 +738,19 @@ namespace Kalendarz1
             // 
             dataWstawienia.CustomFormat = "yyyy-MM-dd";
             dataWstawienia.Format = DateTimePickerFormat.Custom;
-            dataWstawienia.Location = new System.Drawing.Point(421, 48);
+            dataWstawienia.Location = new System.Drawing.Point(270, 28);
             dataWstawienia.Name = "dataWstawienia";
-            dataWstawienia.Size = new System.Drawing.Size(101, 18);
+            dataWstawienia.Size = new System.Drawing.Size(76, 18);
             dataWstawienia.TabIndex = 108;
             dataWstawienia.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
             dataWstawienia.ValueChanged += dataWstawienia_ValueChanged;
             // 
-            // label41
-            // 
-            label41.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label41.Location = new System.Drawing.Point(525, 69);
-            label41.Name = "label41";
-            label41.Size = new System.Drawing.Size(170, 18);
-            label41.TabIndex = 107;
-            label41.Text = "Notatka wstawienia";
-            label41.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox5
-            // 
-            textBox5.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(523, 90);
-            textBox5.Multiline = true;
-            textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(172, 60);
-            textBox5.TabIndex = 106;
-            textBox5.TextAlign = HorizontalAlignment.Center;
-            // 
             // label37
             // 
             label37.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label37.Location = new System.Drawing.Point(461, 71);
+            label37.Location = new System.Drawing.Point(308, 45);
             label37.Name = "label37";
-            label37.Size = new System.Drawing.Size(53, 26);
+            label37.Size = new System.Drawing.Size(42, 26);
             label37.TabIndex = 105;
             label37.Text = "Obecna Doba";
             label37.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -684,7 +759,7 @@ namespace Kalendarz1
             // 
             textboxObecnaDoba.BackColor = System.Drawing.SystemColors.ScrollBar;
             textboxObecnaDoba.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textboxObecnaDoba.Location = new System.Drawing.Point(421, 72);
+            textboxObecnaDoba.Location = new System.Drawing.Point(271, 49);
             textboxObecnaDoba.Name = "textboxObecnaDoba";
             textboxObecnaDoba.Size = new System.Drawing.Size(34, 22);
             textboxObecnaDoba.TabIndex = 104;
@@ -693,7 +768,7 @@ namespace Kalendarz1
             // label34
             // 
             label34.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label34.Location = new System.Drawing.Point(414, 103);
+            label34.Location = new System.Drawing.Point(268, 73);
             label34.Name = "label34";
             label34.Size = new System.Drawing.Size(76, 26);
             label34.TabIndex = 96;
@@ -702,12 +777,12 @@ namespace Kalendarz1
             // 
             // label35
             // 
-            label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label35.Location = new System.Drawing.Point(528, 15);
+            label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label35.Location = new System.Drawing.Point(271, 126);
             label35.Name = "label35";
-            label35.Size = new System.Drawing.Size(64, 28);
+            label35.Size = new System.Drawing.Size(64, 27);
             label35.TabIndex = 97;
-            label35.Text = "Ilość szt wstawiona";
+            label35.Text = "Ilość wstawiona";
             label35.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // DataGridWstawienia
@@ -716,13 +791,13 @@ namespace Kalendarz1
             DataGridWstawienia.Location = new System.Drawing.Point(8, 13);
             DataGridWstawienia.Name = "DataGridWstawienia";
             DataGridWstawienia.RowTemplate.Height = 25;
-            DataGridWstawienia.Size = new System.Drawing.Size(400, 140);
+            DataGridWstawienia.Size = new System.Drawing.Size(257, 140);
             DataGridWstawienia.TabIndex = 95;
             // 
             // LpWstawienia
             // 
             LpWstawienia.FormattingEnabled = true;
-            LpWstawienia.Location = new System.Drawing.Point(414, 130);
+            LpWstawienia.Location = new System.Drawing.Point(267, 99);
             LpWstawienia.Name = "LpWstawienia";
             LpWstawienia.Size = new System.Drawing.Size(76, 20);
             LpWstawienia.TabIndex = 54;
@@ -731,8 +806,8 @@ namespace Kalendarz1
             // sztukiWstawienia
             // 
             sztukiWstawienia.BackColor = System.Drawing.SystemColors.ScrollBar;
-            sztukiWstawienia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukiWstawienia.Location = new System.Drawing.Point(528, 46);
+            sztukiWstawienia.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            sztukiWstawienia.Location = new System.Drawing.Point(271, 152);
             sztukiWstawienia.Multiline = true;
             sztukiWstawienia.Name = "sztukiWstawienia";
             sztukiWstawienia.Size = new System.Drawing.Size(64, 20);
@@ -741,184 +816,52 @@ namespace Kalendarz1
             // 
             // label19
             // 
-            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(421, 15);
+            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label19.Location = new System.Drawing.Point(268, 13);
             label19.Name = "label19";
-            label19.Size = new System.Drawing.Size(101, 30);
+            label19.Size = new System.Drawing.Size(76, 14);
             label19.TabIndex = 31;
-            label19.Text = "Data \r\nWstawienia";
+            label19.Text = "Data Wstawienia";
             label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label29
+            // info2
             // 
-            label29.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label29.Location = new System.Drawing.Point(618, 17);
-            label29.Name = "label29";
-            label29.Size = new System.Drawing.Size(97, 15);
-            label29.TabIndex = 83;
-            label29.Text = "Kto modyfikował";
-            label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            info2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info2.Location = new System.Drawing.Point(333, 337);
+            info2.Name = "info2";
+            info2.Size = new System.Drawing.Size(90, 19);
+            info2.TabIndex = 67;
+            info2.TextAlign = HorizontalAlignment.Center;
             // 
-            // info1
+            // tel2
             // 
-            info1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info1.Location = new System.Drawing.Point(761, 482);
-            info1.Name = "info1";
-            info1.Size = new System.Drawing.Size(123, 25);
-            info1.TabIndex = 66;
-            info1.TextAlign = HorizontalAlignment.Center;
+            tel2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel2.Location = new System.Drawing.Point(234, 337);
+            tel2.Name = "tel2";
+            tel2.Size = new System.Drawing.Size(98, 19);
+            tel2.TabIndex = 64;
+            tel2.TextAlign = HorizontalAlignment.Center;
+            tel2.TextChanged += tel2_TextChanged;
             // 
             // ktoStwo
             // 
             ktoStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
             ktoStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            ktoStwo.Location = new System.Drawing.Point(416, 31);
+            ktoStwo.Location = new System.Drawing.Point(552, 550);
             ktoStwo.Name = "ktoStwo";
             ktoStwo.Size = new System.Drawing.Size(95, 19);
             ktoStwo.TabIndex = 100;
             ktoStwo.TextAlign = HorizontalAlignment.Center;
             // 
-            // ktoMod
-            // 
-            ktoMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ktoMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            ktoMod.Location = new System.Drawing.Point(618, 31);
-            ktoMod.Name = "ktoMod";
-            ktoMod.Size = new System.Drawing.Size(95, 19);
-            ktoMod.TabIndex = 82;
-            ktoMod.TextAlign = HorizontalAlignment.Center;
-            // 
-            // tel2
-            // 
-            tel2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel2.Location = new System.Drawing.Point(657, 510);
-            tel2.Name = "tel2";
-            tel2.Size = new System.Drawing.Size(98, 25);
-            tel2.TabIndex = 64;
-            tel2.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label25
-            // 
-            label25.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label25.Location = new System.Drawing.Point(517, 17);
-            label25.Name = "label25";
-            label25.Size = new System.Drawing.Size(95, 15);
-            label25.TabIndex = 81;
-            label25.Text = "Data modyfikacji";
-            label25.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // label24
-            // 
-            label24.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label24.Location = new System.Drawing.Point(315, 17);
-            label24.Name = "label24";
-            label24.Size = new System.Drawing.Size(95, 15);
-            label24.TabIndex = 80;
-            label24.Text = "Data stworzenia";
-            label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // info2
-            // 
-            info2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info2.Location = new System.Drawing.Point(761, 510);
-            info2.Name = "info2";
-            info2.Size = new System.Drawing.Size(123, 25);
-            info2.TabIndex = 67;
-            info2.TextAlign = HorizontalAlignment.Center;
-            // 
-            // dataMod
-            // 
-            dataMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            dataMod.Location = new System.Drawing.Point(517, 31);
-            dataMod.Name = "dataMod";
-            dataMod.Size = new System.Drawing.Size(95, 19);
-            dataMod.TabIndex = 79;
-            dataMod.TextAlign = HorizontalAlignment.Center;
-            // 
-            // dataStwo
-            // 
-            dataStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            dataStwo.Location = new System.Drawing.Point(315, 31);
-            dataStwo.Name = "dataStwo";
-            dataStwo.Size = new System.Drawing.Size(95, 19);
-            dataStwo.TabIndex = 78;
-            dataStwo.TextAlign = HorizontalAlignment.Center;
-            // 
             // label27
             // 
-            label27.Location = new System.Drawing.Point(761, 462);
+            label27.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label27.Location = new System.Drawing.Point(334, 305);
             label27.Name = "label27";
-            label27.Size = new System.Drawing.Size(123, 18);
+            label27.Size = new System.Drawing.Size(90, 13);
             label27.TabIndex = 70;
             label27.Text = "Osoba";
             label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // TypUmowy
-            // 
-            TypUmowy.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            TypUmowy.FormattingEnabled = true;
-            TypUmowy.Location = new System.Drawing.Point(107, 31);
-            TypUmowy.Name = "TypUmowy";
-            TypUmowy.Size = new System.Drawing.Size(95, 20);
-            TypUmowy.TabIndex = 77;
-            // 
-            // label17
-            // 
-            label17.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label17.Location = new System.Drawing.Point(107, 17);
-            label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(95, 15);
-            label17.TabIndex = 76;
-            label17.Text = "Typ umowy";
-            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // tel3
-            // 
-            tel3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel3.Location = new System.Drawing.Point(657, 538);
-            tel3.Name = "tel3";
-            tel3.Size = new System.Drawing.Size(98, 25);
-            tel3.TabIndex = 65;
-            tel3.TextAlign = HorizontalAlignment.Center;
-            // 
-            // TypCeny
-            // 
-            TypCeny.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            TypCeny.FormattingEnabled = true;
-            TypCeny.Location = new System.Drawing.Point(215, 31);
-            TypCeny.Name = "TypCeny";
-            TypCeny.Size = new System.Drawing.Size(95, 20);
-            TypCeny.TabIndex = 75;
-            // 
-            // Status
-            // 
-            Status.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            Status.FormattingEnabled = true;
-            Status.Location = new System.Drawing.Point(6, 31);
-            Status.Name = "Status";
-            Status.Size = new System.Drawing.Size(95, 20);
-            Status.TabIndex = 73;
-            // 
-            // info3
-            // 
-            info3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info3.Location = new System.Drawing.Point(761, 538);
-            info3.Name = "info3";
-            info3.Size = new System.Drawing.Size(123, 25);
-            info3.TabIndex = 68;
-            info3.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label2
-            // 
-            label2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(6, 17);
-            label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(95, 15);
-            label2.TabIndex = 72;
-            label2.Text = "Status";
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // tablicaHodowca
             // 
@@ -939,19 +882,20 @@ namespace Kalendarz1
             tablicaHodowca.Controls.Add(KodPocztowyH);
             tablicaHodowca.Controls.Add(UlicaH);
             tablicaHodowca.Controls.Add(label4);
-            tablicaHodowca.Location = new System.Drawing.Point(6, 60);
+            tablicaHodowca.Location = new System.Drawing.Point(325, 22);
             tablicaHodowca.Name = "tablicaHodowca";
             tablicaHodowca.RightToLeft = RightToLeft.No;
-            tablicaHodowca.Size = new System.Drawing.Size(878, 87);
+            tablicaHodowca.Size = new System.Drawing.Size(503, 96);
             tablicaHodowca.TabIndex = 71;
             tablicaHodowca.TabStop = false;
             tablicaHodowca.Text = "Dane Hodowcy";
             // 
             // label7
             // 
-            label7.Location = new System.Drawing.Point(8, 60);
+            label7.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label7.Location = new System.Drawing.Point(2, 49);
             label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(58, 20);
+            label7.Size = new System.Drawing.Size(44, 20);
             label7.TabIndex = 16;
             label7.Text = "Kurnik";
             label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -960,19 +904,21 @@ namespace Kalendarz1
             // 
             Kurnik.DropDownHeight = 300;
             Kurnik.DropDownWidth = 200;
+            Kurnik.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             Kurnik.FormattingEnabled = true;
             Kurnik.IntegralHeight = false;
-            Kurnik.Location = new System.Drawing.Point(72, 57);
+            Kurnik.Location = new System.Drawing.Point(50, 49);
             Kurnik.Name = "Kurnik";
-            Kurnik.Size = new System.Drawing.Size(268, 23);
+            Kurnik.Size = new System.Drawing.Size(155, 20);
             Kurnik.TabIndex = 0;
             Kurnik.SelectedIndexChanged += Kurnik_SelectedIndexChanged;
             // 
             // KmK
             // 
-            KmK.Location = new System.Drawing.Point(741, 57);
+            KmK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmK.Location = new System.Drawing.Point(454, 48);
             KmK.Name = "KmK";
-            KmK.Size = new System.Drawing.Size(43, 23);
+            KmK.Size = new System.Drawing.Size(43, 18);
             KmK.TabIndex = 15;
             KmK.TextAlign = HorizontalAlignment.Center;
             // 
@@ -980,152 +926,167 @@ namespace Kalendarz1
             // 
             Dostawca.DropDownHeight = 300;
             Dostawca.DropDownWidth = 200;
-            Dostawca.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Dostawca.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             Dostawca.FormattingEnabled = true;
             Dostawca.IntegralHeight = false;
-            Dostawca.Location = new System.Drawing.Point(72, 31);
+            Dostawca.Location = new System.Drawing.Point(50, 23);
             Dostawca.Name = "Dostawca";
-            Dostawca.Size = new System.Drawing.Size(268, 23);
+            Dostawca.Size = new System.Drawing.Size(155, 20);
             Dostawca.TabIndex = 0;
             Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
             // 
             // KmH
             // 
-            KmH.Location = new System.Drawing.Point(741, 31);
+            KmH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmH.Location = new System.Drawing.Point(454, 22);
             KmH.Name = "KmH";
-            KmH.Size = new System.Drawing.Size(43, 23);
+            KmH.Size = new System.Drawing.Size(43, 18);
             KmH.TabIndex = 15;
             KmH.TextAlign = HorizontalAlignment.Center;
             // 
             // MiejscK
             // 
-            MiejscK.Location = new System.Drawing.Point(591, 57);
+            MiejscK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscK.Location = new System.Drawing.Point(355, 49);
             MiejscK.Name = "MiejscK";
-            MiejscK.Size = new System.Drawing.Size(144, 23);
+            MiejscK.Size = new System.Drawing.Size(96, 18);
             MiejscK.TabIndex = 13;
             MiejscK.TextAlign = HorizontalAlignment.Center;
             // 
             // label1
             // 
-            label1.Location = new System.Drawing.Point(8, 31);
+            label1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(2, 23);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(58, 20);
+            label1.Size = new System.Drawing.Size(44, 20);
             label1.TabIndex = 1;
             label1.Text = "Dostawca";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label6
             // 
-            label6.Location = new System.Drawing.Point(741, 10);
+            label6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label6.Location = new System.Drawing.Point(453, 9);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(43, 15);
+            label6.Size = new System.Drawing.Size(43, 14);
             label6.TabIndex = 14;
             label6.Text = "KM";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // MiejscH
             // 
-            MiejscH.Location = new System.Drawing.Point(591, 31);
+            MiejscH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscH.Location = new System.Drawing.Point(355, 23);
             MiejscH.Name = "MiejscH";
-            MiejscH.Size = new System.Drawing.Size(144, 23);
+            MiejscH.Size = new System.Drawing.Size(96, 18);
             MiejscH.TabIndex = 13;
             MiejscH.TextAlign = HorizontalAlignment.Center;
             // 
             // KodPocztowyK
             // 
-            KodPocztowyK.Location = new System.Drawing.Point(496, 57);
+            KodPocztowyK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyK.Location = new System.Drawing.Point(313, 49);
             KodPocztowyK.Name = "KodPocztowyK";
-            KodPocztowyK.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyK.Size = new System.Drawing.Size(38, 18);
             KodPocztowyK.TabIndex = 11;
             KodPocztowyK.TextAlign = HorizontalAlignment.Center;
             // 
             // label3
             // 
-            label3.Location = new System.Drawing.Point(346, 10);
+            label3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label3.Location = new System.Drawing.Point(207, 10);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(144, 15);
+            label3.Size = new System.Drawing.Size(99, 14);
             label3.TabIndex = 5;
             label3.Text = "Ulica";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // UlicaK
             // 
-            UlicaK.Location = new System.Drawing.Point(346, 57);
+            UlicaK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaK.Location = new System.Drawing.Point(208, 49);
             UlicaK.Name = "UlicaK";
-            UlicaK.Size = new System.Drawing.Size(144, 23);
+            UlicaK.Size = new System.Drawing.Size(99, 18);
             UlicaK.TabIndex = 9;
             UlicaK.TextAlign = HorizontalAlignment.Center;
             // 
             // label5
             // 
-            label5.Location = new System.Drawing.Point(591, 10);
+            label5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label5.Location = new System.Drawing.Point(354, 10);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(144, 15);
+            label5.Size = new System.Drawing.Size(96, 14);
             label5.TabIndex = 12;
             label5.Text = "Miejscowosc";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // KodPocztowyH
             // 
-            KodPocztowyH.Location = new System.Drawing.Point(496, 31);
+            KodPocztowyH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyH.Location = new System.Drawing.Point(313, 23);
             KodPocztowyH.Name = "KodPocztowyH";
-            KodPocztowyH.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyH.Size = new System.Drawing.Size(38, 18);
             KodPocztowyH.TabIndex = 11;
             KodPocztowyH.TextAlign = HorizontalAlignment.Center;
             // 
             // UlicaH
             // 
-            UlicaH.Location = new System.Drawing.Point(346, 31);
+            UlicaH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaH.Location = new System.Drawing.Point(208, 23);
             UlicaH.Name = "UlicaH";
-            UlicaH.Size = new System.Drawing.Size(144, 23);
+            UlicaH.Size = new System.Drawing.Size(99, 18);
             UlicaH.TabIndex = 9;
             UlicaH.TextAlign = HorizontalAlignment.Center;
             // 
             // label4
             // 
-            label4.Location = new System.Drawing.Point(496, 10);
+            label4.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label4.Location = new System.Drawing.Point(313, 10);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(89, 15);
+            label4.Size = new System.Drawing.Size(38, 14);
             label4.TabIndex = 10;
-            label4.Text = "Kod-Pocztowy";
+            label4.Text = "Kod";
             label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label26
+            // ktoMod
             // 
-            label26.Location = new System.Drawing.Point(657, 462);
-            label26.Name = "label26";
-            label26.Size = new System.Drawing.Size(98, 18);
-            label26.TabIndex = 69;
-            label26.Text = "Numer Telefonu";
-            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            ktoMod.BackColor = System.Drawing.SystemColors.ScrollBar;
+            ktoMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            ktoMod.Location = new System.Drawing.Point(754, 550);
+            ktoMod.Name = "ktoMod";
+            ktoMod.Size = new System.Drawing.Size(95, 19);
+            ktoMod.TabIndex = 82;
+            ktoMod.TextAlign = HorizontalAlignment.Center;
             // 
-            // label16
+            // label25
             // 
-            label16.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label16.Location = new System.Drawing.Point(215, 17);
-            label16.Name = "label16";
-            label16.Size = new System.Drawing.Size(95, 15);
-            label16.TabIndex = 74;
-            label16.Text = "Typ Ceny";
-            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label25.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label25.Location = new System.Drawing.Point(653, 536);
+            label25.Name = "label25";
+            label25.Size = new System.Drawing.Size(95, 15);
+            label25.TabIndex = 81;
+            label25.Text = "Data modyfikacji";
+            label25.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // groupBox2
             // 
             groupBox2.BackColor = System.Drawing.Color.FloralWhite;
+            groupBox2.Controls.Add(Dodatek);
+            groupBox2.Controls.Add(Cena);
+            groupBox2.Controls.Add(label14);
+            groupBox2.Controls.Add(label13);
+            groupBox2.Controls.Add(pictureBox4);
             groupBox2.Controls.Add(checkBox1);
-            groupBox2.Controls.Add(pictureBox13);
             groupBox2.Controls.Add(pictureBox12);
             groupBox2.Controls.Add(pictureBox11);
             groupBox2.Controls.Add(pictureBox10);
             groupBox2.Controls.Add(pictureBox8);
             groupBox2.Controls.Add(pictureBox7);
-            groupBox2.Controls.Add(label18);
             groupBox2.Controls.Add(wyliczone);
             groupBox2.Controls.Add(ObliczAuta);
             groupBox2.Controls.Add(Ubytek);
             groupBox2.Controls.Add(label15);
             groupBox2.Controls.Add(obliczeniaAut);
-            groupBox2.Controls.Add(RoznicaDni);
             groupBox2.Controls.Add(liczbaAut);
             groupBox2.Controls.Add(label12);
             groupBox2.Controls.Add(sztuki);
@@ -1134,20 +1095,66 @@ namespace Kalendarz1
             groupBox2.Controls.Add(label10);
             groupBox2.Controls.Add(srednia);
             groupBox2.Controls.Add(label9);
-            groupBox2.Controls.Add(label8);
-            groupBox2.Controls.Add(Data);
-            groupBox2.Location = new System.Drawing.Point(6, 305);
+            groupBox2.Location = new System.Drawing.Point(9, 124);
             groupBox2.Name = "groupBox2";
             groupBox2.RightToLeft = RightToLeft.No;
-            groupBox2.Size = new System.Drawing.Size(512, 148);
+            groupBox2.Size = new System.Drawing.Size(424, 175);
             groupBox2.TabIndex = 25;
             groupBox2.TabStop = false;
             groupBox2.Text = "Dane Dostawy";
             // 
+            // Dodatek
+            // 
+            Dodatek.BackColor = System.Drawing.SystemColors.ScrollBar;
+            Dodatek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Dodatek.Location = new System.Drawing.Point(364, 56);
+            Dodatek.Name = "Dodatek";
+            Dodatek.Size = new System.Drawing.Size(51, 25);
+            Dodatek.TabIndex = 24;
+            Dodatek.TextAlign = HorizontalAlignment.Center;
+            // 
+            // Cena
+            // 
+            Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cena.Location = new System.Drawing.Point(311, 57);
+            Cena.Name = "Cena";
+            Cena.Size = new System.Drawing.Size(50, 25);
+            Cena.TabIndex = 26;
+            Cena.TextAlign = HorizontalAlignment.Center;
+            Cena.TextChanged += Cena_TextChanged;
+            // 
+            // label14
+            // 
+            label14.Location = new System.Drawing.Point(364, 24);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(51, 34);
+            label14.TabIndex = 23;
+            label14.Text = "Dodatek do ceny";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label13
+            // 
+            label13.Location = new System.Drawing.Point(311, 23);
+            label13.Name = "label13";
+            label13.Size = new System.Drawing.Size(50, 30);
+            label13.TabIndex = 25;
+            label13.Text = "Cena";
+            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // pictureBox4
+            // 
+            pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
+            pictureBox4.Location = new System.Drawing.Point(311, 83);
+            pictureBox4.Name = "pictureBox4";
+            pictureBox4.Size = new System.Drawing.Size(104, 48);
+            pictureBox4.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox4.TabIndex = 103;
+            pictureBox4.TabStop = false;
+            // 
             // checkBox1
             // 
             checkBox1.AutoSize = true;
-            checkBox1.Location = new System.Drawing.Point(359, 134);
+            checkBox1.Location = new System.Drawing.Point(260, 138);
             checkBox1.Name = "checkBox1";
             checkBox1.Size = new System.Drawing.Size(61, 19);
             checkBox1.TabIndex = 113;
@@ -1155,20 +1162,10 @@ namespace Kalendarz1
             checkBox1.UseVisualStyleBackColor = true;
             checkBox1.CheckedChanged += checkBox1_CheckedChanged;
             // 
-            // pictureBox13
-            // 
-            pictureBox13.Image = (System.Drawing.Image)resources.GetObject("pictureBox13.Image");
-            pictureBox13.Location = new System.Drawing.Point(6, 81);
-            pictureBox13.Name = "pictureBox13";
-            pictureBox13.Size = new System.Drawing.Size(89, 29);
-            pictureBox13.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox13.TabIndex = 112;
-            pictureBox13.TabStop = false;
-            // 
             // pictureBox12
             // 
             pictureBox12.Image = (System.Drawing.Image)resources.GetObject("pictureBox12.Image");
-            pictureBox12.Location = new System.Drawing.Point(359, 79);
+            pictureBox12.Location = new System.Drawing.Point(260, 83);
             pictureBox12.Name = "pictureBox12";
             pictureBox12.Size = new System.Drawing.Size(45, 29);
             pictureBox12.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1178,7 +1175,7 @@ namespace Kalendarz1
             // pictureBox11
             // 
             pictureBox11.Image = (System.Drawing.Image)resources.GetObject("pictureBox11.Image");
-            pictureBox11.Location = new System.Drawing.Point(291, 79);
+            pictureBox11.Location = new System.Drawing.Point(192, 83);
             pictureBox11.Name = "pictureBox11";
             pictureBox11.Size = new System.Drawing.Size(62, 29);
             pictureBox11.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1188,7 +1185,7 @@ namespace Kalendarz1
             // pictureBox10
             // 
             pictureBox10.Image = (System.Drawing.Image)resources.GetObject("pictureBox10.Image");
-            pictureBox10.Location = new System.Drawing.Point(227, 80);
+            pictureBox10.Location = new System.Drawing.Point(128, 84);
             pictureBox10.Name = "pictureBox10";
             pictureBox10.Size = new System.Drawing.Size(58, 29);
             pictureBox10.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1198,7 +1195,7 @@ namespace Kalendarz1
             // pictureBox8
             // 
             pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
-            pictureBox8.Location = new System.Drawing.Point(165, 79);
+            pictureBox8.Location = new System.Drawing.Point(66, 83);
             pictureBox8.Name = "pictureBox8";
             pictureBox8.Size = new System.Drawing.Size(58, 29);
             pictureBox8.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1208,27 +1205,18 @@ namespace Kalendarz1
             // pictureBox7
             // 
             pictureBox7.Image = (System.Drawing.Image)resources.GetObject("pictureBox7.Image");
-            pictureBox7.Location = new System.Drawing.Point(101, 80);
+            pictureBox7.Location = new System.Drawing.Point(2, 84);
             pictureBox7.Name = "pictureBox7";
             pictureBox7.Size = new System.Drawing.Size(58, 29);
             pictureBox7.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox7.TabIndex = 106;
             pictureBox7.TabStop = false;
             // 
-            // label18
-            // 
-            label18.Location = new System.Drawing.Point(40, 115);
-            label18.Name = "label18";
-            label18.Size = new System.Drawing.Size(37, 22);
-            label18.TabIndex = 103;
-            label18.Text = "Doba";
-            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
             // wyliczone
             // 
             wyliczone.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone.Location = new System.Drawing.Point(291, 134);
+            wyliczone.Location = new System.Drawing.Point(192, 138);
             wyliczone.Name = "wyliczone";
             wyliczone.Size = new System.Drawing.Size(62, 25);
             wyliczone.TabIndex = 44;
@@ -1236,7 +1224,7 @@ namespace Kalendarz1
             // 
             // ObliczAuta
             // 
-            ObliczAuta.Location = new System.Drawing.Point(291, 109);
+            ObliczAuta.Location = new System.Drawing.Point(192, 113);
             ObliczAuta.Name = "ObliczAuta";
             ObliczAuta.Size = new System.Drawing.Size(62, 23);
             ObliczAuta.TabIndex = 27;
@@ -1247,7 +1235,7 @@ namespace Kalendarz1
             // Ubytek
             // 
             Ubytek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Ubytek.Location = new System.Drawing.Point(228, 52);
+            Ubytek.Location = new System.Drawing.Point(129, 56);
             Ubytek.Name = "Ubytek";
             Ubytek.Size = new System.Drawing.Size(57, 25);
             Ubytek.TabIndex = 22;
@@ -1257,7 +1245,7 @@ namespace Kalendarz1
             // label15
             // 
             label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label15.Location = new System.Drawing.Point(228, 14);
+            label15.Location = new System.Drawing.Point(129, 18);
             label15.Name = "label15";
             label15.Size = new System.Drawing.Size(57, 35);
             label15.TabIndex = 21;
@@ -1268,27 +1256,17 @@ namespace Kalendarz1
             // 
             obliczeniaAut.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut.Location = new System.Drawing.Point(359, 111);
+            obliczeniaAut.Location = new System.Drawing.Point(260, 115);
             obliczeniaAut.Multiline = true;
             obliczeniaAut.Name = "obliczeniaAut";
             obliczeniaAut.Size = new System.Drawing.Size(45, 21);
             obliczeniaAut.TabIndex = 27;
             obliczeniaAut.TextAlign = HorizontalAlignment.Center;
             // 
-            // RoznicaDni
-            // 
-            RoznicaDni.BackColor = System.Drawing.SystemColors.ScrollBar;
-            RoznicaDni.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni.Location = new System.Drawing.Point(6, 115);
-            RoznicaDni.Name = "RoznicaDni";
-            RoznicaDni.Size = new System.Drawing.Size(34, 22);
-            RoznicaDni.TabIndex = 29;
-            RoznicaDni.TextAlign = HorizontalAlignment.Center;
-            // 
             // liczbaAut
             // 
             liczbaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut.Location = new System.Drawing.Point(359, 52);
+            liczbaAut.Location = new System.Drawing.Point(260, 56);
             liczbaAut.Name = "liczbaAut";
             liczbaAut.Size = new System.Drawing.Size(45, 25);
             liczbaAut.TabIndex = 26;
@@ -1296,8 +1274,8 @@ namespace Kalendarz1
             // 
             // label12
             // 
-            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label12.Location = new System.Drawing.Point(359, 14);
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label12.Location = new System.Drawing.Point(260, 18);
             label12.Name = "label12";
             label12.Size = new System.Drawing.Size(45, 35);
             label12.TabIndex = 25;
@@ -1307,7 +1285,7 @@ namespace Kalendarz1
             // sztuki
             // 
             sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki.Location = new System.Drawing.Point(291, 52);
+            sztuki.Location = new System.Drawing.Point(192, 56);
             sztuki.Name = "sztuki";
             sztuki.Size = new System.Drawing.Size(62, 25);
             sztuki.TabIndex = 24;
@@ -1317,7 +1295,7 @@ namespace Kalendarz1
             // label11
             // 
             label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label11.Location = new System.Drawing.Point(291, 20);
+            label11.Location = new System.Drawing.Point(192, 24);
             label11.Name = "label11";
             label11.Size = new System.Drawing.Size(62, 28);
             label11.TabIndex = 23;
@@ -1327,7 +1305,7 @@ namespace Kalendarz1
             // sztukNaSzuflade
             // 
             sztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade.Location = new System.Drawing.Point(165, 52);
+            sztukNaSzuflade.Location = new System.Drawing.Point(66, 56);
             sztukNaSzuflade.Name = "sztukNaSzuflade";
             sztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
             sztukNaSzuflade.TabIndex = 22;
@@ -1337,7 +1315,7 @@ namespace Kalendarz1
             // label10
             // 
             label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label10.Location = new System.Drawing.Point(165, 14);
+            label10.Location = new System.Drawing.Point(66, 18);
             label10.Name = "label10";
             label10.Size = new System.Drawing.Size(57, 35);
             label10.TabIndex = 21;
@@ -1347,7 +1325,7 @@ namespace Kalendarz1
             // srednia
             // 
             srednia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia.Location = new System.Drawing.Point(101, 53);
+            srednia.Location = new System.Drawing.Point(2, 57);
             srednia.Multiline = true;
             srednia.Name = "srednia";
             srednia.Size = new System.Drawing.Size(58, 24);
@@ -1358,38 +1336,75 @@ namespace Kalendarz1
             // label9
             // 
             label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label9.Location = new System.Drawing.Point(101, 18);
+            label9.Location = new System.Drawing.Point(2, 22);
             label9.Name = "label9";
             label9.Size = new System.Drawing.Size(58, 33);
             label9.TabIndex = 19;
             label9.Text = "Waga";
             label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label8
+            // tel3
             // 
-            label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(6, 17);
-            label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(89, 34);
-            label8.TabIndex = 18;
-            label8.Text = "Data \r\nDostawy";
-            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            tel3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel3.Location = new System.Drawing.Point(234, 356);
+            tel3.Name = "tel3";
+            tel3.Size = new System.Drawing.Size(98, 19);
+            tel3.TabIndex = 65;
+            tel3.TextAlign = HorizontalAlignment.Center;
             // 
-            // Data
+            // label24
             // 
-            Data.CustomFormat = "yyyy-MM-dd";
-            Data.Format = DateTimePickerFormat.Custom;
-            Data.Location = new System.Drawing.Point(6, 56);
-            Data.Name = "Data";
-            Data.Size = new System.Drawing.Size(89, 23);
-            Data.TabIndex = 17;
-            Data.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
-            Data.ValueChanged += Data_ValueChanged;
+            label24.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label24.Location = new System.Drawing.Point(451, 536);
+            label24.Name = "label24";
+            label24.Size = new System.Drawing.Size(95, 15);
+            label24.TabIndex = 80;
+            label24.Text = "Dane Stworzenia";
+            label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label26
+            // 
+            label26.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label26.Location = new System.Drawing.Point(233, 306);
+            label26.Name = "label26";
+            label26.Size = new System.Drawing.Size(98, 11);
+            label26.TabIndex = 69;
+            label26.Text = "Numer Telefonu";
+            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // info3
+            // 
+            info3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info3.Location = new System.Drawing.Point(333, 356);
+            info3.Name = "info3";
+            info3.Size = new System.Drawing.Size(90, 19);
+            info3.TabIndex = 68;
+            info3.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataStwo
+            // 
+            dataStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
+            dataStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataStwo.Location = new System.Drawing.Point(451, 550);
+            dataStwo.Name = "dataStwo";
+            dataStwo.Size = new System.Drawing.Size(95, 19);
+            dataStwo.TabIndex = 78;
+            dataStwo.TextAlign = HorizontalAlignment.Center;
+            // 
+            // dataMod
+            // 
+            dataMod.BackColor = System.Drawing.SystemColors.ScrollBar;
+            dataMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataMod.Location = new System.Drawing.Point(653, 550);
+            dataMod.Name = "dataMod";
+            dataMod.Size = new System.Drawing.Size(95, 19);
+            dataMod.TabIndex = 79;
+            dataMod.TextAlign = HorizontalAlignment.Center;
             // 
             // buttonCena
             // 
             buttonCena.BackColor = System.Drawing.Color.Chartreuse;
-            buttonCena.Location = new System.Drawing.Point(616, 80);
+            buttonCena.Location = new System.Drawing.Point(758, 62);
             buttonCena.Name = "buttonCena";
             buttonCena.Size = new System.Drawing.Size(75, 22);
             buttonCena.TabIndex = 107;
@@ -1399,7 +1414,7 @@ namespace Kalendarz1
             // 
             // label20
             // 
-            label20.Location = new System.Drawing.Point(1494, 107);
+            label20.Location = new System.Drawing.Point(1350, 103);
             label20.Name = "label20";
             label20.Size = new System.Drawing.Size(100, 33);
             label20.TabIndex = 75;
@@ -1408,11 +1423,12 @@ namespace Kalendarz1
             // 
             // label21
             // 
-            label21.Location = new System.Drawing.Point(292, 152);
+            label21.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label21.Location = new System.Drawing.Point(243, 3);
             label21.Name = "label21";
-            label21.Size = new System.Drawing.Size(50, 15);
+            label21.Size = new System.Drawing.Size(26, 15);
             label21.TabIndex = 76;
-            label21.Text = "Tydzień";
+            label21.Text = "Tyg";
             label21.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // comboBox3
@@ -1582,9 +1598,10 @@ namespace Kalendarz1
             // checkBoxSprzedane
             // 
             checkBoxSprzedane.AutoSize = true;
-            checkBoxSprzedane.Location = new System.Drawing.Point(616, 118);
+            checkBoxSprzedane.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxSprzedane.Location = new System.Drawing.Point(0, 4);
             checkBoxSprzedane.Name = "checkBoxSprzedane";
-            checkBoxSprzedane.Size = new System.Drawing.Size(80, 19);
+            checkBoxSprzedane.Size = new System.Drawing.Size(62, 15);
             checkBoxSprzedane.TabIndex = 87;
             checkBoxSprzedane.Text = "Sprzedane";
             checkBoxSprzedane.UseVisualStyleBackColor = true;
@@ -1592,70 +1609,20 @@ namespace Kalendarz1
             // checkBoxDoWykupienia
             // 
             checkBoxDoWykupienia.AutoSize = true;
-            checkBoxDoWykupienia.Location = new System.Drawing.Point(616, 151);
+            checkBoxDoWykupienia.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxDoWykupienia.Location = new System.Drawing.Point(68, 4);
             checkBoxDoWykupienia.Name = "checkBoxDoWykupienia";
-            checkBoxDoWykupienia.Size = new System.Drawing.Size(88, 19);
+            checkBoxDoWykupienia.Size = new System.Drawing.Size(66, 15);
             checkBoxDoWykupienia.TabIndex = 88;
             checkBoxDoWykupienia.Text = "Wykupienia";
             checkBoxDoWykupienia.UseVisualStyleBackColor = true;
             // 
-            // label28
-            // 
-            label28.Location = new System.Drawing.Point(287, 66);
-            label28.Name = "label28";
-            label28.Size = new System.Drawing.Size(55, 19);
-            label28.TabIndex = 90;
-            label28.Text = "Kontrakt";
-            label28.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox1
-            // 
-            textBox1.Location = new System.Drawing.Point(346, 66);
-            textBox1.Multiline = true;
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(26, 19);
-            textBox1.TabIndex = 89;
-            // 
-            // label32
-            // 
-            label32.Location = new System.Drawing.Point(300, 91);
-            label32.Name = "label32";
-            label32.Size = new System.Drawing.Size(42, 19);
-            label32.TabIndex = 92;
-            label32.Text = "Wolny";
-            label32.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox3
-            // 
-            textBox3.Location = new System.Drawing.Point(346, 91);
-            textBox3.Multiline = true;
-            textBox3.Name = "textBox3";
-            textBox3.Size = new System.Drawing.Size(26, 19);
-            textBox3.TabIndex = 91;
-            // 
-            // label33
-            // 
-            label33.Location = new System.Drawing.Point(303, 116);
-            label33.Name = "label33";
-            label33.Size = new System.Drawing.Size(39, 15);
-            label33.TabIndex = 94;
-            label33.Text = "Suma";
-            label33.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox4
-            // 
-            textBox4.Location = new System.Drawing.Point(346, 116);
-            textBox4.Multiline = true;
-            textBox4.Name = "textBox4";
-            textBox4.Size = new System.Drawing.Size(26, 19);
-            textBox4.TabIndex = 93;
-            // 
             // CommandButton_Update
             // 
             CommandButton_Update.BackColor = System.Drawing.Color.FloralWhite;
-            CommandButton_Update.Location = new System.Drawing.Point(462, 5);
+            CommandButton_Update.Location = new System.Drawing.Point(539, 181);
             CommandButton_Update.Name = "CommandButton_Update";
-            CommandButton_Update.Size = new System.Drawing.Size(118, 23);
+            CommandButton_Update.Size = new System.Drawing.Size(71, 44);
             CommandButton_Update.TabIndex = 97;
             CommandButton_Update.Text = "Modyfikuj dostawe";
             CommandButton_Update.UseVisualStyleBackColor = false;
@@ -1663,9 +1630,9 @@ namespace Kalendarz1
             // 
             // button2
             // 
-            button2.Location = new System.Drawing.Point(382, 5);
+            button2.Location = new System.Drawing.Point(539, 379);
             button2.Name = "button2";
-            button2.Size = new System.Drawing.Size(75, 23);
+            button2.Size = new System.Drawing.Size(71, 37);
             button2.TabIndex = 98;
             button2.Text = "Anuluj";
             button2.UseVisualStyleBackColor = true;
@@ -1674,9 +1641,9 @@ namespace Kalendarz1
             // 
             button3.BackColor = System.Drawing.SystemColors.ActiveCaptionText;
             button3.ForeColor = System.Drawing.SystemColors.ControlLightLight;
-            button3.Location = new System.Drawing.Point(587, 32);
+            button3.Location = new System.Drawing.Point(539, 234);
             button3.Name = "button3";
-            button3.Size = new System.Drawing.Size(117, 23);
+            button3.Size = new System.Drawing.Size(71, 46);
             button3.TabIndex = 99;
             button3.Text = "Usuń dostawe";
             button3.UseVisualStyleBackColor = false;
@@ -1684,9 +1651,9 @@ namespace Kalendarz1
             // CommandButton_Insert
             // 
             CommandButton_Insert.BackColor = System.Drawing.Color.FloralWhite;
-            CommandButton_Insert.Location = new System.Drawing.Point(462, 36);
+            CommandButton_Insert.Location = new System.Drawing.Point(539, 286);
             CommandButton_Insert.Name = "CommandButton_Insert";
-            CommandButton_Insert.Size = new System.Drawing.Size(118, 23);
+            CommandButton_Insert.Size = new System.Drawing.Size(71, 39);
             CommandButton_Insert.TabIndex = 100;
             CommandButton_Insert.Text = "Dodaj dostawe";
             CommandButton_Insert.UseVisualStyleBackColor = false;
@@ -1694,73 +1661,77 @@ namespace Kalendarz1
             // 
             // label38
             // 
-            label38.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label38.Location = new System.Drawing.Point(115, 19);
+            label38.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label38.Location = new System.Drawing.Point(93, 16);
             label38.Name = "label38";
-            label38.Size = new System.Drawing.Size(50, 35);
+            label38.Size = new System.Drawing.Size(37, 14);
             label38.TabIndex = 106;
-            label38.Text = "Cena Łączona";
+            label38.Text = "Łączona";
             label38.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // textLaczona
             // 
-            textLaczona.Location = new System.Drawing.Point(115, 57);
+            textLaczona.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textLaczona.Location = new System.Drawing.Point(93, 30);
             textLaczona.Name = "textLaczona";
-            textLaczona.Size = new System.Drawing.Size(50, 23);
+            textLaczona.Size = new System.Drawing.Size(37, 18);
             textLaczona.TabIndex = 105;
             textLaczona.TextAlign = HorizontalAlignment.Center;
             // 
             // label39
             // 
-            label39.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label39.Location = new System.Drawing.Point(59, 19);
+            label39.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label39.Location = new System.Drawing.Point(44, 13);
             label39.Name = "label39";
-            label39.Size = new System.Drawing.Size(50, 35);
+            label39.Size = new System.Drawing.Size(50, 20);
             label39.TabIndex = 104;
-            label39.Text = "Cena Minister";
+            label39.Text = "Minister";
             label39.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // textMinister
             // 
-            textMinister.Location = new System.Drawing.Point(59, 57);
+            textMinister.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textMinister.Location = new System.Drawing.Point(50, 30);
             textMinister.Name = "textMinister";
-            textMinister.Size = new System.Drawing.Size(50, 23);
+            textMinister.Size = new System.Drawing.Size(37, 18);
             textMinister.TabIndex = 103;
             textMinister.TextAlign = HorizontalAlignment.Center;
             // 
             // label40
             // 
-            label40.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label40.Location = new System.Drawing.Point(3, 19);
+            label40.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label40.Location = new System.Drawing.Point(6, 13);
             label40.Name = "label40";
-            label40.Size = new System.Drawing.Size(51, 35);
+            label40.Size = new System.Drawing.Size(38, 20);
             label40.TabIndex = 102;
-            label40.Text = "Cena Rolnicza";
+            label40.Text = "Rolnicza";
             label40.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // textRolnicza
             // 
-            textRolnicza.Location = new System.Drawing.Point(3, 57);
+            textRolnicza.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textRolnicza.Location = new System.Drawing.Point(6, 30);
             textRolnicza.Name = "textRolnicza";
-            textRolnicza.Size = new System.Drawing.Size(50, 23);
+            textRolnicza.Size = new System.Drawing.Size(37, 18);
             textRolnicza.TabIndex = 101;
             textRolnicza.TextAlign = HorizontalAlignment.Center;
             // 
             // label42
             // 
-            label42.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label42.Location = new System.Drawing.Point(171, 19);
+            label42.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label42.Location = new System.Drawing.Point(136, 16);
             label42.Name = "label42";
-            label42.Size = new System.Drawing.Size(50, 35);
+            label42.Size = new System.Drawing.Size(37, 14);
             label42.TabIndex = 109;
-            label42.Text = "Cena Tuszki";
+            label42.Text = "Tuszki";
             label42.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // textTuszki
             // 
-            textTuszki.Location = new System.Drawing.Point(171, 57);
+            textTuszki.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textTuszki.Location = new System.Drawing.Point(136, 30);
             textTuszki.Name = "textTuszki";
-            textTuszki.Size = new System.Drawing.Size(50, 23);
+            textTuszki.Size = new System.Drawing.Size(37, 18);
             textTuszki.TabIndex = 108;
             textTuszki.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1778,18 +1749,19 @@ namespace Kalendarz1
             groupBox5.Controls.Add(label38);
             groupBox5.Controls.Add(label39);
             groupBox5.Controls.Add(textLaczona);
-            groupBox5.Location = new System.Drawing.Point(382, 61);
+            groupBox5.Location = new System.Drawing.Point(758, 90);
             groupBox5.Name = "groupBox5";
-            groupBox5.Size = new System.Drawing.Size(228, 110);
+            groupBox5.Size = new System.Drawing.Size(177, 76);
             groupBox5.TabIndex = 110;
             groupBox5.TabStop = false;
             groupBox5.Text = "Ceny";
             // 
             // buttonPokazTuszke
             // 
-            buttonPokazTuszke.Location = new System.Drawing.Point(171, 86);
+            buttonPokazTuszke.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonPokazTuszke.Location = new System.Drawing.Point(135, 52);
             buttonPokazTuszke.Name = "buttonPokazTuszke";
-            buttonPokazTuszke.Size = new System.Drawing.Size(50, 23);
+            buttonPokazTuszke.Size = new System.Drawing.Size(36, 22);
             buttonPokazTuszke.TabIndex = 112;
             buttonPokazTuszke.Text = "Pokaz";
             buttonPokazTuszke.UseVisualStyleBackColor = true;
@@ -1798,36 +1770,39 @@ namespace Kalendarz1
             // textRolniczaPrzebitka
             // 
             textRolniczaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textRolniczaPrzebitka.Location = new System.Drawing.Point(3, 86);
+            textRolniczaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textRolniczaPrzebitka.Location = new System.Drawing.Point(6, 51);
             textRolniczaPrzebitka.Name = "textRolniczaPrzebitka";
-            textRolniczaPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textRolniczaPrzebitka.Size = new System.Drawing.Size(37, 18);
             textRolniczaPrzebitka.TabIndex = 112;
             textRolniczaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
             // textMinisterPrzebitka
             // 
             textMinisterPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textMinisterPrzebitka.Location = new System.Drawing.Point(59, 86);
+            textMinisterPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textMinisterPrzebitka.Location = new System.Drawing.Point(50, 51);
             textMinisterPrzebitka.Name = "textMinisterPrzebitka";
-            textMinisterPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textMinisterPrzebitka.Size = new System.Drawing.Size(37, 18);
             textMinisterPrzebitka.TabIndex = 113;
             textMinisterPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
             // textLaczonaPrzebitka
             // 
             textLaczonaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textLaczonaPrzebitka.Location = new System.Drawing.Point(115, 86);
+            textLaczonaPrzebitka.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textLaczonaPrzebitka.Location = new System.Drawing.Point(93, 52);
             textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
-            textLaczonaPrzebitka.Size = new System.Drawing.Size(50, 23);
+            textLaczonaPrzebitka.Size = new System.Drawing.Size(37, 18);
             textLaczonaPrzebitka.TabIndex = 114;
             textLaczonaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
             // buttonWstawienie
             // 
             buttonWstawienie.BackColor = System.Drawing.Color.Yellow;
-            buttonWstawienie.Location = new System.Drawing.Point(586, 5);
+            buttonWstawienie.Location = new System.Drawing.Point(539, 333);
             buttonWstawienie.Name = "buttonWstawienie";
-            buttonWstawienie.Size = new System.Drawing.Size(118, 23);
+            buttonWstawienie.Size = new System.Drawing.Size(71, 41);
             buttonWstawienie.TabIndex = 112;
             buttonWstawienie.Text = "Dodaj wstawienie";
             buttonWstawienie.UseVisualStyleBackColor = false;
@@ -1836,10 +1811,10 @@ namespace Kalendarz1
             // dataGridPartie
             // 
             dataGridPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridPartie.Location = new System.Drawing.Point(710, 4);
+            dataGridPartie.Location = new System.Drawing.Point(934, 12);
             dataGridPartie.Name = "dataGridPartie";
             dataGridPartie.RowTemplate.Height = 25;
-            dataGridPartie.Size = new System.Drawing.Size(334, 166);
+            dataGridPartie.Size = new System.Drawing.Size(510, 161);
             dataGridPartie.TabIndex = 113;
             dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             // 
@@ -1847,15 +1822,9 @@ namespace Kalendarz1
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1603, 1061);
-            Controls.Add(label33);
-            Controls.Add(label32);
-            Controls.Add(label28);
+            ClientSize = new System.Drawing.Size(1448, 1061);
             Controls.Add(buttonCena);
-            Controls.Add(textBox4);
             Controls.Add(MyCalendar);
-            Controls.Add(textBox1);
-            Controls.Add(textBox3);
             Controls.Add(dataGridPartie);
             Controls.Add(buttonWstawienie);
             Controls.Add(CommandButton_Insert);
@@ -1897,6 +1866,8 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
+            groupBox4.ResumeLayout(false);
+            groupBox4.PerformLayout();
             groupBox6.ResumeLayout(false);
             groupBox6.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox16).EndInit();
@@ -1904,11 +1875,6 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox17).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox15).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox6).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox5).EndInit();
-            groupBox4.ResumeLayout(false);
-            groupBox4.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox4).EndInit();
             groupBox3.ResumeLayout(false);
             groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)DataGridWstawienia).EndInit();
@@ -1916,7 +1882,7 @@ namespace Kalendarz1
             tablicaHodowca.PerformLayout();
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox13).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox4).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox12).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox10).EndInit();
@@ -1953,7 +1919,6 @@ namespace Kalendarz1
         private Label label10;
         private TextBox srednia;
         private Label label9;
-        private Label label8;
         private DateTimePicker Data;
         private TextBox Cena;
         private Label label13;
@@ -1961,11 +1926,7 @@ namespace Kalendarz1
         private Label label14;
         private TextBox Ubytek;
         private Label label15;
-        private Label label27;
         private Label label26;
-        private TextBox info3;
-        private TextBox info2;
-        private TextBox info1;
         private TextBox tel3;
         private TextBox tel2;
         private TextBox tel1;
@@ -2022,12 +1983,6 @@ namespace Kalendarz1
         private TextBox textBox11;
         private CheckBox checkBoxSprzedane;
         private CheckBox checkBoxDoWykupienia;
-        private Label label28;
-        private TextBox textBox1;
-        private Label label32;
-        private TextBox textBox3;
-        private Label label33;
-        private TextBox textBox4;
         private DataGridView DataGridWstawienia;
         private GroupBox groupBox3;
         private Label label35;
@@ -2038,7 +1993,6 @@ namespace Kalendarz1
         private Label lalv;
         private TextBox ktoStwo;
         private Button CommandButton_Insert;
-        private GroupBox groupBox4;
         private PictureBox pictureBox4;
         private Label label18;
         private TextBox Email;
@@ -2046,7 +2000,6 @@ namespace Kalendarz1
         private PictureBox pictureBox5;
         private Label label37;
         private TextBox textboxObecnaDoba;
-        private PictureBox pictureBox6;
         private Label label38;
         private TextBox textLaczona;
         private Label label39;
@@ -2061,7 +2014,6 @@ namespace Kalendarz1
         private TextBox textTuszki;
         private GroupBox groupBox5;
         private PictureBox pictureBox8;
-        private PictureBox pictureBox13;
         private PictureBox pictureBox12;
         private PictureBox pictureBox11;
         private PictureBox pictureBox10;
@@ -2087,5 +2039,14 @@ namespace Kalendarz1
         private Label label43;
         private TextBox KGwSkrzynekWAucie;
         private PictureBox pictureBox14;
+        private Label label47;
+        private Label label46;
+        private TextBox NotatkaHodowca;
+        private TextBox info1;
+        private TextBox info2;
+        private Label label27;
+        private TextBox info3;
+        private GroupBox groupBox4;
+        private Label label8;
     }
 }

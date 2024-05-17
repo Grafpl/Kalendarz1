@@ -101,14 +101,14 @@ namespace Kalendarz1
                             dataGridPartie.Columns["DataKolumna2"].Visible = false;
                             dataGridPartie.Columns["SredniaTuszkaKolumna"].Visible = false;
 
-                            dataGridPartie.Columns["PartiaKolumna"].Width = 20;
-                            dataGridPartie.Columns["DostawcaKolumna2"].Width = 80;
-                            dataGridPartie.Columns["WagaDek2Kolumna"].Width = 40;
-                            dataGridPartie.Columns["SredniaDokładnaKolumna"].Width = 50;
-                            dataGridPartie.Columns["SredniaTuszkaKolumna"].Width = 40;
-                            dataGridPartie.Columns["SredniaZywyKolumna"].Width = 40;
-                            dataGridPartie.Columns["WagaDekKolumna"].Width = 40;
-                            dataGridPartie.Columns["roznicaKolumna"].Width = 40;
+                            dataGridPartie.Columns["PartiaKolumna"].Width = 30;
+                            dataGridPartie.Columns["DostawcaKolumna2"].Width = 95;
+                            dataGridPartie.Columns["WagaDek2Kolumna"].Width = 50;
+                            dataGridPartie.Columns["SredniaDokładnaKolumna"].Width = 60;
+                            dataGridPartie.Columns["SredniaTuszkaKolumna"].Width = 50;
+                            dataGridPartie.Columns["SredniaZywyKolumna"].Width = 50;
+                            dataGridPartie.Columns["WagaDekKolumna"].Width = 50;
+                            dataGridPartie.Columns["roznicaKolumna"].Width = 50;
 
                             dataGridPartie.ColumnHeadersVisible = false;
 
@@ -269,6 +269,7 @@ namespace Kalendarz1
 
                             dataGridView1.Columns["LP"].Visible = false;
                             dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
+                            dataGridView1.Columns["bufor"].Visible = false;
 
                             // Ustawienie szerokości kolumn
                             dataGridView1.Columns["LP"].Width = 50; // Szerokość kolumny "LP" na 50 pikseli
@@ -279,7 +280,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["WagaDek"].Width = 50; // Szerokość kolumny "WagaDek" na 100 pikseli
                             dataGridView1.Columns["bufor"].Width = 85; // Szerokość kolumny "bufor" na 100 pikseli
                             dataGridView1.Columns["RóżnicaDni"].Width = 43; // Szerokość kolumny "RóżnicaDni" na 100 pikseli
-                            dataGridView1.Columns["TypCenyKolumna"].Width = 85; // Szerokość kolumny "bufor" na 100 pikseli
+                            dataGridView1.Columns["TypCenyKolumna"].Width = 70; // Szerokość kolumny "bufor" na 100 pikseli
                             dataGridView1.Columns["CenaKolumna"].Width = 50; // Szerokość kolumny "RóżnicaDni" na 100 pikseli
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
@@ -1052,6 +1053,16 @@ namespace Kalendarz1
 
             // Wyświetl sumę w TextBoxSuma
             KGSuma.Text = suma.ToString("N0"); // Formatowanie do liczby całkowitej z separatorem tysięcy
+        }
+
+        private void groupBox1_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tel2_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
