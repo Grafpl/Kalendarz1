@@ -188,7 +188,7 @@ namespace Kalendarz1
                 string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
 
                 // Split delivery info into lines and add empty lines between them
-                string[] deliveryLines = { "Szczegóły dostawy", strDzienUbojowy, czyjaWaga, "", "" }; // Empty lines for spacing
+                string[] deliveryLines = { "Szczegóły dostawy:", "Data Uboju :" + strDzienUbojowy, "Waga loco :" + czyjaWaga, "", "" }; // Empty lines for spacing
                 foreach (string line in deliveryLines)
                 {
                     deliveryInfoCell.AddElement(new Phrase(line, textFont));
@@ -440,9 +440,12 @@ namespace Kalendarz1
                     string strOpasienieKG = "- " + Math.Round(opasienieKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG uUbytek
-                    Decimal ubytekUstalony = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
-                    Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalony;
-                    string strUbytekUstalonyKG = "- " + Math.Round(ubytekUstalony, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
+
+                    // Ubytek Ustalony
+                    Decimal ubytekUstalonyProcent = zapytaniasql.PobierzInformacjeZBazyDanych<Decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    Decimal ubytekUstalonyKG = WagaHodowcaNetto * ubytekUstalonyProcent;
+                    string strUbytekUstalonyKG = "- " + ubytekUstalonyKG.ToString("N0") + " kg";
+
 
                     // KG Klasa B
                     decimal klasaB = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB");
@@ -451,8 +454,6 @@ namespace Kalendarz1
                     // Suma KG do Zapłaty
                     decimal sumaDoZaplaty = WagaHodowcaNetto - padleKG - konfiskatySumaKG - opasienieKG - ubytekUstalonyKG - klasaB;
                     string strSumaDoZaplaty = Math.Round(sumaDoZaplaty, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
-
-
 
                     // Cena
                     decimal Cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
