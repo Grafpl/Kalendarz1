@@ -175,7 +175,7 @@ namespace Kalendarz1
             }
             else
             {
-                MessageBox.Show("Podane wartości muszą być liczbami.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                
                 return;
             }
 

@@ -7,9 +7,14 @@ using System;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Data;
 using System.Data.SqlTypes;
+using System.Diagnostics;
 using System.Threading.Channels;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Diagnostics;
+using System.IO;
+using System.Windows.Forms;
+using System.Security.Policy;
 
 
 namespace Kalendarz1
@@ -87,10 +92,11 @@ namespace Kalendarz1
                                 // Przypisz pobrane wartości z bazy danych do TextBox-ów
                                 Status.Text = reader["bufor"].ToString(); // Przypisz wartość bufora
                                 Data.Text = reader["DataOdbioru"].ToString(); // Przypisz wartość daty
-                                Dostawca.Text = reader["Dostawca"].ToString();
+                                
                                 KmH.Text = reader["KmH"].ToString();
                                 //Kurnik.Text = reader["GID"].ToString();
                                 KmK.Text = reader["KmK"].ToString();
+                                Dostawca.Text = reader["Dostawca"].ToString();
                                 liczbaAut.Text = reader["Auta"].ToString();
                                 srednia.Text = reader["WagaDek"].ToString();
                                 sztukNaSzuflade.Text = reader["SztSzuflada"].ToString();
@@ -1046,8 +1052,73 @@ namespace Kalendarz1
                         MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
+        public void OtworzGoogleMaps(TextBox UlicaK, TextBox KodPocztowyK)
+        {
+            string przegladarka = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
+            string alternatywnaPrzegladarka = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+            string adresZrodlowy = "Koziołki 40, 95-061 Dmosin";
+            string adresDocelowy = $"{UlicaK.Text}, {KodPocztowyK.Text}";
+
+            // Sprawdzenie, czy pierwotna lokalizacja istnieje
+            if (!File.Exists(przegladarka))
+            {
+                // Lokalizacja nie istnieje, zmień na alternatywną lokalizację
+                przegladarka = alternatywnaPrzegladarka;
             }
+
+            // Zamiana spacji na znaki +
+            adresZrodlowy = adresZrodlowy.Replace(" ", "+");
+            adresDocelowy = adresDocelowy.Replace(" ", "+");
+
+            // Tworzenie URL
+            string adres = $"https://www.google.com/maps/dir/{adresZrodlowy}/{adresDocelowy}";
+
+            // Uruchomienie przeglądarki z odpowiednim adresem
+            Process.Start(przegladarka, adres);
+        }
+        public void OtworzCenyRolne()
+        {
+            string url = "https://www.cenyrolnicze.pl/wiadomosci/rynki-rolne/drob";
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie można otworzyć strony: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        public void OtworzCenyTuszki()
+        {
+            string url = "https://www.cenyrolnicze.pl/mieso/drob";
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie można otworzyć strony: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        public void OtworzCenyMinistra()
+        {
+            string url = "https://www.gov.pl/web/rolnictwo/rynek-drobiu";
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie można otworzyć strony: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+    // Metoda pomocnicza do otwierania URL w domyślnej przeglądarce
+
+}
 
     public class CenoweMetody
         {

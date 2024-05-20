@@ -34,9 +34,13 @@ namespace Kalendarz1
             // Przypisanie wartości UserID
             widokKalendarza.UserID = App.UserID;
 
+            // Ustawienie formularza w trybie maksymalnym
+            widokKalendarza.WindowState = FormWindowState.Maximized;
+
             // Wyświetlanie formularza
             widokKalendarza.Show();
         }
+
 
         private void MENU_Load(object sender, EventArgs e)
         {
