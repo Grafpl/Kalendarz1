@@ -1678,7 +1678,7 @@ namespace Kalendarz1
             // label38
             // 
             label38.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label38.Location = new System.Drawing.Point(127, 22);
+            label38.Location = new System.Drawing.Point(129, 22);
             label38.Name = "label38";
             label38.Size = new System.Drawing.Size(37, 14);
             label38.TabIndex = 106;
@@ -1690,7 +1690,7 @@ namespace Kalendarz1
             textLaczona.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textLaczona.Location = new System.Drawing.Point(127, 36);
             textLaczona.Name = "textLaczona";
-            textLaczona.Size = new System.Drawing.Size(37, 21);
+            textLaczona.Size = new System.Drawing.Size(52, 21);
             textLaczona.TabIndex = 105;
             textLaczona.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1699,7 +1699,7 @@ namespace Kalendarz1
             textMinister.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textMinister.Location = new System.Drawing.Point(66, 37);
             textMinister.Name = "textMinister";
-            textMinister.Size = new System.Drawing.Size(37, 21);
+            textMinister.Size = new System.Drawing.Size(45, 21);
             textMinister.TabIndex = 103;
             textMinister.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1708,7 +1708,7 @@ namespace Kalendarz1
             textRolnicza.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textRolnicza.Location = new System.Drawing.Point(6, 37);
             textRolnicza.Name = "textRolnicza";
-            textRolnicza.Size = new System.Drawing.Size(37, 21);
+            textRolnicza.Size = new System.Drawing.Size(54, 21);
             textRolnicza.TabIndex = 101;
             textRolnicza.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1717,7 +1717,7 @@ namespace Kalendarz1
             label42.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             label42.Location = new System.Drawing.Point(190, 24);
             label42.Name = "label42";
-            label42.Size = new System.Drawing.Size(37, 10);
+            label42.Size = new System.Drawing.Size(46, 10);
             label42.TabIndex = 109;
             label42.Text = "Tuszki";
             label42.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -1728,7 +1728,7 @@ namespace Kalendarz1
             textTuszki.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textTuszki.Location = new System.Drawing.Point(190, 35);
             textTuszki.Name = "textTuszki";
-            textTuszki.Size = new System.Drawing.Size(37, 21);
+            textTuszki.Size = new System.Drawing.Size(46, 21);
             textTuszki.TabIndex = 108;
             textTuszki.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1749,7 +1749,7 @@ namespace Kalendarz1
             groupBox5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             groupBox5.Location = new System.Drawing.Point(886, 79);
             groupBox5.Name = "groupBox5";
-            groupBox5.Size = new System.Drawing.Size(232, 84);
+            groupBox5.Size = new System.Drawing.Size(242, 84);
             groupBox5.TabIndex = 110;
             groupBox5.TabStop = false;
             // 
@@ -1770,7 +1770,7 @@ namespace Kalendarz1
             textRolniczaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textRolniczaPrzebitka.Location = new System.Drawing.Point(6, 58);
             textRolniczaPrzebitka.Name = "textRolniczaPrzebitka";
-            textRolniczaPrzebitka.Size = new System.Drawing.Size(37, 21);
+            textRolniczaPrzebitka.Size = new System.Drawing.Size(54, 21);
             textRolniczaPrzebitka.TabIndex = 112;
             textRolniczaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1780,7 +1780,7 @@ namespace Kalendarz1
             textMinisterPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textMinisterPrzebitka.Location = new System.Drawing.Point(66, 58);
             textMinisterPrzebitka.Name = "textMinisterPrzebitka";
-            textMinisterPrzebitka.Size = new System.Drawing.Size(37, 21);
+            textMinisterPrzebitka.Size = new System.Drawing.Size(45, 21);
             textMinisterPrzebitka.TabIndex = 113;
             textMinisterPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1790,7 +1790,7 @@ namespace Kalendarz1
             textLaczonaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textLaczonaPrzebitka.Location = new System.Drawing.Point(127, 58);
             textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
-            textLaczonaPrzebitka.Size = new System.Drawing.Size(37, 21);
+            textLaczonaPrzebitka.Size = new System.Drawing.Size(52, 21);
             textLaczonaPrzebitka.TabIndex = 114;
             textLaczonaPrzebitka.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1808,9 +1808,9 @@ namespace Kalendarz1
             // label39
             // 
             label39.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label39.Location = new System.Drawing.Point(57, 19);
+            label39.Location = new System.Drawing.Point(66, 19);
             label39.Name = "label39";
-            label39.Size = new System.Drawing.Size(54, 20);
+            label39.Size = new System.Drawing.Size(57, 20);
             label39.TabIndex = 104;
             label39.Text = "Ministerialna";
             label39.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
