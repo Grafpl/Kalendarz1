@@ -1646,7 +1646,7 @@ namespace Kalendarz1
             // 
             // button2
             // 
-            button2.Location = new System.Drawing.Point(618, 612);
+            button2.Location = new System.Drawing.Point(724, 837);
             button2.Name = "button2";
             button2.Size = new System.Drawing.Size(71, 46);
             button2.TabIndex = 98;
@@ -1864,9 +1864,9 @@ namespace Kalendarz1
             // buttonUpDate
             // 
             buttonUpDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            buttonUpDate.Location = new System.Drawing.Point(618, 660);
+            buttonUpDate.Location = new System.Drawing.Point(629, 621);
             buttonUpDate.Name = "buttonUpDate";
-            buttonUpDate.Size = new System.Drawing.Size(36, 33);
+            buttonUpDate.Size = new System.Drawing.Size(50, 49);
             buttonUpDate.TabIndex = 116;
             buttonUpDate.Text = "⬇";
             buttonUpDate.UseVisualStyleBackColor = true;
@@ -1875,9 +1875,9 @@ namespace Kalendarz1
             // buttonDownDate
             // 
             buttonDownDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            buttonDownDate.Location = new System.Drawing.Point(660, 660);
+            buttonDownDate.Location = new System.Drawing.Point(629, 566);
             buttonDownDate.Name = "buttonDownDate";
-            buttonDownDate.Size = new System.Drawing.Size(36, 33);
+            buttonDownDate.Size = new System.Drawing.Size(50, 46);
             buttonDownDate.TabIndex = 117;
             buttonDownDate.Text = "⬆️";
             buttonDownDate.UseVisualStyleBackColor = true;

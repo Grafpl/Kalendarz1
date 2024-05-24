@@ -58,6 +58,8 @@ namespace Kalendarz1
                 dataGridView3.Columns.Add("Dostawca", "Dostawca");
                 dataGridView3.Columns.Add("IloscWstawienia", "Ilosc Wstawienia");
 
+
+
                 for (int i = 0; i < dataGridView1.Rows.Count; i++)
                 {
                     // Formatowanie wierszy zgodnie z statusami
@@ -73,9 +75,6 @@ namespace Kalendarz1
                         );
                     }
                 }
-
-                // Podświetlanie komórek z datą wstawienia większą niż 2024 rok
-                //HighlightCellsWithDateGreaterThan2024(table);
             }
         }
 

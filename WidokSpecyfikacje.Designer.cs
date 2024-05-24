@@ -33,8 +33,10 @@
             button1 = new System.Windows.Forms.Button();
             dataGridView2 = new System.Windows.Forms.DataGridView();
             btnLoadData = new System.Windows.Forms.Button();
+            buttonDown = new System.Windows.Forms.Button();
+            buttonUP = new System.Windows.Forms.Button();
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            Numer = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            Nr = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
             SztukiDek = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Padle = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -52,7 +54,7 @@
             KilogramyWybijak = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Cena = new System.Windows.Forms.DataGridViewTextBoxColumn();
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            PiK = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            PiK = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             Ubytek = new System.Windows.Forms.DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -60,32 +62,31 @@
             // 
             // dateTimePicker1
             // 
-            dateTimePicker1.Location = new System.Drawing.Point(15, 18);
-            dateTimePicker1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dateTimePicker1.Location = new System.Drawing.Point(12, 12);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(256, 30);
+            dateTimePicker1.Size = new System.Drawing.Size(200, 23);
             dateTimePicker1.TabIndex = 0;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Numer, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
-            dataGridView1.Location = new System.Drawing.Point(15, 77);
-            dataGridView1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Nr, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
+            dataGridView1.Location = new System.Drawing.Point(12, 50);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1549, 846);
+            dataGridView1.Size = new System.Drawing.Size(1469, 452);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
+            dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
+            dataGridView1.RowPostPaint += dataGridView1_RowPostPaint;
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(739, 18);
-            button1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            button1.Location = new System.Drawing.Point(575, 12);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(96, 35);
+            button1.Size = new System.Drawing.Size(75, 23);
             button1.TabIndex = 2;
             button1.Text = "Drukuj Specyfikacje";
             button1.UseVisualStyleBackColor = true;
@@ -94,44 +95,64 @@
             // dataGridView2
             // 
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(1572, 77);
-            dataGridView2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dataGridView2.Location = new System.Drawing.Point(1487, 50);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(339, 846);
+            dataGridView2.Size = new System.Drawing.Size(264, 552);
             dataGridView2.TabIndex = 3;
             // 
             // btnLoadData
             // 
-            btnLoadData.Location = new System.Drawing.Point(1572, 32);
-            btnLoadData.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            btnLoadData.Location = new System.Drawing.Point(1487, 21);
             btnLoadData.Name = "btnLoadData";
-            btnLoadData.Size = new System.Drawing.Size(96, 35);
+            btnLoadData.Size = new System.Drawing.Size(75, 23);
             btnLoadData.TabIndex = 4;
             btnLoadData.Text = "Pokaż LUMEL";
             btnLoadData.UseVisualStyleBackColor = true;
             btnLoadData.Click += btnLoadData_Click_1;
+            // 
+            // buttonDown
+            // 
+            buttonDown.Location = new System.Drawing.Point(280, 11);
+            buttonDown.Margin = new System.Windows.Forms.Padding(2);
+            buttonDown.Name = "buttonDown";
+            buttonDown.Size = new System.Drawing.Size(58, 23);
+            buttonDown.TabIndex = 6;
+            buttonDown.Text = "Dol";
+            buttonDown.UseVisualStyleBackColor = true;
+            buttonDown.Click += buttonDown_Click;
+            // 
+            // buttonUP
+            // 
+            buttonUP.Location = new System.Drawing.Point(217, 11);
+            buttonUP.Margin = new System.Windows.Forms.Padding(2);
+            buttonUP.Name = "buttonUP";
+            buttonUP.Size = new System.Drawing.Size(58, 23);
+            buttonUP.TabIndex = 5;
+            buttonUP.Text = "Gora";
+            buttonUP.UseVisualStyleBackColor = true;
+            buttonUP.Click += buttonUP_Click;
             // 
             // ID
             // 
             ID.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             ID.HeaderText = "ID";
             ID.Name = "ID";
-            ID.Width = 60;
+            ID.Width = 45;
             // 
-            // Numer
+            // Nr
             // 
-            Numer.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            Numer.HeaderText = "Nr";
-            Numer.Name = "Numer";
-            Numer.Width = 35;
+            Nr.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            Nr.HeaderText = "Nr";
+            Nr.Name = "Nr";
+            Nr.Width = 35;
             // 
             // Dostawca
             // 
-            Dostawca.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            Dostawca.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
             Dostawca.HeaderText = "Dostawca";
             Dostawca.Name = "Dostawca";
-            Dostawca.Width = 200;
+            Dostawca.Width = 83;
             // 
             // SztukiDek
             // 
@@ -171,66 +192,66 @@
             // BruttoHodowcy
             // 
             BruttoHodowcy.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            BruttoHodowcy.FillWeight = 65F;
+            BruttoHodowcy.FillWeight = 55F;
             BruttoHodowcy.HeaderText = "Brutto Hodowcy";
             BruttoHodowcy.Name = "BruttoHodowcy";
-            BruttoHodowcy.Width = 65;
+            BruttoHodowcy.Width = 55;
             // 
             // TaraHodowcy
             // 
             TaraHodowcy.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             TaraHodowcy.HeaderText = "Tara Hodowcy";
             TaraHodowcy.Name = "TaraHodowcy";
-            TaraHodowcy.Width = 65;
+            TaraHodowcy.Width = 55;
             // 
             // NettoHodowcy
             // 
             NettoHodowcy.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             NettoHodowcy.HeaderText = "Netto Hodowcy";
             NettoHodowcy.Name = "NettoHodowcy";
-            NettoHodowcy.Width = 65;
+            NettoHodowcy.Width = 55;
             // 
             // BruttoUbojni
             // 
             BruttoUbojni.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             BruttoUbojni.HeaderText = "Brutto Ubojni";
             BruttoUbojni.Name = "BruttoUbojni";
-            BruttoUbojni.Width = 65;
+            BruttoUbojni.Width = 55;
             // 
             // TaraUbojni
             // 
             TaraUbojni.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             TaraUbojni.HeaderText = "Tara Ubojni";
             TaraUbojni.Name = "TaraUbojni";
-            TaraUbojni.Width = 65;
+            TaraUbojni.Width = 55;
             // 
             // NettoUbojni
             // 
             NettoUbojni.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             NettoUbojni.HeaderText = "Netto Ubojni";
             NettoUbojni.Name = "NettoUbojni";
-            NettoUbojni.Width = 65;
+            NettoUbojni.Width = 55;
             // 
             // LUMEL
             // 
             LUMEL.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             LUMEL.HeaderText = "Sztuki LUMEL";
             LUMEL.Name = "LUMEL";
-            LUMEL.Width = 60;
+            LUMEL.Width = 50;
             // 
             // SztukiWybijak
             // 
             SztukiWybijak.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             SztukiWybijak.HeaderText = "Sztuki Wybijak";
             SztukiWybijak.Name = "SztukiWybijak";
-            SztukiWybijak.Width = 60;
+            SztukiWybijak.Width = 50;
             // 
             // KilogramyWybijak
             // 
             KilogramyWybijak.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             KilogramyWybijak.HeaderText = "KG Wybijak";
             KilogramyWybijak.Name = "KilogramyWybijak";
-            KilogramyWybijak.Width = 60;
+            KilogramyWybijak.Width = 50;
             // 
             // Cena
             // 
@@ -244,13 +265,15 @@
             TypCeny.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             TypCeny.HeaderText = "Typ Ceny";
             TypCeny.Name = "TypCeny";
-            TypCeny.Width = 85;
+            TypCeny.Width = 60;
             // 
             // PiK
             // 
             PiK.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
             PiK.HeaderText = "Czy odliczamy kg za PiK?";
             PiK.Name = "PiK";
+            PiK.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+            PiK.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic;
             PiK.Width = 70;
             // 
             // Ubytek
@@ -262,15 +285,16 @@
             // 
             // WidokSpecyfikacje
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(9F, 23F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1924, 1058);
+            ClientSize = new System.Drawing.Size(1831, 690);
+            Controls.Add(buttonDown);
+            Controls.Add(buttonUP);
             Controls.Add(btnLoadData);
             Controls.Add(dataGridView2);
             Controls.Add(button1);
             Controls.Add(dataGridView1);
             Controls.Add(dateTimePicker1);
-            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Name = "WidokSpecyfikacje";
             Text = "Form1";
             Load += WidokSpecyfikacje_Load;
@@ -284,8 +308,12 @@
         private System.Windows.Forms.DateTimePicker dateTimePicker1;
         private System.Windows.Forms.DataGridView dataGridView1;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.DataGridView dataGridView2;
+        private System.Windows.Forms.Button btnLoadData;
+        private System.Windows.Forms.Button buttonDown;
+        private System.Windows.Forms.Button buttonUP;
         private System.Windows.Forms.DataGridViewTextBoxColumn ID;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Numer;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Nr;
         private System.Windows.Forms.DataGridViewTextBoxColumn Dostawca;
         private System.Windows.Forms.DataGridViewTextBoxColumn SztukiDek;
         private System.Windows.Forms.DataGridViewTextBoxColumn Padle;
@@ -303,9 +331,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn KilogramyWybijak;
         private System.Windows.Forms.DataGridViewTextBoxColumn Cena;
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
-        private System.Windows.Forms.DataGridViewTextBoxColumn PiK;
-        private System.Windows.Forms.DataGridView dataGridView2;
-        private System.Windows.Forms.Button btnLoadData;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn PiK;
         private System.Windows.Forms.DataGridViewTextBoxColumn Ubytek;
     }
 }

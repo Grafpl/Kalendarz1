@@ -52,22 +52,22 @@ namespace Kalendarz1
                     connection.Open();
                     SqlCommand command = new SqlCommand("SELECT ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, " +
                         "FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, FullWeight, EmptyWeight, NettoWeight, " +
-                        "Price, PriceTypeID, IncDeadConf, Loss FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate", connection);
+                        "Price, PriceTypeID, IncDeadConf, Loss FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate Order By CarLP"
+                        , connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
                     DataTable dataTable = new DataTable();
                     adapter.Fill(dataTable);
 
-                    // Wyczyszczenie istniejących danych w DataGridView
+                    // Clear existing data in DataGridView
                     dataGridView1.Rows.Clear();
 
-                    // Wypełnienie istniejących kolumn w DataGridView danymi z bazy danych
+                    // Populate DataGridView with data from database
                     if (dataTable.Rows.Count > 0)
                     {
                         foreach (DataRow row in dataTable.Rows)
                         {
-                            // Pobranie wartości kolumny "CustomerGID" jako obiektu Int32
                             int customerGID = ZapytaniaSQL.GetValueOrDefault<int>(row, "CustomerGID", defaultValue: -1);
                             string Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(customerGID, "ShortName");
 
@@ -79,40 +79,43 @@ namespace Kalendarz1
                             string TaraUbojni = row["EmptyWeight"] != DBNull.Value ? Convert.ToDecimal(row["EmptyWeight"]).ToString("#,0") : null;
                             string NettoUbojni = row["NettoWeight"] != DBNull.Value ? Convert.ToDecimal(row["NettoWeight"]).ToString("#,0") : null;
 
-                            // Pobranie wartości kolumny "PriceTypeID" jako Nullable<int> (int?)
                             int priceTypeID = ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", defaultValue: -1);
                             string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(priceTypeID);
 
+                            decimal ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", defaultValue: 0) * 100, 2);
+
+                            // Set the checkbox value for "PiK" based on "IncDeadConf"
+                            bool incDeadConf = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]);
+
+                            // Populate the DataGridView row
                             dataGridView1.Rows.Add(
-                                row["ID"],         // Numer
-                                row["CarLp"],         // Numer
-                                Dostawca,             // Dostawca
-                                row["DeclI1"],        // SztukiDek (pusta wartość)
-                                row["DeclI2"],        // Padle
-                                row["DeclI3"],        // CH
-                                row["DeclI4"],        // NW
-                                row["DeclI5"],        // ZM
-                                BruttoHodowcy,     // Zastosowanie sformatowanych wartości
-                                TaraHodowcy,       // Zastosowanie sformatowanych wartości
-                                NettoHodowcy,       // Zastosowanie sformatowanych wartości
-                                BruttoUbojni,     // Zastosowanie sformatowanych wartości
-                                TaraUbojni,       // Zastosowanie sformatowanych wartości
-                                NettoUbojni,       // Zastosowanie sformatowanych wartości
-                                row["LumQnt"],        // LUMEL
-                                row["ProdQnt"],       // Prod Sztuki
-                                row["ProdWgt"],       // Prod Wagi
-                                row["Price"],         // Cena
-                                typCeny,   // TypCeny
-                                row["IncDeadConf"],    // Czy odliczamy padłe i konfiskaty
-                                row["Loss"]    // Czy odliczamy padłe i konfiskaty
-                                                      // Brak wartości dla kolumny PiK, ponieważ nie ma odpowiadającej kolumny w bazie danych
+                                row["ID"],
+                                row["CarLp"],
+                                Dostawca,
+                                row["DeclI1"],
+                                row["DeclI2"],
+                                row["DeclI3"],
+                                row["DeclI4"],
+                                row["DeclI5"],
+                                BruttoHodowcy,
+                                TaraHodowcy,
+                                NettoHodowcy,
+                                BruttoUbojni,
+                                TaraUbojni,
+                                NettoUbojni,
+                                row["LumQnt"],
+                                row["ProdQnt"],
+                                row["ProdWgt"],
+                                row["Price"],
+                                typCeny,
+                                incDeadConf, // Add the checkbox value for "PiK"
+                                ubytek
                             );
                         }
-
                     }
                     else
                     {
-                        // Obsługa przypadku braku danych
+                        // Handle case where no data is returned
                     }
                 }
             }
@@ -121,6 +124,8 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd podczas ładowania danych: " + ex.Message);
             }
         }
+
+
 
         private void DataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -136,6 +141,53 @@ namespace Kalendarz1
                 dostawaForm.Show();
             }
         }
+        private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
+
+                // Check if the changed cell is in the "PiK" column
+                if (dataGridView1.Columns[e.ColumnIndex].Name == "PiK")
+                {
+                    int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
+                    bool newValue = Convert.ToBoolean(editedRow.Cells["PiK"].Value);
+
+                    // Update the database with the new checkbox value
+                    UpdateDatabase(id, e.ColumnIndex, newValue.ToString());
+
+                    // Apply formatting based on the checkbox value
+                    ApplyFormattingToRow(editedRow, newValue);
+                }
+            }
+        }
+        private void dataGridView1_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            DataGridViewRow row = dataGridView1.Rows[e.RowIndex];
+            bool isChecked = Convert.ToBoolean(row.Cells["PiK"].Value);
+
+            ApplyFormattingToRow(row, isChecked);
+        }
+
+        private void ApplyFormattingToRow(DataGridViewRow row, bool isChecked)
+        {
+            DataGridViewCellStyle style = new DataGridViewCellStyle();
+
+            if (isChecked)
+            {
+                style.Font = new Font(dataGridView1.Font, FontStyle.Strikeout);
+                style.ForeColor = Color.Red;
+            }
+            else
+            {
+                style.Font = dataGridView1.Font;
+                style.ForeColor = dataGridView1.ForeColor;
+            }
+
+            row.Cells["Padle"].Style = style; // Assuming DeclI2 is the "Padle" column
+        }
+
+
         private void dataGridView1_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             try
@@ -169,7 +221,7 @@ namespace Kalendarz1
                     UpdateDatabase(id, e.ColumnIndex, newValue);
                 }
 
-                MessageBox.Show("Wartość zaktualizowana pomyślnie!");
+
             }
             catch (Exception ex)
             {
@@ -195,13 +247,36 @@ namespace Kalendarz1
                     using (SqlCommand command = new SqlCommand(strSQL, connection))
                     {
                         command.Parameters.AddWithValue("@ID", id);
-                        command.Parameters.AddWithValue("@NewValue", newValue);
+
+                        // Check if the column is "Loss" and process the newValue accordingly
+                        if (columnName == "Loss")
+                        {
+                            if (decimal.TryParse(newValue, out decimal lossValue))
+                            {
+                                lossValue /= 100;
+                                command.Parameters.AddWithValue("@NewValue", lossValue);
+                            }
+                            else
+                            {
+                                MessageBox.Show("Nieprawidłowa wartość dla kolumny 'Loss'.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                        }
+                        else if (columnName == "IncDeadConf")
+                        {
+                            bool checkboxValue = Convert.ToBoolean(newValue);
+                            command.Parameters.AddWithValue("@NewValue", checkboxValue);
+                        }
+                        else
+                        {
+                            command.Parameters.AddWithValue("@NewValue", newValue);
+                        }
 
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            MessageBox.Show("Dane zaktualizowane pomyślnie!");
+
                         }
                         else
                         {
@@ -215,27 +290,28 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd podczas aktualizacji danych: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private string GetColumnName(int columnIndex)
         {
             // Funkcja zwracająca nazwę kolumny na podstawie indeksu
             switch (columnIndex)
             {
-                case 0: return "CarLp"; // Załóżmy, że CarLp to nazwa kolumny w bazie danych
+                case 1: return "CarLp"; // Załóżmy, że CarLp to nazwa kolumny w bazie danych
                 case 3: return "DeclI1"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 4: return "DeclI2"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 5: return "DeclI3"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 6: return "DeclI4"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 7: return "DeclI5"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 14: return "LumQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 15: return "ProdQnt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 16: return "ProdWgt"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 20: return "Loss"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
+                case 4: return "DeclI2"; // Załóżmy, że DeclI2 to nazwa kolumny w bazie danych
+                case 5: return "DeclI3"; // Załóżmy, że DeclI3 to nazwa kolumny w bazie danych
+                case 6: return "DeclI4"; // Załóżmy, że DeclI4 to nazwa kolumny w bazie danych
+                case 7: return "DeclI5"; // Załóżmy, że DeclI5 to nazwa kolumny w bazie danych
+                case 14: return "LumQnt"; // Załóżmy, że LumQnt to nazwa kolumny w bazie danych
+                case 15: return "ProdQnt"; // Załóżmy, że ProdQnt to nazwa kolumny w bazie danych
+                case 16: return "ProdWgt"; // Załóżmy, że ProdWgt to nazwa kolumny w bazie danych
+                case 17: return "Price"; // Załóżmy, że ProdWgt to nazwa kolumny w bazie danych
+                case 19: return "IncDeadConf"; // Załóżmy, że IncDeadConf to nazwa kolumny w bazie danych
+                case 20: return "Loss"; // Załóżmy, że Loss to nazwa kolumny w bazie danych
 
                 default: throw new ArgumentException("Nieprawidłowy indeks kolumny.");
             }
         }
-
-
         private void button1_Click(object sender, EventArgs e)
         {
             // Odczytaj wartość z DateTimePicker
@@ -247,6 +323,60 @@ namespace Kalendarz1
             // Wyświetl nowy formularz
             PDFview.Show();
         }
+        private void MoveRowUp()
+        {
+            if (dataGridView1.CurrentCell != null)
+            {
+                int rowIndex = dataGridView1.CurrentCell.RowIndex;
+                if (rowIndex > 0)
+                {
+                    DataTable table = dataGridView1.DataSource as DataTable;
+                    if (table != null)
+                    {
+                        DataRow row = table.NewRow();
+                        row.ItemArray = table.Rows[rowIndex].ItemArray;
+                        table.Rows.RemoveAt(rowIndex);
+                        table.Rows.InsertAt(row, rowIndex - 1);
+                        RefreshNumeration();
+                        dataGridView1.ClearSelection();
+                        dataGridView1.Rows[rowIndex - 1].Selected = true;
+                        dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex - 1].Cells[0];
+                    }
+                }
+            }
+        }
+
+        private void MoveRowDown()
+        {
+            if (dataGridView1.CurrentCell != null)
+            {
+                int rowIndex = dataGridView1.CurrentCell.RowIndex;
+                if (rowIndex < dataGridView1.Rows.Count - 2) // -2 to ignore the new row
+                {
+                    DataTable table = (DataTable)dataGridView1.DataSource;
+                    if (table != null)
+                    {
+                        DataRow row = table.NewRow();
+                        row.ItemArray = table.Rows[rowIndex].ItemArray;
+                        table.Rows.RemoveAt(rowIndex);
+                        table.Rows.InsertAt(row, rowIndex + 1);
+                        RefreshNumeration();
+                        dataGridView1.ClearSelection();
+                        dataGridView1.Rows[rowIndex + 1].Selected = true;
+                        dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex + 1].Cells[0];
+                    }
+                }
+            }
+        }
+
+        private void RefreshNumeration()
+        {
+            for (int i = 0; i < dataGridView1.Rows.Count - 1; i++)
+            {
+                dataGridView1.Rows[i].Cells["Nr"].Value = i + 1;
+            }
+        }
+
 
         private void btnLoadData_Click_1(object sender, EventArgs e)
 
@@ -290,7 +420,7 @@ namespace Kalendarz1
                 dataGridView2.Columns.Add("Column2", "Godzina Końca Partii");
                 dataGridView2.Columns.Add("Column3", "Ilość sztuk");
 
-                
+
 
                 // Ustawienia regionalne do konwersji liczbowej
                 var numberFormat = new System.Globalization.NumberFormatInfo();
@@ -321,6 +451,16 @@ namespace Kalendarz1
                 MessageBox.Show("Błąd podczas pobierania danych: " + ex.Message);
             }
 
+        }
+
+        private void buttonUP_Click(object sender, EventArgs e)
+        {
+            MoveRowUp();
+        }
+
+        private void buttonDown_Click(object sender, EventArgs e)
+        {
+            MoveRowDown();
         }
     }
 }
