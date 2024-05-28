@@ -418,11 +418,11 @@ namespace Kalendarz1
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, UlicaH, MiejscH, KmH, Tel1, Tel2, Tel3);
+            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, Tel1, Tel2, Tel3);
         }
         private void RealDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(RealDostawca, UlicaR, KodPocztowyR, UlicaR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
+            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(RealDostawca, UlicaR, KodPocztowyR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
         }
 
         private void button1_Click(object sender, EventArgs e)

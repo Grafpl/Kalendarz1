@@ -661,7 +661,7 @@ namespace Kalendarz1
                 reader.Close();
             }
         }
-        public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miasto, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
+        public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
         {
             string selectedValue = Dostawca.SelectedItem.ToString();
             int idDostawcy = ZnajdzIdHodowcy(selectedValue);
@@ -671,9 +671,6 @@ namespace Kalendarz1
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "PostalCode");
             kodPocztowy.Text = Zmienna.ToString();
-
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "City");
-            miasto.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Distance");
             dystans.Text = Zmienna.ToString();
@@ -1036,8 +1033,7 @@ namespace Kalendarz1
 
                                     if (rowsAffected > 0)
                                     {
-                                        // Zaktualizowano dane pomyślnie
-                                        MessageBox.Show("Dane zostały zaktualizowane w bazie danych.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                       
                                     }
                                     else
                                     {
