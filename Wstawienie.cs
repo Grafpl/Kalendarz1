@@ -674,5 +674,10 @@ namespace Kalendarz1
                 groupBoxDostawy.Visible = true;
             }
         }
+
+        private void MiejscK_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

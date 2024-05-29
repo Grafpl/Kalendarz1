@@ -32,7 +32,6 @@
             groupBox1 = new System.Windows.Forms.GroupBox();
             label53 = new System.Windows.Forms.Label();
             userTextbox = new System.Windows.Forms.TextBox();
-            Email = new System.Windows.Forms.TextBox();
             groupBoxWstawienie = new System.Windows.Forms.GroupBox();
             label14 = new System.Windows.Forms.Label();
             textBox2 = new System.Windows.Forms.TextBox();
@@ -53,29 +52,20 @@
             label19 = new System.Windows.Forms.Label();
             Ubytek = new System.Windows.Forms.TextBox();
             label15 = new System.Windows.Forms.Label();
-            label36 = new System.Windows.Forms.Label();
             lalv = new System.Windows.Forms.Label();
-            tel1 = new System.Windows.Forms.TextBox();
             label29 = new System.Windows.Forms.Label();
-            info1 = new System.Windows.Forms.TextBox();
             ktoStwo = new System.Windows.Forms.TextBox();
             ktoMod = new System.Windows.Forms.TextBox();
-            tel2 = new System.Windows.Forms.TextBox();
             label25 = new System.Windows.Forms.Label();
             label24 = new System.Windows.Forms.Label();
-            info2 = new System.Windows.Forms.TextBox();
             dataMod = new System.Windows.Forms.TextBox();
             dataStwo = new System.Windows.Forms.TextBox();
-            label27 = new System.Windows.Forms.Label();
             TypUmowy = new System.Windows.Forms.ComboBox();
             label17 = new System.Windows.Forms.Label();
-            tel3 = new System.Windows.Forms.TextBox();
             TypCeny = new System.Windows.Forms.ComboBox();
             Status = new System.Windows.Forms.ComboBox();
-            info3 = new System.Windows.Forms.TextBox();
             label2 = new System.Windows.Forms.Label();
             groupBoxDostawca = new System.Windows.Forms.GroupBox();
-            pictureBox1 = new System.Windows.Forms.PictureBox();
             label7 = new System.Windows.Forms.Label();
             Kurnik = new System.Windows.Forms.ComboBox();
             KmK = new System.Windows.Forms.TextBox();
@@ -92,8 +82,6 @@
             KodPocztowyH = new System.Windows.Forms.TextBox();
             UlicaH = new System.Windows.Forms.TextBox();
             label4 = new System.Windows.Forms.Label();
-            label26 = new System.Windows.Forms.Label();
-            label16 = new System.Windows.Forms.Label();
             groupBoxDostawy = new System.Windows.Forms.GroupBox();
             groupBox9 = new System.Windows.Forms.GroupBox();
             ObliczAuta5 = new System.Windows.Forms.Button();
@@ -194,11 +182,23 @@
             dataGridView1 = new System.Windows.Forms.DataGridView();
             buttonWstawienie = new System.Windows.Forms.Button();
             button2 = new System.Windows.Forms.Button();
+            label23 = new System.Windows.Forms.Label();
+            label16 = new System.Windows.Forms.Label();
+            label26 = new System.Windows.Forms.Label();
+            info3 = new System.Windows.Forms.TextBox();
+            tel3 = new System.Windows.Forms.TextBox();
+            label27 = new System.Windows.Forms.Label();
+            info2 = new System.Windows.Forms.TextBox();
+            tel2 = new System.Windows.Forms.TextBox();
+            info1 = new System.Windows.Forms.TextBox();
+            tel1 = new System.Windows.Forms.TextBox();
+            label36 = new System.Windows.Forms.Label();
+            Email = new System.Windows.Forms.TextBox();
+            textBox3 = new System.Windows.Forms.TextBox();
             groupBox1.SuspendLayout();
             groupBoxWstawienie.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             groupBoxDostawca.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             groupBoxDostawy.SuspendLayout();
             groupBox9.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox25).BeginInit();
@@ -230,45 +230,38 @@
             // 
             // groupBox1
             // 
-            groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            groupBox1.Controls.Add(label53);
-            groupBox1.Controls.Add(userTextbox);
-            groupBox1.Controls.Add(Email);
+            groupBox1.BackColor = System.Drawing.SystemColors.ButtonFace;
             groupBox1.Controls.Add(groupBoxWstawienie);
-            groupBox1.Controls.Add(label36);
-            groupBox1.Controls.Add(lalv);
-            groupBox1.Controls.Add(tel1);
-            groupBox1.Controls.Add(label29);
-            groupBox1.Controls.Add(info1);
-            groupBox1.Controls.Add(ktoStwo);
-            groupBox1.Controls.Add(ktoMod);
-            groupBox1.Controls.Add(tel2);
-            groupBox1.Controls.Add(label25);
-            groupBox1.Controls.Add(label24);
-            groupBox1.Controls.Add(info2);
-            groupBox1.Controls.Add(dataMod);
-            groupBox1.Controls.Add(dataStwo);
-            groupBox1.Controls.Add(label27);
-            groupBox1.Controls.Add(TypUmowy);
-            groupBox1.Controls.Add(label17);
-            groupBox1.Controls.Add(tel3);
-            groupBox1.Controls.Add(TypCeny);
-            groupBox1.Controls.Add(Status);
-            groupBox1.Controls.Add(info3);
-            groupBox1.Controls.Add(label2);
-            groupBox1.Controls.Add(groupBoxDostawca);
-            groupBox1.Controls.Add(label26);
             groupBox1.Controls.Add(label16);
+            groupBox1.Controls.Add(label23);
+            groupBox1.Controls.Add(KmK);
+            groupBox1.Controls.Add(label6);
+            groupBox1.Controls.Add(Dostawca);
+            groupBox1.Controls.Add(KmH);
+            groupBox1.Controls.Add(Status);
+            groupBox1.Controls.Add(MiejscK);
+            groupBox1.Controls.Add(label2);
+            groupBox1.Controls.Add(label17);
+            groupBox1.Controls.Add(MiejscH);
+            groupBox1.Controls.Add(TypUmowy);
+            groupBox1.Controls.Add(label5);
+            groupBox1.Controls.Add(TypCeny);
+            groupBox1.Controls.Add(KodPocztowyK);
+            groupBox1.Controls.Add(UlicaH);
+            groupBox1.Controls.Add(KodPocztowyH);
+            groupBox1.Controls.Add(label3);
+            groupBox1.Controls.Add(UlicaK);
+            groupBox1.Controls.Add(label4);
             groupBox1.Location = new System.Drawing.Point(12, 12);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new System.Drawing.Size(960, 312);
+            groupBox1.Size = new System.Drawing.Size(676, 312);
             groupBox1.TabIndex = 25;
             groupBox1.TabStop = false;
             groupBox1.Text = "Dostawa";
             // 
             // label53
             // 
-            label53.Location = new System.Drawing.Point(857, 11);
+            label53.Location = new System.Drawing.Point(895, 726);
             label53.Name = "label53";
             label53.Size = new System.Drawing.Size(97, 21);
             label53.TabIndex = 105;
@@ -278,20 +271,11 @@
             // userTextbox
             // 
             userTextbox.BackColor = System.Drawing.SystemColors.ScrollBar;
-            userTextbox.Location = new System.Drawing.Point(857, 31);
+            userTextbox.Location = new System.Drawing.Point(895, 746);
             userTextbox.Name = "userTextbox";
             userTextbox.Size = new System.Drawing.Size(97, 23);
             userTextbox.TabIndex = 104;
             userTextbox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // Email
-            // 
-            Email.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Email.Location = new System.Drawing.Point(667, 275);
-            Email.Name = "Email";
-            Email.Size = new System.Drawing.Size(267, 25);
-            Email.TabIndex = 102;
-            Email.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // groupBoxWstawienie
             // 
@@ -318,7 +302,7 @@
             groupBoxWstawienie.Controls.Add(label15);
             groupBoxWstawienie.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBoxWstawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            groupBoxWstawienie.Location = new System.Drawing.Point(6, 152);
+            groupBoxWstawienie.Location = new System.Drawing.Point(9, 158);
             groupBoxWstawienie.Name = "groupBoxWstawienie";
             groupBoxWstawienie.Size = new System.Drawing.Size(655, 148);
             groupBoxWstawienie.TabIndex = 96;
@@ -518,55 +502,28 @@
             label15.Text = "Ubytek %";
             label15.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label36
-            // 
-            label36.Location = new System.Drawing.Point(667, 258);
-            label36.Name = "label36";
-            label36.Size = new System.Drawing.Size(267, 18);
-            label36.TabIndex = 103;
-            label36.Text = "Email";
-            label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
             // lalv
             // 
-            lalv.Location = new System.Drawing.Point(483, 11);
+            lalv.Location = new System.Drawing.Point(521, 726);
             lalv.Name = "lalv";
             lalv.Size = new System.Drawing.Size(97, 21);
             lalv.TabIndex = 101;
             lalv.Text = "Kto stworzył";
             lalv.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // tel1
-            // 
-            tel1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel1.Location = new System.Drawing.Point(667, 175);
-            tel1.Name = "tel1";
-            tel1.Size = new System.Drawing.Size(98, 25);
-            tel1.TabIndex = 63;
-            tel1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
             // label29
             // 
-            label29.Location = new System.Drawing.Point(700, 11);
+            label29.Location = new System.Drawing.Point(738, 726);
             label29.Name = "label29";
             label29.Size = new System.Drawing.Size(97, 21);
             label29.TabIndex = 83;
             label29.Text = "Kto modyfikował";
             label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // info1
-            // 
-            info1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info1.Location = new System.Drawing.Point(771, 174);
-            info1.Name = "info1";
-            info1.Size = new System.Drawing.Size(163, 25);
-            info1.TabIndex = 66;
-            info1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
             // ktoStwo
             // 
             ktoStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ktoStwo.Location = new System.Drawing.Point(483, 31);
+            ktoStwo.Location = new System.Drawing.Point(521, 746);
             ktoStwo.Name = "ktoStwo";
             ktoStwo.Size = new System.Drawing.Size(97, 23);
             ktoStwo.TabIndex = 100;
@@ -575,24 +532,15 @@
             // ktoMod
             // 
             ktoMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ktoMod.Location = new System.Drawing.Point(700, 31);
+            ktoMod.Location = new System.Drawing.Point(738, 746);
             ktoMod.Name = "ktoMod";
             ktoMod.Size = new System.Drawing.Size(97, 23);
             ktoMod.TabIndex = 82;
             ktoMod.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // tel2
-            // 
-            tel2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel2.Location = new System.Drawing.Point(667, 202);
-            tel2.Name = "tel2";
-            tel2.Size = new System.Drawing.Size(98, 25);
-            tel2.TabIndex = 64;
-            tel2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
             // label25
             // 
-            label25.Location = new System.Drawing.Point(586, 11);
+            label25.Location = new System.Drawing.Point(624, 726);
             label25.Name = "label25";
             label25.Size = new System.Drawing.Size(108, 21);
             label25.TabIndex = 81;
@@ -601,26 +549,17 @@
             // 
             // label24
             // 
-            label24.Location = new System.Drawing.Point(369, 11);
+            label24.Location = new System.Drawing.Point(407, 726);
             label24.Name = "label24";
             label24.Size = new System.Drawing.Size(108, 21);
             label24.TabIndex = 80;
             label24.Text = "Data stworzenia";
             label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // info2
-            // 
-            info2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info2.Location = new System.Drawing.Point(771, 202);
-            info2.Name = "info2";
-            info2.Size = new System.Drawing.Size(163, 25);
-            info2.TabIndex = 67;
-            info2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
             // dataMod
             // 
             dataMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataMod.Location = new System.Drawing.Point(586, 31);
+            dataMod.Location = new System.Drawing.Point(624, 746);
             dataMod.Name = "dataMod";
             dataMod.Size = new System.Drawing.Size(108, 23);
             dataMod.TabIndex = 79;
@@ -629,126 +568,76 @@
             // dataStwo
             // 
             dataStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataStwo.Location = new System.Drawing.Point(369, 31);
+            dataStwo.Location = new System.Drawing.Point(407, 746);
             dataStwo.Name = "dataStwo";
             dataStwo.Size = new System.Drawing.Size(108, 23);
             dataStwo.TabIndex = 78;
             dataStwo.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // label27
-            // 
-            label27.Location = new System.Drawing.Point(771, 154);
-            label27.Name = "label27";
-            label27.Size = new System.Drawing.Size(163, 18);
-            label27.TabIndex = 70;
-            label27.Text = "Osoba";
-            label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
             // TypUmowy
             // 
             TypUmowy.FormattingEnabled = true;
-            TypUmowy.Location = new System.Drawing.Point(131, 31);
+            TypUmowy.Location = new System.Drawing.Point(96, 78);
             TypUmowy.Name = "TypUmowy";
-            TypUmowy.Size = new System.Drawing.Size(111, 23);
+            TypUmowy.Size = new System.Drawing.Size(120, 23);
             TypUmowy.TabIndex = 77;
             // 
             // label17
             // 
-            label17.Location = new System.Drawing.Point(131, 11);
+            label17.Location = new System.Drawing.Point(6, 78);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(111, 21);
+            label17.Size = new System.Drawing.Size(84, 21);
             label17.TabIndex = 76;
             label17.Text = "Typ umowy";
-            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // tel3
-            // 
-            tel3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            tel3.Location = new System.Drawing.Point(667, 230);
-            tel3.Name = "tel3";
-            tel3.Size = new System.Drawing.Size(98, 25);
-            tel3.TabIndex = 65;
-            tel3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // TypCeny
             // 
             TypCeny.FormattingEnabled = true;
-            TypCeny.Location = new System.Drawing.Point(248, 31);
+            TypCeny.Location = new System.Drawing.Point(96, 107);
             TypCeny.Name = "TypCeny";
-            TypCeny.Size = new System.Drawing.Size(115, 23);
+            TypCeny.Size = new System.Drawing.Size(120, 23);
             TypCeny.TabIndex = 75;
             // 
             // Status
             // 
             Status.FormattingEnabled = true;
-            Status.Location = new System.Drawing.Point(6, 31);
+            Status.Location = new System.Drawing.Point(96, 48);
             Status.Name = "Status";
-            Status.Size = new System.Drawing.Size(119, 23);
+            Status.Size = new System.Drawing.Size(120, 23);
             Status.TabIndex = 73;
             Status.SelectedIndexChanged += Status_SelectedIndexChanged;
             // 
-            // info3
-            // 
-            info3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            info3.Location = new System.Drawing.Point(771, 230);
-            info3.Name = "info3";
-            info3.Size = new System.Drawing.Size(163, 25);
-            info3.TabIndex = 68;
-            info3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
             // label2
             // 
-            label2.Location = new System.Drawing.Point(6, 17);
+            label2.Location = new System.Drawing.Point(6, 48);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(119, 15);
+            label2.Size = new System.Drawing.Size(84, 18);
             label2.TabIndex = 72;
             label2.Text = "Status";
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // groupBoxDostawca
             // 
             groupBoxDostawca.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            groupBoxDostawca.Controls.Add(pictureBox1);
+            groupBoxDostawca.Controls.Add(textBox3);
             groupBoxDostawca.Controls.Add(label7);
             groupBoxDostawca.Controls.Add(Kurnik);
-            groupBoxDostawca.Controls.Add(KmK);
-            groupBoxDostawca.Controls.Add(Dostawca);
-            groupBoxDostawca.Controls.Add(KmH);
-            groupBoxDostawca.Controls.Add(MiejscK);
             groupBoxDostawca.Controls.Add(label1);
-            groupBoxDostawca.Controls.Add(label6);
-            groupBoxDostawca.Controls.Add(MiejscH);
-            groupBoxDostawca.Controls.Add(KodPocztowyK);
-            groupBoxDostawca.Controls.Add(label3);
-            groupBoxDostawca.Controls.Add(UlicaK);
-            groupBoxDostawca.Controls.Add(label5);
-            groupBoxDostawca.Controls.Add(KodPocztowyH);
-            groupBoxDostawca.Controls.Add(UlicaH);
-            groupBoxDostawca.Controls.Add(label4);
-            groupBoxDostawca.Location = new System.Drawing.Point(6, 60);
+            groupBoxDostawca.Location = new System.Drawing.Point(764, 104);
             groupBoxDostawca.Name = "groupBoxDostawca";
             groupBoxDostawca.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            groupBoxDostawca.Size = new System.Drawing.Size(928, 87);
+            groupBoxDostawca.Size = new System.Drawing.Size(791, 87);
             groupBoxDostawca.TabIndex = 71;
             groupBoxDostawca.TabStop = false;
-            groupBoxDostawca.Text = "Dane Hodowcy";
             groupBoxDostawca.Visible = false;
-            // 
-            // pictureBox1
-            // 
-            pictureBox1.Image = (System.Drawing.Image)resources.GetObject("pictureBox1.Image");
-            pictureBox1.Location = new System.Drawing.Point(6, 22);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(66, 58);
-            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            pictureBox1.TabIndex = 101;
-            pictureBox1.TabStop = false;
             // 
             // label7
             // 
-            label7.Location = new System.Drawing.Point(86, 60);
+            label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label7.Location = new System.Drawing.Point(6, 62);
             label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(66, 20);
+            label7.Size = new System.Drawing.Size(58, 20);
             label7.TabIndex = 16;
             label7.Text = "Kurnik";
             label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -757,18 +646,21 @@
             // 
             Kurnik.DropDownHeight = 300;
             Kurnik.DropDownWidth = 200;
+            Kurnik.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             Kurnik.FormattingEnabled = true;
             Kurnik.IntegralHeight = false;
-            Kurnik.Location = new System.Drawing.Point(158, 57);
+            Kurnik.Location = new System.Drawing.Point(70, 59);
             Kurnik.Name = "Kurnik";
-            Kurnik.Size = new System.Drawing.Size(268, 23);
+            Kurnik.Size = new System.Drawing.Size(268, 17);
             Kurnik.TabIndex = 0;
             // 
             // KmK
             // 
-            KmK.Location = new System.Drawing.Point(827, 57);
+            KmK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmK.Location = new System.Drawing.Point(640, 54);
+            KmK.Multiline = true;
             KmK.Name = "KmK";
-            KmK.Size = new System.Drawing.Size(43, 23);
+            KmK.Size = new System.Drawing.Size(31, 17);
             KmK.TabIndex = 15;
             KmK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
@@ -779,31 +671,36 @@
             Dostawca.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             Dostawca.FormattingEnabled = true;
             Dostawca.IntegralHeight = false;
-            Dostawca.Location = new System.Drawing.Point(158, 31);
+            Dostawca.Location = new System.Drawing.Point(96, 19);
             Dostawca.Name = "Dostawca";
-            Dostawca.Size = new System.Drawing.Size(268, 23);
+            Dostawca.Size = new System.Drawing.Size(154, 23);
             Dostawca.TabIndex = 0;
             Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
             // 
             // KmH
             // 
-            KmH.Location = new System.Drawing.Point(827, 31);
+            KmH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmH.Location = new System.Drawing.Point(640, 31);
+            KmH.Multiline = true;
             KmH.Name = "KmH";
-            KmH.Size = new System.Drawing.Size(43, 23);
+            KmH.Size = new System.Drawing.Size(31, 17);
             KmH.TabIndex = 15;
             KmH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // MiejscK
             // 
-            MiejscK.Location = new System.Drawing.Point(677, 57);
+            MiejscK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscK.Location = new System.Drawing.Point(578, 54);
+            MiejscK.Multiline = true;
             MiejscK.Name = "MiejscK";
-            MiejscK.Size = new System.Drawing.Size(144, 23);
+            MiejscK.Size = new System.Drawing.Size(56, 17);
             MiejscK.TabIndex = 13;
             MiejscK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label1
             // 
-            label1.Location = new System.Drawing.Point(94, 31);
+            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(6, 33);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(58, 20);
             label1.TabIndex = 1;
@@ -812,97 +709,93 @@
             // 
             // label6
             // 
-            label6.Location = new System.Drawing.Point(827, 10);
+            label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label6.Location = new System.Drawing.Point(640, 18);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(43, 15);
+            label6.Size = new System.Drawing.Size(31, 13);
             label6.TabIndex = 14;
             label6.Text = "KM";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // MiejscH
             // 
-            MiejscH.Location = new System.Drawing.Point(677, 31);
+            MiejscH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscH.Location = new System.Drawing.Point(578, 31);
+            MiejscH.Multiline = true;
             MiejscH.Name = "MiejscH";
-            MiejscH.Size = new System.Drawing.Size(144, 23);
+            MiejscH.Size = new System.Drawing.Size(56, 17);
             MiejscH.TabIndex = 13;
             MiejscH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // KodPocztowyK
             // 
-            KodPocztowyK.Location = new System.Drawing.Point(582, 57);
+            KodPocztowyK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyK.Location = new System.Drawing.Point(529, 54);
+            KodPocztowyK.Multiline = true;
             KodPocztowyK.Name = "KodPocztowyK";
-            KodPocztowyK.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyK.Size = new System.Drawing.Size(42, 17);
             KodPocztowyK.TabIndex = 11;
             KodPocztowyK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label3
             // 
-            label3.Location = new System.Drawing.Point(432, 10);
+            label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label3.Location = new System.Drawing.Point(454, 18);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(144, 15);
+            label3.Size = new System.Drawing.Size(69, 10);
             label3.TabIndex = 5;
             label3.Text = "Ulica";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // UlicaK
             // 
-            UlicaK.Location = new System.Drawing.Point(432, 57);
+            UlicaK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaK.Location = new System.Drawing.Point(454, 54);
+            UlicaK.Multiline = true;
             UlicaK.Name = "UlicaK";
-            UlicaK.Size = new System.Drawing.Size(144, 23);
+            UlicaK.Size = new System.Drawing.Size(69, 17);
             UlicaK.TabIndex = 9;
             UlicaK.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label5
             // 
-            label5.Location = new System.Drawing.Point(677, 10);
+            label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label5.Location = new System.Drawing.Point(577, 18);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(144, 15);
+            label5.Size = new System.Drawing.Size(56, 15);
             label5.TabIndex = 12;
             label5.Text = "Miejscowosc";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // KodPocztowyH
             // 
-            KodPocztowyH.Location = new System.Drawing.Point(582, 31);
+            KodPocztowyH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyH.Location = new System.Drawing.Point(529, 32);
+            KodPocztowyH.Multiline = true;
             KodPocztowyH.Name = "KodPocztowyH";
-            KodPocztowyH.Size = new System.Drawing.Size(89, 23);
+            KodPocztowyH.Size = new System.Drawing.Size(42, 17);
             KodPocztowyH.TabIndex = 11;
             KodPocztowyH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // UlicaH
             // 
-            UlicaH.Location = new System.Drawing.Point(432, 31);
+            UlicaH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaH.Location = new System.Drawing.Point(454, 31);
+            UlicaH.Multiline = true;
             UlicaH.Name = "UlicaH";
-            UlicaH.Size = new System.Drawing.Size(144, 23);
+            UlicaH.Size = new System.Drawing.Size(69, 17);
             UlicaH.TabIndex = 9;
             UlicaH.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label4
             // 
-            label4.Location = new System.Drawing.Point(582, 10);
+            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label4.Location = new System.Drawing.Point(529, 18);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(89, 15);
+            label4.Size = new System.Drawing.Size(42, 15);
             label4.TabIndex = 10;
-            label4.Text = "Kod-Pocztowy";
+            label4.Text = "Kod";
             label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // label26
-            // 
-            label26.Location = new System.Drawing.Point(667, 154);
-            label26.Name = "label26";
-            label26.Size = new System.Drawing.Size(98, 18);
-            label26.TabIndex = 69;
-            label26.Text = "Numer Telefonu";
-            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // label16
-            // 
-            label16.Location = new System.Drawing.Point(248, 11);
-            label16.Name = "label16";
-            label16.Size = new System.Drawing.Size(115, 21);
-            label16.TabIndex = 74;
-            label16.Text = "Typ Ceny";
-            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // groupBoxDostawy
             // 
@@ -1960,7 +1853,7 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(978, 12);
+            dataGridView1.Location = new System.Drawing.Point(1197, 12);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new System.Drawing.Size(515, 665);
@@ -1987,17 +1880,157 @@
             button2.Text = "Anuluj";
             button2.UseVisualStyleBackColor = true;
             // 
+            // label23
+            // 
+            label23.Location = new System.Drawing.Point(6, 16);
+            label23.Name = "label23";
+            label23.Size = new System.Drawing.Size(84, 23);
+            label23.TabIndex = 2;
+            label23.Text = "Dostawca";
+            label23.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label16
+            // 
+            label16.Location = new System.Drawing.Point(6, 107);
+            label16.Name = "label16";
+            label16.Size = new System.Drawing.Size(84, 21);
+            label16.TabIndex = 78;
+            label16.Text = "Typ ceny";
+            label16.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label26
+            // 
+            label26.Location = new System.Drawing.Point(1105, 679);
+            label26.Name = "label26";
+            label26.Size = new System.Drawing.Size(98, 18);
+            label26.TabIndex = 69;
+            label26.Text = "Numer Telefonu";
+            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // info3
+            // 
+            info3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info3.Location = new System.Drawing.Point(1209, 755);
+            info3.Name = "info3";
+            info3.Size = new System.Drawing.Size(163, 25);
+            info3.TabIndex = 68;
+            info3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // tel3
+            // 
+            tel3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel3.Location = new System.Drawing.Point(1105, 755);
+            tel3.Name = "tel3";
+            tel3.Size = new System.Drawing.Size(98, 25);
+            tel3.TabIndex = 65;
+            tel3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label27
+            // 
+            label27.Location = new System.Drawing.Point(1209, 679);
+            label27.Name = "label27";
+            label27.Size = new System.Drawing.Size(163, 18);
+            label27.TabIndex = 70;
+            label27.Text = "Osoba";
+            label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // info2
+            // 
+            info2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info2.Location = new System.Drawing.Point(1209, 727);
+            info2.Name = "info2";
+            info2.Size = new System.Drawing.Size(163, 25);
+            info2.TabIndex = 67;
+            info2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // tel2
+            // 
+            tel2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel2.Location = new System.Drawing.Point(1105, 727);
+            tel2.Name = "tel2";
+            tel2.Size = new System.Drawing.Size(98, 25);
+            tel2.TabIndex = 64;
+            tel2.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // info1
+            // 
+            info1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info1.Location = new System.Drawing.Point(1209, 699);
+            info1.Name = "info1";
+            info1.Size = new System.Drawing.Size(163, 25);
+            info1.TabIndex = 66;
+            info1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // tel1
+            // 
+            tel1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel1.Location = new System.Drawing.Point(1105, 700);
+            tel1.Name = "tel1";
+            tel1.Size = new System.Drawing.Size(98, 25);
+            tel1.TabIndex = 63;
+            tel1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label36
+            // 
+            label36.Location = new System.Drawing.Point(1105, 783);
+            label36.Name = "label36";
+            label36.Size = new System.Drawing.Size(267, 18);
+            label36.TabIndex = 103;
+            label36.Text = "Email";
+            label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // Email
+            // 
+            Email.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Email.Location = new System.Drawing.Point(1105, 800);
+            Email.Name = "Email";
+            Email.Size = new System.Drawing.Size(267, 25);
+            Email.TabIndex = 102;
+            Email.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // textBox3
+            // 
+            textBox3.BackColor = System.Drawing.SystemColors.HighlightText;
+            textBox3.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox3.Location = new System.Drawing.Point(70, 33);
+            textBox3.Multiline = true;
+            textBox3.Name = "textBox3";
+            textBox3.Size = new System.Drawing.Size(268, 17);
+            textBox3.TabIndex = 57;
+            textBox3.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
             // Wstawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1511, 697);
+            ClientSize = new System.Drawing.Size(1779, 822);
+            Controls.Add(Email);
+            Controls.Add(groupBoxDostawca);
+            Controls.Add(label53);
+            Controls.Add(label36);
             Controls.Add(button2);
+            Controls.Add(tel1);
+            Controls.Add(userTextbox);
+            Controls.Add(info1);
             Controls.Add(buttonWstawienie);
+            Controls.Add(tel2);
             Controls.Add(dataGridView1);
+            Controls.Add(info2);
             Controls.Add(groupBox1);
+            Controls.Add(label27);
+            Controls.Add(lalv);
+            Controls.Add(tel3);
             Controls.Add(groupBoxDostawy);
+            Controls.Add(info3);
             Controls.Add(wyliczone);
+            Controls.Add(label26);
+            Controls.Add(label29);
+            Controls.Add(ktoStwo);
+            Controls.Add(ktoMod);
+            Controls.Add(dataStwo);
+            Controls.Add(label25);
+            Controls.Add(dataMod);
+            Controls.Add(label24);
             Name = "Wstawienie";
             Text = "Form1";
             Load += Form1_Load;
@@ -2008,7 +2041,6 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             groupBoxDostawca.ResumeLayout(false);
             groupBoxDostawca.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             groupBoxDostawy.ResumeLayout(false);
             groupBox9.ResumeLayout(false);
             groupBox9.PerformLayout();
@@ -2048,7 +2080,6 @@
         #endregion
 
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.TextBox Email;
         private System.Windows.Forms.GroupBox groupBoxWstawienie;
         private System.Windows.Forms.TextBox uwagi;
         private System.Windows.Forms.Label label37;
@@ -2057,29 +2088,20 @@
         private System.Windows.Forms.Label label35;
         private System.Windows.Forms.TextBox sztukiWstawienia;
         private System.Windows.Forms.Label label19;
-        private System.Windows.Forms.Label label36;
         private System.Windows.Forms.Label lalv;
-        private System.Windows.Forms.TextBox tel1;
         private System.Windows.Forms.Label label29;
-        private System.Windows.Forms.TextBox info1;
         private System.Windows.Forms.TextBox ktoStwo;
         private System.Windows.Forms.TextBox ktoMod;
-        private System.Windows.Forms.TextBox tel2;
         private System.Windows.Forms.Label label25;
         private System.Windows.Forms.Label label24;
-        private System.Windows.Forms.TextBox info2;
         private System.Windows.Forms.TextBox dataMod;
         private System.Windows.Forms.TextBox dataStwo;
-        private System.Windows.Forms.Label label27;
         private System.Windows.Forms.ComboBox TypUmowy;
         private System.Windows.Forms.Label label17;
-        private System.Windows.Forms.TextBox tel3;
         private System.Windows.Forms.ComboBox TypCeny;
         private System.Windows.Forms.ComboBox Status;
-        private System.Windows.Forms.TextBox info3;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.GroupBox groupBoxDostawca;
-        private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.ComboBox Kurnik;
         private System.Windows.Forms.TextBox KmK;
@@ -2096,8 +2118,6 @@
         private System.Windows.Forms.TextBox KodPocztowyH;
         private System.Windows.Forms.TextBox UlicaH;
         private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Label label26;
-        private System.Windows.Forms.Label label16;
         private System.Windows.Forms.PictureBox pictureBox6;
         private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.PictureBox pictureBox4;
@@ -2222,5 +2242,17 @@
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.Label label26;
+        private System.Windows.Forms.TextBox info3;
+        private System.Windows.Forms.TextBox tel3;
+        private System.Windows.Forms.Label label27;
+        private System.Windows.Forms.TextBox info2;
+        private System.Windows.Forms.TextBox tel2;
+        private System.Windows.Forms.TextBox info1;
+        private System.Windows.Forms.TextBox tel1;
+        private System.Windows.Forms.Label label36;
+        private System.Windows.Forms.TextBox Email;
+        private System.Windows.Forms.TextBox textBox3;
     }
 }
