@@ -15,6 +15,7 @@ namespace Kalendarz1
         private string lpDostawa;
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private int selectedRowIndex = -1; // Zmienna do przechowywania indeksu zaznaczonego wiersza
+        private double sumaSztuk = 0; // pozostale wstawienia
         private Timer timer;
         public string UserID { get; set; }
         private MojeObliczenia obliczenia = new MojeObliczenia();
@@ -819,13 +820,16 @@ namespace Kalendarz1
         // Wypełnianie Textboxów
         private void LpWstawienia_SelectedIndexChanged(object sender, EventArgs e)
         {
+            sumaSztuk = 0;
             // Utwórz połączenie z bazą danych SQL Server
+
             using (SqlConnection cnn = new SqlConnection(connectionPermission))
             {
                 cnn.Open();
 
                 // Utwórz zapytanie SQL do pobrania danych na podstawie wybranej wartości "Lp"
                 string lpWstawieniaValue = LpWstawienia.Text;
+
 
                 string strSQL = $"SELECT * FROM dbo.WstawieniaKurczakow WHERE Lp = @lp";
 
@@ -875,38 +879,44 @@ namespace Kalendarz1
                             DataGridWstawienia.Columns.Add("WagaDekKolumnaWstawienia", "Waga");
                             DataGridWstawienia.Columns.Add("buforkKolumnaWstawienia", "Status");
 
-                            DataGridWstawienia.Columns["DataOdbioruKolumnaWstawienia"].Width = 100; // Szerokość kolumny "DataOdbioru" na 100 pikseli
+                            DataGridWstawienia.Columns["DataOdbioruKolumnaWstawienia"].Width = 80; // Szerokość kolumny "DataOdbioru" na 100 pikseli
                             //DataGridWstawienia.Columns["DostawcaKolumnaWstawienia"].Width = 150; // Szerokość kolumny "Dostawca" na 150 pikseli
                             DataGridWstawienia.Columns["AutaKolumnaWstawienia"].Width = 25; // Szerokość kolumny "Auta" na 100 pikseli
-                            DataGridWstawienia.Columns["SztukiDekKolumnaWstawienia"].Width = 55; // Szerokość kolumny "SztukiDek" na 100 pikseli
-                            DataGridWstawienia.Columns["WagaDekKolumnaWstawienia"].Width = 40; // Szerokość kolumny "WagaDek" na 100 pikseli
-                            DataGridWstawienia.Columns["buforkKolumnaWstawienia"].Width = 70; // Szerokość kolumny "bufor" na 100 pikseli
+                            DataGridWstawienia.Columns["SztukiDekKolumnaWstawienia"].Width = 50; // Szerokość kolumny "SztukiDek" na 100 pikseli
+                            DataGridWstawienia.Columns["WagaDekKolumnaWstawienia"].Width = 30; // Szerokość kolumny "WagaDek" na 100 pikseli
+                            DataGridWstawienia.Columns["buforkKolumnaWstawienia"].Width = 65; // Szerokość kolumny "bufor" na 100 pikseli
 
 
                             while (reader.Read())
                             {
-                                if (reader["bufor"].ToString() == "Potwierdzony" || reader["bufor"].ToString() == "B.Kontr." || reader["bufor"].ToString() == "B.Wolny.")
+                                // Sprawdzenie i formatowanie daty
+                                string dataOdbioru = reader["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(reader["DataOdbioru"]).ToString("yyyy-MM-dd dd") : string.Empty;
+
+                                // Dodaj nowy wiersz do DataGridWstawienia
+                                DataGridViewRow newRow = new DataGridViewRow();
+                                newRow.CreateCells(DataGridWstawienia);
+                                newRow.Cells[0].Value = dataOdbioru;
+                                //newRow.Cells[1].Value = reader["Dostawca"];
+                                newRow.Cells[1].Value = reader["Auta"] != DBNull.Value ? reader["Auta"].ToString() : string.Empty;
+                                newRow.Cells[2].Value = reader["SztukiDek"] != DBNull.Value ? string.Format("{0:#,0}", Convert.ToDouble(reader["SztukiDek"])) : string.Empty;
+                                newRow.Cells[3].Value = reader["WagaDek"] != DBNull.Value ? reader["WagaDek"].ToString() : string.Empty;
+                                newRow.Cells[4].Value = reader["bufor"] != DBNull.Value ? reader["bufor"].ToString() : string.Empty;
+
+                                // Dodaj nowy wiersz do kontrolki DataGridWstawienia
+                                DataGridWstawienia.Rows.Add(newRow);
+
+                                // Dodaj wartości do sum, jeśli nie są null
+                                if (reader["Auta"] != DBNull.Value)
                                 {
-                                    // Tutaj wklej kod do formatowania daty
-                                    string dataOdbioru = Convert.ToDateTime(reader["DataOdbioru"]).ToString("yyyy-MM-dd dddd");
-
-                                    // Dodaj nowy wiersz do DataGridWstawienia
-                                    DataGridViewRow newRow = new DataGridViewRow();
-                                    newRow.CreateCells(DataGridWstawienia);
-                                    newRow.Cells[0].Value = dataOdbioru;
-                                    //newRow.Cells[1].Value = reader["Dostawca"];
-                                    newRow.Cells[1].Value = reader["Auta"];
-                                    newRow.Cells[2].Value = string.Format("{0:#,0}", Convert.ToDouble(reader["SztukiDek"])); // Formatowanie liczby z separatorem tysięcy
-                                    newRow.Cells[3].Value = reader["WagaDek"];
-                                    newRow.Cells[4].Value = reader["bufor"];
-
-                                    // Dodaj nowy wiersz do kontrolki DataGridWstawienia
-                                    DataGridWstawienia.Rows.Add(newRow);
-
-                                    sumaAut += Convert.ToDouble(reader["Auta"]); // Dodaj wartość aut do sumy
-                                    sumaSztuk += Convert.ToDouble(reader["SztukiDek"]); // Dodaj wartość sztuk do sumy
+                                    sumaAut += Convert.ToDouble(reader["Auta"]);
+                                }
+                                if (reader["SztukiDek"] != DBNull.Value)
+                                {
+                                    sumaSztuk += Convert.ToDouble(reader["SztukiDek"]);
                                 }
                             }
+
+
                             // Dodaj wiersz sumujący
                             DataGridViewRow sumRow = new DataGridViewRow();
                             sumRow.CreateCells(DataGridWstawienia);
@@ -919,6 +929,9 @@ namespace Kalendarz1
                         {
                             MessageBox.Show("Błąd odczytu danych: " + ex.Message);
                         }
+
+
+                        
                     }
                 }
 
@@ -1378,8 +1391,31 @@ namespace Kalendarz1
 
         private void buttonWklej_Click(object sender, EventArgs e)
         {
-             sztuki.Text = obliczoneSztuki.Text ;
-             liczbaAut.Text = obliczoneAuta.Text;
+            sztuki.Text = obliczoneSztuki.Text;
+            liczbaAut.Text = obliczoneAuta.Text;
+        }
+
+        private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
+        {
+            ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
+        }
+        private void ObliczanieProcentuUbytku(TextBox Wstawienie, TextBox Wynik)
+        {
+            try
+            {
+                double wstawienie = double.Parse(Wstawienie.Text);
+                double wynik = wstawienie * 0.003;
+                Wynik.Text = wynik.ToString();
+            }
+            catch (FormatException)
+            {
+
+            }
+        }
+
+        private void sztukiPoUpadkach_TextChanged(object sender, EventArgs e)
+        {
+            ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
         }
     }
 }
