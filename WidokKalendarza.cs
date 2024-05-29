@@ -1342,5 +1342,44 @@ namespace Kalendarz1
             dataGridView1.BringToFront(); // Ustawia DataGridView na wierzchu
 
         }
+
+        private void label41_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void obliczoneAuta_TextChanged(object sender, EventArgs e)
+        {
+            MnozenieSztukAut(wyliczone, obliczoneAuta, obliczoneSztuki);
+        }
+
+        private void MnozenieSztukAut(TextBox sztuki, TextBox auta, TextBox wynik)
+        {
+            try
+            {
+                int liczbaSztuk = int.Parse(sztuki.Text);
+                int liczbaAut = int.Parse(auta.Text);
+                int wartosc = liczbaSztuk * liczbaAut;
+                wynik.Text = wartosc.ToString();
+            }
+            catch (FormatException)
+            {
+                // Handle the case where the input is not a valid integer
+                // For example, you can set the result TextBox to show an error message
+                wynik.Text = "Blad";
+            }
+        }
+
+
+        private void wyliczone_TextChanged(object sender, EventArgs e)
+        {
+            MnozenieSztukAut(wyliczone, obliczoneAuta, obliczoneSztuki);
+        }
+
+        private void buttonWklej_Click(object sender, EventArgs e)
+        {
+             sztuki.Text = obliczoneSztuki.Text ;
+             liczbaAut.Text = obliczoneAuta.Text;
+        }
     }
 }
