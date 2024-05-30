@@ -1285,7 +1285,7 @@
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Name = "WidokAvilog";
-            Text = "Form1";
+            Text = "Avilog Bon";
             groupBox4.ResumeLayout(false);
             groupBox3.ResumeLayout(false);
             groupBox3.PerformLayout();

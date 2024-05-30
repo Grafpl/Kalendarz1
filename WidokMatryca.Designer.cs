@@ -20,7 +20,7 @@
             base.Dispose(disposing);
         }
 
-        
+
         #region Windows Form Designer generated code
 
         /// <summary>
@@ -57,7 +57,7 @@
             // button1
             // 
             button1.Location = new System.Drawing.Point(285, 12);
-            button1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            button1.Margin = new System.Windows.Forms.Padding(2);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(58, 23);
             button1.TabIndex = 2;
@@ -68,7 +68,7 @@
             // button2
             // 
             button2.Location = new System.Drawing.Point(348, 12);
-            button2.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            button2.Margin = new System.Windows.Forms.Padding(2);
             button2.Name = "button2";
             button2.Size = new System.Drawing.Size(58, 23);
             button2.TabIndex = 3;
@@ -98,7 +98,7 @@
             Controls.Add(dateTimePicker1);
             Controls.Add(dataGridView1);
             Name = "WidokMatryca";
-            Text = "Form1";
+            Text = "Matryca Avilog";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
         }

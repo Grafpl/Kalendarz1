@@ -627,10 +627,6 @@ namespace Kalendarz1
                 // Close the document
                 doc.Close();
             }
-
-            // Notify the user and open the file
-            MessageBox.Show("Raport PDF został wygenerowany.");
-            //System.Diagnostics.Process.Start(filePath);
         }
 
         // Method to add table headers

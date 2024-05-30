@@ -15,7 +15,7 @@ namespace Kalendarz1
         private string lpDostawa;
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private int selectedRowIndex = -1; // Zmienna do przechowywania indeksu zaznaczonego wiersza
-        private double sumaSztuk = 0; // pozostale wstawienia
+        private double sumaSztuk; // pozostale wstawienia
         private Timer timer;
         public string UserID { get; set; }
         private MojeObliczenia obliczenia = new MojeObliczenia();
@@ -191,9 +191,21 @@ namespace Kalendarz1
         }
         private void DataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            dataWstawienia.Value = DateTime.Today;
-            LpWstawienia.Text = "0";
+            //dataWstawienia.Value = DateTime.Today;
+            LpWstawienia.Text = "";
             lpDostawa = "0";
+            //Wstawienia
+            obecnaDoba.Text = "";
+            sztukiWstawienia.Text = "";
+            sztukiPoUpadkach.Text = "";
+            sztukiPozostale.Text = "";
+            obecnaDoba.Text = "";
+            //Obliczenia
+            wyliczone.Text = "";
+            obliczoneAuta.Text = "";
+            obliczoneSztuki.Text = "";
+            obliczeniaAut.Text = "";
+
             DataGridWstawienia.Rows.Clear();
 
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
@@ -299,6 +311,7 @@ namespace Kalendarz1
                                         HD.Cena, 
                                         WK.DataWstawienia,
                                         D.Distance,
+                                        HD.Ubytek,
                                         HD.UWAGI
                         FROM HarmonogramDostaw HD
                         LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
@@ -343,6 +356,7 @@ namespace Kalendarz1
                             dataGridView1.Columns.Add("TypCenyKolumna", "Typ Ceny");
                             dataGridView1.Columns.Add("CenaKolumna", "Cena");
                             dataGridView1.Columns.Add("KmKolumna", "KM");
+                            dataGridView1.Columns.Add("procentUbytek", "%");
                             dataGridView1.Columns.Add("UwagaKolumna", "Uwagi");
 
                             if (!checkBoxCena.Checked)
@@ -371,7 +385,8 @@ namespace Kalendarz1
                             dataGridView1.Columns["RóżnicaDni"].Width = 43;
                             dataGridView1.Columns["TypCenyKolumna"].Width = 70;
                             dataGridView1.Columns["CenaKolumna"].Width = 50;
-                            dataGridView1.Columns["KmKolumna"].Width = 60;
+                            dataGridView1.Columns["KmKolumna"].Width = 50;
+                            dataGridView1.Columns["procentUbytek"].Width = 43;
                             dataGridView1.Columns["UwagaKolumna"].Width = 600;
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
@@ -555,6 +570,10 @@ namespace Kalendarz1
                                                 newRow.Cells[i].Value = "";
                                             }
                                         }
+                                        else if (dataGridView1.Columns[i].Name == "procentUbytek")
+                                        {
+                                            newRow.Cells[i].Value = reader["Ubytek"] + "%";
+                                        }
                                         else if (dataGridView1.Columns[i].Name == "WagaDek")
                                         {
                                             newRow.Cells[i].Value = reader["WagaDek"] + " kg";
@@ -641,6 +660,17 @@ namespace Kalendarz1
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
             {
                 FormatujWierszeZgodnieZStatus(i);
+            }
+            // Ustawienie wysokości wierszy na minimalną wartość
+            // Ustawienie wysokości wierszy na określoną wartość (np. 25 pikseli)
+            SetRowHeights(18);
+        }
+        private void SetRowHeights(int height)
+        {
+            // Ustawienie wysokości wszystkich wierszy na określoną wartość
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                row.Height = height;
             }
         }
         private void UstawStanCheckboxow()
@@ -821,6 +851,7 @@ namespace Kalendarz1
         private void LpWstawienia_SelectedIndexChanged(object sender, EventArgs e)
         {
             sumaSztuk = 0;
+
             // Utwórz połączenie z bazą danych SQL Server
 
             using (SqlConnection cnn = new SqlConnection(connectionPermission))
@@ -850,13 +881,8 @@ namespace Kalendarz1
                     }
                 }
 
-                // Przygotowanie drugiego zapytania
-                double sumaSztukWstawienia = 0;
-                double sumaAutWstawienia = 0;
-
                 strSQL = "SELECT LP, DataOdbioru, Auta, SztukiDek, WagaDek, bufor FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LpW = @NumerWstawienia order by DataOdbioru ASC";
 
-                double sumaSztuk = 0; // Inicjalizacja zmiennej do sumowania sztuk
                 double sumaAut = 0; // Inicjalizacja zmiennej do sumowania aut
 
                 using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
@@ -917,6 +943,7 @@ namespace Kalendarz1
                             }
 
 
+
                             // Dodaj wiersz sumujący
                             DataGridViewRow sumRow = new DataGridViewRow();
                             sumRow.CreateCells(DataGridWstawienia);
@@ -924,6 +951,9 @@ namespace Kalendarz1
                             sumRow.Cells[2].Value = string.Format("{0:#,0}", sumaSztuk); // Wartość sumy sztuk z separatorem tysięcy
                             sumRow.Cells[1].Value = sumaAut.ToString(); // Wartość sumy aut
                             DataGridWstawienia.Rows.Add(sumRow);
+
+                            ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
+                            OObliczaniePozosalychSztuk(sztukiPoUpadkach, sumaSztuk, sztukiPozostale);
                         }
                         catch (Exception ex)
                         {
@@ -931,7 +961,7 @@ namespace Kalendarz1
                         }
 
 
-                        
+
                     }
                 }
 
@@ -1047,6 +1077,9 @@ namespace Kalendarz1
         {
             int roznicaDni = obliczenia.ObliczRozniceDni(Data, dataWstawienia);
             RoznicaDni.Text = roznicaDni.ToString();
+
+            int roznicaDniObecnie = obliczenia.ObliczRozniceDniWstawieniaObecnie(DateTime.Now, dataWstawienia);
+            obecnaDoba.Text = roznicaDniObecnie.ToString();
         }
         private void Cena_TextChanged(object sender, EventArgs e)
         {
@@ -1121,6 +1154,8 @@ namespace Kalendarz1
                             MessageBox.Show("Nie udało się zaktualizować danych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                         zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
+                        zapytaniasql.UpdateDaneKontaktowe(Dostawca, tel1, tel2, tel3, info1, info2, info3);
+
                     }
                 }
             }
@@ -1397,15 +1432,29 @@ namespace Kalendarz1
 
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
-            ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
+            //ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
         }
         private void ObliczanieProcentuUbytku(TextBox Wstawienie, TextBox Wynik)
         {
             try
             {
                 double wstawienie = double.Parse(Wstawienie.Text);
-                double wynik = wstawienie * 0.003;
+                double wynik = wstawienie * 0.97;
                 Wynik.Text = wynik.ToString();
+            }
+            catch (FormatException)
+            {
+
+            }
+        }
+        private void OObliczaniePozosalychSztuk(TextBox SztukiPoUpadkach, double sumaSztuk, TextBox textboxWynik)
+        {
+            try
+            {
+                double sztUpadki = double.Parse(SztukiPoUpadkach.Text);
+                double sztSuma = sumaSztuk;
+                double wynik = sztUpadki - sztSuma;
+                textboxWynik.Text = wynik.ToString();
             }
             catch (FormatException)
             {
@@ -1415,7 +1464,86 @@ namespace Kalendarz1
 
         private void sztukiPoUpadkach_TextChanged(object sender, EventArgs e)
         {
-            ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
+            //ObliczanieProcentuUbytku(sztukiWstawienia, sztukiPoUpadkach);
+
+        }
+
+        private void KmH_TextChanged_1(object sender, EventArgs e)
+        {
+            zapytaniasql.ObliczanieUbytkuTransportowegoNaPodstawieKM(KmH, ubytekProcentowyObliczenie);
+        }
+
+        private void button12_Click(object sender, EventArgs e)
+        {
+
+            // Tworzenie nowej instancji WidokKalendarza
+            WidokWaga Widokwaga = new WidokWaga();
+
+            // Wyświetlanie formularza
+            Widokwaga.Show();
+
+        }
+
+        private void button11_Click(object sender, EventArgs e)
+        {
+            // Sprawdź, czy wybrano wartość w ComboBoxie
+            if (Dostawca.SelectedItem != null)
+            {
+                // Pobierz wybraną wartość z ComboBoxa
+                string selectedValue = Dostawca.SelectedItem.ToString();
+
+                // Tworzenie nowej instancji WidokWaga
+                WidokWaga widokWaga = new WidokWaga();
+
+                // Ustawienie wartości TextBoxa w WidokWaga
+                widokWaga.TextBoxValue = selectedValue;
+
+                // Ustaw wartość TextBoxa przed wyświetleniem formularza
+                widokWaga.SetTextBoxValue();
+
+                // Wyświetlanie formularza
+                widokWaga.Show();
+            }
+            else
+            {
+                MessageBox.Show("Proszę wybrać wartość z listy.");
+            }
+        }
+
+        private void button10_Click(object sender, EventArgs e)
+        {
+            // Sprawdź, czy wybrano wartość w ComboBoxie
+            if (Dostawca.SelectedItem != null)
+            {
+                // Pobierz wybraną wartość z ComboBoxa
+                string selectedValue = Dostawca.SelectedItem.ToString();
+
+                // Tworzenie nowej instancji WidokWaga
+                WidokPaszaPisklak Widokpaszapisklak = new WidokPaszaPisklak();
+
+                // Ustawienie wartości TextBoxa w WidokWaga
+                Widokpaszapisklak.TextBoxValue = selectedValue;
+
+                // Ustaw wartość TextBoxa przed wyświetleniem formularza
+                Widokpaszapisklak.SetTextBoxValue();
+
+                // Wyświetlanie formularza
+                Widokpaszapisklak.Show();
+            }
+            else
+            {
+                MessageBox.Show("Proszę wybrać wartość z listy.");
+            }
+        }
+
+        private void button13_Click(object sender, EventArgs e)
+        {
+
+            // Tworzenie nowej instancji WidokWaga
+            WidokPaszaPisklak Widokpaszapisklak = new WidokPaszaPisklak();
+
+            // Wyświetlanie formularza
+            Widokpaszapisklak.Show();
         }
     }
 }

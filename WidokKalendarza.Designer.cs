@@ -105,14 +105,13 @@ namespace Kalendarz1
             UlicaH = new TextBox();
             label4 = new Label();
             groupBox2 = new GroupBox();
-            checkBox4 = new CheckBox();
-            checkBox2 = new CheckBox();
+            potwWaga = new CheckBox();
+            potwSztuki = new CheckBox();
             button10 = new Button();
-            button9 = new Button();
             label36 = new Label();
             textBox4 = new TextBox();
             buttonWklej = new Button();
-            textBox5 = new TextBox();
+            ubytekProcentowyObliczenie = new TextBox();
             label46 = new Label();
             obliczoneSztuki = new TextBox();
             label41 = new Label();
@@ -504,12 +503,13 @@ namespace Kalendarz1
             // 
             // button11
             // 
-            button11.Location = new System.Drawing.Point(245, 51);
+            button11.Location = new System.Drawing.Point(251, 53);
             button11.Name = "button11";
             button11.Size = new System.Drawing.Size(51, 23);
             button11.TabIndex = 123;
             button11.Text = "Wagi";
             button11.UseVisualStyleBackColor = true;
+            button11.Click += button11_Click;
             // 
             // label8
             // 
@@ -898,6 +898,7 @@ namespace Kalendarz1
             KmH.Size = new System.Drawing.Size(43, 18);
             KmH.TabIndex = 15;
             KmH.TextAlign = HorizontalAlignment.Center;
+            KmH.TextChanged += KmH_TextChanged_1;
             // 
             // MiejscK
             // 
@@ -1024,14 +1025,13 @@ namespace Kalendarz1
             // groupBox2
             // 
             groupBox2.BackColor = System.Drawing.Color.FloralWhite;
-            groupBox2.Controls.Add(checkBox4);
-            groupBox2.Controls.Add(checkBox2);
+            groupBox2.Controls.Add(potwWaga);
+            groupBox2.Controls.Add(potwSztuki);
             groupBox2.Controls.Add(button10);
-            groupBox2.Controls.Add(button9);
             groupBox2.Controls.Add(label36);
             groupBox2.Controls.Add(textBox4);
             groupBox2.Controls.Add(buttonWklej);
-            groupBox2.Controls.Add(textBox5);
+            groupBox2.Controls.Add(ubytekProcentowyObliczenie);
             groupBox2.Controls.Add(label46);
             groupBox2.Controls.Add(obliczoneSztuki);
             groupBox2.Controls.Add(label41);
@@ -1069,48 +1069,40 @@ namespace Kalendarz1
             groupBox2.TabStop = false;
             groupBox2.Text = "Dane Dostawy";
             // 
-            // checkBox4
+            // potwWaga
             // 
-            checkBox4.AutoSize = true;
-            checkBox4.Location = new System.Drawing.Point(45, 34);
-            checkBox4.Name = "checkBox4";
-            checkBox4.Size = new System.Drawing.Size(15, 14);
-            checkBox4.TabIndex = 124;
-            checkBox4.UseVisualStyleBackColor = true;
+            potwWaga.AutoSize = true;
+            potwWaga.Location = new System.Drawing.Point(45, 34);
+            potwWaga.Name = "potwWaga";
+            potwWaga.Size = new System.Drawing.Size(15, 14);
+            potwWaga.TabIndex = 124;
+            potwWaga.UseVisualStyleBackColor = true;
             // 
-            // checkBox2
+            // potwSztuki
             // 
-            checkBox2.AutoSize = true;
-            checkBox2.Location = new System.Drawing.Point(176, 34);
-            checkBox2.Name = "checkBox2";
-            checkBox2.Size = new System.Drawing.Size(15, 14);
-            checkBox2.TabIndex = 123;
-            checkBox2.UseVisualStyleBackColor = true;
+            potwSztuki.AutoSize = true;
+            potwSztuki.Location = new System.Drawing.Point(176, 34);
+            potwSztuki.Name = "potwSztuki";
+            potwSztuki.Size = new System.Drawing.Size(15, 14);
+            potwSztuki.TabIndex = 123;
+            potwSztuki.UseVisualStyleBackColor = true;
             // 
             // button10
             // 
-            button10.Location = new System.Drawing.Point(369, 129);
+            button10.Location = new System.Drawing.Point(371, 153);
             button10.Name = "button10";
             button10.Size = new System.Drawing.Size(51, 23);
             button10.TabIndex = 122;
             button10.Text = "Pasza?";
             button10.UseVisualStyleBackColor = true;
-            // 
-            // button9
-            // 
-            button9.Location = new System.Drawing.Point(369, 153);
-            button9.Name = "button9";
-            button9.Size = new System.Drawing.Size(51, 23);
-            button9.TabIndex = 121;
-            button9.Text = "Pasza?";
-            button9.UseVisualStyleBackColor = true;
+            button10.Click += button10_Click;
             // 
             // label36
             // 
             label36.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             label36.Location = new System.Drawing.Point(308, 125);
             label36.Name = "label36";
-            label36.Size = new System.Drawing.Size(59, 33);
+            label36.Size = new System.Drawing.Size(59, 29);
             label36.TabIndex = 122;
             label36.Text = "Cena sugerowana";
             label36.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -1136,16 +1128,16 @@ namespace Kalendarz1
             buttonWklej.UseVisualStyleBackColor = true;
             buttonWklej.Click += buttonWklej_Click;
             // 
-            // textBox5
+            // ubytekProcentowyObliczenie
             // 
-            textBox5.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(248, 114);
-            textBox5.Multiline = true;
-            textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(57, 21);
-            textBox5.TabIndex = 119;
-            textBox5.TextAlign = HorizontalAlignment.Center;
+            ubytekProcentowyObliczenie.BackColor = System.Drawing.SystemColors.ScrollBar;
+            ubytekProcentowyObliczenie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            ubytekProcentowyObliczenie.Location = new System.Drawing.Point(248, 114);
+            ubytekProcentowyObliczenie.Multiline = true;
+            ubytekProcentowyObliczenie.Name = "ubytekProcentowyObliczenie";
+            ubytekProcentowyObliczenie.Size = new System.Drawing.Size(57, 21);
+            ubytekProcentowyObliczenie.TabIndex = 119;
+            ubytekProcentowyObliczenie.TextAlign = HorizontalAlignment.Center;
             // 
             // label46
             // 
@@ -2080,6 +2072,7 @@ namespace Kalendarz1
             button12.TabIndex = 121;
             button12.Text = "Pokaz Wagi";
             button12.UseVisualStyleBackColor = false;
+            button12.Click += button12_Click;
             // 
             // button13
             // 
@@ -2091,6 +2084,7 @@ namespace Kalendarz1
             button13.TabIndex = 122;
             button13.Text = "Pokaż pasze";
             button13.UseVisualStyleBackColor = false;
+            button13.Click += button13_Click;
             // 
             // WidokKalendarza
             // 
@@ -2148,7 +2142,7 @@ namespace Kalendarz1
             Controls.Add(dataGridView1);
             Controls.Add(HarmonogramDnia);
             Name = "WidokKalendarza";
-            Text = "Dostawy";
+            Text = "Kalendarz";
             FormClosing += WidokKalendarza_FormClosing;
             Load += WidokKalendarza_Load_1;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
@@ -2337,7 +2331,7 @@ namespace Kalendarz1
         private Label label33;
         private Label label46;
         private TextBox obliczoneSztuki;
-        private TextBox textBox5;
+        private TextBox ubytekProcentowyObliczenie;
         private Button button6;
         private Button button7;
         private Label label26;
@@ -2346,11 +2340,10 @@ namespace Kalendarz1
         private Button buttonWklej;
         private Button button11;
         private Button button10;
-        private Button button9;
         private Label label36;
         private TextBox textBox4;
-        private CheckBox checkBox4;
-        private CheckBox checkBox2;
+        private CheckBox potwWaga;
+        private CheckBox potwSztuki;
         private Button button12;
         private Button button13;
     }

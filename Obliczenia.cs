@@ -35,6 +35,21 @@ namespace Kalendarz1
             return roznicaDni;
         }
 
+        public int ObliczRozniceDniWstawieniaObecnie(DateTime dataWstawienia, DateTimePicker dataDostawy)
+        {
+            // Deklaracja zmiennych do przechowywania dat i różnicy
+            DateTime dataPierwsza = dataWstawienia;
+            DateTime dataDruga = dataDostawy.Value;
+            int roznicaDni;
+
+            // Obliczenie różnicy w dniach
+            TimeSpan roznica =  dataPierwsza - dataDruga;
+            roznicaDni = roznica.Days;
+
+            return roznicaDni;
+        }
+
+
         public void ileSztukOblcizenie(TextBox sztukNaSzuflade, TextBox Wyliczone)
         {
             double WyliczonaSuma;

@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using System.Security.Policy;
+using System.Globalization;
 
 
 namespace Kalendarz1
@@ -1111,6 +1112,35 @@ namespace Kalendarz1
                 MessageBox.Show($"Nie można otworzyć strony: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        public void ObliczanieUbytkuTransportowegoNaPodstawieKM(TextBox inputTextBox, TextBox resultTextBox)
+        {
+            double inputValue;
+            double result;
+
+            // Sprawdzanie, czy TextBox1 zawiera liczbę
+            if (double.TryParse(inputTextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out inputValue))
+            {
+                // Obliczenia w zależności od wartości w TextBox1
+                if (inputValue <= 100)
+                {
+                    result = inputValue * 0.01;
+                }
+                else
+                {
+                    result = 1 + (inputValue - 100) * 0.007;
+                }
+
+                // Sformatuj wynik jako liczba z kropką jako separatorem dziesiętnym
+                resultTextBox.Text = result.ToString("0.00", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                // Jeśli TextBox1 nie zawiera liczby, wyczyść TextBox2
+                resultTextBox.Text = "";
+            }
+        }
+
     }
     // Metoda pomocnicza do otwierania URL w domyślnej przeglądarce
 
