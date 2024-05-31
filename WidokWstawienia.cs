@@ -17,10 +17,12 @@ namespace Kalendarz1
             DisplayDataInDataGridView();
         }
 
+        private bool isUserInitiatedChange = false;
+
         private void DisplayDataInDataGridView()
         {
             // Zapytanie SQL
-            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS DataWstawienia, IloscWstawienia, TypUmowy, Uwagi " +
+            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS DataWstawienia, IloscWstawienia, TypUmowy, Uwagi, [isCheck], [CheckCom] " +
                            "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
                            "ORDER BY Dostawca ASC, DataWstawienia DESC";
 
@@ -53,22 +55,30 @@ namespace Kalendarz1
                     FormatujWierszeZgodnieZStatus(i);
                 }
 
-                // Tworzenie drugiego DataGridView (dataGridView2)
+                // Tworzenie drugiego DataGridView (dataGridView3)
+                dataGridView3.Columns.Clear(); // Usunięcie poprzednich kolumn
+                dataGridView3.Columns.Add("Lp", "LP");
                 dataGridView3.Columns.Add("DataWstawienia", "Data Wstawienia");
                 dataGridView3.Columns.Add("Dostawca", "Dostawca");
                 dataGridView3.Columns.Add("IloscWstawienia", "Ilosc Wstawienia");
 
-
+                DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
+                confirmColumn.HeaderText = "V";
+                confirmColumn.Name = "ConfirmColumn";
+                confirmColumn.Width = 80;
+                dataGridView3.Columns.Add(confirmColumn);
+                dataGridView3.Columns["ConfirmColumn"].Width = 35;
 
                 for (int i = 0; i < dataGridView1.Rows.Count; i++)
                 {
                     // Formatowanie wierszy zgodnie z statusami
                     FormatujWierszeZgodnieZStatus(i);
 
-                    // Dodawanie skopiowanych wierszy do dataGridView2
+                    // Dodawanie skopiowanych wierszy do dataGridView3
                     if (dataGridView1.Rows[i].DefaultCellStyle.BackColor == Color.Red)
                     {
                         dataGridView3.Rows.Add(
+                            dataGridView1.Rows[i].Cells["LP"].Value,
                             dataGridView1.Rows[i].Cells["DataWstawienia"].Value,
                             dataGridView1.Rows[i].Cells["Dostawca"].Value,
                             dataGridView1.Rows[i].Cells["IloscWstawienia"].Value
@@ -76,109 +86,86 @@ namespace Kalendarz1
                     }
                 }
             }
+
+            // Dodanie obsługi zdarzenia CellValueChanged
+            dataGridView1.CellValueChanged -= dataGridView1_CellValueChanged;
+            dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
+            dataGridView1.CurrentCellDirtyStateChanged -= dataGridView1_CurrentCellDirtyStateChanged;
+            dataGridView1.CurrentCellDirtyStateChanged += dataGridView1_CurrentCellDirtyStateChanged;
         }
 
-        private void dataGridView1_CellFormatting_1(object sender, DataGridViewCellFormattingEventArgs e)
+        private void dataGridView1_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
-            FormatujWierszeZgodnieZStatus(e.RowIndex);
-        }
-        private void AddEmptyRows(DataTable dataTable)
-        {
-            DataRow previousRow = null;
-
-            // Przechodzenie przez wiersze i dodawanie pustych wierszy między różnymi dostawcami
-            for (int i = dataTable.Rows.Count - 1; i >= 0; i--)
+            if (dataGridView1.CurrentCell is DataGridViewCheckBoxCell)
             {
-                DataRow currentRow = dataTable.Rows[i];
-                if (previousRow != null && currentRow["Dostawca"].ToString() != previousRow["Dostawca"].ToString())
-                {
-                    DataRow emptyRow = dataTable.NewRow();
-                    dataTable.Rows.InsertAt(emptyRow, i + 1);
-                }
-                previousRow = currentRow;
+                dataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit);
             }
         }
-        private void FormatujWierszeZgodnieZStatus(int rowIndex)
+
+        private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-            if (rowIndex >= 0)
+            if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
             {
-                var dataWstawieniaCell = dataGridView1.Rows[rowIndex].Cells["DataWstawienia"];
-                var dostawcaCell = dataGridView1.Rows[rowIndex].Cells["Dostawca"];
-
-                if (dataWstawieniaCell != null && dataWstawieniaCell.Value != null && dostawcaCell != null && dostawcaCell.Value != null)
+                if (isUserInitiatedChange)
                 {
-                    DateTime dataWstawienia;
-                    if (DateTime.TryParse(dataWstawieniaCell.Value.ToString(), out dataWstawienia))
-                    {
-                        // Oblicz różnicę w dniach między datą wstawienia a dniem obecnym
-                        TimeSpan roznicaDni = DateTime.Now.Date - dataWstawienia.Date;
+                    bool isChecked = (bool)dataGridView1.Rows[e.RowIndex].Cells["isCheck"].Value;
+                    int lp = (int)dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
 
-                        // Sprawdź, czy różnica dni wynosi 28
-                        if (roznicaDni.Days >= 35)
-                        {
-                            // Znajdź maksymalną wartość dla dostawcy
-                            DateTime maxDataWstawienia = ZnajdzMaxDateDlaDostawcy(dostawcaCell.Value.ToString());
+                    string userComment = ShowInputDialog("Enter your comment:");
 
-                            // Sprawdź, czy aktualna data wstawienia jest maksymalną datą dla dostawcy
-                            if (dataWstawienia == maxDataWstawienia)
-                            {
-                                dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Red;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Obsłuż przypadki, gdy wartość w komórce "DataWstawienia" nie może być przekonwertowana na DateTime
-                        // Tutaj możesz dodać kod obsługi takich przypadków, np. wypisanie komunikatu o błędzie
-                        // Możesz także zastosować inne działania w zależności od potrzeb
-                    }
-                }
-            }
-        }
-        private DateTime ZnajdzMaxDateDlaDostawcy(string dostawca)
-        {
-            DateTime maxDataWstawienia = DateTime.MinValue;
-
-            foreach (DataGridViewRow row in dataGridView1.Rows)
-            {
-                if (row.Cells["Dostawca"].Value != null && row.Cells["DataWstawienia"].Value != null &&
-                    row.Cells["Dostawca"].Value.ToString() == dostawca)
-                {
-                    DateTime dataWstawienia;
-                    if (DateTime.TryParse(row.Cells["DataWstawienia"].Value.ToString(), out dataWstawienia))
-                    {
-                        if (dataWstawienia > maxDataWstawienia)
-                        {
-                            maxDataWstawienia = dataWstawienia;
-                        }
-                    }
-                }
-            }
-
-            return maxDataWstawienia;
-        }
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-            string filterText = textBox1.Text.Trim().ToLower();
-
-            // Sprawdzenie, czy istnieje źródło danych dla DataGridView
-            if (dataGridView1.DataSource is DataTable dataTable)
-            {
-                // Ustawienie filtra dla kolumny "Dostawca"
-                dataTable.DefaultView.RowFilter = $"Dostawca LIKE '%{filterText}%'";
-
-                // Przywrócenie pozycji kursora po zastosowaniu filtra
-                int currentPosition = dataGridView1.FirstDisplayedScrollingRowIndex;
-                if (currentPosition >= 0 && currentPosition < dataGridView1.RowCount)
-                {
-                    dataGridView1.FirstDisplayedScrollingRowIndex = currentPosition;
+                    UpdateIsCheckInDatabase(lp, isChecked, userComment);
+                    DisplayDataInDataGridView(); // Przeładowanie danych po zmianie
                 }
             }
         }
 
+        private string ShowInputDialog(string text)
+        {
+            Form prompt = new Form()
+            {
+                Width = 500,
+                Height = 150,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = "Input",
+                StartPosition = FormStartPosition.CenterScreen
+            };
+            Label textLabel = new Label() { Left = 50, Top = 20, Text = text };
+            TextBox inputBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
+            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
+            confirmation.Click += (sender, e) => { prompt.Close(); };
+            prompt.Controls.Add(textLabel);
+            prompt.Controls.Add(inputBox);
+            prompt.Controls.Add(confirmation);
+            prompt.AcceptButton = confirmation;
+
+            return prompt.ShowDialog() == DialogResult.OK ? inputBox.Text : "";
+        }
+
+        private void UpdateIsCheckInDatabase(int lp, bool isChecked, string comment)
+        {
+            string query = "UPDATE [LibraNet].[dbo].[WstawieniaKurczakow] SET [isCheck] = @isCheck, [CheckCom] = @comment WHERE LP = @lp";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@isCheck", isChecked ? 1 : 0);
+                    command.Parameters.AddWithValue("@comment", comment);
+                    command.Parameters.AddWithValue("@lp", lp);
+
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        // Aby ustawić flagę, gdy zmiana jest inicjowana przez użytkownika
         private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
+            if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
+            {
+                isUserInitiatedChange = true;
+            }
             // Utwórz połączenie z bazą danych SQL Server
             using (SqlConnection cnn = new SqlConnection(connectionString))
             {
@@ -250,6 +237,123 @@ namespace Kalendarz1
                 }
             }
         }
+
+        private void dataGridView1_MouseUp(object sender, MouseEventArgs e)
+        {
+            isUserInitiatedChange = false;
+        }
+
+
+        private void dataGridView1_CellFormatting_1(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            FormatujWierszeZgodnieZStatus(e.RowIndex);
+        }
+        private void AddEmptyRows(DataTable dataTable)
+        {
+            DataRow previousRow = null;
+
+            // Przechodzenie przez wiersze i dodawanie pustych wierszy między różnymi dostawcami
+            for (int i = dataTable.Rows.Count - 1; i >= 0; i--)
+            {
+                DataRow currentRow = dataTable.Rows[i];
+                if (previousRow != null && currentRow["Dostawca"].ToString() != previousRow["Dostawca"].ToString())
+                {
+                    DataRow emptyRow = dataTable.NewRow();
+                    dataTable.Rows.InsertAt(emptyRow, i + 1);
+                }
+                previousRow = currentRow;
+            }
+        }
+        private void FormatujWierszeZgodnieZStatus(int rowIndex)
+        {
+            if (rowIndex >= 0)
+            {
+                var dataWstawieniaCell = dataGridView1.Rows[rowIndex].Cells["DataWstawienia"];
+                var dostawcaCell = dataGridView1.Rows[rowIndex].Cells["Dostawca"];
+                var isCheckCell = dataGridView1.Rows[rowIndex].Cells["isCheck"];
+
+                if (dataWstawieniaCell != null && dataWstawieniaCell.Value != null && dostawcaCell != null && dostawcaCell.Value != null)
+                {
+                    DateTime dataWstawienia;
+                    bool isChecked = false;
+
+                    if (isCheckCell != null && isCheckCell.Value != DBNull.Value)
+                    {
+                        isChecked = (bool)isCheckCell.Value;
+                    }
+
+                    if (DateTime.TryParse(dataWstawieniaCell.Value.ToString(), out dataWstawienia) && !isChecked)
+                    {
+                        // Oblicz różnicę w dniach między datą wstawienia a dniem obecnym
+                        TimeSpan roznicaDni = DateTime.Now.Date - dataWstawienia.Date;
+
+                        // Sprawdź, czy różnica dni wynosi 35
+                        if (roznicaDni.Days >= 35)
+                        {
+                            // Znajdź maksymalną wartość dla dostawcy
+                            DateTime maxDataWstawienia = ZnajdzMaxDateDlaDostawcy(dostawcaCell.Value.ToString());
+
+                            // Sprawdź, czy aktualna data wstawienia jest maksymalną datą dla dostawcy
+                            if (dataWstawienia == maxDataWstawienia)
+                            {
+                                dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Red;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Obsłuż przypadki, gdy wartość w komórce "DataWstawienia" nie może być przekonwertowana na DateTime
+                        // Tutaj możesz dodać kod obsługi takich przypadków, np. wypisanie komunikatu o błędzie
+                        // Możesz także zastosować inne działania w zależności od potrzeb
+                    }
+                }
+            }
+        }
+
+
+        private DateTime ZnajdzMaxDateDlaDostawcy(string dostawca)
+        {
+            DateTime maxDataWstawienia = DateTime.MinValue;
+
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["Dostawca"].Value != null && row.Cells["DataWstawienia"].Value != null &&
+                    row.Cells["Dostawca"].Value.ToString() == dostawca)
+                {
+                    DateTime dataWstawienia;
+                    if (DateTime.TryParse(row.Cells["DataWstawienia"].Value.ToString(), out dataWstawienia))
+                    {
+                        if (dataWstawienia > maxDataWstawienia)
+                        {
+                            maxDataWstawienia = dataWstawienia;
+                        }
+                    }
+                }
+            }
+
+            return maxDataWstawienia;
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            string filterText = textBox1.Text.Trim().ToLower();
+
+            // Sprawdzenie, czy istnieje źródło danych dla DataGridView
+            if (dataGridView1.DataSource is DataTable dataTable)
+            {
+                // Ustawienie filtra dla kolumny "Dostawca"
+                dataTable.DefaultView.RowFilter = $"Dostawca LIKE '%{filterText}%'";
+
+                // Przywrócenie pozycji kursora po zastosowaniu filtra
+                int currentPosition = dataGridView1.FirstDisplayedScrollingRowIndex;
+                if (currentPosition >= 0 && currentPosition < dataGridView1.RowCount)
+                {
+                    dataGridView1.FirstDisplayedScrollingRowIndex = currentPosition;
+                }
+            }
+        }
+
+
 
 
 

@@ -112,6 +112,7 @@
             dataGridView3.RowTemplate.Height = 25;
             dataGridView3.Size = new System.Drawing.Size(485, 319);
             dataGridView3.TabIndex = 43;
+    
             // 
             // label3
             // 
