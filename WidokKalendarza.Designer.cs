@@ -205,6 +205,9 @@ namespace Kalendarz1
             button6 = new Button();
             button12 = new Button();
             button13 = new Button();
+            button9 = new Button();
+            button14 = new Button();
+            button15 = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -1299,6 +1302,7 @@ namespace Kalendarz1
             pictureBox8.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox8.TabIndex = 107;
             pictureBox8.TabStop = false;
+            pictureBox8.Click += pictureBox8_Click;
             // 
             // pictureBox7
             // 
@@ -1562,8 +1566,8 @@ namespace Kalendarz1
             // 
             // buttonCena
             // 
-            buttonCena.BackColor = System.Drawing.Color.Chartreuse;
-            buttonCena.Location = new System.Drawing.Point(886, 69);
+            buttonCena.BackColor = System.Drawing.Color.Yellow;
+            buttonCena.Location = new System.Drawing.Point(1029, 79);
             buttonCena.Name = "buttonCena";
             buttonCena.Size = new System.Drawing.Size(75, 22);
             buttonCena.TabIndex = 107;
@@ -2086,11 +2090,50 @@ namespace Kalendarz1
             button13.UseVisualStyleBackColor = false;
             button13.Click += button13_Click;
             // 
+            // button9
+            // 
+            button9.BackColor = System.Drawing.Color.Black;
+            button9.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button9.ForeColor = System.Drawing.SystemColors.ControlLightLight;
+            button9.Location = new System.Drawing.Point(886, 69);
+            button9.Name = "button9";
+            button9.Size = new System.Drawing.Size(75, 22);
+            button9.TabIndex = 123;
+            button9.Text = "Dostawy";
+            button9.UseVisualStyleBackColor = false;
+            button9.Click += button9_Click;
+            // 
+            // button14
+            // 
+            button14.BackColor = System.Drawing.Color.Yellow;
+            button14.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button14.Location = new System.Drawing.Point(1029, 51);
+            button14.Name = "button14";
+            button14.Size = new System.Drawing.Size(75, 22);
+            button14.TabIndex = 124;
+            button14.Text = "Pokaz Ceny";
+            button14.UseVisualStyleBackColor = false;
+            button14.Click += button14_Click;
+            // 
+            // button15
+            // 
+            button15.BackColor = System.Drawing.Color.Azure;
+            button15.Location = new System.Drawing.Point(618, 492);
+            button15.Name = "button15";
+            button15.Size = new System.Drawing.Size(71, 39);
+            button15.TabIndex = 125;
+            button15.Text = "Pokaz Avilog";
+            button15.UseVisualStyleBackColor = false;
+            button15.Click += button15_Click;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1605, 1061);
+            Controls.Add(button15);
+            Controls.Add(button14);
+            Controls.Add(button9);
             Controls.Add(button13);
             Controls.Add(button12);
             Controls.Add(button6);
@@ -2346,5 +2389,8 @@ namespace Kalendarz1
         private CheckBox potwSztuki;
         private Button button12;
         private Button button13;
+        private Button button9;
+        private Button button14;
+        private Button button15;
     }
 }

@@ -36,6 +36,7 @@ namespace Kalendarz1
             MyCalendar.SelectionEnd = DateTime.Today;
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             checkBoxDoWykupienia.Checked = true;
+            checkBox1.Checked = true; //Paleciak
             // Inicjalizacja timera
             timer = new Timer();
             timer.Interval = 60000; // Interwał w milisekundach (tu: co 5 sekund)
@@ -49,6 +50,21 @@ namespace Kalendarz1
             PokazCeny();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             BiezacePartie();
+
+            // Sprawdź, czy aktualna godzina jest między 14:30 a 15:00
+            TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
+            TimeSpan end = new TimeSpan(16, 0, 0);    // 15:00
+            TimeSpan now = DateTime.Now.TimeOfDay;
+
+            // Sprawdź, czy aktualny dzień tygodnia jest poniedziałek, środa lub piątek
+            DayOfWeek today = DateTime.Now.DayOfWeek;
+            bool isMondayWednesdayOrFriday = (today == DayOfWeek.Monday || today == DayOfWeek.Wednesday || today == DayOfWeek.Friday);
+
+            if (now >= start && now <= end && isMondayWednesdayOrFriday)
+            {
+                // Wyświetl komunikat
+                MessageBox.Show("Wstaw Cene z cenyrolnicze.pl");
+            }
 
         }
         private void BiezacePartie()
@@ -1042,6 +1058,7 @@ namespace Kalendarz1
 
             obliczenia.ObliczWage(srednia, WagaTuszki, iloscPoj, sztukNaSzuflade, wyliczone, KGwSkrzynce, CalcSztukNaSzuflade);
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
             nazwaZiD.ReplaceCommaWithDot(srednia);
         }
         private void Data_ValueChanged(object sender, EventArgs e)
@@ -1213,6 +1230,7 @@ namespace Kalendarz1
 
         private void KGwSkrzynce_TextChanged(object sender, EventArgs e)
         {
+            KGZestaw.Text = "23500";
             // Sprawdź, czy KGwSkrzynce nie jest puste
             if (!string.IsNullOrEmpty(KGwSkrzynce.Text))
             {
@@ -1544,6 +1562,38 @@ namespace Kalendarz1
 
             // Wyświetlanie formularza
             Widokpaszapisklak.Show();
+        }
+
+        private void button9_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji WidokWaga
+            WidokWszystkichDostaw widokWszystkichDostaw = new WidokWszystkichDostaw();
+
+            // Wyświetlanie formularza
+            widokWszystkichDostaw.Show();
+        }
+
+        private void button14_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji WidokWaga
+            WidokCenWszystkich widokCenWszystkich = new WidokCenWszystkich();
+
+            // Wyświetlanie formularza
+            widokCenWszystkich.Show();
+        }
+
+        private void pictureBox8_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button15_Click(object sender, EventArgs e)
+        {
+            // Tworzenie nowej instancji WidokWaga
+            WidokAvilogPlan widokAvilogPlan = new WidokAvilogPlan();
+
+            // Wyświetlanie formularza
+            widokAvilogPlan.Show();
         }
     }
 }
