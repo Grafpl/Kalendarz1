@@ -444,7 +444,7 @@ namespace Kalendarz1
             // Spraw aby wstawienie było widoczne
             if (!string.IsNullOrEmpty(Status.Text))
             {
-                groupBoxWstawienie.Visible = true;
+                //groupBoxWstawienie.Visible = true;
             }
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
 
@@ -652,7 +652,7 @@ namespace Kalendarz1
             // Spraw aby wstawienie było widoczne
             if (!string.IsNullOrEmpty(Status.Text))
             {
-                groupBoxDostawca.Visible = true;
+                //groupBoxDostawca.Visible = true;
             }
 
             if (Status.Text == "Do wykupienia" || Status.Text == "B.Wolny.")

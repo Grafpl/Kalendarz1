@@ -5,9 +5,9 @@ using Twilio.Types;
 
 public class SmsSender
 {
-    //private const string accountSid = "";
-    //private const string authToken = "";
-    //private static readonly PhoneNumber from = new PhoneNumber("+");
+    private const string accountSid = "";
+    private const string authToken = "";
+    private static readonly PhoneNumber from = new PhoneNumber("+");
 
     public static void SendSms(string destinationPhoneNumber, string messageBody)
     {

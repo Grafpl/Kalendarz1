@@ -393,18 +393,18 @@ namespace Kalendarz1
 
                             // Ustawienie szerokości kolumn
                             dataGridView1.Columns["LP"].Width = 50;
-                            dataGridView1.Columns["DataOdbioruKolumna"].Width = 100;
-                            dataGridView1.Columns["DostawcaKolumna"].Width = 150;
+                            dataGridView1.Columns["DataOdbioruKolumna"].Width = 85;
+                            dataGridView1.Columns["DostawcaKolumna"].Width = 110;
                             dataGridView1.Columns["AutaKolumna"].Width = 25;
                             dataGridView1.Columns["SztukiDekKolumna"].Width = 70;
                             dataGridView1.Columns["WagaDek"].Width = 50;
                             dataGridView1.Columns["bufor"].Width = 85;
                             dataGridView1.Columns["RóżnicaDni"].Width = 43;
-                            dataGridView1.Columns["TypCenyKolumna"].Width = 70;
+                            dataGridView1.Columns["TypCenyKolumna"].Width = 55;
                             dataGridView1.Columns["CenaKolumna"].Width = 50;
                             dataGridView1.Columns["KmKolumna"].Width = 50;
                             dataGridView1.Columns["procentUbytek"].Width = 43;
-                            dataGridView1.Columns["UwagaKolumna"].Width = 600;
+                            
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
                             confirmColumn.HeaderText = "V";
@@ -421,21 +421,22 @@ namespace Kalendarz1
 
                             if (!checkBoxNotatki.Checked)
                             {
-                                dataGridView1.Columns["UwagaKolumna"].Visible = false;
+                                dataGridView1.Columns["UwagaKolumna"].Width = 80;
+                                //dataGridView1.Columns["UwagaKolumna"].Visible = false;
                                 dataGridView1.Width = 612;
                                 groupBox1.Location = new Point(695, 180);
-                                CommandButton_Update.Location = new Point(618, 258);
-                                button1.Location = new Point(612, 221);
-                                button5.Location = new Point(653, 221);
+                                groupBoxPrzyciski.Location = new Point(612, 221);
+                                MyCalendar.Location = new Point(612, 1);
+
                             }
                             else
                             {
-                                dataGridView1.Columns["UwagaKolumna"].Visible = true;
+                                dataGridView1.Columns["UwagaKolumna"].Width = 600;
+                                //dataGridView1.Columns["UwagaKolumna"].Visible = true;
                                 dataGridView1.Width = 1212;
-                                groupBox1.Location = new Point(1355, 180);
-                                CommandButton_Update.Location = new Point(1228, 258);
-                                button1.Location = new Point(1228, 250);
-                                button5.Location = new Point(1228, 221);
+                                groupBox1.Location = new Point(1295, 180);
+                                groupBoxPrzyciski.Location = new Point(1212, 168);
+                                MyCalendar.Location = new Point(1212, 1);
                             }
 
                             DateTime? currentDate = null;
@@ -456,7 +457,7 @@ namespace Kalendarz1
                             while (reader.Read())
                             {
                                 DateTime date = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
-                                string formattedDate = date.ToString("yyyy-MM-dd dddd");
+                                string formattedDate = date.ToString("yyyy-MM-dd ddd");
 
                                 if (currentDate != date)
                                 {
