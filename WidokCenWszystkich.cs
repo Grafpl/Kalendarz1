@@ -64,7 +64,7 @@ CTE_HANDEL AS (
         CONVERT(DATE, DP.[data])
 )
 SELECT 
-    COALESCE(M.Data, R.Data, H.Data) AS Data,
+    FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)) AS Data,
     CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Mini,
     CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolni,
     CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Laczo,
@@ -79,8 +79,7 @@ WHERE
     COALESCE(M.Data, R.Data, H.Data) >= '2024-01-01'
 ORDER BY 
     Data DESC;
-;
-            ";
+";
 
             // Utworzenie połączenia z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionPermission))
@@ -96,12 +95,10 @@ ORDER BY
 
                 // Ustawienie DataTable jako DataSource dla DataGridView
                 dataGridView1.DataSource = table;
-
-                // Ustawienie wysokości wierszy na minimalną wartość
-                
             }
             SetRowHeights(15);
         }
+
 
         // Metoda do ustawienia wysokości wierszy
         private void SetRowHeights(int height)

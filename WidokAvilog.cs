@@ -428,7 +428,7 @@ namespace Kalendarz1
         private void button1_Click(object sender, EventArgs e)
         {
             zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
-            zapytaniasql.UpdateDaneKontaktowe(Dostawca, Tel1, info1, Tel2, info2, Tel3, info3);
+            zapytaniasql.UpdateDaneKontaktowe(Dostawca, Tel1, info1, Tel2, info2, Tel3, info3, Email);
             zapytaniasql.UpdateDaneRozliczenioweAvilogHodowca(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
             zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);

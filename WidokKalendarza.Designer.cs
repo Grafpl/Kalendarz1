@@ -208,6 +208,7 @@ namespace Kalendarz1
             button9 = new Button();
             button14 = new Button();
             button15 = new Button();
+            SMSupomnienie = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -279,6 +280,7 @@ namespace Kalendarz1
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
+            groupBox1.Controls.Add(SMSupomnienie);
             groupBox1.Controls.Add(label26);
             groupBox1.Controls.Add(textBox3);
             groupBox1.Controls.Add(groupBox3);
@@ -299,7 +301,7 @@ namespace Kalendarz1
             groupBox1.FlatStyle = FlatStyle.Flat;
             groupBox1.Location = new System.Drawing.Point(695, 180);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new System.Drawing.Size(834, 459);
+            groupBox1.Size = new System.Drawing.Size(834, 502);
             groupBox1.TabIndex = 24;
             groupBox1.TabStop = false;
             groupBox1.Text = "Dostawa";
@@ -2126,6 +2128,16 @@ namespace Kalendarz1
             button15.UseVisualStyleBackColor = false;
             button15.Click += button15_Click;
             // 
+            // SMSupomnienie
+            // 
+            SMSupomnienie.Location = new System.Drawing.Point(351, 456);
+            SMSupomnienie.Name = "SMSupomnienie";
+            SMSupomnienie.Size = new System.Drawing.Size(62, 23);
+            SMSupomnienie.TabIndex = 126;
+            SMSupomnienie.Text = "SMS";
+            SMSupomnienie.UseVisualStyleBackColor = true;
+            SMSupomnienie.Click += SMSupomnienie_Click;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -2392,5 +2404,6 @@ namespace Kalendarz1
         private Button button9;
         private Button button14;
         private Button button15;
+        private Button SMSupomnienie;
     }
 }

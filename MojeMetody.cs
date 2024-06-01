@@ -168,7 +168,7 @@ namespace Kalendarz1
             }
 
         }
-        public void ZmianaDostawcy(ComboBox Dostawca, ComboBox Kurnik, TextBox UlicaK, TextBox KodPocztowyK, TextBox MiejscK, TextBox KmK, TextBox UlicaH, TextBox KodPocztowyH, TextBox MiejscH, TextBox KmH, TextBox Dodatek, TextBox Ubytek, TextBox tel1, TextBox tel2, TextBox tel3, TextBox info1, TextBox info2, TextBox info3)
+        public void ZmianaDostawcy(ComboBox Dostawca, ComboBox Kurnik, TextBox UlicaK, TextBox KodPocztowyK, TextBox MiejscK, TextBox KmK, TextBox UlicaH, TextBox KodPocztowyH, TextBox MiejscH, TextBox KmH, TextBox Dodatek, TextBox Ubytek, TextBox tel1, TextBox tel2, TextBox tel3, TextBox info1, TextBox info2, TextBox info3, TextBox Email)
         {
             try
             {
@@ -215,7 +215,7 @@ namespace Kalendarz1
                     }
 
                     // Znajdź rekordy w tabeli [LibraNet].[dbo].[DostawcyAdresy] na podstawie GID dostawcy
-                    using (SqlCommand cmd4 = new SqlCommand("SELECT Address, PostalCode, City, Addition, Loss, Distance, Phone1, Phone2, Phone3, Info1, Info2, Info3 FROM [LibraNet].[dbo].[DOSTAWCY] WHERE Name = @selectedDostawca", conn))
+                    using (SqlCommand cmd4 = new SqlCommand("SELECT Address, PostalCode, City, Addition, Loss, Distance, Phone1, Phone2, Phone3, Info1, Info2, Info3, Email FROM [LibraNet].[dbo].[DOSTAWCY] WHERE Name = @selectedDostawca", conn))
                     {
 
                         cmd4.Parameters.AddWithValue("@selectedDostawca", selectedDostawca);
@@ -240,6 +240,7 @@ namespace Kalendarz1
                                 info1.Text = reader3["Info1"].ToString();
                                 info2.Text = reader3["Info2"].ToString();
                                 info3.Text = reader3["Info3"].ToString();
+                                Email.Text = reader3["Email"].ToString();
                             }
                         }
                     }
@@ -744,7 +745,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        public void UpdateDaneKontaktowe(ComboBox Dostawca, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3)
+        public void UpdateDaneKontaktowe(ComboBox Dostawca, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3, TextBox Email)
 
         {
             try
@@ -765,7 +766,8 @@ namespace Kalendarz1
                                       phone3 = @Phone3,
                                       info1 = @info1,
                                       info2 = @info2,
-                                      info3 = @info3
+                                      info3 = @info3,
+                                      Email = @Email
                                   WHERE Name = @Dostawca AND halt = '0';";
 
                         using (SqlCommand command = new SqlCommand(strSQL, cnn))
@@ -778,6 +780,7 @@ namespace Kalendarz1
                             command.Parameters.AddWithValue("@info1", string.IsNullOrEmpty(Info1.Text) ? (object)DBNull.Value : Info1.Text);
                             command.Parameters.AddWithValue("@info2", string.IsNullOrEmpty(Info2.Text) ? (object)DBNull.Value : Info2.Text);
                             command.Parameters.AddWithValue("@info3", string.IsNullOrEmpty(Info3.Text) ? (object)DBNull.Value : Info3.Text);
+                            command.Parameters.AddWithValue("@Email", string.IsNullOrEmpty(Email.Text) ? (object)DBNull.Value : Email.Text);
 
                             // Wykonanie zapytania SQL
                             int rowsAffected = command.ExecuteNonQuery();
@@ -1073,6 +1076,7 @@ namespace Kalendarz1
             // Uruchomienie przeglądarki z odpowiednim adresem
             Process.Start(przegladarka, adres);
         }
+
         public void OtworzCenyRolne()
         {
             string url = "https://www.cenyrolnicze.pl/wiadomosci/rynki-rolne/drob";
@@ -1086,6 +1090,7 @@ namespace Kalendarz1
                 MessageBox.Show($"Nie można otworzyć strony: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         public void OtworzCenyTuszki()
         {
             string url = "https://www.cenyrolnicze.pl/mieso/drob";

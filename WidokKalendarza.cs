@@ -37,6 +37,7 @@ namespace Kalendarz1
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             checkBoxDoWykupienia.Checked = true;
             checkBox1.Checked = true; //Paleciak
+
             // Inicjalizacja timera
             timer = new Timer();
             timer.Interval = 60000; // Interwał w milisekundach (tu: co 5 sekund)
@@ -854,8 +855,24 @@ namespace Kalendarz1
                 }
                 else if (dostawcaCell != null && DateTime.TryParse(dostawcaCell.Value?.ToString(), out parsedDate))
                 {
-                    dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
-                    dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGray;
+                    if (parsedDate.Date == DateTime.Today)
+                    {
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Blue;
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                    }
+                    else if (parsedDate.Date < DateTime.Today)
+                    {
+                        // Kod do wykonania, gdy data jest wcześniejsza niż dzisiejsza
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Black;
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                    }
+                    else
+                    {
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGray;
+                    }
                 }
                 else
                 {
@@ -989,7 +1006,7 @@ namespace Kalendarz1
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3);
+            nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
             nazwaZiD.WypelnienieLpWstawienia(Dostawca, LpWstawienia);
         }
         private void Kurnik_SelectedIndexChanged(object sender, EventArgs e)
@@ -1171,7 +1188,7 @@ namespace Kalendarz1
                             MessageBox.Show("Nie udało się zaktualizować danych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                         zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
-                        zapytaniasql.UpdateDaneKontaktowe(Dostawca, tel1, tel2, tel3, info1, info2, info3);
+                        zapytaniasql.UpdateDaneKontaktowe(Dostawca, tel1, tel2, tel3, info1, info2, info3, Email);
 
                     }
                 }
@@ -1595,5 +1612,16 @@ namespace Kalendarz1
             // Wyświetlanie formularza
             widokAvilogPlan.Show();
         }
+
+        private void SMSupomnienie_Click(object sender, EventArgs e)
+        {
+            string destinationPhoneNumber = "+48506262541";
+            string DataTXT = Data.Text; 
+            string sztukiTXT = sztuki.Text;
+            string sredniaTXT = srednia.Text;
+            string messageBody = $"Witam. Prosimy o zaaakceptowanie dostawy na dzień ubojowy {DataTXT}. Sztuki dek.:{sztukiTXT} szt, waga dek.: {sredniaTXT} kg. Prosimy o kontakt telefoniczny lub SMS z jednym z naszych przedstawicieli w celu potwierdzenia. Ubojnia Drobiu Piórkowscy.";
+            SmsSender.SendSms(destinationPhoneNumber, messageBody);
+        }
+
     }
 }
