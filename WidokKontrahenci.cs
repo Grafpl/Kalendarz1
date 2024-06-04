@@ -1,13 +1,8 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -16,11 +11,38 @@ namespace Kalendarz1
     {
         // Connection string do bazy danych
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+        // Lista dla PriceType
+        private List<KeyValuePair<int, string>> priceTypeList;
+
         public WidokKontrahenci()
         {
             InitializeComponent();
+            LoadPriceTypes();
             DisplayDataInDataGridView();
         }
+
+        private void LoadPriceTypes()
+        {
+            string query = "SELECT [ID], [Name] FROM [LibraNet].[dbo].[PriceType]";
+            priceTypeList = new List<KeyValuePair<int, string>>();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    connection.Open();
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            priceTypeList.Add(new KeyValuePair<int, string>(reader.GetInt32(0), reader.GetString(1)));
+                        }
+                    }
+                }
+            }
+        }
+
         private void DisplayDataInDataGridView()
         {
             // Zapytanie SQL
@@ -34,7 +56,7 @@ namespace Kalendarz1
         D.[Halt], 
         D.[City], 
         D.[Distance] AS 'KM', 
-        P.[Name] AS 'Typ Ceny', 
+        D.[PriceTypeID], 
         D.[Addition] AS 'Dodatek', 
         D.[Loss] AS 'Ubytek', 
         (
@@ -53,8 +75,6 @@ namespace Kalendarz1
         D.[Email]
     FROM 
         [LibraNet].[dbo].[Dostawcy] D
-    LEFT JOIN
-        [LibraNet].[dbo].[PriceType] P ON D.PriceTypeID = P.ID
     ORDER BY 
         D.ID DESC;
     ";
@@ -74,29 +94,52 @@ namespace Kalendarz1
                 // Ustawienie źródła danych dla DataGridView
                 dataGridView1.DataSource = table;
 
-                dataGridView1.Columns["Halt"].Visible = false;
+                // Ukrycie kolumny Halt
+               // dataGridView1.Columns["Halt"].Visible = false;
+
+                // Ustawienie ComboBox dla kolumny PriceTypeID
+                DataGridViewComboBoxColumn comboBoxColumn = new DataGridViewComboBoxColumn();
+                comboBoxColumn.HeaderText = "Typ Ceny";
+                comboBoxColumn.Name = "PriceTypeID";
+                comboBoxColumn.DataSource = priceTypeList;
+                comboBoxColumn.DisplayMember = "Value";
+                comboBoxColumn.ValueMember = "Key";
+                comboBoxColumn.DataPropertyName = "PriceTypeID";
+                comboBoxColumn.FlatStyle = FlatStyle.Flat;
+
+                int columnIndex = dataGridView1.Columns["PriceTypeID"].Index;
+                dataGridView1.Columns.Remove("PriceTypeID");
+                dataGridView1.Columns.Insert(columnIndex, comboBoxColumn);
 
                 // Ustawienie automatycznego dopasowywania szerokości kolumn do zawartości
                 dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             }
         }
 
-        private void dataGridView1_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        private void dataGridView1_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
-            // Pobierz nazwy kolumn, w których edycja może spowodować aktualizację w bazie danych
-            List<string> editableColumns = new List<string> { "ShortName", "Name", "Address", "PostalCode", "Skrót", "City", "Phone1", "Phone2", "Phone3", "IRZPlus", "Nip", "Regon", "Pesel", "Email" };
-
-            // Sprawdź, czy edycja odbyła się w jednej z wybranych kolumn
-            if (editableColumns.Contains(dataGridView1.Columns[e.ColumnIndex].HeaderText))
+            if (dataGridView1.CurrentCell.ColumnIndex == dataGridView1.Columns["PriceTypeID"].Index && e.Control is ComboBox comboBox)
             {
-                // Pobierz nową wartość z edytowanej komórki
-                string newValue = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
+                comboBox.SelectedIndexChanged -= ComboBox_SelectedIndexChanged;
+                comboBox.SelectedIndexChanged += ComboBox_SelectedIndexChanged;
+            }
+        }
 
-                // Pobierz ID związane z edytowanym wierszem
-                string id = dataGridView1.Rows[e.RowIndex].Cells["ID"].Value.ToString();
+        private void ComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (sender is ComboBox comboBox && comboBox.SelectedValue != null && dataGridView1.CurrentCell.RowIndex >= 0)
+            {
+                if (int.TryParse(comboBox.SelectedValue.ToString(), out int selectedPriceTypeId))
+                {
+                    int currentRowIndex = dataGridView1.CurrentCell.RowIndex;
+                    string id = dataGridView1.Rows[currentRowIndex].Cells["ID"].Value.ToString();
 
-                // Zaktualizuj wartość w bazie danych na podstawie ID
-                UpdateDatabaseValue(id, dataGridView1.Columns[e.ColumnIndex].Name, newValue);
+                    // Zaktualizuj wartość PriceTypeID w bazie danych
+                    UpdateDatabaseValue(id, "PriceTypeID", selectedPriceTypeId.ToString());
+
+                    // Aktualizuj wartość w DataGridView
+                    dataGridView1.Rows[currentRowIndex].Cells["PriceTypeID"].Value = selectedPriceTypeId;
+                }
             }
         }
 
@@ -130,13 +173,6 @@ namespace Kalendarz1
                 {
                     // Ustawienie filtra dla kolumny "Dostawca"
                     dataTable.DefaultView.RowFilter = $"Name LIKE '%{filterText}%'";
-
-                    // Przywrócenie pozycji kursora po zastosowaniu filtra
-                    int currentPosition = dataGridView1.FirstDisplayedScrollingRowIndex;
-                    if (currentPosition >= 0 && currentPosition < dataGridView1.RowCount)
-                    {
-                        dataGridView1.FirstDisplayedScrollingRowIndex = currentPosition;
-                    }
                 }
             }
         }
@@ -145,6 +181,7 @@ namespace Kalendarz1
         {
             SprawdzDuplikaty();
         }
+
         private void SprawdzDuplikaty()
         {
             HashSet<string> unikalneNazwy = new HashSet<string>();
@@ -179,6 +216,7 @@ namespace Kalendarz1
                 MessageBox.Show("Nie znaleziono duplikatów.", "Duplikaty", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
+
         private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex >= 0)
@@ -187,10 +225,28 @@ namespace Kalendarz1
             }
         }
 
+        private void dataGridView1_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            // Pobierz nazwy kolumn, w których edycja może spowodować aktualizację w bazie danych
+            List<string> editableColumns = new List<string> { "ShortName", "Name", "Halt", "Address", "PostalCode", "Skrót", "City", "Phone1", "Phone2", "Phone3", "IRZPlus", "Nip", "Regon", "Pesel", "Email" };
+
+            // Sprawdź, czy edycja odbyła się w jednej z wybranych kolumn
+            if (editableColumns.Contains(dataGridView1.Columns[e.ColumnIndex].HeaderText))
+            {
+                // Pobierz nową wartość z edytowanej komórki
+                string newValue = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
+
+                // Pobierz ID związane z edytowanym wierszem
+                string id = dataGridView1.Rows[e.RowIndex].Cells["ID"].Value.ToString();
+
+                // Zaktualizuj wartość w bazie danych na podstawie ID
+                UpdateDatabaseValue(id, dataGridView1.Columns[e.ColumnIndex].Name, newValue);
+            }
+        }
+
         private void FormatujWierszeZgodnieZStatus(int rowIndex)
         {
-            
-            if (dataGridView1.Columns.Contains("Typ Ceny")) // Sprawdź, czy istnieje kolumna "Halt"
+            if (dataGridView1.Columns.Contains("Typ Ceny")) // Sprawdź, czy istnieje kolumna "Typ Ceny"
             {
                 if (rowIndex >= 0)
                 {

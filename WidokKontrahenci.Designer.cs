@@ -45,6 +45,7 @@
             dataGridView1.TabIndex = 0;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
             dataGridView1.CellFormatting += dataGridView1_CellFormatting;
+            dataGridView1.EditingControlShowing += dataGridView1_EditingControlShowing;
             // 
             // label18
             // 
