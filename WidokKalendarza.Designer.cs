@@ -189,6 +189,8 @@ namespace Kalendarz1
             label42 = new Label();
             textTuszki = new TextBox();
             groupBox5 = new GroupBox();
+            label48 = new Label();
+            textWolny = new TextBox();
             buttonPokazTuszke = new Button();
             textRolniczaPrzebitka = new TextBox();
             textMinisterPrzebitka = new TextBox();
@@ -210,6 +212,8 @@ namespace Kalendarz1
             button14 = new Button();
             button15 = new Button();
             groupBoxPrzyciski = new GroupBox();
+            label49 = new Label();
+            textTuszkiRol = new TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -1581,7 +1585,7 @@ namespace Kalendarz1
             // buttonCena
             // 
             buttonCena.BackColor = System.Drawing.Color.Yellow;
-            buttonCena.Location = new System.Drawing.Point(1029, 79);
+            buttonCena.Location = new System.Drawing.Point(1088, 71);
             buttonCena.Name = "buttonCena";
             buttonCena.Size = new System.Drawing.Size(75, 22);
             buttonCena.TabIndex = 107;
@@ -1840,7 +1844,7 @@ namespace Kalendarz1
             // label38
             // 
             label38.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label38.Location = new System.Drawing.Point(114, 13);
+            label38.Location = new System.Drawing.Point(106, 13);
             label38.Name = "label38";
             label38.Size = new System.Drawing.Size(52, 14);
             label38.TabIndex = 106;
@@ -1850,7 +1854,7 @@ namespace Kalendarz1
             // textLaczona
             // 
             textLaczona.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textLaczona.Location = new System.Drawing.Point(114, 27);
+            textLaczona.Location = new System.Drawing.Point(106, 27);
             textLaczona.Name = "textLaczona";
             textLaczona.Size = new System.Drawing.Size(52, 21);
             textLaczona.TabIndex = 105;
@@ -1859,7 +1863,7 @@ namespace Kalendarz1
             // textMinister
             // 
             textMinister.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textMinister.Location = new System.Drawing.Point(63, 28);
+            textMinister.Location = new System.Drawing.Point(59, 28);
             textMinister.Name = "textMinister";
             textMinister.Size = new System.Drawing.Size(45, 21);
             textMinister.TabIndex = 103;
@@ -1877,7 +1881,7 @@ namespace Kalendarz1
             // label42
             // 
             label42.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label42.Location = new System.Drawing.Point(172, 16);
+            label42.Location = new System.Drawing.Point(245, 15);
             label42.Name = "label42";
             label42.Size = new System.Drawing.Size(46, 10);
             label42.TabIndex = 109;
@@ -1888,14 +1892,18 @@ namespace Kalendarz1
             // textTuszki
             // 
             textTuszki.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textTuszki.Location = new System.Drawing.Point(172, 27);
+            textTuszki.Location = new System.Drawing.Point(245, 27);
             textTuszki.Name = "textTuszki";
-            textTuszki.Size = new System.Drawing.Size(46, 21);
+            textTuszki.Size = new System.Drawing.Size(44, 21);
             textTuszki.TabIndex = 108;
             textTuszki.TextAlign = HorizontalAlignment.Center;
             // 
             // groupBox5
             // 
+            groupBox5.Controls.Add(label49);
+            groupBox5.Controls.Add(label48);
+            groupBox5.Controls.Add(textTuszkiRol);
+            groupBox5.Controls.Add(textWolny);
             groupBox5.Controls.Add(buttonPokazTuszke);
             groupBox5.Controls.Add(textRolniczaPrzebitka);
             groupBox5.Controls.Add(label42);
@@ -1909,16 +1917,35 @@ namespace Kalendarz1
             groupBox5.Controls.Add(label39);
             groupBox5.Controls.Add(textLaczona);
             groupBox5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            groupBox5.Location = new System.Drawing.Point(886, 97);
+            groupBox5.Location = new System.Drawing.Point(872, 99);
             groupBox5.Name = "groupBox5";
-            groupBox5.Size = new System.Drawing.Size(222, 76);
+            groupBox5.Size = new System.Drawing.Size(291, 76);
             groupBox5.TabIndex = 110;
             groupBox5.TabStop = false;
+            // 
+            // label48
+            // 
+            label48.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label48.Location = new System.Drawing.Point(160, 16);
+            label48.Name = "label48";
+            label48.Size = new System.Drawing.Size(42, 10);
+            label48.TabIndex = 116;
+            label48.Text = "Wolny";
+            label48.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textWolny
+            // 
+            textWolny.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textWolny.Location = new System.Drawing.Point(160, 27);
+            textWolny.Name = "textWolny";
+            textWolny.Size = new System.Drawing.Size(42, 21);
+            textWolny.TabIndex = 115;
+            textWolny.TextAlign = HorizontalAlignment.Center;
             // 
             // buttonPokazTuszke
             // 
             buttonPokazTuszke.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            buttonPokazTuszke.Location = new System.Drawing.Point(172, 49);
+            buttonPokazTuszke.Location = new System.Drawing.Point(245, 49);
             buttonPokazTuszke.Name = "buttonPokazTuszke";
             buttonPokazTuszke.Size = new System.Drawing.Size(46, 22);
             buttonPokazTuszke.TabIndex = 112;
@@ -1940,7 +1967,7 @@ namespace Kalendarz1
             // 
             textMinisterPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
             textMinisterPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textMinisterPrzebitka.Location = new System.Drawing.Point(63, 49);
+            textMinisterPrzebitka.Location = new System.Drawing.Point(59, 49);
             textMinisterPrzebitka.Name = "textMinisterPrzebitka";
             textMinisterPrzebitka.Size = new System.Drawing.Size(45, 21);
             textMinisterPrzebitka.TabIndex = 113;
@@ -1950,7 +1977,7 @@ namespace Kalendarz1
             // 
             textLaczonaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
             textLaczonaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textLaczonaPrzebitka.Location = new System.Drawing.Point(114, 49);
+            textLaczonaPrzebitka.Location = new System.Drawing.Point(106, 49);
             textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
             textLaczonaPrzebitka.Size = new System.Drawing.Size(52, 21);
             textLaczonaPrzebitka.TabIndex = 114;
@@ -1970,7 +1997,7 @@ namespace Kalendarz1
             // label39
             // 
             label39.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label39.Location = new System.Drawing.Point(58, 10);
+            label39.Location = new System.Drawing.Point(54, 10);
             label39.Name = "label39";
             label39.Size = new System.Drawing.Size(55, 20);
             label39.TabIndex = 104;
@@ -1992,10 +2019,10 @@ namespace Kalendarz1
             // dataGridPartie
             // 
             dataGridPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridPartie.Location = new System.Drawing.Point(1114, 3);
+            dataGridPartie.Location = new System.Drawing.Point(1169, 4);
             dataGridPartie.Name = "dataGridPartie";
             dataGridPartie.RowTemplate.Height = 25;
-            dataGridPartie.Size = new System.Drawing.Size(420, 171);
+            dataGridPartie.Size = new System.Drawing.Size(360, 171);
             dataGridPartie.TabIndex = 113;
             dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             // 
@@ -2121,7 +2148,7 @@ namespace Kalendarz1
             // 
             button14.BackColor = System.Drawing.Color.Yellow;
             button14.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button14.Location = new System.Drawing.Point(1029, 51);
+            button14.Location = new System.Drawing.Point(1088, 43);
             button14.Name = "button14";
             button14.Size = new System.Drawing.Size(75, 22);
             button14.TabIndex = 124;
@@ -2159,6 +2186,25 @@ namespace Kalendarz1
             groupBoxPrzyciski.Size = new System.Drawing.Size(74, 501);
             groupBoxPrzyciski.TabIndex = 126;
             groupBoxPrzyciski.TabStop = false;
+            // 
+            // label49
+            // 
+            label49.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label49.Location = new System.Drawing.Point(203, 15);
+            label49.Name = "label49";
+            label49.Size = new System.Drawing.Size(40, 10);
+            label49.TabIndex = 128;
+            label49.Text = "TuszkiRol";
+            label49.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textTuszkiRol
+            // 
+            textTuszkiRol.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textTuszkiRol.Location = new System.Drawing.Point(203, 27);
+            textTuszkiRol.Name = "textTuszkiRol";
+            textTuszkiRol.Size = new System.Drawing.Size(40, 21);
+            textTuszkiRol.TabIndex = 127;
+            textTuszkiRol.TextAlign = HorizontalAlignment.Center;
             // 
             // WidokKalendarza
             // 
@@ -2419,5 +2465,9 @@ namespace Kalendarz1
         private Button button15;
         private Button SMSupomnienie;
         private GroupBox groupBoxPrzyciski;
+        private Label label48;
+        private TextBox textWolny;
+        private Label label49;
+        private TextBox textTuszkiRol;
     }
 }

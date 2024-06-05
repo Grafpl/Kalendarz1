@@ -741,6 +741,17 @@ namespace Kalendarz1
                 textTuszki.Text = cenaTuszki.ToString("F2"); // Formatowanie do dwóch miejsc po przecinku
             }
 
+            double cenaTuszkirol = CenoweMetody.PobierzCeneTuszkiDzisiaj();
+            if (cenaTuszki > 0)
+            {
+                textTuszkiRol.Text = cenaTuszkirol.ToString("F2"); // Formatowanie do dwóch miejsc po przecinku
+            }
+
+            double cenaWolna = CenoweMetody.PobierzSredniaCeneWolnorynkowa();
+            if (cenaWolna > 0)
+            {
+                textWolny.Text = cenaWolna.ToString("F2"); // Formatowanie do dwóch miejsc po przecinku
+            }
             double cenaRolniczaPrzebitka = (cenaTuszki - cenaRolnicza);
             if (cenaRolniczaPrzebitka > 0)
             {

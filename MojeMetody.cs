@@ -1207,24 +1207,85 @@ namespace Kalendarz1
 
                 return cena;
             }
-
-            public double PobierzCeneKurczakaA()
+            public double PobierzCeneTuszkiDzisiaj()
             {
+                string zapytanie = "SELECT Cena FROM CenaTuszki WHERE Data = @Data";
                 double cena = 0.0;
 
-                string zapytanie = @"
-            SELECT
-               ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
-            FROM [HANDEL].[HM].[DP] DP 
-            INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-            INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-            WHERE DP.[data] >= CAST(GETDATE() AS DATE)
-              AND DP.[data] < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)) 
-              AND DP.[kod] = 'Kurczak A' 
-              AND TW.[katalog] = 67095
-            GROUP BY DP.[kod], CONVERT(date, DP.[data])";
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    SqlCommand command = new SqlCommand(zapytanie, connection);
+                    command.Parameters.AddWithValue("@Data", DateTime.Today);
 
-                using (SqlConnection connection = new SqlConnection(connectionString2))
+                    try
+                    {
+                        connection.Open();
+                        object result = command.ExecuteScalar();
+                        cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Obsługa błędów
+                        Console.WriteLine("Błąd: " + ex.Message);
+                    }
+                }
+
+                return cena;
+            }
+
+            public double PobierzCeneKurczakaA()
+                    {
+                        double cena = 0.0;
+
+                        string zapytanie = @"
+                    SELECT
+                       ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
+                    FROM [HANDEL].[HM].[DP] DP 
+                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+                    INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+                    WHERE DP.[data] >= CAST(GETDATE() AS DATE)
+                      AND DP.[data] < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)) 
+                      AND DP.[kod] = 'Kurczak A' 
+                      AND TW.[katalog] = 67095
+                    GROUP BY DP.[kod], CONVERT(date, DP.[data])";
+
+                        using (SqlConnection connection = new SqlConnection(connectionString2))
+                        using (SqlCommand command = new SqlCommand(zapytanie, connection))
+                        {
+                            try
+                            {
+                                connection.Open();
+                                object result = command.ExecuteScalar();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    cena = Convert.ToDouble(result);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine("Błąd: " + ex.Message);
+                            }
+                        }
+
+                        return cena;
+                    }
+            public double PobierzSredniaCeneWolnorynkowa()
+            {
+                double sredniaCena = 0.0;
+
+                string zapytanie = @"
+            SELECT 
+                SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
+            FROM 
+                [LibraNet].[dbo].[HarmonogramDostaw]
+            WHERE 
+                (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
+                AND Bufor = 'Potwierdzony'
+                AND DataOdbioru >= CAST(GETDATE() AS DATE)
+                AND DataOdbioru < DATEADD(DAY, 1, CAST(GETDATE() AS DATE))
+            ";
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
                 using (SqlCommand command = new SqlCommand(zapytanie, connection))
                 {
                     try
@@ -1233,7 +1294,7 @@ namespace Kalendarz1
                         object result = command.ExecuteScalar();
                         if (result != null && result != DBNull.Value)
                         {
-                            cena = Convert.ToDouble(result);
+                            sredniaCena = Convert.ToDouble(result);
                         }
                     }
                     catch (Exception ex)
@@ -1242,7 +1303,8 @@ namespace Kalendarz1
                     }
                 }
 
-                return cena;
+                return sredniaCena;
             }
-        }
+
+}
 

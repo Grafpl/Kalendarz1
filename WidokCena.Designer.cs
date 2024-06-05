@@ -49,6 +49,7 @@
             TypCeny.Name = "TypCeny";
             TypCeny.Size = new System.Drawing.Size(121, 23);
             TypCeny.TabIndex = 0;
+            TypCeny.SelectedIndexChanged += TypCeny_SelectedIndexChanged;
             // 
             // Data1
             // 
@@ -87,6 +88,7 @@
             // 
             // Data3
             // 
+            Data3.CalendarMonthBackground = System.Drawing.SystemColors.ScrollBar;
             Data3.Location = new System.Drawing.Point(158, 70);
             Data3.Name = "Data3";
             Data3.Size = new System.Drawing.Size(240, 23);
@@ -94,6 +96,7 @@
             // 
             // Data2
             // 
+            Data2.CalendarMonthBackground = System.Drawing.SystemColors.ScrollBar;
             Data2.Location = new System.Drawing.Point(158, 99);
             Data2.Name = "Data2";
             Data2.Size = new System.Drawing.Size(240, 23);

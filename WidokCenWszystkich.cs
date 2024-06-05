@@ -62,19 +62,34 @@ CTE_HANDEL AS (
         AND DP.[data] >= '2024-01-01'
     GROUP BY 
         CONVERT(DATE, DP.[data])
+),
+CTE_Harmonogram AS (
+    SELECT 
+        DataOdbioru AS Data,
+        SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
+    FROM 
+        [LibraNet].[dbo].[HarmonogramDostaw]
+    WHERE 
+        (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
+        AND Bufor = 'Potwierdzony'
+    GROUP BY 
+        DataOdbioru
 )
 SELECT 
     FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)) AS Data,
     CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Mini,
     CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolni,
     CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Laczo,
-    CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS HandelCena
+    CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS HandelCena,
+    CONCAT(FORMAT(HD.SredniaCena, 'N2'), ' zł') AS SredniaCena
 FROM 
     CTE_Ministerialna M
 FULL OUTER JOIN 
     CTE_Rolnicza R ON M.Data = R.Data
 FULL OUTER JOIN 
     CTE_HANDEL H ON COALESCE(M.Data, R.Data) = H.Data
+LEFT JOIN 
+    CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, H.Data) = HD.Data
 WHERE
     COALESCE(M.Data, R.Data, H.Data) >= '2024-01-01'
 ORDER BY 
@@ -98,6 +113,7 @@ ORDER BY
             }
             SetRowHeights(15);
         }
+
 
 
         // Metoda do ustawienia wysokości wierszy
