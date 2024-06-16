@@ -179,12 +179,11 @@ namespace Kalendarz1
                     DateTime endOfWeek = startOfWeek.AddDays(13);
 
                     string strSQL = $@"
-                        SELECT HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor, HD.TypCeny, HD.Cena, WK.DataWstawienia
-                        FROM HarmonogramDostaw HD
-                        LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
-                        WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate";
-
-                    strSQL += " ORDER BY HD.DataOdbioru, HD.bufor, HD.WagaDek Desc";
+                SELECT HD.LP, HD.DataOdbioru, HD.Dostawca, HD.Auta, HD.SztukiDek, HD.WagaDek, HD.bufor, HD.TypCeny, HD.Cena, WK.DataWstawienia
+                FROM HarmonogramDostaw HD
+                LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate
+                ORDER BY HD.DataOdbioru, HD.bufor, HD.WagaDek Desc";
 
                     using (SqlCommand command = new SqlCommand(strSQL, connection))
                     {
@@ -200,7 +199,6 @@ namespace Kalendarz1
                             dataGridView1.Columns.Add("DataOdbioruKolumna", "Data");
                             dataGridView1.Columns.Add("DostawcaKolumna", "Dostawca");
                             dataGridView1.Columns.Add("AutaKolumna", "A");
-
                             dataGridView1.Columns.Add("SztukiDekKolumna", "Sztuki");
                             dataGridView1.Columns.Add("WagaDek", "Waga");
                             dataGridView1.Columns.Add("bufor", "Status");
@@ -209,33 +207,31 @@ namespace Kalendarz1
                             dataGridView1.Columns.Add("CenaKolumna", "Cena");
 
                             dataGridView1.Columns["LP"].Visible = false;
-                            dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
+                            dataGridView1.Columns["DataOdbioruKolumna"].Visible = true;
 
-                            // Ustawienie szerokości kolumn
-                            dataGridView1.Columns["LP"].Width = 50; // Szerokość kolumny "LP" na 50 pikseli
-                            dataGridView1.Columns["DataOdbioruKolumna"].Width = 100; // Szerokość kolumny "DataOdbioru" na 100 pikseli
-                            dataGridView1.Columns["DostawcaKolumna"].Width = 150; // Szerokość kolumny "Dostawca" na 150 pikseli
-                            dataGridView1.Columns["AutaKolumna"].Width = 25; // Szerokość kolumny "Auta" na 100 pikseli
-                            dataGridView1.Columns["SztukiDekKolumna"].Width = 70; // Szerokość kolumny "SztukiDek" na 100 pikseli
-                            dataGridView1.Columns["WagaDek"].Width = 50; // Szerokość kolumny "WagaDek" na 100 pikseli
-                            dataGridView1.Columns["bufor"].Width = 85; // Szerokość kolumny "bufor" na 100 pikseli
-                            dataGridView1.Columns["RóżnicaDni"].Width = 43; // Szerokość kolumny "RóżnicaDni" na 100 pikseli
-                            dataGridView1.Columns["TypCenyKolumna"].Width = 85; // Szerokość kolumny "bufor" na 100 pikseli
-                            dataGridView1.Columns["CenaKolumna"].Width = 50; // Szerokość kolumny "RóżnicaDni" na 100 pikseli
+                            dataGridView1.Columns["LP"].Width = 50;
+                            dataGridView1.Columns["DataOdbioruKolumna"].Width = 100;
+                            dataGridView1.Columns["DostawcaKolumna"].Width = 150;
+                            dataGridView1.Columns["AutaKolumna"].Width = 25;
+                            dataGridView1.Columns["SztukiDekKolumna"].Width = 70;
+                            dataGridView1.Columns["WagaDek"].Width = 50;
+                            dataGridView1.Columns["bufor"].Width = 85;
+                            dataGridView1.Columns["RóżnicaDni"].Width = 43;
+                            dataGridView1.Columns["TypCenyKolumna"].Width = 85;
+                            dataGridView1.Columns["CenaKolumna"].Width = 50;
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
                             confirmColumn.HeaderText = "V";
                             confirmColumn.Name = "ConfirmColumn";
-                            confirmColumn.Width = 80; // Ustaw szerokość kolumny checkbox
+                            confirmColumn.Width = 80;
                             dataGridView1.Columns.Add(confirmColumn);
                             dataGridView1.Columns["ConfirmColumn"].Width = 35;
 
                             foreach (DataGridViewColumn column in dataGridView1.Columns)
                             {
                                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-                                column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft; // Wyrównanie nagłówków kolumn do prawej strony
+                                column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
                             }
-
 
                             DateTime? currentDate = null;
                             DataGridViewRow currentGroupRow = null;
@@ -254,30 +250,25 @@ namespace Kalendarz1
                                 {
                                     if (!isFirstRow)
                                     {
-                                        dataGridView1.Rows.Add();
+                                        if (currentGroupRow != null)
+                                        {
+                                            currentGroupRow.Cells["AutaKolumna"].Value = sumaAuta.ToString();
+                                            currentGroupRow.Cells["SztukiDekKolumna"].Value = sumaSztukiDek.ToString("N0") + " szt";
+                                            if (count != 0)
+                                            {
+                                                double sredniaWagaDek = sumaWagaDek / count;
+                                                currentGroupRow.Cells["WagaDek"].Value = sredniaWagaDek.ToString("0.00") + " kg";
+                                            }
+                                        }
                                     }
                                     else
                                     {
                                         isFirstRow = false;
                                     }
 
-                                    if (currentGroupRow != null)
-                                    {
-                                        currentGroupRow.Cells["AutaKolumna"].Value = sumaAuta.ToString();
-                                        currentGroupRow.Cells["SztukiDekKolumna"].Value = sumaSztukiDek.ToString("N0") + " szt";
-                                        if (count != 0)
-                                        {
-                                            double sredniaWagaDek = sumaWagaDek / count;
-                                            currentGroupRow.Cells["WagaDek"].Value = sredniaWagaDek.ToString("0.00") + " kg";
-                                        }
-                                    }
-
                                     currentGroupRow = new DataGridViewRow();
                                     currentGroupRow.CreateCells(dataGridView1);
-                                    if (!isFirstRow)
-                                    {
-                                        currentGroupRow.Cells[2].Value = formattedDate;
-                                    }
+                                    currentGroupRow.Cells[dataGridView1.Columns["DataOdbioruKolumna"].Index].Value = formattedDate;
                                     dataGridView1.Rows.Add(currentGroupRow);
 
                                     currentDate = date;
@@ -292,81 +283,68 @@ namespace Kalendarz1
                                 row.CreateCells(dataGridView1);
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
-                                    row.Cells[i].Value = reader.GetValue(i);
-                                    if (i == 2 && reader["Auta"] != DBNull.Value)
+                                    if (dataGridView1.Columns[i].Name == "SztukiDekKolumna")
                                     {
-                                        sumaAuta += Convert.ToDouble(reader["Auta"]);
-                                    }
-                                    else if (i == 3 && reader["SztukiDek"] != DBNull.Value)
-                                    {
-                                        sumaSztukiDek += Convert.ToDouble(reader["SztukiDek"]);
-                                    }
-                                    else if (i == 4 && reader["WagaDek"] != DBNull.Value)
-                                    {
-                                        sumaWagaDek += Convert.ToDouble(reader["WagaDek"]);
-                                        count++;
-                                    }
-                                }
-
-                                if (!isFirstRow)
-                                {
-                                    DataGridViewRow newRow = new DataGridViewRow();
-                                    newRow.CreateCells(dataGridView1);
-                                    for (int i = 0; i < reader.FieldCount; i++)
-                                    {
-                                        if (dataGridView1.Columns[i].Name == "DataOdbioruKolumna")
+                                        if (!Convert.IsDBNull(reader["SztukiDek"]))
                                         {
-                                            newRow.Cells[i].Value = "";
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "SztukiDekKolumna")
-                                        {
-                                            if (!Convert.IsDBNull(reader["SztukiDek"]))
-                                            {
-                                                newRow.Cells[i].Value = string.Format("{0:#,0} szt", Convert.ToDouble(reader["SztukiDek"]));
-                                            }
-                                            else
-                                            {
-                                                newRow.Cells[i].Value = ""; // lub inna wartość domyślna, np. "Brak danych"
-                                            }
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "WagaDek")
-                                        {
-                                            newRow.Cells[i].Value = reader["WagaDek"] + " kg";
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "RóżnicaDni")
-                                        {
-                                            DateTime dataWstawienia = reader.IsDBNull(reader.GetOrdinal("DataWstawienia")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DataWstawienia"));
-                                            DateTime dataOdbioru = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
-
-                                            if (dataWstawienia == DateTime.MinValue)
-                                                newRow.Cells[i].Value = "-";
-                                            else
-                                            {
-                                                int roznicaDni = (dataOdbioru - dataWstawienia).Days;
-                                                newRow.Cells[i].Value = roznicaDni + " dni";
-                                            }
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "TypCenyKolumna")
-                                        {
-                                            newRow.Cells[i].Value = reader["TypCeny"];
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "CenaKolumna")
-                                        {
-                                            if (!Convert.IsDBNull(reader["Cena"]))
-                                            {
-                                                newRow.Cells[i].Value = reader["Cena"] + " zł";
-                                            }
-                                            else
-                                            {
-                                                newRow.Cells[i].Value = "-"; // lub inna wartość domyślna, np. "Brak danych"
-                                            }
+                                            row.Cells[i].Value = string.Format("{0:#,0} szt", Convert.ToDouble(reader["SztukiDek"]));
                                         }
                                         else
                                         {
-                                            newRow.Cells[i].Value = reader.GetValue(i);
+                                            row.Cells[i].Value = "";
                                         }
                                     }
-                                    dataGridView1.Rows.Add(newRow);
+                                    else if (dataGridView1.Columns[i].Name == "WagaDek")
+                                    {
+                                        row.Cells[i].Value = reader["WagaDek"] + " kg";
+                                    }
+                                    else if (dataGridView1.Columns[i].Name == "RóżnicaDni")
+                                    {
+                                        DateTime dataWstawienia = reader.IsDBNull(reader.GetOrdinal("DataWstawienia")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DataWstawienia"));
+                                        DateTime dataOdbioru = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
+
+                                        if (dataWstawienia == DateTime.MinValue)
+                                            row.Cells[i].Value = "-";
+                                        else
+                                        {
+                                            int roznicaDni = (dataOdbioru - dataWstawienia).Days;
+                                            row.Cells[i].Value = roznicaDni + " dni";
+                                        }
+                                    }
+                                    else if (dataGridView1.Columns[i].Name == "TypCenyKolumna")
+                                    {
+                                        row.Cells[i].Value = reader["TypCeny"];
+                                    }
+                                    else if (dataGridView1.Columns[i].Name == "CenaKolumna")
+                                    {
+                                        if (!Convert.IsDBNull(reader["Cena"]))
+                                        {
+                                            row.Cells[i].Value = reader["Cena"] + " zł";
+                                        }
+                                        else
+                                        {
+                                            row.Cells[i].Value = "-";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        row.Cells[i].Value = reader.GetValue(i);
+                                    }
+                                }
+                                dataGridView1.Rows.Add(row);
+
+                                if (reader["Auta"] != DBNull.Value)
+                                {
+                                    sumaAuta += Convert.ToDouble(reader["Auta"]);
+                                }
+                                if (reader["SztukiDek"] != DBNull.Value)
+                                {
+                                    sumaSztukiDek += Convert.ToDouble(reader["SztukiDek"]);
+                                }
+                                if (reader["WagaDek"] != DBNull.Value)
+                                {
+                                    sumaWagaDek += Convert.ToDouble(reader["WagaDek"]);
+                                    count++;
                                 }
                             }
 
@@ -380,6 +358,32 @@ namespace Kalendarz1
                                     currentGroupRow.Cells["WagaDek"].Value = sredniaWagaDek.ToString("0.00") + " kg";
                                 }
                             }
+
+                            // Dodanie nowego wiersza z danymi z kontrolek w odpowiedniej grupie DataOdbioru
+                            DataGridViewRow customRow = new DataGridViewRow();
+                            customRow.CreateCells(dataGridView1);
+                            customRow.Cells[dataGridView1.Columns["DataOdbioruKolumna"].Index].Value = Data1.Value.ToString("yyyy-MM-dd");
+                            customRow.Cells[dataGridView1.Columns["DostawcaKolumna"].Index].Value = Dostawca.Text;
+
+
+                            bool inserted = false;
+                            for (int i = 0; i < dataGridView1.Rows.Count; i++)
+                            {
+                                DateTime rowDate;
+                                if (DateTime.TryParse(dataGridView1.Rows[i].Cells["DataOdbioruKolumna"].Value?.ToString(), out rowDate))
+                                {
+                                    if (Data1.Value <= rowDate)
+                                    {
+                                        dataGridView1.Rows.Insert(i, customRow);
+                                        inserted = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!inserted)
+                            {
+                                dataGridView1.Rows.Add(customRow);
+                            }
                         }
                     }
                 }
@@ -391,6 +395,16 @@ namespace Kalendarz1
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
             {
                 FormatujWierszeZgodnieZStatus(i);
+            }
+            SetRowHeights(18);
+        }
+
+        private void SetRowHeights(int height)
+        {
+            // Ustawienie wysokości wszystkich wierszy na określoną wartość
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                row.Height = height;
             }
         }
         public void FormatujWierszeZgodnieZStatus(int rowIndex)
@@ -683,6 +697,44 @@ namespace Kalendarz1
         private void groupBox1_Enter(object sender, EventArgs e)
         {
 
+        }
+
+        private void DodajDniDoDaty(TextBox textBox, DateTimePicker dataWstawienia, DateTimePicker data1)
+        {
+            // Sprawdź, czy w TextBox jest liczba całkowita
+            if (int.TryParse(textBox.Text, out int daysToAdd))
+            {
+                // Pobierz wartość z dataWstawienia i dodaj liczbę dni
+                DateTime newDate = dataWstawienia.Value.AddDays(daysToAdd);
+
+                // Ustaw nową datę w data1
+                data1.Value = newDate;
+            }
+            else
+            {
+                // Jeśli tekst w TextBox nie jest liczbą całkowitą, ustaw domyślną datę
+                data1.Value = dataWstawienia.Value;
+            }
+        }
+
+        private void textDni1_TextChanged(object sender, EventArgs e)
+        {
+            DodajDniDoDaty(textDni1, dataWstawienia, Data1);
+        }
+
+        private void textDni2_TextChanged(object sender, EventArgs e)
+        {
+            DodajDniDoDaty(textDni2, dataWstawienia, Data2);
+        }
+
+        private void textDni3_TextChanged(object sender, EventArgs e)
+        {
+            DodajDniDoDaty(textDni3, dataWstawienia, Data3);
+        }
+
+        private void textDni4_TextChanged(object sender, EventArgs e)
+        {
+            DodajDniDoDaty(textDni4, dataWstawienia, Data4);
         }
     }
 }
