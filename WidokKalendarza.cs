@@ -1246,7 +1246,7 @@ namespace Kalendarz1
 
         private void KGwSkrzynce_TextChanged(object sender, EventArgs e)
         {
-            KGZestaw.Text = "23500";
+            KGZestaw.Text = "24000";
             // Sprawdź, czy KGwSkrzynce nie jest puste
             if (!string.IsNullOrEmpty(KGwSkrzynce.Text))
             {
@@ -1310,20 +1310,20 @@ namespace Kalendarz1
                     if (double.TryParse(KGwPaleciak.Text.Replace(",", ""), out double value))
                     {
                         // Dodaj 3000 do wartości
-                        value += 3000;
+                        value += 3150;
                         // Ustaw nową wartość z separatorem tysięcy
                         KGwPaleciak.Text = value.ToString("N0");
                     }
                     else
                     {
                         // Jeśli zawartość KGwPaleciak nie jest liczbą, ustaw 3000
-                        KGwPaleciak.Text = "3000";
+                        KGwPaleciak.Text = "3150";
                     }
                 }
                 else
                 {
                     // Jeśli KGwPaleciak jest puste, ustaw 3000
-                    KGwPaleciak.Text = "3000";
+                    KGwPaleciak.Text = "3150";
                 }
             }
             else
