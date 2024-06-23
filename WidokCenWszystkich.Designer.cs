@@ -31,7 +31,7 @@
             label18 = new System.Windows.Forms.Label();
             textBox1 = new System.Windows.Forms.TextBox();
             dataGridView1 = new System.Windows.Forms.DataGridView();
-            checkBoxGroupBySupplier = new System.Windows.Forms.CheckBox();
+            chkShowWeekend = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -60,23 +60,23 @@
             dataGridView1.Size = new System.Drawing.Size(607, 649);
             dataGridView1.TabIndex = 41;
             // 
-            // checkBoxGroupBySupplier
+            // chkShowWeekend
             // 
-            checkBoxGroupBySupplier.AutoSize = true;
-            checkBoxGroupBySupplier.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            checkBoxGroupBySupplier.Location = new System.Drawing.Point(127, 16);
-            checkBoxGroupBySupplier.Name = "checkBoxGroupBySupplier";
-            checkBoxGroupBySupplier.Size = new System.Drawing.Size(49, 15);
-            checkBoxGroupBySupplier.TabIndex = 120;
-            checkBoxGroupBySupplier.Text = "Grupuj";
-            checkBoxGroupBySupplier.UseVisualStyleBackColor = true;
+            chkShowWeekend.AutoSize = true;
+            chkShowWeekend.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            chkShowWeekend.Location = new System.Drawing.Point(127, 16);
+            chkShowWeekend.Name = "chkShowWeekend";
+            chkShowWeekend.Size = new System.Drawing.Size(61, 15);
+            chkShowWeekend.TabIndex = 120;
+            chkShowWeekend.Text = "Weekendy";
+            chkShowWeekend.UseVisualStyleBackColor = true;
             // 
             // WidokCenWszystkich
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(628, 706);
-            Controls.Add(checkBoxGroupBySupplier);
+            Controls.Add(chkShowWeekend);
             Controls.Add(label18);
             Controls.Add(textBox1);
             Controls.Add(dataGridView1);
@@ -92,6 +92,6 @@
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.DataGridView dataGridView1;
-        private System.Windows.Forms.CheckBox checkBoxGroupBySupplier;
+        private System.Windows.Forms.CheckBox chkShowWeekend;
     }
 }

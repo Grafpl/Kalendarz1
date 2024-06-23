@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -20,14 +21,17 @@ namespace Kalendarz1
         {
             InitializeComponent();
             DisplayDataInDataGridView();
+            chkShowWeekend.CheckedChanged += new EventHandler(chkShowWeekend_CheckedChanged);
         }
         public void SetTextBoxValue()
         {
             textBox1.Text = TextBoxValue;
         }
+
+
+
         private void DisplayDataInDataGridView()
         {
-            // Zapytanie SQL zależne od stanu checkboxa
             string query = @"WITH CTE_Ministerialna AS (
     SELECT 
         [Data], 
@@ -76,12 +80,12 @@ CTE_Harmonogram AS (
         DataOdbioru
 )
 SELECT 
-    FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)) AS Data,
-    CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Mini,
-    CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolni,
-    CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Laczo,
-    CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS HandelCena,
-    CONCAT(FORMAT(HD.SredniaCena, 'N2'), ' zł') AS SredniaCena
+    FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + LEFT(DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)), 3) AS Data,
+    CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Minister,
+    CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Łączona,
+    CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolnicza,
+    CONCAT(FORMAT(HD.SredniaCena, 'N2'), ' zł') AS Wolny,
+    CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS Tuszka
 FROM 
     CTE_Ministerialna M
 FULL OUTER JOIN 
@@ -96,24 +100,80 @@ ORDER BY
     Data DESC;
 ";
 
-            // Utworzenie połączenia z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
-                // Utworzenie adaptera danych
                 SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
-
-                // Utworzenie tabeli danych
                 DataTable table = new DataTable();
-
-                // Wypełnienie tabeli danymi z adaptera
                 adapter.Fill(table);
-
-                // Ustawienie DataTable jako DataSource dla DataGridView
                 dataGridView1.DataSource = table;
+
+                // Ustawienie autosize dla kolumny Data
+                dataGridView1.Columns["Data"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+
+                foreach (DataGridViewColumn column in dataGridView1.Columns)
+                {
+                    if (column.Name != "Data")
+                    {
+                        column.Width = 60;
+                    }
+                }
+
+                dataGridView1.CellFormatting += new DataGridViewCellFormattingEventHandler(dataGridView1_CellFormatting);
+                HideWeekendRows();
             }
-            SetRowHeights(15);
+            SetRowHeights(13);
         }
 
+        private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            FormatRowByDate(e.RowIndex);
+        }
+
+        public void FormatRowByDate(int rowIndex)
+        {
+            if (rowIndex >= 0)
+            {
+                DateTime parsedDate;
+                var dateCell = dataGridView1.Rows[rowIndex].Cells["Data"];
+                if (dateCell != null && DateTime.TryParse(dateCell.Value?.ToString().Substring(0, 10), out parsedDate))
+                {
+                    if (parsedDate.Date == DateTime.Today)
+                    {
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Blue;
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
+                    }
+                    else
+                    {
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.White;
+                        dataGridView1.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+                    }
+                }
+            }
+        }
+
+        private void chkShowWeekend_CheckedChanged(object sender, EventArgs e)
+        {
+            HideWeekendRows();
+        }
+
+        private void HideWeekendRows()
+        {
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row.Cells["Data"].Value != null)
+                {
+                    DateTime parsedDate;
+                    if (DateTime.TryParse(row.Cells["Data"].Value.ToString().Substring(0, 10), out parsedDate))
+                    {
+                        if (parsedDate.DayOfWeek == DayOfWeek.Saturday || parsedDate.DayOfWeek == DayOfWeek.Sunday)
+                        {
+                            row.Visible = chkShowWeekend.Checked;
+                        }
+                    }
+                }
+            }
+        }
 
 
         // Metoda do ustawienia wysokości wierszy
