@@ -15,6 +15,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             DisplayDataInDataGridView();
+
         }
 
         private bool isUserInitiatedChange = false;
@@ -22,7 +23,7 @@ namespace Kalendarz1
         private void DisplayDataInDataGridView()
         {
             // Zapytanie SQL
-            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS DataWstawienia, IloscWstawienia, TypUmowy, Uwagi, [isCheck], [CheckCom] " +
+            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS Data, IloscWstawienia, TypUmowy, Uwagi, [isCheck], [CheckCom] " +
                            "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
                            "ORDER BY Dostawca ASC, DataWstawienia DESC";
 
@@ -43,22 +44,31 @@ namespace Kalendarz1
 
                 // Ustawienie źródła danych dla DataGridView
                 dataGridView1.DataSource = table;
-
-                // Automatyczne dopasowanie szerokości kolumn do zawartości
-                dataGridView1.AutoResizeColumns();
+                
+                // Ustawienie szerokości kolumn dla dataGridView1
+                dataGridView1.Columns["LP"].Width = 45;
+                dataGridView1.Columns["Dostawca"].Width = 130;
+                dataGridView1.Columns["Data"].Width = 100;
+                dataGridView1.Columns["IloscWstawienia"].Width = 100;
+                dataGridView1.Columns["TypUmowy"].Width = 80;
+                dataGridView1.Columns["Uwagi"].Width = 80;
+                dataGridView1.Columns["isCheck"].Width = 50;
+                dataGridView1.Columns["CheckCom"].Width = 100;
+                dataGridView1.RowHeadersVisible = false;
+                dataGridView2.RowHeadersVisible = false;
+                dataGridView3.RowHeadersVisible = false;
+                dataGridView4.RowHeadersVisible = false;
 
                 // Ustawienie formatu kolumny "IloscWstawienia" z odstępami tysięcznymi
                 dataGridView1.Columns["IloscWstawienia"].DefaultCellStyle.Format = "#,##0";
 
-                for (int i = 0; i < dataGridView1.Rows.Count; i++)
-                {
-                    FormatujWierszeZgodnieZStatus(i);
-                }
+                // Ustawienie wysokości wierszy
+                SetRowHeights(dataGridView1, 11);
 
                 // Tworzenie drugiego DataGridView (dataGridView3)
                 dataGridView3.Columns.Clear(); // Usunięcie poprzednich kolumn
                 dataGridView3.Columns.Add("Lp", "LP");
-                dataGridView3.Columns.Add("DataWstawienia", "Data Wstawienia");
+                dataGridView3.Columns.Add("Data", "Data");
                 dataGridView3.Columns.Add("Dostawca", "Dostawca");
                 dataGridView3.Columns.Add("IloscWstawienia", "Ilosc Wstawienia");
 
@@ -68,6 +78,12 @@ namespace Kalendarz1
                 confirmColumn.Width = 80;
                 dataGridView3.Columns.Add(confirmColumn);
                 dataGridView3.Columns["ConfirmColumn"].Width = 35;
+
+                // Ustawienie szerokości kolumn dla dataGridView3
+                dataGridView3.Columns["Lp"].Width = 50;
+                dataGridView3.Columns["Data"].Width = 100;
+                dataGridView3.Columns["Dostawca"].Width = 150;
+                dataGridView3.Columns["IloscWstawienia"].Width = 100;
 
                 for (int i = 0; i < dataGridView1.Rows.Count; i++)
                 {
@@ -79,13 +95,17 @@ namespace Kalendarz1
                     {
                         dataGridView3.Rows.Add(
                             dataGridView1.Rows[i].Cells["LP"].Value,
-                            dataGridView1.Rows[i].Cells["DataWstawienia"].Value,
+                            dataGridView1.Rows[i].Cells["Data"].Value,
                             dataGridView1.Rows[i].Cells["Dostawca"].Value,
                             dataGridView1.Rows[i].Cells["IloscWstawienia"].Value
                         );
                     }
                 }
+
+                SetRowHeights(dataGridView2, 10);
             }
+
+            DisplayDataInDataGridView4();
 
             // Dodanie obsługi zdarzenia CellValueChanged
             dataGridView1.CellValueChanged -= dataGridView1_CellValueChanged;
@@ -93,6 +113,90 @@ namespace Kalendarz1
             dataGridView1.CurrentCellDirtyStateChanged -= dataGridView1_CurrentCellDirtyStateChanged;
             dataGridView1.CurrentCellDirtyStateChanged += dataGridView1_CurrentCellDirtyStateChanged;
         }
+
+
+        private void DisplayDataInDataGridView4()
+        {
+            // Nowe zapytanie SQL
+            string query = @"
+        WITH FilteredData AS (
+            SELECT *
+            FROM [LibraNet].[dbo].[HarmonogramDostaw]
+            WHERE [LpW] IS NULL
+        ),
+        SuppliersWithOnlyNullLpW AS (
+            SELECT [Dostawca]
+            FROM [LibraNet].[dbo].[HarmonogramDostaw]
+            GROUP BY [Dostawca]
+            HAVING COUNT(*) = SUM(CASE WHEN [LpW] IS NULL THEN 1 ELSE 0 END)
+        ),
+        RankedData AS (
+            SELECT 
+                fd.[Lp],
+                fd.[DataOdbioru],
+                fd.[Dostawca],
+                fd.[SztukiDek],
+                fd.[WagaDek],
+                fd.[TypCeny],
+                fd.[Bufor],
+                ROW_NUMBER() OVER (PARTITION BY fd.[Dostawca] ORDER BY fd.[DataOdbioru]) AS RowNum
+            FROM FilteredData fd
+            INNER JOIN SuppliersWithOnlyNullLpW swn ON fd.[Dostawca] = swn.[Dostawca]
+        )
+        SELECT 
+            [Lp],
+            [DataOdbioru],
+            [Dostawca],
+            [SztukiDek],
+            [WagaDek],
+            [TypCeny],
+            [Bufor]
+        FROM RankedData
+        WHERE RowNum = 1
+        ORDER BY [DataOdbioru] DESC;";
+
+            // Utworzenie połączenia z bazą danych
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                // Utworzenie adaptera danych
+                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
+
+                // Utworzenie tabeli danych
+                DataTable table = new DataTable();
+
+                // Wypełnienie tabeli danymi z adaptera
+                adapter.Fill(table);
+        
+                // Ustawienie źródła danych dla DataGridView
+                dataGridView4.DataSource = table;
+
+                // Ustawienie szerokości kolumn dla dataGridView4
+                dataGridView4.Columns["Lp"].Width = 45;
+                dataGridView4.Columns["DataOdbioru"].Width = 75;
+                dataGridView4.Columns["Dostawca"].Width = 120;
+                dataGridView4.Columns["SztukiDek"].Width = 45;
+                dataGridView4.Columns["WagaDek"].Width = 45;
+                dataGridView4.Columns["TypCeny"].Width = 80;
+                dataGridView4.Columns["Bufor"].Width = 80;
+
+                // Ustawienie wysokości wierszy
+                
+            }
+
+            // Dodanie obsługi zdarzenia CellValueChanged
+        }
+
+        private void SetRowHeights(DataGridView dataGridView, int height)
+        {
+            // Ustawienie wysokości wierszy
+            foreach (DataGridViewRow row in dataGridView.Rows)
+            {
+                row.Height = height;
+            }
+            // Ustawienie wysokości nagłówka
+            dataGridView.ColumnHeadersHeight = height * 2; // Można dostosować według potrzeb
+        }
+
 
         private void dataGridView1_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
@@ -268,7 +372,7 @@ namespace Kalendarz1
         {
             if (rowIndex >= 0)
             {
-                var dataWstawieniaCell = dataGridView1.Rows[rowIndex].Cells["DataWstawienia"];
+                var dataWstawieniaCell = dataGridView1.Rows[rowIndex].Cells["Data"];
                 var dostawcaCell = dataGridView1.Rows[rowIndex].Cells["Dostawca"];
                 var isCheckCell = dataGridView1.Rows[rowIndex].Cells["isCheck"];
 
@@ -317,11 +421,11 @@ namespace Kalendarz1
 
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
-                if (row.Cells["Dostawca"].Value != null && row.Cells["DataWstawienia"].Value != null &&
+                if (row.Cells["Dostawca"].Value != null && row.Cells["Data"].Value != null &&
                     row.Cells["Dostawca"].Value.ToString() == dostawca)
                 {
                     DateTime dataWstawienia;
-                    if (DateTime.TryParse(row.Cells["DataWstawienia"].Value.ToString(), out dataWstawienia))
+                    if (DateTime.TryParse(row.Cells["Data"].Value.ToString(), out dataWstawienia))
                     {
                         if (dataWstawienia > maxDataWstawienia)
                         {

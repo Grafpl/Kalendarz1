@@ -363,7 +363,11 @@ namespace Kalendarz1
                             DataGridViewRow customRow = new DataGridViewRow();
                             customRow.CreateCells(dataGridView1);
                             customRow.Cells[dataGridView1.Columns["DataOdbioruKolumna"].Index].Value = Data1.Value.ToString("yyyy-MM-dd");
-                            customRow.Cells[dataGridView1.Columns["DostawcaKolumna"].Index].Value = Dostawca.Text;
+                            customRow.Cells[dataGridView1.Columns["AutaKolumna"].Index].Value = liczbaAut1.Text;
+                            customRow.Cells[dataGridView1.Columns["SztukiDekKolumna"].Index].Value = sztuki1.Text;
+                            customRow.Cells[dataGridView1.Columns["WagaDek"].Index].Value = srednia1.Text;
+                            customRow.Cells[dataGridView1.Columns["RóżnicaDni"].Index].Value = RoznicaDni1.Text;
+
 
 
                             bool inserted = false;
