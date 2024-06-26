@@ -189,7 +189,9 @@ namespace Kalendarz1
             label42 = new Label();
             textTuszki = new TextBox();
             groupBox5 = new GroupBox();
+            label49 = new Label();
             label48 = new Label();
+            textTuszkiRol = new TextBox();
             textWolny = new TextBox();
             buttonPokazTuszke = new Button();
             textRolniczaPrzebitka = new TextBox();
@@ -212,8 +214,6 @@ namespace Kalendarz1
             button14 = new Button();
             button15 = new Button();
             groupBoxPrzyciski = new GroupBox();
-            label49 = new Label();
-            textTuszkiRol = new TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -1098,6 +1098,7 @@ namespace Kalendarz1
             potwWaga.Size = new System.Drawing.Size(15, 14);
             potwWaga.TabIndex = 124;
             potwWaga.UseVisualStyleBackColor = true;
+            potwWaga.CheckedChanged += potwWaga_CheckedChanged;
             // 
             // potwSztuki
             // 
@@ -1107,6 +1108,7 @@ namespace Kalendarz1
             potwSztuki.Size = new System.Drawing.Size(15, 14);
             potwSztuki.TabIndex = 123;
             potwSztuki.UseVisualStyleBackColor = true;
+            potwSztuki.CheckedChanged += potwSztuki_CheckedChanged_1;
             // 
             // button10
             // 
@@ -1923,6 +1925,16 @@ namespace Kalendarz1
             groupBox5.TabIndex = 110;
             groupBox5.TabStop = false;
             // 
+            // label49
+            // 
+            label49.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label49.Location = new System.Drawing.Point(203, 15);
+            label49.Name = "label49";
+            label49.Size = new System.Drawing.Size(40, 10);
+            label49.TabIndex = 128;
+            label49.Text = "TuszkiRol";
+            label49.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // label48
             // 
             label48.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
@@ -1932,6 +1944,15 @@ namespace Kalendarz1
             label48.TabIndex = 116;
             label48.Text = "Wolny";
             label48.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textTuszkiRol
+            // 
+            textTuszkiRol.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textTuszkiRol.Location = new System.Drawing.Point(203, 27);
+            textTuszkiRol.Name = "textTuszkiRol";
+            textTuszkiRol.Size = new System.Drawing.Size(40, 21);
+            textTuszkiRol.TabIndex = 127;
+            textTuszkiRol.TextAlign = HorizontalAlignment.Center;
             // 
             // textWolny
             // 
@@ -2186,25 +2207,6 @@ namespace Kalendarz1
             groupBoxPrzyciski.Size = new System.Drawing.Size(74, 501);
             groupBoxPrzyciski.TabIndex = 126;
             groupBoxPrzyciski.TabStop = false;
-            // 
-            // label49
-            // 
-            label49.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label49.Location = new System.Drawing.Point(203, 15);
-            label49.Name = "label49";
-            label49.Size = new System.Drawing.Size(40, 10);
-            label49.TabIndex = 128;
-            label49.Text = "TuszkiRol";
-            label49.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textTuszkiRol
-            // 
-            textTuszkiRol.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textTuszkiRol.Location = new System.Drawing.Point(203, 27);
-            textTuszkiRol.Name = "textTuszkiRol";
-            textTuszkiRol.Size = new System.Drawing.Size(40, 21);
-            textTuszkiRol.TabIndex = 127;
-            textTuszkiRol.TextAlign = HorizontalAlignment.Center;
             // 
             // WidokKalendarza
             // 

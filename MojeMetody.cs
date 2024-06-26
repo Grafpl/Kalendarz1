@@ -72,6 +72,86 @@ namespace Kalendarz1
             // Zwracanie nazwy
             return name;
         }
+        public void AktualizacjaPotwZDostaw(string lp, CheckBox checkBox, string columnName, string userID, string userColumnName, string dateColumnName)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Tworzenie dynamicznego zapytania SQL
+                    string updateSQL = $"UPDATE [LibraNet].[dbo].[HarmonogramDostaw] SET {columnName} = @columnValue";
+                    if (checkBox.Checked)
+                    {
+                        updateSQL += $", {userColumnName} = @userID, {dateColumnName} = @currentDate";
+                    }
+                    updateSQL += " WHERE LP = @lp";
+
+                    using (SqlCommand command = new SqlCommand(updateSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@lp", lp);
+                        command.Parameters.AddWithValue("@columnValue", checkBox.Checked ? "1" : "0");
+
+                        if (checkBox.Checked)
+                        {
+                            command.Parameters.AddWithValue("@userID", userID);
+                            command.Parameters.AddWithValue("@currentDate", DateTime.Now);
+                        }
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Jeśli aktualizacja się powiodła
+                        }
+                        else
+                        {
+                            MessageBox.Show("Aktualizacja danych nie powiodła się.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+
+
+        public void PobierzCheckBoxyWagSztuk(string lp, CheckBox checkBoxWaga, CheckBox checkBoxSztuki)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string strSQL = "SELECT PotwWaga, PotwSztuki FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LP = @lp";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@lp", lp);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                checkBoxWaga.Checked = reader["PotwWaga"].ToString() == "True";
+                                checkBoxSztuki.Checked = reader["PotwSztuki"].ToString() == "True";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
         public void publicPobierzInformacjeZBazyDanych(string lp, ComboBox LpWstawienia, ComboBox Status, DateTimePicker Data, ComboBox Dostawca, TextBox KmH, TextBox KmK, TextBox liczbaAut, TextBox srednia, TextBox sztukNaSzuflade
             , TextBox sztuki, ComboBox TypUmowy, ComboBox TypCeny, TextBox Cena, TextBox Uwagi, TextBox Dodatek, TextBox dataStwo, TextBox dataMod, TextBox Ubytek, TextBox ktoMod, TextBox ktoStwo)
         {
@@ -1305,6 +1385,7 @@ namespace Kalendarz1
 
                 return sredniaCena;
             }
+
 
 }
 

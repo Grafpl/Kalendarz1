@@ -231,8 +231,10 @@ namespace Kalendarz1
                 object wartoscKomorki = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
                 lpDostawa = wartoscKomorki != null ? wartoscKomorki.ToString() : "0";
                 PobierzInformacjeZBazyDanych(lpDostawa);
-                
+
             }
+            KolorZielonyCheckbox(potwWaga, srednia);
+            KolorZielonyCheckbox(potwSztuki, sztuki);
             UpdateDataGrid();
 
 
@@ -333,7 +335,9 @@ namespace Kalendarz1
                                         WK.DataWstawienia,
                                         D.Distance,
                                         HD.Ubytek,
-                                        HD.UWAGI
+                                        HD.UWAGI,
+                                        HD.PotwWaga,
+                                        HD.PotwSztuki
                         FROM HarmonogramDostaw HD
                         LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
                         LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON HD.Dostawca = D.Name
@@ -379,6 +383,8 @@ namespace Kalendarz1
                             dataGridView1.Columns.Add("KmKolumna", "KM");
                             dataGridView1.Columns.Add("procentUbytek", "%");
                             dataGridView1.Columns.Add("UwagaKolumna", "Uwagi");
+                            dataGridView1.Columns.Add("PotwWagaKolumna", "PotwWaga");
+                            dataGridView1.Columns.Add("PotwSztuki", "PotwSztuki");
 
                             if (!checkBoxCena.Checked)
                             {
@@ -390,7 +396,8 @@ namespace Kalendarz1
                                 dataGridView1.Columns["CenaKolumna"].Visible = false;
 
                             }
-
+                            dataGridView1.Columns["PotwWagaKolumna"].Visible = true;
+                            dataGridView1.Columns["PotwSztuki"].Visible = false;
                             dataGridView1.Columns["LP"].Visible = false;
                             dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
                             dataGridView1.Columns["bufor"].Visible = false;
@@ -408,7 +415,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["CenaKolumna"].Width = 50;
                             dataGridView1.Columns["KmKolumna"].Width = 50;
                             dataGridView1.Columns["procentUbytek"].Width = 43;
-                            
+
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
                             confirmColumn.HeaderText = "V";
@@ -839,6 +846,13 @@ namespace Kalendarz1
                 DateTime parsedDate;
                 var dostawcaCell = dataGridView1.Rows[rowIndex].Cells["DostawcaKolumna"];
                 var statusCell = dataGridView1.Rows[rowIndex].Cells["Bufor"];
+                
+                var potwSztukiCell = dataGridView1.Rows[rowIndex].Cells["PotwSztuki"];
+                var SztukiCell = dataGridView1.Rows[rowIndex].Cells["SztukiDekKolumna"];
+
+                var potwWagaCell = dataGridView1.Rows[rowIndex].Cells["PotwWagaKolumna"];
+                var wagaDekCell = dataGridView1.Rows[rowIndex].Cells["WagaDek"];
+                var typCenyCell = dataGridView1.Rows[rowIndex].Cells["TypCenyKolumna"];
                 if (statusCell != null && statusCell.Value != null && statusCell.Value.ToString() == "Potwierdzony")
                 {
                     dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
@@ -856,7 +870,6 @@ namespace Kalendarz1
                 {
                     dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.Indigo;
                     dataGridView1.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.White;
-
                 }
                 else if (statusCell != null && statusCell.Value != null && statusCell.Value.ToString() == "B.Wolny.")
                 {
@@ -866,9 +879,8 @@ namespace Kalendarz1
                 {
                     dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.WhiteSmoke;
                     dataGridView1.Rows[rowIndex].Height = 18;
-
-
                 }
+
                 else if (dostawcaCell != null && DateTime.TryParse(dostawcaCell.Value?.ToString(), out parsedDate))
                 {
                     if (parsedDate.Date == DateTime.Today)
@@ -889,13 +901,46 @@ namespace Kalendarz1
                         dataGridView1.Rows[rowIndex].DefaultCellStyle.Font = new Font(dataGridView1.Font.FontFamily, 9, FontStyle.Bold);
                         dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGray;
                     }
+
+
                 }
+
+
+
                 else
                 {
                     dataGridView1.Rows[rowIndex].DefaultCellStyle.BackColor = Color.White; // Domyślny kolor tła dla pozostałych wierszy
                 }
+
+                if (potwWagaCell != null &&
+                     (potwWagaCell.Value == null || string.IsNullOrEmpty(potwWagaCell.Value.ToString()) || potwWagaCell.Value.ToString() == "False") &&
+                     typCenyCell != null && typCenyCell.Value != null)
+                {
+                    if (wagaDekCell != null)
+                    {
+                        wagaDekCell.Style.BackColor = Color.White;
+                    }
+                }
+                if (potwSztukiCell != null &&
+                     (potwSztukiCell.Value == null || string.IsNullOrEmpty(potwSztukiCell.Value.ToString()) || potwSztukiCell.Value.ToString() == "False") &&
+                     typCenyCell != null && typCenyCell.Value != null)
+                {
+                    if (SztukiCell != null)
+                    {
+                        SztukiCell.Style.BackColor = Color.White;
+                    }
+                }
+
+
+
+                // Nie dodajemy żadnego else, aby "nic nie robić" w przypadku, gdy wartość jest 1
+
+
+
+
             }
         }
+
         // Wypełnianie Textboxów
         private void LpWstawienia_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -1002,6 +1047,7 @@ namespace Kalendarz1
         private void PobierzInformacjeZBazyDanych(string lp)
         {
             nazwaZiD.publicPobierzInformacjeZBazyDanych(lp, LpWstawienia, Status, Data, Dostawca, KmH, KmK, liczbaAut, srednia, sztukNaSzuflade, sztuki, TypUmowy, TypCeny, Cena, Uwagi, Dodatek, dataStwo, dataMod, Ubytek, ktoMod, ktoStwo);
+            nazwaZiD.PobierzCheckBoxyWagSztuk(lp, potwWaga, potwSztuki);
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -1615,12 +1661,41 @@ namespace Kalendarz1
         private void SMSupomnienie_Click(object sender, EventArgs e)
         {
             string destinationPhoneNumber = "+48506262541";
-            string DataTXT = Data.Text; 
+            string DataTXT = Data.Text;
             string sztukiTXT = sztuki.Text;
             string sredniaTXT = srednia.Text;
             string messageBody = $"Witam. Prosimy o zaaakceptowanie dostawy na dzień ubojowy {DataTXT}. Sztuki dek.:{sztukiTXT} szt, waga dek.: {sredniaTXT} kg. Prosimy o kontakt telefoniczny lub SMS z jednym z naszych przedstawicieli w celu potwierdzenia. Ubojnia Drobiu Piórkowscy.";
             SmsSender.SendSms(destinationPhoneNumber, messageBody);
         }
-
+        private void KolorZielonyCheckbox(CheckBox checkBox, TextBox textBox)
+        {
+            if (checkBox.Checked)
+            {
+                textBox.BackColor = Color.LightGreen;
+            }
+            else
+            {
+                textBox.BackColor = SystemColors.Window; // Ustawia kolor na domyślny kolor TextBoxa
+            }
+        }
+        private void potwWaga_CheckedChanged(object sender, EventArgs e)
+        {
+            // Sprawdź, czy zmiana stanu CheckBox została wywołana przez użytkownika
+            if (potwWaga.Focused)
+            {
+                nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwWaga, "PotwWaga", UserID, "KtoWaga", "KiedyWaga");
+                KolorZielonyCheckbox(potwWaga, srednia);
+                MyCalendar_DateChanged_1(sender, null);
+            }
+        }
+        private void potwSztuki_CheckedChanged_1(object sender, EventArgs e)
+        {
+            if (potwSztuki.Focused)
+            {
+                //nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwSztuki, "PotwSztuki");
+                KolorZielonyCheckbox(potwSztuki, sztuki);
+                MyCalendar_DateChanged_1(sender, null);
+            }
+        }
     }
 }

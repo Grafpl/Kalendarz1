@@ -33,72 +33,84 @@ namespace Kalendarz1
         private void DisplayDataInDataGridView()
         {
             string query = @"WITH CTE_Ministerialna AS (
-    SELECT 
-        [Data], 
-        CAST([Cena] AS DECIMAL(10, 2)) AS CenaMinisterialna
-    FROM 
-        [LibraNet].[dbo].[CenaMinisterialna]
-    WHERE 
-        [Data] >= '2024-01-01'
-),
-CTE_Rolnicza AS (
-    SELECT 
-        [Data], 
-        CAST([Cena] AS DECIMAL(10, 2)) AS CenaRolnicza
-    FROM 
-        [LibraNet].[dbo].[CenaRolnicza]
-    WHERE 
-        [Data] >= '2024-01-01'
-),
-CTE_HANDEL AS (
-    SELECT 
-        CONVERT(DATE, DP.[data]) AS Data,
-        ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
-    FROM 
-        [RemoteServer].[HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [RemoteServer].[HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [RemoteServer].[HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    WHERE 
-        DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-        AND DP.[data] >= '2024-01-01'
-    GROUP BY 
-        CONVERT(DATE, DP.[data])
-),
-CTE_Harmonogram AS (
-    SELECT 
-        DataOdbioru AS Data,
-        SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
-    FROM 
-        [LibraNet].[dbo].[HarmonogramDostaw]
-    WHERE 
-        (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
-        AND Bufor = 'Potwierdzony'
-    GROUP BY 
-        DataOdbioru
-)
-SELECT 
-    FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + LEFT(DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)), 3) AS Data,
-    CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Minister,
-    CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Łączona,
-    CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolnicza,
-    CONCAT(FORMAT(HD.SredniaCena, 'N2'), ' zł') AS Wolny,
-    CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS Tuszka
-FROM 
-    CTE_Ministerialna M
-FULL OUTER JOIN 
-    CTE_Rolnicza R ON M.Data = R.Data
-FULL OUTER JOIN 
-    CTE_HANDEL H ON COALESCE(M.Data, R.Data) = H.Data
-LEFT JOIN 
-    CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, H.Data) = HD.Data
-WHERE
-    COALESCE(M.Data, R.Data, H.Data) >= '2024-01-01'
-ORDER BY 
-    Data DESC;
-";
+            SELECT 
+                [Data], 
+                CAST([Cena] AS DECIMAL(10, 2)) AS CenaMinisterialna
+            FROM 
+                [LibraNet].[dbo].[CenaMinisterialna]
+            WHERE 
+                [Data] >= '2024-01-01'
+        ),
+        CTE_Rolnicza AS (
+            SELECT 
+                [Data], 
+                CAST([Cena] AS DECIMAL(10, 2)) AS CenaRolnicza
+            FROM 
+                [LibraNet].[dbo].[CenaRolnicza]
+            WHERE 
+                [Data] >= '2024-01-01'
+        ),
+        CTE_Tuszka AS (
+            SELECT 
+                [Data], 
+                CAST([Cena] AS DECIMAL(10, 2)) AS CenaTuszki
+            FROM 
+                [LibraNet].[dbo].[CenaTuszki]
+            WHERE 
+                [Data] >= '2024-01-01'
+        ),
+        CTE_HANDEL AS (
+            SELECT 
+                CONVERT(DATE, DP.[data]) AS Data,
+                ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
+            FROM 
+                [RemoteServer].[HANDEL].[HM].[DP] DP 
+            INNER JOIN 
+                [RemoteServer].[HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+            INNER JOIN 
+                [RemoteServer].[HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+            WHERE 
+                DP.[kod] = 'Kurczak A' 
+                AND TW.[katalog] = 67095
+                AND DP.[data] >= '2024-01-01'
+            GROUP BY 
+                CONVERT(DATE, DP.[data])
+        ),
+        CTE_Harmonogram AS (
+            SELECT 
+                DataOdbioru AS Data,
+                SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
+            FROM 
+                [LibraNet].[dbo].[HarmonogramDostaw]
+            WHERE 
+                (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
+                AND Bufor = 'Potwierdzony'
+            GROUP BY 
+                DataOdbioru
+        )
+        SELECT 
+            FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + LEFT(DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)), 3) AS Data,
+            CONCAT(FORMAT(M.CenaMinisterialna, 'N2'), ' zł') AS Minister,
+            CONCAT(FORMAT((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 'N2'), ' zł') AS Łączona,
+            CONCAT(FORMAT(R.CenaRolnicza, 'N2'), ' zł') AS Rolnicza,
+            CONCAT(FORMAT(HD.SredniaCena, 'N2'), ' zł') AS Wolny,
+            CONCAT(FORMAT(H.Cena, 'N2'), ' zł') AS Tuszka,
+            CONCAT(FORMAT(T.CenaTuszki, 'N2'), ' zł') AS Zrzeszenie
+        FROM 
+            CTE_Ministerialna M
+        FULL OUTER JOIN 
+            CTE_Rolnicza R ON M.Data = R.Data
+        FULL OUTER JOIN 
+            CTE_Tuszka T ON M.Data = T.Data
+        FULL OUTER JOIN 
+            CTE_HANDEL H ON COALESCE(M.Data, R.Data) = H.Data
+        LEFT JOIN 
+            CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, H.Data) = HD.Data
+        WHERE
+            COALESCE(M.Data, R.Data, H.Data) >= '2024-01-01'
+        ORDER BY 
+            Data DESC;
+        ";
 
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
@@ -120,6 +132,7 @@ ORDER BY
 
                 dataGridView1.CellFormatting += new DataGridViewCellFormattingEventHandler(dataGridView1_CellFormatting);
                 HideWeekendRows();
+                dataGridView1.RowHeadersVisible = false;
             }
             SetRowHeights(13);
         }
