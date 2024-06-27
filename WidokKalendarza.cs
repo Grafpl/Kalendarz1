@@ -1693,7 +1693,7 @@ namespace Kalendarz1
         {
             if (potwSztuki.Focused)
             {
-                nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwWaga, "PotwSztuki", UserID, "KtoSztuki", "KiedySztuki");
+                nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwSztuki, "PotwSztuki", UserID, "KtoSztuki", "KiedySztuki");
                 KolorZielonyCheckbox(potwSztuki, sztuki);
                 MyCalendar_DateChanged_1(sender, null);
             }
