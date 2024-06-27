@@ -396,6 +396,7 @@ namespace Kalendarz1
                                 dataGridView1.Columns["CenaKolumna"].Visible = false;
 
                             }
+                            dataGridView1.Columns["PotwSztuki"].Visible = true;
                             dataGridView1.Columns["PotwWagaKolumna"].Visible = true;
                             dataGridView1.Columns["PotwSztuki"].Visible = false;
                             dataGridView1.Columns["LP"].Visible = false;
@@ -1692,7 +1693,7 @@ namespace Kalendarz1
         {
             if (potwSztuki.Focused)
             {
-                //nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwSztuki, "PotwSztuki");
+                nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwWaga, "PotwSztuki", UserID, "KtoSztuki", "KiedySztuki");
                 KolorZielonyCheckbox(potwSztuki, sztuki);
                 MyCalendar_DateChanged_1(sender, null);
             }
