@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using System.Drawing; // Dodaj tę dyrektywę
 using System.Globalization;
 using System.Collections.Generic;
+using Microsoft.Extensions.Primitives;
 
 
 namespace Kalendarz1
@@ -1248,9 +1249,13 @@ namespace Kalendarz1
         }
         private void CommandButton_Insert_Click(object sender, EventArgs e)
         {
-            Dostawa dostawa = new Dostawa();
+            int intValue = int.Parse(lpDostawa);
+            DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<DateTime>(intValue, "[LibraNet].[dbo].[HarmonogramDostaw]", "DataOdbioru");
+
+            Dostawa dostawa = new Dostawa("", dzienUbojowy);
             dostawa.UserID = App.UserID;
-            // Wyświetlanie Form1
+
+            // Wyświetlanie formy Dostawa
             dostawa.Show();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
@@ -1280,6 +1285,7 @@ namespace Kalendarz1
             wstawienie.UserID = App.UserID;
             // Wyświetlanie Form1
             wstawienie.Show();
+
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
         private void dataGridPartie_CellContentClick(object sender, DataGridViewCellEventArgs e)

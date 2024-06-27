@@ -568,6 +568,43 @@ namespace Kalendarz1
             return wartosc;
         }
 
+        public T PobierzInformacjeZBazyDanychHarmonogram<T>(int ID, string Bazadanych, string kolumna)
+        {
+            T wartosc = default(T); // Wartość domyślna dla typu generycznego
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
+                    string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE Lp = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@ID", ID);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna))) // Sprawdzenie, czy wartość w kolumnie nie jest DBNull
+                                {
+                                    wartosc = (T)reader[kolumna];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return wartosc;
+        }
+
 
         public string PobierzInformacjeZBazyDanychHodowcow(int id, string kolumna)
         {

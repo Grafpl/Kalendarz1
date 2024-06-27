@@ -71,16 +71,16 @@ namespace Kalendarz1
                 switch (dzienTygodnia)
                 {
                     case 1: // Poniedziałek
-                        data2Value = data1Value.AddDays(2); // Środa
-                        data3Value = data1Value.AddDays(1); // Wtorek
+                        data2Value = data1Value.AddDays(1); // Środa
+                        data3Value = data1Value.AddDays(0); // Wtorek
                         break;
                     case 3: // Środa
-                        data2Value = data1Value.AddDays(2); // Piątek
-                        data3Value = data1Value.AddDays(1); // Wtorek
+                        data2Value = data1Value.AddDays(1); // Piątek
+                        data3Value = data1Value.AddDays(0); // Wtorek
                         break;
                     case 5: // Piątek
-                        data2Value = data1Value.AddDays(3); // Poniedziałek
-                        data3Value = data1Value.AddDays(1); // Wtorek
+                        data2Value = data1Value.AddDays(2); // Poniedziałek
+                        data3Value = data1Value.AddDays(0); // Wtorek
                         break;
                     default:
                         MessageBox.Show("Dla wprowadzonej daty nie ma określonej daty docelowej.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);

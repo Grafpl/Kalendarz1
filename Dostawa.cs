@@ -13,6 +13,7 @@ namespace Kalendarz1
     {
         private string GID;
         private string lpDostawa;
+        private DateTime dzienUbojowy;
         public string UserID { get; set; }
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private MojeObliczenia obliczenia = new MojeObliczenia();
@@ -28,12 +29,21 @@ namespace Kalendarz1
         {
             lpDostawa = lp;
             PobierzInformacjeZBazyDanych(lpDostawa);
+            //Data.Value = dzienUbojowy;
+        }
+
+        public Dostawa(string lp, DateTime dzienUbojowy) : this(lp)
+        {
+            // Sprawdzenie i inicjalizacja dzienUbojowy
+            this.dzienUbojowy = dzienUbojowy != DateTime.MinValue ? dzienUbojowy : DateTime.Today;
+            this.Load += new EventHandler(Dostawa_Load);
         }
         private void Dostawa_Load(object sender, EventArgs e)
         {
             NazwaZiD databaseManager = new NazwaZiD();
             string name = databaseManager.GetNameById(UserID);
             // Przypisanie wartości UserID do TextBoxa userTextbox
+            Data.Value = dzienUbojowy;
             ktoStwo.Text = name;
         }
         private void LpWstawienia_SelectedIndexChanged(object sender, EventArgs e)
