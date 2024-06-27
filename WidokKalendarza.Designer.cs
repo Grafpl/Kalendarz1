@@ -2255,6 +2255,7 @@ namespace Kalendarz1
             Controls.Add(sztukiPelne);
             Controls.Add(dataGridView1);
             Controls.Add(HarmonogramDnia);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokKalendarza";
             Text = "Kalendarz";
             FormClosing += WidokKalendarza_FormClosing;

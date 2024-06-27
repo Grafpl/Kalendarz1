@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokCena));
             TypCeny = new System.Windows.Forms.ComboBox();
             Data1 = new System.Windows.Forms.DateTimePicker();
             label8 = new System.Windows.Forms.Label();
@@ -166,8 +167,9 @@
             Controls.Add(label8);
             Controls.Add(Data1);
             Controls.Add(TypCeny);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokCena";
-            Text = "Form1";
+            Text = "Dodanie Ceny";
             ResumeLayout(false);
             PerformLayout();
         }

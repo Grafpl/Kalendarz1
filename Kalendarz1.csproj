@@ -10,7 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Resources\Screenshot_4.ico" />
     <None Remove="Screenshot_8.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Screenshot_4.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -231,6 +231,7 @@
             Controls.Add(terminyButton);
             Controls.Add(kalendarzButton);
             Controls.Add(pictureBox1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "MENU";
             Text = "Menu";
             Load += MENU_Load;

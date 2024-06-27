@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Platnosci));
             dataGridView1 = new System.Windows.Forms.DataGridView();
             refreshButton = new System.Windows.Forms.Button();
             textBox1 = new System.Windows.Forms.TextBox();
@@ -102,6 +103,7 @@
             Controls.Add(textBox1);
             Controls.Add(refreshButton);
             Controls.Add(dataGridView1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "Platnosci";
             Text = "Platnosci";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

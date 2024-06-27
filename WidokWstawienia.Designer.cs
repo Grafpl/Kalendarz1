@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokWstawienia));
             dataGridView1 = new System.Windows.Forms.DataGridView();
             textBox1 = new System.Windows.Forms.TextBox();
             label18 = new System.Windows.Forms.Label();
@@ -159,6 +160,7 @@
             Controls.Add(label18);
             Controls.Add(textBox1);
             Controls.Add(dataGridView1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokWstawienia";
             Text = "Wstawienia";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

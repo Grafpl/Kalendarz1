@@ -2101,6 +2101,7 @@
             Controls.Add(label25);
             Controls.Add(dataMod);
             Controls.Add(label24);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "Wstawienie";
             Text = "Form1";
             Load += Form1_Load;
