@@ -396,8 +396,8 @@ namespace Kalendarz1
                                 dataGridView1.Columns["CenaKolumna"].Visible = false;
 
                             }
-                            dataGridView1.Columns["PotwSztuki"].Visible = true;
-                            dataGridView1.Columns["PotwWagaKolumna"].Visible = true;
+                            dataGridView1.Columns["PotwSztuki"].Visible = false;
+                            dataGridView1.Columns["PotwWagaKolumna"].Visible = false;
                             dataGridView1.Columns["PotwSztuki"].Visible = false;
                             dataGridView1.Columns["LP"].Visible = false;
                             dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
