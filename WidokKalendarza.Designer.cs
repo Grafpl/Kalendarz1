@@ -1831,6 +1831,7 @@ namespace Kalendarz1
             button3.TabIndex = 99;
             button3.Text = "Usuń dostawe";
             button3.UseVisualStyleBackColor = false;
+            button3.Click += button3_Click;
             // 
             // CommandButton_Insert
             // 

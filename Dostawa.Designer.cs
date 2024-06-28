@@ -96,10 +96,10 @@ namespace Kalendarz1
             Uwagi = new System.Windows.Forms.TextBox();
             label22 = new System.Windows.Forms.Label();
             groupBox1 = new System.Windows.Forms.GroupBox();
+            Dostawca = new System.Windows.Forms.ComboBox();
             label28 = new System.Windows.Forms.Label();
             label25 = new System.Windows.Forms.Label();
             Data = new System.Windows.Forms.DateTimePicker();
-            Dostawca = new System.Windows.Forms.ComboBox();
             label31 = new System.Windows.Forms.Label();
             label30 = new System.Windows.Forms.Label();
             label29 = new System.Windows.Forms.Label();
@@ -426,6 +426,7 @@ namespace Kalendarz1
             button3.TabIndex = 25;
             button3.Text = "Usuń";
             button3.UseVisualStyleBackColor = false;
+            button3.Click += button3_Click;
             // 
             // cancelButton
             // 
@@ -433,7 +434,7 @@ namespace Kalendarz1
             cancelButton.Location = new System.Drawing.Point(273, 63);
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new System.Drawing.Size(75, 39);
-            cancelButton.TabIndex = 24;
+            cancelButton.TabIndex = 5;
             cancelButton.Text = "Anuluj";
             cancelButton.UseVisualStyleBackColor = false;
             cancelButton.Click += cancelButton_Click;
@@ -444,7 +445,7 @@ namespace Kalendarz1
             CommandButton_Update.Location = new System.Drawing.Point(273, 5);
             CommandButton_Update.Name = "CommandButton_Update";
             CommandButton_Update.Size = new System.Drawing.Size(75, 52);
-            CommandButton_Update.TabIndex = 23;
+            CommandButton_Update.TabIndex = 4;
             CommandButton_Update.Text = "Stwórz";
             CommandButton_Update.UseVisualStyleBackColor = false;
             CommandButton_Update.Click += CommandButton_Update_Click;
@@ -459,7 +460,7 @@ namespace Kalendarz1
             // TypCeny
             // 
             TypCeny.FormattingEnabled = true;
-            TypCeny.Location = new System.Drawing.Point(59, 105);
+            TypCeny.Location = new System.Drawing.Point(357, 69);
             TypCeny.Name = "TypCeny";
             TypCeny.Size = new System.Drawing.Size(144, 23);
             TypCeny.TabIndex = 20;
@@ -536,9 +537,7 @@ namespace Kalendarz1
             groupBox2.Controls.Add(Ubytek);
             groupBox2.Controls.Add(label14);
             groupBox2.Controls.Add(Dodatek);
-            groupBox2.Controls.Add(TypCeny);
             groupBox2.Controls.Add(label16);
-            groupBox2.Controls.Add(Status);
             groupBox2.Location = new System.Drawing.Point(12, 254);
             groupBox2.Name = "groupBox2";
             groupBox2.RightToLeft = System.Windows.Forms.RightToLeft.No;
@@ -560,7 +559,7 @@ namespace Kalendarz1
             // Status
             // 
             Status.FormattingEnabled = true;
-            Status.Location = new System.Drawing.Point(78, 129);
+            Status.Location = new System.Drawing.Point(376, 93);
             Status.Name = "Status";
             Status.Size = new System.Drawing.Size(140, 23);
             Status.TabIndex = 8;
@@ -590,7 +589,8 @@ namespace Kalendarz1
             srednia.Location = new System.Drawing.Point(95, 22);
             srednia.Name = "srednia";
             srednia.Size = new System.Drawing.Size(58, 25);
-            srednia.TabIndex = 20;
+            srednia.TabIndex = 1;
+            srednia.TabStop = false;
             srednia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             srednia.TextChanged += srednia_TextChanged;
             // 
@@ -609,7 +609,8 @@ namespace Kalendarz1
             sztukNaSzuflade.Location = new System.Drawing.Point(95, 53);
             sztukNaSzuflade.Name = "sztukNaSzuflade";
             sztukNaSzuflade.Size = new System.Drawing.Size(58, 25);
-            sztukNaSzuflade.TabIndex = 22;
+            sztukNaSzuflade.TabIndex = 2;
+            sztukNaSzuflade.TabStop = false;
             sztukNaSzuflade.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             sztukNaSzuflade.TextChanged += sztukNaSzuflade_TextChanged;
             // 
@@ -629,7 +630,8 @@ namespace Kalendarz1
             sztuki.Location = new System.Drawing.Point(95, 85);
             sztuki.Name = "sztuki";
             sztuki.Size = new System.Drawing.Size(58, 25);
-            sztuki.TabIndex = 24;
+            sztuki.TabIndex = 3;
+            sztuki.TabStop = false;
             sztuki.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             sztuki.TextChanged += sztuki_TextChanged;
             // 
@@ -648,7 +650,7 @@ namespace Kalendarz1
             liczbaAut.Location = new System.Drawing.Point(95, 117);
             liczbaAut.Name = "liczbaAut";
             liczbaAut.Size = new System.Drawing.Size(26, 25);
-            liczbaAut.TabIndex = 26;
+            liczbaAut.TabIndex = 4;
             liczbaAut.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // obliczeniaAut
@@ -657,7 +659,7 @@ namespace Kalendarz1
             obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             obliczeniaAut.Location = new System.Drawing.Point(125, 117);
             obliczeniaAut.Name = "obliczeniaAut";
-            obliczeniaAut.Size = new System.Drawing.Size(28, 25);
+            obliczeniaAut.Size = new System.Drawing.Size(38, 25);
             obliczeniaAut.TabIndex = 27;
             obliczeniaAut.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
@@ -725,7 +727,7 @@ namespace Kalendarz1
             Uwagi.Multiline = true;
             Uwagi.Name = "Uwagi";
             Uwagi.Size = new System.Drawing.Size(168, 101);
-            Uwagi.TabIndex = 28;
+            Uwagi.TabIndex = 3;
             Uwagi.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // label22
@@ -740,16 +742,25 @@ namespace Kalendarz1
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            groupBox1.Controls.Add(Dostawca);
             groupBox1.Controls.Add(label28);
             groupBox1.Controls.Add(label25);
             groupBox1.Controls.Add(Data);
-            groupBox1.Controls.Add(Dostawca);
             groupBox1.Location = new System.Drawing.Point(12, 5);
             groupBox1.Name = "groupBox1";
             groupBox1.RightToLeft = System.Windows.Forms.RightToLeft.No;
             groupBox1.Size = new System.Drawing.Size(255, 80);
-            groupBox1.TabIndex = 18;
+            groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
+            // 
+            // Dostawca
+            // 
+            Dostawca.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Dostawca.FormattingEnabled = true;
+            Dostawca.Location = new System.Drawing.Point(95, 42);
+            Dostawca.Name = "Dostawca";
+            Dostawca.Size = new System.Drawing.Size(152, 20);
+            Dostawca.TabIndex = 107;
             // 
             // label28
             // 
@@ -778,21 +789,9 @@ namespace Kalendarz1
             Data.Location = new System.Drawing.Point(95, 13);
             Data.Name = "Data";
             Data.Size = new System.Drawing.Size(152, 23);
-            Data.TabIndex = 17;
+            Data.TabIndex = 1;
             Data.Value = new DateTime(2024, 2, 12, 0, 0, 0, 0);
             Data.ValueChanged += Data_ValueChanged;
-            // 
-            // Dostawca
-            // 
-            Dostawca.DropDownHeight = 300;
-            Dostawca.DropDownWidth = 200;
-            Dostawca.FormattingEnabled = true;
-            Dostawca.IntegralHeight = false;
-            Dostawca.Location = new System.Drawing.Point(95, 45);
-            Dostawca.Name = "Dostawca";
-            Dostawca.Size = new System.Drawing.Size(140, 23);
-            Dostawca.TabIndex = 0;
-            Dostawca.SelectedIndexChanged += Dostawca_SelectedIndexChanged;
             // 
             // label31
             // 
@@ -1005,15 +1004,15 @@ namespace Kalendarz1
             groupBox3.Controls.Add(liczbaAut);
             groupBox3.Location = new System.Drawing.Point(12, 91);
             groupBox3.Name = "groupBox3";
-            groupBox3.Size = new System.Drawing.Size(162, 148);
-            groupBox3.TabIndex = 111;
+            groupBox3.Size = new System.Drawing.Size(166, 148);
+            groupBox3.TabIndex = 2;
             groupBox3.TabStop = false;
             // 
             // Dostawa
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(356, 247);
+            ClientSize = new System.Drawing.Size(351, 239);
             Controls.Add(groupBox3);
             Controls.Add(label22);
             Controls.Add(dataWstawienia);
@@ -1021,8 +1020,10 @@ namespace Kalendarz1
             Controls.Add(lalv);
             Controls.Add(ObliczAuta);
             Controls.Add(wyliczone);
+            Controls.Add(TypCeny);
             Controls.Add(ktoStwo);
             Controls.Add(label19);
+            Controls.Add(Status);
             Controls.Add(HarmonogramWstawien);
             Controls.Add(label23);
             Controls.Add(SztukiUbiorka);
@@ -1155,7 +1156,6 @@ namespace Kalendarz1
         private System.Windows.Forms.ComboBox Kurnik;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.GroupBox tablicaHodowca;
-        private System.Windows.Forms.ComboBox Dostawca;
         private System.Windows.Forms.TextBox KmH;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label6;
@@ -1175,5 +1175,6 @@ namespace Kalendarz1
         private System.Windows.Forms.Label label28;
         private System.Windows.Forms.Label label25;
         private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.ComboBox Dostawca;
     }
 }

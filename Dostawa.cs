@@ -317,6 +317,7 @@ namespace Kalendarz1
         {
             obliczenia.ObliczWage(srednia, WagaTuszki, iloscPoj, sztukNaSzuflade, wyliczone, KGwSkrzynce, CalcSztukNaSzuflade);
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
+            nazwaZiD.ReplaceCommaWithDot(srednia);
         }
         private void Data_ValueChanged(object sender, EventArgs e)
         {
@@ -434,54 +435,99 @@ namespace Kalendarz1
 
                     // Utworzenie zapytania SQL do wstawienia danych
                     string insertSql = @"
-                    INSERT INTO dbo.HarmonogramDostaw 
-                    (Lp, DataOdbioru, Dostawca, KmH, Kurnik, KmK, Auta, SztukiDek, WagaDek, 
-                    SztSzuflada, TypUmowy, TypCeny, Cena, Bufor, UWAGI, Dodatek, DataUtw, LpW, Ubytek, ktoStwo) 
-                    VALUES 
-                    (@Lp, @DataOdbioru, @Dostawca, @KmH, @Kurnik, @KmK, @Auta, @SztukiDek, @WagaDek, 
-                    @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @ktoStwo)";
+            INSERT INTO dbo.HarmonogramDostaw 
+            (Lp, DataOdbioru, Dostawca, KmH, Kurnik, KmK, Auta, SztukiDek, WagaDek, 
+            SztSzuflada, TypUmowy, TypCeny, Cena, Bufor, UWAGI, Dodatek, DataUtw, LpW, Ubytek, ktoStwo) 
+            VALUES 
+            (@Lp, @DataOdbioru, @Dostawca, @KmH, @Kurnik, @KmK, @Auta, @SztukiDek, @WagaDek, 
+            @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @ktoStwo)";
 
                     SqlCommand insertCmd = new SqlCommand(insertSql, cnn);
                     insertCmd.Parameters.AddWithValue("@Lp", maxLP);
                     insertCmd.Parameters.AddWithValue("@DataOdbioru", string.IsNullOrEmpty(Data.Text) ? (object)DBNull.Value : DateTime.Parse(Data.Text).Date);
                     insertCmd.Parameters.AddWithValue("@Dostawca", string.IsNullOrEmpty(Dostawca.Text) ? (object)DBNull.Value : Dostawca.Text);
                     insertCmd.Parameters.AddWithValue("@Auta", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : int.Parse(liczbaAut.Text));
-                    insertCmd.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(KmH.Text) ? (object)DBNull.Value : int.Parse(KmH.Text));
-                    insertCmd.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(KmK.Text) ? (object)DBNull.Value : int.Parse(KmK.Text));
-                    insertCmd.Parameters.AddWithValue("@Kurnik", string.IsNullOrEmpty(GID) ? (object)DBNull.Value : int.Parse(GID));
                     insertCmd.Parameters.AddWithValue("@SztukiDek", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : int.Parse(sztuki.Text));
                     insertCmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : decimal.Parse(srednia.Text));
                     insertCmd.Parameters.AddWithValue("@SztSzuflada", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : int.Parse(sztukNaSzuflade.Text));
-                    insertCmd.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                    insertCmd.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
-                    insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : decimal.Parse(Cena.Text));
-                    insertCmd.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : decimal.Parse(Ubytek.Text));
-                    insertCmd.Parameters.AddWithValue("@Dodatek", string.IsNullOrEmpty(Dodatek.Text) ? (object)DBNull.Value : decimal.Parse(Dodatek.Text));
-                    insertCmd.Parameters.AddWithValue("@Bufor", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                     insertCmd.Parameters.AddWithValue("@DataMod", DateTime.Now);
                     insertCmd.Parameters.AddWithValue("@DataUtw", DateTime.Now);
                     insertCmd.Parameters.AddWithValue("@KtoMod", UserID);
                     insertCmd.Parameters.AddWithValue("@ktoStwo", UserID);
-                    insertCmd.Parameters.AddWithValue("@LpW", string.IsNullOrEmpty(LpWstawienia.Text) ? (object)DBNull.Value : int.Parse(LpWstawienia.Text));
                     insertCmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(Uwagi.Text) ? (object)DBNull.Value : Uwagi.Text);
+                    insertCmd.Parameters.AddWithValue("@Kurnik", string.IsNullOrEmpty(GID) ? (object)DBNull.Value : int.Parse(GID));
+                    insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : decimal.Parse(Cena.Text));
+                    insertCmd.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : decimal.Parse(Ubytek.Text));
+                    insertCmd.Parameters.AddWithValue("@Dodatek", string.IsNullOrEmpty(Dodatek.Text) ? (object)DBNull.Value : decimal.Parse(Dodatek.Text));
+                    insertCmd.Parameters.AddWithValue("@LpW", string.IsNullOrEmpty(LpWstawienia.Text) ? (object)DBNull.Value : int.Parse(LpWstawienia.Text));
+                    insertCmd.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(KmH.Text) ? (object)DBNull.Value : int.Parse(KmH.Text));
+                    insertCmd.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(KmK.Text) ? (object)DBNull.Value : int.Parse(KmK.Text));
+
+                    // Logika dotycząca typów umowy i ceny
+                    var isFreeMarket = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (isFreeMarket == DialogResult.Yes)
+                    {
+                        var isLoyalFreeMarket = MessageBox.Show("Czy jest naszym WIERNYM WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (isLoyalFreeMarket == DialogResult.Yes)
+                        {
+                            insertCmd.Parameters.AddWithValue("@TypUmowy", "W.Wolnyrynek");
+                            insertCmd.Parameters.AddWithValue("@TypCeny", "wolnyrynek");
+                            insertCmd.Parameters.AddWithValue("@Bufor", "B.Wolny.");
+                        }
+                        else
+                        {
+                            insertCmd.Parameters.AddWithValue("@TypUmowy", "Wolnyrynek");
+                            insertCmd.Parameters.AddWithValue("@TypCeny", "wolnyrynek");
+                            insertCmd.Parameters.AddWithValue("@Bufor", "Do wykupienia");
+                        }
+                    }
+                    else
+                    {
+                        var contractPrice = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (contractPrice == DialogResult.No)
+                        {
+                            var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
+                            var priceDialog = new Form();
+                            var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
+                            priceDialog.Controls.Add(layout);
+
+                            foreach (var option in priceOptions)
+                            {
+                                var button = new Button() { Text = option, Tag = option };
+                                button.Click += (s, ea) => { priceDialog.Tag = option; priceDialog.DialogResult = DialogResult.OK; };
+                                layout.Controls.Add(button);
+                            }
+
+                            priceDialog.ShowDialog();
+
+                            var selectedPrice = priceDialog.Tag as string;
+
+                            if (!string.IsNullOrEmpty(selectedPrice))
+                            {
+                                insertCmd.Parameters.AddWithValue("@TypUmowy", "Kontrakt");
+                                insertCmd.Parameters.AddWithValue("@TypCeny", selectedPrice);
+                                insertCmd.Parameters.AddWithValue("@Bufor", "B.Kontr.");
+                            }
+                        }
+                    }
 
                     // Wykonaj polecenie
                     insertCmd.ExecuteNonQuery();
 
                     // Aktualizacja danych dostawcy
                     string updateSupplierSql = @"
-                    UPDATE dbo.Dostawcy 
-                    SET Address = @Address, 
-                        PostalCode = @PostalCode,
-                        City = @City,
-                        Phone1 = @Phone1,
-                        Phone2 = @Phone2,
-                        Phone3 = @Phone3,
-                        info1 = @info1,
-                        info2 = @info2,
-                        info3 = @info3,
-                        Distance = @Distance 
-                    WHERE Shortname = @Shortname";
+            UPDATE dbo.Dostawcy 
+            SET Address = @Address, 
+                PostalCode = @PostalCode,
+                City = @City,
+                Phone1 = @Phone1,
+                Phone2 = @Phone2,
+                Phone3 = @Phone3,
+                info1 = @info1,
+                info2 = @info2,
+                info3 = @info3,
+                Distance = @Distance 
+            WHERE Shortname = @Shortname";
 
                     SqlCommand updateCmd = new SqlCommand(updateSupplierSql, cnn);
                     // Dodaj parametry do polecenia update
@@ -499,14 +545,30 @@ namespace Kalendarz1
 
                     // Wykonaj polecenie
                     updateCmd.ExecuteNonQuery();
+
+                    // Podsumowanie dodanych danych
+                    string summary = $"Dodano nowe dane:\n\n" +
+                                     $"Data Odbioru: {Data.Text}\n" +
+                                     $"Dostawca: {Dostawca.Text}\n" +
+                                     $"Auta: {liczbaAut.Text}\n" +
+                                     $"Waga Dek: {srednia.Text}";
+
+                    MessageBox.Show(summary, "Podsumowanie", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (SqlException ex)
             {
                 MessageBox.Show($"Wystąpił błąd podczas Dodawania wstawienia: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            this.Close();
         }
+
         private void label7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
         {
 
         }

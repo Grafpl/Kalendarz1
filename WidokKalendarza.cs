@@ -848,7 +848,7 @@ namespace Kalendarz1
                 DateTime parsedDate;
                 var dostawcaCell = dataGridView1.Rows[rowIndex].Cells["DostawcaKolumna"];
                 var statusCell = dataGridView1.Rows[rowIndex].Cells["Bufor"];
-                
+
                 var potwSztukiCell = dataGridView1.Rows[rowIndex].Cells["PotwSztuki"];
                 var SztukiCell = dataGridView1.Rows[rowIndex].Cells["SztukiDekKolumna"];
 
@@ -1249,15 +1249,17 @@ namespace Kalendarz1
         }
         private void CommandButton_Insert_Click(object sender, EventArgs e)
         {
-            int intValue = int.Parse(lpDostawa);
+            int intValue = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<DateTime>(intValue, "[LibraNet].[dbo].[HarmonogramDostaw]", "DataOdbioru");
 
             Dostawa dostawa = new Dostawa("", dzienUbojowy);
             dostawa.UserID = App.UserID;
 
+            // Subscribe to the FormClosed event
+            dostawa.FormClosed += (s, args) => MyCalendar_DateChanged_1(sender, null);
+
             // Wyświetlanie formy Dostawa
             dostawa.Show();
-            MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
         private void Ubytek_TextChanged(object sender, EventArgs e)
         {
@@ -1701,6 +1703,43 @@ namespace Kalendarz1
             {
                 nazwaZiD.AktualizacjaPotwZDostaw(lpDostawa, potwSztuki, "PotwSztuki", UserID, "KtoSztuki", "KiedySztuki");
                 KolorZielonyCheckbox(potwSztuki, sztuki);
+                MyCalendar_DateChanged_1(sender, null);
+            }
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            // Poproś użytkownika o potwierdzenie usunięcia
+            var response = MessageBox.Show("Czy na pewno chcesz usunąć ten wiersz? Nie lepiej anulować?", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+            if (response != DialogResult.Yes)
+                return;
+
+            // Utwórz połączenie z bazą danych
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
+            {
+                try
+                {
+                    cnn.Open();
+
+                    // Utwórz zapytanie SQL do usunięcia wiersza
+                    string strSQL = "DELETE FROM dbo.HarmonogramDostaw WHERE Lp = @selectedLP;";
+
+                    // Wykonaj zapytanie SQL
+                    using (SqlCommand cmd = new SqlCommand(strSQL, cnn))
+                    {
+                        cmd.Parameters.AddWithValue("@selectedLP", lpDostawa);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Komunikat potwierdzający
+                    MessageBox.Show("Wiersz został usunięty z bazy danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
                 MyCalendar_DateChanged_1(sender, null);
             }
         }
