@@ -35,6 +35,7 @@
             dataPoczatek = new System.Windows.Forms.DateTimePicker();
             groupBox1 = new System.Windows.Forms.GroupBox();
             dataGridView2 = new System.Windows.Forms.DataGridView();
+            Grupowanie = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
@@ -46,7 +47,7 @@
             dataGridView1.Location = new System.Drawing.Point(12, 12);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(597, 661);
+            dataGridView1.Size = new System.Drawing.Size(597, 846);
             dataGridView1.TabIndex = 0;
             // 
             // label1
@@ -105,11 +106,22 @@
             dataGridView2.Size = new System.Drawing.Size(597, 661);
             dataGridView2.TabIndex = 27;
             // 
+            // Grupowanie
+            // 
+            Grupowanie.AutoSize = true;
+            Grupowanie.Location = new System.Drawing.Point(615, 150);
+            Grupowanie.Name = "Grupowanie";
+            Grupowanie.Size = new System.Drawing.Size(90, 19);
+            Grupowanie.TabIndex = 28;
+            Grupowanie.Text = "Grupowanie";
+            Grupowanie.UseVisualStyleBackColor = true;
+            // 
             // WidokSprzeZakup
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1597, 685);
+            ClientSize = new System.Drawing.Size(1642, 862);
+            Controls.Add(Grupowanie);
             Controls.Add(dataGridView2);
             Controls.Add(groupBox1);
             Controls.Add(dataGridView1);
@@ -119,6 +131,7 @@
             groupBox1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -130,5 +143,6 @@
         private System.Windows.Forms.DateTimePicker dataPoczatek;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.DataGridView dataGridView2;
+        private System.Windows.Forms.CheckBox Grupowanie;
     }
 }
