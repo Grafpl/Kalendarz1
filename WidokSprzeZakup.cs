@@ -536,7 +536,7 @@ namespace Kalendarz1
                 "GROUP BY kod " +
                 "HAVING SUM(ilosc) < 0 " +
                 "order by sumailosc desc";
-                /*
+
                 //Stan Mroźni
                 using (SqlCommand command = new SqlCommand(query7, connection))
                 {
@@ -585,7 +585,7 @@ namespace Kalendarz1
                     int sumRowIndex = dataGridView.Rows.Add(
                         "Stan Mroźni",
                         string.Format("{0:N0} zł", sumaWartNettoSprzedazMroznia),
-                        string.Format("{0:N0} zł", sumaIloscSprzedazMroznia)
+                        string.Format("{0:N0} kg", sumaIloscSprzedazMroznia)
                     );
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
@@ -594,8 +594,8 @@ namespace Kalendarz1
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
                 }
-            }
-                */
+            
+
                 // Zdefiniuj zmienną na sumę netto
             }
         }
