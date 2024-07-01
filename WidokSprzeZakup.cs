@@ -393,28 +393,8 @@ namespace Kalendarz1
                     dataGridView1.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView1.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
                 }
-                double sumaNetto = 0;
-
-                // Iteruj przez wiersze DataGridView, aby obliczyć sumę netto
-                foreach (DataGridViewRow row in dataGridView1.Rows)
-                {
-                    if (row.Cells["Netto"].Value != null && row.Cells["Netto"].Value != DBNull.Value)
-                    {
-                        sumaNetto += Convert.ToDouble(row.Cells["Netto"].Value);
-                    }
-                }
-
-                // Dodaj wiersz sumy na końcu DataGridView
-                int sumRowIndex1 = dataGridView1.Rows.Add("SUMA NETTO", string.Format("{0:N0} zł", sumaNetto));
-
-                // Ustawienie stylu dla wiersza sumy
-                dataGridView1.Rows[sumRowIndex1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dataGridView1.Rows[sumRowIndex1].DefaultCellStyle.BackColor = Color.LightGray; // Kolor tła wiersza sumy
-                dataGridView1.Rows[sumRowIndex1].DefaultCellStyle.ForeColor = Color.Black; // Kolor czcionki wiersza sumy
-                dataGridView1.Rows[sumRowIndex1].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold); // Styl czcionki wiersza sumy
             }
-            // Zdefiniuj zmienną na sumę netto
-            
+
         }
 
        private void WykonajZapytanieSQL2()
