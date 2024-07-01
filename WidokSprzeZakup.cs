@@ -17,6 +17,26 @@ namespace Kalendarz1
         public WidokSprzeZakup()
         {
             InitializeComponent();
+            // Oblicz pierwszy dzień poprzedniego miesiąca
+            DateTime today = DateTime.Today;
+            DateTime firstDayOfPreviousMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+
+            // Oblicz ostatni dzień poprzedniego miesiąca
+            DateTime lastDayOfPreviousMonth = firstDayOfPreviousMonth.AddMonths(1).AddDays(-1);
+
+            // Ustaw wartości w DateTimePicker dataPoczatek i dataKoniec
+            dataPoczatek.Value = firstDayOfPreviousMonth;
+            dataKoniec.Value = lastDayOfPreviousMonth;
+            // Oblicz pierwszy dzień bieżącego miesiąca
+            DateTime firstDayOfCurrentMonth = new DateTime(today.Year, today.Month, 1);
+
+            // Oblicz ostatni dzień bieżącego miesiąca
+            DateTime lastDayOfCurrentMonth = firstDayOfCurrentMonth.AddMonths(1).AddDays(-1);
+
+            // Ustaw wartości w DateTimePicker dataPoczatek2 i dataKoniec2
+            dataPoczatek2.Value = firstDayOfCurrentMonth;
+            dataKoniec2.Value = lastDayOfCurrentMonth;
+
 
         }
 
@@ -37,6 +57,9 @@ namespace Kalendarz1
             double sumaIloscSprzedazPasza = 0;
             double sumaWartNettoSprzedazPisklak = 0;
             double sumaIloscSprzedazPisklak = 0;
+
+            double sumaWartNettoSprzedazMroznia = 0;
+            double sumaIloscSprzedazMroznia = 0;
 
 
             string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -505,9 +528,76 @@ namespace Kalendarz1
                 dataGridView.Rows[sumRowIndex3].DefaultCellStyle.ForeColor = Color.White;
                 dataGridView.Rows[sumRowIndex3].DefaultCellStyle.Font = new Font("Calibri", 13, FontStyle.Bold);
 
-            }
-            // Zdefiniuj zmienną na sumę netto
+                string query7 = "SELECT kod, " +
+                "ABS(SUM(ilosc)) AS SumaIlosc, " +
+                "ABS(SUM(przychod)) AS SumaWartosc " +
+                "FROM [HANDEL].[HM].[MZ] " +
+                "WHERE [data] BETWEEN '2020-01-01' AND @EndDate AND [magazyn] = 65552 " +
+                "GROUP BY kod " +
+                "HAVING SUM(ilosc) < 0 " +
+                "order by sumailosc desc";
+                /*
+                //Stan Mroźni
+                using (SqlCommand command = new SqlCommand(query7, connection))
+                {
+                    command.Parameters.AddWithValue("@EndDate", endDate);
 
+                    //connection.Open();
+
+                    DataTable dataTable = new DataTable();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(dataTable);
+                    }
+
+                    foreach (DataRow dataRow in dataTable.Rows)
+                    {
+                        string kod = dataRow["kod"].ToString();
+                        sumaWartNettoSprzedazMroznia = Convert.ToDouble(dataRow["SumaWartosc"]);
+                        sumaIloscSprzedazMroznia = Convert.ToDouble(dataRow["SumaIlosc"]);
+                        double cena = sumaIloscSprzedazMroznia != 0 ? sumaWartNettoSprzedazMroznia / sumaIloscSprzedazMroznia : 0;
+
+                        if (!Grupowanie.Checked)
+                        {
+                            int rowIndex = dataGridView.Rows.Add(
+                            kod,
+                            string.Format("{0:N0} zł", sumaWartNettoSprzedazMroznia),
+                            string.Format("{0:N0} kg", sumaIloscSprzedazMroznia),
+                            string.Format("{0:N2} zł/kg", cena)
+                        );
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                            // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+
+                            // Ustaw czcionkę dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
+                        }
+
+
+                        sumaWartNettoSprzedazMroznia += sumaWartNettoSprzedazMroznia;
+                        sumaIloscSprzedazMroznia += sumaIloscSprzedazMroznia;
+
+                        
+                    }
+                    // Dodaj wiersz sumy na końcu
+                    int sumRowIndex = dataGridView.Rows.Add(
+                        "Stan Mroźni",
+                        string.Format("{0:N0} zł", sumaWartNettoSprzedazMroznia),
+                        string.Format("{0:N0} zł", sumaIloscSprzedazMroznia)
+                    );
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                    // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
+                }
+            }
+                */
+                // Zdefiniuj zmienną na sumę netto
+            }
         }
 
         private void WykonajZapytanieSQL2()

@@ -99,8 +99,13 @@ namespace Kalendarz1
             foreach (DataGridViewRow selectedRow in dataGridView1.SelectedRows)
             {
                 // Pobierz wartości kolumn
-                string dataString = selectedRow.Cells["DataPrzesuniecia"].Value.ToString();
-                string sumaString = selectedRow.Cells["Suma"].Value.ToString();
+                string dataString = selectedRow.Cells["DataPrzesuniecia"].Value != null
+    ? selectedRow.Cells["DataPrzesuniecia"].Value.ToString()
+    : "0";
+                string sumaString = selectedRow.Cells["Suma"].Value != null
+? selectedRow.Cells["Suma"].Value.ToString()
+: "0";
+
 
                 // Sprawdź, czy wartości nie są puste
                 if (!string.IsNullOrEmpty(dataString) && !string.IsNullOrEmpty(sumaString))
