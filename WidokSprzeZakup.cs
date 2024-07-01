@@ -487,13 +487,6 @@ namespace Kalendarz1
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
                     // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
-<<<<<<< HEAD
-                    dataGridView1.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
-                    dataGridView1.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
-                    dataGridView1.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
-                }
-            }
-=======
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
@@ -514,7 +507,6 @@ namespace Kalendarz1
 
             }
             // Zdefiniuj zmienną na sumę netto
->>>>>>> e417cc620909d4be8230d2347e9a26fbb5da349a
 
         }
 
@@ -623,7 +615,7 @@ namespace Kalendarz1
 
         private void dataKoniec2_ValueChanged(object sender, EventArgs e)
         {
-            
+
         }
 
         private void refresh_Click(object sender, EventArgs e)
