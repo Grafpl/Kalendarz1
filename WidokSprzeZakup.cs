@@ -1,13 +1,17 @@
 ﻿using Microsoft.Data.SqlClient;
+using OfficeOpenXml.Style;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
 
 namespace Kalendarz1
 {
@@ -73,152 +77,23 @@ namespace Kalendarz1
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                //Świeże
-                using (SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@StartDate", startDate);
-                    command.Parameters.AddWithValue("@EndDate", endDate);
+                connection.Open();
 
-                    connection.Open();
+                dataGridView.Rows.Clear();
+                dataGridView.Columns.Clear();
 
-                    DataTable dataTable = new DataTable();
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
-                    {
-                        adapter.Fill(dataTable);
-                    }
+                dataGridView.Columns.Add("Nazwa", "Nazwa");
+                dataGridView.Columns[0].Width = 140; // Szerokość pierwszej kolumny (Nazwa)
+                dataGridView.Columns.Add("Netto", "Netto");
+                dataGridView.Columns[1].Width = 100; // Szerokość drugiej kolumny (Netto)
+                dataGridView.Columns.Add("Ilość", "Ilość");
+                dataGridView.Columns[2].Width = 90; // Szerokość trzeciej kolumny (Ilość)
+                dataGridView.Columns.Add("Cena", "Cena");
+                dataGridView.Columns[3].Width = 80; // Szerokość czwartej kolumny (Cena)
+                dataGridView.RowHeadersVisible = false;
 
-                    dataGridView.Rows.Clear();
-                    dataGridView.Columns.Clear();
+                dataGridView.AllowUserToResizeRows = true; // Umożliwienie zmiany wysokości wierszy
 
-                    dataGridView.Columns.Add("Nazwa", "Nazwa");
-                    dataGridView.Columns[0].Width = 140; // Szerokość pierwszej kolumny (Nazwa)
-                    dataGridView.Columns.Add("Netto", "Netto");
-                    dataGridView.Columns[1].Width = 100; // Szerokość drugiej kolumny (Netto)
-                    dataGridView.Columns.Add("Ilość", "Ilość");
-                    dataGridView.Columns[2].Width = 90; // Szerokość trzeciej kolumny (Ilość)
-                    dataGridView.Columns.Add("Cena", "Cena");
-                    dataGridView.Columns[3].Width = 80; // Szerokość czwartej kolumny (Cena)
-
-                    dataGridView.AllowUserToResizeRows = true; // Umożliwienie zmiany wysokości wierszy
-
-
-
-                    foreach (DataRow dataRow in dataTable.Rows)
-                    {
-                        string kod = dataRow["kod"].ToString();
-                        double sumaWartNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
-                        double sumaIlosc = Convert.ToDouble(dataRow["SumaIlosc"]);
-                        double cena = sumaIlosc != 0 ? sumaWartNetto / sumaIlosc : 0;
-
-                        if (!Grupowanie.Checked)
-                        {
-                            int rowIndex = dataGridView.Rows.Add(
-                            kod,
-                            string.Format("{0:N0} zł", sumaWartNetto),
-                            string.Format("{0:N0} kg", sumaIlosc),
-                            string.Format("{0:N2} zł/kg", cena)
-                        );
-
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                            // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
-
-                            // Ustaw czcionkę dla każdego wiersza
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
-                        }
-
-                        sumaWartNettoSprzedaz += sumaWartNetto;
-                        sumaIloscSprzedaz += sumaIlosc;
-                    }
-
-                    // Dodaj wiersz sumy na końcu
-                    int sumRowIndex = dataGridView.Rows.Add(
-                        "SUMA Świeżego",
-                        string.Format("{0:N0} zł", sumaWartNettoSprzedaz),
-                        string.Format("{0:N0} kg", sumaIloscSprzedaz),
-                        string.Format("{0:N2} zł/kg", sumaIloscSprzedaz != 0 ? sumaWartNettoSprzedaz / sumaIloscSprzedaz : 0)
-                    );
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                    // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
-
-
-                }
-                string query2 = "SELECT DP.kod, SUM(DP.wartNetto) AS SumaWartNetto, SUM(DP.ilosc) AS SumaIlosc " +
-                           "FROM HANDEL.HM.DP DP " +
-                           "INNER JOIN HANDEL.HM.TW TW ON DP.idtw = TW.id " +
-                           "INNER JOIN HANDEL.HM.DK DK ON DP.super = DK.id " +
-                           "WHERE DP.data BETWEEN @StartDate AND @EndDate AND TW.katalog = 67153 " + // Zmiana katalogu na 67153
-                           "GROUP BY DP.kod " +
-                           "ORDER BY SumaWartNetto DESC, SumaIlosc DESC;";
-
-                //Mrożonka
-                using (SqlCommand command = new SqlCommand(query2, connection))
-                {
-                    command.Parameters.AddWithValue("@StartDate", startDate);
-                    command.Parameters.AddWithValue("@EndDate", endDate);
-
-                    //connection.Open();
-
-                    DataTable dataTable = new DataTable();
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
-                    {
-                        adapter.Fill(dataTable);
-                    }
-
-
-
-                    foreach (DataRow dataRow in dataTable.Rows)
-                    {
-                        string kod = dataRow["kod"].ToString();
-                        double sumaWartNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
-                        double sumaIlosc = Convert.ToDouble(dataRow["SumaIlosc"]);
-                        double cena = sumaIlosc != 0 ? sumaWartNetto / sumaIlosc : 0;
-
-                        if (!Grupowanie.Checked)
-                        {
-                            int rowIndex = dataGridView.Rows.Add(
-                            kod,
-                            string.Format("{0:N0} zł", sumaWartNetto),
-                            string.Format("{0:N0} kg", sumaIlosc),
-                            string.Format("{0:N2} zł/kg", cena)
-                        );
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                            // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
-
-                            // Ustaw czcionkę dla każdego wiersza
-                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
-                        }
-
-
-                        sumaWartNettoSprzedazMroz += sumaWartNetto;
-                        sumaIloscSprzedazMroz += sumaIlosc;
-                    }
-
-                    // Dodaj wiersz sumy na końcu
-                    int sumRowIndex = dataGridView.Rows.Add(
-                        "Suma Mroźni",
-                        string.Format("{0:N0} zł", sumaWartNettoSprzedazMroz),
-                        string.Format("{0:N0} kg", sumaIloscSprzedazMroz),
-                        string.Format("{0:N2} zł/kg", sumaIloscSprzedazMroz != 0 ? sumaWartNettoSprzedazMroz / sumaIloscSprzedazMroz : 0)
-                    );
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                    // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
-                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
-
-
-                }
 
                 string query3 = "SELECT DP.[kod], SUM(DP.[wartNetto]) AS SumaWartNetto, SUM(DP.[ilosc]) AS SumaIlosc " +
                              "FROM [HANDEL].[HM].[DP] DP " +
@@ -276,7 +151,7 @@ namespace Kalendarz1
 
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
-                        "Suma Żywca",
+                        "Zakup żywca",
                         string.Format("{0:N0} zł", sumaWartNettoSprzedazZywiec),
                         string.Format("{0:N0} kg", sumaIloscSprzedazZywiec),
                         string.Format("{0:N2} zł/kg", sumaIloscSprzedazZywiec != 0 ? sumaWartNettoSprzedazZywiec / sumaIloscSprzedazZywiec : 0)
@@ -287,6 +162,154 @@ namespace Kalendarz1
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.Red;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
+                }
+
+                //Świeże
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", startDate);
+                    command.Parameters.AddWithValue("@EndDate", endDate);
+
+
+
+                    DataTable dataTable = new DataTable();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(dataTable);
+                    }
+
+
+
+
+
+                    foreach (DataRow dataRow in dataTable.Rows)
+                    {
+                        string kod = dataRow["kod"].ToString();
+                        double sumaWartNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
+                        double sumaIlosc = Convert.ToDouble(dataRow["SumaIlosc"]);
+                        double cena = sumaIlosc != 0 ? sumaWartNetto / sumaIlosc : 0;
+
+                        if (!Grupowanie.Checked)
+                        {
+                            int rowIndex = dataGridView.Rows.Add(
+                            kod,
+                            string.Format("{0:N0} zł", sumaWartNetto),
+                            string.Format("{0:N0} kg", sumaIlosc),
+                            string.Format("{0:N2} zł/kg", cena)
+                        );
+
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                            // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+
+                            // Ustaw czcionkę dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
+                        }
+
+                        sumaWartNettoSprzedaz += sumaWartNetto;
+                        sumaIloscSprzedaz += sumaIlosc;
+                    }
+
+                    // Dodaj wiersz sumy na końcu
+                    int sumRowIndex = dataGridView.Rows.Add(
+                        "Sprzedaż świeżego",
+                        string.Format("{0:N0} zł", sumaWartNettoSprzedaz),
+                        string.Format("{0:N0} kg", sumaIloscSprzedaz),
+                        string.Format("{0:N2} zł/kg", sumaIloscSprzedaz != 0 ? sumaWartNettoSprzedaz / sumaIloscSprzedaz : 0)
+                    );
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                    // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightGreen;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
+
+
+                }
+
+                double suma = sumaWartNettoSprzedaz + sumaWartNettoSprzedazZywiec;
+                // Dodaj wiersz sumy na końcu
+                int sumRowIndex2 = dataGridView.Rows.Add(
+                    "Suma",
+                    string.Format("{0:N0} zł", suma)
+
+                ); ;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.BackColor = Color.DarkGray;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.ForeColor = Color.White;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.Font = new Font("Calibri", 13, FontStyle.Bold);
+                string query2 = "SELECT DP.kod, SUM(DP.wartNetto) AS SumaWartNetto, SUM(DP.ilosc) AS SumaIlosc " +
+                           "FROM HANDEL.HM.DP DP " +
+                           "INNER JOIN HANDEL.HM.TW TW ON DP.idtw = TW.id " +
+                           "INNER JOIN HANDEL.HM.DK DK ON DP.super = DK.id " +
+                           "WHERE DP.data BETWEEN @StartDate AND @EndDate AND TW.katalog = 67153 " + // Zmiana katalogu na 67153
+                           "GROUP BY DP.kod " +
+                           "ORDER BY SumaWartNetto DESC, SumaIlosc DESC;";
+
+                //Mrożonka
+                using (SqlCommand command = new SqlCommand(query2, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", startDate);
+                    command.Parameters.AddWithValue("@EndDate", endDate);
+
+                    //connection.Open();
+
+                    DataTable dataTable = new DataTable();
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(dataTable);
+                    }
+
+
+
+                    foreach (DataRow dataRow in dataTable.Rows)
+                    {
+                        string kod = dataRow["kod"].ToString();
+                        double sumaWartNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
+                        double sumaIlosc = Convert.ToDouble(dataRow["SumaIlosc"]);
+                        double cena = sumaIlosc != 0 ? sumaWartNetto / sumaIlosc : 0;
+
+                        if (!Grupowanie.Checked)
+                        {
+                            int rowIndex = dataGridView.Rows.Add(
+                            kod,
+                            string.Format("{0:N0} zł", sumaWartNetto),
+                            string.Format("{0:N0} kg", sumaIlosc),
+                            string.Format("{0:N2} zł/kg", cena)
+                        );
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                            // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+
+                            // Ustaw czcionkę dla każdego wiersza
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
+                        }
+
+
+                        sumaWartNettoSprzedazMroz += sumaWartNetto;
+                        sumaIloscSprzedazMroz += sumaIlosc;
+                    }
+
+                    // Dodaj wiersz sumy na końcu
+                    int sumRowIndex = dataGridView.Rows.Add(
+                        "Sprzedaż mrożonego",
+                        string.Format("{0:N0} zł", sumaWartNettoSprzedazMroz),
+                        string.Format("{0:N0} kg", sumaIloscSprzedazMroz),
+                        string.Format("{0:N2} zł/kg", sumaIloscSprzedazMroz != 0 ? sumaWartNettoSprzedazMroz / sumaIloscSprzedazMroz : 0)
+                    );
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                    // Ustaw ciemniejszy kolor tła i kolor czcionki na biały dla każdego wiersza
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
+                    dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
+
+
                 }
 
                 string query0 = "SELECT DP.[kod], SUM(DP.[wartNetto]) AS SumaWartNetto, SUM(DP.[ilosc]) AS SumaIlosc " +
@@ -344,7 +367,7 @@ namespace Kalendarz1
                     }
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
-                        "Suma sprzedaży Żywca",
+                        "Sprzedaż żywego",
                         string.Format("{0:N0} zł", sumaWartNettoSprzedazZywiecSprzedaz),
                         string.Format("{0:N0} kg", sumaIloscSprzedazZywiecSprzedaz),
                         string.Format("{0:N2} zł/kg", sumaIloscSprzedazZywiecSprzedaz != 0 ? sumaWartNettoSprzedazZywiecSprzedaz / sumaIloscSprzedazZywiecSprzedaz : 0)
@@ -361,10 +384,10 @@ namespace Kalendarz1
 
 
 
-                double suma = sumaWartNettoSprzedaz + sumaWartNettoSprzedazMroz + sumaWartNettoSprzedazZywiec + sumaWartNettoSprzedazZywiecSprzedaz;
+                suma = sumaWartNettoSprzedaz + sumaWartNettoSprzedazMroz + sumaWartNettoSprzedazZywiec + sumaWartNettoSprzedazZywiecSprzedaz;
                 // Dodaj wiersz sumy na końcu
-                int sumRowIndex2 = dataGridView.Rows.Add(
-                    "Sprzedaz-Zakup",
+                sumRowIndex2 = dataGridView.Rows.Add(
+                    "Suma:",
                     string.Format("{0:N0} zł", suma)
 
                 ); ;
@@ -579,7 +602,7 @@ namespace Kalendarz1
                         sumaWartNettoSprzedazMroznia += sumaWartNettoSprzedazMroznia;
                         sumaIloscSprzedazMroznia += sumaIloscSprzedazMroznia;
 
-                        
+
                     }
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
@@ -594,9 +617,70 @@ namespace Kalendarz1
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
                 }
-            
+
 
                 // Zdefiniuj zmienną na sumę netto
+            }
+            SetRowHeights(18, dataGridView);
+        }
+        private void SetRowHeights(int height, DataGridView dataGridView)
+        {
+            // Ustawienie wysokości wszystkich wierszy na określoną wartość
+            foreach (DataGridViewRow row in dataGridView.Rows)
+            {
+                row.Height = height;
+            }
+        }
+        private void ExportToExcel(DataGridView dataGridView)
+        {
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.Filter = "Excel files (*.xlsx)|*.xlsx";
+                saveFileDialog.FilterIndex = 2;
+                saveFileDialog.RestoreDirectory = true;
+
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string filePath = saveFileDialog.FileName;
+
+                    // Set the license context to NonCommercial
+                    OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
+                    using (ExcelPackage excelPackage = new ExcelPackage())
+                    {
+                        ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Add("Data");
+
+                        // Adding headers
+                        for (int i = 0; i < dataGridView.Columns.Count; i++)
+                        {
+                            worksheet.Cells[1, i + 1].Value = dataGridView.Columns[i].HeaderText;
+                            worksheet.Cells[1, i + 1].Style.Font.Bold = true;
+                            worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(Color.Gray);
+                            worksheet.Cells[1, i + 1].Style.Font.Color.SetColor(Color.White);
+                            worksheet.Cells[1, i + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                        }
+
+                        // Adding data
+                        for (int i = 0; i < dataGridView.Rows.Count; i++)
+                        {
+                            for (int j = 0; j < dataGridView.Columns.Count; j++)
+                            {
+                                worksheet.Cells[i + 2, j + 1].Value = dataGridView.Rows[i].Cells[j].Value;
+                                worksheet.Cells[i + 2, j + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+                            }
+                        }
+
+                        // Auto fit columns
+                        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                        // Save to file
+                        FileInfo fi = new FileInfo(filePath);
+                        excelPackage.SaveAs(fi);
+                    }
+
+                    MessageBox.Show("Export successful!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
         }
 
@@ -716,6 +800,11 @@ namespace Kalendarz1
             startDate = dataPoczatek2.Value.Date;
             endDate = dataKoniec2.Value.Date;
             WykonajZapytanieSQL(dataGridView2, startDate, endDate);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            ExportToExcel(dataGridView1);
         }
     }
 }

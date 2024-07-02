@@ -36,6 +36,7 @@
             dataKoniec2 = new System.Windows.Forms.DateTimePicker();
             dataPoczatek2 = new System.Windows.Forms.DateTimePicker();
             refresh = new System.Windows.Forms.Button();
+            button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
@@ -110,11 +111,22 @@
             refresh.UseVisualStyleBackColor = true;
             refresh.Click += refresh_Click;
             // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(983, 40);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(44, 23);
+            button1.TabIndex = 31;
+            button1.Text = "Ex";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
             // WidokSprzeZakup
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1063, 866);
+            Controls.Add(button1);
             Controls.Add(dataKoniec2);
             Controls.Add(dataKoniec);
             Controls.Add(refresh);
@@ -141,5 +153,6 @@
         private System.Windows.Forms.DateTimePicker dataKoniec2;
         private System.Windows.Forms.DateTimePicker dataPoczatek2;
         private System.Windows.Forms.Button refresh;
+        private System.Windows.Forms.Button button1;
     }
 }
