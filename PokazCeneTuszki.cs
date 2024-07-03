@@ -17,17 +17,27 @@ namespace Kalendarz1
         public PokazCeneTuszki()
         {
             InitializeComponent();
+            dateTimePicker1.Value = DateTime.Now; // Ustaw datę na dzisiejszą
             Load += PokazCeneTuszki_Load;
         }
 
+
         private void PokazCeneTuszki_Load(object sender, EventArgs e)
         {
-            // Zapytanie SQL
-            string query = @"
+            // Pobierz datę z dateTimePicker1
+            DateTime selectedDate = dateTimePicker1.Value.Date;
+
+            // Formatuj datę jako string
+            string formattedDate = selectedDate.ToString("yyyy-MM-dd");
+
+            dataGridView1.ColumnHeadersVisible = false;
+
+            // Zapytanie SQL z dynamiczną datą
+                    string query = $@"
             SELECT
                 C.Shortcut AS KontrahentNazwa,
                 SUM(DP.Ilosc) AS SumaIlosci,
-                ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
+                ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena
             FROM 
                 [HANDEL].[HM].[DP] DP 
             INNER JOIN 
@@ -37,8 +47,8 @@ namespace Kalendarz1
             INNER JOIN 
                 [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
             WHERE 
-                DP.[data] >= CAST(GETDATE() AS DATE)
-                AND DP.[data] < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)) 
+                DP.[data] >= '{formattedDate}'
+                AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
                 AND DP.[kod] = 'Kurczak A' 
                 AND TW.[katalog] = 67095
             GROUP BY 
@@ -54,7 +64,31 @@ namespace Kalendarz1
                 DataTable dataTable = new DataTable();
                 adapter.Fill(dataTable);
                 dataGridView1.DataSource = dataTable;
+
+                // Dopasowanie szerokości kolumn
+                dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                // Ustawienie szerokości kolumn
+                if (dataGridView1.Columns.Count > 0)
+                {
+                    dataGridView1.Columns[0].Width = 100; // Pierwsza kolumna
+                    dataGridView1.Columns[1].Width = 50;  // Druga kolumna
+                    dataGridView1.Columns[2].Width = 50;  // Trzecia kolumna
+
+                    // Formatowanie kolumny KG z separatorem tysięcy
+                    dataGridView1.Columns[1].DefaultCellStyle.Format = "N0";
+                }
+            }
+            SetRowHeights(18);
+        }
+        private void SetRowHeights(int height)
+        {
+            // Ustawienie wysokości wszystkich wierszy na określoną wartość
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                row.Height = height;
             }
         }
+
     }
 }
