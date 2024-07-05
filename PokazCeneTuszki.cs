@@ -31,30 +31,31 @@ namespace Kalendarz1
             string formattedDate = selectedDate.ToString("yyyy-MM-dd");
 
             dataGridView1.ColumnHeadersVisible = false;
+            dataGridView1.RowHeadersVisible = false;
 
             // Zapytanie SQL z dynamiczną datą
-                    string query = $@"
-            SELECT
-                C.Shortcut AS KontrahentNazwa,
-                SUM(DP.Ilosc) AS SumaIlosci,
-                ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena
-            FROM 
-                [HANDEL].[HM].[DP] DP 
-            INNER JOIN 
-                [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-            INNER JOIN 
-                [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-            INNER JOIN 
-                [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-            WHERE 
-                DP.[data] >= '{formattedDate}'
-                AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
-                AND DP.[kod] = 'Kurczak A' 
-                AND TW.[katalog] = 67095
-            GROUP BY 
-                C.Shortcut, CONVERT(date, DP.[data])
-            ORDER BY 
-                SumaIlosci DESC";
+            string query = $@"
+                SELECT
+                    C.Shortcut AS KontrahentNazwa,
+                    SUM(DP.Ilosc) AS SumaIlosci,
+                    ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena
+                FROM 
+                    [HANDEL].[HM].[DP] DP 
+                INNER JOIN 
+                    [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+                INNER JOIN 
+                    [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+                INNER JOIN 
+                    [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                WHERE 
+                    DP.[data] >= '{formattedDate}'
+                    AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
+                    AND DP.[kod] = 'Kurczak A' 
+                    AND TW.[katalog] = 67095
+                GROUP BY 
+                    C.Shortcut, CONVERT(date, DP.[data])
+                ORDER BY 
+                    SumaIlosci DESC";
 
             // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString2))
@@ -71,12 +72,27 @@ namespace Kalendarz1
                 // Ustawienie szerokości kolumn
                 if (dataGridView1.Columns.Count > 0)
                 {
-                    dataGridView1.Columns[0].Width = 100; // Pierwsza kolumna
+                    dataGridView1.Columns[0].Width = 85; // Pierwsza kolumna
                     dataGridView1.Columns[1].Width = 50;  // Druga kolumna
                     dataGridView1.Columns[2].Width = 50;  // Trzecia kolumna
 
                     // Formatowanie kolumny KG z separatorem tysięcy
                     dataGridView1.Columns[1].DefaultCellStyle.Format = "N0";
+                }
+
+                // Obliczenie średniej wartości kolumny Cena
+                if (dataTable.Rows.Count > 0)
+                {
+                    double sumaCen = 0;
+                    int liczbaWierszy = dataTable.Rows.Count;
+
+
+                    //double cenaTuszki = CenoweMetody.PobierzCeneKurczakaA();
+
+                    double sredniaCena = sumaCen / liczbaWierszy;
+
+                    // Wyświetlenie średniej wartości w TextBoxie
+                    textBox1.Text = sredniaCena.ToString("F2") + " zł";
                 }
             }
             SetRowHeights(18);
@@ -90,5 +106,9 @@ namespace Kalendarz1
             }
         }
 
+        private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
+        {
+            PokazCeneTuszki_Load(sender, null);
+        }
     }
 }

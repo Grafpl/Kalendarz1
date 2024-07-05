@@ -237,7 +237,7 @@ namespace Kalendarz1
             KolorZielonyCheckbox(potwWaga, srednia);
             KolorZielonyCheckbox(potwSztuki, sztuki);
             UpdateDataGrid();
-
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, sztuki, obliczeniaAut2, srednia, KGwSkrzynce2, wyliczone);
 
         }
         private void buttonUpDate_Click(object sender, EventArgs e)
@@ -431,7 +431,7 @@ namespace Kalendarz1
                                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                                 column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
                             }
-
+                            /*
                             if (!checkBoxNotatki.Checked)
                             {
                                 dataGridView1.Columns["UwagaKolumna"].Width = 80;
@@ -451,7 +451,7 @@ namespace Kalendarz1
                                 groupBoxPrzyciski.Location = new Point(1212, 168);
                                 MyCalendar.Location = new Point(1212, 1);
                             }
-
+                            */
                             DateTime? currentDate = null;
                             DataGridViewRow currentGroupRow = null;
                             double sumaAuta = 0;
@@ -694,12 +694,12 @@ namespace Kalendarz1
             }
             // Ustawienie wysokości wierszy na minimalną wartość
             // Ustawienie wysokości wierszy na określoną wartość (np. 25 pikseli)
-            SetRowHeights(18);
+            SetRowHeights(18, dataGridView1);
         }
-        private void SetRowHeights(int height)
+        private void SetRowHeights(int height, DataGridView dataGridView)
         {
             // Ustawienie wysokości wszystkich wierszy na określoną wartość
-            foreach (DataGridViewRow row in dataGridView1.Rows)
+            foreach (DataGridViewRow row in dataGridView.Rows)
             {
                 row.Height = height;
             }
@@ -1044,6 +1044,7 @@ namespace Kalendarz1
                     }
                 }
             }
+            SetRowHeights(18, DataGridWstawienia);
         }
 
         private void PobierzInformacjeZBazyDanych(string lp)
@@ -1123,6 +1124,7 @@ namespace Kalendarz1
             obliczenia.ObliczWage(srednia, WagaTuszki, iloscPoj, sztukNaSzuflade, wyliczone, KGwSkrzynce, CalcSztukNaSzuflade);
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
             obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+
             nazwaZiD.ReplaceCommaWithDot(srednia);
         }
         private void Data_ValueChanged(object sender, EventArgs e)
@@ -1133,6 +1135,18 @@ namespace Kalendarz1
         private void sztukNaSzuflade_TextChanged(object sender, EventArgs e)
         {
             obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+            sztukNaSzuflade1.Text = sztukNaSzuflade.Text;
+            if (int.TryParse(sztukNaSzuflade1.Text, out int value))
+            {
+                // Odejmij 1 od wartości textbox2 i ustaw w textbox1
+                sztukNaSzuflade2.Text = (value + 1).ToString();
+            }
+            else
+            {
+                // Jeśli wartość w textbox2 nie jest liczbą, wyczyść textbox1
+                sztukNaSzuflade2.Text = string.Empty;
+            }
+
         }
         private void sztuki_TextChanged(object sender, EventArgs e)
         {
@@ -1325,6 +1339,7 @@ namespace Kalendarz1
             }
             DodajTextBoxy(KGwSkrzynekWAucie, KGwPaleciak, KGZestaw, KGSuma);
         }
+
         private void DodajTextBoxy(TextBox textBox1, TextBox textBox2, TextBox textBox3, TextBox resultTextBox)
         {
             try
@@ -1417,6 +1432,8 @@ namespace Kalendarz1
         {
             DodajTextBoxy(KGwSkrzynekWAucie, KGwPaleciak, KGZestaw, KGSuma);
         }
+
+
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -1742,6 +1759,63 @@ namespace Kalendarz1
                 }
                 MyCalendar_DateChanged_1(sender, null);
             }
+        }
+
+        private void KGwSkrzynce2_TextChanged(object sender, EventArgs e)
+        {
+
+            {
+                KGZestaw2.Text = "24000";
+                // Sprawdź, czy KGwSkrzynce nie jest puste
+                if (!string.IsNullOrEmpty(KGwSkrzynce2.Text))
+                {
+                    // Spróbuj przekonwertować zawartość KGwSkrzynce na liczbę
+                    if (double.TryParse(KGwSkrzynce2.Text, out double value))
+                    {
+                        // Pomnóż wartość przez 264 i wyświetl wynik w KGwSkrzynekWAucie
+                        double result = value * 264;
+                        KGwSkrzynekWAucie2.Text = result.ToString("N0"); // "N0" formatuje do liczby całkowitej z separatorem tysięcy
+                    }
+                    else
+                    {
+                        // Jeśli zawartość KGwSkrzynce nie jest liczbą, wyświetl komunikat
+                        MessageBox.Show("Wprowadzona wartość nie jest liczbą.");
+                    }
+                }
+                else
+                {
+                    // Jeśli KGwSkrzynce jest puste, wyczyść KGwSkrzynekWAucie
+                    KGwSkrzynekWAucie2.Clear();
+                }
+                DodajTextBoxy(KGwSkrzynekWAucie2, KGwPaleciak2, KGZestaw2, KGSuma2);
+
+            }
+        }
+
+
+        private void KGwSkrzynekWAucie2_TextChanged(object sender, EventArgs e)
+        {
+            DodajTextBoxy(KGwSkrzynekWAucie2, KGwPaleciak2, KGZestaw2, KGSuma2);
+        }
+
+        private void KGwPaleciak2_TextChanged(object sender, EventArgs e)
+        {
+            DodajTextBoxy(KGwSkrzynekWAucie2, KGwPaleciak2, KGZestaw2, KGSuma2);
+        }
+
+        private void KGZestaw2_TextChanged(object sender, EventArgs e)
+        {
+            DodajTextBoxy(KGwSkrzynekWAucie2, KGwPaleciak2, KGZestaw2, KGSuma2);
+        }
+
+        private void sztukNaSzuflade1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void sztukNaSzuflade2_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, sztuki, obliczeniaAut2, srednia, KGwSkrzynce2, wyliczone);
         }
     }
 }

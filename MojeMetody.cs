@@ -1422,6 +1422,44 @@ namespace Kalendarz1
 
                 return sredniaCena;
             }
+    public double PobierzSredniaCenePotwierdzone()
+    {
+        double sredniaCena = 0.0;
+
+        string zapytanie = @"
+            SELECT 
+                SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
+            FROM 
+                [LibraNet].[dbo].[HarmonogramDostaw]
+            WHERE 
+                Bufor = 'Potwierdzony'
+                AND DataOdbioru >= CAST(@StartDate() AS DATE)
+                AND DataOdbioru < DATEADD(DAY, 1, CAST(@StartDate() AS DATE))
+            ";
+
+
+
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        using (SqlCommand command = new SqlCommand(zapytanie, connection))
+        {
+            try
+            {
+                //command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.Date) { Value = startDate });
+                connection.Open();
+                object result = command.ExecuteScalar();
+                if (result != null && result != DBNull.Value)
+                {
+                    sredniaCena = Convert.ToDouble(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Błąd: " + ex.Message);
+            }
+        }
+
+        return sredniaCena;
+    }
 
 
 }

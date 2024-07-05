@@ -15,6 +15,7 @@ namespace Kalendarz1
 {
     public partial class WidokCenWszystkich : Form
     {
+        private CenoweMetody CenoweMetody = new CenoweMetody();
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         public string TextBoxValue { get; set; }
         public WidokCenWszystkich()
