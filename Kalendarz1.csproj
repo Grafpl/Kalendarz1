@@ -51,6 +51,9 @@
     <Compile Update="WidokCenWszystkich.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="WidokAvilogPlan.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WidokWszystkichDostaw.cs">
       <SubType>Form</SubType>
     </Compile>

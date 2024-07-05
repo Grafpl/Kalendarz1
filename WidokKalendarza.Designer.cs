@@ -2301,19 +2301,19 @@ namespace Kalendarz1
             // button15
             // 
             button15.BackColor = System.Drawing.Color.Azure;
-            button15.Location = new System.Drawing.Point(1549, 397);
+            button15.Location = new System.Drawing.Point(2, 251);
             button15.Name = "button15";
             button15.Size = new System.Drawing.Size(71, 39);
             button15.TabIndex = 125;
             button15.Text = "Pokaz Avilog";
             button15.UseVisualStyleBackColor = false;
-            button15.Visible = false;
             button15.Click += button15_Click;
             // 
             // groupBoxPrzyciski
             // 
             groupBoxPrzyciski.Controls.Add(buttonDownDate);
             groupBoxPrzyciski.Controls.Add(weekNumberTextBox);
+            groupBoxPrzyciski.Controls.Add(button15);
             groupBoxPrzyciski.Controls.Add(CommandButton_Update);
             groupBoxPrzyciski.Controls.Add(label21);
             groupBoxPrzyciski.Controls.Add(button3);
@@ -2345,7 +2345,6 @@ namespace Kalendarz1
             ClientSize = new System.Drawing.Size(1626, 982);
             Controls.Add(pictureBox1);
             Controls.Add(label49);
-            Controls.Add(button15);
             Controls.Add(groupBoxPrzyciski);
             Controls.Add(label48);
             Controls.Add(button14);

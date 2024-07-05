@@ -1677,10 +1677,7 @@ namespace Kalendarz1
 
         private void button15_Click(object sender, EventArgs e)
         {
-            // Tworzenie nowej instancji WidokWaga
             WidokAvilogPlan widokAvilogPlan = new WidokAvilogPlan();
-
-            // Wyświetlanie formularza
             widokAvilogPlan.Show();
         }
 

@@ -16,6 +16,7 @@ namespace Kalendarz1
             InitializeComponent();
             DisplayDataInDataGridView();
 
+
         }
 
         private bool isUserInitiatedChange = false;
@@ -102,7 +103,7 @@ namespace Kalendarz1
                     }
                 }
 
-                SetRowHeights(dataGridView2, 10);
+                
             }
 
             DisplayDataInDataGridView4();
@@ -112,6 +113,9 @@ namespace Kalendarz1
             dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
             dataGridView1.CurrentCellDirtyStateChanged -= dataGridView1_CurrentCellDirtyStateChanged;
             dataGridView1.CurrentCellDirtyStateChanged += dataGridView1_CurrentCellDirtyStateChanged;
+
+            // Sortowanie dataGridView3 po kolumnie "Data" w kolejności malejącej
+            dataGridView3.Sort(dataGridView3.Columns["Data"], System.ComponentModel.ListSortDirection.Descending);
         }
 
 
@@ -204,6 +208,7 @@ namespace Kalendarz1
             {
                 dataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit);
             }
+            
         }
 
         private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
@@ -221,6 +226,8 @@ namespace Kalendarz1
                     DisplayDataInDataGridView(); // Przeładowanie danych po zmianie
                 }
             }
+           
+
         }
 
         private string ShowInputDialog(string text)
@@ -261,6 +268,7 @@ namespace Kalendarz1
                     command.ExecuteNonQuery();
                 }
             }
+           
         }
 
         // Aby ustawić flagę, gdy zmiana jest inicjowana przez użytkownika
@@ -351,6 +359,7 @@ namespace Kalendarz1
         private void dataGridView1_CellFormatting_1(object sender, DataGridViewCellFormattingEventArgs e)
         {
             FormatujWierszeZgodnieZStatus(e.RowIndex);
+
         }
         private void AddEmptyRows(DataTable dataTable)
         {
@@ -367,6 +376,7 @@ namespace Kalendarz1
                 }
                 previousRow = currentRow;
             }
+           
         }
         private void FormatujWierszeZgodnieZStatus(int rowIndex)
         {
@@ -412,6 +422,7 @@ namespace Kalendarz1
                     }
                 }
             }
+            
         }
 
 
