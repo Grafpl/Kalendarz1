@@ -48,6 +48,9 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Update="WidokSprzedazPlan.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WidokCenWszystkich.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -1818,5 +1818,11 @@ namespace Kalendarz1
         {
             obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, sztuki, obliczeniaAut2, srednia, KGwSkrzynce2, wyliczone);
         }
+
+        private void pokazDlaSprzedazy_Click(object sender, EventArgs e)
+        {
+            WidokSprzedazPlan widokSprzedazPlan = new WidokSprzedazPlan();
+            widokSprzedazPlan.Show(); 
+        }
     }
 }

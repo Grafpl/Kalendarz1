@@ -222,8 +222,8 @@ namespace Kalendarz1
             button14 = new Button();
             button15 = new Button();
             groupBoxPrzyciski = new GroupBox();
-            pictureBox1 = new PictureBox();
             pokazDlaSprzedazy = new Button();
+            pictureBox1 = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -2332,6 +2332,18 @@ namespace Kalendarz1
             groupBoxPrzyciski.TabIndex = 126;
             groupBoxPrzyciski.TabStop = false;
             // 
+            // pokazDlaSprzedazy
+            // 
+            pokazDlaSprzedazy.BackColor = System.Drawing.Color.Azure;
+            pokazDlaSprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("pokazDlaSprzedazy.BackgroundImage");
+            pokazDlaSprzedazy.BackgroundImageLayout = ImageLayout.Stretch;
+            pokazDlaSprzedazy.Location = new System.Drawing.Point(2, 295);
+            pokazDlaSprzedazy.Name = "pokazDlaSprzedazy";
+            pokazDlaSprzedazy.Size = new System.Drawing.Size(71, 39);
+            pokazDlaSprzedazy.TabIndex = 126;
+            pokazDlaSprzedazy.UseVisualStyleBackColor = false;
+            pokazDlaSprzedazy.Click += pokazDlaSprzedazy_Click;
+            // 
             // pictureBox1
             // 
             pictureBox1.BackgroundImage = Properties.Resources.pm;
@@ -2343,17 +2355,6 @@ namespace Kalendarz1
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 129;
             pictureBox1.TabStop = false;
-            // 
-            // pokazDlaSprzedazy
-            // 
-            pokazDlaSprzedazy.BackColor = System.Drawing.Color.Azure;
-            pokazDlaSprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("pokazDlaSprzedazy.BackgroundImage");
-            pokazDlaSprzedazy.BackgroundImageLayout = ImageLayout.Stretch;
-            pokazDlaSprzedazy.Location = new System.Drawing.Point(2, 295);
-            pokazDlaSprzedazy.Name = "pokazDlaSprzedazy";
-            pokazDlaSprzedazy.Size = new System.Drawing.Size(71, 39);
-            pokazDlaSprzedazy.TabIndex = 126;
-            pokazDlaSprzedazy.UseVisualStyleBackColor = false;
             // 
             // WidokKalendarza
             // 
