@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokAvilog));
             groupBox4 = new System.Windows.Forms.GroupBox();
             Naczepa = new System.Windows.Forms.ComboBox();
             Auto = new System.Windows.Forms.ComboBox();
@@ -1305,6 +1306,7 @@
             Controls.Add(groupBox3);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokAvilog";
             Text = "Avilog Bon";
             groupBox4.ResumeLayout(false);

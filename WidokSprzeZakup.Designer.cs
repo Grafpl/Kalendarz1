@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokSprzeZakup));
             dataGridView1 = new System.Windows.Forms.DataGridView();
             dataKoniec = new System.Windows.Forms.DateTimePicker();
             dataPoczatek = new System.Windows.Forms.DateTimePicker();
@@ -135,6 +136,7 @@
             Controls.Add(Grupowanie);
             Controls.Add(dataGridView2);
             Controls.Add(dataGridView1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokSprzeZakup";
             Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();

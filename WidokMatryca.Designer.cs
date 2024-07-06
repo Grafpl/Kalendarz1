@@ -29,6 +29,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokMatryca));
             dataGridView1 = new System.Windows.Forms.DataGridView();
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             button1 = new System.Windows.Forms.Button();
@@ -97,6 +98,7 @@
             Controls.Add(button1);
             Controls.Add(dateTimePicker1);
             Controls.Add(dataGridView1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "WidokMatryca";
             Text = "Matryca Avilog";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
