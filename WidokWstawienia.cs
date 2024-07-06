@@ -15,7 +15,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             DisplayDataInDataGridView();
-
+            this.StartPosition = FormStartPosition.CenterScreen;
 
         }
 

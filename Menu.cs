@@ -27,6 +27,7 @@ namespace Kalendarz1
             PrzypomnienieWstawien.Interval = 10800000; // Interwał w milisekundach (tu: co 60 sekund)
             PrzypomnienieWstawien.Tick += PrzypomnienieWstawien_Tick; // Przypisanie zdarzenia
             PrzypomnienieWstawien.Start(); // Rozpoczęcie pracy timera
+            this.StartPosition = FormStartPosition.CenterScreen;
         }
 
         private void PrzypomnienieWstawien_Tick(object sender, EventArgs e)

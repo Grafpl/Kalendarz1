@@ -2,6 +2,7 @@
 using System.Windows;
 using Microsoft.Data.SqlClient;
 using Kalendarz1;
+using System.Windows.Input;
 
 
 namespace Kalendarz1
@@ -12,6 +13,14 @@ namespace Kalendarz1
         public Menu1()
         {
             InitializeComponent();
+
+        }
+        private void UsernameTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                LoginButton_Click(sender, null);
+            }
         }
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
@@ -45,14 +54,14 @@ namespace Kalendarz1
                         string name = databaseManager.GetNameById(username);
                         MessageBox.Show("Witaj " + name + ".", "Login Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                        
+
 
                         // Close the current Menu1 window
                         this.Hide(); // Ukryj, zamiast zamykać
                     }
                     else
                     {
-                        MessageBox.Show("Invalid username.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Błędny login.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }
