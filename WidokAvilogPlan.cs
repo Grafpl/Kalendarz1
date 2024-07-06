@@ -36,7 +36,7 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 // Tworzenie komendy SQL
-                string query = "SELECT Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
+                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
 
@@ -57,6 +57,10 @@ namespace Kalendarz1
                 finalTable.Columns.Add("TaraAuta", typeof(string)); // Nowa kolumna dla Tary Auta
                 finalTable.Columns.Add("Paleciak", typeof(string)); // Nowa kolumna dla Paleciaka
                 finalTable.Columns.Add("Suma", typeof(string)); // Nowa kolumna dla Sumy
+                finalTable.Columns.Add("Ulica", typeof(string)); // Nowa kolumna dla Ulicy
+                finalTable.Columns.Add("KodPocztowy", typeof(string)); // Nowa kolumna dla Kodu Pocztowego
+                finalTable.Columns.Add("Miejscowosc", typeof(string)); // Nowa kolumna dla Miejscowości
+                finalTable.Columns.Add("KM", typeof(string)); // Nowa kolumna dla Miejscowości
 
                 int numer = 1; // Początkowa wartość numeru
                 string previousDostawca = null;
@@ -73,6 +77,14 @@ namespace Kalendarz1
                     double taraAuta = 23500;
                     double paleciak = 3000;
                     double suma;
+
+                    // Pobieranie dodatkowych informacji z bazy danych
+                    string dostawca = row["Dostawca"].ToString();
+                    string idDostawcy = zapytaniasql.ZnajdzIdHodowcyString(dostawca);
+                    string ulica = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address");
+                    string kodPocztowy = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "postalcode");
+                    string miejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city");
+                    string km = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance");
 
                     // Duplikowanie wiersza tyle razy, ile wynosi wartość w kolumnie Auta
                     for (int i = 0; i < autaValue; i++)
@@ -115,6 +127,12 @@ namespace Kalendarz1
 
                         newRow["Suma"] = $"{suma:N0} kg"; // Dodanie wartości Suma
 
+                        // Dodanie dodatkowych informacji do nowego wiersza
+                        newRow["Ulica"] = ulica;
+                        newRow["KodPocztowy"] = kodPocztowy;
+                        newRow["Miejscowosc"] = miejscowosc;
+                        newRow["KM"] = km + " km";
+
                         finalTable.Rows.Add(newRow);
                     }
                 }
@@ -133,12 +151,17 @@ namespace Kalendarz1
                 dataGridView1.Columns["TaraAuta"].HeaderText = "Tara Auta";
                 dataGridView1.Columns["Paleciak"].HeaderText = "Paleciak";
                 dataGridView1.Columns["Suma"].HeaderText = "Suma";
+                dataGridView1.Columns["Ulica"].HeaderText = "Ulica";
+                dataGridView1.Columns["KodPocztowy"].HeaderText = "Kod";
+                dataGridView1.Columns["Miejscowosc"].HeaderText = "Miejs";
+                dataGridView1.Columns["KM"].HeaderText = "KM";
 
                 // Automatyczne dopasowanie szerokości kolumn
                 foreach (DataGridViewColumn column in dataGridView1.Columns)
                 {
                     column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
                 }
+
                 // Ustawienie szarego tła co drugiego wiersza
                 for (int i = 0; i < dataGridView1.Rows.Count; i++)
                 {
@@ -147,10 +170,16 @@ namespace Kalendarz1
                         dataGridView1.Rows[i].DefaultCellStyle.BackColor = Color.LightGray;
                     }
                 }
+
+                // Pogrubienie kolumn "Suma" i "Dostawca"
+                dataGridView1.Columns["Suma"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+                dataGridView1.Columns["Dostawca"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
             }
+
             SetRowHeights(18, dataGridView1);
             dataGridView1.RowHeadersVisible = false;
         }
+
         private void SetRowHeights(int height, DataGridView dataGridView)
         {
             // Ustawienie wysokości wszystkich wierszy na określoną wartość
@@ -161,50 +190,11 @@ namespace Kalendarz1
         }
 
 
-
-
-
         private int selectedRowIndex = -1; // Dodaj zmienną do przechowywania indeksu zaznaczonego wiersza
 
         // Metoda do przesuwania wiersza w górę
         // Metoda do przesuwania wiersza w górę
-        private void MoveRowUp()
-        {
-            int rowIndex = dataGridView1.CurrentCell.RowIndex;
-            if (rowIndex > 0)
-            {
-                DataTable table = (DataTable)dataGridView1.DataSource;
-                DataRow row = table.NewRow();
-                row.ItemArray = table.Rows[rowIndex].ItemArray;
-                table.Rows.RemoveAt(rowIndex);
-                table.Rows.InsertAt(row, rowIndex - 1);
-                RefreshNumeration();
-                dataGridView1.Rows[rowIndex - 1].Selected = true; // Zaznacz przesunięty wiersz
-                dataGridView1.Rows[rowIndex].Selected = false; // Odznacz poprzedni zaznaczony wiersz
-                dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex - 1].Cells[0]; // Ustawienie aktywnej komórki na pierwszą kolumnę przesuniętego wiersza
-                selectedRowIndex = rowIndex - 1; // Zaktualizuj indeks zaznaczonego wiersza
-            }
-        }
-
-        // Metoda do przesuwania wiersza w dół
-        private void MoveRowDown()
-        {
-            int rowIndex = dataGridView1.CurrentCell.RowIndex;
-            if (rowIndex < dataGridView1.Rows.Count - 1)
-            {
-                DataTable table = (DataTable)dataGridView1.DataSource;
-                DataRow row = table.NewRow();
-                row.ItemArray = table.Rows[rowIndex].ItemArray;
-                table.Rows.RemoveAt(rowIndex);
-                table.Rows.InsertAt(row, rowIndex + 1);
-                RefreshNumeration();
-                dataGridView1.Rows[rowIndex + 1].Selected = true; // Zaznacz przesunięty wiersz
-                dataGridView1.Rows[rowIndex].Selected = false; // Odznacz poprzedni zaznaczony wiersz
-                dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex + 1].Cells[0]; // Ustawienie aktywnej komórki na pierwszą kolumnę przesuniętego wiersza
-                selectedRowIndex = rowIndex + 1; // Zaktualizuj indeks zaznaczonego wiersza
-            }
-        }
-        // Metoda odświeżająca numerację wierszy
+       
         private void RefreshNumeration()
         {
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
@@ -215,16 +205,6 @@ namespace Kalendarz1
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
             DisplayData();
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            MoveRowUp();
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            MoveRowDown();
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -249,7 +229,7 @@ namespace Kalendarz1
                         string Ciagnik = row.Cells["Pojazd"].Value.ToString();
                         string Naczepa = row.Cells["Naczepa"].Value.ToString();
                         string Wozek = row.Cells["Wozek"].Value.ToString();
-                        
+
                         string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
                         string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
@@ -287,7 +267,7 @@ namespace Kalendarz1
                             object result = command.ExecuteScalar();
                             maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
                         }
-                        
+
 
                         // Wstaw dane do tabeli FarmerCalc
                         using (SqlCommand cmd = new SqlCommand(sql, conn))
@@ -320,6 +300,21 @@ namespace Kalendarz1
                     }
                 }
             }
+        }
+
+        private void button3_Click_1(object sender, EventArgs e)
+        {
+
+                // Tworzenie zrzutu ekranu tylko dla formularza
+                Bitmap screenshot = new Bitmap(this.Width, this.Height);
+                this.DrawToBitmap(screenshot, new Rectangle(0, 0, this.Width, this.Height));
+
+                // Umieszczanie zrzutu ekranu w schowku
+                Clipboard.SetImage(screenshot);
+
+                // Informacja dla użytkownika
+                MessageBox.Show("Zrzut ekranu widoku formularza został umieszczony w schowku systemowym. Możesz teraz wkleić go do whatsupa na grupie AVILOG.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+           
         }
     }
 }

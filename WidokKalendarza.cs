@@ -39,7 +39,7 @@ namespace Kalendarz1
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             checkBoxDoWykupienia.Checked = true;
             checkBox1.Checked = true; //Paleciak
-            this.UsernameTextBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.UsernameTextBox_KeyDown);
+
 
             // Inicjalizacja timera
             timer = new Timer();
@@ -1182,13 +1182,7 @@ namespace Kalendarz1
         {
             nazwaZiD.ReplaceCommaWithDot(Cena);
         }
-        private void UsernameTextBox_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (e.KeyCode == System.Windows.Forms.Keys.Enter)
-            {
-                CommandButton_Update_Click(sender, EventArgs.Empty);
-            }
-        }
+
 
         private void CommandButton_Update_Click(object sender, EventArgs e)
         {

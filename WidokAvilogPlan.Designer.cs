@@ -29,77 +29,79 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokAvilogPlan));
             dataGridView1 = new System.Windows.Forms.DataGridView();
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
-            button1 = new System.Windows.Forms.Button();
-            button2 = new System.Windows.Forms.Button();
             button3 = new System.Windows.Forms.Button();
+            label1 = new System.Windows.Forms.Label();
+            pictureBox1 = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(12, 41);
+            dataGridView1.Location = new System.Drawing.Point(12, 48);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1339, 537);
+            dataGridView1.Size = new System.Drawing.Size(1250, 301);
             dataGridView1.TabIndex = 0;
             // 
             // dateTimePicker1
             // 
             dateTimePicker1.Location = new System.Drawing.Point(12, 12);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(200, 23);
+            dateTimePicker1.Size = new System.Drawing.Size(218, 23);
             dateTimePicker1.TabIndex = 1;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
-            // button1
-            // 
-            button1.Location = new System.Drawing.Point(285, 12);
-            button1.Margin = new System.Windows.Forms.Padding(2);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(58, 23);
-            button1.TabIndex = 2;
-            button1.Text = "Gora";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
-            // 
-            // button2
-            // 
-            button2.Location = new System.Drawing.Point(348, 12);
-            button2.Margin = new System.Windows.Forms.Padding(2);
-            button2.Name = "button2";
-            button2.Size = new System.Drawing.Size(58, 23);
-            button2.TabIndex = 3;
-            button2.Text = "Dol";
-            button2.UseVisualStyleBackColor = true;
-            button2.Click += button2_Click;
-            // 
             // button3
             // 
-            button3.Location = new System.Drawing.Point(736, 1);
-            button3.Margin = new System.Windows.Forms.Padding(2);
+            button3.Location = new System.Drawing.Point(230, 11);
             button3.Name = "button3";
-            button3.Size = new System.Drawing.Size(111, 34);
-            button3.TabIndex = 4;
-            button3.Text = "Przenieś do bazy";
+            button3.Size = new System.Drawing.Size(75, 24);
+            button3.TabIndex = 2;
+            button3.Text = "Kopiuj";
             button3.UseVisualStyleBackColor = true;
-            button3.Click += button3_Click;
+            button3.Click += button3_Click_1;
             // 
-            // WidokMatryca
+            // label1
+            // 
+            label1.BackColor = System.Drawing.SystemColors.Window;
+            label1.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(429, 1);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(832, 44);
+            label1.TabIndex = 3;
+            label1.Text = resources.GetString("label1.Text");
+            label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.BackgroundImage = Properties.Resources.pm;
+            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox1.Location = new System.Drawing.Point(305, 1);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(125, 44);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 130;
+            pictureBox1.TabStop = false;
+            // 
+            // WidokAvilogPlan
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1368, 590);
+            ClientSize = new System.Drawing.Size(1262, 354);
+            Controls.Add(pictureBox1);
+            Controls.Add(label1);
             Controls.Add(button3);
-            Controls.Add(button2);
-            Controls.Add(button1);
             Controls.Add(dateTimePicker1);
             Controls.Add(dataGridView1);
-            Name = "WidokMatryca";
+            Name = "WidokAvilogPlan";
             Text = "Matryca Avilog";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);
         }
 
@@ -110,5 +112,7 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.PictureBox pictureBox1;
     }
 }

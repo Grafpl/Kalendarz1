@@ -405,6 +405,53 @@ namespace Kalendarz1
             }
             return userId;
         }
+        public string ZnajdzIdHodowcyString(string name)
+        {
+            string userId = null; // Jeśli nie znajdziemy użytkownika, zwrócimy null
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Name", name);
+
+                    object result = cmd.ExecuteScalar();
+                    if (result != null)
+                    {
+                        userId = result.ToString();
+                    }
+                }
+            }
+            return userId;
+        }
+        public string PobierzInformacjeZBazyDanychHodowcowString(string id, string kolumna)
+        {
+            string wartosc = null;
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string strSQL = $"SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@id", id);
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                wartosc = reader[kolumna].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            return wartosc;
+        }
         public int ZnajdzIdCeny(string name)
         {
             int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
