@@ -38,7 +38,7 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 // Tworzenie komendy SQL
-                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztukiDek FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
+                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztukiDek FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony' ORDER BY WagaDek DESC";
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
 
@@ -48,8 +48,8 @@ namespace Kalendarz1
                 adapter.Fill(table);
 
                 // Dodanie pozostałych kolumn do tabeli finalTable
-                finalTable.Columns.Add("Auta", typeof(string)); // Typ string, aby można było ukrywać duplikaty
                 finalTable.Columns.Add("Dostawca", typeof(string));
+                finalTable.Columns.Add("Auta", typeof(string)); // Typ string, aby można było ukrywać duplikaty
                 finalTable.Columns.Add("WagaDek", typeof(string)); // Typ string, aby można było dodać przedrostki
                 finalTable.Columns.Add("SztukiDek", typeof(string)); // Typ string, aby można było dodać przedrostki
                 finalTable.Columns.Add("WagaSredniaTuszka", typeof(string)); // Typ string, aby można było dodać przedrostki
@@ -61,6 +61,15 @@ namespace Kalendarz1
                 finalTable.Columns.Add("Filet", typeof(string)); // Typ string, aby można było dodać przedrostki
                 finalTable.Columns.Add("Korpus", typeof(string)); // Typ string, aby można było dodać przedrostki
 
+                // Inicjalizacja zmiennych sum
+                int sumSztukiDek = 0;
+                double sumTonazTuszki = 0;
+                double sumTonazTuszkiA = 0;
+                double sumCwiartka = 0;
+                double sumFilet = 0;
+                double sumSkrzydlo = 0;
+                double sumKorpus = 0;
+                double sumauta = 0;
 
                 // Iteracja przez wiersze tabeli źródłowej
                 foreach (DataRow row in table.Rows)
@@ -68,6 +77,7 @@ namespace Kalendarz1
                     int autaValue = (int)row["Auta"];
                     double wagaDekValue = Convert.ToDouble(row["WagaDek"]);
                     int sztukiDekValue = Convert.ToInt32(row["SztukiDek"]);
+
 
                     double sredniaTuszkaValue = wagaDekValue * 0.78;
                     double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
@@ -78,23 +88,36 @@ namespace Kalendarz1
                     double tonazFiletValue = tonazTuszkaBValue * 0.28;
                     double tonazKorpusValue = tonazTuszkaBValue * 0.19;
 
+                    // Sumowanie wartości
+                    sumSztukiDek += sztukiDekValue;
+                    sumTonazTuszki += tonazTuszkaValue;
+                    sumTonazTuszkiA += tonazTuszkaAValue;
+                    sumCwiartka += tonazCwiartkaValue;
+                    sumFilet += tonazFiletValue;
+                    sumSkrzydlo += tonazSkrzydloValue;
+                    sumKorpus += tonazKorpusValue;
+                    sumauta += autaValue;
+
                     double IlePoj = 15 / sredniaTuszkaValue;
                     string formattedIlePoj;
 
-                    // Warunkowe zaokrąglanie
-                    if (IlePoj % 1 >= 0.15 && IlePoj % 1 <= 0.40)
+                    // Warunkowe formatowanie
+                    if (IlePoj % 1 >= 0.65 && IlePoj % 1 <= 0.99)
                     {
-                        formattedIlePoj = $"{Math.Ceiling(IlePoj)} szt"; // Zaokrąglij w górę
+                        formattedIlePoj = $"{Math.Floor(IlePoj)}/{Math.Ceiling(IlePoj)}/{Math.Ceiling(IlePoj) + 1} szt"; // Zaokrąglij w górę i dodaj dwa kolejne
+                    }
+                    else if (IlePoj % 1 >= 0.36 && IlePoj % 1 <= 0.64)
+                    {
+                        formattedIlePoj = $"{Math.Floor(IlePoj)}/{Math.Ceiling(IlePoj)} szt"; // Dodaj dwa kolejne
                     }
                     else
                     {
-                        formattedIlePoj = $"{Math.Floor(IlePoj)} szt"; // Zaokrąglij w dół
+                        formattedIlePoj = $"{Math.Floor(IlePoj)}/{Math.Floor(IlePoj) + 1}/{Math.Floor(IlePoj) + 2} szt"; // Dodaj dwa kolejne
                     }
 
-
                     DataRow newRow = finalTable.NewRow();
-                    newRow["Auta"] = autaValue.ToString();
                     newRow["Dostawca"] = row["Dostawca"].ToString();
+                    newRow["Auta"] = autaValue.ToString();
                     newRow["WagaDek"] = $"{wagaDekValue:F2} kg"; // Dodanie przedrostka "kg" i formatowanie
                     newRow["SztukiDek"] = $"{sztukiDekValue} szt"; // Dodanie przedrostka "szt"
                     newRow["WagaSredniaTuszka"] = $"{sredniaTuszkaValue:F2} kg"; // Dodanie przedrostka "kg" i formatowanie
@@ -106,49 +129,56 @@ namespace Kalendarz1
                     newRow["Filet"] = $"{tonazFiletValue:N0} kg"; // Separator tysięcy, bez miejsc po przecinku, z przedrostkiem "kg"
                     newRow["Korpus"] = $"{tonazKorpusValue:N0} kg"; // Separator tysięcy, bez miejsc po przecinku, z przedrostkiem "kg"
 
-
-
                     finalTable.Rows.Add(newRow);
                 }
+
+                // Dodanie wiersza z datą na początku tabeli
+                DataRow dateRow = finalTable.NewRow();
+                dateRow["Dostawca"] = dateTimePicker1.Value.ToString("yyyy-MM-dd ddd");
+                dateRow["Auta"] = $"{sumauta:N0}";
+                dateRow["SztukiDek"] = $"{sumSztukiDek:N0} szt";
+                dateRow["TonazTuszki"] = $"{sumTonazTuszki:N0} kg";
+                dateRow["TonazTuszkiA"] = $"{sumTonazTuszkiA:N0} kg";
+                dateRow["Cwiartka"] = $"{sumCwiartka:N0} kg";
+                dateRow["Filet"] = $"{sumFilet:N0} kg";
+                dateRow["Skrzydlo"] = $"{sumSkrzydlo:N0} kg";
+                dateRow["Korpus"] = $"{sumKorpus:N0} kg";
+
+                finalTable.Rows.InsertAt(dateRow, 0);
             }
 
             // Ustawienie źródła danych dla DataGridView
             dataGridView1.DataSource = finalTable;
 
             // Zmiana nazw kolumn
-            dataGridView1.Columns["Auta"].HeaderText = "Auta";
+            dataGridView1.Columns["Auta"].HeaderText = "A";
             dataGridView1.Columns["Dostawca"].HeaderText = "Dostawca";
             dataGridView1.Columns["WagaDek"].HeaderText = "Zywiec";
             dataGridView1.Columns["SztukiDek"].HeaderText = "Szt";
             dataGridView1.Columns["WagaSredniaTuszka"].HeaderText = "Tuszka";
-            dataGridView1.Columns["TonazTuszki"].HeaderText = "KG Tuszka";
+            dataGridView1.Columns["TonazTuszki"].HeaderText = "TuszkaA/B";
             dataGridView1.Columns["Poj"].HeaderText = "Poj";
-            dataGridView1.Columns["TonazTuszkiA"].HeaderText = "KG A";
+            dataGridView1.Columns["TonazTuszkiA"].HeaderText = "Tusz A";
             dataGridView1.Columns["Cwiartka"].HeaderText = "Ćwiartka";
             dataGridView1.Columns["Skrzydlo"].HeaderText = "Skrzydło";
             dataGridView1.Columns["Filet"].HeaderText = "Filet";
             dataGridView1.Columns["Korpus"].HeaderText = "Korpus";
 
-
             dataGridView1.Columns["SztukiDek"].Visible = false;
 
             // Ustawienie stałej szerokości dla określonych kolumn
-            dataGridView1.Columns["Auta"].Width = 30;
+            dataGridView1.Columns["Auta"].Width = 35;
+            dataGridView1.Columns["Dostawca"].Width = 115;
+            dataGridView1.Columns["WagaDek"].Width = 50;
+            dataGridView1.Columns["SztukiDek"].Width = 60;
+            dataGridView1.Columns["WagaSredniaTuszka"].Width = 50;
+            dataGridView1.Columns["TonazTuszki"].Width = 70;
+            dataGridView1.Columns["Poj"].Width = 90;
             dataGridView1.Columns["TonazTuszkiA"].Width = 70;
-            dataGridView1.Columns["Cwiartka"].Width = 70;
-            dataGridView1.Columns["Skrzydlo"].Width = 70;
-            dataGridView1.Columns["Filet"].Width = 70;
-            dataGridView1.Columns["Korpus"].Width = 70;
-
-            // Automatyczne dopasowanie szerokości pozostałych kolumn
-            foreach (DataGridViewColumn column in dataGridView1.Columns)
-            {
-                if (column.Name != "Auta" && column.Name != "TonazTuszkiA" && column.Name != "Cwiartka" && column.Name != "Skrzydlo" && column.Name != "Filet" && column.Name != "Korpus")
-                {
-                    column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-                }
-            }
-
+            dataGridView1.Columns["Cwiartka"].Width = 65;
+            dataGridView1.Columns["Skrzydlo"].Width = 65;
+            dataGridView1.Columns["Filet"].Width = 65;
+            dataGridView1.Columns["Korpus"].Width = 65;
 
             // Ustawienie szarego tła co drugiego wiersza
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
@@ -160,18 +190,29 @@ namespace Kalendarz1
             }
 
             // Pogrubienie kolumn "TonazTuszki" i "Dostawca"
-            dataGridView1.Columns["TonazTuszki"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+            dataGridView1.Columns["TonazTuszkiA"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+            dataGridView1.Columns["Filet"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+            dataGridView1.Columns["Auta"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+            dataGridView1.Columns["Poj"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
             dataGridView1.Columns["Dostawca"].DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+
+            // Formatowanie pierwszego wiersza
+            DataGridViewRow sumRow = dataGridView1.Rows[0];
+            sumRow.DefaultCellStyle.BackColor = SystemColors.Highlight;
+            sumRow.DefaultCellStyle.ForeColor = Color.White;
+            sumRow.DefaultCellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
 
             // Ustawienie wysokości wierszy
             SetRowHeights(18, dataGridView1);
 
             // Ukrycie nagłówków wierszy
             dataGridView1.RowHeadersVisible = false;
-          }
+        }
 
 
-    private void SetRowHeights(int height, DataGridView dataGridView)
+
+
+        private void SetRowHeights(int height, DataGridView dataGridView)
         {
             // Ustawienie wysokości wszystkich wierszy na określoną wartość
             foreach (DataGridViewRow row in dataGridView.Rows)
