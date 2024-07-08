@@ -554,14 +554,18 @@ namespace Kalendarz1
                 dataGridView.Rows[sumRowIndex3].DefaultCellStyle.ForeColor = Color.White;
                 dataGridView.Rows[sumRowIndex3].DefaultCellStyle.Font = new Font("Calibri", 13, FontStyle.Bold);
 
-                string query8 = "SELECT kod, " +
-                                "ROUND(SUM([iloscwp]), 3) AS SumaIlosc, " +
-                                "ROUND(SUM([wartNetto]), 3) AS SumaWartosc " +
-                                "FROM [HANDEL].[HM].[MZ] " +
-                                "WHERE [data] >= '2020-01-07' AND [data] <= @EndDate AND [magazyn] = 65552 AND typ = '0' " +
-                                "GROUP BY kod " +
-                                "HAVING ROUND(SUM([iloscwp]), 3) <> 0 " +
-                                "ORDER BY SumaIlosc ASC";
+                string query8 =
+                                                "SELECT kod, " +
+                "ROUND(ABS(SUM([iloscwp])), 3) AS SumaIlosc, " +
+                "ROUND(ABS(SUM([wartNetto])), 3) AS SumaWartosc " +
+                "FROM [HANDEL].[HM].[MZ] " +
+                "WHERE [data] >= '2020-01-07' " +
+                "AND [data] < DATEADD(DAY, -1, @EndDate) " + // Subtract one day from @EndDate
+                "AND [magazyn] = 65552 " +
+                "AND typ = '0' " +
+                "GROUP BY kod " +
+                "HAVING ROUND(SUM([iloscwp]), 3) <> 0 " +
+                "ORDER BY SumaIlosc ASC;";
 
                 //Stan Mroźni poczatek
                 using (SqlCommand command = new SqlCommand(query8, connection))
@@ -611,7 +615,7 @@ namespace Kalendarz1
 
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
-                        "Stan Mroźni",
+                        "Stan Mroźni początkowy",
                         string.Format("{0:N0} zł", sumaWartNettoSprzedazMroznia1),
                         string.Format("{0:N0} kg", sumaIloscSprzedazMroznia1)
                     );
@@ -624,13 +628,16 @@ namespace Kalendarz1
                 }
 
                 string query7 = "SELECT kod, " +
-                                "ROUND(SUM([iloscwp]), 3) AS SumaIlosc, " +
-                                "ROUND(SUM([wartNetto]), 3) AS SumaWartosc " +
-                                "FROM [HANDEL].[HM].[MZ] " +
-                                "WHERE [data] >= '2020-01-07' AND [data] <= @EndDate AND [magazyn] = 65552 AND typ = '0' " +
-                                "GROUP BY kod " +
-                                "HAVING ROUND(SUM([iloscwp]), 3) <> 0 " +
-                                "ORDER BY SumaIlosc ASC";
+                "ROUND(ABS(SUM([iloscwp])), 3) AS SumaIlosc, " +
+                "ROUND(ABS(SUM([wartNetto])), 3) AS SumaWartosc " +
+                "FROM [HANDEL].[HM].[MZ] " +
+                "WHERE [data] >= '2020-01-07' " +
+                "AND [data] < DATEADD(DAY, 0, @EndDate) " + // Add one day to @EndDate
+                "AND [magazyn] = 65552 " +
+                "AND typ = '0' " +
+                "GROUP BY kod " +
+                "HAVING ROUND(SUM([iloscwp]), 3) <> 0 " +
+                "ORDER BY SumaIlosc ASC;";
 
 
                 //Stan Mroźni
@@ -652,6 +659,7 @@ namespace Kalendarz1
                         double sumaWartNetto = Convert.ToDouble(dataRow["SumaWartosc"]);
                         double sumaIloscNetto = Convert.ToDouble(dataRow["SumaIlosc"]);
                         double cena = sumaIloscNetto != 0 ? sumaWartNetto / sumaIloscNetto : 0;
+
 
                         if (!Grupowanie.Checked)
                         {
@@ -679,7 +687,7 @@ namespace Kalendarz1
                     }
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
-                        "Stan Mroźni",
+                        "Stan Mroźni końcowy",
                         string.Format("{0:N0} zł", sumaWartNettoSprzedazMroznia),
                         string.Format("{0:N0} kg", sumaIloscSprzedazMroznia)
                     );
@@ -691,6 +699,23 @@ namespace Kalendarz1
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
                 }
 
+                suma = sumaIloscSprzedazMroznia - sumaIloscSprzedazMroznia1;
+                suma2 = sumaWartNettoSprzedazMroznia - sumaWartNettoSprzedazMroznia1;
+                sumRowIndex2 = dataGridView.Rows.Add(
+                    "Różnica:",
+                    string.Format("{0:N0} zł", suma2),
+                    string.Format("{0:N0} kg", suma)
+
+
+                ) ; ;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.BackColor = Color.DarkGray;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.ForeColor = Color.White;
+                dataGridView.Rows[sumRowIndex2].DefaultCellStyle.Font = new Font("Calibri", 13, FontStyle.Bold);
+
+
+              
 
                 // Zdefiniuj zmienną na sumę netto
             }
