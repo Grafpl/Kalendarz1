@@ -57,7 +57,7 @@
             dataKoniec.Name = "dataKoniec";
             dataKoniec.Size = new System.Drawing.Size(228, 23);
             dataKoniec.TabIndex = 23;
-            dataKoniec.ValueChanged += dataKoniec_ValueChanged;
+
             // 
             // dataPoczatek
             // 
@@ -65,7 +65,7 @@
             dataPoczatek.Name = "dataPoczatek";
             dataPoczatek.Size = new System.Drawing.Size(228, 23);
             dataPoczatek.TabIndex = 22;
-            dataPoczatek.ValueChanged += dataPoczatek_ValueChanged;
+
             // 
             // dataGridView2
             // 
@@ -92,7 +92,7 @@
             dataKoniec2.Name = "dataKoniec2";
             dataKoniec2.Size = new System.Drawing.Size(228, 23);
             dataKoniec2.TabIndex = 23;
-            dataKoniec2.ValueChanged += dataKoniec2_ValueChanged;
+
             // 
             // dataPoczatek2
             // 
@@ -100,7 +100,7 @@
             dataPoczatek2.Name = "dataPoczatek2";
             dataPoczatek2.Size = new System.Drawing.Size(228, 23);
             dataPoczatek2.TabIndex = 22;
-            dataPoczatek2.ValueChanged += dataPoczatek2_ValueChanged;
+
             // 
             // refresh
             // 
