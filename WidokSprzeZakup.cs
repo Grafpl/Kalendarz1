@@ -213,13 +213,13 @@ namespace Kalendarz1
                     cenatuszki = sumaIloscSprzedaz;
 
                 }
-                (double sumaWartMrozonka, double sumaIloscMrozonka) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67153", "Sprzedaż Mrozone");
-                (double sumaWartOdpady, double sumaIloscOdpady) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67094", "Sprzedaż Odpady");
-                (double sumaWartKarma, double sumaIloscKarma) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65910", "Sprzedaż Karma");
-                (double sumaWartMasarnia, double sumaIloscMasarnia) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65911", "Sprzedaż Masarnia");
-                (double sumaWartGarmaz, double sumaIloscGarmaz) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67198", "Sprzedaż Garmaż");
-                (double sumaWartZwroty, double sumaIloscZwroty) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67104", "Zakup zwrotów");
-                (double sumaWartZywiec, double sumaIloscZywiec) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65882", "Zakup Żywca:");
+                (double sumaWartMrozonka, double sumaIloscMrozonka) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67153", "Sprzedaż Mrozone", isGrupowanieChecked);
+                (double sumaWartOdpady, double sumaIloscOdpady) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67094", "Sprzedaż Odpady", isGrupowanieChecked);
+                (double sumaWartKarma, double sumaIloscKarma) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65910", "Sprzedaż Karma", isGrupowanieChecked);
+                (double sumaWartMasarnia, double sumaIloscMasarnia) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65911", "Sprzedaż Masarnia", isGrupowanieChecked);
+                (double sumaWartGarmaz, double sumaIloscGarmaz) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67198", "Sprzedaż Garmaż", isGrupowanieChecked);
+                (double sumaWartZwroty, double sumaIloscZwroty) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67104", "Zakup zwrotów", isGrupowanieChecked);
+                (double sumaWartZywiec, double sumaIloscZywiec) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65882", "Zakup Żywca:", isGrupowanieChecked);
 
                 double cenaZywcaSrednia = sumaWartZywiec / sumaIloscZywiec;
                 double sumaProdukcyjna = sumaWartSprzedaz + sumaWartMrozonka + sumaWartOdpady + sumaWartKarma + sumaWartMasarnia + sumaWartGarmaz + sumaWartZwroty + sumaWartZywiec;
@@ -249,11 +249,11 @@ namespace Kalendarz1
 
 
                 //Rozliczenie działu handlowego
-                (double sumaWartZywegoSprzedaz, double sumaIloscZywegoSprzedaz) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65913", "Sprzedaż Żywego");
-                (double sumaWartPasza, double sumaIloscPasza) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65883", "Pasza");
-                (double sumaWartPisklak, double sumaIloscPisklak) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65884", "Pisklak");
-                (double sumaWartIndyk, double sumaIloscIndyj) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67096", "Indyk");
-                (double sumaWartTowaryHandlowe, double sumaIloscTowaryHandlowe) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65881", "Towary Handlowe");
+                (double sumaWartZywegoSprzedaz, double sumaIloscZywegoSprzedaz) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65913", "Sprzedaż Żywego", isGrupowanieChecked);
+                (double sumaWartPasza, double sumaIloscPasza) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65883", "Pasza", isGrupowanieChecked);
+                (double sumaWartPisklak, double sumaIloscPisklak) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65884", "Pisklak", isGrupowanieChecked);
+                (double sumaWartIndyk, double sumaIloscIndyj) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "67096", "Indyk", isGrupowanieChecked);
+                (double sumaWartTowaryHandlowe, double sumaIloscTowaryHandlowe) = SumaWartosciIlosci(connection, ZapytanieHandel, startDate, endDate, dataGridView, "65881", "Towary Handlowe", isGrupowanieChecked);
                 //Suma Handlowego działu
                 double sumaHandlowa = sumaWartZywegoSprzedaz + sumaWartPasza + sumaWartPisklak + sumaWartIndyk + sumaWartTowaryHandlowe;
                 sumRowIndex2 = dataGridView.Rows.Add(
@@ -553,7 +553,7 @@ namespace Kalendarz1
                 row.Height = height;
             }
         }
-        private (double SumaWartoscNetto, double SumaIlosc) SumaWartosciIlosci(SqlConnection connection, string query, DateTime startDate, DateTime endDate, DataGridView dataGridView, string katalog, string Podpis)
+        private (double SumaWartoscNetto, double SumaIlosc) SumaWartosciIlosci(SqlConnection connection, string query, DateTime startDate, DateTime endDate, DataGridView dataGridView, string katalog, string Podpis, bool isGrupowanieChecked)
         {
             double SumaWartosNetto = 0;
             double SumaIlosc = 0;
@@ -577,21 +577,37 @@ namespace Kalendarz1
                         string kod = dataRow["kod"].ToString();
                         double wartoscNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
                         double ilosc = Convert.ToDouble(dataRow["SumaIlosc"]);
+
+
+
+                        if (!isGrupowanieChecked)
+                        {
+                            int rowIndex = dataGridView.Rows.Add(
+                                kod,
+                                string.Format("{0:N0} zł", wartoscNetto),
+                                string.Format("{0:N0} kg", ilosc)
+                            );
+
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+                            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
+                        }
                         SumaWartosNetto += wartoscNetto;
                         SumaIlosc += ilosc;
-                    }
 
+                    }
                     // Dodaj wiersz sumy na końcu
                     int sumRowIndex = dataGridView.Rows.Add(
                         Podpis,
                         string.Format("{0:N0} zł", SumaWartosNetto),
-                        string.Format("{0:N0} kg", SumaIlosc)
-                    );
+                        string.Format("{0:N0} kg", SumaIlosc));
 
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = Color.Black;
                     dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Bold);
+
                 }
             }
             catch (Exception ex)
