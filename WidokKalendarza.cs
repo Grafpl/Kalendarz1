@@ -57,14 +57,29 @@ namespace Kalendarz1
 
             // Sprawdź, czy aktualna godzina jest między 14:30 a 15:00
             TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
-            TimeSpan end = new TimeSpan(16, 0, 0);    // 15:00
+            TimeSpan end = new TimeSpan(15, 30, 0);    // 15:00
             TimeSpan now = DateTime.Now.TimeOfDay;
+            DayOfWeek today = DateTime.Now.DayOfWeek;
+
+
+            bool isDateInDatabase = false;
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                connection.Open();
+                string query = "SELECT COUNT(*) FROM [LibraNet].[dbo].[CenaRolnicza] WHERE CAST(data AS DATE) = @Today";
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Today", today);
+                    int count = (int)command.ExecuteScalar();
+                    isDateInDatabase = (count > 0);
+                }
+            }
 
             // Sprawdź, czy aktualny dzień tygodnia jest poniedziałek, środa lub piątek
-            DayOfWeek today = DateTime.Now.DayOfWeek;
+
             bool isMondayWednesdayOrFriday = (today == DayOfWeek.Monday || today == DayOfWeek.Wednesday || today == DayOfWeek.Friday);
 
-            if (now >= start && now <= end && isMondayWednesdayOrFriday)
+            if (now >= start && now <= end && isMondayWednesdayOrFriday && !isDateInDatabase)
             {
                 // Wyświetl komunikat
                 MessageBox.Show("Wstaw Cene z cenyrolnicze.pl");

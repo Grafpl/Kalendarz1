@@ -35,7 +35,11 @@
             showAllCheckBox = new System.Windows.Forms.CheckBox();
             textBox2 = new System.Windows.Forms.TextBox();
             button1 = new System.Windows.Forms.Button();
+            dataGridView2 = new System.Windows.Forms.DataGridView();
+            dataGridView3 = new System.Windows.Forms.DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
@@ -44,7 +48,7 @@
             dataGridView1.Location = new System.Drawing.Point(12, 82);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(985, 708);
+            dataGridView1.Size = new System.Drawing.Size(494, 708);
             dataGridView1.TabIndex = 0;
             dataGridView1.RowPrePaint += dataGridView1_RowPrePaint;
             // 
@@ -84,7 +88,7 @@
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(520, 52);
+            button1.Location = new System.Drawing.Point(277, 28);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(75, 23);
             button1.TabIndex = 5;
@@ -92,11 +96,31 @@
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click_1;
             // 
+            // dataGridView2
+            // 
+            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView2.Location = new System.Drawing.Point(520, 82);
+            dataGridView2.Name = "dataGridView2";
+            dataGridView2.RowTemplate.Height = 25;
+            dataGridView2.Size = new System.Drawing.Size(473, 708);
+            dataGridView2.TabIndex = 6;
+            // 
+            // dataGridView3
+            // 
+            dataGridView3.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView3.Location = new System.Drawing.Point(999, 82);
+            dataGridView3.Name = "dataGridView3";
+            dataGridView3.RowTemplate.Height = 25;
+            dataGridView3.Size = new System.Drawing.Size(473, 708);
+            dataGridView3.TabIndex = 7;
+            // 
             // Platnosci
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1005, 802);
+            ClientSize = new System.Drawing.Size(1512, 802);
+            Controls.Add(dataGridView3);
+            Controls.Add(dataGridView2);
             Controls.Add(button1);
             Controls.Add(textBox2);
             Controls.Add(showAllCheckBox);
@@ -107,6 +131,8 @@
             Name = "Platnosci";
             Text = "Platnosci";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -119,5 +145,7 @@
         private System.Windows.Forms.CheckBox showAllCheckBox;
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.DataGridView dataGridView2;
+        private System.Windows.Forms.DataGridView dataGridView3;
     }
 }

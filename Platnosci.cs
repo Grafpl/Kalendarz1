@@ -67,7 +67,48 @@ namespace Kalendarz1
                 }
             }
             // Ustaw AutoSizeMode na AllCells dla wszystkich kolumn
-            foreach (DataGridViewColumn column in dataGridView1.Columns)
+            foreach (DataGridViewColumn column in dataGridView2.Columns)
+            {
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+            }
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                try
+                {
+                    SqlCommand command = new SqlCommand("SELECT DISTINCT " +
+                    "C.Shortcut AS Hodowca, " +
+                    "DK.kod, " +
+                    "DK.walbrutto AS Kwota, " +
+                    "PN.kwotarozl AS Rozliczone, " +
+                    "PN.wartosc AS DoZaplacenia, " +
+                    "DK.data AS DataOdbioru, " +
+                    "DK.plattermin AS DataTermin, " +
+                    "PN.Termin AS TerminPrawdziwy, " +
+                    "DATEDIFF(day, DK.data, PN.Termin) AS Termin, " +
+                    "DATEDIFF(day, DK.data, GETDATE()) AS Obecny, " +
+                    "(DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) AS Roznica " +
+                    "FROM [HANDEL].[HM].[DK] DK " +
+                    "JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super " +
+                    "JOIN [HANDEL].[HM].[PN] PN ON DK.id = PN.dkid " +
+                    "JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id " +
+                    "WHERE DK.aktywny = 1 " +
+                    "AND DK.ok = 0 " +
+                    "AND (DK.typ_dk = 'FVR' OR DK.typ_dk = 'FVZ') " +
+                    "AND DK.anulowany = 0 " +
+                    "AND (DP.kod = 'Kurczak żywy - 8 SPRZEDAŻ' OR DP.kod = 'Kurczak żywy - 7 SPRZEDAŻ') " +
+                    "ORDER BY roznica ASC", connection);
+                    SqlDataAdapter adapter = new SqlDataAdapter(command);
+                    DataTable dataTable = new DataTable();
+                    adapter.Fill(dataTable);
+                    dataGridView2.DataSource = dataTable;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd podczas pobierania danych: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            // Ustaw AutoSizeMode na AllCells dla wszystkich kolumn
+            foreach (DataGridViewColumn column in dataGridView2.Columns)
             {
                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
             }
