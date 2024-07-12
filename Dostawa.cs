@@ -315,7 +315,6 @@ namespace Kalendarz1
         }
         private void srednia_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczWage(srednia, WagaTuszki, iloscPoj, sztukNaSzuflade, wyliczone, KGwSkrzynce, CalcSztukNaSzuflade);
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
             nazwaZiD.ReplaceCommaWithDot(srednia);
         }
@@ -368,7 +367,7 @@ namespace Kalendarz1
         }
         private void sztukNaSzuflade_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
         }
         private void sztuki_TextChanged(object sender, EventArgs e)
         {

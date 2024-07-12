@@ -49,7 +49,15 @@ namespace Kalendarz1
             return roznicaDni;
         }
 
+        //Służy do wyliczenia sztuk *264 i wynik wstawia w textboxie Wyliczone
 
+        public void ZestawDoObliczaniaTransportu(TextBox sztukNaSzuflade, TextBox Wyliczone, TextBox obliczeniaAut, TextBox sztuki, TextBox srednia, TextBox KGwSkrzynce)
+        {
+            ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
+            ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
+            ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut);
+            ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
+        }
         public void ileSztukOblcizenie(TextBox sztukNaSzuflade, TextBox Wyliczone)
         {
             double WyliczonaSuma;
@@ -76,46 +84,9 @@ namespace Kalendarz1
             Wyliczone.Text = WyliczonaSuma.ToString();
         }
 
-        public void ObliczWage(TextBox srednia, TextBox WagaTuszki, TextBox iloscPoj, TextBox sztukNaSzuflade, TextBox Wyliczone, TextBox KGwSkrzynce, TextBox CalcSztukNaSzuflade)
+
+        public void ObliczenieAutaCzySieMiesci(TextBox sztukNaSzuflade, TextBox obliczeniaAut)
         {
-            try
-            {
-                // Pozostała część Twojej istniejącej logiki...
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        public void ProponowanaIloscNaSkrzynke(TextBox sztukNaSzuflade, TextBox sztuki, TextBox obliczeniaAut, TextBox srednia, TextBox KGwSkrzynce, TextBox Wyliczone)
-        {
-            double sredniaValue;
-            double KGsztuk;
-
-            ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
-
-            // Sprawdź czy wartość sztukNaSzuflade.text jest liczbą
-            if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValueParsed))
-            {
-                string inputValue = srednia.Text.Replace(".", ","); // Zamień kropkę na przecinek, jeśli istnieje
-
-                // Sprawdź, czy inputValue jest liczbą
-                if (double.TryParse(inputValue, out sredniaValue))
-                {
-                    KGsztuk = sredniaValue * sztukNaSzufladeValueParsed;
-                    KGwSkrzynce.Text = KGsztuk.ToString("0.00");
-                }
-            }
-
-            // Wywołaj funkcję ileSztukOblcizenie
-            ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
-        }
-
-        public void ObliczenieAutaCzySieMiesci(TextBox sztukNaSzuflade,  TextBox obliczeniaAut)
-        {
-
-            
-
             // Sprawdź czy wartości są liczbami
             if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue))
             {
@@ -133,6 +104,30 @@ namespace Kalendarz1
                 }
             }
         }
+
+
+        public void ProponowanaIloscNaSkrzynke(TextBox sztukNaSzuflade, TextBox srednia, TextBox KGwSkrzynce)
+        {
+            double sredniaValue;
+            double KGsztuk;
+
+            //ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
+
+            // Sprawdź czy wartość sztukNaSzuflade.text jest liczbą
+            if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValueParsed))
+            {
+                string inputValue = srednia.Text.Replace(".", ","); // Zamień kropkę na przecinek, jeśli istnieje
+
+                // Sprawdź, czy inputValue jest liczbą
+                if (double.TryParse(inputValue, out sredniaValue))
+                {
+                    KGsztuk = sredniaValue * sztukNaSzufladeValueParsed;
+                    KGwSkrzynce.Text = KGsztuk.ToString("0.00");
+                }
+            }
+        }
+
+        
         public static void IleautOblcizenie(TextBox ileaut, TextBox sztuki, TextBox wyliczone)
         {
             double wyliczonaSuma = 0;

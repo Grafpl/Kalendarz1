@@ -254,7 +254,7 @@ namespace Kalendarz1
             KolorZielonyCheckbox(potwWaga, srednia);
             KolorZielonyCheckbox(potwSztuki, sztuki);
             UpdateDataGrid();
-            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, sztuki, obliczeniaAut2, srednia, KGwSkrzynce2, wyliczone);
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, srednia, KGwSkrzynce2);
 
         }
         private void buttonUpDate_Click(object sender, EventArgs e)
@@ -1137,10 +1137,8 @@ namespace Kalendarz1
         }
         private void srednia_TextChanged(object sender, EventArgs e)
         {
-
-            obliczenia.ObliczWage(srednia, WagaTuszki, iloscPoj, sztukNaSzuflade, wyliczone, KGwSkrzynce, CalcSztukNaSzuflade);
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
-            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
 
             nazwaZiD.ReplaceCommaWithDot(srednia);
         }
@@ -1151,8 +1149,13 @@ namespace Kalendarz1
         }
         private void sztukNaSzuflade_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+            //obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade, sztuki, obliczeniaAut, srednia, KGwSkrzynce, wyliczone);
+            //obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
+            //obliczenia.ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
+            //obliczenia.ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut); 
+            obliczenia.ZestawDoObliczaniaTransportu(sztukNaSzuflade, wyliczone, obliczeniaAut, sztuki, srednia, KGwSkrzynce);
             sztukNaSzuflade1.Text = sztukNaSzuflade.Text;
+
             if (int.TryParse(sztukNaSzuflade1.Text, out int value))
             {
                 // Odejmij 1 od wartości textbox2 i ustaw w textbox1
