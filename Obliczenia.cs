@@ -92,21 +92,7 @@ namespace Kalendarz1
             double sredniaValue;
             double KGsztuk;
 
-            // Sprawdź czy wartości są liczbami
-            if (double.TryParse(sztuki.Text, out double sztukiValue) && double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue))
-            {
-                // Sprawdź czy wartość sztukNaSzufladeValue jest różna od zera, aby uniknąć dzielenia przez zero
-                if (sztukNaSzufladeValue * 264 != 0)
-                {
-                    double result = sztukiValue / (sztukNaSzufladeValue * 264);
-                    obliczeniaAut.Text = result.ToString("0.00");
-                }
-                else
-                {
-                    MessageBox.Show("Nie można dzielić przez zero.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    return;
-                }
-            }
+            ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
 
             // Sprawdź czy wartość sztukNaSzuflade.text jest liczbą
             if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValueParsed))
@@ -125,14 +111,15 @@ namespace Kalendarz1
             ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
         }
 
-        public void ProponowanaIloscNaSkrzynke2(TextBox sztukNaSzuflade, TextBox sztuki, TextBox obliczeniaAut)
+        public void ObliczenieAutaCzySieMiesci(TextBox sztukNaSzuflade,  TextBox obliczeniaAut)
         {
-            double sredniaValue;
-            double KGsztuk;
+
+            
 
             // Sprawdź czy wartości są liczbami
-            if (double.TryParse(sztuki.Text, out double sztukiValue) && double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue))
+            if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue))
             {
+                double sztukiValue = sztukNaSzufladeValue * 264;
                 // Sprawdź czy wartość sztukNaSzufladeValue jest różna od zera, aby uniknąć dzielenia przez zero
                 if (sztukNaSzufladeValue * 264 != 0)
                 {

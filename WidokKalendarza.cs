@@ -1831,7 +1831,7 @@ namespace Kalendarz1
 
         private void sztukNaSzuflade2_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, sztuki, obliczeniaAut2, srednia, KGwSkrzynce2, wyliczone);
+            //obliczenia.ObliczenieAutaCzySieMiesci(sztukNaSzuflade2, obliczeniaAut2);
         }
 
         private void pokazDlaSprzedazy_Click(object sender, EventArgs e)
