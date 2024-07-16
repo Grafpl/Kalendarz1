@@ -61,7 +61,7 @@ namespace Kalendarz1
             TimeSpan now = DateTime.Now.TimeOfDay;
             DayOfWeek today = DateTime.Now.DayOfWeek;
 
-
+            /*
             bool isDateInDatabase = false;
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
@@ -84,7 +84,7 @@ namespace Kalendarz1
                 // Wyświetl komunikat
                 MessageBox.Show("Wstaw Cene z cenyrolnicze.pl");
             }
-
+            */
         }
         private void BiezacePartie()
         {
@@ -254,6 +254,7 @@ namespace Kalendarz1
             KolorZielonyCheckbox(potwWaga, srednia);
             KolorZielonyCheckbox(potwSztuki, sztuki);
             UpdateDataGrid();
+            obliczenia.ZestawDoObliczaniaTransportu(sztukNaSzuflade, wyliczone, obliczeniaAut, sztuki, srednia, KGwSkrzynce, obliczeniaAut2, sztukNaSzuflade2);
             obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, srednia, KGwSkrzynce2);
 
         }
@@ -1153,7 +1154,7 @@ namespace Kalendarz1
             //obliczenia.ileSztukOblcizenie(sztukNaSzuflade, wyliczone);
             //obliczenia.ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
             //obliczenia.ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut); 
-            obliczenia.ZestawDoObliczaniaTransportu(sztukNaSzuflade, wyliczone, obliczeniaAut, sztuki, srednia, KGwSkrzynce);
+            obliczenia.ZestawDoObliczaniaTransportu(sztukNaSzuflade, wyliczone, obliczeniaAut, sztuki, srednia, KGwSkrzynce, obliczeniaAut2, sztukNaSzuflade2);
             sztukNaSzuflade1.Text = sztukNaSzuflade.Text;
 
             if (int.TryParse(sztukNaSzuflade1.Text, out int value))
@@ -1835,6 +1836,7 @@ namespace Kalendarz1
         private void sztukNaSzuflade2_TextChanged(object sender, EventArgs e)
         {
             //obliczenia.ObliczenieAutaCzySieMiesci(sztukNaSzuflade2, obliczeniaAut2);
+            obliczenia.ZestawDoObliczaniaTransportu(sztukNaSzuflade, wyliczone, obliczeniaAut, sztuki, srednia, KGwSkrzynce, obliczeniaAut2, sztukNaSzuflade2);
         }
 
         private void pokazDlaSprzedazy_Click(object sender, EventArgs e)

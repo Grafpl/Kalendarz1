@@ -58,7 +58,7 @@
             dataGridView1.Location = new System.Drawing.Point(12, 45);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(607, 649);
+            dataGridView1.Size = new System.Drawing.Size(614, 649);
             dataGridView1.TabIndex = 41;
             // 
             // chkShowWeekend
@@ -76,7 +76,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(628, 706);
+            ClientSize = new System.Drawing.Size(638, 706);
             Controls.Add(chkShowWeekend);
             Controls.Add(label18);
             Controls.Add(textBox1);

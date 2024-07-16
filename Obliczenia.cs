@@ -51,10 +51,10 @@ namespace Kalendarz1
 
         //Służy do wyliczenia sztuk *264 i wynik wstawia w textboxie Wyliczone
 
-        public void ZestawDoObliczaniaTransportu(TextBox sztukNaSzuflade, TextBox Wyliczone, TextBox obliczeniaAut, TextBox sztuki, TextBox srednia, TextBox KGwSkrzynce)
+        public void ZestawDoObliczaniaTransportu(TextBox sztukNaSzuflade, TextBox Wyliczone, TextBox obliczeniaAut, TextBox sztuki, TextBox srednia, TextBox KGwSkrzynce, TextBox obliczeniaAut2, TextBox sztukNaSzuflade2)
         {
             ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
-            ObliczenieAutaCzySieMiesci(sztukNaSzuflade, obliczeniaAut);
+            ObliczenieAutaCzySieMiesciDlaInnychSztuk(sztukNaSzuflade, sztukNaSzuflade2, sztuki, obliczeniaAut, obliczeniaAut2);
             ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut);
             ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
         }
@@ -84,7 +84,7 @@ namespace Kalendarz1
             Wyliczone.Text = WyliczonaSuma.ToString();
         }
 
-
+        /*
         public void ObliczenieAutaCzySieMiesci(TextBox sztukNaSzuflade, TextBox obliczeniaAut)
         {
             // Sprawdź czy wartości są liczbami
@@ -96,6 +96,34 @@ namespace Kalendarz1
                 {
                     double result = sztukiValue / (sztukNaSzufladeValue * 264);
                     obliczeniaAut.Text = result.ToString("0.00");
+                }
+                else
+                {
+                    MessageBox.Show("Nie można dzielić przez zero.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    return;
+                }
+            }
+        }
+        */
+
+        public void ObliczenieAutaCzySieMiesciDlaInnychSztuk(TextBox sztukNaSzuflade, TextBox sztukNaSzuflade2, TextBox sztuki,  TextBox obliczeniaAut1, TextBox obliczeniaAut2)
+        {
+            // Sprawdź czy wartości są liczbami
+            if (double.TryParse(sztukNaSzuflade.Text, out double sztukNaSzufladeValue) && double.TryParse(sztukNaSzuflade2.Text, out double sztukNaSzufladeValue2) && double.TryParse(sztuki.Text, out double sztukiVal))
+            {
+                
+
+                // Sprawdź czy wartość sztukNaSzufladeValue jest różna od zera, aby uniknąć dzielenia przez zero
+                if (sztukNaSzufladeValue * 264 != 0)
+                {
+                    double resultSkrzynki1 = sztukiVal / (sztukNaSzufladeValue * 264);
+                    obliczeniaAut1.Text = resultSkrzynki1.ToString("0.00");
+
+
+                    double Obliczenia1 = (sztukNaSzufladeValue * 264) / (sztukNaSzufladeValue * 264);
+                    double Obliczenia2 = (sztukiVal - (sztukNaSzufladeValue * 264)) / (sztukNaSzufladeValue2 * 264);
+                    double ObliczeniaSuma = Obliczenia1 + Obliczenia2;
+                    obliczeniaAut2.Text = ObliczeniaSuma.ToString("0.00");
                 }
                 else
                 {
@@ -180,6 +208,8 @@ namespace Kalendarz1
             if (string.IsNullOrEmpty(sztuki.Text))
                 return;
         }
+
+
 
     }
 }
