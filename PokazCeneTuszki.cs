@@ -18,8 +18,11 @@ namespace Kalendarz1
         public PokazCeneTuszki()
         {
             InitializeComponent();
+            // Dodanie zdarzeń TextChanged dla TextBox1 i TextBox2
+
             dateTimePicker1.Value = DateTime.Now; // Ustaw datę na dzisiejszą
             Load += PokazCeneTuszki_Load;
+
         }
 
 
@@ -164,7 +167,29 @@ namespace Kalendarz1
             PokazCeneTuszki_Load(sender, null);
             PokazCeneHarmonogramDostaw();
         }
+        private void CalculateDifference()
+        {
+            // Sprawdzenie czy obie wartości są poprawnymi liczbami całkowitymi
+            if (double.TryParse(textBox1.Text, out double value1) && double.TryParse(textBox2.Text, out double value2))
+            {
+                // Obliczenie różnicy i wyświetlenie w TextBox3
+                textBox3.Text = (value1 - value2).ToString("N2"); ;
+            }
+            else
+            {
+                // Wyświetlenie komunikatu o błędzie w przypadku nieprawidłowych danych
+                textBox3.Text = "Invalid input";
+            }
+        }
 
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            CalculateDifference();
+        }
 
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            CalculateDifference();
+        }
     }
 }

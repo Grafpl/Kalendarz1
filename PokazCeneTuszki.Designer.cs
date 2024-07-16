@@ -63,6 +63,7 @@
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(47, 23);
             textBox1.TabIndex = 40;
+            textBox1.TextChanged += textBox1_TextChanged;
             // 
             // label21
             // 
@@ -90,6 +91,7 @@
             textBox2.Name = "textBox2";
             textBox2.Size = new System.Drawing.Size(47, 23);
             textBox2.TabIndex = 78;
+            textBox2.TextChanged += textBox2_TextChanged;
             // 
             // label2
             // 
