@@ -249,8 +249,10 @@ namespace Kalendarz1
                 object wartoscKomorki = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
                 lpDostawa = wartoscKomorki != null ? wartoscKomorki.ToString() : "0";
                 PobierzInformacjeZBazyDanych(lpDostawa);
+                zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, tel1, tel2, tel3);
 
             }
+
             KolorZielonyCheckbox(potwWaga, srednia);
             KolorZielonyCheckbox(potwSztuki, sztuki);
             UpdateDataGrid();
@@ -1015,15 +1017,15 @@ namespace Kalendarz1
                             DataGridWstawienia.Columns.Add("WagaDekKolumnaWstawienia", "Waga");
                             DataGridWstawienia.Columns.Add("buforkKolumnaWstawienia", "Status");
 
-                            DataGridWstawienia.Columns["DataOdbioruKolumnaWstawienia"].Width = 80;
+                            DataGridWstawienia.Columns["DataOdbioruKolumnaWstawienia"].Width = 120;
                             DataGridWstawienia.Columns["AutaKolumnaWstawienia"].Width = 25;
                             DataGridWstawienia.Columns["SztukiDekKolumnaWstawienia"].Width = 50;
                             DataGridWstawienia.Columns["WagaDekKolumnaWstawienia"].Width = 30;
-                            DataGridWstawienia.Columns["buforkKolumnaWstawienia"].Width = 65;
+                            DataGridWstawienia.Columns["buforkKolumnaWstawienia"].Width = 80;
 
                             while (reader.Read())
                             {
-                                string dataOdbioru = reader["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(reader["DataOdbioru"]).ToString("yyyy-MM-dd") : string.Empty;
+                                string dataOdbioru = reader["DataOdbioru"] != DBNull.Value ? Convert.ToDateTime(reader["DataOdbioru"]).ToString("yyyy-MM-dd ddd") : string.Empty;
 
                                 DataGridViewRow newRow = new DataGridViewRow();
                                 newRow.CreateCells(DataGridWstawienia);
@@ -1842,7 +1844,82 @@ namespace Kalendarz1
         private void pokazDlaSprzedazy_Click(object sender, EventArgs e)
         {
             WidokSprzedazPlan widokSprzedazPlan = new WidokSprzedazPlan();
-            widokSprzedazPlan.Show(); 
+            widokSprzedazPlan.Show();
+        }
+
+        private void button16_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionPermission))
+                {
+                    cnn.Open();
+
+                    // Pobranie istniejącego wiersza do zduplikowania
+                    string getRowSql = "SELECT * FROM dbo.HarmonogramDostaw WHERE Lp = @selectedLP;";
+                    SqlCommand getRowCmd = new SqlCommand(getRowSql, cnn);
+                    getRowCmd.Parameters.AddWithValue("@selectedLP", lpDostawa);
+                    DataTable dt = new DataTable();
+                    using (SqlDataAdapter da = new SqlDataAdapter(getRowCmd))
+                    {
+                        da.Fill(dt);
+                    }
+
+                    if (dt.Rows.Count == 0)
+                    {
+                        MessageBox.Show("Nie znaleziono wiersza do duplikacji.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    DataRow row = dt.Rows[0];
+
+                    // Pobranie maksymalnego LP
+                    string getMaxLpSql = "SELECT MAX(Lp) AS MaxLP FROM dbo.HarmonogramDostaw;";
+                    SqlCommand getMaxLpCmd = new SqlCommand(getMaxLpSql, cnn);
+                    int maxLP = Convert.ToInt32(getMaxLpCmd.ExecuteScalar()) + 1;
+
+                    // Utworzenie zapytania SQL do wstawienia danych
+                    string insertSql = @"
+                    INSERT INTO dbo.HarmonogramDostaw 
+                    (Lp, DataOdbioru, Dostawca, KmH, Kurnik, KmK, Auta, SztukiDek, WagaDek, 
+                    SztSzuflada, TypUmowy, TypCeny, Cena, Bufor, UWAGI, Dodatek, DataUtw, LpW, Ubytek, ktoStwo) 
+                    VALUES 
+                    (@Lp, @DataOdbioru, @Dostawca, @KmH, @Kurnik, @KmK, @Auta, @SztukiDek, @WagaDek, 
+                    @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @ktoStwo)";
+
+                    SqlCommand insertCmd = new SqlCommand(insertSql, cnn);
+                    insertCmd.Parameters.AddWithValue("@Lp", maxLP);
+                    insertCmd.Parameters.AddWithValue("@DataOdbioru", row["DataOdbioru"] != DBNull.Value ? row["DataOdbioru"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Dostawca", row["Dostawca"] != DBNull.Value ? row["Dostawca"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@KmH", row["KmH"] != DBNull.Value ? row["KmH"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Kurnik", row["Kurnik"] != DBNull.Value ? row["Kurnik"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@KmK", row["KmK"] != DBNull.Value ? row["KmK"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Auta", row["Auta"] != DBNull.Value ? row["Auta"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@SztukiDek", row["SztukiDek"] != DBNull.Value ? row["SztukiDek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@WagaDek", row["WagaDek"] != DBNull.Value ? row["WagaDek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@SztSzuflada", row["SztSzuflada"] != DBNull.Value ? row["SztSzuflada"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@TypUmowy", row["TypUmowy"] != DBNull.Value ? row["TypUmowy"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@TypCeny", row["TypCeny"] != DBNull.Value ? row["TypCeny"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Cena", row["Cena"] != DBNull.Value ? row["Cena"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Bufor", row["Bufor"] != DBNull.Value ? row["Bufor"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@UWAGI", row["UWAGI"] != DBNull.Value ? row["UWAGI"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Dodatek", row["Dodatek"] != DBNull.Value ? row["Dodatek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@DataUtw", DateTime.Now);
+                    insertCmd.Parameters.AddWithValue("@LpW", row["LpW"] != DBNull.Value ? row["LpW"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Ubytek", row["Ubytek"] != DBNull.Value ? row["Ubytek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@ktoStwo", UserID);
+
+                    insertCmd.ExecuteNonQuery();
+
+                    // Komunikat potwierdzający
+                    MessageBox.Show("Wiersz został zduplikowany w bazie danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            MyCalendar_DateChanged_1(sender, null);
         }
     }
 }

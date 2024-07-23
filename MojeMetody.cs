@@ -392,7 +392,7 @@ namespace Kalendarz1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE Name = @Name", conn))
                 {
                     cmd.Parameters.AddWithValue("@Name", name);
 
@@ -411,7 +411,7 @@ namespace Kalendarz1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE ShortName = @Name", conn))
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE Name = @Name", conn))
                 {
                     cmd.Parameters.AddWithValue("@Name", name);
 
@@ -830,27 +830,27 @@ namespace Kalendarz1
         public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
         {
             string selectedValue = Dostawca.SelectedItem.ToString();
-            int idDostawcy = ZnajdzIdHodowcy(selectedValue);
+            string idDostawcy = ZnajdzIdHodowcyString(selectedValue);
             string Zmienna;
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Address");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Address");
             adres.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "PostalCode");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "PostalCode");
             kodPocztowy.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Distance");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Distance");
             dystans.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "City");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "City");
             miejscowosc.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone1");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1");
             telefon1.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone2");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone2");
             telefon2.Text = Zmienna.ToString();
 
-            Zmienna = PobierzInformacjeZBazyDanychHodowcow(idDostawcy, "Phone3");
+            Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone3");
             telefon3.Text = Zmienna.ToString();
 
         }

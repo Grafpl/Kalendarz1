@@ -222,6 +222,7 @@ namespace Kalendarz1
             button14 = new Button();
             button15 = new Button();
             groupBoxPrzyciski = new GroupBox();
+            button16 = new Button();
             pokazDlaSprzedazy = new Button();
             pictureBox1 = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
@@ -246,7 +247,7 @@ namespace Kalendarz1
             // MyCalendar
             // 
             MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            MyCalendar.Location = new System.Drawing.Point(637, 462);
+            MyCalendar.Location = new System.Drawing.Point(635, 497);
             MyCalendar.Margin = new Padding(2);
             MyCalendar.Name = "MyCalendar";
             MyCalendar.TabIndex = 1;
@@ -279,7 +280,7 @@ namespace Kalendarz1
             // weekNumberTextBox
             // 
             weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            weekNumberTextBox.Location = new System.Drawing.Point(13, 382);
+            weekNumberTextBox.Location = new System.Drawing.Point(12, 410);
             weekNumberTextBox.Multiline = true;
             weekNumberTextBox.Name = "weekNumberTextBox";
             weekNumberTextBox.Size = new System.Drawing.Size(50, 38);
@@ -433,10 +434,11 @@ namespace Kalendarz1
             // 
             dataWstawienia.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             dataWstawienia.CustomFormat = "yyyy-MM-dd";
+            dataWstawienia.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             dataWstawienia.Format = DateTimePickerFormat.Custom;
             dataWstawienia.Location = new System.Drawing.Point(65, 44);
             dataWstawienia.Name = "dataWstawienia";
-            dataWstawienia.Size = new System.Drawing.Size(65, 23);
+            dataWstawienia.Size = new System.Drawing.Size(89, 22);
             dataWstawienia.TabIndex = 108;
             dataWstawienia.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
             dataWstawienia.ValueChanged += dataWstawienia_ValueChanged;
@@ -485,9 +487,9 @@ namespace Kalendarz1
             // 
             obecnaDoba.BackColor = System.Drawing.SystemColors.ScrollBar;
             obecnaDoba.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obecnaDoba.Location = new System.Drawing.Point(136, 45);
+            obecnaDoba.Location = new System.Drawing.Point(157, 45);
             obecnaDoba.Name = "obecnaDoba";
-            obecnaDoba.Size = new System.Drawing.Size(51, 22);
+            obecnaDoba.Size = new System.Drawing.Size(30, 22);
             obecnaDoba.TabIndex = 104;
             obecnaDoba.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1734,7 +1736,7 @@ namespace Kalendarz1
             // label21
             // 
             label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(13, 362);
+            label21.Location = new System.Drawing.Point(12, 390);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(50, 20);
             label21.TabIndex = 76;
@@ -2173,7 +2175,7 @@ namespace Kalendarz1
             // button1
             // 
             button1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button1.Location = new System.Drawing.Point(2, 423);
+            button1.Location = new System.Drawing.Point(1, 451);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(38, 31);
             button1.TabIndex = 114;
@@ -2185,7 +2187,7 @@ namespace Kalendarz1
             // button5
             // 
             button5.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button5.Location = new System.Drawing.Point(39, 423);
+            button5.Location = new System.Drawing.Point(38, 451);
             button5.Name = "button5";
             button5.Size = new System.Drawing.Size(36, 31);
             button5.TabIndex = 115;
@@ -2315,6 +2317,7 @@ namespace Kalendarz1
             // 
             // groupBoxPrzyciski
             // 
+            groupBoxPrzyciski.Controls.Add(button16);
             groupBoxPrzyciski.Controls.Add(pokazDlaSprzedazy);
             groupBoxPrzyciski.Controls.Add(buttonDownDate);
             groupBoxPrzyciski.Controls.Add(weekNumberTextBox);
@@ -2328,9 +2331,21 @@ namespace Kalendarz1
             groupBoxPrzyciski.Controls.Add(button1);
             groupBoxPrzyciski.Location = new System.Drawing.Point(639, 4);
             groupBoxPrzyciski.Name = "groupBoxPrzyciski";
-            groupBoxPrzyciski.Size = new System.Drawing.Size(74, 455);
+            groupBoxPrzyciski.Size = new System.Drawing.Size(74, 488);
             groupBoxPrzyciski.TabIndex = 126;
             groupBoxPrzyciski.TabStop = false;
+            // 
+            // button16
+            // 
+            button16.BackColor = System.Drawing.Color.Azure;
+            button16.BackgroundImage = (System.Drawing.Image)resources.GetObject("button16.BackgroundImage");
+            button16.BackgroundImageLayout = ImageLayout.Stretch;
+            button16.Location = new System.Drawing.Point(2, 337);
+            button16.Name = "button16";
+            button16.Size = new System.Drawing.Size(71, 40);
+            button16.TabIndex = 127;
+            button16.UseVisualStyleBackColor = false;
+            button16.Click += button16_Click;
             // 
             // pokazDlaSprzedazy
             // 
@@ -2647,5 +2662,6 @@ namespace Kalendarz1
         private CheckBox checkBoxSZTUKI2;
         private PictureBox pictureBox1;
         private Button pokazDlaSprzedazy;
+        private Button button16;
     }
 }
