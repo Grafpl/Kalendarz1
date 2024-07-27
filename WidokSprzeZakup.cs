@@ -18,6 +18,8 @@ namespace Kalendarz1
     public partial class WidokSprzeZakup : Form
     {
         private int LastRow = 0; // Dodaj deklarację zmiennej LastRow na poziomie klasy
+        double KurczakANetto, KurczakAIlosc;
+
         public WidokSprzeZakup()
         {
             InitializeComponent();
@@ -50,7 +52,9 @@ namespace Kalendarz1
 
             double sumaWartNettoSprzedazKoszt = 0;
             double sumaIloscSprzedazKoszt = 0;
-           
+
+            
+
 
             bool isGrupowanieChecked = Grupowanie.Checked;
            
@@ -130,6 +134,9 @@ namespace Kalendarz1
                 // Dodaj pusty wiersz
                 int emptyRowIndex = dataGridView.Rows.Add("", "", "", "");
                 dataGridView.Rows[emptyRowIndex].DefaultCellStyle.BackColor = Color.White;
+
+                DodajWierszPrzebitki(dataGridView,  KurczakANetto,  KurczakAIlosc, sumaWartZywiec, sumaIloscZywiec);
+
 
 
                 //Rozliczenie działu handlowego
@@ -243,14 +250,20 @@ namespace Kalendarz1
                         double wartoscNetto = Convert.ToDouble(dataRow["SumaWartNetto"]);
                         double ilosc = Convert.ToDouble(dataRow["SumaIlosc"]);
 
-
+                        if (kod == "Kurczak A")
+                        {
+                            KurczakANetto = wartoscNetto;
+                            KurczakAIlosc = ilosc;
+                        }
 
                         if (!isGrupowanieChecked)
                         {
+                            double cena = wartoscNetto / ilosc;
                             int rowIndex = dataGridView.Rows.Add(
                                 kod,
                                 string.Format("{0:N0} zł", wartoscNetto),
-                                string.Format("{0:N0} kg", ilosc)
+                                string.Format("{0:N0} kg", ilosc),
+                                string.Format("{0:N2} zł/kg", cena)
                             );
 
                             dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
@@ -496,14 +509,54 @@ namespace Kalendarz1
             Color backColor = ColorTranslator.FromHtml(kolorTylu);
             Color foreColor = ColorTranslator.FromHtml(kolorCzcionki);
 
+
             dataGridView.Rows[sumRowIndex].DefaultCellStyle.BackColor = backColor;
             dataGridView.Rows[sumRowIndex].DefaultCellStyle.ForeColor = foreColor;
             dataGridView.Rows[sumRowIndex].DefaultCellStyle.Font = new Font("Calibri", Wielkosc, FontStyle.Bold);
         }
 
+        private void DodajWierszPrzebitki(DataGridView dataGridView, double Netto, double Ilosc, double Nettozywy, double Ilosczywy)
+        {
 
+            // Dodaj wiersz z ceną żywca
+            int rowIndex = dataGridView.Rows.Add(
+                "Cena Żywca",
+                string.Format("{0:N0} zł", Nettozywy),
+                string.Format("{0:N0} kg", Ilosczywy),
+                string.Format("{0:N2} zł/kg", Nettozywy / Ilosczywy),
+                ""
+            );
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
 
+            // Dodaj wiersz z ceną tuszki
+            rowIndex = dataGridView.Rows.Add(
+                "Cena Tuszki",
+                string.Format("{0:N0} zł", Netto),
+                string.Format("{0:N0} kg", Ilosc),
+                string.Format("{0:N2} zł/kg", Netto / Ilosc),
+                ""
+            );
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
 
+            // Dodaj wiersz z przebitką
+            rowIndex = dataGridView.Rows.Add(
+                "Przebitka",
+                string.Format("{0:N0} zł", Nettozywy + Netto),
+                string.Format("{0:N0} kg", Ilosczywy + Ilosc),
+                string.Format("{0:N2} zł/kg", (Netto / Ilosc) - (Nettozywy / Ilosczywy)),
+                ""
+            );
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightBlue;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.Black;
+            dataGridView.Rows[rowIndex].DefaultCellStyle.Font = new Font("Calibri", 11);
+        }
 
         private void refresh_Click(object sender, EventArgs e)
         {
