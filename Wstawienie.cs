@@ -687,10 +687,7 @@ namespace Kalendarz1
 
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(sztukiWstawienia.Text))
-            {
-                groupBoxDostawy.Visible = true;
-            }
+
         }
 
         private void MiejscK_TextChanged(object sender, EventArgs e)
