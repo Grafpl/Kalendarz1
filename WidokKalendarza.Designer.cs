@@ -2153,13 +2153,12 @@ namespace Kalendarz1
             // buttonWstawienie
             // 
             buttonWstawienie.BackColor = System.Drawing.Color.Yellow;
-            buttonWstawienie.Location = new System.Drawing.Point(1549, 350);
+            buttonWstawienie.Location = new System.Drawing.Point(1549, 12);
             buttonWstawienie.Name = "buttonWstawienie";
             buttonWstawienie.Size = new System.Drawing.Size(71, 41);
             buttonWstawienie.TabIndex = 112;
             buttonWstawienie.Text = "Dodaj wstawienie";
             buttonWstawienie.UseVisualStyleBackColor = false;
-            buttonWstawienie.Visible = false;
             buttonWstawienie.Click += buttonWstawienie_Click;
             // 
             // dataGridPartie
