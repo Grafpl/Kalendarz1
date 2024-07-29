@@ -26,7 +26,7 @@ namespace Kalendarz1
         public Wstawienie()
         {
             InitializeComponent();
-            SetupStatus(); FillComboBox();
+            FillComboBox();
         }
 
 
@@ -54,26 +54,7 @@ namespace Kalendarz1
                 reader.Close();
             }
         }
-        private void SetupStatus()
-        {
-            // Dodaj opcje do comboBox2
-            Status.Items.AddRange(new string[] { "", "Potwierdzony", "Do wykupienia", "Anulowany", "Sprzedany", "B.Wolny.", "B.Kontr." });
 
-            // Opcjonalnie ustaw domyślną opcję wybraną
-            Status.SelectedIndex = 0; // Wybierz pierwszą opcję
-
-            // Dodaj opcje do comboBox2
-            TypUmowy.Items.AddRange(new string[] { "", "Wolnyrynek", "Kontrakt", "W.Wolnyrynek" });
-
-            // Opcjonalnie ustaw domyślną opcję wybraną
-            TypUmowy.SelectedIndex = 0; // Wybierz pierwszą opcję
-
-            // Dodaj opcje do comboBox2
-            TypCeny.Items.AddRange(new string[] { "", "wolnyrynek", "rolnicza", "łączona", "ministerialna" });
-
-            // Opcjonalnie ustaw domyślną opcję wybraną
-            TypCeny.SelectedIndex = 0; // Wybierz pierwszą opcję
-        }
 
         private void srednia1_TextChanged(object sender, EventArgs e)
         {
@@ -459,11 +440,7 @@ namespace Kalendarz1
 
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Spraw aby wstawienie było widoczne
-            if (!string.IsNullOrEmpty(Status.Text))
-            {
-                //groupBoxWstawienie.Visible = true;
-            }
+            
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
 
         }
@@ -478,12 +455,6 @@ namespace Kalendarz1
             {
                 try
                 {
-                    // Sprawdź, czy TextBox1 i TextBox2 nie są puste
-                    if (string.IsNullOrEmpty(TypUmowy.Text) || string.IsNullOrEmpty(TypCeny.Text))
-                    {
-                        MessageBox.Show("Wprowadź wartości do typ ceny i typ umowy.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                        return;
-                    }
 
                     // Utwórz połączenie z bazą danych
                     using (SqlConnection connection = new SqlConnection(connectionPermission))
@@ -530,11 +501,11 @@ namespace Kalendarz1
                                         command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(Ubytek.Text));
                                         command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia1.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia1.Text));
                                         command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki1.Text));
-                                        command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                        command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
+                                       // command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                        //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                                         command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade1.Text));
                                         command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut1.Text));
-                                        command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
+                                        //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
                                         command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
                                         command.Parameters.AddWithValue("@DataStwo", string.IsNullOrEmpty(dataStwo.Text) ? (object)DBNull.Value : (object)Convert.ToDateTime(dataStwo.Text));
                                         command.ExecuteNonQuery();
@@ -567,11 +538,11 @@ namespace Kalendarz1
                                         command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(Ubytek.Text));
                                         command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia2.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia2.Text));
                                         command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki2.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki2.Text));
-                                        command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                        command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
+                                        //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                        //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                                         command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade2.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade2.Text));
                                         command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut2.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut2.Text));
-                                        command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
+                                        //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
                                         command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
                                         command.Parameters.AddWithValue("@DataStwo", string.IsNullOrEmpty(dataStwo.Text) ? (object)DBNull.Value : (object)Convert.ToDateTime(dataStwo.Text));
                                         command.ExecuteNonQuery();
@@ -604,11 +575,11 @@ namespace Kalendarz1
                                         command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(Ubytek.Text));
                                         command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia3.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia3.Text));
                                         command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki3.Text));
-                                        command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                        command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
+                                       //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                       //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                                         command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade3.Text));
                                         command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut3.Text));
-                                        command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
+                                        //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
                                         command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
                                         command.Parameters.AddWithValue("@DataStwo", string.IsNullOrEmpty(dataStwo.Text) ? (object)DBNull.Value : (object)Convert.ToDateTime(dataStwo.Text));
                                         command.ExecuteNonQuery();
@@ -625,8 +596,8 @@ namespace Kalendarz1
                                     command.Parameters.AddWithValue("@Dostawca", Dostawca.Text);
                                     command.Parameters.AddWithValue("@SztukiWstawienia", sztukiWstawienia.Text);
                                     command.Parameters.AddWithValue("@DataWstawienia", string.IsNullOrEmpty(dataWstawienia.Text) ? (object)DBNull.Value : (object)Convert.ToDateTime(dataWstawienia.Text));
-                                    command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                    command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
+                                    //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                   //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
                                 }
 
                                 // Utwórz zapytanie SQL do aktualizacji danych dostawcy
@@ -665,25 +636,7 @@ namespace Kalendarz1
             }
         }
 
-        private void Status_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            // Spraw aby wstawienie było widoczne
-            if (!string.IsNullOrEmpty(Status.Text))
-            {
-                //groupBoxDostawca.Visible = true;
-            }
-
-            if (Status.Text == "Do wykupienia" || Status.Text == "B.Wolny.")
-            {
-                TypCeny.Text = "Wolnorynkowa";
-                TypUmowy.Text = "Wolnyrynek";
-            }
-
-            if (Status.Text == "B.Kontr.")
-            {
-                TypUmowy.Text = "Kontrakt";
-            }
-        }
+      
 
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
@@ -705,6 +658,7 @@ namespace Kalendarz1
             // Sprawdź, czy w TextBox jest liczba całkowita
             if (int.TryParse(textBox.Text, out int daysToAdd))
             {
+
                 // Pobierz wartość z dataWstawienia i dodaj liczbę dni
                 DateTime newDate = dataWstawienia.Value.AddDays(daysToAdd);
 
