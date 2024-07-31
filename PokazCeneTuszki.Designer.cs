@@ -57,9 +57,11 @@
             textBoxWartTuszki = new System.Windows.Forms.TextBox();
             label10 = new System.Windows.Forms.Label();
             textBox4 = new System.Windows.Forms.TextBox();
+            pictureBox1 = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
@@ -81,7 +83,7 @@
             // 
             // textBox1
             // 
-            textBox1.Location = new System.Drawing.Point(314, 37);
+            textBox1.Location = new System.Drawing.Point(288, 37);
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(47, 23);
             textBox1.TabIndex = 40;
@@ -90,7 +92,7 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(314, 9);
+            label21.Location = new System.Drawing.Point(288, 9);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(47, 25);
             label21.TabIndex = 77;
@@ -100,7 +102,7 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(367, 9);
+            label1.Location = new System.Drawing.Point(341, 9);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(47, 25);
             label1.TabIndex = 79;
@@ -109,7 +111,7 @@
             // 
             // textBox2
             // 
-            textBox2.Location = new System.Drawing.Point(367, 37);
+            textBox2.Location = new System.Drawing.Point(341, 37);
             textBox2.Name = "textBox2";
             textBox2.Size = new System.Drawing.Size(47, 23);
             textBox2.TabIndex = 78;
@@ -118,7 +120,7 @@
             // label2
             // 
             label2.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(420, 9);
+            label2.Location = new System.Drawing.Point(394, 9);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(49, 25);
             label2.TabIndex = 81;
@@ -128,7 +130,7 @@
             // textBox3
             // 
             textBox3.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox3.Location = new System.Drawing.Point(420, 37);
+            textBox3.Location = new System.Drawing.Point(394, 37);
             textBox3.Name = "textBox3";
             textBox3.Size = new System.Drawing.Size(47, 23);
             textBox3.TabIndex = 80;
@@ -315,11 +317,24 @@
             textBox4.TabIndex = 100;
             textBox4.TextChanged += textBox4_TextChanged;
             // 
+            // pictureBox1
+            // 
+            pictureBox1.BackgroundImage = Properties.Resources.pm;
+            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox1.Image = Properties.Resources.Screenshot_8;
+            pictureBox1.Location = new System.Drawing.Point(451, 8);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(57, 59);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 130;
+            pictureBox1.TabStop = false;
+            // 
             // PokazCeneTuszki
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(527, 600);
+            ClientSize = new System.Drawing.Size(521, 600);
+            Controls.Add(pictureBox1);
             Controls.Add(label10);
             Controls.Add(textBox4);
             Controls.Add(label11);
@@ -354,6 +369,7 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -388,5 +404,8 @@
         private System.Windows.Forms.TextBox textBoxWartTuszki;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.TextBox textBox4;
+        private System.Windows.Forms.Button button16;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.PictureBox pictureBox1;
     }
 }
