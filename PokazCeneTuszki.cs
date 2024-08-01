@@ -258,12 +258,13 @@ namespace Kalendarz1
 
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    decimal ilosc = Convert.ToDecimal(row["SztukiDek"]);
-                    decimal cena = Convert.ToDecimal(row["Cena"]);
+                    decimal ilosc = row["SztukiDek"] != DBNull.Value ? Convert.ToDecimal(row["SztukiDek"]) : 0;
+                    decimal cena = row["Cena"] != DBNull.Value ? Convert.ToDecimal(row["Cena"]) : 0;
 
                     totalIlosc += ilosc;
                     totalCena += cena * ilosc;
                 }
+
 
                 decimal averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
 
