@@ -440,7 +440,7 @@ namespace Kalendarz1
 
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            
+
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
 
         }
@@ -501,7 +501,7 @@ namespace Kalendarz1
                                         command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(Ubytek.Text));
                                         command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia1.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia1.Text));
                                         command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki1.Text));
-                                       // command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                        // command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
                                         //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                                         command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade1.Text));
                                         command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut1.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut1.Text));
@@ -575,8 +575,8 @@ namespace Kalendarz1
                                         command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(Ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(Ubytek.Text));
                                         command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia3.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia3.Text));
                                         command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki3.Text));
-                                       //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                       //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
+                                        //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
+                                        //command.Parameters.AddWithValue("@Status", string.IsNullOrEmpty(Status.Text) ? (object)DBNull.Value : Status.Text);
                                         command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade3.Text));
                                         command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut3.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut3.Text));
                                         //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
@@ -597,7 +597,7 @@ namespace Kalendarz1
                                     command.Parameters.AddWithValue("@SztukiWstawienia", sztukiWstawienia.Text);
                                     command.Parameters.AddWithValue("@DataWstawienia", string.IsNullOrEmpty(dataWstawienia.Text) ? (object)DBNull.Value : (object)Convert.ToDateTime(dataWstawienia.Text));
                                     //command.Parameters.AddWithValue("@TypUmowy", string.IsNullOrEmpty(TypUmowy.Text) ? (object)DBNull.Value : TypUmowy.Text);
-                                   //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
+                                    //command.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(TypCeny.Text) ? (object)DBNull.Value : TypCeny.Text);
                                 }
 
                                 // Utwórz zapytanie SQL do aktualizacji danych dostawcy
@@ -635,12 +635,23 @@ namespace Kalendarz1
                 }
             }
         }
+        private void Oblicz3ProcentUpadkow(TextBox inputTextBox, TextBox resultTextBox)
+        {
+            if (decimal.TryParse(inputTextBox.Text, out decimal value))
+            {
+                decimal result = value * 0.97m;
+                resultTextBox.Text = result.ToString("F0");
+            }
+            else
+            {
 
-      
+            }
+        }
+
 
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
-
+            Oblicz3ProcentUpadkow(sztukiWstawienia, SztukiUpadki);
         }
 
         private void MiejscK_TextChanged(object sender, EventArgs e)
@@ -690,6 +701,11 @@ namespace Kalendarz1
         private void textDni4_TextChanged(object sender, EventArgs e)
         {
             DodajDniDoDaty(textDni4, dataWstawienia, Data4);
+        }
+
+        private void Ubytek_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
