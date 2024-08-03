@@ -58,6 +58,13 @@ namespace Kalendarz1
             ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut);
             ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
         }
+
+        public void ZestawDoObliczaniaTransportuWstawien(TextBox sztukNaSzuflade, TextBox Wyliczone, TextBox obliczeniaAut, TextBox sztuki, TextBox srednia, TextBox KGwSkrzynce)
+        {
+            ileSztukOblcizenie(sztukNaSzuflade, Wyliczone);
+            ObliczenieSztuki(sztuki, sztukNaSzuflade, obliczeniaAut);
+            ProponowanaIloscNaSkrzynke(sztukNaSzuflade, srednia, KGwSkrzynce);
+        }
         public void ileSztukOblcizenie(TextBox sztukNaSzuflade, TextBox Wyliczone)
         {
             double WyliczonaSuma;

@@ -23,10 +23,14 @@ namespace Kalendarz1
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         public string UserID { get; set; }
 
+
+
+
         public Wstawienie()
         {
             InitializeComponent();
             FillComboBox();
+            TextBox[] textBoxesSumy = { sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica };
         }
 
 
@@ -55,66 +59,129 @@ namespace Kalendarz1
             }
         }
 
+        private void WidocznoscWierszy(CheckBox checkBox, DateTimePicker dateTimePicker, params TextBox[] textBoxes)
+        {
+            bool isVisible = checkBox.Checked;
 
+            // Ustaw widoczność dla każdego TextBoxa
+            foreach (var textBox in textBoxes)
+            {
+                textBox.Visible = isVisible;
+            }
+
+            // Ustaw widoczność dla DateTimePicker
+            dateTimePicker.Visible = isVisible;
+        }
         private void srednia1_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ileSztukOblcizenie(sztukNaSzuflade1, wyliczone);
+            obliczenia.ileSztukOblcizenie(sztukNaSzuflade1, wyliczone1);
             nazwaZiD.ReplaceCommaWithDot(srednia1);
+            
         }
 
         private void srednia2_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ileSztukOblcizenie(sztukNaSzuflade2, wyliczone);
+            obliczenia.ileSztukOblcizenie(sztukNaSzuflade2, wyliczone1);
             nazwaZiD.ReplaceCommaWithDot(srednia2);
+            
         }
 
         private void srednia3_TextChanged(object sender, EventArgs e)
         {
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade3, wyliczone);
             nazwaZiD.ReplaceCommaWithDot(srednia3);
+            
         }
 
         private void srednia4_TextChanged(object sender, EventArgs e)
         {
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade4, wyliczone);
             nazwaZiD.ReplaceCommaWithDot(srednia4);
+            
         }
 
         private void srednia5_TextChanged(object sender, EventArgs e)
         {
             obliczenia.ileSztukOblcizenie(sztukNaSzuflade5, wyliczone);
             nazwaZiD.ReplaceCommaWithDot(srednia5);
+            
         }
 
-        private void sztukNaSzuflade1_TextChanged(object sender, EventArgs e)
-        {
 
+        private void ObliczSumeSztuk(params TextBox[] textBoxesSumy)
+        {
+            try
+            {
+                // Dodawanie wartości z pierwszych pięciu TextBoxów
+                double sum = 0;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(textBoxesSumy[i].Text))
+                    {
+                        sum += 0; // Traktuj puste komórki jako 0
+                    }
+                    else if (double.TryParse(textBoxesSumy[i].Text, out double value))
+                    {
+                        sum += value;
+                    }
+                    else
+                    {
+                        textBoxesSumy[5].Text = "";
+                        textBoxesSumy[7].Text = "";
+                        return; // Przerwij obliczenia, jeśli napotkano niepoprawne dane
+                    }
+                }
+
+                // Ustawienie wyniku sumy w szóstym TextBoxie
+                textBoxesSumy[5].Text = sum.ToString("N0"); // Użycie formatu z separatorem tysięcy
+
+                // Odejmowanie wartości z siódmego TextBoxa od sumy
+                if (string.IsNullOrWhiteSpace(textBoxesSumy[6].Text))
+                {
+                    textBoxesSumy[7].Text = sum.ToString("N0"); // Jeśli wartość w SztukiUpadki jest pusta, wynikiem jest suma
+                }
+                else if (double.TryParse(textBoxesSumy[6].Text, out double upadkiValue))
+                {
+                    double result = sum - upadkiValue;
+                    // Ustawienie wyniku odejmowania w ósmym TextBoxie
+                    textBoxesSumy[7].Text = result.ToString("N0"); // Użycie formatu z separatorem tysięcy
+                }
+                else
+                {
+                    textBoxesSumy[7].Text = ""; // Jeśli wartość w SztukiUpadki nie jest poprawna, wyczyść pole wynikowe
+                }
+            }
+            catch (FormatException)
+            {
+                MessageBox.Show("Proszę wprowadzić poprawne liczby we wszystkich TextBoxach.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void sztuki1_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczenieSztuki(sztuki1, sztukNaSzuflade1, obliczeniaAut1);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
 
         private void sztuki2_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczenieSztuki(sztuki2, sztukNaSzuflade2, obliczeniaAut2);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
 
         private void sztuki3_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczenieSztuki(sztuki3, sztukNaSzuflade3, obliczeniaAut3);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
 
         private void sztuki4_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczenieSztuki(sztuki4, sztukNaSzuflade4, obliczeniaAut4);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
 
         private void sztuki5_TextChanged(object sender, EventArgs e)
         {
-            obliczenia.ObliczenieSztuki(sztuki5, sztukNaSzuflade5, obliczeniaAut5);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
+
 
         private void Data1_ValueChanged(object sender, EventArgs e)
         {
@@ -440,10 +507,88 @@ namespace Kalendarz1
 
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-
+            // Wywołaj metodę zmieniającą dostawcę z odpowiednimi parametrami
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
+            DisplayDataInDataGridView();
+            PokazWstawienia();
+            // Pobierz wybrany element z ComboBox
+            string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim().ToLower() ?? "";
 
+            // Sprawdzenie, czy istnieje źródło danych dla DataGridView
+            if (dataGridWagi.DataSource is DataTable dataTable)
+            {
+                // Ustawienie filtra dla kolumny "Dostawca" na podstawie wybranego elementu w ComboBox
+                dataTable.DefaultView.RowFilter = $"Dostawca LIKE '%{selectedDostawca}%'";
+
+                // Przywrócenie pozycji kursora po zastosowaniu filtra
+                if (dataGridWagi.RowCount > 0)
+                {
+                    int currentPosition = dataGridWagi.FirstDisplayedScrollingRowIndex;
+                    if (currentPosition >= 0 && currentPosition < dataGridWagi.RowCount)
+                    {
+                        dataGridWagi.FirstDisplayedScrollingRowIndex = currentPosition;
+                    }
+                }
+            }
         }
+        private void PokazWstawienia()
+        {
+            // Pobierz wybranego dostawcę z ComboBox
+            string selectedDostawca = Dostawca.SelectedItem.ToString();
+
+            // Zapytanie SQL
+            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS Data, IloscWstawienia " +
+                           "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
+                           "WHERE Dostawca = @Dostawca " +
+                           "ORDER BY DataWstawienia DESC";
+
+            // Utworzenie połączenia z bazą danych
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                // Utworzenie adaptera danych
+                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
+
+                // Dodanie parametru do zapytania SQL
+                adapter.SelectCommand.Parameters.AddWithValue("@Dostawca", selectedDostawca);
+
+                // Utworzenie tabeli danych
+                DataTable table = new DataTable();
+
+                // Wypełnienie tabeli danymi z adaptera
+                adapter.Fill(table);
+
+                // Ustawienie źródła danych dla DataGridView
+
+                dataGridWstawien.DataSource = table;
+                // Ustawienia kolumn
+                foreach (DataGridViewColumn column in dataGridWstawien.Columns)
+                {
+                    // Automatyczne zawijanie tekstu w nagłówkach kolumn
+                    column.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
+                }
+
+                // Ustawienie szerokości kolumn dla DataGridView
+                dataGridWstawien.Columns["LP"].Width = 30;
+                dataGridWstawien.Columns["Dostawca"].Visible = false;
+                dataGridWstawien.Columns["Data"].Width = 90;
+                dataGridWstawien.Columns["IloscWstawienia"].Width = 90;
+
+
+                // Ukrycie nagłówków wierszy
+                dataGridWstawien.RowHeadersVisible = false; // Usunięcie bocznego paska do zaznaczania wielu wierszy
+                dataGridWstawien.RowTemplate.Height = 18; // Ustawienie wysokości wierszy na 18
+                dataGridWstawien.DefaultCellStyle.Font = new Font("Arial", 8); // Zmniejszenie czcionki
+
+                // Ustawienie wysokości wierszy na minimalną wartość
+                dataGridWstawien.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+                dataGridWstawien.AllowUserToResizeRows = false;
+
+                // Ustawienie formatu kolumny "IloscWstawienia" z odstępami tysięcznymi
+                dataGridWstawien.Columns["IloscWstawienia"].DefaultCellStyle.Format = "#,##0";
+            }
+        }
+
+
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -652,6 +797,7 @@ namespace Kalendarz1
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
             Oblicz3ProcentUpadkow(sztukiWstawienia, SztukiUpadki);
+            ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
         }
 
         private void MiejscK_TextChanged(object sender, EventArgs e)
@@ -702,10 +848,173 @@ namespace Kalendarz1
         {
             DodajDniDoDaty(textDni4, dataWstawienia, Data4);
         }
-
         private void Ubytek_TextChanged(object sender, EventArgs e)
         {
 
+        }
+        public void ObliczSztuki(TextBox textBox1, TextBox textBox2, TextBox textBox3, TextBox textBox4)
+        {
+            // Sprawdź, czy textBox1 i textBox2 zawierają poprawne liczby zmiennoprzecinkowe
+            double value1, value2;
+            if (double.TryParse(textBox1.Text, out value1) && double.TryParse(textBox2.Text, out value2))
+            {
+                // Mnożenie wartości z textBox1 przez wartość z textBox2 i ustawienie wyniku w textBox3
+                double result = value1 * value2;
+                textBox3.Text = result.ToString();
+
+                // Ustawienie wartości z textBox2 w textBox4
+                textBox4.Text = value2.ToString();
+            }
+        }
+
+        private void DisplayDataInDataGridView()
+        {
+            // Zapytanie SQL
+            string query = @"
+SELECT 
+    k.CreateData AS Data,
+    Partia.CustomerName AS Dostawca,
+    DATEDIFF(day, MIN(wk.DataWstawienia), MAX(hd.DataOdbioru)) AS RoznicaDni,
+    AVG(hd.WagaDek) AS WagaDek,
+    CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
+    CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - AVG(hd.WagaDek)) AS roznica
+FROM 
+    [LibraNet].[dbo].[In0E] k
+JOIN 
+    [LibraNet].[dbo].[PartiaDostawca] Partia ON k.P1 = Partia.Partia
+LEFT JOIN 
+    [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
+LEFT JOIN 
+    [LibraNet].[dbo].[WstawieniaKurczakow] wk ON hd.LpW = wk.Lp
+WHERE 
+    k.ArticleID = 40 
+    AND k.QntInCont > 4
+GROUP BY 
+    k.CreateData, 
+    Partia.CustomerName
+ORDER BY 
+    k.CreateData DESC";
+
+
+            // Utworzenie połączenia z bazą danych
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                // Utworzenie adaptera danych
+                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
+
+                // Utworzenie tabeli danych
+                DataTable table = new DataTable();
+
+                // Wypełnienie tabeli danymi z adaptera
+                adapter.Fill(table);
+
+                // Ustawienie DataTable jako DataSource dla DataGridView
+                dataGridWagi.DataSource = table;
+
+                // Ustawienia kolumn
+                foreach (DataGridViewColumn column in dataGridWagi.Columns)
+                {
+                    // Automatyczne zawijanie tekstu w nagłówkach kolumn
+                    column.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
+                }
+
+                // Ręczne dodawanie szerokości kolumn i formatowanie jednostek
+                dataGridWagi.Columns["Data"].Width = 85;
+                dataGridWagi.Columns["RoznicaDni"].Width = 50;
+                dataGridWagi.Columns["RoznicaDni"].DefaultCellStyle.Format = "# 'dni'";
+
+                dataGridWagi.Columns["WagaDek"].Width = 60;
+                dataGridWagi.Columns["WagaDek"].DefaultCellStyle.Format = "#,##0.00 'kg'";
+
+                dataGridWagi.Columns["SredniaZywy"].Width = 60;
+                dataGridWagi.Columns["SredniaZywy"].DefaultCellStyle.Format = "#,##0.00 'kg'";
+
+                dataGridWagi.Columns["roznica"].Width = 50;
+                dataGridWagi.Columns["roznica"].DefaultCellStyle.Format = "#,##0.00 'kg'";
+                // Ustawienie wysokości wierszy na minimalną wartość
+                // Ustawienia DataGridView
+                dataGridWagi.RowHeadersVisible = false; // Usunięcie bocznego paska do zaznaczania wielu wierszy
+                dataGridWagi.RowTemplate.Height = 18; // Ustawienie wysokości wierszy na 18
+                dataGridWagi.DefaultCellStyle.Font = new Font("Arial", 8); // Zmniejszenie czcionki
+
+                // Ustawienie wysokości wierszy na minimalną wartość
+                dataGridWagi.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+                dataGridWagi.AllowUserToResizeRows = false;
+
+            }
+        }
+        private void ObliczSztuki1_TextChanged(object sender, EventArgs e)
+        {
+            ObliczSztuki(wyliczone1, ObliczSztuki1, sztuki1, liczbaAut1);
+        }
+
+        private void ObliczSztuki2_TextChanged(object sender, EventArgs e)
+        {
+            ObliczSztuki(wyliczone2, ObliczSztuki2, sztuki2, liczbaAut2);
+        }
+
+        private void checkBox5_CheckedChanged(object sender, EventArgs e)
+        {
+            WidocznoscWierszy(checkBox5, Data5, textDni5, RoznicaDni5, srednia5, sztukNaSzuflade5, ObliczSztuki5, liczbaAut5, sztuki5, obliczeniaAut5, KGwSkrzynce5, wyliczone5);
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            WidocznoscWierszy(checkBox1, Data1, textDni1, RoznicaDni1, srednia1, sztukNaSzuflade1, ObliczSztuki1, liczbaAut1, sztuki1, obliczeniaAut1, KGwSkrzynce1, wyliczone1);
+        }
+
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+            WidocznoscWierszy(checkBox2, Data2, textDni2, RoznicaDni2, srednia2, sztukNaSzuflade2, ObliczSztuki2, liczbaAut2, sztuki2, obliczeniaAut2, KGwSkrzynce2, wyliczone2);
+        }
+
+        private void checkBox3_CheckedChanged(object sender, EventArgs e)
+        {
+            WidocznoscWierszy(checkBox3, Data3, textDni3, RoznicaDni3, srednia3, sztukNaSzuflade3, ObliczSztuki3, liczbaAut3, sztuki3, obliczeniaAut3, KGwSkrzynce3, wyliczone3);
+        }
+
+        private void checkBox4_CheckedChanged(object sender, EventArgs e)
+        {
+            WidocznoscWierszy(checkBox4, Data4, textDni4, RoznicaDni4, srednia4, sztukNaSzuflade4, ObliczSztuki4, liczbaAut4, sztuki4, obliczeniaAut4, KGwSkrzynce4, wyliczone4);
+        }
+
+        private void ObliczSztuki3_TextChanged(object sender, EventArgs e)
+        {
+            ObliczSztuki(wyliczone3, ObliczSztuki3, sztuki3, liczbaAut3);
+        }
+
+        private void ObliczSztuki4_TextChanged(object sender, EventArgs e)
+        {
+            ObliczSztuki(wyliczone4, ObliczSztuki4, sztuki4, liczbaAut4);
+        }
+
+        private void ObliczSztuki5_TextChanged(object sender, EventArgs e)
+        {
+            ObliczSztuki(wyliczone5, ObliczSztuki5, sztuki5, liczbaAut5);
+        }
+
+        private void sztukNaSzuflade1_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade1, wyliczone1, obliczeniaAut1, sztuki1, srednia1, KGwSkrzynce1);
+        }
+        private void sztukNaSzuflade2_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade2, wyliczone2, obliczeniaAut2, sztuki2, srednia2, KGwSkrzynce2);
+        }
+
+        private void sztukNaSzuflade3_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade3, wyliczone3, obliczeniaAut3, sztuki3, srednia3, KGwSkrzynce3);
+        }
+
+        private void sztukNaSzuflade4_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade4, wyliczone4, obliczeniaAut4, sztuki4, srednia4, KGwSkrzynce4);
+        }
+
+        private void sztukNaSzuflade5_TextChanged(object sender, EventArgs e)
+        {
+            obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade5, wyliczone5, obliczeniaAut5, sztuki5, srednia5, KGwSkrzynce5);
         }
     }
 }
