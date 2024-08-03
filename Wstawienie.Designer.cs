@@ -176,13 +176,13 @@
             dataGridWagi = new System.Windows.Forms.DataGridView();
             sztukiRoznica = new System.Windows.Forms.TextBox();
             dataGridWstawien = new System.Windows.Forms.DataGridView();
-            button1 = new System.Windows.Forms.Button();
+            buttonWstawianie = new System.Windows.Forms.Button();
             button3 = new System.Windows.Forms.Button();
             button5 = new System.Windows.Forms.Button();
             button6 = new System.Windows.Forms.Button();
             button9 = new System.Windows.Forms.Button();
             button10 = new System.Windows.Forms.Button();
-            button11 = new System.Windows.Forms.Button();
+            buttonAnulowanie = new System.Windows.Forms.Button();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -1737,7 +1737,7 @@
             dataGridWagi.Location = new System.Drawing.Point(6, 419);
             dataGridWagi.Name = "dataGridWagi";
             dataGridWagi.RowTemplate.Height = 25;
-            dataGridWagi.Size = new System.Drawing.Size(397, 115);
+            dataGridWagi.Size = new System.Drawing.Size(459, 115);
             dataGridWagi.TabIndex = 162;
             // 
             // sztukiRoznica
@@ -1754,22 +1754,23 @@
             // dataGridWstawien
             // 
             dataGridWstawien.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridWstawien.Location = new System.Drawing.Point(409, 419);
+            dataGridWstawien.Location = new System.Drawing.Point(471, 419);
             dataGridWstawien.Name = "dataGridWstawien";
             dataGridWstawien.RowTemplate.Height = 25;
-            dataGridWstawien.Size = new System.Drawing.Size(226, 115);
+            dataGridWstawien.Size = new System.Drawing.Size(164, 115);
             dataGridWstawien.TabIndex = 164;
             // 
-            // button1
+            // buttonWstawianie
             // 
-            button1.BackColor = System.Drawing.Color.LightGreen;
-            button1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            button1.Location = new System.Drawing.Point(544, 372);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(91, 45);
-            button1.TabIndex = 165;
-            button1.Text = "Dodaj wstawienie";
-            button1.UseVisualStyleBackColor = false;
+            buttonWstawianie.BackColor = System.Drawing.Color.LightGreen;
+            buttonWstawianie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonWstawianie.Location = new System.Drawing.Point(544, 372);
+            buttonWstawianie.Name = "buttonWstawianie";
+            buttonWstawianie.Size = new System.Drawing.Size(91, 45);
+            buttonWstawianie.TabIndex = 165;
+            buttonWstawianie.Text = "Dodaj wstawienie";
+            buttonWstawianie.UseVisualStyleBackColor = false;
+            buttonWstawianie.Click += buttonWstawianie_Click;
             // 
             // button3
             // 
@@ -1821,28 +1822,28 @@
             button10.Text = "Wklej";
             button10.UseVisualStyleBackColor = false;
             // 
-            // button11
+            // buttonAnulowanie
             // 
-            button11.BackColor = System.Drawing.Color.Coral;
-            button11.Location = new System.Drawing.Point(486, 370);
-            button11.Name = "button11";
-            button11.Size = new System.Drawing.Size(52, 47);
-            button11.TabIndex = 171;
-            button11.Text = "Anuluj";
-            button11.UseVisualStyleBackColor = false;
+            buttonAnulowanie.BackColor = System.Drawing.Color.Coral;
+            buttonAnulowanie.Location = new System.Drawing.Point(486, 370);
+            buttonAnulowanie.Name = "buttonAnulowanie";
+            buttonAnulowanie.Size = new System.Drawing.Size(52, 47);
+            buttonAnulowanie.TabIndex = 171;
+            buttonAnulowanie.Text = "Anuluj";
+            buttonAnulowanie.UseVisualStyleBackColor = false;
             // 
             // Wstawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(643, 540);
-            Controls.Add(button11);
+            Controls.Add(buttonAnulowanie);
             Controls.Add(button10);
             Controls.Add(button9);
             Controls.Add(button6);
             Controls.Add(button5);
             Controls.Add(button3);
-            Controls.Add(button1);
+            Controls.Add(buttonWstawianie);
             Controls.Add(dataGridWstawien);
             Controls.Add(sztukiRoznica);
             Controls.Add(dataGridWagi);
@@ -2194,12 +2195,12 @@
         private System.Windows.Forms.DataGridView dataGridWagi;
         private System.Windows.Forms.TextBox sztukiRoznica;
         private System.Windows.Forms.DataGridView dataGridWstawien;
-        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button buttonWstawianie;
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Button button9;
         private System.Windows.Forms.Button button10;
-        private System.Windows.Forms.Button button11;
+        private System.Windows.Forms.Button buttonAnulowanie;
     }
 }
