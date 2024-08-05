@@ -183,6 +183,7 @@
             button9 = new System.Windows.Forms.Button();
             button10 = new System.Windows.Forms.Button();
             buttonAnulowanie = new System.Windows.Forms.Button();
+            label17 = new System.Windows.Forms.Label();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -951,7 +952,7 @@
             // label8
             // 
             label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(89, 173);
+            label8.Location = new System.Drawing.Point(91, 180);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(81, 27);
             label8.TabIndex = 18;
@@ -1458,7 +1459,7 @@
             // 
             // ObliczSztuki5
             // 
-            ObliczSztuki5.BackColor = System.Drawing.Color.FloralWhite;
+            ObliczSztuki5.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             ObliczSztuki5.Location = new System.Drawing.Point(307, 339);
             ObliczSztuki5.Name = "ObliczSztuki5";
@@ -1470,7 +1471,7 @@
             // 
             // ObliczSztuki4
             // 
-            ObliczSztuki4.BackColor = System.Drawing.Color.FloralWhite;
+            ObliczSztuki4.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             ObliczSztuki4.Location = new System.Drawing.Point(307, 308);
             ObliczSztuki4.Name = "ObliczSztuki4";
@@ -1482,7 +1483,7 @@
             // 
             // ObliczSztuki3
             // 
-            ObliczSztuki3.BackColor = System.Drawing.Color.FloralWhite;
+            ObliczSztuki3.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             ObliczSztuki3.Location = new System.Drawing.Point(307, 277);
             ObliczSztuki3.Name = "ObliczSztuki3";
@@ -1494,7 +1495,7 @@
             // 
             // ObliczSztuki1
             // 
-            ObliczSztuki1.BackColor = System.Drawing.Color.FloralWhite;
+            ObliczSztuki1.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             ObliczSztuki1.Location = new System.Drawing.Point(307, 215);
             ObliczSztuki1.Name = "ObliczSztuki1";
@@ -1506,7 +1507,7 @@
             // 
             // ObliczSztuki2
             // 
-            ObliczSztuki2.BackColor = System.Drawing.Color.FloralWhite;
+            ObliczSztuki2.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             ObliczSztuki2.Location = new System.Drawing.Point(307, 246);
             ObliczSztuki2.Name = "ObliczSztuki2";
@@ -1734,10 +1735,10 @@
             // dataGridWagi
             // 
             dataGridWagi.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridWagi.Location = new System.Drawing.Point(6, 419);
+            dataGridWagi.Location = new System.Drawing.Point(2, 419);
             dataGridWagi.Name = "dataGridWagi";
             dataGridWagi.RowTemplate.Height = 25;
-            dataGridWagi.Size = new System.Drawing.Size(459, 115);
+            dataGridWagi.Size = new System.Drawing.Size(345, 115);
             dataGridWagi.TabIndex = 162;
             // 
             // sztukiRoznica
@@ -1754,10 +1755,10 @@
             // dataGridWstawien
             // 
             dataGridWstawien.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridWstawien.Location = new System.Drawing.Point(471, 419);
+            dataGridWstawien.Location = new System.Drawing.Point(350, 419);
             dataGridWstawien.Name = "dataGridWstawien";
             dataGridWstawien.RowTemplate.Height = 25;
-            dataGridWstawien.Size = new System.Drawing.Size(164, 115);
+            dataGridWstawien.Size = new System.Drawing.Size(285, 115);
             dataGridWstawien.TabIndex = 164;
             // 
             // buttonWstawianie
@@ -1832,11 +1833,22 @@
             buttonAnulowanie.Text = "Anuluj";
             buttonAnulowanie.UseVisualStyleBackColor = false;
             // 
+            // label17
+            // 
+            label17.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label17.Location = new System.Drawing.Point(42, 180);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(43, 33);
+            label17.TabIndex = 172;
+            label17.Text = "Wpisz dobe";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // Wstawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(643, 540);
+            Controls.Add(label17);
             Controls.Add(buttonAnulowanie);
             Controls.Add(button10);
             Controls.Add(button9);
@@ -2202,5 +2214,6 @@
         private System.Windows.Forms.Button button9;
         private System.Windows.Forms.Button button10;
         private System.Windows.Forms.Button buttonAnulowanie;
+        private System.Windows.Forms.Label label17;
     }
 }

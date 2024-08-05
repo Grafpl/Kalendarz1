@@ -1921,5 +1921,10 @@ namespace Kalendarz1
             }
             MyCalendar_DateChanged_1(sender, null);
         }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+            MyCalendar_DateChanged_1(sender, null);
+        }
     }
 }

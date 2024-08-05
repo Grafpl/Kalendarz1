@@ -2369,6 +2369,7 @@ namespace Kalendarz1
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 129;
             pictureBox1.TabStop = false;
+            pictureBox1.Click += pictureBox1_Click;
             // 
             // WidokKalendarza
             // 

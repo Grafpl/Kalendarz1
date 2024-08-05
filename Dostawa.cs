@@ -463,10 +463,10 @@ namespace Kalendarz1
                     insertCmd.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(KmK.Text) ? (object)DBNull.Value : int.Parse(KmK.Text));
 
                     // Logika dotycząca typów umowy i ceny
-                    var isFreeMarket = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    var isFreeMarket = MessageBox.Show("Czy hodowca jest WOLNYM RYNKIEM?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (isFreeMarket == DialogResult.Yes)
                     {
-                        var isLoyalFreeMarket = MessageBox.Show("Czy jest naszym WIERNYM WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        var isLoyalFreeMarket = MessageBox.Show("Czy jest naszym WIERNYM WOLNYM RYNKIEM?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                         if (isLoyalFreeMarket == DialogResult.Yes)
                         {
                             insertCmd.Parameters.AddWithValue("@TypUmowy", "W.Wolnyrynek");
@@ -482,9 +482,8 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        var contractPrice = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                        if (contractPrice == DialogResult.No)
-                        {
+                        var contractPrice = MessageBox.Show("Czy hodowca jest KONTRAKTEM?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        
                             var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
                             var priceDialog = new Form();
                             var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
@@ -507,7 +506,7 @@ namespace Kalendarz1
                                 insertCmd.Parameters.AddWithValue("@TypCeny", selectedPrice);
                                 insertCmd.Parameters.AddWithValue("@Bufor", "B.Kontr.");
                             }
-                        }
+                       
                     }
 
                     // Wykonaj polecenie

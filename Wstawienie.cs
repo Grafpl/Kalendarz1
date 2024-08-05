@@ -542,10 +542,30 @@ namespace Kalendarz1
             string selectedDostawca = Dostawca.SelectedItem.ToString();
 
             // Zapytanie SQL
-            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS Data, IloscWstawienia " +
-                           "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
-                           "WHERE Dostawca = @Dostawca " +
-                           "ORDER BY DataWstawienia DESC";
+            string query = @"
+            WITH CTE AS (
+                SELECT 
+                    LP,
+                    Dostawca,
+                    DataWstawienia,
+                    CONVERT(varchar, DataWstawienia, 23) AS Data,
+                    IloscWstawienia,
+                    LAG(DataWstawienia) OVER (PARTITION BY Dostawca ORDER BY DataWstawienia ASC) AS PreviousDataWstawienia
+                FROM 
+                    [LibraNet].[dbo].[WstawieniaKurczakow]
+                WHERE 
+                    Dostawca = @Dostawca
+            )
+            SELECT
+                LP,
+                Dostawca,
+                Data,
+                IloscWstawienia,
+                DATEDIFF(day, PreviousDataWstawienia, DataWstawienia) AS Przerwa
+            FROM 
+                CTE
+            ORDER BY 
+                DataWstawienia DESC;";
 
             // Utworzenie połączenia z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionPermission))
@@ -577,6 +597,7 @@ namespace Kalendarz1
                 dataGridWstawien.Columns["Dostawca"].Visible = false;
                 dataGridWstawien.Columns["Data"].Width = 80;
                 dataGridWstawien.Columns["IloscWstawienia"].Width = 50;
+                dataGridWstawien.Columns["Przerwa"].Width = 35;
 
 
                 // Ukrycie nagłówków wierszy
@@ -923,8 +944,9 @@ ORDER BY
                     column.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
                 }
 
+                dataGridWagi.Columns["Dostawca"].Visible = false;
                 // Ręczne dodawanie szerokości kolumn i formatowanie jednostek
-                dataGridWagi.Columns["Data"].Width = 85;
+                dataGridWagi.Columns["Data"].Width = 80;
                 dataGridWagi.Columns["RoznicaDni"].Width = 50;
                 dataGridWagi.Columns["RoznicaDni"].DefaultCellStyle.Format = "# 'dni'";
 
@@ -1021,127 +1043,216 @@ ORDER BY
         {
             obliczenia.ZestawDoObliczaniaTransportuWstawien(sztukNaSzuflade5, wyliczone5, obliczeniaAut5, sztuki5, srednia5, KGwSkrzynce5);
         }
-
-        private void WstawianieDanych(
-            SqlConnection connection,
-            CheckBox checkBox,
-            ComboBox dostawca,
-            DateTimePicker dataOdbioru,
-            TextBox kmK,
-            TextBox kmH,
-            TextBox ubytek,
-            TextBox srednia,
-            TextBox sztuki,
-            TextBox sztukNaSzuflade,
-            TextBox liczbaAut,
-            TextBox uwagi)
+        private (string TypUmowy, string TypCeny, string Bufor) JakiTypKontraktu()
         {
             string TypUmowy = string.Empty;  // Zainicjalizowane jako pusty string
             string TypCeny = string.Empty;   // Zainicjalizowane jako pusty string
             string Bufor = string.Empty;     // Zainicjalizowane jako pusty string
 
-            connection.Open();
-
-            using (SqlTransaction transaction = connection.BeginTransaction())
+            var isFreeMarket = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (isFreeMarket == DialogResult.Yes)
             {
-                try
+                var isLoyalFreeMarket = MessageBox.Show("Czy jest naszym WIERNYM WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (isLoyalFreeMarket == DialogResult.Yes)
                 {
-                    long maxLP;
-                    string maxLPSql = "SELECT MAX(Lp) AS MaxLP FROM dbo.WstawieniaKurczakow;";
-                    using (SqlCommand command = new SqlCommand(maxLPSql, connection, transaction))
+                    TypUmowy = "W.Wolnyrynek";
+                    TypCeny = "wolnyrynek";
+                    Bufor = "B.Wolny.";
+                }
+                else
+                {
+                    TypUmowy = "Wolnyrynek";
+                    TypCeny = "wolnyrynek";
+                    Bufor = "Do wykupienia";
+                }
+            }
+            else
+            {
+                
+                    var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
+                    var priceDialog = new Form();
+                    var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
+                    priceDialog.Controls.Add(layout);
+
+                    foreach (var option in priceOptions)
                     {
-                        object result = command.ExecuteScalar();
-                        maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                        var button = new Button() { Text = option, Tag = option };
+                        button.Click += (s, ea) => { priceDialog.Tag = option; priceDialog.DialogResult = DialogResult.OK; };
+                        layout.Controls.Add(button);
                     }
 
-                    var isFreeMarket = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (isFreeMarket == DialogResult.Yes)
+                    priceDialog.ShowDialog();
+
+                    var selectedPrice = priceDialog.Tag as string;
+
+                    if (!string.IsNullOrEmpty(selectedPrice))
                     {
-                        var isLoyalFreeMarket = MessageBox.Show("Czy jest naszym WIERNYM WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                        if (isLoyalFreeMarket == DialogResult.Yes)
+                        TypUmowy = "Kontrakt";
+                        TypCeny = selectedPrice;
+                        Bufor = "B.Kontr.";
+                    }
+                
+            }
+
+            return (TypUmowy, TypCeny, Bufor);
+        }
+
+        private long WstawianieWstawienia(
+    SqlConnection connection,
+    ComboBox dostawca,
+    DateTimePicker dataWstawienia,
+    TextBox sztukiWstawienia,
+    TextBox uwagi,
+    String TypUmowy,
+    String TypCeny)
+        {
+            long maxLP = 0;
+
+            try
+            {
+                connection.Open();
+
+                using (SqlTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        string maxLPSql = "SELECT MAX(Lp) AS MaxLP FROM dbo.WstawieniaKurczakow;";
+                        using (SqlCommand command = new SqlCommand(maxLPSql, connection, transaction))
                         {
-                            TypUmowy = "W.Wolnyrynek";
-                            TypCeny = "wolnyrynek";
-                            Bufor = "B.Wolny.";
+                            object result = command.ExecuteScalar();
+                            maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                        }
+
+                        if (dostawca.SelectedItem != null)
+                        {
+                            string insertDostawaSql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny) 
+                                            VALUES (@MaxLP, @Dostawca, @DataWstawienia, @IloscWstawienia, @DataUtw, @KtoStwo, @Uwagi, @TypUmowy, @TypCeny)";
+                            using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@MaxLP", maxLP);
+                                command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
+                                command.Parameters.AddWithValue("@DataWstawienia", dataWstawienia.Value);
+                                command.Parameters.AddWithValue("@IloscWstawienia", string.IsNullOrEmpty(sztukiWstawienia.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukiWstawienia.Text));
+                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);
+                                command.Parameters.AddWithValue("@KtoStwo", UserID);  // Upewnij się, że UserID jest zdefiniowane
+                                command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
+                                command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
+                                command.Parameters.AddWithValue("@TypCeny", TypCeny);
+                                command.ExecuteNonQuery();
+                            }
                         }
                         else
                         {
-                            TypUmowy = "Wolnyrynek";
-                            TypCeny = "wolnyrynek";
-                            Bufor = "Do wykupienia";
+                            throw new InvalidOperationException("Dostawca nie został wybrany.");
                         }
+
+                        transaction.Commit();
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        var contractPrice = MessageBox.Show("Czy hodowca jest WolnymRynkiem?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                        if (contractPrice == DialogResult.No)
-                        {
-                            var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
-                            var priceDialog = new Form();
-                            var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
-                            priceDialog.Controls.Add(layout);
-
-                            foreach (var option in priceOptions)
-                            {
-                                var button = new Button() { Text = option, Tag = option };
-                                button.Click += (s, ea) => { priceDialog.Tag = option; priceDialog.DialogResult = DialogResult.OK; };
-                                layout.Controls.Add(button);
-                            }
-
-                            priceDialog.ShowDialog();
-
-                            var selectedPrice = priceDialog.Tag as string;
-
-                            if (!string.IsNullOrEmpty(selectedPrice))
-                            {
-                                TypUmowy = "Kontrakt";
-                                TypCeny = selectedPrice;
-                                Bufor = "B.Kontr.";
-                            }
-                        }
+                        transaction.Rollback();
+                        MessageBox.Show("Wystąpił błąd: " + ex.Message);
                     }
-
-                    if (checkBox.Checked)
-                    {
-                        long maxLP2;
-                        string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
-                        using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
-                        {
-                            object result = command.ExecuteScalar();
-                            maxLP2 = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
-                        }
-
-                        string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw) 
-                                            VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw)";
-                        using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
-                        {
-                            command.Parameters.AddWithValue("@MaxLP2", maxLP2);
-                            command.Parameters.AddWithValue("@MaxLP", maxLP);
-                            command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
-                            command.Parameters.AddWithValue("@DataOdbioru", dataOdbioru.Value);
-                            command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK.Text) ? (object)DBNull.Value : kmK.Text);
-                            command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH.Text) ? (object)DBNull.Value : kmH.Text);
-                            command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(ubytek.Text));
-                            command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : (object)Convert.ToDecimal(srednia.Text));
-                            command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztuki.Text));
-                            command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
-                            command.Parameters.AddWithValue("@Status", Bufor);
-                            command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(sztukNaSzuflade.Text));
-                            command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : (object)Convert.ToInt32(liczbaAut.Text));
-                            command.Parameters.AddWithValue("@TypCeny", TypCeny);
-                            command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
-                            command.Parameters.AddWithValue("@DataUtw", DateTime.Now);  // Użyj bieżącej daty i czasu
-                            command.ExecuteNonQuery();
-                        }
-                    }
-
-                    transaction.Commit();
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message);
+            }
+            finally
+            {
+                connection.Close();
+            }
+
+            return maxLP;
+        }
+
+
+
+        private void WstawianieDanych(
+    SqlConnection connection,
+    CheckBox checkBox,
+    ComboBox dostawca,
+    DateTimePicker dataOdbioru,
+    TextBox kmK,
+    TextBox kmH,
+    TextBox ubytek,
+    TextBox srednia,
+    TextBox sztuki,
+    TextBox sztukNaSzuflade,
+    TextBox liczbaAut,
+    TextBox uwagi,
+    String TypUmowy,
+    String TypCeny,
+    String Bufor,
+    long LpW)
+        {
+            try
+            {
+                connection.Open();
+
+                using (SqlTransaction transaction = connection.BeginTransaction())
                 {
-                    transaction.Rollback();
-                    MessageBox.Show("Wystąpił błąd: " + ex.Message);
+                    try
+                    {
+
+                      
+                           long maxLP2;
+                            string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
+                            using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
+                            {
+                                object result = command.ExecuteScalar();
+                                maxLP2 = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                            }
+
+                            if (dostawca.SelectedItem != null)
+                            {
+                                string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo) 
+                                            VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw, @KtoStwo)";
+                                using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@MaxLP2", maxLP2);
+                                    command.Parameters.AddWithValue("@MaxLP", LpW);
+                                    command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
+                                    command.Parameters.AddWithValue("@DataOdbioru", dataOdbioru.Value);
+                                    command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK.Text) ? (object)DBNull.Value : kmK.Text);
+                                    command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH.Text) ? (object)DBNull.Value : kmH.Text);
+                                    command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek.Text) ? (object)DBNull.Value : Convert.ToDecimal(ubytek.Text));
+                                    command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : Convert.ToDecimal(srednia.Text));
+                                    command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : Convert.ToInt32(sztuki.Text));
+                                    command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
+                                    command.Parameters.AddWithValue("@Status", Bufor);
+                                    command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukNaSzuflade.Text));
+                                    command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
+                                    command.Parameters.AddWithValue("@TypCeny", TypCeny);
+                                    command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
+                                    command.Parameters.AddWithValue("@DataUtw", DateTime.Now);  // Użyj bieżącej daty i czasu
+                                    command.Parameters.AddWithValue("@KtoStwo", UserID);  // Użyj bieżącej daty i czasu
+                                    command.ExecuteNonQuery();
+                                }
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Dostawca nie został wybrany.");
+                            }
+                        
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        MessageBox.Show("Wystąpił błąd: " + ex.Message);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message);
+            }
+            finally
+            {
+                connection.Close();
             }
         }
 
@@ -1149,9 +1260,26 @@ ORDER BY
 
         private void buttonWstawianie_Click(object sender, EventArgs e)
         {
+
+            var contractDetails = JakiTypKontraktu();
+
+            string TypUmowy = contractDetails.TypUmowy;
+            string TypCeny = contractDetails.TypCeny;
+            string Bufor = contractDetails.Bufor;
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
-                WstawianieDanych(
+                long LpW = WstawianieWstawienia(
+                     connection,
+                     Dostawca,
+                     dataWstawienia,
+                     sztukiWstawienia,
+                     uwagi,
+                     TypUmowy,
+                     TypCeny);
+
+                if (checkBox1.Checked)
+                {
+                    WstawianieDanych(
                     connection,
                     checkBox1,
                     Dostawca,
@@ -1163,9 +1291,105 @@ ORDER BY
                     sztuki1,
                     sztukNaSzuflade1,
                     liczbaAut1,
-                    uwagi
+                    uwagi,
+                    TypUmowy,
+                    TypCeny,
+                    Bufor,
+                    LpW
                 );
+                }
+                if (checkBox2.Checked)
+                {
+                    WstawianieDanych(
+                    connection,
+                    checkBox2,
+                    Dostawca,
+                    Data2,
+                    KmK,
+                    KmH,
+                    Ubytek,
+                    srednia2,
+                    sztuki2,
+                    sztukNaSzuflade2,
+                    liczbaAut2,
+                    uwagi,
+                    TypUmowy,
+                    TypCeny,
+                    Bufor,
+                    LpW
+
+                );
+                }
+                if (checkBox3.Checked)
+                {
+                    WstawianieDanych(
+                    connection,
+                    checkBox3,
+                    Dostawca,
+                    Data3,
+                    KmK,
+                    KmH,
+                    Ubytek,
+                    srednia3,
+                    sztuki3,
+                    sztukNaSzuflade3,
+                    liczbaAut3,
+                    uwagi,
+                    TypUmowy,
+                    TypCeny,
+                    Bufor,
+                    LpW
+                );
+                }
+                if (checkBox4.Checked)
+                {
+                    WstawianieDanych(
+                    connection,
+                    checkBox4,
+                    Dostawca,
+                    Data4,
+                    KmK,
+                    KmH,
+                    Ubytek,
+                    srednia4,
+                    sztuki4,
+                    sztukNaSzuflade4,
+                    liczbaAut4,
+                    uwagi,
+                    TypUmowy,
+                    TypCeny,
+                    Bufor,
+                    LpW
+                );
+                }
+                if (checkBox5.Checked)
+                {
+                    WstawianieDanych(
+                    connection,
+                    checkBox5,
+                    Dostawca,
+                    Data5,
+                    KmK,
+                    KmH,
+                    Ubytek,
+                    srednia5,
+                    sztuki5,
+                    sztukNaSzuflade5,
+                    liczbaAut5,
+                    uwagi,
+                    TypUmowy,
+                    TypCeny,
+                    Bufor,
+                    LpW
+                );
+                }
+
             }
+
+
+
+
+
         }
 
     }
