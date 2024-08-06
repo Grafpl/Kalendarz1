@@ -59,7 +59,7 @@ namespace Kalendarz1
             }
         }
 
-        private void WidocznoscWierszy(CheckBox checkBox, DateTimePicker dateTimePicker, params TextBox[] textBoxes)
+        private void WidocznoscWierszy(CheckBox checkBox, DateTimePicker dateTimePicker, Button Wklej, params TextBox[] textBoxes)
         {
             bool isVisible = checkBox.Checked;
 
@@ -71,6 +71,7 @@ namespace Kalendarz1
 
             // Ustaw widoczność dla DateTimePicker
             dateTimePicker.Visible = isVisible;
+            Wklej.Visible = isVisible;
         }
         private void srednia1_TextChanged(object sender, EventArgs e)
         {
@@ -135,27 +136,25 @@ namespace Kalendarz1
                 // Ustawienie wyniku sumy w szóstym TextBoxie
                 textBoxesSumy[5].Text = sum.ToString("N0"); // Użycie formatu z separatorem tysięcy
 
-                // Odejmowanie wartości z siódmego TextBoxa od sumy
+                // Odejmowanie wartości z sumy od wartości w siódmym TextBoxie
                 if (string.IsNullOrWhiteSpace(textBoxesSumy[6].Text))
                 {
                     textBoxesSumy[7].Text = sum.ToString("N0"); // Jeśli wartość w SztukiUpadki jest pusta, wynikiem jest suma
                 }
                 else if (double.TryParse(textBoxesSumy[6].Text, out double upadkiValue))
                 {
-                    double result = sum - upadkiValue;
-                    // Ustawienie wyniku odejmowania w ósmym TextBoxie
+                    double result = upadkiValue - sum; // Zmienione odejmowanie: upadki - sum
+                                                       // Ustawienie wyniku odejmowania w ósmym TextBoxie
                     textBoxesSumy[7].Text = result.ToString("N0"); // Użycie formatu z separatorem tysięcy
                 }
-                else
-                {
-                    textBoxesSumy[7].Text = ""; // Jeśli wartość w SztukiUpadki nie jest poprawna, wyczyść pole wynikowe
-                }
+
             }
             catch (FormatException)
             {
                 MessageBox.Show("Proszę wprowadzić poprawne liczby we wszystkich TextBoxach.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         private void sztuki1_TextChanged(object sender, EventArgs e)
         {
@@ -454,6 +453,9 @@ namespace Kalendarz1
                 FormatujWierszeZgodnieZStatus(i);
             }
             SetRowHeights(18);
+            pictureBox1.Visible = true;
+            sztukiWstawienia.Visible = true;
+            SztukiUpadki.Visible = true;
         }
 
         private void SetRowHeights(int height)
@@ -516,6 +518,7 @@ namespace Kalendarz1
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
             DisplayDataInDataGridView();
             PokazWstawienia();
+            PokazWstawienia();
             // Pobierz wybrany element z ComboBox
             string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim().ToLower() ?? "";
 
@@ -535,6 +538,9 @@ namespace Kalendarz1
                     }
                 }
             }
+            pictureBox29.Visible = true;
+            dataWstawienia.Visible = true;
+            LiczbaDniWstawienia.Visible = true;
         }
         private void PokazWstawienia()
         {
@@ -811,19 +817,22 @@ namespace Kalendarz1
             if (decimal.TryParse(inputTextBox.Text, out decimal value))
             {
                 decimal result = value * 0.97m;
-                resultTextBox.Text = result.ToString("F0");
+                resultTextBox.Text = result.ToString("N0"); // Formatowanie z separatorem tysięcy
             }
             else
             {
-
+                // Obsługa przypadku, gdy konwersja nie powiedzie się
+                resultTextBox.Text = "Błędna wartość";
             }
         }
+
 
 
         private void sztukiWstawienia_TextChanged(object sender, EventArgs e)
         {
             Oblicz3ProcentUpadkow(sztukiWstawienia, SztukiUpadki);
             ObliczSumeSztuk(sztuki1, sztuki2, sztuki3, sztuki4, sztuki5, sztukiSuma, SztukiUpadki, sztukiRoznica);
+            groupBox2.Visible = true;
         }
 
         private void MiejscK_TextChanged(object sender, EventArgs e)
@@ -897,29 +906,29 @@ namespace Kalendarz1
         {
             // Zapytanie SQL
             string query = @"
-SELECT 
-    k.CreateData AS Data,
-    Partia.CustomerName AS Dostawca,
-    DATEDIFF(day, MIN(wk.DataWstawienia), MAX(hd.DataOdbioru)) AS RoznicaDni,
-    AVG(hd.WagaDek) AS WagaDek,
-    CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
-    CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - AVG(hd.WagaDek)) AS roznica
-FROM 
-    [LibraNet].[dbo].[In0E] k
-JOIN 
-    [LibraNet].[dbo].[PartiaDostawca] Partia ON k.P1 = Partia.Partia
-LEFT JOIN 
-    [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
-LEFT JOIN 
-    [LibraNet].[dbo].[WstawieniaKurczakow] wk ON hd.LpW = wk.Lp
-WHERE 
-    k.ArticleID = 40 
-    AND k.QntInCont > 4
-GROUP BY 
-    k.CreateData, 
-    Partia.CustomerName
-ORDER BY 
-    k.CreateData DESC";
+            SELECT 
+                k.CreateData AS Data,
+                Partia.CustomerName AS Dostawca,
+                DATEDIFF(day, MIN(wk.DataWstawienia), MAX(hd.DataOdbioru)) AS RoznicaDni,
+                AVG(hd.WagaDek) AS WagaDek,
+                CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
+                CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - AVG(hd.WagaDek)) AS roznica
+            FROM 
+                [LibraNet].[dbo].[In0E] k
+            JOIN 
+                [LibraNet].[dbo].[PartiaDostawca] Partia ON k.P1 = Partia.Partia
+            LEFT JOIN 
+                [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
+            LEFT JOIN 
+                [LibraNet].[dbo].[WstawieniaKurczakow] wk ON hd.LpW = wk.Lp
+            WHERE 
+                k.ArticleID = 40 
+                AND k.QntInCont > 4
+            GROUP BY 
+                k.CreateData, 
+                Partia.CustomerName
+            ORDER BY 
+                k.CreateData DESC";
 
 
             // Utworzenie połączenia z bazą danych
@@ -982,27 +991,27 @@ ORDER BY
 
         private void checkBox5_CheckedChanged(object sender, EventArgs e)
         {
-            WidocznoscWierszy(checkBox5, Data5, textDni5, RoznicaDni5, srednia5, sztukNaSzuflade5, ObliczSztuki5, liczbaAut5, sztuki5, obliczeniaAut5, KGwSkrzynce5, wyliczone5);
+            WidocznoscWierszy(checkBox5, Data5, Wklej5, textDni5, RoznicaDni5, srednia5, sztukNaSzuflade5, ObliczSztuki5, liczbaAut5, sztuki5, obliczeniaAut5, KGwSkrzynce5, wyliczone5);
         }
 
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
-            WidocznoscWierszy(checkBox1, Data1, textDni1, RoznicaDni1, srednia1, sztukNaSzuflade1, ObliczSztuki1, liczbaAut1, sztuki1, obliczeniaAut1, KGwSkrzynce1, wyliczone1);
+            WidocznoscWierszy(checkBox1, Data1, Wklej1, textDni1, RoznicaDni1, srednia1, sztukNaSzuflade1, ObliczSztuki1, liczbaAut1, sztuki1, obliczeniaAut1, KGwSkrzynce1, wyliczone1);
         }
 
         private void checkBox2_CheckedChanged(object sender, EventArgs e)
         {
-            WidocznoscWierszy(checkBox2, Data2, textDni2, RoznicaDni2, srednia2, sztukNaSzuflade2, ObliczSztuki2, liczbaAut2, sztuki2, obliczeniaAut2, KGwSkrzynce2, wyliczone2);
+            WidocznoscWierszy(checkBox2, Data2, Wklej2, textDni2, RoznicaDni2, srednia2, sztukNaSzuflade2, ObliczSztuki2, liczbaAut2, sztuki2, obliczeniaAut2, KGwSkrzynce2, wyliczone2);
         }
 
         private void checkBox3_CheckedChanged(object sender, EventArgs e)
         {
-            WidocznoscWierszy(checkBox3, Data3, textDni3, RoznicaDni3, srednia3, sztukNaSzuflade3, ObliczSztuki3, liczbaAut3, sztuki3, obliczeniaAut3, KGwSkrzynce3, wyliczone3);
+            WidocznoscWierszy(checkBox3, Data3, Wklej3, textDni3, RoznicaDni3, srednia3, sztukNaSzuflade3, ObliczSztuki3, liczbaAut3, sztuki3, obliczeniaAut3, KGwSkrzynce3, wyliczone3);
         }
 
         private void checkBox4_CheckedChanged(object sender, EventArgs e)
         {
-            WidocznoscWierszy(checkBox4, Data4, textDni4, RoznicaDni4, srednia4, sztukNaSzuflade4, ObliczSztuki4, liczbaAut4, sztuki4, obliczeniaAut4, KGwSkrzynce4, wyliczone4);
+            WidocznoscWierszy(checkBox4, Data4, Wklej4, textDni4, RoznicaDni4, srednia4, sztukNaSzuflade4, ObliczSztuki4, liczbaAut4, sztuki4, obliczeniaAut4, KGwSkrzynce4, wyliczone4);
         }
 
         private void ObliczSztuki3_TextChanged(object sender, EventArgs e)
@@ -1068,30 +1077,30 @@ ORDER BY
             }
             else
             {
-                
-                    var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
-                    var priceDialog = new Form();
-                    var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
-                    priceDialog.Controls.Add(layout);
 
-                    foreach (var option in priceOptions)
-                    {
-                        var button = new Button() { Text = option, Tag = option };
-                        button.Click += (s, ea) => { priceDialog.Tag = option; priceDialog.DialogResult = DialogResult.OK; };
-                        layout.Controls.Add(button);
-                    }
+                var priceOptions = new string[] { "łączona", "rolnicza", "wolnyrynek", "ministerialna" };
+                var priceDialog = new Form();
+                var layout = new FlowLayoutPanel() { Dock = DockStyle.Fill };
+                priceDialog.Controls.Add(layout);
 
-                    priceDialog.ShowDialog();
+                foreach (var option in priceOptions)
+                {
+                    var button = new Button() { Text = option, Tag = option };
+                    button.Click += (s, ea) => { priceDialog.Tag = option; priceDialog.DialogResult = DialogResult.OK; };
+                    layout.Controls.Add(button);
+                }
 
-                    var selectedPrice = priceDialog.Tag as string;
+                priceDialog.ShowDialog();
 
-                    if (!string.IsNullOrEmpty(selectedPrice))
-                    {
-                        TypUmowy = "Kontrakt";
-                        TypCeny = selectedPrice;
-                        Bufor = "B.Kontr.";
-                    }
-                
+                var selectedPrice = priceDialog.Tag as string;
+
+                if (!string.IsNullOrEmpty(selectedPrice))
+                {
+                    TypUmowy = "Kontrakt";
+                    TypCeny = selectedPrice;
+                    Bufor = "B.Kontr.";
+                }
+
             }
 
             return (TypUmowy, TypCeny, Bufor);
@@ -1196,46 +1205,46 @@ ORDER BY
                     try
                     {
 
-                      
-                           long maxLP2;
-                            string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
-                            using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
-                            {
-                                object result = command.ExecuteScalar();
-                                maxLP2 = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
-                            }
 
-                            if (dostawca.SelectedItem != null)
-                            {
-                                string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo) 
+                        long maxLP2;
+                        string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
+                        using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
+                        {
+                            object result = command.ExecuteScalar();
+                            maxLP2 = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                        }
+
+                        if (dostawca.SelectedItem != null)
+                        {
+                            string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo) 
                                             VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw, @KtoStwo)";
-                                using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@MaxLP2", maxLP2);
-                                    command.Parameters.AddWithValue("@MaxLP", LpW);
-                                    command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
-                                    command.Parameters.AddWithValue("@DataOdbioru", dataOdbioru.Value);
-                                    command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK.Text) ? (object)DBNull.Value : kmK.Text);
-                                    command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH.Text) ? (object)DBNull.Value : kmH.Text);
-                                    command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek.Text) ? (object)DBNull.Value : Convert.ToDecimal(ubytek.Text));
-                                    command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : Convert.ToDecimal(srednia.Text));
-                                    command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : Convert.ToInt32(sztuki.Text));
-                                    command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
-                                    command.Parameters.AddWithValue("@Status", Bufor);
-                                    command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukNaSzuflade.Text));
-                                    command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
-                                    command.Parameters.AddWithValue("@TypCeny", TypCeny);
-                                    command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
-                                    command.Parameters.AddWithValue("@DataUtw", DateTime.Now);  // Użyj bieżącej daty i czasu
-                                    command.Parameters.AddWithValue("@KtoStwo", UserID);  // Użyj bieżącej daty i czasu
-                                    command.ExecuteNonQuery();
-                                }
-                            }
-                            else
+                            using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
                             {
-                                throw new InvalidOperationException("Dostawca nie został wybrany.");
+                                command.Parameters.AddWithValue("@MaxLP2", maxLP2);
+                                command.Parameters.AddWithValue("@MaxLP", LpW);
+                                command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
+                                command.Parameters.AddWithValue("@DataOdbioru", dataOdbioru.Value);
+                                command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK.Text) ? (object)DBNull.Value : kmK.Text);
+                                command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH.Text) ? (object)DBNull.Value : kmH.Text);
+                                command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek.Text) ? (object)DBNull.Value : Convert.ToDecimal(ubytek.Text));
+                                command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : Convert.ToDecimal(srednia.Text));
+                                command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : Convert.ToInt32(sztuki.Text));
+                                command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
+                                command.Parameters.AddWithValue("@Status", Bufor);
+                                command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukNaSzuflade.Text));
+                                command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
+                                command.Parameters.AddWithValue("@TypCeny", TypCeny);
+                                command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
+                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);  // Użyj bieżącej daty i czasu
+                                command.Parameters.AddWithValue("@KtoStwo", UserID);  // Użyj bieżącej daty i czasu
+                                command.ExecuteNonQuery();
                             }
-                        
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("Dostawca nie został wybrany.");
+                        }
+
 
                         transaction.Commit();
                     }
@@ -1391,6 +1400,41 @@ ORDER BY
 
 
         }
+        private void buttonWklej(TextBox Sztuki, TextBox sztukiRoznica)
+        {
+            if (double.TryParse(sztukiRoznica.Text, System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.CurrentCulture, out double value))
+            {
+                Sztuki.Text = value.ToString();
+            }
+            else
+            {
+                Sztuki.Text = sztukiRoznica.Text; // Preserve the original text if it can't be parsed
+            }
+        }
 
+        private void Wklej1_Click(object sender, EventArgs e)
+        {
+            buttonWklej(sztuki1, sztukiRoznica);
+        }
+
+        private void Wklej2_Click(object sender, EventArgs e)
+        {
+            buttonWklej(sztuki2, sztukiRoznica);
+        }
+
+        private void Wklej3_Click(object sender, EventArgs e)
+        {
+            buttonWklej(sztuki3, sztukiRoznica);
+        }
+
+        private void Wklej4_Click(object sender, EventArgs e)
+        {
+            buttonWklej(sztuki4, sztukiRoznica);
+        }
+
+        private void Wklej5_Click(object sender, EventArgs e)
+        {
+            buttonWklej(sztuki5, sztukiRoznica);
+        }
     }
 }

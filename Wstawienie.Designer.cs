@@ -30,6 +30,7 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Wstawienie));
             groupBox1 = new System.Windows.Forms.GroupBox();
+            LiczbaDniWstawienia = new System.Windows.Forms.TextBox();
             SztukiUpadki = new System.Windows.Forms.TextBox();
             pictureBox29 = new System.Windows.Forms.PictureBox();
             pictureBox6 = new System.Windows.Forms.PictureBox();
@@ -177,13 +178,14 @@
             sztukiRoznica = new System.Windows.Forms.TextBox();
             dataGridWstawien = new System.Windows.Forms.DataGridView();
             buttonWstawianie = new System.Windows.Forms.Button();
-            button3 = new System.Windows.Forms.Button();
-            button5 = new System.Windows.Forms.Button();
-            button6 = new System.Windows.Forms.Button();
-            button9 = new System.Windows.Forms.Button();
-            button10 = new System.Windows.Forms.Button();
+            Wklej1 = new System.Windows.Forms.Button();
+            Wklej2 = new System.Windows.Forms.Button();
+            Wklej3 = new System.Windows.Forms.Button();
+            Wklej4 = new System.Windows.Forms.Button();
+            Wklej5 = new System.Windows.Forms.Button();
             buttonAnulowanie = new System.Windows.Forms.Button();
             label17 = new System.Windows.Forms.Label();
+            groupBox2 = new System.Windows.Forms.GroupBox();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -201,12 +203,14 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox30).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridWagi).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridWstawien).BeginInit();
+            groupBox2.SuspendLayout();
             SuspendLayout();
             // 
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.ButtonFace;
             groupBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
+            groupBox1.Controls.Add(LiczbaDniWstawienia);
             groupBox1.Controls.Add(SztukiUpadki);
             groupBox1.Controls.Add(pictureBox29);
             groupBox1.Controls.Add(pictureBox6);
@@ -215,7 +219,7 @@
             groupBox1.Controls.Add(Dostawca);
             groupBox1.Controls.Add(sztukiWstawienia);
             groupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-            groupBox1.Location = new System.Drawing.Point(0, -1);
+            groupBox1.Location = new System.Drawing.Point(12, 7);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new System.Drawing.Size(655, 150);
             groupBox1.TabIndex = 25;
@@ -223,9 +227,20 @@
             groupBox1.Text = "Sekcja ogólna :";
             groupBox1.Enter += groupBox1_Enter;
             // 
+            // LiczbaDniWstawienia
+            // 
+            LiczbaDniWstawienia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            LiczbaDniWstawienia.Location = new System.Drawing.Point(367, 113);
+            LiczbaDniWstawienia.Multiline = true;
+            LiczbaDniWstawienia.Name = "LiczbaDniWstawienia";
+            LiczbaDniWstawienia.Size = new System.Drawing.Size(41, 23);
+            LiczbaDniWstawienia.TabIndex = 124;
+            LiczbaDniWstawienia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            LiczbaDniWstawienia.Visible = false;
+            // 
             // SztukiUpadki
             // 
-            SztukiUpadki.BackColor = System.Drawing.SystemColors.Window;
+            SztukiUpadki.BackColor = System.Drawing.Color.Moccasin;
             SztukiUpadki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             SztukiUpadki.Location = new System.Drawing.Point(534, 112);
             SztukiUpadki.Multiline = true;
@@ -233,6 +248,7 @@
             SztukiUpadki.Size = new System.Drawing.Size(99, 28);
             SztukiUpadki.TabIndex = 123;
             SztukiUpadki.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            SztukiUpadki.Visible = false;
             // 
             // pictureBox29
             // 
@@ -243,6 +259,7 @@
             pictureBox29.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox29.TabIndex = 122;
             pictureBox29.TabStop = false;
+            pictureBox29.Visible = false;
             // 
             // pictureBox6
             // 
@@ -263,6 +280,7 @@
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 117;
             pictureBox1.TabStop = false;
+            pictureBox1.Visible = false;
             // 
             // dataWstawienia
             // 
@@ -271,8 +289,9 @@
             dataWstawienia.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
             dataWstawienia.Location = new System.Drawing.Point(218, 112);
             dataWstawienia.Name = "dataWstawienia";
-            dataWstawienia.Size = new System.Drawing.Size(206, 23);
+            dataWstawienia.Size = new System.Drawing.Size(143, 23);
             dataWstawienia.TabIndex = 5;
+            dataWstawienia.Visible = false;
             dataWstawienia.ValueChanged += dataWstawienia_ValueChanged;
             // 
             // Dostawca
@@ -298,6 +317,7 @@
             sztukiWstawienia.Size = new System.Drawing.Size(99, 28);
             sztukiWstawienia.TabIndex = 6;
             sztukiWstawienia.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            sztukiWstawienia.Visible = false;
             sztukiWstawienia.TextChanged += sztukiWstawienia_TextChanged;
             // 
             // Ubytek
@@ -315,7 +335,7 @@
             // pictureBox9
             // 
             pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
-            pictureBox9.Location = new System.Drawing.Point(661, 508);
+            pictureBox9.Location = new System.Drawing.Point(842, 486);
             pictureBox9.Name = "pictureBox9";
             pictureBox9.Size = new System.Drawing.Size(207, 86);
             pictureBox9.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -325,7 +345,7 @@
             // pictureBox4
             // 
             pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
-            pictureBox4.Location = new System.Drawing.Point(609, 595);
+            pictureBox4.Location = new System.Drawing.Point(790, 573);
             pictureBox4.Name = "pictureBox4";
             pictureBox4.Size = new System.Drawing.Size(206, 86);
             pictureBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -336,7 +356,7 @@
             // 
             sztukiSuma.BackColor = System.Drawing.Color.Moccasin;
             sztukiSuma.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukiSuma.Location = new System.Drawing.Point(346, 367);
+            sztukiSuma.Location = new System.Drawing.Point(351, 239);
             sztukiSuma.Multiline = true;
             sztukiSuma.Name = "sztukiSuma";
             sztukiSuma.Size = new System.Drawing.Size(57, 23);
@@ -346,7 +366,7 @@
             // textDni3
             // 
             textDni3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textDni3.Location = new System.Drawing.Point(45, 278);
+            textDni3.Location = new System.Drawing.Point(50, 150);
             textDni3.Multiline = true;
             textDni3.Name = "textDni3";
             textDni3.Size = new System.Drawing.Size(35, 21);
@@ -358,7 +378,7 @@
             // textDni1
             // 
             textDni1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textDni1.Location = new System.Drawing.Point(45, 217);
+            textDni1.Location = new System.Drawing.Point(50, 89);
             textDni1.Multiline = true;
             textDni1.Name = "textDni1";
             textDni1.Size = new System.Drawing.Size(35, 23);
@@ -370,7 +390,7 @@
             // textDni2
             // 
             textDni2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textDni2.Location = new System.Drawing.Point(45, 248);
+            textDni2.Location = new System.Drawing.Point(50, 120);
             textDni2.Multiline = true;
             textDni2.Name = "textDni2";
             textDni2.Size = new System.Drawing.Size(35, 23);
@@ -382,7 +402,7 @@
             // textDni4
             // 
             textDni4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textDni4.Location = new System.Drawing.Point(45, 306);
+            textDni4.Location = new System.Drawing.Point(50, 178);
             textDni4.Multiline = true;
             textDni4.Name = "textDni4";
             textDni4.Size = new System.Drawing.Size(35, 23);
@@ -599,7 +619,7 @@
             // 
             Data5.CustomFormat = "yyyy-MM-dd";
             Data5.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data5.Location = new System.Drawing.Point(89, 338);
+            Data5.Location = new System.Drawing.Point(94, 210);
             Data5.Name = "Data5";
             Data5.Size = new System.Drawing.Size(82, 23);
             Data5.TabIndex = 17;
@@ -610,7 +630,7 @@
             // srednia5
             // 
             srednia5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia5.Location = new System.Drawing.Point(218, 339);
+            srednia5.Location = new System.Drawing.Point(223, 211);
             srednia5.Name = "srednia5";
             srednia5.Size = new System.Drawing.Size(40, 25);
             srednia5.TabIndex = 20;
@@ -622,7 +642,7 @@
             // 
             obliczeniaAut5.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut5.Location = new System.Drawing.Point(439, 339);
+            obliczeniaAut5.Location = new System.Drawing.Point(444, 211);
             obliczeniaAut5.Multiline = true;
             obliczeniaAut5.Name = "obliczeniaAut5";
             obliczeniaAut5.Size = new System.Drawing.Size(36, 25);
@@ -633,7 +653,7 @@
             // sztukNaSzuflade5
             // 
             sztukNaSzuflade5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade5.Location = new System.Drawing.Point(264, 339);
+            sztukNaSzuflade5.Location = new System.Drawing.Point(269, 211);
             sztukNaSzuflade5.Name = "sztukNaSzuflade5";
             sztukNaSzuflade5.Size = new System.Drawing.Size(39, 25);
             sztukNaSzuflade5.TabIndex = 22;
@@ -645,7 +665,7 @@
             // 
             RoznicaDni5.BackColor = System.Drawing.SystemColors.ScrollBar;
             RoznicaDni5.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni5.Location = new System.Drawing.Point(177, 339);
+            RoznicaDni5.Location = new System.Drawing.Point(182, 211);
             RoznicaDni5.Name = "RoznicaDni5";
             RoznicaDni5.Size = new System.Drawing.Size(34, 22);
             RoznicaDni5.TabIndex = 29;
@@ -655,7 +675,7 @@
             // liczbaAut5
             // 
             liczbaAut5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut5.Location = new System.Drawing.Point(397, 339);
+            liczbaAut5.Location = new System.Drawing.Point(402, 211);
             liczbaAut5.Name = "liczbaAut5";
             liczbaAut5.Size = new System.Drawing.Size(36, 25);
             liczbaAut5.TabIndex = 26;
@@ -665,7 +685,7 @@
             // sztuki5
             // 
             sztuki5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki5.Location = new System.Drawing.Point(346, 339);
+            sztuki5.Location = new System.Drawing.Point(351, 211);
             sztuki5.Name = "sztuki5";
             sztuki5.Size = new System.Drawing.Size(46, 25);
             sztuki5.TabIndex = 24;
@@ -677,7 +697,7 @@
             // 
             Data4.CustomFormat = "yyyy-MM-dd";
             Data4.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data4.Location = new System.Drawing.Point(89, 306);
+            Data4.Location = new System.Drawing.Point(94, 178);
             Data4.Name = "Data4";
             Data4.Size = new System.Drawing.Size(82, 23);
             Data4.TabIndex = 17;
@@ -688,7 +708,7 @@
             // srednia4
             // 
             srednia4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia4.Location = new System.Drawing.Point(218, 308);
+            srednia4.Location = new System.Drawing.Point(223, 180);
             srednia4.Name = "srednia4";
             srednia4.Size = new System.Drawing.Size(40, 25);
             srednia4.TabIndex = 20;
@@ -700,7 +720,7 @@
             // 
             obliczeniaAut4.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut4.Location = new System.Drawing.Point(439, 308);
+            obliczeniaAut4.Location = new System.Drawing.Point(444, 180);
             obliczeniaAut4.Multiline = true;
             obliczeniaAut4.Name = "obliczeniaAut4";
             obliczeniaAut4.Size = new System.Drawing.Size(36, 25);
@@ -711,7 +731,7 @@
             // sztukNaSzuflade4
             // 
             sztukNaSzuflade4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade4.Location = new System.Drawing.Point(264, 308);
+            sztukNaSzuflade4.Location = new System.Drawing.Point(269, 180);
             sztukNaSzuflade4.Name = "sztukNaSzuflade4";
             sztukNaSzuflade4.Size = new System.Drawing.Size(39, 25);
             sztukNaSzuflade4.TabIndex = 22;
@@ -723,7 +743,7 @@
             // 
             RoznicaDni4.BackColor = System.Drawing.SystemColors.ScrollBar;
             RoznicaDni4.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni4.Location = new System.Drawing.Point(178, 307);
+            RoznicaDni4.Location = new System.Drawing.Point(183, 179);
             RoznicaDni4.Name = "RoznicaDni4";
             RoznicaDni4.Size = new System.Drawing.Size(34, 22);
             RoznicaDni4.TabIndex = 29;
@@ -733,7 +753,7 @@
             // liczbaAut4
             // 
             liczbaAut4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut4.Location = new System.Drawing.Point(397, 308);
+            liczbaAut4.Location = new System.Drawing.Point(402, 180);
             liczbaAut4.Name = "liczbaAut4";
             liczbaAut4.Size = new System.Drawing.Size(36, 25);
             liczbaAut4.TabIndex = 26;
@@ -743,7 +763,7 @@
             // sztuki4
             // 
             sztuki4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki4.Location = new System.Drawing.Point(346, 308);
+            sztuki4.Location = new System.Drawing.Point(351, 180);
             sztuki4.Name = "sztuki4";
             sztuki4.Size = new System.Drawing.Size(46, 25);
             sztuki4.TabIndex = 24;
@@ -755,7 +775,7 @@
             // 
             Data3.CustomFormat = "yyyy-MM-dd";
             Data3.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data3.Location = new System.Drawing.Point(89, 277);
+            Data3.Location = new System.Drawing.Point(94, 149);
             Data3.Name = "Data3";
             Data3.Size = new System.Drawing.Size(82, 23);
             Data3.TabIndex = 17;
@@ -766,7 +786,7 @@
             // srednia3
             // 
             srednia3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia3.Location = new System.Drawing.Point(218, 277);
+            srednia3.Location = new System.Drawing.Point(223, 149);
             srednia3.Name = "srednia3";
             srednia3.Size = new System.Drawing.Size(40, 25);
             srednia3.TabIndex = 20;
@@ -778,7 +798,7 @@
             // 
             obliczeniaAut3.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut3.Location = new System.Drawing.Point(439, 278);
+            obliczeniaAut3.Location = new System.Drawing.Point(444, 150);
             obliczeniaAut3.Multiline = true;
             obliczeniaAut3.Name = "obliczeniaAut3";
             obliczeniaAut3.Size = new System.Drawing.Size(36, 25);
@@ -789,7 +809,7 @@
             // sztukNaSzuflade3
             // 
             sztukNaSzuflade3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade3.Location = new System.Drawing.Point(264, 277);
+            sztukNaSzuflade3.Location = new System.Drawing.Point(269, 149);
             sztukNaSzuflade3.Name = "sztukNaSzuflade3";
             sztukNaSzuflade3.Size = new System.Drawing.Size(39, 25);
             sztukNaSzuflade3.TabIndex = 22;
@@ -801,7 +821,7 @@
             // 
             RoznicaDni3.BackColor = System.Drawing.SystemColors.ScrollBar;
             RoznicaDni3.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni3.Location = new System.Drawing.Point(178, 277);
+            RoznicaDni3.Location = new System.Drawing.Point(183, 149);
             RoznicaDni3.Name = "RoznicaDni3";
             RoznicaDni3.Size = new System.Drawing.Size(34, 22);
             RoznicaDni3.TabIndex = 29;
@@ -811,7 +831,7 @@
             // liczbaAut3
             // 
             liczbaAut3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut3.Location = new System.Drawing.Point(397, 277);
+            liczbaAut3.Location = new System.Drawing.Point(402, 149);
             liczbaAut3.Name = "liczbaAut3";
             liczbaAut3.Size = new System.Drawing.Size(36, 25);
             liczbaAut3.TabIndex = 26;
@@ -821,7 +841,7 @@
             // sztuki3
             // 
             sztuki3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki3.Location = new System.Drawing.Point(346, 278);
+            sztuki3.Location = new System.Drawing.Point(351, 150);
             sztuki3.Name = "sztuki3";
             sztuki3.Size = new System.Drawing.Size(46, 25);
             sztuki3.TabIndex = 24;
@@ -833,7 +853,7 @@
             // 
             Data2.CustomFormat = "yyyy-MM-dd";
             Data2.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data2.Location = new System.Drawing.Point(88, 248);
+            Data2.Location = new System.Drawing.Point(93, 120);
             Data2.Name = "Data2";
             Data2.Size = new System.Drawing.Size(82, 23);
             Data2.TabIndex = 17;
@@ -844,7 +864,7 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(218, 178);
+            label21.Location = new System.Drawing.Point(223, 50);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(40, 25);
             label21.TabIndex = 19;
@@ -854,7 +874,7 @@
             // srednia2
             // 
             srednia2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia2.Location = new System.Drawing.Point(218, 246);
+            srednia2.Location = new System.Drawing.Point(223, 118);
             srednia2.Name = "srednia2";
             srednia2.Size = new System.Drawing.Size(40, 25);
             srednia2.TabIndex = 20;
@@ -866,7 +886,7 @@
             // 
             obliczeniaAut2.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut2.Location = new System.Drawing.Point(439, 246);
+            obliczeniaAut2.Location = new System.Drawing.Point(444, 118);
             obliczeniaAut2.Multiline = true;
             obliczeniaAut2.Name = "obliczeniaAut2";
             obliczeniaAut2.Size = new System.Drawing.Size(36, 25);
@@ -877,7 +897,7 @@
             // sztukNaSzuflade2
             // 
             sztukNaSzuflade2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade2.Location = new System.Drawing.Point(264, 246);
+            sztukNaSzuflade2.Location = new System.Drawing.Point(269, 118);
             sztukNaSzuflade2.Name = "sztukNaSzuflade2";
             sztukNaSzuflade2.Size = new System.Drawing.Size(39, 25);
             sztukNaSzuflade2.TabIndex = 22;
@@ -889,7 +909,7 @@
             // 
             RoznicaDni2.BackColor = System.Drawing.SystemColors.ScrollBar;
             RoznicaDni2.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni2.Location = new System.Drawing.Point(178, 246);
+            RoznicaDni2.Location = new System.Drawing.Point(183, 118);
             RoznicaDni2.Name = "RoznicaDni2";
             RoznicaDni2.Size = new System.Drawing.Size(34, 22);
             RoznicaDni2.TabIndex = 29;
@@ -899,7 +919,7 @@
             // liczbaAut2
             // 
             liczbaAut2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut2.Location = new System.Drawing.Point(397, 246);
+            liczbaAut2.Location = new System.Drawing.Point(402, 118);
             liczbaAut2.Name = "liczbaAut2";
             liczbaAut2.Size = new System.Drawing.Size(36, 25);
             liczbaAut2.TabIndex = 26;
@@ -909,7 +929,7 @@
             // sztuki2
             // 
             sztuki2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki2.Location = new System.Drawing.Point(346, 246);
+            sztuki2.Location = new System.Drawing.Point(351, 118);
             sztuki2.Name = "sztuki2";
             sztuki2.Size = new System.Drawing.Size(46, 25);
             sztuki2.TabIndex = 24;
@@ -920,7 +940,7 @@
             // pictureBox12
             // 
             pictureBox12.Image = (System.Drawing.Image)resources.GetObject("pictureBox12.Image");
-            pictureBox12.Location = new System.Drawing.Point(397, 148);
+            pictureBox12.Location = new System.Drawing.Point(402, 20);
             pictureBox12.Name = "pictureBox12";
             pictureBox12.Size = new System.Drawing.Size(78, 25);
             pictureBox12.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -931,7 +951,7 @@
             // 
             Data1.CustomFormat = "yyyy-MM-dd";
             Data1.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            Data1.Location = new System.Drawing.Point(88, 217);
+            Data1.Location = new System.Drawing.Point(93, 89);
             Data1.Name = "Data1";
             Data1.Size = new System.Drawing.Size(82, 23);
             Data1.TabIndex = 17;
@@ -942,7 +962,7 @@
             // pictureBox11
             // 
             pictureBox11.Image = (System.Drawing.Image)resources.GetObject("pictureBox11.Image");
-            pictureBox11.Location = new System.Drawing.Point(310, 146);
+            pictureBox11.Location = new System.Drawing.Point(315, 18);
             pictureBox11.Name = "pictureBox11";
             pictureBox11.Size = new System.Drawing.Size(82, 25);
             pictureBox11.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -952,7 +972,7 @@
             // label8
             // 
             label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(91, 180);
+            label8.Location = new System.Drawing.Point(96, 52);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(81, 27);
             label8.TabIndex = 18;
@@ -962,7 +982,7 @@
             // pictureBox8
             // 
             pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
-            pictureBox8.Location = new System.Drawing.Point(264, 150);
+            pictureBox8.Location = new System.Drawing.Point(269, 22);
             pictureBox8.Name = "pictureBox8";
             pictureBox8.Size = new System.Drawing.Size(39, 26);
             pictureBox8.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -972,7 +992,7 @@
             // pictureBox7
             // 
             pictureBox7.Image = (System.Drawing.Image)resources.GetObject("pictureBox7.Image");
-            pictureBox7.Location = new System.Drawing.Point(218, 150);
+            pictureBox7.Location = new System.Drawing.Point(223, 22);
             pictureBox7.Name = "pictureBox7";
             pictureBox7.Size = new System.Drawing.Size(40, 25);
             pictureBox7.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -982,7 +1002,7 @@
             // srednia1
             // 
             srednia1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            srednia1.Location = new System.Drawing.Point(218, 215);
+            srednia1.Location = new System.Drawing.Point(223, 87);
             srednia1.Name = "srednia1";
             srednia1.Size = new System.Drawing.Size(40, 25);
             srednia1.TabIndex = 20;
@@ -992,7 +1012,7 @@
             // 
             // label18
             // 
-            label18.Location = new System.Drawing.Point(177, 180);
+            label18.Location = new System.Drawing.Point(182, 52);
             label18.Name = "label18";
             label18.Size = new System.Drawing.Size(37, 22);
             label18.TabIndex = 103;
@@ -1003,7 +1023,7 @@
             // 
             obliczeniaAut1.BackColor = System.Drawing.SystemColors.ScrollBar;
             obliczeniaAut1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut1.Location = new System.Drawing.Point(439, 215);
+            obliczeniaAut1.Location = new System.Drawing.Point(444, 87);
             obliczeniaAut1.Multiline = true;
             obliczeniaAut1.Name = "obliczeniaAut1";
             obliczeniaAut1.Size = new System.Drawing.Size(36, 25);
@@ -1014,7 +1034,7 @@
             // sztukNaSzuflade1
             // 
             sztukNaSzuflade1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade1.Location = new System.Drawing.Point(264, 215);
+            sztukNaSzuflade1.Location = new System.Drawing.Point(269, 87);
             sztukNaSzuflade1.Name = "sztukNaSzuflade1";
             sztukNaSzuflade1.Size = new System.Drawing.Size(39, 25);
             sztukNaSzuflade1.TabIndex = 22;
@@ -1026,7 +1046,7 @@
             // 
             RoznicaDni1.BackColor = System.Drawing.SystemColors.ScrollBar;
             RoznicaDni1.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaDni1.Location = new System.Drawing.Point(178, 218);
+            RoznicaDni1.Location = new System.Drawing.Point(183, 90);
             RoznicaDni1.Name = "RoznicaDni1";
             RoznicaDni1.Size = new System.Drawing.Size(34, 22);
             RoznicaDni1.TabIndex = 29;
@@ -1036,7 +1056,7 @@
             // liczbaAut1
             // 
             liczbaAut1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            liczbaAut1.Location = new System.Drawing.Point(397, 215);
+            liczbaAut1.Location = new System.Drawing.Point(402, 87);
             liczbaAut1.Name = "liczbaAut1";
             liczbaAut1.Size = new System.Drawing.Size(36, 25);
             liczbaAut1.TabIndex = 26;
@@ -1046,7 +1066,7 @@
             // sztuki1
             // 
             sztuki1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki1.Location = new System.Drawing.Point(346, 215);
+            sztuki1.Location = new System.Drawing.Point(351, 87);
             sztuki1.Name = "sztuki1";
             sztuki1.Size = new System.Drawing.Size(46, 25);
             sztuki1.TabIndex = 24;
@@ -1208,7 +1228,7 @@
             tablicaHodowca.Controls.Add(KodPocztowyH);
             tablicaHodowca.Controls.Add(UlicaH);
             tablicaHodowca.Controls.Add(label4);
-            tablicaHodowca.Location = new System.Drawing.Point(21, 540);
+            tablicaHodowca.Location = new System.Drawing.Point(802, 287);
             tablicaHodowca.Name = "tablicaHodowca";
             tablicaHodowca.RightToLeft = System.Windows.Forms.RightToLeft.No;
             tablicaHodowca.Size = new System.Drawing.Size(511, 85);
@@ -1419,7 +1439,7 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(264, 177);
+            label1.Location = new System.Drawing.Point(269, 49);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(39, 28);
             label1.TabIndex = 118;
@@ -1429,7 +1449,7 @@
             // label7
             // 
             label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(346, 173);
+            label7.Location = new System.Drawing.Point(351, 45);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(46, 29);
             label7.TabIndex = 119;
@@ -1439,7 +1459,7 @@
             // label13
             // 
             label13.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label13.Location = new System.Drawing.Point(395, 174);
+            label13.Location = new System.Drawing.Point(400, 46);
             label13.Name = "label13";
             label13.Size = new System.Drawing.Size(80, 33);
             label13.TabIndex = 120;
@@ -1449,7 +1469,7 @@
             // textDni5
             // 
             textDni5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textDni5.Location = new System.Drawing.Point(45, 337);
+            textDni5.Location = new System.Drawing.Point(50, 209);
             textDni5.Multiline = true;
             textDni5.Name = "textDni5";
             textDni5.Size = new System.Drawing.Size(35, 23);
@@ -1461,7 +1481,7 @@
             // 
             ObliczSztuki5.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            ObliczSztuki5.Location = new System.Drawing.Point(307, 339);
+            ObliczSztuki5.Location = new System.Drawing.Point(312, 211);
             ObliczSztuki5.Name = "ObliczSztuki5";
             ObliczSztuki5.Size = new System.Drawing.Size(36, 25);
             ObliczSztuki5.TabIndex = 137;
@@ -1473,7 +1493,7 @@
             // 
             ObliczSztuki4.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            ObliczSztuki4.Location = new System.Drawing.Point(307, 308);
+            ObliczSztuki4.Location = new System.Drawing.Point(312, 180);
             ObliczSztuki4.Name = "ObliczSztuki4";
             ObliczSztuki4.Size = new System.Drawing.Size(36, 25);
             ObliczSztuki4.TabIndex = 138;
@@ -1485,7 +1505,7 @@
             // 
             ObliczSztuki3.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            ObliczSztuki3.Location = new System.Drawing.Point(307, 277);
+            ObliczSztuki3.Location = new System.Drawing.Point(312, 149);
             ObliczSztuki3.Name = "ObliczSztuki3";
             ObliczSztuki3.Size = new System.Drawing.Size(36, 25);
             ObliczSztuki3.TabIndex = 139;
@@ -1497,7 +1517,7 @@
             // 
             ObliczSztuki1.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            ObliczSztuki1.Location = new System.Drawing.Point(307, 215);
+            ObliczSztuki1.Location = new System.Drawing.Point(312, 87);
             ObliczSztuki1.Name = "ObliczSztuki1";
             ObliczSztuki1.Size = new System.Drawing.Size(36, 25);
             ObliczSztuki1.TabIndex = 140;
@@ -1509,7 +1529,7 @@
             // 
             ObliczSztuki2.BackColor = System.Drawing.Color.HotPink;
             ObliczSztuki2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            ObliczSztuki2.Location = new System.Drawing.Point(307, 246);
+            ObliczSztuki2.Location = new System.Drawing.Point(312, 118);
             ObliczSztuki2.Name = "ObliczSztuki2";
             ObliczSztuki2.Size = new System.Drawing.Size(36, 25);
             ObliczSztuki2.TabIndex = 141;
@@ -1520,7 +1540,7 @@
             // label2
             // 
             label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(307, 175);
+            label2.Location = new System.Drawing.Point(312, 47);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(36, 32);
             label2.TabIndex = 142;
@@ -1530,7 +1550,7 @@
             // checkBox1
             // 
             checkBox1.AutoSize = true;
-            checkBox1.Location = new System.Drawing.Point(4, 219);
+            checkBox1.Location = new System.Drawing.Point(9, 91);
             checkBox1.Name = "checkBox1";
             checkBox1.Size = new System.Drawing.Size(35, 19);
             checkBox1.TabIndex = 143;
@@ -1541,7 +1561,7 @@
             // checkBox2
             // 
             checkBox2.AutoSize = true;
-            checkBox2.Location = new System.Drawing.Point(4, 252);
+            checkBox2.Location = new System.Drawing.Point(9, 124);
             checkBox2.Name = "checkBox2";
             checkBox2.Size = new System.Drawing.Size(35, 19);
             checkBox2.TabIndex = 144;
@@ -1552,7 +1572,7 @@
             // checkBox3
             // 
             checkBox3.AutoSize = true;
-            checkBox3.Location = new System.Drawing.Point(4, 281);
+            checkBox3.Location = new System.Drawing.Point(9, 153);
             checkBox3.Name = "checkBox3";
             checkBox3.Size = new System.Drawing.Size(35, 19);
             checkBox3.TabIndex = 145;
@@ -1563,7 +1583,7 @@
             // checkBox4
             // 
             checkBox4.AutoSize = true;
-            checkBox4.Location = new System.Drawing.Point(4, 310);
+            checkBox4.Location = new System.Drawing.Point(9, 182);
             checkBox4.Name = "checkBox4";
             checkBox4.Size = new System.Drawing.Size(35, 19);
             checkBox4.TabIndex = 146;
@@ -1574,7 +1594,7 @@
             // checkBox5
             // 
             checkBox5.AutoSize = true;
-            checkBox5.Location = new System.Drawing.Point(4, 341);
+            checkBox5.Location = new System.Drawing.Point(9, 213);
             checkBox5.Name = "checkBox5";
             checkBox5.Size = new System.Drawing.Size(35, 19);
             checkBox5.TabIndex = 147;
@@ -1586,7 +1606,7 @@
             // 
             wyliczone5.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone5.Location = new System.Drawing.Point(530, 339);
+            wyliczone5.Location = new System.Drawing.Point(535, 211);
             wyliczone5.Name = "wyliczone5";
             wyliczone5.Size = new System.Drawing.Size(51, 25);
             wyliczone5.TabIndex = 148;
@@ -1597,7 +1617,7 @@
             // 
             wyliczone4.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone4.Location = new System.Drawing.Point(530, 308);
+            wyliczone4.Location = new System.Drawing.Point(535, 180);
             wyliczone4.Name = "wyliczone4";
             wyliczone4.Size = new System.Drawing.Size(51, 25);
             wyliczone4.TabIndex = 149;
@@ -1608,7 +1628,7 @@
             // 
             wyliczone3.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone3.Location = new System.Drawing.Point(530, 277);
+            wyliczone3.Location = new System.Drawing.Point(535, 149);
             wyliczone3.Name = "wyliczone3";
             wyliczone3.Size = new System.Drawing.Size(51, 25);
             wyliczone3.TabIndex = 150;
@@ -1619,7 +1639,7 @@
             // 
             wyliczone2.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone2.Location = new System.Drawing.Point(530, 246);
+            wyliczone2.Location = new System.Drawing.Point(535, 118);
             wyliczone2.Name = "wyliczone2";
             wyliczone2.Size = new System.Drawing.Size(51, 25);
             wyliczone2.TabIndex = 151;
@@ -1630,7 +1650,7 @@
             // 
             wyliczone1.BackColor = System.Drawing.SystemColors.ScrollBar;
             wyliczone1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            wyliczone1.Location = new System.Drawing.Point(530, 215);
+            wyliczone1.Location = new System.Drawing.Point(535, 87);
             wyliczone1.Name = "wyliczone1";
             wyliczone1.Size = new System.Drawing.Size(51, 25);
             wyliczone1.TabIndex = 152;
@@ -1640,7 +1660,7 @@
             // label15
             // 
             label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label15.Location = new System.Drawing.Point(530, 175);
+            label15.Location = new System.Drawing.Point(535, 47);
             label15.Name = "label15";
             label15.Size = new System.Drawing.Size(51, 39);
             label15.TabIndex = 154;
@@ -1650,7 +1670,7 @@
             // pictureBox2
             // 
             pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
-            pictureBox2.Location = new System.Drawing.Point(530, 150);
+            pictureBox2.Location = new System.Drawing.Point(535, 22);
             pictureBox2.Name = "pictureBox2";
             pictureBox2.Size = new System.Drawing.Size(51, 26);
             pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1660,7 +1680,7 @@
             // label16
             // 
             label16.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label16.Location = new System.Drawing.Point(471, 178);
+            label16.Location = new System.Drawing.Point(476, 50);
             label16.Name = "label16";
             label16.Size = new System.Drawing.Size(59, 25);
             label16.TabIndex = 155;
@@ -1671,7 +1691,7 @@
             // 
             KGwSkrzynce5.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce5.Location = new System.Drawing.Point(478, 339);
+            KGwSkrzynce5.Location = new System.Drawing.Point(483, 211);
             KGwSkrzynce5.Name = "KGwSkrzynce5";
             KGwSkrzynce5.Size = new System.Drawing.Size(46, 25);
             KGwSkrzynce5.TabIndex = 156;
@@ -1682,7 +1702,7 @@
             // 
             KGwSkrzynce4.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce4.Location = new System.Drawing.Point(478, 308);
+            KGwSkrzynce4.Location = new System.Drawing.Point(483, 180);
             KGwSkrzynce4.Name = "KGwSkrzynce4";
             KGwSkrzynce4.Size = new System.Drawing.Size(46, 25);
             KGwSkrzynce4.TabIndex = 157;
@@ -1693,7 +1713,7 @@
             // 
             KGwSkrzynce3.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce3.Location = new System.Drawing.Point(478, 277);
+            KGwSkrzynce3.Location = new System.Drawing.Point(483, 149);
             KGwSkrzynce3.Name = "KGwSkrzynce3";
             KGwSkrzynce3.Size = new System.Drawing.Size(46, 25);
             KGwSkrzynce3.TabIndex = 158;
@@ -1704,7 +1724,7 @@
             // 
             KGwSkrzynce2.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce2.Location = new System.Drawing.Point(478, 246);
+            KGwSkrzynce2.Location = new System.Drawing.Point(483, 118);
             KGwSkrzynce2.Name = "KGwSkrzynce2";
             KGwSkrzynce2.Size = new System.Drawing.Size(46, 25);
             KGwSkrzynce2.TabIndex = 159;
@@ -1714,7 +1734,7 @@
             // pictureBox30
             // 
             pictureBox30.Image = (System.Drawing.Image)resources.GetObject("pictureBox30.Image");
-            pictureBox30.Location = new System.Drawing.Point(478, 150);
+            pictureBox30.Location = new System.Drawing.Point(483, 22);
             pictureBox30.Name = "pictureBox30";
             pictureBox30.Size = new System.Drawing.Size(46, 25);
             pictureBox30.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1725,7 +1745,7 @@
             // 
             KGwSkrzynce1.BackColor = System.Drawing.SystemColors.ScrollBar;
             KGwSkrzynce1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KGwSkrzynce1.Location = new System.Drawing.Point(478, 215);
+            KGwSkrzynce1.Location = new System.Drawing.Point(483, 87);
             KGwSkrzynce1.Name = "KGwSkrzynce1";
             KGwSkrzynce1.Size = new System.Drawing.Size(46, 25);
             KGwSkrzynce1.TabIndex = 160;
@@ -1735,7 +1755,7 @@
             // dataGridWagi
             // 
             dataGridWagi.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridWagi.Location = new System.Drawing.Point(2, 419);
+            dataGridWagi.Location = new System.Drawing.Point(12, 466);
             dataGridWagi.Name = "dataGridWagi";
             dataGridWagi.RowTemplate.Height = 25;
             dataGridWagi.Size = new System.Drawing.Size(345, 115);
@@ -1745,7 +1765,7 @@
             // 
             sztukiRoznica.BackColor = System.Drawing.Color.Moccasin;
             sztukiRoznica.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukiRoznica.Location = new System.Drawing.Point(346, 393);
+            sztukiRoznica.Location = new System.Drawing.Point(351, 265);
             sztukiRoznica.Multiline = true;
             sztukiRoznica.Name = "sztukiRoznica";
             sztukiRoznica.Size = new System.Drawing.Size(57, 24);
@@ -1755,17 +1775,17 @@
             // dataGridWstawien
             // 
             dataGridWstawien.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridWstawien.Location = new System.Drawing.Point(350, 419);
+            dataGridWstawien.Location = new System.Drawing.Point(360, 466);
             dataGridWstawien.Name = "dataGridWstawien";
             dataGridWstawien.RowTemplate.Height = 25;
-            dataGridWstawien.Size = new System.Drawing.Size(285, 115);
+            dataGridWstawien.Size = new System.Drawing.Size(307, 115);
             dataGridWstawien.TabIndex = 164;
             // 
             // buttonWstawianie
             // 
             buttonWstawianie.BackColor = System.Drawing.Color.LightGreen;
             buttonWstawianie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            buttonWstawianie.Location = new System.Drawing.Point(544, 372);
+            buttonWstawianie.Location = new System.Drawing.Point(549, 244);
             buttonWstawianie.Name = "buttonWstawianie";
             buttonWstawianie.Size = new System.Drawing.Size(91, 45);
             buttonWstawianie.TabIndex = 165;
@@ -1773,60 +1793,65 @@
             buttonWstawianie.UseVisualStyleBackColor = false;
             buttonWstawianie.Click += buttonWstawianie_Click;
             // 
-            // button3
+            // Wklej1
             // 
-            button3.BackColor = System.Drawing.Color.LightYellow;
-            button3.Location = new System.Drawing.Point(587, 215);
-            button3.Name = "button3";
-            button3.Size = new System.Drawing.Size(48, 25);
-            button3.TabIndex = 166;
-            button3.Text = "Wklej";
-            button3.UseVisualStyleBackColor = false;
+            Wklej1.BackColor = System.Drawing.Color.LightYellow;
+            Wklej1.Location = new System.Drawing.Point(592, 87);
+            Wklej1.Name = "Wklej1";
+            Wklej1.Size = new System.Drawing.Size(48, 25);
+            Wklej1.TabIndex = 166;
+            Wklej1.Text = "Wklej";
+            Wklej1.UseVisualStyleBackColor = false;
+            Wklej1.Click += Wklej1_Click;
             // 
-            // button5
+            // Wklej2
             // 
-            button5.BackColor = System.Drawing.Color.LightYellow;
-            button5.Location = new System.Drawing.Point(587, 246);
-            button5.Name = "button5";
-            button5.Size = new System.Drawing.Size(48, 25);
-            button5.TabIndex = 167;
-            button5.Text = "Wklej";
-            button5.UseVisualStyleBackColor = false;
+            Wklej2.BackColor = System.Drawing.Color.LightYellow;
+            Wklej2.Location = new System.Drawing.Point(592, 118);
+            Wklej2.Name = "Wklej2";
+            Wklej2.Size = new System.Drawing.Size(48, 25);
+            Wklej2.TabIndex = 167;
+            Wklej2.Text = "Wklej";
+            Wklej2.UseVisualStyleBackColor = false;
+            Wklej2.Click += Wklej2_Click;
             // 
-            // button6
+            // Wklej3
             // 
-            button6.BackColor = System.Drawing.Color.LightYellow;
-            button6.Location = new System.Drawing.Point(587, 277);
-            button6.Name = "button6";
-            button6.Size = new System.Drawing.Size(48, 25);
-            button6.TabIndex = 168;
-            button6.Text = "Wklej";
-            button6.UseVisualStyleBackColor = false;
+            Wklej3.BackColor = System.Drawing.Color.LightYellow;
+            Wklej3.Location = new System.Drawing.Point(592, 149);
+            Wklej3.Name = "Wklej3";
+            Wklej3.Size = new System.Drawing.Size(48, 25);
+            Wklej3.TabIndex = 168;
+            Wklej3.Text = "Wklej";
+            Wklej3.UseVisualStyleBackColor = false;
+            Wklej3.Click += Wklej3_Click;
             // 
-            // button9
+            // Wklej4
             // 
-            button9.BackColor = System.Drawing.Color.LightYellow;
-            button9.Location = new System.Drawing.Point(587, 308);
-            button9.Name = "button9";
-            button9.Size = new System.Drawing.Size(48, 25);
-            button9.TabIndex = 169;
-            button9.Text = "Wklej";
-            button9.UseVisualStyleBackColor = false;
+            Wklej4.BackColor = System.Drawing.Color.LightYellow;
+            Wklej4.Location = new System.Drawing.Point(592, 180);
+            Wklej4.Name = "Wklej4";
+            Wklej4.Size = new System.Drawing.Size(48, 25);
+            Wklej4.TabIndex = 169;
+            Wklej4.Text = "Wklej";
+            Wklej4.UseVisualStyleBackColor = false;
+            Wklej4.Click += Wklej4_Click;
             // 
-            // button10
+            // Wklej5
             // 
-            button10.BackColor = System.Drawing.Color.LightYellow;
-            button10.Location = new System.Drawing.Point(587, 339);
-            button10.Name = "button10";
-            button10.Size = new System.Drawing.Size(48, 25);
-            button10.TabIndex = 170;
-            button10.Text = "Wklej";
-            button10.UseVisualStyleBackColor = false;
+            Wklej5.BackColor = System.Drawing.Color.LightYellow;
+            Wklej5.Location = new System.Drawing.Point(592, 211);
+            Wklej5.Name = "Wklej5";
+            Wklej5.Size = new System.Drawing.Size(48, 25);
+            Wklej5.TabIndex = 170;
+            Wklej5.Text = "Wklej";
+            Wklej5.UseVisualStyleBackColor = false;
+            Wklej5.Click += Wklej5_Click;
             // 
             // buttonAnulowanie
             // 
             buttonAnulowanie.BackColor = System.Drawing.Color.Coral;
-            buttonAnulowanie.Location = new System.Drawing.Point(486, 370);
+            buttonAnulowanie.Location = new System.Drawing.Point(491, 242);
             buttonAnulowanie.Name = "buttonAnulowanie";
             buttonAnulowanie.Size = new System.Drawing.Size(52, 47);
             buttonAnulowanie.TabIndex = 171;
@@ -1836,112 +1861,126 @@
             // label17
             // 
             label17.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label17.Location = new System.Drawing.Point(42, 180);
+            label17.Location = new System.Drawing.Point(47, 52);
             label17.Name = "label17";
             label17.Size = new System.Drawing.Size(43, 33);
             label17.TabIndex = 172;
             label17.Text = "Wpisz dobe";
             label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // groupBox2
+            // 
+            groupBox2.BackColor = System.Drawing.SystemColors.ButtonFace;
+            groupBox2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
+            groupBox2.Controls.Add(label17);
+            groupBox2.Controls.Add(RoznicaDni1);
+            groupBox2.Controls.Add(buttonAnulowanie);
+            groupBox2.Controls.Add(label18);
+            groupBox2.Controls.Add(Wklej5);
+            groupBox2.Controls.Add(srednia1);
+            groupBox2.Controls.Add(Wklej4);
+            groupBox2.Controls.Add(sztukNaSzuflade1);
+            groupBox2.Controls.Add(Wklej3);
+            groupBox2.Controls.Add(sztuki1);
+            groupBox2.Controls.Add(Wklej2);
+            groupBox2.Controls.Add(sztuki2);
+            groupBox2.Controls.Add(Wklej1);
+            groupBox2.Controls.Add(label8);
+            groupBox2.Controls.Add(buttonWstawianie);
+            groupBox2.Controls.Add(liczbaAut2);
+            groupBox2.Controls.Add(pictureBox7);
+            groupBox2.Controls.Add(sztukiRoznica);
+            groupBox2.Controls.Add(sztukNaSzuflade2);
+            groupBox2.Controls.Add(obliczeniaAut2);
+            groupBox2.Controls.Add(label16);
+            groupBox2.Controls.Add(liczbaAut1);
+            groupBox2.Controls.Add(KGwSkrzynce5);
+            groupBox2.Controls.Add(RoznicaDni3);
+            groupBox2.Controls.Add(KGwSkrzynce4);
+            groupBox2.Controls.Add(srednia2);
+            groupBox2.Controls.Add(KGwSkrzynce3);
+            groupBox2.Controls.Add(RoznicaDni2);
+            groupBox2.Controls.Add(KGwSkrzynce2);
+            groupBox2.Controls.Add(sztuki3);
+            groupBox2.Controls.Add(pictureBox30);
+            groupBox2.Controls.Add(liczbaAut3);
+            groupBox2.Controls.Add(KGwSkrzynce1);
+            groupBox2.Controls.Add(sztukNaSzuflade3);
+            groupBox2.Controls.Add(label15);
+            groupBox2.Controls.Add(RoznicaDni4);
+            groupBox2.Controls.Add(pictureBox2);
+            groupBox2.Controls.Add(pictureBox8);
+            groupBox2.Controls.Add(wyliczone5);
+            groupBox2.Controls.Add(obliczeniaAut3);
+            groupBox2.Controls.Add(wyliczone4);
+            groupBox2.Controls.Add(sztuki4);
+            groupBox2.Controls.Add(wyliczone3);
+            groupBox2.Controls.Add(Data1);
+            groupBox2.Controls.Add(wyliczone2);
+            groupBox2.Controls.Add(liczbaAut4);
+            groupBox2.Controls.Add(wyliczone1);
+            groupBox2.Controls.Add(sztukNaSzuflade4);
+            groupBox2.Controls.Add(checkBox5);
+            groupBox2.Controls.Add(RoznicaDni5);
+            groupBox2.Controls.Add(checkBox4);
+            groupBox2.Controls.Add(srednia3);
+            groupBox2.Controls.Add(checkBox3);
+            groupBox2.Controls.Add(obliczeniaAut4);
+            groupBox2.Controls.Add(checkBox2);
+            groupBox2.Controls.Add(sztuki5);
+            groupBox2.Controls.Add(checkBox1);
+            groupBox2.Controls.Add(pictureBox11);
+            groupBox2.Controls.Add(label2);
+            groupBox2.Controls.Add(liczbaAut5);
+            groupBox2.Controls.Add(sztukNaSzuflade5);
+            groupBox2.Controls.Add(ObliczSztuki5);
+            groupBox2.Controls.Add(srednia4);
+            groupBox2.Controls.Add(ObliczSztuki4);
+            groupBox2.Controls.Add(textDni4);
+            groupBox2.Controls.Add(ObliczSztuki3);
+            groupBox2.Controls.Add(obliczeniaAut5);
+            groupBox2.Controls.Add(ObliczSztuki1);
+            groupBox2.Controls.Add(textDni2);
+            groupBox2.Controls.Add(ObliczSztuki2);
+            groupBox2.Controls.Add(obliczeniaAut1);
+            groupBox2.Controls.Add(textDni5);
+            groupBox2.Controls.Add(textDni1);
+            groupBox2.Controls.Add(srednia5);
+            groupBox2.Controls.Add(label13);
+            groupBox2.Controls.Add(textDni3);
+            groupBox2.Controls.Add(Data2);
+            groupBox2.Controls.Add(label7);
+            groupBox2.Controls.Add(label21);
+            groupBox2.Controls.Add(label1);
+            groupBox2.Controls.Add(sztukiSuma);
+            groupBox2.Controls.Add(pictureBox12);
+            groupBox2.Controls.Add(Data3);
+            groupBox2.Controls.Add(Data5);
+            groupBox2.Controls.Add(Data4);
+            groupBox2.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
+            groupBox2.Location = new System.Drawing.Point(12, 163);
+            groupBox2.Name = "groupBox2";
+            groupBox2.Size = new System.Drawing.Size(655, 297);
+            groupBox2.TabIndex = 173;
+            groupBox2.TabStop = false;
+            groupBox2.Text = "Sekcja Dostaw";
+            groupBox2.Visible = false;
+            // 
             // Wstawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(643, 540);
-            Controls.Add(label17);
-            Controls.Add(buttonAnulowanie);
-            Controls.Add(button10);
-            Controls.Add(button9);
-            Controls.Add(button6);
-            Controls.Add(button5);
-            Controls.Add(button3);
-            Controls.Add(buttonWstawianie);
+            ClientSize = new System.Drawing.Size(669, 583);
+            Controls.Add(groupBox2);
             Controls.Add(dataGridWstawien);
-            Controls.Add(sztukiRoznica);
             Controls.Add(dataGridWagi);
-            Controls.Add(label16);
-            Controls.Add(KGwSkrzynce5);
-            Controls.Add(KGwSkrzynce4);
-            Controls.Add(KGwSkrzynce3);
-            Controls.Add(KGwSkrzynce2);
-            Controls.Add(pictureBox30);
-            Controls.Add(KGwSkrzynce1);
-            Controls.Add(label15);
-            Controls.Add(pictureBox2);
-            Controls.Add(wyliczone5);
-            Controls.Add(wyliczone4);
-            Controls.Add(wyliczone3);
-            Controls.Add(wyliczone2);
-            Controls.Add(wyliczone1);
-            Controls.Add(checkBox5);
-            Controls.Add(checkBox4);
-            Controls.Add(checkBox3);
-            Controls.Add(checkBox2);
-            Controls.Add(checkBox1);
-            Controls.Add(label2);
             Controls.Add(Ubytek);
-            Controls.Add(ObliczSztuki5);
-            Controls.Add(ObliczSztuki4);
-            Controls.Add(ObliczSztuki3);
-            Controls.Add(ObliczSztuki1);
-            Controls.Add(ObliczSztuki2);
-            Controls.Add(textDni5);
             Controls.Add(pictureBox9);
-            Controls.Add(label13);
             Controls.Add(pictureBox4);
-            Controls.Add(label7);
-            Controls.Add(label1);
-            Controls.Add(pictureBox12);
-            Controls.Add(Data5);
-            Controls.Add(Data4);
-            Controls.Add(Data3);
-            Controls.Add(sztukiSuma);
-            Controls.Add(label21);
-            Controls.Add(Data2);
             Controls.Add(radioButton2);
-            Controls.Add(textDni3);
-            Controls.Add(srednia5);
-            Controls.Add(textDni1);
-            Controls.Add(obliczeniaAut1);
-            Controls.Add(textDni2);
-            Controls.Add(obliczeniaAut5);
-            Controls.Add(textDni4);
-            Controls.Add(srednia4);
-            Controls.Add(sztukNaSzuflade5);
-            Controls.Add(liczbaAut5);
-            Controls.Add(pictureBox11);
-            Controls.Add(sztuki5);
-            Controls.Add(obliczeniaAut4);
-            Controls.Add(srednia3);
-            Controls.Add(RoznicaDni5);
-            Controls.Add(sztukNaSzuflade4);
-            Controls.Add(liczbaAut4);
-            Controls.Add(Data1);
-            Controls.Add(sztuki4);
-            Controls.Add(obliczeniaAut3);
-            Controls.Add(pictureBox8);
-            Controls.Add(RoznicaDni4);
-            Controls.Add(sztukNaSzuflade3);
-            Controls.Add(liczbaAut3);
-            Controls.Add(sztuki3);
-            Controls.Add(RoznicaDni2);
-            Controls.Add(srednia2);
-            Controls.Add(RoznicaDni3);
-            Controls.Add(liczbaAut1);
-            Controls.Add(obliczeniaAut2);
             Controls.Add(tablicaHodowca);
-            Controls.Add(sztukNaSzuflade2);
-            Controls.Add(pictureBox7);
-            Controls.Add(liczbaAut2);
-            Controls.Add(label8);
-            Controls.Add(sztuki2);
-            Controls.Add(sztuki1);
-            Controls.Add(sztukNaSzuflade1);
-            Controls.Add(srednia1);
-            Controls.Add(label18);
             Controls.Add(label55);
             Controls.Add(radioButton1);
-            Controls.Add(RoznicaDni1);
             Controls.Add(label56);
             Controls.Add(iloscDostaw);
             Controls.Add(Dodatek);
@@ -1998,6 +2037,8 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox30).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridWagi).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridWstawien).EndInit();
+            groupBox2.ResumeLayout(false);
+            groupBox2.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2208,12 +2249,14 @@
         private System.Windows.Forms.TextBox sztukiRoznica;
         private System.Windows.Forms.DataGridView dataGridWstawien;
         private System.Windows.Forms.Button buttonWstawianie;
-        private System.Windows.Forms.Button button3;
-        private System.Windows.Forms.Button button5;
-        private System.Windows.Forms.Button button6;
-        private System.Windows.Forms.Button button9;
-        private System.Windows.Forms.Button button10;
+        private System.Windows.Forms.Button Wklej1;
+        private System.Windows.Forms.Button Wklej2;
+        private System.Windows.Forms.Button Wklej3;
+        private System.Windows.Forms.Button Wklej4;
+        private System.Windows.Forms.Button Wklej5;
         private System.Windows.Forms.Button buttonAnulowanie;
         private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.TextBox LiczbaDniWstawienia;
     }
 }
