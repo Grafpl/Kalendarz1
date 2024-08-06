@@ -26,6 +26,8 @@ namespace Kalendarz1
 
 
 
+
+
         public Wstawienie()
         {
             InitializeComponent();
@@ -37,6 +39,20 @@ namespace Kalendarz1
         private void Form1_Load(object sender, EventArgs e)
         {
 
+        }
+        public void WypelnijStartowo()
+        {
+            textDni1.Text = "35";
+            textDni2.Text = "42";
+
+            srednia1.Text = "2,1";
+            srednia2.Text = "2,8";
+
+            sztukNaSzuflade1.Text = "20";
+            sztukNaSzuflade2.Text = "16";
+
+            DodajDniDoDaty(textDni1, dataWstawienia, Data1);
+            DodajDniDoDaty(textDni2, dataWstawienia, Data2);
         }
 
         private void FillComboBox()
@@ -453,9 +469,66 @@ namespace Kalendarz1
                 FormatujWierszeZgodnieZStatus(i);
             }
             SetRowHeights(18);
+
+            ObliczRozniceDniMiedzyWstawieniami(dataWstawienia, LiczbaDniWstawienia, Dostawca);
+
             pictureBox1.Visible = true;
             sztukiWstawienia.Visible = true;
             SztukiUpadki.Visible = true;
+        }
+
+        public void ObliczRozniceDniMiedzyWstawieniami(DateTimePicker datePicker, TextBox liczbaDniWstawienia, ComboBox comboBoxDostawca)
+        {
+            if (comboBoxDostawca.SelectedItem == null)
+            {
+                MessageBox.Show("Proszę wybrać dostawcę.");
+                return;
+            }
+
+            string dostawca = comboBoxDostawca.SelectedItem.ToString();
+          
+            string query = @"
+        WITH CTE AS (
+            SELECT TOP (1)
+                LP,
+                Dostawca,
+                DataWstawienia
+            FROM 
+                [LibraNet].[dbo].[WstawieniaKurczakow]
+            WHERE 
+                Dostawca = @Dostawca
+            ORDER BY
+                DataWstawienia DESC
+        )
+        SELECT DataWstawienia FROM CTE;";
+
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Dostawca", dostawca);
+
+                try
+                {
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    if (result != null)
+                    {
+                        DateTime dataWstawienia = Convert.ToDateTime(result);
+                        DateTime selectedDate = datePicker.Value;
+                        TimeSpan difference = selectedDate - dataWstawienia;
+                        int liczbaDni = (int)difference.TotalDays;
+                        liczbaDniWstawienia.Text = liczbaDni.ToString();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nie znaleziono danych dla podanego dostawcy.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Wystąpił błąd: " + ex.Message);
+                }
+            }
         }
 
         private void SetRowHeights(int height)
@@ -518,7 +591,7 @@ namespace Kalendarz1
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
             DisplayDataInDataGridView();
             PokazWstawienia();
-            PokazWstawienia();
+           
             // Pobierz wybrany element z ComboBox
             string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim().ToLower() ?? "";
 
@@ -538,9 +611,14 @@ namespace Kalendarz1
                     }
                 }
             }
+
+
             pictureBox29.Visible = true;
             dataWstawienia.Visible = true;
             LiczbaDniWstawienia.Visible = true;
+            dataGridWagi.Visible = true;
+            dataGridWstawien.Visible = true;
+
         }
         private void PokazWstawienia()
         {
@@ -1178,7 +1256,7 @@ namespace Kalendarz1
 
 
 
-        private void WstawianieDanych(
+        private Tuple<string, string, string, string> WstawianieDanych(
     SqlConnection connection,
     CheckBox checkBox,
     ComboBox dostawca,
@@ -1196,6 +1274,11 @@ namespace Kalendarz1
     String Bufor,
     long LpW)
         {
+            string maxLP2Str = string.Empty;
+            string dataOdbioruStr = string.Empty;
+            string sztukiStr = string.Empty;
+            string liczbaAutStr = string.Empty;
+
             try
             {
                 connection.Open();
@@ -1204,22 +1287,26 @@ namespace Kalendarz1
                 {
                     try
                     {
-
-
                         long maxLP2;
                         string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
                         using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
                         {
-                            object result = command.ExecuteScalar();
-                            maxLP2 = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                            object maxLP2Result = command.ExecuteScalar();
+                            maxLP2 = maxLP2Result == DBNull.Value ? 1 : Convert.ToInt64(maxLP2Result) + 1;
                         }
 
                         if (dostawca.SelectedItem != null)
                         {
                             string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo) 
-                                            VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw, @KtoStwo)";
+                                    VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw, @KtoStwo)";
                             using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
                             {
+                                // Capture the values as strings before executing the command
+                                maxLP2Str = maxLP2.ToString();
+                                dataOdbioruStr = dataOdbioru.Value.ToString("yyyy-MM-dd");
+                                sztukiStr = string.IsNullOrEmpty(sztuki.Text) ? "NULL" : Convert.ToInt32(sztuki.Text).ToString();
+                                liczbaAutStr = string.IsNullOrEmpty(liczbaAut.Text) ? "NULL" : Convert.ToInt32(liczbaAut.Text).ToString();
+
                                 command.Parameters.AddWithValue("@MaxLP2", maxLP2);
                                 command.Parameters.AddWithValue("@MaxLP", LpW);
                                 command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
@@ -1235,18 +1322,18 @@ namespace Kalendarz1
                                 command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
                                 command.Parameters.AddWithValue("@TypCeny", TypCeny);
                                 command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
-                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);  // Użyj bieżącej daty i czasu
-                                command.Parameters.AddWithValue("@KtoStwo", UserID);  // Użyj bieżącej daty i czasu
+                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);
+                                command.Parameters.AddWithValue("@KtoStwo", UserID);
                                 command.ExecuteNonQuery();
+
+                                // Commit the transaction
+                                transaction.Commit();
                             }
                         }
                         else
                         {
                             throw new InvalidOperationException("Dostawca nie został wybrany.");
                         }
-
-
-                        transaction.Commit();
                     }
                     catch (Exception ex)
                     {
@@ -1263,143 +1350,163 @@ namespace Kalendarz1
             {
                 connection.Close();
             }
+
+            return Tuple.Create(maxLP2Str, dataOdbioruStr, sztukiStr, liczbaAutStr);
         }
-
-
 
         private void buttonWstawianie_Click(object sender, EventArgs e)
         {
-
             var contractDetails = JakiTypKontraktu();
 
             string TypUmowy = contractDetails.TypUmowy;
             string TypCeny = contractDetails.TypCeny;
             string Bufor = contractDetails.Bufor;
+            string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim() ?? "";
+
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
                 long LpW = WstawianieWstawienia(
-                     connection,
-                     Dostawca,
-                     dataWstawienia,
-                     sztukiWstawienia,
-                     uwagi,
-                     TypUmowy,
-                     TypCeny);
+                    connection,
+                    Dostawca,
+                    dataWstawienia,
+                    sztukiWstawienia,
+                    uwagi,
+                    TypUmowy,
+                    TypCeny
+                );
+
+                StringBuilder successMessages = new StringBuilder();
+
+                successMessages.AppendLine($"Dostawca : {selectedDostawca}, Typ Umowy: {TypUmowy}, TypCeny: {TypCeny} ");
 
                 if (checkBox1.Checked)
                 {
-                    WstawianieDanych(
-                    connection,
-                    checkBox1,
-                    Dostawca,
-                    Data1,
-                    KmK,
-                    KmH,
-                    Ubytek,
-                    srednia1,
-                    sztuki1,
-                    sztukNaSzuflade1,
-                    liczbaAut1,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny,
-                    Bufor,
-                    LpW
-                );
+                    var result1 = WstawianieDanych(
+                        connection,
+                        checkBox1,
+                        Dostawca,
+                        Data1,
+                        KmK,
+                        KmH,
+                        Ubytek,
+                        srednia1,
+                        sztuki1,
+                        sztukNaSzuflade1,
+                        liczbaAut1,
+                        uwagi,
+                        TypUmowy,
+                        TypCeny,
+                        Bufor,
+                        LpW
+                    );
+                    successMessages.AppendLine($"1.Lp: {result1.Item1}, Data: {result1.Item2}, Sztuki: {result1.Item3}, Auta: {result1.Item4}");
                 }
+
                 if (checkBox2.Checked)
                 {
-                    WstawianieDanych(
-                    connection,
-                    checkBox2,
-                    Dostawca,
-                    Data2,
-                    KmK,
-                    KmH,
-                    Ubytek,
-                    srednia2,
-                    sztuki2,
-                    sztukNaSzuflade2,
-                    liczbaAut2,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny,
-                    Bufor,
-                    LpW
-
-                );
+                    var result2 = WstawianieDanych(
+                        connection,
+                        checkBox2,
+                        Dostawca,
+                        Data2,
+                        KmK,
+                        KmH,
+                        Ubytek,
+                        srednia2,
+                        sztuki2,
+                        sztukNaSzuflade2,
+                        liczbaAut2,
+                        uwagi,
+                        TypUmowy,
+                        TypCeny,
+                        Bufor,
+                        LpW
+                    );
+                    successMessages.AppendLine($"2.Lp: {result2.Item1}, Data: {result2.Item2}, Sztuki: {result2.Item3}, Auta: {result2.Item4}");
                 }
+
                 if (checkBox3.Checked)
                 {
-                    WstawianieDanych(
-                    connection,
-                    checkBox3,
-                    Dostawca,
-                    Data3,
-                    KmK,
-                    KmH,
-                    Ubytek,
-                    srednia3,
-                    sztuki3,
-                    sztukNaSzuflade3,
-                    liczbaAut3,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny,
-                    Bufor,
-                    LpW
-                );
+                    var result3 = WstawianieDanych(
+                        connection,
+                        checkBox3,
+                        Dostawca,
+                        Data3,
+                        KmK,
+                        KmH,
+                        Ubytek,
+                        srednia3,
+                        sztuki3,
+                        sztukNaSzuflade3,
+                        liczbaAut3,
+                        uwagi,
+                        TypUmowy,
+                        TypCeny,
+                        Bufor,
+                        LpW
+                    );
+                    successMessages.AppendLine($"3.Lp: {result3.Item1}, Data: {result3.Item2}, Sztuki: {result3.Item3}, Auta: {result3.Item4}");
                 }
+
                 if (checkBox4.Checked)
                 {
-                    WstawianieDanych(
-                    connection,
-                    checkBox4,
-                    Dostawca,
-                    Data4,
-                    KmK,
-                    KmH,
-                    Ubytek,
-                    srednia4,
-                    sztuki4,
-                    sztukNaSzuflade4,
-                    liczbaAut4,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny,
-                    Bufor,
-                    LpW
-                );
+                    var result4 = WstawianieDanych(
+                        connection,
+                        checkBox4,
+                        Dostawca,
+                        Data4,
+                        KmK,
+                        KmH,
+                        Ubytek,
+                        srednia4,
+                        sztuki4,
+                        sztukNaSzuflade4,
+                        liczbaAut4,
+                        uwagi,
+                        TypUmowy,
+                        TypCeny,
+                        Bufor,
+                        LpW
+                    );
+                    successMessages.AppendLine($"4.Lp: {result4.Item1}, Data: {result4.Item2}, Sztuki: {result4.Item3}, Auta: {result4.Item4}");
                 }
+
                 if (checkBox5.Checked)
                 {
-                    WstawianieDanych(
-                    connection,
-                    checkBox5,
-                    Dostawca,
-                    Data5,
-                    KmK,
-                    KmH,
-                    Ubytek,
-                    srednia5,
-                    sztuki5,
-                    sztukNaSzuflade5,
-                    liczbaAut5,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny,
-                    Bufor,
-                    LpW
-                );
+                    var result5 = WstawianieDanych(
+                        connection,
+                        checkBox5,
+                        Dostawca,
+                        Data5,
+                        KmK,
+                        KmH,
+                        Ubytek,
+                        srednia5,
+                        sztuki5,
+                        sztukNaSzuflade5,
+                        liczbaAut5,
+                        uwagi,
+                        TypUmowy,
+                        TypCeny,
+                        Bufor,
+                        LpW
+                    );
+                    successMessages.AppendLine($"5.Lp: {result5.Item1}, Data: {result5.Item2}, Sztuki: {result5.Item3}, Auta: {result5.Item4}");
                 }
 
+                // Display all success messages at the end
+                if (successMessages.Length > 0)
+                {
+                    MessageBox.Show(successMessages.ToString(), "Successful Entries", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("No entries were processed.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                this.Close();
             }
-
-
-
-
-
         }
+
         private void buttonWklej(TextBox Sztuki, TextBox sztukiRoznica)
         {
             if (double.TryParse(sztukiRoznica.Text, System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.CurrentCulture, out double value))
@@ -1435,6 +1542,16 @@ namespace Kalendarz1
         private void Wklej5_Click(object sender, EventArgs e)
         {
             buttonWklej(sztuki5, sztukiRoznica);
+        }
+
+        private void buttonAnulowanie_Click_1(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void textDni5_TextChanged(object sender, EventArgs e)
+        {
+            DodajDniDoDaty(textDni4, dataWstawienia, Data4);
         }
     }
 }

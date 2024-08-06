@@ -186,6 +186,8 @@
             buttonAnulowanie = new System.Windows.Forms.Button();
             label17 = new System.Windows.Forms.Label();
             groupBox2 = new System.Windows.Forms.GroupBox();
+            label10 = new System.Windows.Forms.Label();
+            label9 = new System.Windows.Forms.Label();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -1476,6 +1478,7 @@
             textDni5.TabIndex = 131;
             textDni5.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             textDni5.Visible = false;
+            textDni5.TextChanged += textDni5_TextChanged;
             // 
             // ObliczSztuki5
             // 
@@ -1760,6 +1763,7 @@
             dataGridWagi.RowTemplate.Height = 25;
             dataGridWagi.Size = new System.Drawing.Size(345, 115);
             dataGridWagi.TabIndex = 162;
+            dataGridWagi.Visible = false;
             // 
             // sztukiRoznica
             // 
@@ -1780,6 +1784,7 @@
             dataGridWstawien.RowTemplate.Height = 25;
             dataGridWstawien.Size = new System.Drawing.Size(307, 115);
             dataGridWstawien.TabIndex = 164;
+            dataGridWstawien.Visible = false;
             // 
             // buttonWstawianie
             // 
@@ -1802,6 +1807,7 @@
             Wklej1.TabIndex = 166;
             Wklej1.Text = "Wklej";
             Wklej1.UseVisualStyleBackColor = false;
+            Wklej1.Visible = false;
             Wklej1.Click += Wklej1_Click;
             // 
             // Wklej2
@@ -1813,6 +1819,7 @@
             Wklej2.TabIndex = 167;
             Wklej2.Text = "Wklej";
             Wklej2.UseVisualStyleBackColor = false;
+            Wklej2.Visible = false;
             Wklej2.Click += Wklej2_Click;
             // 
             // Wklej3
@@ -1824,6 +1831,7 @@
             Wklej3.TabIndex = 168;
             Wklej3.Text = "Wklej";
             Wklej3.UseVisualStyleBackColor = false;
+            Wklej3.Visible = false;
             Wklej3.Click += Wklej3_Click;
             // 
             // Wklej4
@@ -1835,6 +1843,7 @@
             Wklej4.TabIndex = 169;
             Wklej4.Text = "Wklej";
             Wklej4.UseVisualStyleBackColor = false;
+            Wklej4.Visible = false;
             Wklej4.Click += Wklej4_Click;
             // 
             // Wklej5
@@ -1846,6 +1855,7 @@
             Wklej5.TabIndex = 170;
             Wklej5.Text = "Wklej";
             Wklej5.UseVisualStyleBackColor = false;
+            Wklej5.Visible = false;
             Wklej5.Click += Wklej5_Click;
             // 
             // buttonAnulowanie
@@ -1857,6 +1867,7 @@
             buttonAnulowanie.TabIndex = 171;
             buttonAnulowanie.Text = "Anuluj";
             buttonAnulowanie.UseVisualStyleBackColor = false;
+            buttonAnulowanie.Click += buttonAnulowanie_Click_1;
             // 
             // label17
             // 
@@ -1872,6 +1883,8 @@
             // 
             groupBox2.BackColor = System.Drawing.SystemColors.ButtonFace;
             groupBox2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
+            groupBox2.Controls.Add(label10);
+            groupBox2.Controls.Add(label9);
             groupBox2.Controls.Add(label17);
             groupBox2.Controls.Add(RoznicaDni1);
             groupBox2.Controls.Add(buttonAnulowanie);
@@ -1966,6 +1979,26 @@
             groupBox2.Text = "Sekcja Dostaw";
             groupBox2.Visible = false;
             // 
+            // label10
+            // 
+            label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label10.Location = new System.Drawing.Point(183, 265);
+            label10.Name = "label10";
+            label10.Size = new System.Drawing.Size(167, 23);
+            label10.TabIndex = 174;
+            label10.Text = "Suma sztuk do rozporządzenia :";
+            label10.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label9
+            // 
+            label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label9.Location = new System.Drawing.Point(262, 239);
+            label9.Name = "label9";
+            label9.Size = new System.Drawing.Size(88, 23);
+            label9.TabIndex = 173;
+            label9.Text = "Suma sztuk :";
+            label9.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
             // Wstawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -2016,7 +2049,7 @@
             Controls.Add(label24);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "Wstawienie";
-            Text = "Form1";
+            Text = "Wstawienie";
             Load += Form1_Load;
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();

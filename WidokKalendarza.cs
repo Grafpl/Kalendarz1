@@ -1324,11 +1324,16 @@ namespace Kalendarz1
         {
             Wstawienie wstawienie = new Wstawienie();
             wstawienie.UserID = App.UserID;
+
+            // Initialize fields and execute methods
+            wstawienie.WypelnijStartowo();
+
             // Wyświetlanie Form1
             wstawienie.Show();
 
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
         }
+
         private void dataGridPartie_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
 

@@ -225,6 +225,15 @@ namespace Kalendarz1
             button16 = new Button();
             pokazDlaSprzedazy = new Button();
             pictureBox1 = new PictureBox();
+            dataGridViewWstawienia = new DataGridView();
+            textBox1 = new TextBox();
+            label46 = new Label();
+            textBox2 = new TextBox();
+            label51 = new Label();
+            textBox5 = new TextBox();
+            label52 = new Label();
+            textBox6 = new TextBox();
+            label53 = new Label();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -242,6 +251,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dataGridPartie).BeginInit();
             groupBoxPrzyciski.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
@@ -298,7 +308,14 @@ namespace Kalendarz1
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            groupBox1.Controls.Add(SMSupomnienie);
+            groupBox1.Controls.Add(textBox5);
+            groupBox1.Controls.Add(label52);
+            groupBox1.Controls.Add(textBox6);
+            groupBox1.Controls.Add(label53);
+            groupBox1.Controls.Add(textBox1);
+            groupBox1.Controls.Add(label46);
+            groupBox1.Controls.Add(textBox2);
+            groupBox1.Controls.Add(label51);
             groupBox1.Controls.Add(label26);
             groupBox1.Controls.Add(textBox3);
             groupBox1.Controls.Add(groupBox3);
@@ -327,7 +344,7 @@ namespace Kalendarz1
             // 
             // SMSupomnienie
             // 
-            SMSupomnienie.Location = new System.Drawing.Point(409, 422);
+            SMSupomnienie.Location = new System.Drawing.Point(1549, 423);
             SMSupomnienie.Name = "SMSupomnienie";
             SMSupomnienie.Size = new System.Drawing.Size(62, 23);
             SMSupomnienie.TabIndex = 126;
@@ -2153,12 +2170,16 @@ namespace Kalendarz1
             // buttonWstawienie
             // 
             buttonWstawienie.BackColor = System.Drawing.Color.Yellow;
-            buttonWstawienie.Location = new System.Drawing.Point(1549, 12);
+            buttonWstawienie.FlatStyle = FlatStyle.Flat;
+            buttonWstawienie.Font = new System.Drawing.Font("Swis721 BlkCn BT", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonWstawienie.ForeColor = System.Drawing.Color.MidnightBlue;
+            buttonWstawienie.Image = (System.Drawing.Image)resources.GetObject("buttonWstawienie.Image");
+            buttonWstawienie.Location = new System.Drawing.Point(635, 664);
             buttonWstawienie.Name = "buttonWstawienie";
-            buttonWstawienie.Size = new System.Drawing.Size(71, 41);
+            buttonWstawienie.Size = new System.Drawing.Size(98, 49);
             buttonWstawienie.TabIndex = 112;
             buttonWstawienie.Text = "Dodaj wstawienie";
-            buttonWstawienie.UseVisualStyleBackColor = false;
+            buttonWstawienie.UseVisualStyleBackColor = true;
             buttonWstawienie.Click += buttonWstawienie_Click;
             // 
             // dataGridPartie
@@ -2167,7 +2188,7 @@ namespace Kalendarz1
             dataGridPartie.Location = new System.Drawing.Point(908, 462);
             dataGridPartie.Name = "dataGridPartie";
             dataGridPartie.RowTemplate.Height = 25;
-            dataGridPartie.Size = new System.Drawing.Size(640, 286);
+            dataGridPartie.Size = new System.Drawing.Size(378, 286);
             dataGridPartie.TabIndex = 113;
             dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             // 
@@ -2371,11 +2392,101 @@ namespace Kalendarz1
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
             // 
+            // dataGridViewWstawienia
+            // 
+            dataGridViewWstawienia.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewWstawienia.Location = new System.Drawing.Point(1292, 462);
+            dataGridViewWstawienia.Name = "dataGridViewWstawienia";
+            dataGridViewWstawienia.RowTemplate.Height = 25;
+            dataGridViewWstawienia.Size = new System.Drawing.Size(306, 286);
+            dataGridViewWstawienia.TabIndex = 130;
+            // 
+            // textBox1
+            // 
+            textBox1.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox1.Location = new System.Drawing.Point(409, 425);
+            textBox1.Name = "textBox1";
+            textBox1.Size = new System.Drawing.Size(95, 19);
+            textBox1.TabIndex = 127;
+            textBox1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label46
+            // 
+            label46.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label46.Location = new System.Drawing.Point(409, 411);
+            label46.Name = "label46";
+            label46.Size = new System.Drawing.Size(95, 15);
+            label46.TabIndex = 128;
+            label46.Text = "Data potw. Wagi";
+            label46.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox2
+            // 
+            textBox2.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox2.Location = new System.Drawing.Point(510, 425);
+            textBox2.Name = "textBox2";
+            textBox2.Size = new System.Drawing.Size(95, 19);
+            textBox2.TabIndex = 129;
+            textBox2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label51
+            // 
+            label51.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label51.Location = new System.Drawing.Point(510, 411);
+            label51.Name = "label51";
+            label51.Size = new System.Drawing.Size(97, 15);
+            label51.TabIndex = 130;
+            label51.Text = "Kto potw. Wagi";
+            label51.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox5
+            // 
+            textBox5.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox5.Location = new System.Drawing.Point(611, 425);
+            textBox5.Name = "textBox5";
+            textBox5.Size = new System.Drawing.Size(95, 19);
+            textBox5.TabIndex = 131;
+            textBox5.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label52
+            // 
+            label52.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label52.Location = new System.Drawing.Point(611, 411);
+            label52.Name = "label52";
+            label52.Size = new System.Drawing.Size(95, 15);
+            label52.TabIndex = 132;
+            label52.Text = "Data potw. Sztuk";
+            label52.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox6
+            // 
+            textBox6.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox6.Location = new System.Drawing.Point(712, 425);
+            textBox6.Name = "textBox6";
+            textBox6.Size = new System.Drawing.Size(95, 19);
+            textBox6.TabIndex = 133;
+            textBox6.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label53
+            // 
+            label53.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label53.Location = new System.Drawing.Point(712, 411);
+            label53.Name = "label53";
+            label53.Size = new System.Drawing.Size(97, 15);
+            label53.TabIndex = 134;
+            label53.Text = "Kto potw. Sztuki";
+            label53.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1626, 982);
+            Controls.Add(dataGridViewWstawienia);
             Controls.Add(pictureBox1);
             Controls.Add(label49);
             Controls.Add(groupBoxPrzyciski);
@@ -2383,6 +2494,7 @@ namespace Kalendarz1
             Controls.Add(button14);
             Controls.Add(textTuszkiRol);
             Controls.Add(button9);
+            Controls.Add(SMSupomnienie);
             Controls.Add(textWolny);
             Controls.Add(button6);
             Controls.Add(buttonWstawienie);
@@ -2465,6 +2577,7 @@ namespace Kalendarz1
             groupBoxPrzyciski.ResumeLayout(false);
             groupBoxPrzyciski.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2663,5 +2776,14 @@ namespace Kalendarz1
         private PictureBox pictureBox1;
         private Button pokazDlaSprzedazy;
         private Button button16;
+        private TextBox textBox5;
+        private Label label52;
+        private TextBox textBox6;
+        private Label label53;
+        private TextBox textBox1;
+        private Label label46;
+        private TextBox textBox2;
+        private Label label51;
+        private DataGridView dataGridViewWstawienia;
     }
 }
