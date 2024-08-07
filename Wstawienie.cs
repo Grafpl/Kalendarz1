@@ -470,8 +470,13 @@ namespace Kalendarz1
             }
             SetRowHeights(18);
 
-            ObliczRozniceDniMiedzyWstawieniami(dataWstawienia, LiczbaDniWstawienia, Dostawca);
 
+            ObliczRozniceDniMiedzyWstawieniami(dataWstawienia, LiczbaDniWstawienia, Dostawca);
+            DodajDniDoDaty(textDni1, dataWstawienia, Data1);
+            DodajDniDoDaty(textDni2, dataWstawienia, Data2);
+            DodajDniDoDaty(textDni3, dataWstawienia, Data3);
+            DodajDniDoDaty(textDni4, dataWstawienia, Data4);
+            DodajDniDoDaty(textDni5, dataWstawienia, Data5);
             pictureBox1.Visible = true;
             sztukiWstawienia.Visible = true;
             SztukiUpadki.Visible = true;
@@ -481,7 +486,7 @@ namespace Kalendarz1
         {
             if (comboBoxDostawca.SelectedItem == null)
             {
-                MessageBox.Show("Proszę wybrać dostawcę.");
+                
                 return;
             }
 
