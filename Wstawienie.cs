@@ -994,8 +994,9 @@ namespace Kalendarz1
                 Partia.CustomerName AS Dostawca,
                 DATEDIFF(day, MIN(wk.DataWstawienia), MAX(hd.DataOdbioru)) AS RoznicaDni,
                 AVG(hd.WagaDek) AS WagaDek,
-                CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
-                CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - AVG(hd.WagaDek)) AS roznica
+                CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - AVG(hd.WagaDek)) AS roznica,
+                CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy
+                
             FROM 
                 [LibraNet].[dbo].[In0E] k
             JOIN 

@@ -11,6 +11,8 @@ namespace Kalendarz1
         // Connection string do bazy danych
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
+        int selectedLp;
+
         public WidokWstawienia()
         {
             InitializeComponent();
@@ -18,6 +20,8 @@ namespace Kalendarz1
             this.StartPosition = FormStartPosition.CenterScreen;
 
         }
+
+        
 
         private bool isUserInitiatedChange = false;
 
@@ -213,6 +217,8 @@ namespace Kalendarz1
 
         private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
+
+            
             if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
             {
                 if (isUserInitiatedChange)
@@ -274,6 +280,10 @@ namespace Kalendarz1
         // Aby ustawić flagę, gdy zmiana jest inicjowana przez użytkownika
         private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
+
+
+
+            
             if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
             {
                 isUserInitiatedChange = true;
