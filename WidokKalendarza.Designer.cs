@@ -39,7 +39,14 @@ namespace Kalendarz1
             weekNumberTextBox = new TextBox();
             userTextbox = new TextBox();
             groupBox1 = new GroupBox();
-            SMSupomnienie = new Button();
+            textBox5 = new TextBox();
+            label52 = new Label();
+            textBox6 = new TextBox();
+            label53 = new Label();
+            textBox1 = new TextBox();
+            label46 = new Label();
+            textBox2 = new TextBox();
+            label51 = new Label();
             label26 = new Label();
             textBox3 = new TextBox();
             groupBox3 = new GroupBox();
@@ -159,6 +166,7 @@ namespace Kalendarz1
             ktoMod = new TextBox();
             ktoStwo = new TextBox();
             label29 = new Label();
+            SMSupomnienie = new Button();
             ObliczAuta = new Button();
             info1 = new TextBox();
             info2 = new TextBox();
@@ -226,14 +234,7 @@ namespace Kalendarz1
             pokazDlaSprzedazy = new Button();
             pictureBox1 = new PictureBox();
             dataGridViewWstawienia = new DataGridView();
-            textBox1 = new TextBox();
-            label46 = new Label();
-            textBox2 = new TextBox();
-            label51 = new Label();
-            textBox5 = new TextBox();
-            label52 = new Label();
-            textBox6 = new TextBox();
-            label53 = new Label();
+            dataGridSumaPartie = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -252,12 +253,13 @@ namespace Kalendarz1
             groupBoxPrzyciski.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
             // 
             MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            MyCalendar.Location = new System.Drawing.Point(635, 497);
+            MyCalendar.Location = new System.Drawing.Point(634, 468);
             MyCalendar.Margin = new Padding(2);
             MyCalendar.Name = "MyCalendar";
             MyCalendar.TabIndex = 1;
@@ -290,7 +292,7 @@ namespace Kalendarz1
             // weekNumberTextBox
             // 
             weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            weekNumberTextBox.Location = new System.Drawing.Point(12, 410);
+            weekNumberTextBox.Location = new System.Drawing.Point(13, 396);
             weekNumberTextBox.Multiline = true;
             weekNumberTextBox.Name = "weekNumberTextBox";
             weekNumberTextBox.Size = new System.Drawing.Size(50, 38);
@@ -342,15 +344,85 @@ namespace Kalendarz1
             groupBox1.Text = "Dostawa";
             groupBox1.Enter += groupBox1_Enter;
             // 
-            // SMSupomnienie
+            // textBox5
             // 
-            SMSupomnienie.Location = new System.Drawing.Point(1549, 423);
-            SMSupomnienie.Name = "SMSupomnienie";
-            SMSupomnienie.Size = new System.Drawing.Size(62, 23);
-            SMSupomnienie.TabIndex = 126;
-            SMSupomnienie.Text = "SMS";
-            SMSupomnienie.UseVisualStyleBackColor = true;
-            SMSupomnienie.Click += SMSupomnienie_Click;
+            textBox5.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox5.Location = new System.Drawing.Point(611, 425);
+            textBox5.Name = "textBox5";
+            textBox5.Size = new System.Drawing.Size(95, 19);
+            textBox5.TabIndex = 131;
+            textBox5.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label52
+            // 
+            label52.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label52.Location = new System.Drawing.Point(611, 411);
+            label52.Name = "label52";
+            label52.Size = new System.Drawing.Size(95, 15);
+            label52.TabIndex = 132;
+            label52.Text = "Data potw. Sztuk";
+            label52.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox6
+            // 
+            textBox6.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox6.Location = new System.Drawing.Point(712, 425);
+            textBox6.Name = "textBox6";
+            textBox6.Size = new System.Drawing.Size(95, 19);
+            textBox6.TabIndex = 133;
+            textBox6.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label53
+            // 
+            label53.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label53.Location = new System.Drawing.Point(712, 411);
+            label53.Name = "label53";
+            label53.Size = new System.Drawing.Size(97, 15);
+            label53.TabIndex = 134;
+            label53.Text = "Kto potw. Sztuki";
+            label53.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox1
+            // 
+            textBox1.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox1.Location = new System.Drawing.Point(409, 425);
+            textBox1.Name = "textBox1";
+            textBox1.Size = new System.Drawing.Size(95, 19);
+            textBox1.TabIndex = 127;
+            textBox1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label46
+            // 
+            label46.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label46.Location = new System.Drawing.Point(409, 411);
+            label46.Name = "label46";
+            label46.Size = new System.Drawing.Size(95, 15);
+            label46.TabIndex = 128;
+            label46.Text = "Data potw. Wagi";
+            label46.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBox2
+            // 
+            textBox2.BackColor = System.Drawing.SystemColors.ScrollBar;
+            textBox2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox2.Location = new System.Drawing.Point(510, 425);
+            textBox2.Name = "textBox2";
+            textBox2.Size = new System.Drawing.Size(95, 19);
+            textBox2.TabIndex = 129;
+            textBox2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label51
+            // 
+            label51.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label51.Location = new System.Drawing.Point(510, 411);
+            label51.Name = "label51";
+            label51.Size = new System.Drawing.Size(97, 15);
+            label51.TabIndex = 130;
+            label51.Text = "Kto potw. Wagi";
+            label51.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label26
             // 
@@ -1677,6 +1749,16 @@ namespace Kalendarz1
             label29.Text = "Kto modyfikował";
             label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // SMSupomnienie
+            // 
+            SMSupomnienie.Location = new System.Drawing.Point(1549, 423);
+            SMSupomnienie.Name = "SMSupomnienie";
+            SMSupomnienie.Size = new System.Drawing.Size(62, 23);
+            SMSupomnienie.TabIndex = 126;
+            SMSupomnienie.Text = "SMS";
+            SMSupomnienie.UseVisualStyleBackColor = true;
+            SMSupomnienie.Click += SMSupomnienie_Click;
+            // 
             // ObliczAuta
             // 
             ObliczAuta.Location = new System.Drawing.Point(860, 839);
@@ -1753,7 +1835,7 @@ namespace Kalendarz1
             // label21
             // 
             label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(12, 390);
+            label21.Location = new System.Drawing.Point(13, 376);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(50, 20);
             label21.TabIndex = 76;
@@ -2174,7 +2256,7 @@ namespace Kalendarz1
             buttonWstawienie.Font = new System.Drawing.Font("Swis721 BlkCn BT", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             buttonWstawienie.ForeColor = System.Drawing.Color.MidnightBlue;
             buttonWstawienie.Image = (System.Drawing.Image)resources.GetObject("buttonWstawienie.Image");
-            buttonWstawienie.Location = new System.Drawing.Point(635, 664);
+            buttonWstawienie.Location = new System.Drawing.Point(635, 635);
             buttonWstawienie.Name = "buttonWstawienie";
             buttonWstawienie.Size = new System.Drawing.Size(98, 49);
             buttonWstawienie.TabIndex = 112;
@@ -2188,14 +2270,14 @@ namespace Kalendarz1
             dataGridPartie.Location = new System.Drawing.Point(908, 462);
             dataGridPartie.Name = "dataGridPartie";
             dataGridPartie.RowTemplate.Height = 25;
-            dataGridPartie.Size = new System.Drawing.Size(378, 286);
+            dataGridPartie.Size = new System.Drawing.Size(378, 325);
             dataGridPartie.TabIndex = 113;
             dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             // 
             // button1
             // 
             button1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button1.Location = new System.Drawing.Point(1, 451);
+            button1.Location = new System.Drawing.Point(1, 433);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(38, 31);
             button1.TabIndex = 114;
@@ -2207,7 +2289,7 @@ namespace Kalendarz1
             // button5
             // 
             button5.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button5.Location = new System.Drawing.Point(38, 451);
+            button5.Location = new System.Drawing.Point(38, 433);
             button5.Name = "button5";
             button5.Size = new System.Drawing.Size(36, 31);
             button5.TabIndex = 115;
@@ -2351,7 +2433,7 @@ namespace Kalendarz1
             groupBoxPrzyciski.Controls.Add(button1);
             groupBoxPrzyciski.Location = new System.Drawing.Point(639, 4);
             groupBoxPrzyciski.Name = "groupBoxPrzyciski";
-            groupBoxPrzyciski.Size = new System.Drawing.Size(74, 488);
+            groupBoxPrzyciski.Size = new System.Drawing.Size(74, 465);
             groupBoxPrzyciski.TabIndex = 126;
             groupBoxPrzyciski.TabStop = false;
             // 
@@ -2398,94 +2480,24 @@ namespace Kalendarz1
             dataGridViewWstawienia.Location = new System.Drawing.Point(1292, 462);
             dataGridViewWstawienia.Name = "dataGridViewWstawienia";
             dataGridViewWstawienia.RowTemplate.Height = 25;
-            dataGridViewWstawienia.Size = new System.Drawing.Size(306, 286);
+            dataGridViewWstawienia.Size = new System.Drawing.Size(306, 325);
             dataGridViewWstawienia.TabIndex = 130;
             // 
-            // textBox1
+            // dataGridSumaPartie
             // 
-            textBox1.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox1.Location = new System.Drawing.Point(409, 425);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(95, 19);
-            textBox1.TabIndex = 127;
-            textBox1.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label46
-            // 
-            label46.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label46.Location = new System.Drawing.Point(409, 411);
-            label46.Name = "label46";
-            label46.Size = new System.Drawing.Size(95, 15);
-            label46.TabIndex = 128;
-            label46.Text = "Data potw. Wagi";
-            label46.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox2
-            // 
-            textBox2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox2.Location = new System.Drawing.Point(510, 425);
-            textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(95, 19);
-            textBox2.TabIndex = 129;
-            textBox2.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label51
-            // 
-            label51.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label51.Location = new System.Drawing.Point(510, 411);
-            label51.Name = "label51";
-            label51.Size = new System.Drawing.Size(97, 15);
-            label51.TabIndex = 130;
-            label51.Text = "Kto potw. Wagi";
-            label51.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox5
-            // 
-            textBox5.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(611, 425);
-            textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(95, 19);
-            textBox5.TabIndex = 131;
-            textBox5.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label52
-            // 
-            label52.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label52.Location = new System.Drawing.Point(611, 411);
-            label52.Name = "label52";
-            label52.Size = new System.Drawing.Size(95, 15);
-            label52.TabIndex = 132;
-            label52.Text = "Data potw. Sztuk";
-            label52.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // textBox6
-            // 
-            textBox6.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox6.Location = new System.Drawing.Point(712, 425);
-            textBox6.Name = "textBox6";
-            textBox6.Size = new System.Drawing.Size(95, 19);
-            textBox6.TabIndex = 133;
-            textBox6.TextAlign = HorizontalAlignment.Center;
-            // 
-            // label53
-            // 
-            label53.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label53.Location = new System.Drawing.Point(712, 411);
-            label53.Name = "label53";
-            label53.Size = new System.Drawing.Size(97, 15);
-            label53.TabIndex = 134;
-            label53.Text = "Kto potw. Sztuki";
-            label53.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            dataGridSumaPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridSumaPartie.Location = new System.Drawing.Point(808, 635);
+            dataGridSumaPartie.Name = "dataGridSumaPartie";
+            dataGridSumaPartie.RowTemplate.Height = 25;
+            dataGridSumaPartie.Size = new System.Drawing.Size(92, 152);
+            dataGridSumaPartie.TabIndex = 131;
             // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1626, 982);
+            Controls.Add(dataGridSumaPartie);
             Controls.Add(dataGridViewWstawienia);
             Controls.Add(pictureBox1);
             Controls.Add(label49);
@@ -2578,6 +2590,7 @@ namespace Kalendarz1
             groupBoxPrzyciski.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2785,5 +2798,6 @@ namespace Kalendarz1
         private TextBox textBox2;
         private Label label51;
         private DataGridView dataGridViewWstawienia;
+        private DataGridView dataGridSumaPartie;
     }
 }

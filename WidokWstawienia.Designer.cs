@@ -40,6 +40,8 @@
             label3 = new System.Windows.Forms.Label();
             label4 = new System.Windows.Forms.Label();
             dataGridView4 = new System.Windows.Forms.DataGridView();
+            button3 = new System.Windows.Forms.Button();
+            button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
@@ -144,11 +146,37 @@
             dataGridView4.Size = new System.Drawing.Size(485, 220);
             dataGridView4.TabIndex = 45;
             // 
+            // button3
+            // 
+            button3.BackColor = System.Drawing.SystemColors.ActiveCaptionText;
+            button3.ForeColor = System.Drawing.SystemColors.ControlLightLight;
+            button3.Location = new System.Drawing.Point(345, 9);
+            button3.Name = "button3";
+            button3.Size = new System.Drawing.Size(115, 27);
+            button3.TabIndex = 100;
+            button3.Text = "Usuń wstawienie";
+            button3.UseVisualStyleBackColor = false;
+            button3.Click += button3_Click;
+            // 
+            // button1
+            // 
+            button1.BackColor = System.Drawing.Color.PaleGreen;
+            button1.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            button1.Location = new System.Drawing.Point(224, 9);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(115, 27);
+            button1.TabIndex = 101;
+            button1.Text = "Dodaj Wstawienie";
+            button1.UseVisualStyleBackColor = false;
+            button1.Click += button1_Click;
+            // 
             // WidokWstawienia
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1283, 717);
+            Controls.Add(button1);
+            Controls.Add(button3);
             Controls.Add(label4);
             Controls.Add(dataGridView4);
             Controls.Add(label3);
@@ -184,5 +212,7 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.DataGridView dataGridView4;
+        private System.Windows.Forms.Button button3;
+        private System.Windows.Forms.Button button1;
     }
 }

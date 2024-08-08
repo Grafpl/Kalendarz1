@@ -11,8 +11,8 @@ namespace Kalendarz1
         // Connection string do bazy danych
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
-        int selectedLp;
-
+        private string lpDostawa;
+        private int selectedRowIndex = -1; // Zmienna do przechowywania indeksu zaznaczonego wiersza
         public WidokWstawienia()
         {
             InitializeComponent();
@@ -21,7 +21,7 @@ namespace Kalendarz1
 
         }
 
-        
+
 
         private bool isUserInitiatedChange = false;
 
@@ -30,7 +30,7 @@ namespace Kalendarz1
             // Zapytanie SQL
             string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS Data, IloscWstawienia, TypUmowy, Uwagi, [isCheck], [CheckCom] " +
                            "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
-                           "ORDER BY Dostawca ASC, DataWstawienia DESC";
+                           "ORDER BY LP desc, DataWstawienia DESC";
 
             // Utworzenie połączenia z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString))
@@ -49,15 +49,18 @@ namespace Kalendarz1
 
                 // Ustawienie źródła danych dla DataGridView
                 dataGridView1.DataSource = table;
-                
+
                 // Ustawienie szerokości kolumn dla dataGridView1
-                dataGridView1.Columns["LP"].Width = 45;
+                dataGridView1.Columns["LP"].Width = 40;
                 dataGridView1.Columns["Dostawca"].Width = 130;
+                dataGridView1.Columns["IloscWstawienia"].HeaderText = "Ilosc";
                 dataGridView1.Columns["Data"].Width = 100;
-                dataGridView1.Columns["IloscWstawienia"].Width = 100;
+                dataGridView1.Columns["IloscWstawienia"].Width = 50;
                 dataGridView1.Columns["TypUmowy"].Width = 80;
                 dataGridView1.Columns["Uwagi"].Width = 80;
-                dataGridView1.Columns["isCheck"].Width = 50;
+                dataGridView1.Columns["IloscWstawienia"].HeaderText = "Ilosc";
+                dataGridView1.Columns["isCheck"].Width = 45;
+                dataGridView1.Columns["isCheck"].HeaderText = "V";
                 dataGridView1.Columns["CheckCom"].Width = 100;
                 dataGridView1.RowHeadersVisible = false;
                 dataGridView2.RowHeadersVisible = false;
@@ -75,7 +78,7 @@ namespace Kalendarz1
                 dataGridView3.Columns.Add("Lp", "LP");
                 dataGridView3.Columns.Add("Data", "Data");
                 dataGridView3.Columns.Add("Dostawca", "Dostawca");
-                dataGridView3.Columns.Add("IloscWstawienia", "Ilosc Wstawienia");
+                dataGridView3.Columns.Add("IloscWstawienia", "Ilosc");
 
                 DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
                 confirmColumn.HeaderText = "V";
@@ -85,10 +88,10 @@ namespace Kalendarz1
                 dataGridView3.Columns["ConfirmColumn"].Width = 35;
 
                 // Ustawienie szerokości kolumn dla dataGridView3
-                dataGridView3.Columns["Lp"].Width = 50;
-                dataGridView3.Columns["Data"].Width = 100;
-                dataGridView3.Columns["Dostawca"].Width = 150;
-                dataGridView3.Columns["IloscWstawienia"].Width = 100;
+                dataGridView3.Columns["Lp"].Width = 45;
+                dataGridView3.Columns["Data"].Width = 90;
+                dataGridView3.Columns["Dostawca"].Width = 120;
+                dataGridView3.Columns["IloscWstawienia"].Width = 70;
 
                 for (int i = 0; i < dataGridView1.Rows.Count; i++)
                 {
@@ -107,7 +110,7 @@ namespace Kalendarz1
                     }
                 }
 
-                
+
             }
 
             DisplayDataInDataGridView4();
@@ -174,7 +177,7 @@ namespace Kalendarz1
 
                 // Wypełnienie tabeli danymi z adaptera
                 adapter.Fill(table);
-        
+
                 // Ustawienie źródła danych dla DataGridView
                 dataGridView4.DataSource = table;
 
@@ -182,13 +185,15 @@ namespace Kalendarz1
                 dataGridView4.Columns["Lp"].Width = 45;
                 dataGridView4.Columns["DataOdbioru"].Width = 75;
                 dataGridView4.Columns["Dostawca"].Width = 120;
-                dataGridView4.Columns["SztukiDek"].Width = 45;
-                dataGridView4.Columns["WagaDek"].Width = 45;
+                dataGridView4.Columns["SztukiDek"].Width = 40;
+                dataGridView4.Columns["SztukiDek"].HeaderText = "Sztuki";
+                dataGridView4.Columns["WagaDek"].Width = 40;
+                dataGridView4.Columns["WagaDek"].HeaderText = "Waga";
                 dataGridView4.Columns["TypCeny"].Width = 80;
                 dataGridView4.Columns["Bufor"].Width = 80;
 
                 // Ustawienie wysokości wierszy
-                
+
             }
 
             // Dodanie obsługi zdarzenia CellValueChanged
@@ -212,13 +217,13 @@ namespace Kalendarz1
             {
                 dataGridView1.CommitEdit(DataGridViewDataErrorContexts.Commit);
             }
-            
+
         }
 
         private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
 
-            
+
             if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
             {
                 if (isUserInitiatedChange)
@@ -232,7 +237,7 @@ namespace Kalendarz1
                     DisplayDataInDataGridView(); // Przeładowanie danych po zmianie
                 }
             }
-           
+
 
         }
 
@@ -274,7 +279,7 @@ namespace Kalendarz1
                     command.ExecuteNonQuery();
                 }
             }
-           
+
         }
 
         // Aby ustawić flagę, gdy zmiana jest inicjowana przez użytkownika
@@ -282,8 +287,15 @@ namespace Kalendarz1
         {
 
 
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                selectedRowIndex = e.RowIndex;
+                object wartoscKomorki = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
+                lpDostawa = wartoscKomorki != null ? wartoscKomorki.ToString() : "0";
 
-            
+
+            }
+
             if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
             {
                 isUserInitiatedChange = true;
@@ -300,7 +312,7 @@ namespace Kalendarz1
 
                     String strSQL;
 
-                    strSQL = "SELECT LP, DataOdbioru, SztukiDek FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LpW = @NumerWstawienia order by DataOdbioru ASC";
+                    strSQL = "SELECT LP, DataOdbioru, SztukiDek, bufor FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LpW = @NumerWstawienia order by DataOdbioru ASC";
 
                     // Przygotowanie drugiego zapytania
                     double sumaSztukWstawienia = 0;
@@ -312,6 +324,7 @@ namespace Kalendarz1
                     // Dodanie kolumn do DataGridView2
                     dataGridView2.Columns.Add("DataOdbioru", "Data Odbioru");
                     dataGridView2.Columns.Add("SztukiDek", "Sztuki Dek");
+                    dataGridView2.Columns.Add("Bufor", "Bufor");
 
                     using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
                     {
@@ -386,7 +399,7 @@ namespace Kalendarz1
                 }
                 previousRow = currentRow;
             }
-           
+
         }
         private void FormatujWierszeZgodnieZStatus(int rowIndex)
         {
@@ -432,7 +445,7 @@ namespace Kalendarz1
                     }
                 }
             }
-            
+
         }
 
 
@@ -478,9 +491,54 @@ namespace Kalendarz1
             }
         }
 
+        private void button3_Click(object sender, EventArgs e)
+        {
+            string deleteQuery1 = "DELETE FROM dbo.HarmonogramDostaw WHERE LpW = @LpW";
+            string deleteQuery2 = "DELETE FROM dbo.WstawieniaKurczakow WHERE Lp = @LpW";
 
+            using (SqlConnection cnn = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    cnn.Open();
 
+                    using (SqlCommand cmd1 = new SqlCommand(deleteQuery1, cnn))
+                    {
+                        cmd1.Parameters.AddWithValue("@LpW", lpDostawa);
+                        cmd1.ExecuteNonQuery();
+                    }
 
+                    using (SqlCommand cmd2 = new SqlCommand(deleteQuery2, cnn))
+                    {
+                        cmd2.Parameters.AddWithValue("@LpW", lpDostawa);
+                        cmd2.ExecuteNonQuery();
+                    }
 
+                    MessageBox.Show("Wiersz oraz powiązane z nim dane zostały usunięte z bazy danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    // Odśwież wszystkie połączenia w skoroszycie
+                    DisplayDataInDataGridView();
+                    this.StartPosition = FormStartPosition.CenterScreen;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Wstawienie wstawienie = new Wstawienie();
+            wstawienie.UserID = App.UserID;
+
+            // Initialize fields and execute methods
+            wstawienie.WypelnijStartowo();
+
+            // Wyświetlanie Form1
+            wstawienie.Show();
+
+            DisplayDataInDataGridView();
+        }
     }
 }

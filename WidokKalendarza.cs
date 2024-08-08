@@ -54,6 +54,7 @@ namespace Kalendarz1
             PokazCeny();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             BiezacePartie();
+            BiezacePartieSuma();
 
             // Sprawdź, czy aktualna godzina jest między 14:30 a 15:00
             TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
@@ -188,9 +189,95 @@ namespace Kalendarz1
                 }
             }
         }
+        private void BiezacePartieSuma()
+        {
+            // Utwórz połączenie z bazą danych SQL Server
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
+            {
+                cnn.Open();
+
+                string strSQL = @"
+            SELECT 
+                k.CreateData AS Data, 
+                k.QntInCont AS poj, 
+                COUNT(*) AS Palety
+            FROM [LibraNet].[dbo].[In0E] K
+            JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
+            LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
+            WHERE ArticleID = 40 
+                AND k.QntInCont > 4
+                AND k.CreateData = CAST(GETDATE() AS DATE)
+            GROUP BY k.CreateData, k.QntInCont
+            ORDER BY k.CreateData DESC, k.QntInCont DESC;
+        ";
+
+                using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
+                {
+                    using (SqlDataReader reader = command2.ExecuteReader())
+                    {
+                        try
+                        {
+                            // Przygotowanie DataGridWstawienia
+                            dataGridSumaPartie.Rows.Clear();
+                            dataGridSumaPartie.Columns.Clear();
+                            dataGridSumaPartie.RowHeadersVisible = false;
+
+                            // Dodaj kolumny do DataGridWstawienia, jeżeli nie istnieją
+                            if (dataGridSumaPartie.Columns["Data"] == null)
+                            {
+                                dataGridSumaPartie.Columns.Add("Data", "Data");
+                            }
+                            if (dataGridSumaPartie.Columns["poj"] == null)
+                            {
+                                dataGridSumaPartie.Columns.Add("poj", "poj");
+                            }
+                            if (dataGridSumaPartie.Columns["Palety"] == null)
+                            {
+                                dataGridSumaPartie.Columns.Add("Palety", "Palety");
+                            }
+
+                            dataGridSumaPartie.Columns["Data"].Visible = false;
+                            dataGridSumaPartie.Columns["poj"].Width = 35;
+                            dataGridSumaPartie.Columns["Palety"].Width = 45;
+                            
+
+                            while (reader.Read())
+                            {
+                                // Dodaj nowy wiersz do DataGridWstawienia
+                                DataGridViewRow newRow = new DataGridViewRow();
+                                newRow.CreateCells(dataGridSumaPartie);
+                                newRow.Cells[0].Value = reader["Data"];
+                                newRow.Cells[1].Value = reader["poj"];
+                                newRow.Cells[2].Value = reader["Palety"];
+
+                                // Dodaj nowy wiersz do kontrolki DataGridWstawienia
+                                dataGridSumaPartie.Rows.Add(newRow);
+
+                                foreach (DataGridViewRow row in dataGridSumaPartie.Rows)
+                                {
+                                    row.Height = 17; // Ustawienie wysokości każdego wiersza na 18 pikseli
+                                }
+
+                                // Ustaw czcionkę dla nowo dodanego wiersza
+                                foreach (DataGridViewCell cell in newRow.Cells)
+                                {
+                                    cell.Style.Font = new Font("Arial", 7); // Ustawienie czcionki Arial o rozmiarze 7 punktów
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Błąd odczytu danych: " + ex.Message);
+                        }
+                    }
+                }
+            }
+        }
+
         private void WidokKalendarza_Load(object sender, EventArgs e)
         {
             BiezacePartie();
+            BiezacePartieSuma();
             NazwaZiD databaseManager = new NazwaZiD();
             string name = databaseManager.GetNameById(UserID);
             // Przypisanie wartości UserID do TextBoxa userTextbox
@@ -962,6 +1049,8 @@ namespace Kalendarz1
 
             }
         }
+
+
 
         // Wypełnianie Textboxów
         private void LpWstawienia_SelectedIndexChanged(object sender, EventArgs e)
