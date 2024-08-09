@@ -334,8 +334,12 @@ namespace Kalendarz1
                         {
                             while (rs.Read())
                             {
-                                // Tutaj wklej kod do formatowania daty
-                                string dataOdbioru = Convert.ToDateTime(rs["DataOdbioru"]).ToString("yyyy-MM-dd dddd");
+                                // Sprawdź, czy wartość DataOdbioru nie jest DBNull przed konwersją na DateTime
+                                string dataOdbioru = string.Empty;
+                                if (rs["DataOdbioru"] != DBNull.Value)
+                                {
+                                    dataOdbioru = Convert.ToDateTime(rs["DataOdbioru"]).ToString("yyyy-MM-dd dddd");
+                                }
 
                                 // Sprawdź, czy wartość SztukiDek nie jest DBNull przed dodaniem do sumy
                                 object sztukiDekValue = rs["SztukiDek"];
@@ -345,13 +349,14 @@ namespace Kalendarz1
                                 }
 
                                 // Formatuj wartość SztukiDek z odstępami tysięcznymi
-                                string formattedSztukiDek = string.Format("{0:#,0}", sztukiDekValue);
+                                string formattedSztukiDek = sztukiDekValue != DBNull.Value ? string.Format("{0:#,0}", sztukiDekValue) : "0";
 
                                 // Dodaj wiersz do DataGridView2
                                 dataGridView2.Rows.Add(dataOdbioru, formattedSztukiDek);
                             }
                         }
                     }
+
 
                     // Ustawienie sumy sztuk w TextBoxie z odstępami tysięcznymi
                     sumaSztuk.Text = string.Format("{0:#,0}", sumaSztukWstawienia);
