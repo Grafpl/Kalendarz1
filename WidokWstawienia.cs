@@ -3,6 +3,7 @@ using System.Data;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 using System.Drawing;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace Kalendarz1
 {
@@ -20,17 +21,19 @@ namespace Kalendarz1
             this.StartPosition = FormStartPosition.CenterScreen;
 
         }
-
+        NazwaZiD databaseManager = new NazwaZiD();
 
 
         private bool isUserInitiatedChange = false;
 
         private void DisplayDataInDataGridView()
         {
-            // Zapytanie SQL
-            string query = "SELECT LP, Dostawca, CONVERT(varchar, DataWstawienia, 23) AS Data, IloscWstawienia, TypUmowy, Uwagi, [isCheck], [CheckCom] " +
-                           "FROM [LibraNet].[dbo].[WstawieniaKurczakow] " +
-                           "ORDER BY LP desc, DataWstawienia DESC";
+            // Zmienione zapytanie SQL z LEFT JOIN na tabeli operators
+            string query = "SELECT W.LP, W.Dostawca, CONVERT(varchar, W.DataWstawienia, 23) AS Data, W.IloscWstawienia, W.TypUmowy, " +
+                           "ISNULL(O.Name, '-') AS KtoStwo, W.DataUtw, W.[isCheck], W.[CheckCom] " +
+                           "FROM [LibraNet].[dbo].[WstawieniaKurczakow] W " +
+                           "LEFT JOIN [LibraNet].[dbo].[operators] O ON W.KtoStwo = O.ID " +
+                           "ORDER BY W.LP desc, W.DataWstawienia DESC";
 
             // Utworzenie połączenia z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString))
@@ -53,15 +56,17 @@ namespace Kalendarz1
                 // Ustawienie szerokości kolumn dla dataGridView1
                 dataGridView1.Columns["LP"].Width = 40;
                 dataGridView1.Columns["Dostawca"].Width = 130;
-                dataGridView1.Columns["IloscWstawienia"].HeaderText = "Ilosc";
                 dataGridView1.Columns["Data"].Width = 100;
                 dataGridView1.Columns["IloscWstawienia"].Width = 50;
                 dataGridView1.Columns["TypUmowy"].Width = 80;
-                dataGridView1.Columns["Uwagi"].Width = 80;
                 dataGridView1.Columns["IloscWstawienia"].HeaderText = "Ilosc";
                 dataGridView1.Columns["isCheck"].Width = 45;
                 dataGridView1.Columns["isCheck"].HeaderText = "V";
-                dataGridView1.Columns["CheckCom"].Width = 100;
+                dataGridView1.Columns["KtoStwo"].Width = 100;
+                dataGridView1.Columns["KtoStwo"].HeaderText = "Kto Stworzył";
+                dataGridView1.Columns["DataUtw"].Width = 100;
+                dataGridView1.Columns["DataUtw"].HeaderText = "Kiedy Stworzone";
+                dataGridView1.Columns["CheckCom"].Width = 80;
                 dataGridView1.RowHeadersVisible = false;
                 dataGridView2.RowHeadersVisible = false;
                 dataGridView3.RowHeadersVisible = false;
@@ -69,9 +74,6 @@ namespace Kalendarz1
 
                 // Ustawienie formatu kolumny "IloscWstawienia" z odstępami tysięcznymi
                 dataGridView1.Columns["IloscWstawienia"].DefaultCellStyle.Format = "#,##0";
-
-                // Ustawienie wysokości wierszy
-                SetRowHeights(dataGridView1, 11);
 
                 // Tworzenie drugiego DataGridView (dataGridView3)
                 dataGridView3.Columns.Clear(); // Usunięcie poprzednich kolumn
@@ -109,8 +111,6 @@ namespace Kalendarz1
                         );
                     }
                 }
-
-
             }
 
             DisplayDataInDataGridView4();
