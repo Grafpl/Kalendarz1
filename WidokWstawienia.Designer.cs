@@ -42,6 +42,7 @@
             dataGridView4 = new System.Windows.Forms.DataGridView();
             button3 = new System.Windows.Forms.Button();
             button1 = new System.Windows.Forms.Button();
+            button2 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
@@ -51,17 +52,18 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(12, 42);
+            dataGridView1.Location = new System.Drawing.Point(12, 50);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(771, 642);
+            dataGridView1.Size = new System.Drawing.Size(732, 642);
             dataGridView1.TabIndex = 0;
             dataGridView1.CellClick += dataGridView1_CellClick;
+            dataGridView1.CellDoubleClick += dataGridView1_CellDoubleClick;
             dataGridView1.CellFormatting += dataGridView1_CellFormatting_1;
             // 
             // textBox1
             // 
-            textBox1.Location = new System.Drawing.Point(12, 13);
+            textBox1.Location = new System.Drawing.Point(12, 21);
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(100, 23);
             textBox1.TabIndex = 1;
@@ -69,7 +71,7 @@
             // 
             // label18
             // 
-            label18.Location = new System.Drawing.Point(12, -3);
+            label18.Location = new System.Drawing.Point(12, 5);
             label18.Name = "label18";
             label18.Size = new System.Drawing.Size(100, 13);
             label18.TabIndex = 29;
@@ -78,7 +80,7 @@
             // 
             // label2
             // 
-            label2.Location = new System.Drawing.Point(118, -3);
+            label2.Location = new System.Drawing.Point(118, 5);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(100, 13);
             label2.TabIndex = 40;
@@ -87,7 +89,7 @@
             // 
             // sumaSztuk
             // 
-            sumaSztuk.Location = new System.Drawing.Point(118, 13);
+            sumaSztuk.Location = new System.Drawing.Point(118, 21);
             sumaSztuk.Name = "sumaSztuk";
             sumaSztuk.Size = new System.Drawing.Size(100, 23);
             sumaSztuk.TabIndex = 39;
@@ -95,7 +97,7 @@
             // dataGridView2
             // 
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(789, 42);
+            dataGridView2.Location = new System.Drawing.Point(750, 50);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.RowTemplate.Height = 25;
             dataGridView2.Size = new System.Drawing.Size(485, 154);
@@ -103,7 +105,7 @@
             // 
             // label1
             // 
-            label1.Location = new System.Drawing.Point(789, 21);
+            label1.Location = new System.Drawing.Point(750, 29);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(485, 18);
             label1.TabIndex = 42;
@@ -113,15 +115,17 @@
             // dataGridView3
             // 
             dataGridView3.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView3.Location = new System.Drawing.Point(789, 219);
+            dataGridView3.Location = new System.Drawing.Point(750, 227);
             dataGridView3.Name = "dataGridView3";
             dataGridView3.RowTemplate.Height = 25;
             dataGridView3.Size = new System.Drawing.Size(485, 222);
             dataGridView3.TabIndex = 43;
+            dataGridView3.CellClick += dataGridView3_CellClick;
+            dataGridView3.CellDoubleClick += dataGridView3_CellDoubleClick;
             // 
             // label3
             // 
-            label3.Location = new System.Drawing.Point(789, 199);
+            label3.Location = new System.Drawing.Point(750, 207);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(485, 17);
             label3.TabIndex = 44;
@@ -130,7 +134,7 @@
             // 
             // label4
             // 
-            label4.Location = new System.Drawing.Point(789, 444);
+            label4.Location = new System.Drawing.Point(750, 452);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(485, 17);
             label4.TabIndex = 46;
@@ -140,7 +144,7 @@
             // dataGridView4
             // 
             dataGridView4.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView4.Location = new System.Drawing.Point(789, 464);
+            dataGridView4.Location = new System.Drawing.Point(750, 472);
             dataGridView4.Name = "dataGridView4";
             dataGridView4.RowTemplate.Height = 25;
             dataGridView4.Size = new System.Drawing.Size(485, 220);
@@ -150,7 +154,7 @@
             // 
             button3.BackColor = System.Drawing.SystemColors.ActiveCaptionText;
             button3.ForeColor = System.Drawing.SystemColors.ControlLightLight;
-            button3.Location = new System.Drawing.Point(345, 9);
+            button3.Location = new System.Drawing.Point(466, 17);
             button3.Name = "button3";
             button3.Size = new System.Drawing.Size(115, 27);
             button3.TabIndex = 100;
@@ -162,7 +166,7 @@
             // 
             button1.BackColor = System.Drawing.Color.PaleGreen;
             button1.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
-            button1.Location = new System.Drawing.Point(224, 9);
+            button1.Location = new System.Drawing.Point(224, 17);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(115, 27);
             button1.TabIndex = 101;
@@ -170,11 +174,23 @@
             button1.UseVisualStyleBackColor = false;
             button1.Click += button1_Click;
             // 
+            // button2
+            // 
+            button2.BackColor = System.Drawing.Color.Gold;
+            button2.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            button2.Location = new System.Drawing.Point(345, 17);
+            button2.Name = "button2";
+            button2.Size = new System.Drawing.Size(115, 27);
+            button2.TabIndex = 102;
+            button2.Text = "Modyfi.wstawienie";
+            button2.UseVisualStyleBackColor = false;
+            // 
             // WidokWstawienia
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1283, 717);
+            ClientSize = new System.Drawing.Size(1241, 717);
+            Controls.Add(button2);
             Controls.Add(button1);
             Controls.Add(button3);
             Controls.Add(label4);
@@ -214,5 +230,6 @@
         private System.Windows.Forms.DataGridView dataGridView4;
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button button2;
     }
 }

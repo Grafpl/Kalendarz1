@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -22,9 +23,9 @@ namespace Kalendarz1
         private CenoweMetody CenoweMetody = new CenoweMetody();
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         public string UserID { get; set; }
-
-
-
+        public double sztWstawienia { get; set; }
+        public string dostawca { get; set; }
+        public bool modyfikacja { get; set; }
 
 
 
@@ -40,6 +41,42 @@ namespace Kalendarz1
         {
 
         }
+        public void UzupelnijBraki()
+        {
+            string str = sztWstawienia.ToString();
+            sztukiWstawienia.Text = str;
+            Dostawca.Text = dostawca;
+            sztukiWstawienia.Visible = true;
+            pictureBox29.Visible = true;
+            dataWstawienia.Visible = true;
+            LiczbaDniWstawienia.Visible = true;
+            dataGridWagi.Visible = true;
+            dataGridWstawien.Visible = true;
+            pictureBox1.Visible = true;
+            sztukiWstawienia.Visible = true;
+            SztukiUpadki.Visible = true;
+            Dostawca_SelectedIndexChanged(this, EventArgs.Empty);
+            sztukiWstawienia_TextChanged(this, EventArgs.Empty);
+        }
+        public void MetodaModyfiacji()
+        {
+            string str = sztWstawienia.ToString();
+            sztukiWstawienia.Text = str;
+            Dostawca.Text = dostawca;
+            sztukiWstawienia.Visible = true;
+            pictureBox29.Visible = true;
+            dataWstawienia.Visible = true;
+            LiczbaDniWstawienia.Visible = true;
+            dataGridWagi.Visible = true;
+            dataGridWstawien.Visible = true;
+            pictureBox1.Visible = true;
+            sztukiWstawienia.Visible = true;
+            SztukiUpadki.Visible = true;
+            Dostawca_SelectedIndexChanged(this, EventArgs.Empty);
+            sztukiWstawienia_TextChanged(this, EventArgs.Empty);
+        }
+
+
         public void WypelnijStartowo()
         {
             textDni1.Text = "35";
@@ -480,6 +517,12 @@ namespace Kalendarz1
             pictureBox1.Visible = true;
             sztukiWstawienia.Visible = true;
             SztukiUpadki.Visible = true;
+
+            checkBox1.Visible = true;
+            checkBox2.Visible = true;
+            checkBox3.Visible = true;
+            checkBox4.Visible = true;
+            checkBox5.Visible = true;
         }
 
         public void ObliczRozniceDniMiedzyWstawieniami(DateTimePicker datePicker, TextBox liczbaDniWstawienia, ComboBox comboBoxDostawca)
@@ -623,7 +666,6 @@ namespace Kalendarz1
             LiczbaDniWstawienia.Visible = true;
             dataGridWagi.Visible = true;
             dataGridWstawien.Visible = true;
-
         }
         private void PokazWstawienia()
         {

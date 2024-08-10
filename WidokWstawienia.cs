@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 using System.Drawing;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using iText.Layout.Properties;
 
 namespace Kalendarz1
 {
@@ -14,6 +15,7 @@ namespace Kalendarz1
 
         private string lpDostawa;
         private int selectedRowIndex = -1; // Zmienna do przechowywania indeksu zaznaczonego wiersza
+        private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public WidokWstawienia()
         {
             InitializeComponent();
@@ -54,11 +56,11 @@ namespace Kalendarz1
                 dataGridView1.DataSource = table;
 
                 // Ustawienie szerokości kolumn dla dataGridView1
-                dataGridView1.Columns["LP"].Width = 40;
-                dataGridView1.Columns["Dostawca"].Width = 130;
-                dataGridView1.Columns["Data"].Width = 100;
+                dataGridView1.Columns["LP"].Width = 35;
+                dataGridView1.Columns["Dostawca"].Width = 110;
+                dataGridView1.Columns["Data"].Width = 70;
                 dataGridView1.Columns["IloscWstawienia"].Width = 50;
-                dataGridView1.Columns["TypUmowy"].Width = 80;
+                dataGridView1.Columns["TypUmowy"].Width = 75;
                 dataGridView1.Columns["IloscWstawienia"].HeaderText = "Ilosc";
                 dataGridView1.Columns["isCheck"].Width = 45;
                 dataGridView1.Columns["isCheck"].HeaderText = "V";
@@ -182,15 +184,15 @@ namespace Kalendarz1
                 dataGridView4.DataSource = table;
 
                 // Ustawienie szerokości kolumn dla dataGridView4
-                dataGridView4.Columns["Lp"].Width = 45;
-                dataGridView4.Columns["DataOdbioru"].Width = 75;
-                dataGridView4.Columns["Dostawca"].Width = 120;
+                dataGridView4.Columns["Lp"].Width = 40;
+                dataGridView4.Columns["DataOdbioru"].Width = 65;
+                dataGridView4.Columns["Dostawca"].Width = 110;
                 dataGridView4.Columns["SztukiDek"].Width = 40;
                 dataGridView4.Columns["SztukiDek"].HeaderText = "Sztuki";
                 dataGridView4.Columns["WagaDek"].Width = 40;
                 dataGridView4.Columns["WagaDek"].HeaderText = "Waga";
                 dataGridView4.Columns["TypCeny"].Width = 80;
-                dataGridView4.Columns["Bufor"].Width = 80;
+                dataGridView4.Columns["Bufor"].Width = 75;
 
                 // Ustawienie wysokości wierszy
 
@@ -285,97 +287,7 @@ namespace Kalendarz1
         // Aby ustawić flagę, gdy zmiana jest inicjowana przez użytkownika
         private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-
-
-            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-            {
-                selectedRowIndex = e.RowIndex;
-                object wartoscKomorki = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
-                lpDostawa = wartoscKomorki != null ? wartoscKomorki.ToString() : "0";
-
-
-            }
-
-            if (e.ColumnIndex == dataGridView1.Columns["isCheck"].Index && e.RowIndex >= 0)
-            {
-                isUserInitiatedChange = true;
-            }
-            // Utwórz połączenie z bazą danych SQL Server
-            using (SqlConnection cnn = new SqlConnection(connectionString))
-            {
-                cnn.Open();
-
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    // Pobierz wartość z kolumny "Lp" z zaznaczonego wiersza
-                    object selectedCellValue = dataGridView1.Rows[e.RowIndex].Cells["Lp"].Value;
-
-                    String strSQL;
-
-                    strSQL = "SELECT LP, DataOdbioru, SztukiDek, bufor FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LpW = @NumerWstawienia order by DataOdbioru ASC";
-
-                    // Przygotowanie drugiego zapytania
-                    double sumaSztukWstawienia = 0;
-
-                    // Wyczyszczenie danych w DataGridView2
-                    dataGridView2.Rows.Clear();
-                    dataGridView2.Columns.Clear(); // Usunięcie istniejących kolumn
-
-                    // Dodanie kolumn do DataGridView2
-                    dataGridView2.Columns.Add("DataOdbioru", "Data Odbioru");
-                    dataGridView2.Columns.Add("SztukiDek", "Sztuki Dek");
-                    dataGridView2.Columns.Add("Bufor", "Bufor");
-
-                    using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
-                    {
-                        command2.Parameters.AddWithValue("@NumerWstawienia", selectedCellValue);
-
-                        using (SqlDataReader rs = command2.ExecuteReader())
-                        {
-                            while (rs.Read())
-                            {
-                                // Sprawdź, czy wartość DataOdbioru nie jest DBNull przed konwersją na DateTime
-                                string dataOdbioru = string.Empty;
-                                if (rs["DataOdbioru"] != DBNull.Value)
-                                {
-                                    dataOdbioru = Convert.ToDateTime(rs["DataOdbioru"]).ToString("yyyy-MM-dd dddd");
-                                }
-
-                                // Sprawdź, czy wartość SztukiDek nie jest DBNull przed dodaniem do sumy
-                                object sztukiDekValue = rs["SztukiDek"];
-                                if (sztukiDekValue != DBNull.Value)
-                                {
-                                    sumaSztukWstawienia += Convert.ToDouble(sztukiDekValue);
-                                }
-
-                                // Formatuj wartość SztukiDek z odstępami tysięcznymi
-                                string formattedSztukiDek = sztukiDekValue != DBNull.Value ? string.Format("{0:#,0}", sztukiDekValue) : "0";
-
-                                // Dodaj wiersz do DataGridView2
-                                dataGridView2.Rows.Add(dataOdbioru, formattedSztukiDek);
-                            }
-                        }
-                    }
-
-
-                    // Ustawienie sumy sztuk w TextBoxie z odstępami tysięcznymi
-                    sumaSztuk.Text = string.Format("{0:#,0}", sumaSztukWstawienia);
-
-                    // Dodanie wiersza z sumą sztuk na końcu
-                    dataGridView2.Rows.Add("Suma:", string.Format("{0:#,0}", sumaSztukWstawienia));
-
-                    // Ustawienie wyrównania tekstu w komórkach ostatniego wiersza
-                    dataGridView2.Rows[dataGridView2.Rows.Count - 1].Cells[0].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    dataGridView2.Rows[dataGridView2.Rows.Count - 1].Cells[1].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
-
-                    // Ustawienie pogrubienia tekstu w komórkach ostatniego wiersza
-                    dataGridView2.Rows[dataGridView2.Rows.Count - 1].Cells[0].Style.Font = new Font(dataGridView2.DefaultCellStyle.Font, FontStyle.Bold);
-                    dataGridView2.Rows[dataGridView2.Rows.Count - 1].Cells[1].Style.Font = new Font(dataGridView2.DefaultCellStyle.Font, FontStyle.Bold);
-
-                    // Automatyczne dopasowanie szerokości kolumn
-                    dataGridView2.AutoResizeColumns();
-                }
-            }
+            ZaznaczLpPokazDostawy(dataGridView1, dataGridView2, sumaSztuk, connectionString);
         }
 
         private void dataGridView1_MouseUp(object sender, MouseEventArgs e)
@@ -498,39 +410,64 @@ namespace Kalendarz1
 
         private void button3_Click(object sender, EventArgs e)
         {
-            string deleteQuery1 = "DELETE FROM dbo.HarmonogramDostaw WHERE LpW = @LpW";
-            string deleteQuery2 = "DELETE FROM dbo.WstawieniaKurczakow WHERE Lp = @LpW";
+            // Wyświetlenie okna dialogowego z pytaniem o potwierdzenie
+            DialogResult result = MessageBox.Show("Czy na pewno chcesz usunąć wybrany wiersz oraz powiązane z nim dane?",
+                                                  "Potwierdzenie usunięcia",
+                                                  MessageBoxButtons.YesNo,
+                                                  MessageBoxIcon.Warning);
 
-            using (SqlConnection cnn = new SqlConnection(connectionString))
+            // Sprawdzenie odpowiedzi użytkownika
+            if (result == DialogResult.Yes)
             {
-                try
+                string deleteQuery1 = "DELETE FROM dbo.HarmonogramDostaw WHERE LpW = @LpW";
+                string deleteQuery2 = "DELETE FROM dbo.WstawieniaKurczakow WHERE Lp = @LpW";
+
+                using (SqlConnection cnn = new SqlConnection(connectionString))
                 {
-                    cnn.Open();
-
-                    using (SqlCommand cmd1 = new SqlCommand(deleteQuery1, cnn))
+                    try
                     {
-                        cmd1.Parameters.AddWithValue("@LpW", lpDostawa);
-                        cmd1.ExecuteNonQuery();
-                    }
+                        cnn.Open();
 
-                    using (SqlCommand cmd2 = new SqlCommand(deleteQuery2, cnn))
+                        using (SqlCommand cmd1 = new SqlCommand(deleteQuery1, cnn))
+                        {
+                            cmd1.Parameters.AddWithValue("@LpW", lpDostawa);
+                            cmd1.ExecuteNonQuery();
+                        }
+
+                        using (SqlCommand cmd2 = new SqlCommand(deleteQuery2, cnn))
+                        {
+                            cmd2.Parameters.AddWithValue("@LpW", lpDostawa);
+                            cmd2.ExecuteNonQuery();
+                        }
+
+                        MessageBox.Show("Wiersz oraz powiązane z nim dane zostały usunięte z bazy danych.",
+                                        "Informacja",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Information);
+
+                        // Odśwież wszystkie połączenia w skoroszycie
+                        DisplayDataInDataGridView();
+                        this.StartPosition = FormStartPosition.CenterScreen;
+                    }
+                    catch (Exception ex)
                     {
-                        cmd2.Parameters.AddWithValue("@LpW", lpDostawa);
-                        cmd2.ExecuteNonQuery();
+                        MessageBox.Show("Wystąpił błąd: " + ex.Message,
+                                        "Błąd",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Error);
                     }
-
-                    MessageBox.Show("Wiersz oraz powiązane z nim dane zostały usunięte z bazy danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                    // Odśwież wszystkie połączenia w skoroszycie
-                    DisplayDataInDataGridView();
-                    this.StartPosition = FormStartPosition.CenterScreen;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            else
+            {
+                // Użytkownik kliknął "Nie", więc operacja zostaje anulowana
+                MessageBox.Show("Operacja usunięcia została anulowana.",
+                                "Informacja",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+            }
         }
+
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -545,5 +482,149 @@ namespace Kalendarz1
 
             DisplayDataInDataGridView();
         }
+        private void ZaznaczLpPokazDostawy(DataGridView sourceGrid, DataGridView targetGrid, TextBox sumaSztuk, string connectionString)
+        {
+            if (sourceGrid.SelectedCells.Count == 0)
+                return;
+
+            int selectedRowIndex = sourceGrid.SelectedCells[0].RowIndex;
+            int selectedColumnIndex = sourceGrid.SelectedCells[0].ColumnIndex;
+
+            if (selectedRowIndex >= 0 && selectedColumnIndex >= 0)
+            {
+                object selectedCellValue = sourceGrid.Rows[selectedRowIndex].Cells["Lp"].Value;
+                lpDostawa = selectedCellValue != null ? selectedCellValue.ToString() : "0";
+
+                if (selectedCellValue == null || selectedCellValue == DBNull.Value)
+                {
+
+                    return;
+                }
+
+                // Dodanie dostawcy do zapytania SQL
+                string query = "SELECT LP, Dostawca, DataOdbioru, SztukiDek, bufor FROM [LibraNet].[dbo].[HarmonogramDostaw] WHERE LpW = @NumerWstawienia ORDER BY DataOdbioru ASC";
+                double sumaSztukWstawienia = 0;
+
+                targetGrid.Rows.Clear();
+                targetGrid.Columns.Clear();
+
+                // Dodanie kolumn do DataGridView
+                targetGrid.Columns.Add("DataOdbioru", "Data Odbioru");
+                targetGrid.Columns.Add("SztukiDek", "Sztuki Dek");
+                targetGrid.Columns.Add("Bufor", "Bufor");
+                targetGrid.Columns.Add("Dostawca", "Dostawca");
+
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    using (SqlCommand command = new SqlCommand(query, cnn))
+                    {
+                        command.Parameters.AddWithValue("@NumerWstawienia", selectedCellValue);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string dataOdbioru = reader["DataOdbioru"] != DBNull.Value
+                                    ? Convert.ToDateTime(reader["DataOdbioru"]).ToString("yyyy-MM-dd dddd")
+                                    : string.Empty;
+
+                                object sztukiDekValue = reader["SztukiDek"];
+                                object buforValue = reader["bufor"];
+                                string dostawca = reader["Dostawca"] != DBNull.Value ? reader["Dostawca"].ToString() : string.Empty;
+
+                                if (sztukiDekValue != DBNull.Value)
+                                {
+                                    sumaSztukWstawienia += Convert.ToDouble(sztukiDekValue);
+                                }
+
+                                string formattedSztukiDek = sztukiDekValue != DBNull.Value
+                                    ? string.Format("{0:#,0}", sztukiDekValue)
+                                    : "0";
+
+                                string formattedBufor = buforValue != DBNull.Value
+                                    ? buforValue.ToString()
+                                    : string.Empty;
+
+                                targetGrid.Rows.Add(dataOdbioru, formattedSztukiDek, formattedBufor, dostawca);
+                            }
+                        }
+                    }
+                }
+
+                sumaSztuk.Text = string.Format("{0:#,0}", sumaSztukWstawienia);
+                targetGrid.Rows.Add("Suma:", string.Format("{0:#,0}", sumaSztukWstawienia), string.Empty, string.Empty);
+
+                targetGrid.Rows[targetGrid.Rows.Count - 1].Cells[0].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+                targetGrid.Rows[targetGrid.Rows.Count - 1].Cells[1].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+                targetGrid.Rows[targetGrid.Rows.Count - 1].Cells[0].Style.Font = new Font(targetGrid.DefaultCellStyle.Font, FontStyle.Bold);
+                targetGrid.Rows[targetGrid.Rows.Count - 1].Cells[1].Style.Font = new Font(targetGrid.DefaultCellStyle.Font, FontStyle.Bold);
+
+                // Ustawienie stałych szerokości kolumn
+                targetGrid.Columns["DataOdbioru"].Width = 120;
+                targetGrid.Columns["SztukiDek"].Width = 80;
+                targetGrid.Columns["Bufor"].Width = 100;
+                targetGrid.Columns["Dostawca"].Width = 140;
+            }
+        }
+
+        private void dataGridView3_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            ZaznaczLpPokazDostawy(dataGridView3, dataGridView2, sumaSztuk, connectionString);
+
+        }
+
+        private void dataGridView3_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            Wstawienie wstawienie = new Wstawienie();
+            wstawienie.UserID = App.UserID;
+            int intValue = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
+            String Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<String>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "Dostawca");
+            int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "IloscWstawienia");
+
+            wstawienie.sztWstawienia = sztWstawione;
+            wstawienie.dostawca = Dostawca;
+
+            // Initialize fields and execute methods
+            wstawienie.UzupelnijBraki();
+
+
+
+            // Initialize fields and execute methods
+            wstawienie.WypelnijStartowo();
+
+            // Wyświetlanie Form1
+            wstawienie.Show();
+
+            DisplayDataInDataGridView();
+        }
+
+        private void dataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            Wstawienie wstawienie = new Wstawienie();
+            wstawienie.UserID = App.UserID;
+            int intValue = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
+            String Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<String>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "Dostawca");
+            int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "IloscWstawienia");
+
+            wstawienie.sztWstawienia = sztWstawione;
+            wstawienie.dostawca = Dostawca;
+
+            // Initialize fields and execute methods
+            wstawienie.UzupelnijBraki();
+
+
+
+            // Initialize fields and execute methods
+            wstawienie.WypelnijStartowo();
+
+            // Wyświetlanie Form1
+            wstawienie.Show();
+
+            DisplayDataInDataGridView();
+        }
     }
+
 }

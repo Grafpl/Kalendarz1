@@ -186,18 +186,18 @@
             buttonAnulowanie = new System.Windows.Forms.Button();
             label17 = new System.Windows.Forms.Label();
             groupBox2 = new System.Windows.Forms.GroupBox();
+            label31 = new System.Windows.Forms.Label();
+            label30 = new System.Windows.Forms.Label();
+            label28 = new System.Windows.Forms.Label();
+            label23 = new System.Windows.Forms.Label();
+            label22 = new System.Windows.Forms.Label();
+            label20 = new System.Windows.Forms.Label();
+            label19 = new System.Windows.Forms.Label();
+            label14 = new System.Windows.Forms.Label();
+            label12 = new System.Windows.Forms.Label();
+            label11 = new System.Windows.Forms.Label();
             label10 = new System.Windows.Forms.Label();
             label9 = new System.Windows.Forms.Label();
-            label11 = new System.Windows.Forms.Label();
-            label12 = new System.Windows.Forms.Label();
-            label14 = new System.Windows.Forms.Label();
-            label19 = new System.Windows.Forms.Label();
-            label20 = new System.Windows.Forms.Label();
-            label22 = new System.Windows.Forms.Label();
-            label23 = new System.Windows.Forms.Label();
-            label28 = new System.Windows.Forms.Label();
-            label30 = new System.Windows.Forms.Label();
-            label31 = new System.Windows.Forms.Label();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -1569,6 +1569,7 @@
             checkBox1.TabIndex = 143;
             checkBox1.Text = "1.";
             checkBox1.UseVisualStyleBackColor = true;
+            checkBox1.Visible = false;
             checkBox1.CheckedChanged += checkBox1_CheckedChanged;
             // 
             // checkBox2
@@ -1580,6 +1581,7 @@
             checkBox2.TabIndex = 144;
             checkBox2.Text = "2.";
             checkBox2.UseVisualStyleBackColor = true;
+            checkBox2.Visible = false;
             checkBox2.CheckedChanged += checkBox2_CheckedChanged;
             // 
             // checkBox3
@@ -1591,6 +1593,7 @@
             checkBox3.TabIndex = 145;
             checkBox3.Text = "3.";
             checkBox3.UseVisualStyleBackColor = true;
+            checkBox3.Visible = false;
             checkBox3.CheckedChanged += checkBox3_CheckedChanged;
             // 
             // checkBox4
@@ -1602,6 +1605,7 @@
             checkBox4.TabIndex = 146;
             checkBox4.Text = "4.";
             checkBox4.UseVisualStyleBackColor = true;
+            checkBox4.Visible = false;
             checkBox4.CheckedChanged += checkBox4_CheckedChanged;
             // 
             // checkBox5
@@ -1613,6 +1617,7 @@
             checkBox5.TabIndex = 147;
             checkBox5.Text = "5.";
             checkBox5.UseVisualStyleBackColor = true;
+            checkBox5.Visible = false;
             checkBox5.CheckedChanged += checkBox5_CheckedChanged;
             // 
             // wyliczone5
@@ -1999,6 +2004,106 @@
             groupBox2.Text = "Sekcja Dostaw";
             groupBox2.Visible = false;
             // 
+            // label31
+            // 
+            label31.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label31.Location = new System.Drawing.Point(415, 213);
+            label31.Name = "label31";
+            label31.Size = new System.Drawing.Size(13, 23);
+            label31.TabIndex = 184;
+            label31.Text = "=";
+            label31.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label30
+            // 
+            label30.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label30.Location = new System.Drawing.Point(415, 181);
+            label30.Name = "label30";
+            label30.Size = new System.Drawing.Size(13, 23);
+            label30.TabIndex = 183;
+            label30.Text = "=";
+            label30.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label28
+            // 
+            label28.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label28.Location = new System.Drawing.Point(415, 148);
+            label28.Name = "label28";
+            label28.Size = new System.Drawing.Size(13, 23);
+            label28.TabIndex = 182;
+            label28.Text = "=";
+            label28.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label23
+            // 
+            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label23.Location = new System.Drawing.Point(415, 118);
+            label23.Name = "label23";
+            label23.Size = new System.Drawing.Size(13, 23);
+            label23.TabIndex = 181;
+            label23.Text = "=";
+            label23.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label22
+            // 
+            label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label22.Location = new System.Drawing.Point(415, 88);
+            label22.Name = "label22";
+            label22.Size = new System.Drawing.Size(13, 23);
+            label22.TabIndex = 180;
+            label22.Text = "=";
+            label22.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label20
+            // 
+            label20.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label20.Location = new System.Drawing.Point(348, 212);
+            label20.Name = "label20";
+            label20.Size = new System.Drawing.Size(13, 23);
+            label20.TabIndex = 179;
+            label20.Text = "x";
+            label20.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label19
+            // 
+            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label19.Location = new System.Drawing.Point(348, 181);
+            label19.Name = "label19";
+            label19.Size = new System.Drawing.Size(13, 23);
+            label19.TabIndex = 178;
+            label19.Text = "x";
+            label19.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label14
+            // 
+            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label14.Location = new System.Drawing.Point(348, 150);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(13, 23);
+            label14.TabIndex = 177;
+            label14.Text = "x";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label12
+            // 
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label12.Location = new System.Drawing.Point(348, 118);
+            label12.Name = "label12";
+            label12.Size = new System.Drawing.Size(13, 23);
+            label12.TabIndex = 176;
+            label12.Text = "x";
+            label12.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // label11
+            // 
+            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label11.Location = new System.Drawing.Point(348, 88);
+            label11.Name = "label11";
+            label11.Size = new System.Drawing.Size(13, 23);
+            label11.TabIndex = 175;
+            label11.Text = "x";
+            label11.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
             // label10
             // 
             label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
@@ -2018,106 +2123,6 @@
             label9.TabIndex = 173;
             label9.Text = "Suma sztuk :";
             label9.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label11
-            // 
-            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label11.Location = new System.Drawing.Point(348, 88);
-            label11.Name = "label11";
-            label11.Size = new System.Drawing.Size(13, 23);
-            label11.TabIndex = 175;
-            label11.Text = "x";
-            label11.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label12
-            // 
-            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label12.Location = new System.Drawing.Point(348, 118);
-            label12.Name = "label12";
-            label12.Size = new System.Drawing.Size(13, 23);
-            label12.TabIndex = 176;
-            label12.Text = "x";
-            label12.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label14
-            // 
-            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label14.Location = new System.Drawing.Point(348, 150);
-            label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(13, 23);
-            label14.TabIndex = 177;
-            label14.Text = "x";
-            label14.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label19
-            // 
-            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(348, 181);
-            label19.Name = "label19";
-            label19.Size = new System.Drawing.Size(13, 23);
-            label19.TabIndex = 178;
-            label19.Text = "x";
-            label19.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label20
-            // 
-            label20.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label20.Location = new System.Drawing.Point(348, 212);
-            label20.Name = "label20";
-            label20.Size = new System.Drawing.Size(13, 23);
-            label20.TabIndex = 179;
-            label20.Text = "x";
-            label20.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label22
-            // 
-            label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label22.Location = new System.Drawing.Point(415, 88);
-            label22.Name = "label22";
-            label22.Size = new System.Drawing.Size(13, 23);
-            label22.TabIndex = 180;
-            label22.Text = "=";
-            label22.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label23
-            // 
-            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label23.Location = new System.Drawing.Point(415, 118);
-            label23.Name = "label23";
-            label23.Size = new System.Drawing.Size(13, 23);
-            label23.TabIndex = 181;
-            label23.Text = "=";
-            label23.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label28
-            // 
-            label28.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label28.Location = new System.Drawing.Point(415, 148);
-            label28.Name = "label28";
-            label28.Size = new System.Drawing.Size(13, 23);
-            label28.TabIndex = 182;
-            label28.Text = "=";
-            label28.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label30
-            // 
-            label30.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label30.Location = new System.Drawing.Point(415, 181);
-            label30.Name = "label30";
-            label30.Size = new System.Drawing.Size(13, 23);
-            label30.TabIndex = 183;
-            label30.Text = "=";
-            label30.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // label31
-            // 
-            label31.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label31.Location = new System.Drawing.Point(415, 213);
-            label31.Name = "label31";
-            label31.Size = new System.Drawing.Size(13, 23);
-            label31.TabIndex = 184;
-            label31.Text = "=";
-            label31.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // Wstawienie
             // 
