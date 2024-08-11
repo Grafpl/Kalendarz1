@@ -184,6 +184,7 @@
             button2.TabIndex = 102;
             button2.Text = "Modyfi.wstawienie";
             button2.UseVisualStyleBackColor = false;
+            button2.Click += button2_Click;
             // 
             // WidokWstawienia
             // 

@@ -625,6 +625,31 @@ namespace Kalendarz1
 
             DisplayDataInDataGridView();
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            Wstawienie wstawienie = new Wstawienie();
+            wstawienie.UserID = App.UserID;
+            int intValue = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
+            int lpWstawienia = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "Lp");
+            String Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<String>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "Dostawca");
+            DateTime DataWstawienia = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<DateTime>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "DataWstawienia");
+            int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(intValue, "[LibraNet].[dbo].[WstawieniaKurczakow]", "IloscWstawienia");
+
+            wstawienie.sztWstawienia = sztWstawione;
+            wstawienie.dostawca = Dostawca;
+            wstawienie.LpWstawienia = lpWstawienia;
+            wstawienie.DataWstawienia = DataWstawienia;
+
+            // Initialize fields and execute methods
+            wstawienie.MetodaModyfiacji();
+
+
+            // Wyświetlanie Form1
+            wstawienie.Show();
+
+            DisplayDataInDataGridView();
+        }
     }
 
 }

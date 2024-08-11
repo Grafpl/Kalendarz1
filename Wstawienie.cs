@@ -26,6 +26,8 @@ namespace Kalendarz1
         public double sztWstawienia { get; set; }
         public string dostawca { get; set; }
         public bool modyfikacja { get; set; }
+        public int LpWstawienia { get; set; }
+        public DateTime DataWstawienia { get; set; }
 
 
 
@@ -40,6 +42,11 @@ namespace Kalendarz1
         private void Form1_Load(object sender, EventArgs e)
         {
 
+        }
+        public class HarmonogramDostaw
+        {
+            public DateTime DataOdbioru { get; set; }
+            public int SztukiDek { get; set; }
         }
         public void UzupelnijBraki()
         {
@@ -72,8 +79,73 @@ namespace Kalendarz1
             pictureBox1.Visible = true;
             sztukiWstawienia.Visible = true;
             SztukiUpadki.Visible = true;
+            checkBox1.Visible = true;
+            checkBox2.Visible = true;
+            checkBox3.Visible = true;
+            checkBox4.Visible = true;
+            checkBox5.Visible = true;
+            dataWstawienia.Value = DataWstawienia;
             Dostawca_SelectedIndexChanged(this, EventArgs.Empty);
             sztukiWstawienia_TextChanged(this, EventArgs.Empty);
+
+            var harmonogramDostaw = PobierzHarmonogramDostaw(LpWstawienia);
+
+            // Przy założeniu, że masz TextBoxy o nazwach dataDostawy1, sztuki1 itd.
+            for (int i = 0; i < 5; i++)
+            {
+                DateTimePicker dataDostawyPicker = this.Controls.Find("Data" + (i + 1), true).FirstOrDefault() as DateTimePicker;
+                TextBox sztukiTextBox = this.Controls.Find("sztuki" + (i + 1), true).FirstOrDefault() as TextBox;
+
+                if (dataDostawyPicker != null && sztukiTextBox != null)
+                {
+                    if (i < harmonogramDostaw.Count && harmonogramDostaw[i] != null)
+                    {
+                        dataDostawyPicker.Value = harmonogramDostaw[i].DataOdbioru;
+                        sztukiTextBox.Text = harmonogramDostaw[i].SztukiDek.ToString();
+                    }
+                    else
+                    {
+                        dataDostawyPicker.Value = DateTime.Today; // Możesz ustawić domyślną wartość np. dzisiejszą datę
+                        sztukiTextBox.Text = "";
+                    }
+                }
+                else
+                {
+                    MessageBox.Show($"Control '{(i + 1)}' not found.");
+                }
+            }
+
+
+
+        }
+        public List<HarmonogramDostaw> PobierzHarmonogramDostaw(int lpw)
+        {
+            var listaDostaw = new List<HarmonogramDostaw>();
+
+            string query = "SELECT dataodbioru, sztukidek FROM dbo.HarmonogramDostaw WHERE LpW = @LpW ORDER BY dataodbioru";
+
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
+            using (SqlCommand cmd = new SqlCommand(query, cnn))
+            {
+                cmd.Parameters.AddWithValue("@LpW", lpw);
+
+                cnn.Open();
+
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var dostawa = new HarmonogramDostaw
+                        {
+                            DataOdbioru = reader.GetDateTime(0),
+                            SztukiDek = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                        };
+                        listaDostaw.Add(dostawa);
+                    }
+                }
+            }
+
+            return listaDostaw;
         }
 
 

@@ -26,14 +26,14 @@ namespace Kalendarz1
             // Deklaracja zmiennych do przechowywania dat i różnicy
             DateTime dataPierwsza = dataWstawienia.Value;
             DateTime dataDruga = dataDostawy.Value;
-            int roznicaDni;
 
-            // Obliczenie różnicy w dniach
+            // Obliczenie różnicy w dniach, uwzględniając czas
             TimeSpan roznica = dataPierwsza - dataDruga;
-            roznicaDni = roznica.Days;
+            int roznicaDni = (int)Math.Round(roznica.TotalDays);
 
             return roznicaDni;
         }
+
 
         public int ObliczRozniceDniWstawieniaObecnie(DateTime dataWstawienia, DateTimePicker dataDostawy)
         {

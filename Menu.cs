@@ -8,6 +8,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.ReactiveUI;
 
 namespace Kalendarz1
 {
@@ -207,6 +210,9 @@ namespace Kalendarz1
             Widokmatryca.Show();
         }
 
-      
+        private void button3_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

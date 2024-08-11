@@ -189,6 +189,7 @@
             button3.Size = new System.Drawing.Size(262, 193);
             button3.TabIndex = 11;
             button3.UseVisualStyleBackColor = true;
+            button3.Click += button3_Click;
             // 
             // button4
             // 
