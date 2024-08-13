@@ -221,6 +221,7 @@ namespace Kalendarz1
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
+            PokazPrzewidywalneKilogramy();
         }
 
         private void PokazCeneHarmonogramDostaw()
@@ -536,5 +537,114 @@ namespace Kalendarz1
         {
 
         }
+        private void PokazPrzewidywalneKilogramy()
+        {
+            // Tworzenie dwóch tabel dla różnych DataGridView
+            DataTable finalTableTusz = new DataTable();
+            DataTable finalTableElement = new DataTable();
+
+            // Tworzenie połączenia z bazą danych i pobieranie danych
+            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            {
+                // Tworzenie komendy SQL
+                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztukiDek FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony' ORDER BY WagaDek DESC";
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
+
+                // Tworzenie adaptera danych i wypełnianie DataTable
+                SqlDataAdapter adapter = new SqlDataAdapter(command);
+                DataTable table = new DataTable();
+                adapter.Fill(table);
+
+                // Dodanie odpowiednich kolumn do obu tabel
+                finalTableTusz.Columns.Add("TonazTuszkiA", typeof(string)); // Kolumna dla Tuszka A
+
+                finalTableElement.Columns.Add("Cwiartka", typeof(string));
+                finalTableElement.Columns.Add("Skrzydlo", typeof(string));
+                finalTableElement.Columns.Add("Filet", typeof(string));
+                finalTableElement.Columns.Add("Korpus", typeof(string));
+
+                // Inicjalizacja zmiennych sum
+                double sumTonazTuszkiA = 0;
+                double sumCwiartka = 0;
+                double sumFilet = 0;
+                double sumSkrzydlo = 0;
+                double sumKorpus = 0;
+
+                // Iteracja przez wiersze tabeli źródłowej
+                foreach (DataRow row in table.Rows)
+                {
+                    double wagaDekValue = Convert.ToDouble(row["WagaDek"]);
+                    int sztukiDekValue = Convert.ToInt32(row["SztukiDek"]);
+
+                    double sredniaTuszkaValue = wagaDekValue * 0.78;
+                    double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
+                    double tonazTuszkaAValue = tonazTuszkaValue * 0.80;
+                    double tonazTuszkaBValue = tonazTuszkaValue * 0.20;
+                    double tonazCwiartkaValue = tonazTuszkaBValue * 0.38;
+                    double tonazSkrzydloValue = tonazTuszkaBValue * 0.09;
+                    double tonazFiletValue = tonazTuszkaBValue * 0.28;
+                    double tonazKorpusValue = tonazTuszkaBValue * 0.19;
+
+                    // Sumowanie wartości
+                    sumTonazTuszkiA += tonazTuszkaAValue;
+                    sumCwiartka += tonazCwiartkaValue;
+                    sumFilet += tonazFiletValue;
+                    sumSkrzydlo += tonazSkrzydloValue;
+                    sumKorpus += tonazKorpusValue;
+
+                    // Dodawanie wierszy do tabeli finalTableTusz
+                    DataRow newRowTusz = finalTableTusz.NewRow();
+                    newRowTusz["TonazTuszkiA"] = $"{tonazTuszkaAValue:N0} kg"; // Dodanie przedrostka "kg" i formatowanie
+                    finalTableTusz.Rows.Add(newRowTusz);
+
+                    // Dodawanie wierszy do tabeli finalTableElement
+                    DataRow newRowElement = finalTableElement.NewRow();
+                    newRowElement["Cwiartka"] = $"{tonazCwiartkaValue:N0} kg";
+                    newRowElement["Skrzydlo"] = $"{tonazSkrzydloValue:N0} kg";
+                    newRowElement["Filet"] = $"{tonazFiletValue:N0} kg";
+                    newRowElement["Korpus"] = $"{tonazKorpusValue:N0} kg";
+                    finalTableElement.Rows.Add(newRowElement);
+                }
+
+                // Dodanie wiersza sumującego na początku każdej tabeli
+                DataRow sumRowTusz = finalTableTusz.NewRow();
+                sumRowTusz["TonazTuszkiA"] = $"{sumTonazTuszkiA:N0} kg";
+                finalTableTusz.Rows.InsertAt(sumRowTusz, 0);
+
+                DataRow sumRowElement = finalTableElement.NewRow();
+                sumRowElement["Cwiartka"] = $"{sumCwiartka:N0} kg";
+                sumRowElement["Skrzydlo"] = $"{sumSkrzydlo:N0} kg";
+                sumRowElement["Filet"] = $"{sumFilet:N0} kg";
+                sumRowElement["Korpus"] = $"{sumKorpus:N0} kg";
+                finalTableElement.Rows.InsertAt(sumRowElement, 0);
+            }
+
+            // Ustawienie źródła danych dla DataGridViewPrzewidywalnyTusz
+            dataGridViewPrzewidywalnyTusz.DataSource = finalTableTusz;
+            dataGridViewPrzewidywalnyTusz.Columns["TonazTuszkiA"].HeaderText = "Tuszka A";
+
+            // Ustawienie źródła danych dla DataGridViewPrzewidywalnyElement
+            dataGridViewPrzewidywalnyElement.DataSource = finalTableElement;
+            dataGridViewPrzewidywalnyElement.Columns["Cwiartka"].HeaderText = "Ćwiartka";
+            dataGridViewPrzewidywalnyElement.Columns["Skrzydlo"].HeaderText = "Skrzydło";
+            dataGridViewPrzewidywalnyElement.Columns["Filet"].HeaderText = "Filet";
+            dataGridViewPrzewidywalnyElement.Columns["Korpus"].HeaderText = "Korpus";
+
+            // Ukrycie niepotrzebnych kolumn (Data, Dostawca, Ilość aut, Waga Dek, Ilość sztuk) - już nie musisz, bo te kolumny nie są dodane do żadnej tabeli
+
+            // Formatowanie pierwszego wiersza (wiersz sumujący)
+            FormatSumRow(dataGridViewPrzewidywalnyTusz);
+            FormatSumRow(dataGridViewPrzewidywalnyElement);
+        }
+
+        private void FormatSumRow(DataGridView gridView)
+        {
+            DataGridViewRow sumRow = gridView.Rows[0];
+            sumRow.DefaultCellStyle.BackColor = SystemColors.Highlight;
+            sumRow.DefaultCellStyle.ForeColor = Color.White;
+            sumRow.DefaultCellStyle.Font = new Font(gridView.Font, FontStyle.Bold);
+        }
+
     }
 }
