@@ -520,7 +520,7 @@
             // uwagi
             // 
             uwagi.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            uwagi.Location = new System.Drawing.Point(99, 800);
+            uwagi.Location = new System.Drawing.Point(0, 238);
             uwagi.Multiline = true;
             uwagi.Name = "uwagi";
             uwagi.Size = new System.Drawing.Size(200, 64);
@@ -1916,6 +1916,7 @@
             groupBox2.Controls.Add(label18);
             groupBox2.Controls.Add(Wklej5);
             groupBox2.Controls.Add(srednia1);
+            groupBox2.Controls.Add(uwagi);
             groupBox2.Controls.Add(Wklej4);
             groupBox2.Controls.Add(sztukNaSzuflade1);
             groupBox2.Controls.Add(Wklej3);
@@ -2147,7 +2148,6 @@
             Controls.Add(pictureBox3);
             Controls.Add(label54);
             Controls.Add(label53);
-            Controls.Add(uwagi);
             Controls.Add(label36);
             Controls.Add(label37);
             Controls.Add(button2);

@@ -58,32 +58,50 @@
             label10 = new System.Windows.Forms.Label();
             textBox4 = new System.Windows.Forms.TextBox();
             pictureBox1 = new System.Windows.Forms.PictureBox();
+            pictureBox29 = new System.Windows.Forms.PictureBox();
+            dataGridView5 = new System.Windows.Forms.DataGridView();
+            dataGridView4 = new System.Windows.Forms.DataGridView();
+            label12 = new System.Windows.Forms.Label();
+            label13 = new System.Windows.Forms.Label();
+            pictureBox3 = new System.Windows.Forms.PictureBox();
+            label16 = new System.Windows.Forms.Label();
+            label17 = new System.Windows.Forms.Label();
+            dataGridView8 = new System.Windows.Forms.DataGridView();
+            pictureBox2 = new System.Windows.Forms.PictureBox();
+            label14 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView5).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView4).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView8).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(12, 136);
+            dataGridView1.Location = new System.Drawing.Point(580, 226);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(217, 455);
+            dataGridView1.Size = new System.Drawing.Size(217, 601);
             dataGridView1.TabIndex = 0;
             // 
             // dateTimePicker1
             // 
-            dateTimePicker1.Location = new System.Drawing.Point(12, 8);
+            dateTimePicker1.CalendarFont = new System.Drawing.Font("Segoe UI Semibold", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker1.Location = new System.Drawing.Point(12, 12);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(247, 23);
+            dateTimePicker1.Size = new System.Drawing.Size(350, 23);
             dateTimePicker1.TabIndex = 24;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
             // textBox1
             // 
-            textBox1.Location = new System.Drawing.Point(288, 37);
+            textBox1.Location = new System.Drawing.Point(799, 70);
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(47, 23);
             textBox1.TabIndex = 40;
@@ -92,7 +110,7 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(288, 9);
+            label21.Location = new System.Drawing.Point(799, 42);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(47, 25);
             label21.TabIndex = 77;
@@ -102,7 +120,7 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(341, 9);
+            label1.Location = new System.Drawing.Point(852, 42);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(47, 25);
             label1.TabIndex = 79;
@@ -111,7 +129,7 @@
             // 
             // textBox2
             // 
-            textBox2.Location = new System.Drawing.Point(341, 37);
+            textBox2.Location = new System.Drawing.Point(852, 70);
             textBox2.Name = "textBox2";
             textBox2.Size = new System.Drawing.Size(47, 23);
             textBox2.TabIndex = 78;
@@ -120,7 +138,7 @@
             // label2
             // 
             label2.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(394, 9);
+            label2.Location = new System.Drawing.Point(905, 42);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(49, 25);
             label2.TabIndex = 81;
@@ -130,7 +148,7 @@
             // textBox3
             // 
             textBox3.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox3.Location = new System.Drawing.Point(394, 37);
+            textBox3.Location = new System.Drawing.Point(905, 70);
             textBox3.Name = "textBox3";
             textBox3.Size = new System.Drawing.Size(47, 23);
             textBox3.TabIndex = 80;
@@ -138,15 +156,15 @@
             // dataGridView2
             // 
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(12, 37);
+            dataGridView2.Location = new System.Drawing.Point(14, 226);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(270, 93);
+            dataGridView2.Size = new System.Drawing.Size(277, 163);
             dataGridView2.TabIndex = 82;
             // 
             // textBoxSprzedanych
             // 
-            textBoxSprzedanych.Location = new System.Drawing.Point(362, 107);
+            textBoxSprzedanych.Location = new System.Drawing.Point(873, 140);
             textBoxSprzedanych.Name = "textBoxSprzedanych";
             textBoxSprzedanych.Size = new System.Drawing.Size(68, 23);
             textBoxSprzedanych.TabIndex = 83;
@@ -154,7 +172,7 @@
             // 
             // textBoxDoSprzedania
             // 
-            textBoxDoSprzedania.Location = new System.Drawing.Point(288, 107);
+            textBoxDoSprzedania.Location = new System.Drawing.Point(799, 140);
             textBoxDoSprzedania.Name = "textBoxDoSprzedania";
             textBoxDoSprzedania.Size = new System.Drawing.Size(68, 23);
             textBoxDoSprzedania.TabIndex = 84;
@@ -163,7 +181,7 @@
             // textBoxZostalo
             // 
             textBoxZostalo.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxZostalo.Location = new System.Drawing.Point(436, 107);
+            textBoxZostalo.Location = new System.Drawing.Point(947, 140);
             textBoxZostalo.Name = "textBoxZostalo";
             textBoxZostalo.Size = new System.Drawing.Size(68, 23);
             textBoxZostalo.TabIndex = 85;
@@ -171,7 +189,7 @@
             // label3
             // 
             label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(288, 74);
+            label3.Location = new System.Drawing.Point(799, 107);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(68, 30);
             label3.TabIndex = 86;
@@ -181,7 +199,7 @@
             // label4
             // 
             label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label4.Location = new System.Drawing.Point(362, 72);
+            label4.Location = new System.Drawing.Point(873, 105);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(68, 32);
             label4.TabIndex = 87;
@@ -191,7 +209,7 @@
             // label5
             // 
             label5.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label5.Location = new System.Drawing.Point(431, 75);
+            label5.Location = new System.Drawing.Point(942, 108);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(77, 29);
             label5.TabIndex = 88;
@@ -201,7 +219,7 @@
             // label6
             // 
             label6.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(238, 141);
+            label6.Location = new System.Drawing.Point(905, 172);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(68, 25);
             label6.TabIndex = 90;
@@ -211,7 +229,7 @@
             // textBoxKrojenie
             // 
             textBoxKrojenie.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxKrojenie.Location = new System.Drawing.Point(238, 169);
+            textBoxKrojenie.Location = new System.Drawing.Point(905, 200);
             textBoxKrojenie.Name = "textBoxKrojenie";
             textBoxKrojenie.Size = new System.Drawing.Size(68, 23);
             textBoxKrojenie.TabIndex = 89;
@@ -219,7 +237,7 @@
             // dataGridView3
             // 
             dataGridView3.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView3.Location = new System.Drawing.Point(238, 198);
+            dataGridView3.Location = new System.Drawing.Point(803, 226);
             dataGridView3.Name = "dataGridView3";
             dataGridView3.RowTemplate.Height = 25;
             dataGridView3.Size = new System.Drawing.Size(277, 274);
@@ -228,7 +246,7 @@
             // label7
             // 
             label7.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(235, 486);
+            label7.Location = new System.Drawing.Point(800, 514);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(68, 25);
             label7.TabIndex = 93;
@@ -238,7 +256,7 @@
             // textBoxIloscElementow
             // 
             textBoxIloscElementow.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxIloscElementow.Location = new System.Drawing.Point(235, 514);
+            textBoxIloscElementow.Location = new System.Drawing.Point(800, 542);
             textBoxIloscElementow.Name = "textBoxIloscElementow";
             textBoxIloscElementow.Size = new System.Drawing.Size(68, 23);
             textBoxIloscElementow.TabIndex = 92;
@@ -246,7 +264,7 @@
             // label8
             // 
             label8.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(383, 475);
+            label8.Location = new System.Drawing.Point(948, 503);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(68, 36);
             label8.TabIndex = 95;
@@ -256,7 +274,7 @@
             // textBoxSumaEle
             // 
             textBoxSumaEle.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxSumaEle.Location = new System.Drawing.Point(383, 514);
+            textBoxSumaEle.Location = new System.Drawing.Point(948, 542);
             textBoxSumaEle.Name = "textBoxSumaEle";
             textBoxSumaEle.Size = new System.Drawing.Size(68, 23);
             textBoxSumaEle.TabIndex = 94;
@@ -265,7 +283,7 @@
             // label9
             // 
             label9.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label9.Location = new System.Drawing.Point(309, 486);
+            label9.Location = new System.Drawing.Point(874, 514);
             label9.Name = "label9";
             label9.Size = new System.Drawing.Size(68, 25);
             label9.TabIndex = 97;
@@ -275,7 +293,7 @@
             // textBoxPracownicze
             // 
             textBoxPracownicze.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxPracownicze.Location = new System.Drawing.Point(309, 514);
+            textBoxPracownicze.Location = new System.Drawing.Point(874, 542);
             textBoxPracownicze.Name = "textBoxPracownicze";
             textBoxPracownicze.Size = new System.Drawing.Size(68, 23);
             textBoxPracownicze.TabIndex = 96;
@@ -283,7 +301,7 @@
             // label11
             // 
             label11.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label11.Location = new System.Drawing.Point(383, 540);
+            label11.Location = new System.Drawing.Point(948, 568);
             label11.Name = "label11";
             label11.Size = new System.Drawing.Size(68, 25);
             label11.TabIndex = 99;
@@ -293,7 +311,7 @@
             // textBoxWartTuszki
             // 
             textBoxWartTuszki.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBoxWartTuszki.Location = new System.Drawing.Point(383, 568);
+            textBoxWartTuszki.Location = new System.Drawing.Point(948, 596);
             textBoxWartTuszki.Name = "textBoxWartTuszki";
             textBoxWartTuszki.Size = new System.Drawing.Size(68, 23);
             textBoxWartTuszki.TabIndex = 98;
@@ -301,7 +319,7 @@
             // label10
             // 
             label10.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label10.Location = new System.Drawing.Point(457, 512);
+            label10.Location = new System.Drawing.Point(1022, 540);
             label10.Name = "label10";
             label10.Size = new System.Drawing.Size(68, 25);
             label10.TabIndex = 101;
@@ -311,7 +329,7 @@
             // textBox4
             // 
             textBox4.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox4.Location = new System.Drawing.Point(457, 540);
+            textBox4.Location = new System.Drawing.Point(1022, 568);
             textBox4.Name = "textBox4";
             textBox4.Size = new System.Drawing.Size(68, 23);
             textBox4.TabIndex = 100;
@@ -322,24 +340,148 @@
             pictureBox1.BackgroundImage = Properties.Resources.pm;
             pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             pictureBox1.Image = Properties.Resources.Screenshot_8;
-            pictureBox1.Location = new System.Drawing.Point(451, 8);
+            pictureBox1.Location = new System.Drawing.Point(962, 41);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new System.Drawing.Size(57, 59);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 130;
             pictureBox1.TabStop = false;
             // 
+            // pictureBox29
+            // 
+            pictureBox29.Image = (System.Drawing.Image)resources.GetObject("pictureBox29.Image");
+            pictureBox29.Location = new System.Drawing.Point(112, 395);
+            pictureBox29.Name = "pictureBox29";
+            pictureBox29.Size = new System.Drawing.Size(394, 117);
+            pictureBox29.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox29.TabIndex = 132;
+            pictureBox29.TabStop = false;
+            pictureBox29.Visible = false;
+            // 
+            // dataGridView5
+            // 
+            dataGridView5.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView5.Location = new System.Drawing.Point(297, 576);
+            dataGridView5.Name = "dataGridView5";
+            dataGridView5.RowTemplate.Height = 25;
+            dataGridView5.Size = new System.Drawing.Size(277, 251);
+            dataGridView5.TabIndex = 133;
+            // 
+            // dataGridView4
+            // 
+            dataGridView4.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView4.Location = new System.Drawing.Point(14, 576);
+            dataGridView4.Name = "dataGridView4";
+            dataGridView4.RowTemplate.Height = 25;
+            dataGridView4.Size = new System.Drawing.Size(277, 251);
+            dataGridView4.TabIndex = 132;
+            // 
+            // label12
+            // 
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label12.Location = new System.Drawing.Point(13, 515);
+            label12.Name = "label12";
+            label12.Size = new System.Drawing.Size(271, 58);
+            label12.TabIndex = 132;
+            label12.Text = "Przychód elementów przewidywalny";
+            label12.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label13
+            // 
+            label13.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label13.Location = new System.Drawing.Point(290, 515);
+            label13.Name = "label13";
+            label13.Size = new System.Drawing.Size(277, 58);
+            label13.TabIndex = 134;
+            label13.Text = "Przychód elementów faktyczny";
+            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // pictureBox3
+            // 
+            pictureBox3.Image = (System.Drawing.Image)resources.GetObject("pictureBox3.Image");
+            pictureBox3.Location = new System.Drawing.Point(112, 54);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new System.Drawing.Size(394, 108);
+            pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 135;
+            pictureBox3.TabStop = false;
+            pictureBox3.Visible = false;
+            // 
+            // label16
+            // 
+            label16.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label16.Location = new System.Drawing.Point(13, 165);
+            label16.Name = "label16";
+            label16.Size = new System.Drawing.Size(278, 58);
+            label16.TabIndex = 137;
+            label16.Text = "Przychód tuszki przewidywalny";
+            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label16.Click += label16_Click;
+            // 
+            // label17
+            // 
+            label17.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label17.Location = new System.Drawing.Point(580, 180);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(217, 29);
+            label17.TabIndex = 138;
+            label17.Text = "Sprzedaż tuszki";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // dataGridView8
+            // 
+            dataGridView8.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView8.Location = new System.Drawing.Point(297, 226);
+            dataGridView8.Name = "dataGridView8";
+            dataGridView8.RowTemplate.Height = 25;
+            dataGridView8.Size = new System.Drawing.Size(277, 163);
+            dataGridView8.TabIndex = 136;
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
+            pictureBox2.Location = new System.Drawing.Point(580, 54);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(217, 108);
+            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox2.TabIndex = 136;
+            pictureBox2.TabStop = false;
+            pictureBox2.Visible = false;
+            // 
+            // label14
+            // 
+            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label14.Location = new System.Drawing.Point(296, 165);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(278, 58);
+            label14.TabIndex = 138;
+            label14.Text = "Przychód tuszki faktyczny";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // PokazCeneTuszki
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(521, 600);
+            ClientSize = new System.Drawing.Size(1176, 834);
+            Controls.Add(label17);
+            Controls.Add(label14);
+            Controls.Add(pictureBox2);
+            Controls.Add(dataGridView1);
+            Controls.Add(label16);
+            Controls.Add(dataGridView8);
             Controls.Add(pictureBox1);
+            Controls.Add(pictureBox3);
             Controls.Add(label10);
+            Controls.Add(label13);
             Controls.Add(textBox4);
+            Controls.Add(label12);
             Controls.Add(label11);
+            Controls.Add(pictureBox29);
             Controls.Add(textBoxWartTuszki);
+            Controls.Add(dataGridView5);
             Controls.Add(label9);
+            Controls.Add(dataGridView4);
+            Controls.Add(dataGridView2);
             Controls.Add(textBoxPracownicze);
             Controls.Add(label8);
             Controls.Add(textBoxSumaEle);
@@ -354,7 +496,6 @@
             Controls.Add(textBoxZostalo);
             Controls.Add(textBoxDoSprzedania);
             Controls.Add(textBoxSprzedanych);
-            Controls.Add(dataGridView2);
             Controls.Add(label2);
             Controls.Add(textBox3);
             Controls.Add(label1);
@@ -362,7 +503,6 @@
             Controls.Add(label21);
             Controls.Add(textBox1);
             Controls.Add(dateTimePicker1);
-            Controls.Add(dataGridView1);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
             Name = "PokazCeneTuszki";
             Text = "Tuszka";
@@ -370,6 +510,12 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox29).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView5).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView4).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView8).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -407,5 +553,18 @@
         private System.Windows.Forms.Button button16;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.DataGridView dataGridView5;
+        private System.Windows.Forms.DataGridView dataGridView4;
+        private System.Windows.Forms.PictureBox pictureBox29;
+        private System.Windows.Forms.Label label13;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.DataGridView dataGridView8;
+        private System.Windows.Forms.PictureBox pictureBox3;
+        private System.Windows.Forms.Label label14;
+        private System.Windows.Forms.PictureBox pictureBox2;
     }
 }

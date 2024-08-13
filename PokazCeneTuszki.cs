@@ -403,7 +403,7 @@ namespace Kalendarz1
                 textBoxPracownicze.Text = kosztyPracownicze.ToString("N0") + " zł";
                 textBoxSumaEle.Text = sumaElementow.ToString("N0") + " zł";
                 textBoxWartTuszki.Text = myValue.ToString("N0") + " zł";
-                
+
 
             }
 
@@ -498,11 +498,11 @@ namespace Kalendarz1
             }
             catch (FormatException)
             {
-               
+
             }
             catch (Exception ex)
             {
-               
+
             }
         }
 
@@ -523,6 +523,16 @@ namespace Kalendarz1
         }
 
         private void textBox4_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label14_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label16_Click(object sender, EventArgs e)
         {
 
         }
