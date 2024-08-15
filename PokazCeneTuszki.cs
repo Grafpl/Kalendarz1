@@ -24,7 +24,7 @@ namespace Kalendarz1
             Load += PokazCeneTuszki_Load;
 
         }
-
+        double uzyskanyWynikOplacalnosci;
 
 
 
@@ -43,6 +43,10 @@ namespace Kalendarz1
             dataGridView1.RowHeadersVisible = false;
             dataGridView2.RowHeadersVisible = false;
             dataGridView3.RowHeadersVisible = false;
+            dataGridViewPrzewidywalnyElement.RowHeadersVisible = false;
+            dataGridViewPrzychodElementow.RowHeadersVisible = false;
+            dataGridViewPrzewidywalnyTusz.RowHeadersVisible = false;
+            PokazPrzychodElementow();
 
             // Zapytanie SQL z dynamiczną datą
             string query = $@"
@@ -88,20 +92,7 @@ namespace Kalendarz1
     ORDER BY 
         SumaIlosci DESC, KontrahentNazwa";
 
-            string query2 = $@"
-    SELECT 
-          MZ.[kod],
-          ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
-          SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS Krojenie,
-          ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) - 
-          SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS NaSprzedaz
-      FROM [HANDEL].[HM].[MZ] MZ
-      INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
-      WHERE MZ.[kod] IN ('Kurczak B', 'Kurczak A') 
-        AND MZ.[magazyn] = '65554' 
-        AND MZ.[data] = '{formattedDate}'
-      GROUP BY MZ.[kod]
-      ORDER BY MZ.[kod]";
+           
 
             // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString2))
@@ -118,9 +109,9 @@ namespace Kalendarz1
                 // Ustawienie szerokości kolumn
                 if (dataGridView1.Columns.Count > 0)
                 {
-                    dataGridView1.Columns[0].Width = 85; // Pierwsza kolumna
-                    dataGridView1.Columns[1].Width = 50;  // Druga kolumna
-                    dataGridView1.Columns[2].Width = 40;  // Trzecia kolumna
+                    dataGridView1.Columns[0].Width = 90; // Pierwsza kolumna
+                    dataGridView1.Columns[1].Width = 65;  // Druga kolumna
+                    dataGridView1.Columns[2].Width = 45;  // Trzecia kolumna
 
                     // Formatowanie kolumny KG z separatorem tysięcy
                     dataGridView1.Columns[1].DefaultCellStyle.Format = "N0";
@@ -158,55 +149,6 @@ namespace Kalendarz1
                 textBoxSprzedanych.Text = SumaIloscTuszkiSprzedanej.ToString("N0");
             }
 
-            // Utwórz połączenie z bazą danych
-            using (SqlConnection connection = new SqlConnection(connectionString2))
-            {
-                // Utwórz adapter danych i uzupełnij DataGridView
-                SqlDataAdapter adapter = new SqlDataAdapter(query2, connection);
-                DataTable dataTable = new DataTable();
-                adapter.Fill(dataTable);
-                dataGridView2.DataSource = dataTable;
-
-                // Dopasowanie szerokości kolumn
-                dataGridView2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-
-                // Ustawienie szerokości kolumn
-                if (dataGridView2.Columns.Count > 0)
-                {
-                    dataGridView2.Columns[0].Width = 70; // Pierwsza kolumna
-                    dataGridView2.Columns[1].Width = 55;  // Druga kolumna
-                    dataGridView2.Columns[2].Width = 55;  // Trzecia kolumna
-                    dataGridView2.Columns[3].Width = 70;  // Trzecia kolumna
-
-                    // Formatowanie kolumny KG z separatorem tysięcy
-                    dataGridView2.Columns[1].DefaultCellStyle.Format = "N0";
-                    dataGridView2.Columns[2].DefaultCellStyle.Format = "N0";
-                    dataGridView2.Columns[3].DefaultCellStyle.Format = "N0";
-                }
-
-                // Oblicz sumę ilości i średnią cenę
-                decimal totalIlosc = 0;
-                decimal totalKrojenia = 0;
-                int rowCount = dataTable.Rows.Count;
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    // Sprawdź, czy wartość w kolumnie "NaSprzedaz" jest pusta lub null, jeśli tak, ustaw na 0
-                    decimal sumaIlosci = row["NaSprzedaz"] == DBNull.Value ? 0 : Convert.ToDecimal(row["NaSprzedaz"]);
-                    decimal sumakrojenia = row["Krojenie"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Krojenie"]);
-
-                    totalIlosc += sumaIlosci;
-                    totalKrojenia += sumakrojenia;
-                }
-
-                decimal SumaIloscTuszkiSprzedanej = totalIlosc != 0 ? totalIlosc : 0;
-                decimal SumaIloscTuszkiKrojonej = totalKrojenia != 0 ? totalKrojenia : 0;
-
-                // Wyświetl sumy i średnią cenę w odpowiednich TextBoxach
-                textBoxDoSprzedania.Text = SumaIloscTuszkiSprzedanej.ToString("N0");
-                textBoxKrojenie.Text = SumaIloscTuszkiKrojonej.ToString("N0");
-            }
-
             CalculateDifferenceAndDisplay(textBoxDoSprzedania, textBoxSprzedanych, textBoxZostalo);
             PokazCeneHarmonogramDostaw();
             CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate);
@@ -221,8 +163,96 @@ namespace Kalendarz1
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
+            WyswietlDaneZSumami();
             PokazPrzewidywalneKilogramy();
+            
         }
+        public void WyswietlDaneZSumami()
+        {
+            DateTime selectedDate = dateTimePicker1.Value.Date;
+            string formattedDate = selectedDate.ToString("yyyy-MM-dd");
+
+            string query2 = $@"
+        SELECT 
+            MZ.[kod],
+            ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
+            SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS Krojenie
+        FROM [HANDEL].[HM].[MZ] MZ
+        INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
+        WHERE MZ.[kod] IN ('Kurczak B', 'Kurczak A') 
+          AND MZ.[magazyn] = '65554' 
+          AND MZ.[data] = '{formattedDate}'
+        GROUP BY MZ.[kod]
+        ORDER BY MZ.[kod]";
+
+            // Utwórz połączenie z bazą danych
+            using (SqlConnection connection = new SqlConnection(connectionString2))
+            {
+                // Utwórz adapter danych i uzupełnij DataGridView
+                SqlDataAdapter adapter = new SqlDataAdapter(query2, connection);
+                DataTable dataTable = new DataTable();
+                adapter.Fill(dataTable);
+
+                // Dodaj kolumnę na procentowy udział
+                dataTable.Columns.Add("Procent", typeof(string));
+
+                // Oblicz sumy
+                decimal totalPrzychod = 0;
+                decimal totalKrojenie = 0;
+
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    decimal przychod = row["Przychod"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Przychod"]);
+                    decimal krojenie = row["Krojenie"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Krojenie"]);
+
+                    totalPrzychod += przychod;
+                    totalKrojenie += krojenie;
+                }
+
+                // Oblicz procentowy udział
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    decimal przychod = row["Przychod"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Przychod"]);
+                    decimal procent = totalPrzychod > 0 ? (przychod / totalPrzychod) * 100 : 0;
+                    row["Procent"] = $"{procent:N2} %";
+                }
+
+                // Dodanie wiersza sumującego na początku tabeli
+                DataRow sumRow = dataTable.NewRow();
+                sumRow["kod"] = "Suma:";
+                sumRow["Przychod"] = totalPrzychod;
+                sumRow["Krojenie"] = totalKrojenie;
+                sumRow["Procent"] = "100 %";
+                dataTable.Rows.InsertAt(sumRow, 0);
+
+                // Przypisanie DataTable do DataGridView
+                dataGridView2.DataSource = dataTable;
+
+                // Dopasowanie szerokości kolumn
+                dataGridView2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                if (dataGridView2.Columns.Count > 0)
+                {
+                    dataGridView2.Columns[0].Width = 70; // Pierwsza kolumna
+                    dataGridView2.Columns[1].Width = 55; // Druga kolumna
+                    dataGridView2.Columns[2].Width = 55; // Trzecia kolumna
+                    dataGridView2.Columns[3].Width = 70; // Czwarta kolumna (Procent)
+
+                    // Formatowanie kolumny KG z separatorem tysięcy
+                    dataGridView2.Columns[1].DefaultCellStyle.Format = "N0";
+                    dataGridView2.Columns[2].DefaultCellStyle.Format = "N0";
+                }
+
+                // Pogrubienie wiersza sumującego
+                FormatSumRow(dataGridView2);
+
+                // Wyświetl sumy w odpowiednich TextBoxach
+                textBoxDoSprzedania.Text = totalPrzychod.ToString("N0");
+                textBoxKrojenie.Text = totalKrojenie.ToString("N0");
+            }
+            SetRowHeights(18, dataGridView2);
+        }
+
 
         private void PokazCeneHarmonogramDostaw()
         {
@@ -268,11 +298,43 @@ namespace Kalendarz1
 
 
                 decimal averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
-
-                // Wyświetl średnią cenę w TextBoxie
                 textBox2.Text = averageCena.ToString("N2");
+                textBox22.Text = averageCena.ToString("N2");
+                uzyskanyWynikOplacalnosci = AktualizacjaOplacalnosci();
             }
         }
+        private double AktualizacjaOplacalnosci()
+        {
+            double mnoznik = 1.25;
+            double licznik = 1.00;
+
+            // Wyświetl wartości mnożnika i licznika w odpowiednich TextBoxach
+            textBox222.Text = licznik.ToString("N2");
+            textBox111.Text = mnoznik.ToString("N2");
+
+            double wynik = 0;
+
+            // Zakładam, że textBox2 zawiera wartość liczbową, którą chcemy pomnożyć przez mnoznik
+            if (double.TryParse(textBox2.Text, out double textBox2Value))
+            {
+                // Obliczenie wartości: textBox2Value * mnoznik + licznik
+                wynik = (textBox2Value * mnoznik) + licznik;
+
+                // Wyświetlenie wyniku w textBox11
+                textBox11.Text = wynik.ToString("N2");
+            }
+            else
+            {
+                // Obsługa błędu konwersji textBox2.Text na double
+                MessageBox.Show("Nieprawidłowa wartość w polu textBox2", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            // Zwrócenie wyniku z metody
+            return wynik;
+        }
+
+
+
 
         public class CalculationResult
         {
@@ -421,10 +483,6 @@ namespace Kalendarz1
             return result;
         }
 
-
-
-
-
         private void SetRowHeights(int height, DataGridView Datagrid)
         {
             // Ustawienie wysokości wszystkich wierszy na określoną wartość
@@ -557,19 +615,22 @@ namespace Kalendarz1
                 adapter.Fill(table);
 
                 // Dodanie odpowiednich kolumn do obu tabel
-                finalTableTusz.Columns.Add("TonazTuszkiA", typeof(string)); // Kolumna dla Tuszka A
+                finalTableTusz.Columns.Add("Towar", typeof(string)); // Kolumna dla towarów (Tuszka A, Tuszka B)
+                finalTableTusz.Columns.Add("Suma", typeof(string));  // Kolumna dla sum
+                finalTableTusz.Columns.Add("Procent", typeof(string)); // Kolumna dla procentów
 
-                finalTableElement.Columns.Add("Cwiartka", typeof(string));
-                finalTableElement.Columns.Add("Skrzydlo", typeof(string));
-                finalTableElement.Columns.Add("Filet", typeof(string));
-                finalTableElement.Columns.Add("Korpus", typeof(string));
+                finalTableElement.Columns.Add("Towar", typeof(string)); // Kolumna dla towarów
+                finalTableElement.Columns.Add("Suma", typeof(string));  // Kolumna dla sum
+                finalTableElement.Columns.Add("Procent", typeof(string)); // Kolumna dla procentów
 
                 // Inicjalizacja zmiennych sum
                 double sumTonazTuszkiA = 0;
+                double sumTonazTuszkiB = 0;
                 double sumCwiartka = 0;
                 double sumFilet = 0;
                 double sumSkrzydlo = 0;
                 double sumKorpus = 0;
+                double sumPozostale = 0;
 
                 // Iteracja przez wiersze tabeli źródłowej
                 foreach (DataRow row in table.Rows)
@@ -581,61 +642,101 @@ namespace Kalendarz1
                     double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
                     double tonazTuszkaAValue = tonazTuszkaValue * 0.80;
                     double tonazTuszkaBValue = tonazTuszkaValue * 0.20;
-                    double tonazCwiartkaValue = tonazTuszkaBValue * 0.38;
+                    double tonazCwiartkaValue = tonazTuszkaBValue * 0.37;
                     double tonazSkrzydloValue = tonazTuszkaBValue * 0.09;
-                    double tonazFiletValue = tonazTuszkaBValue * 0.28;
-                    double tonazKorpusValue = tonazTuszkaBValue * 0.19;
+                    double tonazFiletValue = tonazTuszkaBValue * 0.295;
+                    double tonazKorpusValue = tonazTuszkaBValue * 0.235;
+                    double PozostaleValue = tonazTuszkaBValue * 0.01;
 
                     // Sumowanie wartości
                     sumTonazTuszkiA += tonazTuszkaAValue;
+                    sumTonazTuszkiB += tonazTuszkaBValue;
                     sumCwiartka += tonazCwiartkaValue;
                     sumFilet += tonazFiletValue;
                     sumSkrzydlo += tonazSkrzydloValue;
                     sumKorpus += tonazKorpusValue;
-
-                    // Dodawanie wierszy do tabeli finalTableTusz
-                    DataRow newRowTusz = finalTableTusz.NewRow();
-                    newRowTusz["TonazTuszkiA"] = $"{tonazTuszkaAValue:N0} kg"; // Dodanie przedrostka "kg" i formatowanie
-                    finalTableTusz.Rows.Add(newRowTusz);
-
-                    // Dodawanie wierszy do tabeli finalTableElement
-                    DataRow newRowElement = finalTableElement.NewRow();
-                    newRowElement["Cwiartka"] = $"{tonazCwiartkaValue:N0} kg";
-                    newRowElement["Skrzydlo"] = $"{tonazSkrzydloValue:N0} kg";
-                    newRowElement["Filet"] = $"{tonazFiletValue:N0} kg";
-                    newRowElement["Korpus"] = $"{tonazKorpusValue:N0} kg";
-                    finalTableElement.Rows.Add(newRowElement);
+                    sumPozostale += PozostaleValue;
                 }
 
-                // Dodanie wiersza sumującego na początku każdej tabeli
+                double totalTuszki = sumTonazTuszkiA + sumTonazTuszkiB;
+                double totalElementy = sumCwiartka + sumSkrzydlo + sumFilet + sumKorpus;
+
+                // Dodanie wierszy do tabeli finalTableTusz dla Tuszka A i Tuszka B
+                DataRow rowTuszkaA = finalTableTusz.NewRow();
+                rowTuszkaA["Towar"] = "Tuszka A";
+                rowTuszkaA["Suma"] = $"{sumTonazTuszkiA:N0} kg";
+                rowTuszkaA["Procent"] = $"{(sumTonazTuszkiA / totalTuszki) * 100:N2} %";
+                finalTableTusz.Rows.Add(rowTuszkaA);
+
+                DataRow rowTuszkaB = finalTableTusz.NewRow();
+                rowTuszkaB["Towar"] = "Tuszka B";
+                rowTuszkaB["Suma"] = $"{sumTonazTuszkiB:N0} kg";
+                rowTuszkaB["Procent"] = $"{(sumTonazTuszkiB / totalTuszki) * 100:N2} %";
+                finalTableTusz.Rows.Add(rowTuszkaB);
+
+                // Dodanie wierszy do tabeli finalTableElement dla każdego towaru
+                DataRow rowCwiartka = finalTableElement.NewRow();
+                rowCwiartka["Towar"] = "Ćwiartka";
+                rowCwiartka["Suma"] = $"{sumCwiartka:N0} kg";
+                rowCwiartka["Procent"] = $"{(sumCwiartka / totalElementy) * 100:N2} %";
+                finalTableElement.Rows.Add(rowCwiartka);
+
+                DataRow rowSkrzydlo = finalTableElement.NewRow();
+                rowSkrzydlo["Towar"] = "Skrzydło";
+                rowSkrzydlo["Suma"] = $"{sumSkrzydlo:N0} kg";
+                rowSkrzydlo["Procent"] = $"{(sumSkrzydlo / totalElementy) * 100:N2} %";
+                finalTableElement.Rows.Add(rowSkrzydlo);
+
+                DataRow rowFilet = finalTableElement.NewRow();
+                rowFilet["Towar"] = "Filet";
+                rowFilet["Suma"] = $"{sumFilet:N0} kg";
+                rowFilet["Procent"] = $"{(sumFilet / totalElementy) * 100:N2} %";
+                finalTableElement.Rows.Add(rowFilet);
+
+                DataRow rowKorpus = finalTableElement.NewRow();
+                rowKorpus["Towar"] = "Korpus";
+                rowKorpus["Suma"] = $"{sumKorpus:N0} kg";
+                rowKorpus["Procent"] = $"{(sumKorpus / totalElementy) * 100:N2} %";
+                finalTableElement.Rows.Add(rowKorpus);
+
+                // Dodanie wiersza sumującego na początku tabeli finalTableTusz
                 DataRow sumRowTusz = finalTableTusz.NewRow();
-                sumRowTusz["TonazTuszkiA"] = $"{sumTonazTuszkiA:N0} kg";
+                sumRowTusz["Towar"] = "Suma:";
+                sumRowTusz["Suma"] = $"{totalTuszki:N0} kg";
+                sumRowTusz["Procent"] = "100 %";
                 finalTableTusz.Rows.InsertAt(sumRowTusz, 0);
 
+                // Dodanie wiersza sumującego na początku tabeli finalTableElement
                 DataRow sumRowElement = finalTableElement.NewRow();
-                sumRowElement["Cwiartka"] = $"{sumCwiartka:N0} kg";
-                sumRowElement["Skrzydlo"] = $"{sumSkrzydlo:N0} kg";
-                sumRowElement["Filet"] = $"{sumFilet:N0} kg";
-                sumRowElement["Korpus"] = $"{sumKorpus:N0} kg";
+                sumRowElement["Towar"] = "Suma:";
+                sumRowElement["Suma"] = $"{totalElementy:N0} kg";
+                sumRowElement["Procent"] = "100 %";
                 finalTableElement.Rows.InsertAt(sumRowElement, 0);
+                // Dodanie wiersza sumującego na początku tabeli finalTableElement
+                DataRow rowOdpad = finalTableElement.NewRow();
+                rowOdpad["Towar"] = "Pozostale`";
+                rowOdpad["Suma"] = $"{sumPozostale:N0} kg";
+                rowOdpad["Procent"] = $"{(sumPozostale / totalElementy) * 100:N2} %";
+                finalTableElement.Rows.Add(rowOdpad);
             }
 
             // Ustawienie źródła danych dla DataGridViewPrzewidywalnyTusz
             dataGridViewPrzewidywalnyTusz.DataSource = finalTableTusz;
-            dataGridViewPrzewidywalnyTusz.Columns["TonazTuszkiA"].HeaderText = "Tuszka A";
+            dataGridViewPrzewidywalnyTusz.Columns["Towar"].HeaderText = "Towar";
+            dataGridViewPrzewidywalnyTusz.Columns["Suma"].HeaderText = "Suma";
+            dataGridViewPrzewidywalnyTusz.Columns["Procent"].HeaderText = "Procent";
 
             // Ustawienie źródła danych dla DataGridViewPrzewidywalnyElement
             dataGridViewPrzewidywalnyElement.DataSource = finalTableElement;
-            dataGridViewPrzewidywalnyElement.Columns["Cwiartka"].HeaderText = "Ćwiartka";
-            dataGridViewPrzewidywalnyElement.Columns["Skrzydlo"].HeaderText = "Skrzydło";
-            dataGridViewPrzewidywalnyElement.Columns["Filet"].HeaderText = "Filet";
-            dataGridViewPrzewidywalnyElement.Columns["Korpus"].HeaderText = "Korpus";
-
-            // Ukrycie niepotrzebnych kolumn (Data, Dostawca, Ilość aut, Waga Dek, Ilość sztuk) - już nie musisz, bo te kolumny nie są dodane do żadnej tabeli
+            dataGridViewPrzewidywalnyElement.Columns["Towar"].HeaderText = "Towar";
+            dataGridViewPrzewidywalnyElement.Columns["Suma"].HeaderText = "Suma";
+            dataGridViewPrzewidywalnyElement.Columns["Procent"].HeaderText = "Procent";
 
             // Formatowanie pierwszego wiersza (wiersz sumujący)
             FormatSumRow(dataGridViewPrzewidywalnyTusz);
             FormatSumRow(dataGridViewPrzewidywalnyElement);
+            SetRowHeights(18, dataGridViewPrzewidywalnyTusz);
+            SetRowHeights(18, dataGridViewPrzewidywalnyElement);
         }
 
         private void FormatSumRow(DataGridView gridView)
@@ -646,5 +747,205 @@ namespace Kalendarz1
             sumRow.DefaultCellStyle.Font = new Font(gridView.Font, FontStyle.Bold);
         }
 
+
+        public DataTable PobierzPrzychod(bool showDetails)
+        {
+            // Tworzenie DataTable na przechowywanie wyników
+            DataTable resultTable = new DataTable();
+
+            // Łączenie się z bazą danych
+            using (SqlConnection connection = new SqlConnection(connectionString2))
+            {
+                connection.Open();
+
+                string formattedDate = dateTimePicker1.Value.ToString("yyyy-MM-dd");
+
+                string query = @"
+        SELECT 
+            MZ.[kod],
+            ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod
+        FROM [HANDEL].[HM].[MZ] MZ
+        INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
+        WHERE MZ.[kod] NOT IN ('Kurczak B', 'Kurczak A') 
+          AND MZ.[magazyn] = '65554' 
+          AND MZ.[data] = @FormattedDate
+          AND MG.[opis] LIKE '%zmiana%'
+        GROUP BY MZ.[kod]
+        HAVING ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) > 0
+        ORDER BY MZ.[kod]";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@FormattedDate", formattedDate);
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(resultTable);
+                    }
+                }
+            }
+
+            DataTable groupedTable = new DataTable();
+            groupedTable.Columns.Add("Towar", typeof(string));
+            groupedTable.Columns.Add("Przychod", typeof(double));
+            groupedTable.Columns.Add("Procent", typeof(string));
+
+            double totalPrzychod = resultTable.AsEnumerable().Sum(row => row.Field<double>("Przychod"));
+
+            var groups = new Dictionary<string, List<string>>
+    {
+        { "Cwiartka", NogaGroup },
+        { "Filet", FiletGroup },
+        { "Skrzydło", SkrzydloGroup },
+        { "Korpus", KorpusGroup }
+    };
+
+            // Dodanie grupy "Tuba" tylko wtedy, gdy jest obecna w danych
+            double tubaPrzychod = resultTable.AsEnumerable()
+                .Where(row => TubaGroup.Contains(row.Field<string>("kod")))
+                .Sum(row => row.Field<double>("Przychod"));
+
+            if (tubaPrzychod > 0)
+            {
+                groups.Add("Tuba", TubaGroup);
+            }
+
+            foreach (var group in groups)
+            {
+                double groupPrzychod = resultTable.AsEnumerable()
+                    .Where(row => group.Value.Contains(row.Field<string>("kod")))
+                    .Sum(row => row.Field<double>("Przychod"));
+
+                if (groupPrzychod > 0)
+                {
+                    DataRow newRow = groupedTable.NewRow();
+                    newRow["Towar"] = group.Key;
+                    newRow["Przychod"] = groupPrzychod;
+                    newRow["Procent"] = $"{(groupPrzychod / totalPrzychod) * 100:N2} %";
+                    groupedTable.Rows.Add(newRow);
+
+                    if (showDetails)
+                    {
+                        var detailsRows = resultTable.AsEnumerable()
+                            .Where(row => group.Value.Contains(row.Field<string>("kod")));
+
+                        foreach (var detailRow in detailsRows)
+                        {
+                            DataRow detailNewRow = groupedTable.NewRow();
+                            detailNewRow["Towar"] = "   " + detailRow.Field<string>("kod"); // Wcięcie, by wskazać szczegóły
+                            detailNewRow["Przychod"] = detailRow.Field<double>("Przychod");
+                            detailNewRow["Procent"] = $"{(detailRow.Field<double>("Przychod") / totalPrzychod) * 100:N2} %";
+                            groupedTable.Rows.Add(detailNewRow);
+                        }
+                    }
+                }
+            }
+
+            double otherPrzychod = resultTable.AsEnumerable()
+                .Where(row => !groups.SelectMany(g => g.Value).Contains(row.Field<string>("kod")))
+                .Sum(row => row.Field<double>("Przychod"));
+
+            if (otherPrzychod > 0)
+            {
+                DataRow otherRow = groupedTable.NewRow();
+                otherRow["Towar"] = "Pozostałe";
+                otherRow["Przychod"] = otherPrzychod;
+                otherRow["Procent"] = $"{(otherPrzychod / totalPrzychod) * 100:N2} %";
+                groupedTable.Rows.Add(otherRow);
+
+                if (showDetails)
+                {
+                    var detailsRows = resultTable.AsEnumerable()
+                        .Where(row => !groups.SelectMany(g => g.Value).Contains(row.Field<string>("kod")));
+
+                    foreach (var detailRow in detailsRows)
+                    {
+                        DataRow detailNewRow = groupedTable.NewRow();
+                        detailNewRow["Towar"] = "   " + detailRow.Field<string>("kod"); // Wcięcie, by wskazać szczegóły
+                        detailNewRow["Przychod"] = detailRow.Field<double>("Przychod");
+                        detailNewRow["Procent"] = $"{(detailRow.Field<double>("Przychod") / totalPrzychod) * 100:N2} %";
+                        groupedTable.Rows.Add(detailNewRow);
+                    }
+                }
+            }
+
+            DataRow sumRow = groupedTable.NewRow();
+            sumRow["Towar"] = "Suma:";
+            sumRow["Przychod"] = totalPrzychod;
+            sumRow["Procent"] = "100 %";
+            groupedTable.Rows.InsertAt(sumRow, 0);
+
+            return groupedTable;
+        }
+
+        private void dataGridViewPrzychodElementow_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dataGridViewPrzychodElementow.Columns[e.ColumnIndex].Name == "Przychod" && e.Value != null)
+            {
+                string currentValue = e.Value.ToString();
+
+                // Sprawdzamy, czy "kg" już nie zostało dodane
+                if (!currentValue.Contains("kg"))
+                {
+                    e.Value = string.Format("{0:N0} kg", e.Value);
+                    e.FormattingApplied = true;
+                }
+            }
+        }
+
+
+        private void PokazPrzychodElementow()
+        {
+            // Ustalanie, czy szczegóły mają być wyświetlane
+            bool showDetails = checkBoxShowDetails.Checked;
+
+            // Wywołanie metody PobierzPrzychod z argumentem showDetails
+            DataTable przychodTable = PobierzPrzychod(showDetails);
+
+            // Przypisanie wyników do DataGridView
+            dataGridViewPrzychodElementow.DataSource = przychodTable;
+
+            // Opcjonalne formatowanie kolumn w DataGridView
+            dataGridViewPrzychodElementow.Columns["Towar"].HeaderText = "Grupa";
+            dataGridViewPrzychodElementow.Columns["Przychod"].HeaderText = "Przychód";
+            dataGridViewPrzychodElementow.Columns["Procent"].HeaderText = "Procent";
+
+            // Dostosowanie szerokości kolumn do zawartości
+            dataGridViewPrzychodElementow.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            SetRowHeights(18, dataGridViewPrzychodElementow);
+            // Pogrubienie pierwszego wiersza (suma)
+            FormatSumRow(dataGridViewPrzychodElementow);
+        }
+
+
+        private readonly List<string> NogaGroup = new List<string>
+{
+    "Ćwiartka", "Ćwiartka I Mrożona", "Ćwiartka II", "Ćwiartka II Mrożona",
+    "Noga", "Noga Mrożona", "Udo", "Udo Mrożone", "Pałka", "Pałka Mrożona"
+};
+
+        private readonly List<string> FiletGroup = new List<string>
+{
+    "Filet A", "Filet I Mrożony", "Filet C", "Filet II", "Filet II Mrożony",
+    "Trybowane ze skórą II", "Trybowane ze skórą", "Trybowane bez skóry", "Filet II pp Mrożone", "Filet II pp",
+    "Filet II Mrożona", "Filet ze skórą", "Polędwiczki Mrożone", "Polędwiczki"
+};
+
+        private readonly List<string> SkrzydloGroup = new List<string>
+{
+    "Skrzydło I", "Skrzydło II", "Skrzydło I Mrożone", "Skrzydło II Mrożone"
+};
+
+
+        private readonly List<string> KorpusGroup = new List<string>
+{
+    "Korpus", "Korpus Mrożony"
+};
+        private readonly List<string> TubaGroup = new List<string>
+{
+        "Tuba"
+};
+
     }
+
 }
