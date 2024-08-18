@@ -47,6 +47,8 @@ namespace Kalendarz1
             dataGridViewPrzychodElementow.RowHeadersVisible = false;
             dataGridViewPrzewidywalnyTusz.RowHeadersVisible = false;
             PokazPrzychodElementow();
+            PokazPrzewidywalneKilogramy();
+            WyswietlDaneZSumami();
 
             // Zapytanie SQL z dynamiczną datą
             string query = $@"
@@ -92,8 +94,6 @@ namespace Kalendarz1
     ORDER BY 
         SumaIlosci DESC, KontrahentNazwa";
 
-           
-
             // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString2))
             {
@@ -132,9 +132,7 @@ namespace Kalendarz1
                 int rowCount = dataTable.Rows.Count;
                 foreach (DataRow row in dataTable.Rows.Cast<DataRow>().Skip(1))
                 {
-                    // Sprawdź, czy wartość w kolumnie "SumaIlosci" jest pusta lub null, jeśli tak, ustaw na 0
                     decimal sumaIlosci = row["SumaIlosci"] == DBNull.Value ? 0 : Convert.ToDecimal(row["SumaIlosci"]);
-                    // Sprawdź, czy wartość w kolumnie "Cena" jest pusta lub null, jeśli tak, ustaw na 0
                     decimal cena = row["Cena"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Cena"]);
 
                     totalIlosc += sumaIlosci;
@@ -142,16 +140,42 @@ namespace Kalendarz1
                 }
 
                 decimal SumaIloscTuszkiSprzedanej = totalIlosc != 0 ? totalIlosc : 0;
-             averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
+                averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
 
                 // Wyświetl sumy i średnią cenę w odpowiednich TextBoxach
                 textBox1.Text = averageCena.ToString("N2");
                 textBoxSprzedanych.Text = SumaIloscTuszkiSprzedanej.ToString("N0");
+
+                // Zdublowanie pierwszego wiersza na końcu tabeli
+                if (dataTable.Rows.Count > 0)
+                {
+                    DataRow firstRow = dataTable.Rows[0];
+                    DataRow duplicatedRow = dataTable.NewRow();
+                    duplicatedRow.ItemArray = firstRow.ItemArray.Clone() as object[];
+                    dataTable.Rows.Add(duplicatedRow);
+
+                    // Wartość do użycia w przypadku Przychodu Tuszki A
+                    decimal przychodTuszkiA = przychodKurczakA != 0 ? przychodKurczakA : (decimal)sumTonazTuszkiA;
+
+                    // Dodanie wiersza z wartością przychodTuszkiA
+                    DataRow tuszkaARow = dataTable.NewRow();
+                    tuszkaARow["KontrahentNazwa"] = "Przychód Tuszki A";
+                    tuszkaARow["SumaIlosci"] = przychodTuszkiA;
+                    dataTable.Rows.Add(tuszkaARow);
+
+                    // Dodanie wiersza różnicy między SumaIloscTuszkiSprzedanej a przychodTuszkiA
+                    DataRow differenceRow = dataTable.NewRow();
+                    differenceRow["KontrahentNazwa"] = "Pozostało do sprzedaży";
+                    differenceRow["SumaIlosci"] = przychodTuszkiA - SumaIloscTuszkiSprzedanej;
+                    dataTable.Rows.Add(differenceRow);
+
+                }
             }
 
             CalculateDifferenceAndDisplay(textBoxDoSprzedania, textBoxSprzedanych, textBoxZostalo);
+
             PokazCeneHarmonogramDostaw();
-            WyswietlDaneZSumami();
+            
             CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate, averageCena);
             SetRowHeights(18, dataGridView1);
             SetRowHeights(18, dataGridView2);
@@ -164,40 +188,35 @@ namespace Kalendarz1
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
-            
-            PokazPrzewidywalneKilogramy();
-            
         }
+
+        private decimal przychodKurczakA;
         public void WyswietlDaneZSumami()
         {
             DateTime selectedDate = dateTimePicker1.Value.Date;
             string formattedDate = selectedDate.ToString("yyyy-MM-dd");
 
             string query2 = $@"
-        SELECT 
-            MZ.[kod],
-            ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
-            SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS Krojenie
-        FROM [HANDEL].[HM].[MZ] MZ
-        INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
-        WHERE MZ.[kod] IN ('Kurczak B', 'Kurczak A') 
-          AND MZ.[magazyn] = '65554' 
-          AND MZ.[data] = '{formattedDate}'
-        GROUP BY MZ.[kod]
-        ORDER BY MZ.[kod]";
+    SELECT 
+        MZ.[kod],
+        ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
+        SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS Krojenie
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
+    WHERE MZ.[kod] IN ('Kurczak B', 'Kurczak A') 
+      AND MZ.[magazyn] = '65554' 
+      AND MZ.[data] = '{formattedDate}'
+    GROUP BY MZ.[kod]
+    ORDER BY MZ.[kod]";
 
-            // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString2))
             {
-                // Utwórz adapter danych i uzupełnij DataGridView
                 SqlDataAdapter adapter = new SqlDataAdapter(query2, connection);
                 DataTable dataTable = new DataTable();
                 adapter.Fill(dataTable);
 
-                // Dodaj kolumnę na procentowy udział
                 dataTable.Columns.Add("Procent", typeof(string));
 
-                // Oblicz sumy
                 decimal totalPrzychod = 0;
                 decimal totalKrojenie = 0;
 
@@ -206,11 +225,15 @@ namespace Kalendarz1
                     decimal przychod = row["Przychod"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Przychod"]);
                     decimal krojenie = row["Krojenie"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Krojenie"]);
 
+                    if (row["kod"].ToString() == "Kurczak A")
+                    {
+                        przychodKurczakA = przychod;  // Przypisanie wartości do zmiennej poza metodą
+                    }
+
                     totalPrzychod += przychod;
                     totalKrojenie += krojenie;
                 }
 
-                // Oblicz procentowy udział
                 foreach (DataRow row in dataTable.Rows)
                 {
                     decimal przychod = row["Przychod"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Przychod"]);
@@ -218,7 +241,6 @@ namespace Kalendarz1
                     row["Procent"] = $"{procent:N2} %";
                 }
 
-                // Dodanie wiersza sumującego na początku tabeli
                 DataRow sumRow = dataTable.NewRow();
                 sumRow["kod"] = "Suma:";
                 sumRow["Przychod"] = totalPrzychod;
@@ -226,10 +248,7 @@ namespace Kalendarz1
                 sumRow["Procent"] = "100 %";
                 dataTable.Rows.InsertAt(sumRow, 0);
 
-                // Przypisanie DataTable do DataGridView
                 dataGridView2.DataSource = dataTable;
-
-                // Dopasowanie szerokości kolumn
                 dataGridView2.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
                 if (dataGridView2.Columns.Count > 0)
@@ -239,20 +258,18 @@ namespace Kalendarz1
                     dataGridView2.Columns[2].Width = 55; // Trzecia kolumna
                     dataGridView2.Columns[3].Width = 70; // Czwarta kolumna (Procent)
 
-                    // Formatowanie kolumny KG z separatorem tysięcy
                     dataGridView2.Columns[1].DefaultCellStyle.Format = "N0";
                     dataGridView2.Columns[2].DefaultCellStyle.Format = "N0";
                 }
 
-                // Pogrubienie wiersza sumującego
                 FormatSumRow(dataGridView2);
 
-                // Wyświetl sumy w odpowiednich TextBoxach
                 textBoxDoSprzedania.Text = totalPrzychod.ToString("N0");
                 textBoxKrojenie.Text = totalKrojenie.ToString("N0");
             }
             SetRowHeights(18, dataGridView2);
         }
+
 
 
         private void PokazCeneHarmonogramDostaw()
@@ -644,6 +661,8 @@ ORDER BY SredniaCena DESC;";
         {
 
         }
+        private double sumTonazTuszkiA;
+
         private void PokazPrzewidywalneKilogramy()
         {
             // Tworzenie dwóch tabel dla różnych DataGridView
@@ -673,7 +692,7 @@ ORDER BY SredniaCena DESC;";
                 finalTableElement.Columns.Add("Procent", typeof(string)); // Kolumna dla procentów
 
                 // Inicjalizacja zmiennych sum
-                double sumTonazTuszkiA = 0;
+                sumTonazTuszkiA = 0; // Zmienna przeniesiona na poziom klasy
                 double sumTonazTuszkiB = 0;
                 double sumCwiartka = 0;
                 double sumFilet = 0;
