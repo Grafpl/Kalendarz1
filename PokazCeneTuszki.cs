@@ -35,7 +35,7 @@ namespace Kalendarz1
         {
             // Pobierz datę z dateTimePicker1
             DateTime selectedDate = dateTimePicker1.Value.Date;
-
+            decimal averageCena;
             // Formatuj datę jako string
             string formattedDate = selectedDate.ToString("yyyy-MM-dd");
 
@@ -142,7 +142,7 @@ namespace Kalendarz1
                 }
 
                 decimal SumaIloscTuszkiSprzedanej = totalIlosc != 0 ? totalIlosc : 0;
-                decimal averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
+             averageCena = totalIlosc != 0 ? totalCena / totalIlosc : 0;
 
                 // Wyświetl sumy i średnią cenę w odpowiednich TextBoxach
                 textBox1.Text = averageCena.ToString("N2");
@@ -151,7 +151,8 @@ namespace Kalendarz1
 
             CalculateDifferenceAndDisplay(textBoxDoSprzedania, textBoxSprzedanych, textBoxZostalo);
             PokazCeneHarmonogramDostaw();
-            CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate);
+            WyswietlDaneZSumami();
+            CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate, averageCena);
             SetRowHeights(18, dataGridView1);
             SetRowHeights(18, dataGridView2);
             SetRowHeights(18, dataGridView3);
@@ -163,7 +164,7 @@ namespace Kalendarz1
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
-            WyswietlDaneZSumami();
+            
             PokazPrzewidywalneKilogramy();
             
         }
@@ -325,8 +326,7 @@ namespace Kalendarz1
             }
             else
             {
-                // Obsługa błędu konwersji textBox2.Text na double
-                MessageBox.Show("Nieprawidłowa wartość w polu textBox2", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                
             }
 
             // Zwrócenie wyniku z metody
@@ -343,7 +343,7 @@ namespace Kalendarz1
             public double TotalNetto { get; set; }
         }
 
-        private CalculationResult CalculateAndPopulateDataGridView(TextBox inputTextBox, DataGridView dataGridView, string connectionString, string Data)
+        private CalculationResult CalculateAndPopulateDataGridView(TextBox inputTextBox, DataGridView dataGridView, string connectionString, string Data, decimal averageprice)
         {
             CalculationResult result = new CalculationResult();
             decimal totalValue = 0;
@@ -361,32 +361,37 @@ namespace Kalendarz1
                 dataTable.Columns.Add("Netto", typeof(double));
 
                 // Dodaj wiersze z obliczonymi wartościami procentowymi
-                dataTable.Rows.Add("Filet A", inputValue * 0.28m);
-                dataTable.Rows.Add("Filet II", inputValue * 0.02m);
-                dataTable.Rows.Add("Korpus", inputValue * 0.24m);
-                dataTable.Rows.Add("Ćwiartka", inputValue * 0.31m);
-                dataTable.Rows.Add("Ćwiartka II", inputValue * 0.02m);
-                dataTable.Rows.Add("Skrzydło I", inputValue * 0.09m);
-                dataTable.Rows.Add("Skrzydło II", inputValue * 0.01m);
-                dataTable.Rows.Add("Noga", inputValue * 0.01m);
-                dataTable.Rows.Add("Pałka", inputValue * 0.01m);
-                dataTable.Rows.Add("Odpady kat. 3", inputValue * 0.01m);
+                var items = new (string Nazwa, decimal Procent)[]
+                {
+            ("Filet A", 0.28m),
+            ("Filet II", 0.02m),
+            ("Korpus", 0.24m),
+            ("Ćwiartka", 0.31m),
+            ("Ćwiartka II", 0.02m),
+            ("Skrzydło I", 0.09m),
+            ("Skrzydło II", 0.01m),
+            ("Noga", 0.01m),
+            ("Pałka", 0.01m),
+            ("Odpady kat. 3", 0.01m)
+                };
 
-                // Oblicz całkowitą sumę wartości
-                totalValue = inputValue * (0.30m + 0.24m + 0.33m + 0.10m + 0.01m + 0.01m + 0.01m);
+                foreach (var item in items)
+                {
+                    dataTable.Rows.Add(item.Nazwa, inputValue * item.Procent);
+                }
 
                 // Pobierz dane z bazy danych
                 string query = $@"
-        SELECT DP.[kod], 
-               SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
-        FROM [HANDEL].[HM].[DP] DP 
-        INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
-        INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
-        WHERE DP.[data] = '{Data}' 
-          AND TW.[katalog] = 67095 
-          AND DP.[kod] != 'Kurczak A'
-        GROUP BY DP.[kod]
-        ORDER BY SredniaCena DESC;";
+SELECT DP.[kod], 
+       SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
+FROM [HANDEL].[HM].[DP] DP 
+INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
+INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
+WHERE DP.[data] = '{Data}' 
+  AND TW.[katalog] = 67095 
+  AND DP.[kod] != 'Kurczak A'
+GROUP BY DP.[kod]
+ORDER BY SredniaCena DESC;";
 
                 Dictionary<string, double> prices = new Dictionary<string, double>();
 
@@ -409,22 +414,58 @@ namespace Kalendarz1
                 // Przypisz ceny i netto do odpowiednich wierszy
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    if (prices.ContainsKey(row["Nazwa"].ToString()))
+                    string nazwa = row["Nazwa"].ToString();
+                    decimal ilosc = Convert.ToDecimal(row["Ilosc"]);
+
+                    // Zawsze sumuj ilość, niezależnie od tego, czy cena została znaleziona
+                    totalIlosc += ilosc;
+
+                    if (prices.ContainsKey(nazwa))
                     {
-                        double cena = prices[row["Nazwa"].ToString()];
+                        double cena = prices[nazwa];
                         row["Cena"] = cena;
-                        double ilosc = Convert.ToDouble(row["Ilosc"]);
-                        double netto = ilosc * cena;
+                        double netto = (double)ilosc * cena;
                         row["Netto"] = netto;
                         totalNetto += netto;
-                        totalIlosc += (decimal)ilosc;
                     }
                     else
                     {
-                        row["Cena"] = DBNull.Value; // Puste jeśli nie znaleziono ceny
-                        row["Netto"] = DBNull.Value;
+                        double cena = 0;
+                        bool cenaZnaleziona = false;
+
+                        // Oblicz cenę na podstawie innych produktów, jeśli to możliwe
+                        if (nazwa == "Filet II" && prices.ContainsKey("Filet A"))
+                        {
+                            cena = prices["Filet A"] * 0.62; // 62% ceny Filet A
+                            cenaZnaleziona = true;
+                        }
+                        else if (nazwa == "Skrzydło II" && prices.ContainsKey("Skrzydło I"))
+                        {
+                            cena = prices["Skrzydło I"] * 0.58; // 58% ceny Skrzydło I
+                            cenaZnaleziona = true;
+                        }
+                        else if (nazwa == "Ćwiartka II" && prices.ContainsKey("Ćwiartka"))
+                        {
+                            cena = prices["Ćwiartka"] * 0.83; // 83% ceny Ćwiartka
+                            cenaZnaleziona = true;
+                        }
+
+                        if (cenaZnaleziona)
+                        {
+                            row["Cena"] = cena;
+                            double netto = (double)ilosc * cena;
+                            row["Netto"] = netto;
+                            totalNetto += netto;
+                        }
+                        else
+                        {
+                            row["Cena"] = DBNull.Value; // Puste jeśli nie znaleziono ceny
+                            row["Netto"] = DBNull.Value;
+                        }
                     }
                 }
+
+
 
                 // Oblicz średnią cenę
                 double averageCena2 = totalNetto / (double)totalIlosc;
@@ -445,32 +486,37 @@ namespace Kalendarz1
                 boldStyle.Font = new Font(dataGridView.Font, FontStyle.Bold);
 
                 // Upewnij się, że DataGridView zostało uaktualnione, a potem przypisz styl
-                dataGridView.Rows[dataGridView.Rows.Count - 2].DefaultCellStyle = boldStyle; // Styl dla wiersza z sumą i średnią ceną
+                dataGridView.Rows[dataGridView.Rows.Count - 1].DefaultCellStyle = boldStyle; // Styl dla wiersza z sumą i średnią ceną
 
                 // Ustaw wartości zwracane
                 result.TotalIlosc = totalIlosc;
                 result.AverageCena = averageCena2;
                 result.TotalNetto = totalNetto;
-
-
-
+                // Obliczenia dodatkowe
+                string inputText = inputTextBox.Text.Replace(" ", ""); // Usuń spacje
                 decimal myValue;
-                decimal.TryParse(textBox1.Text, out myValue);
-                myValue = totalIlosc * myValue;
 
-                decimal kosztyPracownicze = totalIlosc / (decimal)2.11;
-                decimal sumaElementow = (decimal)totalNetto - (decimal)kosztyPracownicze;
+                // Sprawdź, czy parsowanie się powiodło
+                if (!decimal.TryParse(inputText, out myValue))
+                {
+                    MessageBox.Show("Wartość w polu tekstowym nie jest prawidłową liczbą. Ustawiono wartość domyślną na 0.", "Ostrzeżenie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    myValue = 0; // Ustaw wartość domyślną, jeśli parsowanie się nie powiedzie
+                }
 
+                // Mnożenie myValue przez totalIlosc
+                myValue = totalIlosc * averageprice;
 
-                textBoxIloscElementow.Text = totalNetto.ToString("N0") + " zł";
+                decimal kosztyPracownicze = totalIlosc / 2.11m;
+                double sumaElementow = totalNetto - (double)kosztyPracownicze;
+
+                // Kontynuacja operacji, np. wyświetlanie wartości w TextBoxach
+                textBoxIloscElementow.Text = totalIlosc.ToString("N0") + " kg";
                 textBoxPracownicze.Text = kosztyPracownicze.ToString("N0") + " zł";
                 textBoxSumaEle.Text = sumaElementow.ToString("N0") + " zł";
                 textBoxWartTuszki.Text = myValue.ToString("N0") + " zł";
 
 
             }
-
-
             catch (FormatException)
             {
                 MessageBox.Show("Wartość w polu tekstowym nie jest prawidłową liczbą.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -479,9 +525,12 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Wystąpił nieoczekiwany błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
             CalculateDifferenceAndDisplay(textBoxSumaEle, textBoxWartTuszki, textBox4);
             return result;
         }
+
+
 
         private void SetRowHeights(int height, DataGridView Datagrid)
         {
