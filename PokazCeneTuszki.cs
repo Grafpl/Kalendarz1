@@ -69,6 +69,8 @@ namespace Kalendarz1
         AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
         AND DP.[kod] = 'Kurczak A' 
         AND TW.[katalog] = 67095
+    HAVING
+        SUM(DP.Ilosc) > 0
 
     UNION ALL
 
@@ -91,8 +93,11 @@ namespace Kalendarz1
         AND TW.[katalog] = 67095
     GROUP BY 
         C.Shortcut, CONVERT(date, DP.[data])
+    HAVING
+        SUM(DP.Ilosc) > 0
     ORDER BY 
         SumaIlosci DESC, KontrahentNazwa";
+
 
             // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionString2))
@@ -146,6 +151,10 @@ namespace Kalendarz1
                 textBox1.Text = averageCena.ToString("N2");
                 textBoxSprzedanych.Text = SumaIloscTuszkiSprzedanej.ToString("N0");
 
+                // Dodanie pustego wiersza jako separatora
+                DataRow emptyRow = dataTable.NewRow();
+                dataTable.Rows.Add(emptyRow);
+
                 // Zdublowanie pierwszego wiersza na końcu tabeli
                 if (dataTable.Rows.Count > 0)
                 {
@@ -159,15 +168,34 @@ namespace Kalendarz1
 
                     // Dodanie wiersza z wartością przychodTuszkiA
                     DataRow tuszkaARow = dataTable.NewRow();
-                    tuszkaARow["KontrahentNazwa"] = "Przychód Tuszki A";
+                    tuszkaARow["KontrahentNazwa"] = "Przychód";
                     tuszkaARow["SumaIlosci"] = przychodTuszkiA;
                     dataTable.Rows.Add(tuszkaARow);
 
                     // Dodanie wiersza różnicy między SumaIloscTuszkiSprzedanej a przychodTuszkiA
                     DataRow differenceRow = dataTable.NewRow();
-                    differenceRow["KontrahentNazwa"] = "Pozostało do sprzedaży";
+                    differenceRow["KontrahentNazwa"] = "Do Sprzedania";
                     differenceRow["SumaIlosci"] = przychodTuszkiA - SumaIloscTuszkiSprzedanej;
                     dataTable.Rows.Add(differenceRow);
+
+                    // Stylizacja wierszy sumujących
+                    DataGridViewCellStyle summaryStyle = new DataGridViewCellStyle();
+                    summaryStyle.Font = new Font(dataGridView1.Font, FontStyle.Regular);
+                    summaryStyle.BackColor = Color.LightGray;  // Kolor tła
+                    summaryStyle.ForeColor = Color.Black;   // Kolor tekstu
+
+                    // Stylizacja wierszy sumujących
+                    DataGridViewCellStyle summaryStyle2 = new DataGridViewCellStyle();
+                    summaryStyle2.Font = new Font(dataGridView1.Font, FontStyle.Bold);
+                    summaryStyle2.BackColor = Color.Yellow;  // Kolor tła
+                    summaryStyle2.ForeColor = Color.Red;   // Kolor tekstu
+
+                    int lastRowIndex = dataGridView1.Rows.Count - 1;
+
+                    dataGridView1.Rows[lastRowIndex - 3].DefaultCellStyle = summaryStyle; // Przychód Tuszki A
+                    dataGridView1.Rows[lastRowIndex - 2].DefaultCellStyle = summaryStyle; // Duplikat pierwszego wiersza
+                    dataGridView1.Rows[lastRowIndex - 1].DefaultCellStyle = summaryStyle2; // Duplikat pierwszego wiersza
+
 
                 }
             }
@@ -175,7 +203,7 @@ namespace Kalendarz1
             CalculateDifferenceAndDisplay(textBoxDoSprzedania, textBoxSprzedanych, textBoxZostalo);
 
             PokazCeneHarmonogramDostaw();
-            
+
             CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate, averageCena);
             SetRowHeights(18, dataGridView1);
             SetRowHeights(18, dataGridView2);
@@ -189,6 +217,7 @@ namespace Kalendarz1
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
         }
+
 
         private decimal przychodKurczakA;
         public void WyswietlDaneZSumami()

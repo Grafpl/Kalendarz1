@@ -179,7 +179,7 @@
             // 
             textBoxSprzedanych.Location = new System.Drawing.Point(877, 190);
             textBoxSprzedanych.Name = "textBoxSprzedanych";
-            textBoxSprzedanych.Size = new System.Drawing.Size(68, 23);
+            textBoxSprzedanych.Size = new System.Drawing.Size(52, 23);
             textBoxSprzedanych.TabIndex = 83;
             textBoxSprzedanych.TextChanged += textBoxSprzedanych_TextChanged;
             // 
@@ -187,7 +187,7 @@
             // 
             textBoxDoSprzedania.Location = new System.Drawing.Point(803, 190);
             textBoxDoSprzedania.Name = "textBoxDoSprzedania";
-            textBoxDoSprzedania.Size = new System.Drawing.Size(68, 23);
+            textBoxDoSprzedania.Size = new System.Drawing.Size(52, 23);
             textBoxDoSprzedania.TabIndex = 84;
             textBoxDoSprzedania.TextChanged += textBoxDoSprzedania_TextChanged;
             // 
@@ -196,45 +196,45 @@
             textBoxZostalo.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textBoxZostalo.Location = new System.Drawing.Point(951, 190);
             textBoxZostalo.Name = "textBoxZostalo";
-            textBoxZostalo.Size = new System.Drawing.Size(68, 23);
+            textBoxZostalo.Size = new System.Drawing.Size(52, 23);
             textBoxZostalo.TabIndex = 85;
             // 
             // label3
             // 
-            label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(803, 157);
+            label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label3.Location = new System.Drawing.Point(803, 149);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(68, 30);
+            label3.Size = new System.Drawing.Size(52, 38);
             label3.TabIndex = 86;
             label3.Text = "Na sprzedaż tuszka";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label4
             // 
-            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label4.Location = new System.Drawing.Point(877, 155);
+            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label4.Location = new System.Drawing.Point(877, 149);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(68, 32);
+            label4.Size = new System.Drawing.Size(52, 38);
             label4.TabIndex = 87;
             label4.Text = "Sprzedana tuszka";
             label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label5
             // 
-            label5.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label5.Location = new System.Drawing.Point(946, 158);
+            label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label5.Location = new System.Drawing.Point(946, 155);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(77, 29);
+            label5.Size = new System.Drawing.Size(61, 32);
             label5.TabIndex = 88;
             label5.Text = "Pozostała tuszka";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label6
             // 
-            label6.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(1028, 162);
+            label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label6.Location = new System.Drawing.Point(1028, 152);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(68, 25);
+            label6.Size = new System.Drawing.Size(52, 35);
             label6.TabIndex = 90;
             label6.Text = "Krojona tuszka";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -244,7 +244,7 @@
             textBoxKrojenie.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             textBoxKrojenie.Location = new System.Drawing.Point(1028, 190);
             textBoxKrojenie.Name = "textBoxKrojenie";
-            textBoxKrojenie.Size = new System.Drawing.Size(68, 23);
+            textBoxKrojenie.Size = new System.Drawing.Size(52, 23);
             textBoxKrojenie.TabIndex = 89;
             // 
             // dataGridView3
