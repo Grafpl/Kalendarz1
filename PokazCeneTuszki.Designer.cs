@@ -114,7 +114,7 @@
             // 
             // textBox1
             // 
-            textBox1.Location = new System.Drawing.Point(1300, 86);
+            textBox1.Location = new System.Drawing.Point(1145, 46);
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(47, 23);
             textBox1.TabIndex = 40;
@@ -123,7 +123,7 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(1300, 58);
+            label21.Location = new System.Drawing.Point(1145, 18);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(47, 25);
             label21.TabIndex = 77;
@@ -133,7 +133,7 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(1353, 58);
+            label1.Location = new System.Drawing.Point(1198, 18);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(47, 25);
             label1.TabIndex = 79;
@@ -142,7 +142,7 @@
             // 
             // textBox2
             // 
-            textBox2.Location = new System.Drawing.Point(1353, 86);
+            textBox2.Location = new System.Drawing.Point(1198, 46);
             textBox2.Name = "textBox2";
             textBox2.Size = new System.Drawing.Size(47, 23);
             textBox2.TabIndex = 78;
@@ -151,7 +151,7 @@
             // label2
             // 
             label2.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(1406, 58);
+            label2.Location = new System.Drawing.Point(1251, 18);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(49, 25);
             label2.TabIndex = 81;
@@ -161,7 +161,7 @@
             // textBox3
             // 
             textBox3.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox3.Location = new System.Drawing.Point(1406, 86);
+            textBox3.Location = new System.Drawing.Point(1251, 46);
             textBox3.Name = "textBox3";
             textBox3.Size = new System.Drawing.Size(47, 23);
             textBox3.TabIndex = 80;
@@ -353,7 +353,7 @@
             pictureBox1.BackgroundImage = Properties.Resources.pm;
             pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             pictureBox1.Image = Properties.Resources.Screenshot_8;
-            pictureBox1.Location = new System.Drawing.Point(1241, 50);
+            pictureBox1.Location = new System.Drawing.Point(1086, 10);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new System.Drawing.Size(57, 59);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -480,7 +480,7 @@
             // label15
             // 
             label15.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label15.Location = new System.Drawing.Point(1409, 149);
+            label15.Location = new System.Drawing.Point(1254, 109);
             label15.Name = "label15";
             label15.Size = new System.Drawing.Size(49, 11);
             label15.TabIndex = 145;
@@ -490,7 +490,7 @@
             // textBox11
             // 
             textBox11.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox11.Location = new System.Drawing.Point(1411, 163);
+            textBox11.Location = new System.Drawing.Point(1256, 123);
             textBox11.Name = "textBox11";
             textBox11.Size = new System.Drawing.Size(47, 23);
             textBox11.TabIndex = 144;
@@ -498,7 +498,7 @@
             // label18
             // 
             label18.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label18.Location = new System.Drawing.Point(1305, 149);
+            label18.Location = new System.Drawing.Point(1150, 109);
             label18.Name = "label18";
             label18.Size = new System.Drawing.Size(44, 11);
             label18.TabIndex = 143;
@@ -507,7 +507,7 @@
             // 
             // textBox111
             // 
-            textBox111.Location = new System.Drawing.Point(1304, 163);
+            textBox111.Location = new System.Drawing.Point(1149, 123);
             textBox111.Name = "textBox111";
             textBox111.Size = new System.Drawing.Size(47, 23);
             textBox111.TabIndex = 142;
@@ -515,7 +515,7 @@
             // label19
             // 
             label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(1249, 149);
+            label19.Location = new System.Drawing.Point(1094, 109);
             label19.Name = "label19";
             label19.Size = new System.Drawing.Size(47, 11);
             label19.TabIndex = 141;
@@ -524,7 +524,7 @@
             // 
             // textBox22
             // 
-            textBox22.Location = new System.Drawing.Point(1251, 163);
+            textBox22.Location = new System.Drawing.Point(1096, 123);
             textBox22.Name = "textBox22";
             textBox22.Size = new System.Drawing.Size(47, 23);
             textBox22.TabIndex = 140;
@@ -532,7 +532,7 @@
             // label20
             // 
             label20.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label20.Location = new System.Drawing.Point(1359, 149);
+            label20.Location = new System.Drawing.Point(1204, 109);
             label20.Name = "label20";
             label20.Size = new System.Drawing.Size(44, 11);
             label20.TabIndex = 147;
@@ -541,7 +541,7 @@
             // 
             // textBox222
             // 
-            textBox222.Location = new System.Drawing.Point(1358, 163);
+            textBox222.Location = new System.Drawing.Point(1203, 123);
             textBox222.Name = "textBox222";
             textBox222.Size = new System.Drawing.Size(47, 23);
             textBox222.TabIndex = 146;
@@ -569,7 +569,7 @@
             // label23
             // 
             label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label23.Location = new System.Drawing.Point(1249, 114);
+            label23.Location = new System.Drawing.Point(1094, 74);
             label23.Name = "label23";
             label23.Size = new System.Drawing.Size(204, 35);
             label23.TabIndex = 150;

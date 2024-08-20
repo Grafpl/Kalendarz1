@@ -732,8 +732,11 @@ ORDER BY SredniaCena DESC;";
                 // Iteracja przez wiersze tabeli źródłowej
                 foreach (DataRow row in table.Rows)
                 {
-                    double wagaDekValue = Convert.ToDouble(row["WagaDek"]);
-                    int sztukiDekValue = Convert.ToInt32(row["SztukiDek"]);
+                    // Check if "WagaDek" is DBNull, if so, assign a default value (e.g., 0.0)
+                    double wagaDekValue = row["WagaDek"] != DBNull.Value ? Convert.ToDouble(row["WagaDek"]) : 0.0;
+
+                    // Check if "SztukiDek" is DBNull, if so, assign a default value (e.g., 0)
+                    int sztukiDekValue = row["SztukiDek"] != DBNull.Value ? Convert.ToInt32(row["SztukiDek"]) : 0;
 
                     double sredniaTuszkaValue = wagaDekValue * 0.78;
                     double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
@@ -754,6 +757,7 @@ ORDER BY SredniaCena DESC;";
                     sumKorpus += tonazKorpusValue;
                     sumPozostale += PozostaleValue;
                 }
+
 
                 double totalTuszki = sumTonazTuszkiA + sumTonazTuszkiB;
                 double totalElementy = sumCwiartka + sumSkrzydlo + sumFilet + sumKorpus;
