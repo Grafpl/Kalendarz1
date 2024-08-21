@@ -641,7 +641,7 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        MessageBox.Show("Nie znaleziono danych dla podanego dostawcy.");
+                        
                     }
                 }
                 catch (Exception ex)
