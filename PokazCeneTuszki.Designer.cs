@@ -81,6 +81,8 @@
             label22 = new System.Windows.Forms.Label();
             pictureBox4 = new System.Windows.Forms.PictureBox();
             label23 = new System.Windows.Forms.Label();
+            pokaztuszke = new System.Windows.Forms.CheckBox();
+            dateTimePicker2 = new System.Windows.Forms.DateTimePicker();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
@@ -106,9 +108,9 @@
             // dateTimePicker1
             // 
             dateTimePicker1.CalendarFont = new System.Drawing.Font("Segoe UI Semibold", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            dateTimePicker1.Location = new System.Drawing.Point(12, 12);
+            dateTimePicker1.Location = new System.Drawing.Point(14, 9);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(350, 23);
+            dateTimePicker1.Size = new System.Drawing.Size(228, 23);
             dateTimePicker1.TabIndex = 24;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
@@ -576,11 +578,30 @@
             label23.Text = "Minimalna cena za jaką musimy sprzedać";
             label23.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // pokaztuszke
+            // 
+            pokaztuszke.AutoSize = true;
+            pokaztuszke.Location = new System.Drawing.Point(14, 60);
+            pokaztuszke.Name = "pokaztuszke";
+            pokaztuszke.Size = new System.Drawing.Size(15, 14);
+            pokaztuszke.TabIndex = 151;
+            pokaztuszke.UseVisualStyleBackColor = true;
+            // 
+            // dateTimePicker2
+            // 
+            dateTimePicker2.CalendarFont = new System.Drawing.Font("Segoe UI Semibold", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker2.Location = new System.Drawing.Point(248, 9);
+            dateTimePicker2.Name = "dateTimePicker2";
+            dateTimePicker2.Size = new System.Drawing.Size(228, 23);
+            dateTimePicker2.TabIndex = 152;
+            // 
             // PokazCeneTuszki
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1582, 834);
+            Controls.Add(dateTimePicker2);
+            Controls.Add(pokaztuszke);
             Controls.Add(label23);
             Controls.Add(label22);
             Controls.Add(pictureBox4);
@@ -709,5 +730,7 @@
         private System.Windows.Forms.Label label22;
         private System.Windows.Forms.PictureBox pictureBox4;
         private System.Windows.Forms.Label label23;
+        private System.Windows.Forms.CheckBox pokaztuszke;
+        private System.Windows.Forms.DateTimePicker dateTimePicker2;
     }
 }
