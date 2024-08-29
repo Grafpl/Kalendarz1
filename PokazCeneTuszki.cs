@@ -53,50 +53,53 @@ namespace Kalendarz1
             // Zapytanie SQL z dynamiczną datą
             string query = $@"
     SELECT 
-        'Suma' AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    WHERE 
-        DP.[data] >= '{formattedDate}'
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    HAVING
-        SUM(DP.Ilosc) > 0
+     'Suma' AS KontrahentNazwa,
+     SUM(DP.Ilosc) AS SumaIlosci,
+     ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
+	 '' AS Handlowiec
+ FROM 
+     [HANDEL].[HM].[DP] DP 
+ INNER JOIN 
+     [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+ INNER JOIN 
+     [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+ INNER JOIN 
+     [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+ WHERE 
+     DP.[data] >= '{formattedDate}' 
+     AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
+     AND DP.[kod] = 'Kurczak A' 
+     AND TW.[katalog] = 67095
+ HAVING
+     SUM(DP.Ilosc) > 0
 
-    UNION ALL
+ UNION ALL
 
-    SELECT
-        C.Shortcut AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    WHERE 
-        DP.[data] >= '{formattedDate}'
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    GROUP BY 
-        C.Shortcut, CONVERT(date, DP.[data])
-    HAVING
-        SUM(DP.Ilosc) > 0
-    ORDER BY 
-        SumaIlosci DESC, KontrahentNazwa";
+ SELECT
+     C.Shortcut AS KontrahentNazwa,
+     SUM(DP.Ilosc) AS SumaIlosci,
+     ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
+	 isnull(WYM.CDim_Handlowiec_Val,'-') AS Handlowiec
+ FROM 
+     [HANDEL].[HM].[DP] DP 
+ INNER JOIN 
+     [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+ INNER JOIN 
+     [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+ INNER JOIN 
+     [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+ LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification] WYM on C.Id =WYM.ElementId
+ WHERE 
+     DP.[data] >= '{formattedDate}' 
+     AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}' ) 
+     AND DP.[kod] = 'Kurczak A' 
+     AND TW.[katalog] = 67095
+ GROUP BY 
+     C.Shortcut, CONVERT(date, DP.[data]),WYM.CDim_Handlowiec_Val
+ HAVING
+     SUM(DP.Ilosc) > 0
+ ORDER BY 
+     SumaIlosci DESC, KontrahentNazwa";
 
 
             // Utwórz połączenie z bazą danych
@@ -214,6 +217,7 @@ namespace Kalendarz1
                 dataGridView3.Columns[0].Width = 70; // Pierwsza kolumna
                 dataGridView3.Columns[1].Width = 50;  // Druga kolumna
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
+                dataGridView3.Columns[3].Width = 50;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
         }
