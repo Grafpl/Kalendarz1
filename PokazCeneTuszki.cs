@@ -34,13 +34,14 @@ namespace Kalendarz1
         private void PokazCeneTuszki_Load(object sender, EventArgs e)
         {
             // Pobierz datę z dateTimePicker1
-            DateTime selectedDate = dateTimePicker1.Value.Date;
-            DateTime selectedDat2 = dateTimePicker2.Value.Date;
+
             decimal averageCena;
             // Formatuj datę jako string
+
+            DateTime selectedDate = dateTimePicker1.Value.Date;
+            DateTime selectedDat2 = dateTimePicker2.Value.Date;
             string formattedDate = selectedDate.ToString("yyyy-MM-dd");
             string formattedDate2 = selectedDat2.ToString("yyyy-MM-dd");
-
             dataGridView1.ColumnHeadersVisible = false;
             dataGridView1.RowHeadersVisible = false;
             dataGridView2.RowHeadersVisible = false;
@@ -52,116 +53,59 @@ namespace Kalendarz1
             PokazPrzewidywalneKilogramy();
             WyswietlDaneZSumami();
 
-            // Odczytanie stanu checkboxa pokaztuszke
-            bool isCheckboxChecked = pokaztuszke.Checked;
 
             // Zakładam, że zmienne formattedDate i formattedDate2 są już zdefiniowane
-            string query;
+            string query = $@"
+-- Wiersz sumaryczny na początku
+SELECT 
+    'Suma' AS KontrahentNazwa,
+    SUM(DP.Ilosc) AS SumaIlosci,
+    ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
+    '' AS Handlowiec
+FROM 
+    [HANDEL].[HM].[DP] DP 
+INNER JOIN 
+    [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+INNER JOIN 
+    [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+INNER JOIN 
+    [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+WHERE 
+    DP.[data] >= '{formattedDate}' 
+    AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}') 
+    AND DP.[kod] = 'Kurczak A' 
+    AND TW.[katalog] = 67095
 
-            if (isCheckboxChecked)
-            {
-                query = $@"
-    SELECT 
-        'Suma' AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
-        '' AS Handlowiec
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    WHERE 
-        DP.[data] >= '{formattedDate}' 
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    HAVING
-        SUM(DP.Ilosc) > 0
+UNION ALL
 
-    UNION ALL
+-- Grupa dla każdego kontrahenta
+SELECT
+    C.Shortcut AS KontrahentNazwa,
+    SUM(DP.Ilosc) AS SumaIlosci,
+    ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
+    ISNULL(WYM.CDim_Handlowiec_Val,'-') AS Handlowiec
+FROM 
+    [HANDEL].[HM].[DP] DP 
+INNER JOIN 
+    [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
+INNER JOIN 
+    [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+INNER JOIN 
+    [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+WHERE 
+    DP.[data] >= '{formattedDate}' 
+    AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}') 
+    AND DP.[kod] = 'Kurczak A' 
+    AND TW.[katalog] = 67095
+GROUP BY 
+    C.Shortcut, WYM.CDim_Handlowiec_Val
+HAVING
+    SUM(DP.Ilosc) > 0
+ORDER BY 
+    SumaIlosci DESC, KontrahentNazwa;
+";
 
-    SELECT
-        C.Shortcut AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
-        ISNULL(WYM.CDim_Handlowiec_Val,'-') AS Handlowiec
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-    WHERE 
-        DP.[data] >= '{formattedDate}' 
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    GROUP BY 
-        C.Shortcut, CONVERT(date, DP.[data]), WYM.CDim_Handlowiec_Val
-    HAVING
-        SUM(DP.Ilosc) > 0
-    ORDER BY 
-        SumaIlosci DESC, KontrahentNazwa";
-            }
-            else
-            {
-                query = $@"
-    SELECT 
-        'Suma' AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
-        '' AS Handlowiec
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    WHERE 
-        DP.[data] >= '{formattedDate}' 
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    HAVING
-        SUM(DP.Ilosc) > 0
-
-    UNION ALL
-
-    SELECT
-        C.Shortcut AS KontrahentNazwa,
-        SUM(DP.Ilosc) AS SumaIlosci,
-        ROUND(SUM(DP.[wartNetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS Cena,
-        ISNULL(WYM.CDim_Handlowiec_Val,'-') AS Handlowiec
-    FROM 
-        [HANDEL].[HM].[DP] DP 
-    INNER JOIN 
-        [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-    INNER JOIN 
-        [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-    INNER JOIN 
-        [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-    LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-    WHERE 
-        DP.[data] >= '{formattedDate}' 
-        AND DP.[data] < DATEADD(DAY, 1, '{formattedDate}') 
-        AND DP.[kod] = 'Kurczak A' 
-        AND TW.[katalog] = 67095
-    GROUP BY 
-        C.Shortcut, CONVERT(date, DP.[data]), WYM.CDim_Handlowiec_Val
-    HAVING
-        SUM(DP.Ilosc) > 0
-    ORDER BY 
-        SumaIlosci DESC, KontrahentNazwa";
-            }
 
 
 
@@ -183,6 +127,7 @@ namespace Kalendarz1
                     dataGridView1.Columns[0].Width = 90; // Pierwsza kolumna
                     dataGridView1.Columns[1].Width = 65;  // Druga kolumna
                     dataGridView1.Columns[2].Width = 45;  // Trzecia kolumna
+                    dataGridView1.Columns[3].Width = 50;  // Trzecia kolumna
 
                     // Formatowanie kolumny KG z separatorem tysięcy
                     dataGridView1.Columns[1].DefaultCellStyle.Format = "N0";
@@ -270,20 +215,21 @@ namespace Kalendarz1
 
             PokazCeneHarmonogramDostaw();
 
-            CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, formattedDate, averageCena);
-            SetRowHeights(18, dataGridView1);
-            SetRowHeights(18, dataGridView2);
-            SetRowHeights(18, dataGridView3);
+            CalculateAndPopulateDataGridView(textBoxKrojenie, dataGridView3, connectionString2, averageCena);
+            SetRowHeights(16, dataGridView1);
+            SetRowHeights(16, dataGridView2);
+            SetRowHeights(16, dataGridView3);
 
             if (dataGridView3.Columns.Count > 0)
             {
                 dataGridView3.Columns[0].Width = 70; // Pierwsza kolumna
                 dataGridView3.Columns[1].Width = 50;  // Druga kolumna
                 dataGridView3.Columns[2].Width = 40;  // Druga kolumna
-                dataGridView3.Columns[3].Width = 50;  // Druga kolumna
                 dataGridView3.Columns[1].DefaultCellStyle.Format = "N0";
             }
         }
+
+
 
 
         private decimal przychodKurczakA;
@@ -302,8 +248,6 @@ namespace Kalendarz1
             // Zakładam, że zmienne formattedDate i formattedDate2 są już zdefiniowane
             string query2;
 
-            if (isCheckboxChecked)
-            {
                 query2 = $@"
     SELECT 
         MZ.[kod],
@@ -317,22 +261,8 @@ namespace Kalendarz1
       AND MZ.[data] < DATEADD(DAY, 1, '{formattedDate2}')
     GROUP BY MZ.[kod]
     ORDER BY MZ.[kod]";
-            }
-            else
-            {
-                query2 = $@"
-    SELECT 
-        MZ.[kod],
-        ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
-        SUM(CASE WHEN MG.[seria] = 'RWP' THEN ABS(MZ.[ilosc]) ELSE 0 END) AS Krojenie
-    FROM [HANDEL].[HM].[MZ] MZ
-    INNERJOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
-    WHERE MZ.[kod] IN ('Kurczak B', 'Kurczak A') 
-      AND MZ.[magazyn] = '65554' 
-      AND MZ.[data] = '{formattedDate}'
-    GROUP BY MZ.[kod]
-    ORDER BY MZ.[kod]";
-            }
+            
+
 
 
             using (SqlConnection connection = new SqlConnection(connectionString2))
@@ -400,24 +330,22 @@ namespace Kalendarz1
 
         private void PokazCeneHarmonogramDostaw()
         {
-            // Pobierz datę z dateTimePicker1
             DateTime selectedDate = dateTimePicker1.Value.Date;
-
-            // Formatuj datę jako string
             string formattedDate = selectedDate.ToString("yyyy-MM-dd");
-
+            DateTime selectedDat2 = dateTimePicker2.Value.Date;
+            // Formatuj datę jako string
+            string formattedDate2 = selectedDat2.ToString("yyyy-MM-dd");
             // Zapytanie SQL z dynamiczną datą
             string query = $@"
-        SELECT
-            Cena,
-            SztukiDek
-        FROM 
-            [LibraNet].[dbo].[HarmonogramDostaw]
-        WHERE 
-            DataOdbioru >= '{formattedDate}'
-            AND DataOdbioru < DATEADD(DAY, 1, '{formattedDate}')
-            AND Bufor = 'Potwierdzony'";
-
+            SELECT
+                Cena,
+                SztukiDek
+            FROM 
+                [LibraNet].[dbo].[HarmonogramDostaw]
+            WHERE 
+                DataOdbioru >= '{formattedDate}'
+                AND DataOdbioru < DATEADD(DAY, 1, '{formattedDate2}')
+                AND Bufor = 'Potwierdzony'";
             // Utwórz połączenie z bazą danych
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
@@ -486,11 +414,15 @@ namespace Kalendarz1
             public double TotalNetto { get; set; }
         }
 
-        private CalculationResult CalculateAndPopulateDataGridView(TextBox inputTextBox, DataGridView dataGridView, string connectionString, string Data, decimal averageprice)
+        private CalculationResult CalculateAndPopulateDataGridView(TextBox inputTextBox, DataGridView dataGridView, string connectionString, decimal averageprice)
         {
             CalculationResult result = new CalculationResult();
             decimal totalValue = 0;
-
+            DateTime selectedDate = dateTimePicker1.Value.Date;
+            string formattedDate = selectedDate.ToString("yyyy-MM-dd");
+            DateTime selectedDat2 = dateTimePicker2.Value.Date;
+            // Formatuj datę jako string
+            string formattedDate2 = selectedDat2.ToString("yyyy-MM-dd");
             try
             {
                 // Pobierz wartość z TextBoxa i konwertuj ją na liczbę
@@ -524,17 +456,18 @@ namespace Kalendarz1
                 }
 
                 // Pobierz dane z bazy danych
-                string query = $@"
-SELECT DP.[kod], 
-       SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
-FROM [HANDEL].[HM].[DP] DP 
-INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
-INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
-WHERE DP.[data] = '{Data}' 
-  AND TW.[katalog] = 67095 
-  AND DP.[kod] != 'Kurczak A'
-GROUP BY DP.[kod]
-ORDER BY SredniaCena DESC;";
+               string query = $@"
+    SELECT DP.[kod], 
+           SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
+    FROM [HANDEL].[HM].[DP] DP 
+    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
+    INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
+    WHERE DP.[data] >= '{formattedDate}' 
+      AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}')
+      AND TW.[katalog] = 67095 
+      AND DP.[kod] != 'Kurczak A'
+    GROUP BY DP.[kod]
+    ORDER BY SredniaCena DESC;";
 
                 Dictionary<string, double> prices = new Dictionary<string, double>();
 
@@ -799,9 +732,16 @@ ORDER BY SredniaCena DESC;";
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
                 // Tworzenie komendy SQL
-                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztukiDek FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony' ORDER BY WagaDek DESC";
+                string query = @"
+                SELECT LP, Auta, Dostawca, WagaDek, SztukiDek 
+                FROM dbo.HarmonogramDostaw 
+                WHERE DataOdbioru >= @StartDate 
+                  AND DataOdbioru <= @EndDate 
+                  AND Bufor = 'Potwierdzony' 
+                ORDER BY WagaDek DESC";
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
+                command.Parameters.AddWithValue("@EndDate", dateTimePicker2.Value.Date);
 
                 // Tworzenie adaptera danych i wypełnianie DataTable
                 SqlDataAdapter adapter = new SqlDataAdapter(command);
@@ -957,20 +897,22 @@ ORDER BY SredniaCena DESC;";
                 connection.Open();
 
                 string formattedDate = dateTimePicker1.Value.ToString("yyyy-MM-dd");
+                string formattedDate2 = dateTimePicker2.Value.ToString("yyyy-MM-dd");
 
-                string query = @"
-        SELECT 
-            MZ.[kod],
-            ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod
-        FROM [HANDEL].[HM].[MZ] MZ
-        INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
-        WHERE MZ.[kod] NOT IN ('Kurczak B', 'Kurczak A') 
-          AND MZ.[magazyn] = '65554' 
-          AND MZ.[data] = @FormattedDate
-          AND MG.[opis] LIKE '%zmiana%'
-        GROUP BY MZ.[kod]
-        HAVING ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) > 0
-        ORDER BY MZ.[kod]";
+                string query = $@"
+    SELECT 
+        MZ.[kod],
+        ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.[super] = MG.[id] 
+    WHERE MZ.[kod] NOT IN ('Kurczak B', 'Kurczak A') 
+      AND MZ.[magazyn] = '65554' 
+      AND MZ.[data] >= '{formattedDate}' 
+      AND MZ.[data] < DATEADD(DAY, 1, '{formattedDate2}')
+      AND MG.[opis] LIKE '%zmiana%'
+    GROUP BY MZ.[kod]
+    HAVING ABS(SUM(CASE WHEN MG.[seria] = 'PWP' THEN MZ.[ilosc] ELSE 0 END)) > 0
+    ORDER BY MZ.[kod]";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {

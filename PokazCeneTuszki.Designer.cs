@@ -99,10 +99,10 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(580, 155);
+            dataGridView1.Location = new System.Drawing.Point(580, 103);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(281, 672);
+            dataGridView1.Size = new System.Drawing.Size(241, 856);
             dataGridView1.TabIndex = 0;
             // 
             // dateTimePicker1
@@ -434,9 +434,9 @@
             // label17
             // 
             label17.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label17.Location = new System.Drawing.Point(580, 123);
+            label17.Location = new System.Drawing.Point(580, 71);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(281, 29);
+            label17.Size = new System.Drawing.Size(241, 29);
             label17.TabIndex = 138;
             label17.Text = "Sprzedaż tuszki";
             label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -453,9 +453,9 @@
             // pictureBox2
             // 
             pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
-            pictureBox2.Location = new System.Drawing.Point(580, 12);
+            pictureBox2.Location = new System.Drawing.Point(643, -1);
             pictureBox2.Name = "pictureBox2";
-            pictureBox2.Size = new System.Drawing.Size(281, 108);
+            pictureBox2.Size = new System.Drawing.Size(110, 69);
             pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox2.TabIndex = 136;
             pictureBox2.TabStop = false;
@@ -599,7 +599,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1582, 834);
+            ClientSize = new System.Drawing.Size(1582, 958);
             Controls.Add(dateTimePicker2);
             Controls.Add(pokaztuszke);
             Controls.Add(label23);
