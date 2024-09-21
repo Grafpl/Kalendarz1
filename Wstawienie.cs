@@ -580,7 +580,7 @@ namespace Kalendarz1
             SetRowHeights(18);
 
 
-            ObliczRozniceDniMiedzyWstawieniami(dataWstawienia, LiczbaDniWstawienia, Dostawca);
+            //ObliczRozniceDniMiedzyWstawieniami(dataWstawienia, LiczbaDniWstawienia, Dostawca);
             DodajDniDoDaty(textDni1, dataWstawienia, Data1);
             DodajDniDoDaty(textDni2, dataWstawienia, Data2);
             DodajDniDoDaty(textDni3, dataWstawienia, Data3);
@@ -601,12 +601,12 @@ namespace Kalendarz1
         {
             if (comboBoxDostawca.SelectedItem == null)
             {
-                
+
                 return;
             }
 
             string dostawca = comboBoxDostawca.SelectedItem.ToString();
-          
+
             string query = @"
         WITH CTE AS (
             SELECT TOP (1)
@@ -641,7 +641,7 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        
+
                     }
                 }
                 catch (Exception ex)
@@ -710,8 +710,8 @@ namespace Kalendarz1
             // Wywołaj metodę zmieniającą dostawcę z odpowiednimi parametrami
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
             DisplayDataInDataGridView();
-            PokazWstawienia();
-           
+
+
             // Pobierz wybrany element z ComboBox
             string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim().ToLower() ?? "";
 
@@ -1672,6 +1672,11 @@ namespace Kalendarz1
         private void textDni5_TextChanged(object sender, EventArgs e)
         {
             DodajDniDoDaty(textDni4, dataWstawienia, Data4);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            PokazWstawienia();
         }
     }
 }

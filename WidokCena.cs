@@ -303,8 +303,6 @@ namespace Kalendarz1
                 MessageBox.Show("Proszę wybrać Typ Ceny przed wykonaniem operacji.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
 
-            // Zamknij formularz
-            Close();
         }
 
         private void button1_Click(object sender, EventArgs e)
