@@ -282,7 +282,7 @@ ORDER BY
                     decimal krojenie = row["Krojenie"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Krojenie"]);
 
                     if (row["kod"].ToString() == "Kurczak A")
-                    {
+                    { 
                         przychodKurczakA = przychod;  // Przypisanie wartości do zmiennej poza metodą
                     }
 

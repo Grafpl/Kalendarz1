@@ -235,6 +235,7 @@ namespace Kalendarz1
             pictureBox1 = new PictureBox();
             dataGridViewWstawienia = new DataGridView();
             dataGridSumaPartie = new DataGridView();
+            button17 = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -2492,11 +2493,22 @@ namespace Kalendarz1
             dataGridSumaPartie.Size = new System.Drawing.Size(92, 152);
             dataGridSumaPartie.TabIndex = 131;
             // 
+            // button17
+            // 
+            button17.Location = new System.Drawing.Point(635, 690);
+            button17.Name = "button17";
+            button17.Size = new System.Drawing.Size(98, 56);
+            button17.TabIndex = 132;
+            button17.Text = "Odśwież wszystko";
+            button17.UseVisualStyleBackColor = true;
+            button17.Click += button17_Click;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1626, 982);
+            Controls.Add(button17);
             Controls.Add(dataGridSumaPartie);
             Controls.Add(dataGridViewWstawienia);
             Controls.Add(pictureBox1);
@@ -2799,5 +2811,6 @@ namespace Kalendarz1
         private Label label51;
         private DataGridView dataGridViewWstawienia;
         private DataGridView dataGridSumaPartie;
+        private Button button17;
     }
 }

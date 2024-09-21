@@ -19,6 +19,7 @@ namespace Kalendarz1
         private int selectedRowIndex = -1; // Zmienna do przechowywania indeksu zaznaczonego wiersza
         private double sumaSztuk; // pozostale wstawienia
         private Timer timer;
+        private Timer timer2;
         public string UserID { get; set; }
         private MojeObliczenia obliczenia = new MojeObliczenia();
         private NazwaZiD nazwaZiD = new NazwaZiD();
@@ -43,24 +44,29 @@ namespace Kalendarz1
 
             // Inicjalizacja timera
             timer = new Timer();
-            timer.Interval = 60000; // Interwał w milisekundach (tu: co 5 sekund)
+            timer.Interval = 600000; // Interwał 10 minut (600 000 ms)
             timer.Tick += Timer_Tick; // Przypisanie zdarzenia
             timer.Start(); // Rozpoczęcie pracy timera
+
+            // Inicjalizacja timera2
+            timer2 = new Timer();
+            timer2.Interval = 1800000; // Interwał 30 minut (1 800 000 ms)
+            timer2.Tick += Timer_Tick; // Przypisanie zdarzenia
+            timer2.Start(); // Rozpoczęcie pracy timera
+
         }
         // Metoda wywoływana podczas ładowania formularza
         private void Timer_Tick(object sender, EventArgs e)
         {
             // Ta metoda zostanie wywołana co określony interwał czasowy
-            PokazCeny();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
-            BiezacePartie();
-            BiezacePartieSuma();
+
 
             // Sprawdź, czy aktualna godzina jest między 14:30 a 15:00
-            TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
-            TimeSpan end = new TimeSpan(15, 30, 0);    // 15:00
-            TimeSpan now = DateTime.Now.TimeOfDay;
-            DayOfWeek today = DateTime.Now.DayOfWeek;
+            //TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
+            //TimeSpan end = new TimeSpan(15, 30, 0);    // 15:00
+            //TimeSpan now = DateTime.Now.TimeOfDay;
+           // DayOfWeek today = DateTime.Now.DayOfWeek;
 
             /*
             bool isDateInDatabase = false;
@@ -86,6 +92,13 @@ namespace Kalendarz1
                 MessageBox.Show("Wstaw Cene z cenyrolnicze.pl");
             }
             */
+        }
+        private void Timer2_Tick(object sender, EventArgs e)
+        {
+            // Ta metoda zostanie wywołana co określony interwał czasowy
+            PokazCeny();
+            BiezacePartie();
+            BiezacePartieSuma();
         }
         private void BiezacePartie()
         {
@@ -239,7 +252,7 @@ namespace Kalendarz1
                             dataGridSumaPartie.Columns["Data"].Visible = false;
                             dataGridSumaPartie.Columns["poj"].Width = 35;
                             dataGridSumaPartie.Columns["Palety"].Width = 45;
-                            
+
 
                             while (reader.Read())
                             {
@@ -2019,6 +2032,14 @@ namespace Kalendarz1
         private void pictureBox1_Click(object sender, EventArgs e)
         {
             MyCalendar_DateChanged_1(sender, null);
+        }
+
+        private void button17_Click(object sender, EventArgs e)
+        {
+            PokazCeny();
+            MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
+            BiezacePartie();
+            BiezacePartieSuma();
         }
     }
 }
