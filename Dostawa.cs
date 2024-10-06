@@ -512,7 +512,7 @@ namespace Kalendarz1
                     // Wykonaj polecenie
                     insertCmd.ExecuteNonQuery();
 
-                    // Aktualizacja danych dostawcy
+                    /* Aktualizacja danych dostawcy
                     string updateSupplierSql = @"
             UPDATE dbo.Dostawcy 
             SET Address = @Address, 
@@ -543,7 +543,7 @@ namespace Kalendarz1
 
                     // Wykonaj polecenie
                     updateCmd.ExecuteNonQuery();
-
+                    */
                     // Podsumowanie dodanych danych
                     string summary = $"Dodano nowe dane:\n\n" +
                                      $"Data Odbioru: {Data.Text}\n" +
