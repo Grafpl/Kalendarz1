@@ -51,7 +51,7 @@ namespace Kalendarz1
             // Inicjalizacja timera2
             timer2 = new Timer();
             timer2.Interval = 1800000; // Interwał 30 minut (1 800 000 ms)
-            timer2.Tick += Timer_Tick; // Przypisanie zdarzenia
+            timer2.Tick += Timer2_Tick; // Przypisanie zdarzenia
             timer2.Start(); // Rozpoczęcie pracy timera
 
         }
@@ -1415,6 +1415,8 @@ namespace Kalendarz1
         {
             // Zatrzymaj timer przy zamykaniu formularza
             timer.Stop();
+            // Zatrzymaj timer przy zamykaniu formularza
+            timer2.Stop();
         }
         private void buttonPokazTuszke_Click(object sender, EventArgs e)
         {

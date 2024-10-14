@@ -198,6 +198,7 @@
             label11 = new System.Windows.Forms.Label();
             label10 = new System.Windows.Forms.Label();
             label9 = new System.Windows.Forms.Label();
+            button1 = new System.Windows.Forms.Button();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
@@ -264,7 +265,6 @@
             // 
             // pictureBox29
             // 
-            pictureBox29.Image = (System.Drawing.Image)resources.GetObject("pictureBox29.Image");
             pictureBox29.Location = new System.Drawing.Point(218, 20);
             pictureBox29.Name = "pictureBox29";
             pictureBox29.Size = new System.Drawing.Size(206, 86);
@@ -275,7 +275,6 @@
             // 
             // pictureBox6
             // 
-            pictureBox6.Image = (System.Drawing.Image)resources.GetObject("pictureBox6.Image");
             pictureBox6.Location = new System.Drawing.Point(6, 20);
             pictureBox6.Name = "pictureBox6";
             pictureBox6.Size = new System.Drawing.Size(206, 86);
@@ -285,7 +284,6 @@
             // 
             // pictureBox1
             // 
-            pictureBox1.Image = (System.Drawing.Image)resources.GetObject("pictureBox1.Image");
             pictureBox1.Location = new System.Drawing.Point(429, 20);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new System.Drawing.Size(206, 86);
@@ -951,7 +949,6 @@
             // 
             // pictureBox12
             // 
-            pictureBox12.Image = (System.Drawing.Image)resources.GetObject("pictureBox12.Image");
             pictureBox12.Location = new System.Drawing.Point(480, 19);
             pictureBox12.Name = "pictureBox12";
             pictureBox12.Size = new System.Drawing.Size(78, 25);
@@ -973,7 +970,6 @@
             // 
             // pictureBox11
             // 
-            pictureBox11.Image = (System.Drawing.Image)resources.GetObject("pictureBox11.Image");
             pictureBox11.Location = new System.Drawing.Point(429, 17);
             pictureBox11.Name = "pictureBox11";
             pictureBox11.Size = new System.Drawing.Size(46, 25);
@@ -993,7 +989,6 @@
             // 
             // pictureBox8
             // 
-            pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
             pictureBox8.Location = new System.Drawing.Point(269, 22);
             pictureBox8.Name = "pictureBox8";
             pictureBox8.Size = new System.Drawing.Size(39, 26);
@@ -1003,7 +998,6 @@
             // 
             // pictureBox7
             // 
-            pictureBox7.Image = (System.Drawing.Image)resources.GetObject("pictureBox7.Image");
             pictureBox7.Location = new System.Drawing.Point(223, 22);
             pictureBox7.Name = "pictureBox7";
             pictureBox7.Size = new System.Drawing.Size(40, 25);
@@ -1687,7 +1681,6 @@
             // 
             // pictureBox2
             // 
-            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
             pictureBox2.Location = new System.Drawing.Point(363, 21);
             pictureBox2.Name = "pictureBox2";
             pictureBox2.Size = new System.Drawing.Size(51, 26);
@@ -1751,7 +1744,6 @@
             // 
             // pictureBox30
             // 
-            pictureBox30.Image = (System.Drawing.Image)resources.GetObject("pictureBox30.Image");
             pictureBox30.Location = new System.Drawing.Point(561, 21);
             pictureBox30.Name = "pictureBox30";
             pictureBox30.Size = new System.Drawing.Size(46, 25);
@@ -1898,6 +1890,7 @@
             // 
             groupBox2.BackColor = System.Drawing.SystemColors.ButtonFace;
             groupBox2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
+            groupBox2.Controls.Add(button1);
             groupBox2.Controls.Add(label31);
             groupBox2.Controls.Add(label30);
             groupBox2.Controls.Add(label28);
@@ -2124,6 +2117,17 @@
             label9.TabIndex = 173;
             label9.Text = "Suma sztuk :";
             label9.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // button1
+            // 
+            button1.BackColor = System.Drawing.Color.LightCoral;
+            button1.Location = new System.Drawing.Point(206, 254);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(57, 47);
+            button1.TabIndex = 185;
+            button1.Text = "Pokaz Historie";
+            button1.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
+            button1.UseVisualStyleBackColor = false;
             // 
             // Wstawienie
             // 
@@ -2418,5 +2422,6 @@
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.Label label19;
         private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.Button button1;
     }
 }
