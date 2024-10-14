@@ -33,6 +33,7 @@
             textBox1 = new System.Windows.Forms.TextBox();
             dataGridView1 = new System.Windows.Forms.DataGridView();
             chkShowWeekend = new System.Windows.Forms.CheckBox();
+            ExcelButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
@@ -72,11 +73,22 @@
             chkShowWeekend.Text = "Weekendy";
             chkShowWeekend.UseVisualStyleBackColor = true;
             // 
+            // ExcelButton
+            // 
+            ExcelButton.Location = new System.Drawing.Point(247, 15);
+            ExcelButton.Name = "ExcelButton";
+            ExcelButton.Size = new System.Drawing.Size(75, 23);
+            ExcelButton.TabIndex = 121;
+            ExcelButton.Text = "Excel";
+            ExcelButton.UseVisualStyleBackColor = true;
+            ExcelButton.Click += ExcelButton_Click;
+            // 
             // WidokCenWszystkich
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(638, 706);
+            Controls.Add(ExcelButton);
             Controls.Add(chkShowWeekend);
             Controls.Add(label18);
             Controls.Add(textBox1);
@@ -95,5 +107,6 @@
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.DataGridView dataGridView1;
         private System.Windows.Forms.CheckBox chkShowWeekend;
+        private System.Windows.Forms.Button ExcelButton;
     }
 }

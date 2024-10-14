@@ -33,7 +33,7 @@ namespace Kalendarz1
 
         private void DisplayDataInDataGridView()
         {
-             string query = @"
+            string query = @"
             WITH CTE_Ministerialna AS (
                 SELECT 
                     [Data], 
@@ -41,7 +41,7 @@ namespace Kalendarz1
                 FROM 
                     [LibraNet].[dbo].[CenaMinisterialna]
                 WHERE 
-                    [Data] >= '2024-01-01'
+                    [Data] >= '2023-01-01'
             ),
             CTE_Rolnicza AS (
                 SELECT 
@@ -50,7 +50,7 @@ namespace Kalendarz1
                 FROM 
                     [LibraNet].[dbo].[CenaRolnicza]
                 WHERE 
-                    [Data] >= '2024-01-01'
+                    [Data] >= '2023-01-01'
             ),
             CTE_Tuszka AS (
                 SELECT 
@@ -59,7 +59,7 @@ namespace Kalendarz1
                 FROM 
                     [LibraNet].[dbo].[CenaTuszki]
                 WHERE 
-                    [Data] >= '2024-01-01'
+                    [Data] >= '2023-01-01'
             ),
             CTE_HANDEL AS (
                 SELECT 
@@ -74,7 +74,7 @@ namespace Kalendarz1
                 WHERE 
                     DP.[kod] = 'Kurczak A' 
                     AND TW.[katalog] = 67095
-                    AND DP.[data] >= '2024-01-01'
+                    AND DP.[data] >= '2023-01-01'
                 GROUP BY 
                     CONVERT(DATE, DP.[data])
             ),
@@ -112,7 +112,7 @@ namespace Kalendarz1
             LEFT JOIN 
                 CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, H.Data) = HD.Data
             WHERE
-                COALESCE(M.Data, R.Data, H.Data) >= '2024-01-01'
+                COALESCE(M.Data, R.Data, H.Data) >= '2023-01-01'
             ORDER BY 
                 Data DESC;
             ";
@@ -201,9 +201,53 @@ namespace Kalendarz1
             }
         }
 
+        private void ExcelButton_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.Filter = "Excel Files|*.xlsx";
+                saveFileDialog.Title = "Zapisz jako plik Excel";
+                saveFileDialog.FileName = "DaneCenowe.xlsx";
 
-        // Metoda do ustawienia wysokości wierszy
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        using (var workbook = new ClosedXML.Excel.XLWorkbook())
+                        {
+                            var worksheet = workbook.Worksheets.Add("DaneCenowe");
 
+                            // Nagłówki kolumn
+                            worksheet.Cell(1, 1).Value = "Data";
+                            worksheet.Cell(1, 2).Value = "Tuszka";
+                            worksheet.Cell(1, 3).Value = "Zrzeszenie";
+                            worksheet.Cell(1, 4).Value = "Różnica";
+
+                            // Eksport danych z DataGridView
+                            int row = 2; // Start wiersza w Excelu
+                            foreach (DataGridViewRow dgvRow in dataGridView1.Rows)
+                            {
+                                if (dgvRow.IsNewRow) continue;
+
+                                worksheet.Cell(row, 1).Value = dgvRow.Cells["Data"].Value?.ToString();
+                                worksheet.Cell(row, 2).Value = dgvRow.Cells["Tuszka"].Value?.ToString();
+                                worksheet.Cell(row, 3).Value = dgvRow.Cells["Zrzeszenie"].Value?.ToString();
+                                worksheet.Cell(row, 4).Value = dgvRow.Cells["Roznica"].Value?.ToString();
+                                row++;
+                            }
+
+                            // Zapisz plik Excel
+                            workbook.SaveAs(saveFileDialog.FileName);
+                            MessageBox.Show("Dane zostały pomyślnie wyeksportowane do Excela.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Wystąpił błąd podczas eksportowania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
 
     }
 }
