@@ -318,6 +318,7 @@ namespace Kalendarz1
             TuszkaCena.Size = new System.Drawing.Size(57, 27);
             TuszkaCena.TabIndex = 44;
             TuszkaCena.TextAlign = HorizontalAlignment.Center;
+            TuszkaCena.TextChanged += TuszkaCena_TextChanged_1;
             // 
             // label8
             // 
@@ -366,6 +367,7 @@ namespace Kalendarz1
             FiletCena.Size = new System.Drawing.Size(57, 25);
             FiletCena.TabIndex = 50;
             FiletCena.TextAlign = HorizontalAlignment.Center;
+            FiletCena.TextChanged += FiletCena_TextChanged;
             // 
             // FiletKG
             // 
@@ -376,6 +378,7 @@ namespace Kalendarz1
             FiletKG.Size = new System.Drawing.Size(106, 25);
             FiletKG.TabIndex = 48;
             FiletKG.TextAlign = HorizontalAlignment.Center;
+            FiletKG.TextChanged += FiletKG_TextChanged;
             // 
             // CwiartkaWartosc
             // 
@@ -396,6 +399,7 @@ namespace Kalendarz1
             CwiartkaCena.Size = new System.Drawing.Size(57, 25);
             CwiartkaCena.TabIndex = 56;
             CwiartkaCena.TextAlign = HorizontalAlignment.Center;
+            CwiartkaCena.TextChanged += CwiartkaCena_TextChanged;
             // 
             // CwiartkaKG
             // 
@@ -406,6 +410,7 @@ namespace Kalendarz1
             CwiartkaKG.Size = new System.Drawing.Size(106, 25);
             CwiartkaKG.TabIndex = 54;
             CwiartkaKG.TextAlign = HorizontalAlignment.Center;
+            CwiartkaKG.TextChanged += CwiartkaKG_TextChanged;
             // 
             // SkrzydloWartosc
             // 
@@ -426,6 +431,7 @@ namespace Kalendarz1
             SkrzydloCena.Size = new System.Drawing.Size(57, 25);
             SkrzydloCena.TabIndex = 62;
             SkrzydloCena.TextAlign = HorizontalAlignment.Center;
+            SkrzydloCena.TextChanged += SkrzydloCena_TextChanged;
             // 
             // SkrzydloKG
             // 
@@ -436,6 +442,7 @@ namespace Kalendarz1
             SkrzydloKG.Size = new System.Drawing.Size(106, 25);
             SkrzydloKG.TabIndex = 60;
             SkrzydloKG.TextAlign = HorizontalAlignment.Center;
+            SkrzydloKG.TextChanged += SkrzydloKG_TextChanged;
             // 
             // KorpusWartosc
             // 
@@ -456,6 +463,7 @@ namespace Kalendarz1
             KorpusCena.Size = new System.Drawing.Size(57, 25);
             KorpusCena.TabIndex = 68;
             KorpusCena.TextAlign = HorizontalAlignment.Center;
+            KorpusCena.TextChanged += KorpusCena_TextChanged;
             // 
             // KorpusKG
             // 
@@ -541,6 +549,7 @@ namespace Kalendarz1
             PozostaleCena.Size = new System.Drawing.Size(57, 25);
             PozostaleCena.TabIndex = 76;
             PozostaleCena.TextAlign = HorizontalAlignment.Center;
+            PozostaleCena.TextChanged += PozostaleCena_TextChanged;
             // 
             // PozostaleKG
             // 
@@ -660,6 +669,7 @@ namespace Kalendarz1
             SumaCena.Size = new System.Drawing.Size(57, 27);
             SumaCena.TabIndex = 87;
             SumaCena.TextAlign = HorizontalAlignment.Center;
+            SumaCena.TextChanged += SumaCena_TextChanged;
             // 
             // SumaKG
             // 
@@ -734,93 +744,62 @@ namespace Kalendarz1
             PerformLayout();
         }
 
-        private void ObliczWydajnoscElementow()
+        // Obsługa wszystkich zmian danych w TextBoxach
+        private void ObliczWszystko()
         {
             try
             {
-                //Tuszka - masa tuszki
-                double tuszkaKG = Convert.ToDouble(TuszkaKG.Text);
+                // Oblicz wydajność elementów na podstawie tuszki
+                double tuszkaKG = PobierzWartosc(TuszkaKG.Text);
+                double tuszkaCena = PobierzWartosc(TuszkaCena.Text);
 
-                // Pobieranie wydajności elementów w procentach (i przekształcanie na wartości dziesiętne)
-                double cwiartkaWydajnosc = Convert.ToDouble(CwiartkaWydajnosc.Text) / 100;
-                double filetWydajnosc = Convert.ToDouble(FiletWydajnosc.Text) / 100;
-                double korpusWydajnosc = Convert.ToDouble(KorpusWydajnosc.Text) / 100;
-                double pozostaleWydajnosc = Convert.ToDouble(PozostaleWydajnosc.Text) / 100;
-                double skrzydloWydajnosc = Convert.ToDouble(SkrzydloWydajnosc.Text) / 100;
+                double cwiartkaWydajnosc = PobierzWartosc(CwiartkaWydajnosc.Text) / 100;
+                double filetWydajnosc = PobierzWartosc(FiletWydajnosc.Text) / 100;
+                double korpusWydajnosc = PobierzWartosc(KorpusWydajnosc.Text) / 100;
+                double pozostaleWydajnosc = PobierzWartosc(PozostaleWydajnosc.Text) / 100;
+                double skrzydloWydajnosc = PobierzWartosc(SkrzydloWydajnosc.Text) / 100;
 
-                // Obliczenia dla poszczególnych elementów (wyniki w kilogramach)
-                double cwiartkaWydajnoscWynik = tuszkaKG * cwiartkaWydajnosc;
-                double filetWydajnoscWynik = tuszkaKG * filetWydajnosc;
-                double korpusWydajnoscWynik = tuszkaKG * korpusWydajnosc;
-                double pozostaleWydajnoscWynik = tuszkaKG * pozostaleWydajnosc;
-                double skrzydlaWydajnoscWynik = tuszkaKG * skrzydloWydajnosc;
+                // Obliczenia dla poszczególnych elementów (wydajność i cena)
+                double cwiartkaKG = tuszkaKG * cwiartkaWydajnosc;
+                double filetKG = tuszkaKG * filetWydajnosc;
+                double korpusKG = tuszkaKG * korpusWydajnosc;
+                double pozostaleKG = tuszkaKG * pozostaleWydajnosc;
+                double skrzydloKG = tuszkaKG * skrzydloWydajnosc;
 
-                // Ustawienie wyników w TextBoxach z zaokrągleniem do 2 miejsc po przecinku
-                CwiartkaKG.Text = cwiartkaWydajnoscWynik.ToString("F2");
-                FiletKG.Text = filetWydajnoscWynik.ToString("F2");
-                KorpusKG.Text = korpusWydajnoscWynik.ToString("F2");
-                PozostaleKG.Text = pozostaleWydajnoscWynik.ToString("F2");
-                SkrzydloKG.Text = skrzydlaWydajnoscWynik.ToString("F2");
+                double cwiartkaCena = PobierzWartosc(CwiartkaCena.Text);
+                double filetCena = PobierzWartosc(FiletCena.Text);
+                double korpusCena = PobierzWartosc(KorpusCena.Text);
+                double pozostaleCena = PobierzWartosc(PozostaleCena.Text);
+                double skrzydloCena = PobierzWartosc(SkrzydloCena.Text);
 
-                ObliczSumeKgElementow();
-                ObliczWartoscTuszki();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd: " + ex.Message, "Błąd konwersji", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // Sumowanie KG elementów
-        private void ObliczSumeKgElementow()
-        {
-            try
-            {
-                // Pobieranie wartości z poszczególnych TextBoxów i konwersja na liczby
-                double cwiartkaKG = Convert.ToDouble(CwiartkaKG.Text);
-                double filetKG = Convert.ToDouble(FiletKG.Text);
-                double korpusKG = Convert.ToDouble(KorpusKG.Text);
-                double pozostaleKG = Convert.ToDouble(PozostaleKG.Text);
-                double skrzydloKG = Convert.ToDouble(SkrzydloKG.Text);
-
-                // Sumowanie wartości
-                double sumaWartosci = cwiartkaKG + filetKG + korpusKG + pozostaleKG + skrzydloKG;
-
-                // Ustawienie sumy w TextBoxie SumaKG z zaokrągleniem do 2 miejsc po przecinku
-                SumaKG.Text = sumaWartosci.ToString("F2");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Błąd: " + ex.Message, "Błąd konwersji", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void ObliczWartoscTuszki()
-        {
-            try
-            {
-                // Walidacja - sprawdzanie, czy pola nie są puste i zawierają poprawne dane
-                if (string.IsNullOrWhiteSpace(TuszkaKG.Text) || string.IsNullOrWhiteSpace(TuszkaCena.Text))
-                {
-                    MessageBox.Show("Proszę wprowadzić wszystkie wymagane dane.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                //Tuszka
-                double tuszkaKG = Convert.ToDouble(TuszkaKG.Text);
-                double tuszkaCena = Convert.ToDouble(TuszkaCena.Text);
-
-                // Obliczenia dla poszczególnych elementów (wyniki w kilogramach)
+                // Obliczenia wartości każdego elementu
+                double cwiartkaWartosc = cwiartkaKG * cwiartkaCena;
+                double filetWartosc = filetKG * filetCena;
+                double korpusWartosc = korpusKG * korpusCena;
+                double pozostaleWartosc = pozostaleKG * pozostaleCena;
+                double skrzydloWartosc = skrzydloKG * skrzydloCena;
                 double tuszkaWartosc = tuszkaKG * tuszkaCena;
 
-                // Ustawienie wartości tuszki z zaokrągleniem do 2 miejsc po przecinku
-                TuszkaWartosc.Text = tuszkaWartosc.ToString("F2");
+                // Ustawienie wartości i kilogramów w TextBoxach
+                CwiartkaKG.Text = cwiartkaKG.ToString("F2");
+                FiletKG.Text = filetKG.ToString("F2");
+                KorpusKG.Text = korpusKG.ToString("F2");
+                PozostaleKG.Text = pozostaleKG.ToString("F2");
+                SkrzydloKG.Text = skrzydloKG.ToString("F2");
 
-                ObliczSumeKgElementow();
-            }
-            catch (FormatException)
-            {
-                MessageBox.Show("Wprowadzono niepoprawny format danych. Upewnij się, że wprowadzasz liczby.", "Błąd konwersji", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                CwiartkaWartosc.Text = cwiartkaWartosc.ToString("F2");
+                FiletWartosc.Text = filetWartosc.ToString("F2");
+                KorpusWartosc.Text = korpusWartosc.ToString("F2");
+                PozostaleWartosc.Text = pozostaleWartosc.ToString("F2");
+                SkrzydloWartosc.Text = skrzydloWartosc.ToString("F2");
+                SkrzydloWartosc.Text = tuszkaWartosc.ToString("F2");
+
+                // Oblicz sumy
+                double sumaKg = cwiartkaKG + filetKG + korpusKG + pozostaleKG + skrzydloKG;
+                double sumaWartosci = cwiartkaWartosc + filetWartosc + korpusWartosc + pozostaleWartosc + skrzydloWartosc;
+
+                SumaKG.Text = sumaKg.ToString("F2");
+                SumaWartosc.Text = sumaWartosci.ToString("F2");
             }
             catch (Exception ex)
             {
@@ -828,18 +807,81 @@ namespace Kalendarz1
             }
         }
 
+        // Funkcja pomocnicza do pobierania wartości
+        private double PobierzWartosc(string tekst)
+        {
+            // Próba konwersji tekstu na double; jeśli niepoprawne, zwraca 0
+            if (double.TryParse(tekst, out double wynik))
+            {
+                return wynik;
+            }
+            return 0;
+        }
 
-
-
+        // Obsługa wszystkich zdarzeń zmiany wartości w TextBoxach
+        private void TextBox_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
 
         private void TuszkaKG_TextChanged_1(object sender, EventArgs e)
         {
-            ObliczWydajnoscElementow();
+            ObliczWszystko();
         }
 
         private void TuszkaCena_TextChanged(object sender, EventArgs e)
         {
-            ObliczWartoscTuszki();
+            ObliczWszystko();
+        }
+
+        private void SumaCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void FiletCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void CwiartkaCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void SkrzydloCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void KorpusCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void PozostaleCena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void TuszkaCena_TextChanged_1(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void FiletKG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void CwiartkaKG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void SkrzydloKG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
         }
     }
 }
