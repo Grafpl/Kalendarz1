@@ -132,6 +132,7 @@
             krojenieButton.Size = new System.Drawing.Size(262, 193);
             krojenieButton.TabIndex = 6;
             krojenieButton.UseVisualStyleBackColor = true;
+            krojenieButton.Click += krojenieButton_Click;
             // 
             // odbiorcaButton
             // 

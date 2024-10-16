@@ -248,7 +248,7 @@ ORDER BY
             // Zakładam, że zmienne formattedDate i formattedDate2 są już zdefiniowane
             string query2;
 
-                query2 = $@"
+            query2 = $@"
     SELECT 
         MZ.[kod],
         ABS(SUM(CASE WHEN MG.[seria] = 'sPWU' THEN MZ.[ilosc] ELSE 0 END)) AS Przychod,
@@ -261,7 +261,7 @@ ORDER BY
       AND MZ.[data] < DATEADD(DAY, 1, '{formattedDate2}')
     GROUP BY MZ.[kod]
     ORDER BY MZ.[kod]";
-            
+
 
 
 
@@ -282,7 +282,7 @@ ORDER BY
                     decimal krojenie = row["Krojenie"] == DBNull.Value ? 0 : Convert.ToDecimal(row["Krojenie"]);
 
                     if (row["kod"].ToString() == "Kurczak A")
-                    { 
+                    {
                         przychodKurczakA = przychod;  // Przypisanie wartości do zmiennej poza metodą
                     }
 
@@ -397,7 +397,7 @@ ORDER BY
             }
             else
             {
-                
+
             }
 
             // Zwrócenie wyniku z metody
@@ -456,7 +456,7 @@ ORDER BY
                 }
 
                 // Pobierz dane z bazy danych
-               string query = $@"
+                string query = $@"
     SELECT DP.[kod], 
            SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
     FROM [HANDEL].[HM].[DP] DP 
@@ -1086,6 +1086,10 @@ ORDER BY
         "Tuba"
 };
 
+        private void dataGridView3_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
     }
 
 }

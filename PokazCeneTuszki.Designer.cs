@@ -257,6 +257,7 @@
             dataGridView3.RowTemplate.Height = 25;
             dataGridView3.Size = new System.Drawing.Size(277, 274);
             dataGridView3.TabIndex = 91;
+            dataGridView3.CellContentClick += dataGridView3_CellContentClick;
             // 
             // label7
             // 

@@ -214,5 +214,13 @@ namespace Kalendarz1
         {
 
         }
+
+        private void krojenieButton_Click(object sender, EventArgs e)
+        {
+            PokazKrojenieMrozenie platPokazKrojenieMrozenienosci = new PokazKrojenieMrozenie();
+
+            // Wyświetlanie Form1
+            platPokazKrojenieMrozenienosci.Show();
+        }
     }
 }
