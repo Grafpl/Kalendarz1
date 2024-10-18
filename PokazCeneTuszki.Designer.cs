@@ -372,6 +372,7 @@
             pictureBox29.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox29.TabIndex = 132;
             pictureBox29.TabStop = false;
+            pictureBox29.Click += pictureBox29_Click;
             // 
             // dataGridViewPrzychodElementow
             // 
