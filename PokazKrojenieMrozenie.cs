@@ -124,7 +124,6 @@ namespace Kalendarz1
         private Label label44;
         private TextBox textBox7;
         private PictureBox pictureBox9;
-        private PictureBox pictureBox29;
         private PictureBox pictureBox5;
         private TextBox WartoscKrojenia2;
         private PictureBox pictureBox13;
@@ -153,6 +152,12 @@ namespace Kalendarz1
         private Label label54;
         private TextBox Strata;
         private PictureBox pictureBox20;
+        private PictureBox pictureBox29;
+        private PictureBox pictureBox21;
+        private Label label55;
+        private Label label56;
+        private PictureBox pictureBox22;
+        private TextBox RoznicaTuszkaElement3;
         private Label label11;
 
         public PokazKrojenieMrozenie()
@@ -299,7 +304,6 @@ namespace Kalendarz1
             label44 = new Label();
             textBox7 = new TextBox();
             pictureBox9 = new PictureBox();
-            pictureBox29 = new PictureBox();
             pictureBox5 = new PictureBox();
             WartoscKrojenia2 = new TextBox();
             pictureBox13 = new PictureBox();
@@ -328,6 +332,12 @@ namespace Kalendarz1
             label54 = new Label();
             Strata = new TextBox();
             pictureBox20 = new PictureBox();
+            pictureBox29 = new PictureBox();
+            pictureBox21 = new PictureBox();
+            label55 = new Label();
+            label56 = new Label();
+            pictureBox22 = new PictureBox();
+            RoznicaTuszkaElement3 = new TextBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
@@ -338,7 +348,6 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox10).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox5).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox13).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox14).BeginInit();
@@ -349,6 +358,9 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox18).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox19).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox20).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox21).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox22).BeginInit();
             SuspendLayout();
             // 
             // sztuki
@@ -903,9 +915,9 @@ namespace Kalendarz1
             // 
             // SumaWartosc2
             // 
-            SumaWartosc2.BackColor = System.Drawing.Color.IndianRed;
-            SumaWartosc2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SumaWartosc2.Location = new System.Drawing.Point(1291, 491);
+            SumaWartosc2.BackColor = System.Drawing.SystemColors.ButtonFace;
+            SumaWartosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            SumaWartosc2.Location = new System.Drawing.Point(768, 185);
             SumaWartosc2.Multiline = true;
             SumaWartosc2.Name = "SumaWartosc2";
             SumaWartosc2.Size = new System.Drawing.Size(207, 63);
@@ -1003,7 +1015,7 @@ namespace Kalendarz1
             // 
             WartoscElementowPoKrojeniu2.BackColor = System.Drawing.SystemColors.ButtonFace;
             WartoscElementowPoKrojeniu2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowPoKrojeniu2.Location = new System.Drawing.Point(766, 157);
+            WartoscElementowPoKrojeniu2.Location = new System.Drawing.Point(767, 323);
             WartoscElementowPoKrojeniu2.Multiline = true;
             WartoscElementowPoKrojeniu2.Name = "WartoscElementowPoKrojeniu2";
             WartoscElementowPoKrojeniu2.Size = new System.Drawing.Size(207, 63);
@@ -1025,7 +1037,7 @@ namespace Kalendarz1
             // 
             TuszkaWartosc2.BackColor = System.Drawing.SystemColors.ButtonFace;
             TuszkaWartosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            TuszkaWartosc2.Location = new System.Drawing.Point(766, 19);
+            TuszkaWartosc2.Location = new System.Drawing.Point(768, 49);
             TuszkaWartosc2.Multiline = true;
             TuszkaWartosc2.Name = "TuszkaWartosc2";
             TuszkaWartosc2.Size = new System.Drawing.Size(207, 61);
@@ -1566,27 +1578,17 @@ namespace Kalendarz1
             // pictureBox9
             // 
             pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
-            pictureBox9.Location = new System.Drawing.Point(622, 19);
+            pictureBox9.Location = new System.Drawing.Point(624, 49);
             pictureBox9.Name = "pictureBox9";
             pictureBox9.Size = new System.Drawing.Size(138, 61);
             pictureBox9.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox9.TabIndex = 184;
             pictureBox9.TabStop = false;
             // 
-            // pictureBox29
-            // 
-            pictureBox29.Image = (System.Drawing.Image)resources.GetObject("pictureBox29.Image");
-            pictureBox29.Location = new System.Drawing.Point(622, 157);
-            pictureBox29.Name = "pictureBox29";
-            pictureBox29.Size = new System.Drawing.Size(138, 63);
-            pictureBox29.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox29.TabIndex = 185;
-            pictureBox29.TabStop = false;
-            // 
             // pictureBox5
             // 
             pictureBox5.Image = (System.Drawing.Image)resources.GetObject("pictureBox5.Image");
-            pictureBox5.Location = new System.Drawing.Point(623, 88);
+            pictureBox5.Location = new System.Drawing.Point(624, 254);
             pictureBox5.Name = "pictureBox5";
             pictureBox5.Size = new System.Drawing.Size(137, 63);
             pictureBox5.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1598,7 +1600,7 @@ namespace Kalendarz1
             WartoscKrojenia2.BackColor = System.Drawing.SystemColors.ButtonFace;
             WartoscKrojenia2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             WartoscKrojenia2.ForeColor = System.Drawing.Color.Red;
-            WartoscKrojenia2.Location = new System.Drawing.Point(766, 88);
+            WartoscKrojenia2.Location = new System.Drawing.Point(767, 254);
             WartoscKrojenia2.Multiline = true;
             WartoscKrojenia2.Name = "WartoscKrojenia2";
             WartoscKrojenia2.Size = new System.Drawing.Size(207, 63);
@@ -1608,7 +1610,7 @@ namespace Kalendarz1
             // pictureBox13
             // 
             pictureBox13.Image = (System.Drawing.Image)resources.GetObject("pictureBox13.Image");
-            pictureBox13.Location = new System.Drawing.Point(623, 295);
+            pictureBox13.Location = new System.Drawing.Point(624, 461);
             pictureBox13.Name = "pictureBox13";
             pictureBox13.Size = new System.Drawing.Size(138, 63);
             pictureBox13.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1619,7 +1621,7 @@ namespace Kalendarz1
             // 
             WartoscElementowZamrozonych.BackColor = System.Drawing.SystemColors.ButtonFace;
             WartoscElementowZamrozonych.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowZamrozonych.Location = new System.Drawing.Point(767, 295);
+            WartoscElementowZamrozonych.Location = new System.Drawing.Point(768, 461);
             WartoscElementowZamrozonych.Multiline = true;
             WartoscElementowZamrozonych.Name = "WartoscElementowZamrozonych";
             WartoscElementowZamrozonych.Size = new System.Drawing.Size(207, 63);
@@ -1629,7 +1631,7 @@ namespace Kalendarz1
             // pictureBox14
             // 
             pictureBox14.Image = (System.Drawing.Image)resources.GetObject("pictureBox14.Image");
-            pictureBox14.Location = new System.Drawing.Point(622, 226);
+            pictureBox14.Location = new System.Drawing.Point(623, 392);
             pictureBox14.Name = "pictureBox14";
             pictureBox14.Size = new System.Drawing.Size(138, 63);
             pictureBox14.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1641,7 +1643,7 @@ namespace Kalendarz1
             SumaKosztowMrozenia2.BackColor = System.Drawing.SystemColors.ButtonFace;
             SumaKosztowMrozenia2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             SumaKosztowMrozenia2.ForeColor = System.Drawing.Color.Red;
-            SumaKosztowMrozenia2.Location = new System.Drawing.Point(766, 226);
+            SumaKosztowMrozenia2.Location = new System.Drawing.Point(767, 392);
             SumaKosztowMrozenia2.Multiline = true;
             SumaKosztowMrozenia2.Name = "SumaKosztowMrozenia2";
             SumaKosztowMrozenia2.Size = new System.Drawing.Size(207, 63);
@@ -1652,9 +1654,9 @@ namespace Kalendarz1
             // 
             label45.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label45.ForeColor = System.Drawing.Color.Red;
-            label45.Location = new System.Drawing.Point(979, 226);
+            label45.Location = new System.Drawing.Point(980, 392);
             label45.Name = "label45";
-            label45.Size = new System.Drawing.Size(130, 63);
+            label45.Size = new System.Drawing.Size(215, 63);
             label45.TabIndex = 192;
             label45.Text = "Koszt Mrożenia";
             label45.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1663,9 +1665,9 @@ namespace Kalendarz1
             // 
             label46.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label46.ForeColor = System.Drawing.Color.Red;
-            label46.Location = new System.Drawing.Point(979, 88);
+            label46.Location = new System.Drawing.Point(980, 254);
             label46.Name = "label46";
-            label46.Size = new System.Drawing.Size(130, 63);
+            label46.Size = new System.Drawing.Size(215, 63);
             label46.TabIndex = 193;
             label46.Text = "Koszt Krojenia";
             label46.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1693,9 +1695,9 @@ namespace Kalendarz1
             // label47
             // 
             label47.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label47.Location = new System.Drawing.Point(979, 157);
+            label47.Location = new System.Drawing.Point(980, 323);
             label47.Name = "label47";
-            label47.Size = new System.Drawing.Size(130, 63);
+            label47.Size = new System.Drawing.Size(215, 63);
             label47.TabIndex = 195;
             label47.Text = "Wartość Elementów";
             label47.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1703,9 +1705,9 @@ namespace Kalendarz1
             // label48
             // 
             label48.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label48.Location = new System.Drawing.Point(979, 19);
+            label48.Location = new System.Drawing.Point(981, 49);
             label48.Name = "label48";
-            label48.Size = new System.Drawing.Size(130, 61);
+            label48.Size = new System.Drawing.Size(214, 61);
             label48.TabIndex = 196;
             label48.Text = "Wartość Tuszki";
             label48.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1713,9 +1715,9 @@ namespace Kalendarz1
             // label49
             // 
             label49.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label49.Location = new System.Drawing.Point(980, 295);
+            label49.Location = new System.Drawing.Point(981, 461);
             label49.Name = "label49";
-            label49.Size = new System.Drawing.Size(130, 63);
+            label49.Size = new System.Drawing.Size(214, 63);
             label49.TabIndex = 197;
             label49.Text = "Wartość Elementów Mrożonych";
             label49.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1724,9 +1726,9 @@ namespace Kalendarz1
             // 
             label50.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label50.ForeColor = System.Drawing.Color.Red;
-            label50.Location = new System.Drawing.Point(979, 364);
+            label50.Location = new System.Drawing.Point(980, 530);
             label50.Name = "label50";
-            label50.Size = new System.Drawing.Size(130, 63);
+            label50.Size = new System.Drawing.Size(215, 63);
             label50.TabIndex = 200;
             label50.Text = "Koszt zaniżenia ceny";
             label50.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1734,7 +1736,7 @@ namespace Kalendarz1
             // pictureBox16
             // 
             pictureBox16.Image = (System.Drawing.Image)resources.GetObject("pictureBox16.Image");
-            pictureBox16.Location = new System.Drawing.Point(622, 364);
+            pictureBox16.Location = new System.Drawing.Point(623, 530);
             pictureBox16.Name = "pictureBox16";
             pictureBox16.Size = new System.Drawing.Size(138, 63);
             pictureBox16.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1746,7 +1748,7 @@ namespace Kalendarz1
             KosztZanizeniaCeny.BackColor = System.Drawing.SystemColors.ButtonFace;
             KosztZanizeniaCeny.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             KosztZanizeniaCeny.ForeColor = System.Drawing.Color.Red;
-            KosztZanizeniaCeny.Location = new System.Drawing.Point(766, 364);
+            KosztZanizeniaCeny.Location = new System.Drawing.Point(767, 530);
             KosztZanizeniaCeny.Multiline = true;
             KosztZanizeniaCeny.Name = "KosztZanizeniaCeny";
             KosztZanizeniaCeny.Size = new System.Drawing.Size(207, 63);
@@ -1756,9 +1758,9 @@ namespace Kalendarz1
             // label51
             // 
             label51.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label51.Location = new System.Drawing.Point(979, 433);
+            label51.Location = new System.Drawing.Point(980, 599);
             label51.Name = "label51";
-            label51.Size = new System.Drawing.Size(173, 63);
+            label51.Size = new System.Drawing.Size(215, 63);
             label51.TabIndex = 203;
             label51.Text = "Wartość Elementów Mrożonych po zniżce";
             label51.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1766,7 +1768,7 @@ namespace Kalendarz1
             // pictureBox17
             // 
             pictureBox17.Image = (System.Drawing.Image)resources.GetObject("pictureBox17.Image");
-            pictureBox17.Location = new System.Drawing.Point(622, 433);
+            pictureBox17.Location = new System.Drawing.Point(623, 599);
             pictureBox17.Name = "pictureBox17";
             pictureBox17.Size = new System.Drawing.Size(138, 63);
             pictureBox17.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1777,7 +1779,7 @@ namespace Kalendarz1
             // 
             WartoscElementowMrozonychPoObnizce.BackColor = System.Drawing.SystemColors.ButtonFace;
             WartoscElementowMrozonychPoObnizce.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowMrozonychPoObnizce.Location = new System.Drawing.Point(766, 433);
+            WartoscElementowMrozonychPoObnizce.Location = new System.Drawing.Point(767, 599);
             WartoscElementowMrozonychPoObnizce.Multiline = true;
             WartoscElementowMrozonychPoObnizce.Name = "WartoscElementowMrozonychPoObnizce";
             WartoscElementowMrozonychPoObnizce.Size = new System.Drawing.Size(207, 63);
@@ -1789,7 +1791,7 @@ namespace Kalendarz1
             label52.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label52.Location = new System.Drawing.Point(980, 694);
             label52.Name = "label52";
-            label52.Size = new System.Drawing.Size(130, 61);
+            label52.Size = new System.Drawing.Size(215, 61);
             label52.TabIndex = 206;
             label52.Text = "Wartość Tuszki";
             label52.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1820,7 +1822,7 @@ namespace Kalendarz1
             label53.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label53.Location = new System.Drawing.Point(980, 759);
             label53.Name = "label53";
-            label53.Size = new System.Drawing.Size(173, 63);
+            label53.Size = new System.Drawing.Size(215, 63);
             label53.TabIndex = 209;
             label53.Text = "Wartość Elementów Mrożonych po zniżce";
             label53.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1851,7 +1853,7 @@ namespace Kalendarz1
             label54.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label54.Location = new System.Drawing.Point(980, 828);
             label54.Name = "label54";
-            label54.Size = new System.Drawing.Size(173, 63);
+            label54.Size = new System.Drawing.Size(215, 63);
             label54.TabIndex = 212;
             label54.Text = "Strata";
             label54.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1878,9 +1880,76 @@ namespace Kalendarz1
             pictureBox20.TabIndex = 213;
             pictureBox20.TabStop = false;
             // 
+            // pictureBox29
+            // 
+            pictureBox29.Image = (System.Drawing.Image)resources.GetObject("pictureBox29.Image");
+            pictureBox29.Location = new System.Drawing.Point(623, 323);
+            pictureBox29.Name = "pictureBox29";
+            pictureBox29.Size = new System.Drawing.Size(138, 63);
+            pictureBox29.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox29.TabIndex = 185;
+            pictureBox29.TabStop = false;
+            // 
+            // pictureBox21
+            // 
+            pictureBox21.Image = (System.Drawing.Image)resources.GetObject("pictureBox21.Image");
+            pictureBox21.Location = new System.Drawing.Point(624, 116);
+            pictureBox21.Name = "pictureBox21";
+            pictureBox21.Size = new System.Drawing.Size(138, 63);
+            pictureBox21.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox21.TabIndex = 214;
+            pictureBox21.TabStop = false;
+            // 
+            // label55
+            // 
+            label55.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label55.Location = new System.Drawing.Point(981, 116);
+            label55.Name = "label55";
+            label55.Size = new System.Drawing.Size(214, 61);
+            label55.TabIndex = 215;
+            label55.Text = "Zysk na elementach nie wliczając kosztów krojenia";
+            label55.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // label56
+            // 
+            label56.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label56.Location = new System.Drawing.Point(981, 185);
+            label56.Name = "label56";
+            label56.Size = new System.Drawing.Size(214, 61);
+            label56.TabIndex = 218;
+            label56.Text = "Wartość Elementów";
+            label56.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // pictureBox22
+            // 
+            pictureBox22.Image = (System.Drawing.Image)resources.GetObject("pictureBox22.Image");
+            pictureBox22.Location = new System.Drawing.Point(624, 185);
+            pictureBox22.Name = "pictureBox22";
+            pictureBox22.Size = new System.Drawing.Size(138, 63);
+            pictureBox22.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox22.TabIndex = 217;
+            pictureBox22.TabStop = false;
+            // 
+            // RoznicaTuszkaElement3
+            // 
+            RoznicaTuszkaElement3.BackColor = System.Drawing.SystemColors.ButtonFace;
+            RoznicaTuszkaElement3.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.FromArgb(128, 255, 128);
+            RoznicaTuszkaElement3.Location = new System.Drawing.Point(767, 116);
+            RoznicaTuszkaElement3.Multiline = true;
+            RoznicaTuszkaElement3.Name = "RoznicaTuszkaElement3";
+            RoznicaTuszkaElement3.Size = new System.Drawing.Size(207, 63);
+            RoznicaTuszkaElement3.TabIndex = 216;
+            RoznicaTuszkaElement3.TextAlign = HorizontalAlignment.Center;
+            // 
             // PokazKrojenieMrozenie
             // 
             ClientSize = new System.Drawing.Size(1434, 993);
+            Controls.Add(label56);
+            Controls.Add(pictureBox22);
+            Controls.Add(RoznicaTuszkaElement3);
+            Controls.Add(label55);
+            Controls.Add(pictureBox21);
             Controls.Add(pictureBox20);
             Controls.Add(label54);
             Controls.Add(Strata);
@@ -2031,6 +2100,7 @@ namespace Kalendarz1
             Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             Name = "PokazKrojenieMrozenie";
             Text = " ";
+            Load += PokazKrojenieMrozenie_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
@@ -2041,7 +2111,6 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox10).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox11).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox29).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox5).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox13).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox14).EndInit();
@@ -2052,6 +2121,9 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox18).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox19).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox20).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox29).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox21).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox22).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2149,27 +2221,32 @@ namespace Kalendarz1
 
                 double wartoscElementowPoKrojeniu = sumaWartosciElementow - wynikKrojenia;
                 WartoscElementowPoKrojeniu.Text = wartoscElementowPoKrojeniu.ToString("N2");
-                WartoscElementowPoKrojeniu2.Text = wartoscElementowPoKrojeniu.ToString("N2") + " zł";
+                WartoscElementowPoKrojeniu2.Text = wartoscElementowPoKrojeniu.ToString("N2");
+
 
                 double roznicaTuszkaElementPoKrojeniu = wartoscElementowPoKrojeniu - tuszkaWartosc;
                 RoznicaTuszkaElement2.Text = roznicaTuszkaElementPoKrojeniu.ToString("N2") + " zł";
+                RoznicaTuszkaElement3.Text = roznicaTuszkaElementPoKrojeniu.ToString("N2") + " zł";
 
                 // Zmienianie koloru czcionki w zależności od wartości
                 if (roznicaTuszkaElementPoKrojeniu > 0)
                 {
                     RoznicaTuszkaElement2.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+                    RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
                 }
                 else if (roznicaTuszkaElementPoKrojeniu < 0)
                 {
                     RoznicaTuszkaElement2.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+                    RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
                 }
                 else
                 {
                     RoznicaTuszkaElement2.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+                    RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
                 }
 
 
-              
+
 
 
             }
@@ -2306,7 +2383,7 @@ namespace Kalendarz1
                 SumaKosztowMrozenia.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
                 SumaKosztowMrozenia2.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
 
-                double Elementy = PobierzWartosc(WartoscElementowPoKrojeniu.Text);
+                double Elementy = PobierzWartosc(WartoscElementowPoKrojeniu2.Text);
                 double ElementyPoKosztach = Elementy - sumaKosztowMrozenia;
                 WartoscElementowZamrozonych.Text = ElementyPoKosztach.ToString("N2") + " zł";
 
@@ -2319,7 +2396,7 @@ namespace Kalendarz1
                 WartoscElementowMrozonychPoObnizce2.Text = obnizenieTowaruMrozonego.ToString("N2") + " zł";
 
                 double tuszkaWartosc = PobierzWartosc(TuszkaWartosc.Text);
-                double wynikStraty =  tuszkaWartosc - obnizenieTowaruMrozonego;
+                double wynikStraty = tuszkaWartosc - obnizenieTowaruMrozonego;
 
                 Strata.Text = wynikStraty.ToString("N2") + " zł";
 
@@ -2433,6 +2510,11 @@ namespace Kalendarz1
         private void KilogramyDoZamrozenia_TextChanged(object sender, EventArgs e)
         {
             PrzetworzDaneCalosc();
+        }
+
+        private void PokazKrojenieMrozenie_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
