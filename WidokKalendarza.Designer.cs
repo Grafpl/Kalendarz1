@@ -2254,7 +2254,7 @@ namespace Kalendarz1
             // 
             buttonWstawienie.BackColor = System.Drawing.Color.Yellow;
             buttonWstawienie.FlatStyle = FlatStyle.Flat;
-            buttonWstawienie.Font = new System.Drawing.Font("Swis721 BlkCn BT", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonWstawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             buttonWstawienie.ForeColor = System.Drawing.Color.MidnightBlue;
             buttonWstawienie.Image = (System.Drawing.Image)resources.GetObject("buttonWstawienie.Image");
             buttonWstawienie.Location = new System.Drawing.Point(635, 635);
@@ -2487,10 +2487,10 @@ namespace Kalendarz1
             // dataGridSumaPartie
             // 
             dataGridSumaPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridSumaPartie.Location = new System.Drawing.Point(808, 635);
+            dataGridSumaPartie.Location = new System.Drawing.Point(793, 613);
             dataGridSumaPartie.Name = "dataGridSumaPartie";
             dataGridSumaPartie.RowTemplate.Height = 25;
-            dataGridSumaPartie.Size = new System.Drawing.Size(92, 152);
+            dataGridSumaPartie.Size = new System.Drawing.Size(107, 174);
             dataGridSumaPartie.TabIndex = 131;
             // 
             // button17

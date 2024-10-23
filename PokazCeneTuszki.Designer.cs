@@ -67,7 +67,6 @@
             label16 = new System.Windows.Forms.Label();
             label17 = new System.Windows.Forms.Label();
             dataGridViewPrzewidywalnyTusz = new System.Windows.Forms.DataGridView();
-            pictureBox2 = new System.Windows.Forms.PictureBox();
             label14 = new System.Windows.Forms.Label();
             checkBoxShowDetails = new System.Windows.Forms.CheckBox();
             label15 = new System.Windows.Forms.Label();
@@ -92,17 +91,16 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewPrzewidywalnyElement).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPrzewidywalnyTusz).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox4).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(580, 103);
+            dataGridView1.Location = new System.Drawing.Point(580, 35);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(241, 856);
+            dataGridView1.Size = new System.Drawing.Size(280, 953);
             dataGridView1.TabIndex = 0;
             // 
             // dateTimePicker1
@@ -436,9 +434,9 @@
             // label17
             // 
             label17.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label17.Location = new System.Drawing.Point(580, 71);
+            label17.Location = new System.Drawing.Point(580, 3);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(241, 29);
+            label17.Size = new System.Drawing.Size(280, 29);
             label17.TabIndex = 138;
             label17.Text = "Sprzedaż tuszki";
             label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -451,16 +449,6 @@
             dataGridViewPrzewidywalnyTusz.RowTemplate.Height = 25;
             dataGridViewPrzewidywalnyTusz.Size = new System.Drawing.Size(285, 108);
             dataGridViewPrzewidywalnyTusz.TabIndex = 136;
-            // 
-            // pictureBox2
-            // 
-            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
-            pictureBox2.Location = new System.Drawing.Point(643, -1);
-            pictureBox2.Name = "pictureBox2";
-            pictureBox2.Size = new System.Drawing.Size(110, 69);
-            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            pictureBox2.TabIndex = 136;
-            pictureBox2.TabStop = false;
             // 
             // label14
             // 
@@ -601,7 +589,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1582, 958);
+            ClientSize = new System.Drawing.Size(1582, 1000);
             Controls.Add(dateTimePicker2);
             Controls.Add(pokaztuszke);
             Controls.Add(label23);
@@ -618,7 +606,6 @@
             Controls.Add(checkBoxShowDetails);
             Controls.Add(label17);
             Controls.Add(label14);
-            Controls.Add(pictureBox2);
             Controls.Add(dataGridView1);
             Controls.Add(label16);
             Controls.Add(dataGridViewPrzewidywalnyTusz);
@@ -668,7 +655,6 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewPrzewidywalnyElement).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPrzewidywalnyTusz).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox4).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -719,7 +705,6 @@
         private System.Windows.Forms.DataGridView dataGridViewPrzewidywalnyTusz;
         private System.Windows.Forms.PictureBox pictureBox3;
         private System.Windows.Forms.Label label14;
-        private System.Windows.Forms.PictureBox pictureBox2;
         private System.Windows.Forms.CheckBox checkBoxShowDetails;
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.TextBox textBox11;

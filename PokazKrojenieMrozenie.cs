@@ -158,6 +158,47 @@ namespace Kalendarz1
         private Label label56;
         private PictureBox pictureBox22;
         private TextBox RoznicaTuszkaElement3;
+        private TextBox textBox8;
+        private TextBox textBox9;
+        private TextBox textBox10;
+        private TextBox textBox11;
+        private TextBox textBox12;
+        private TextBox textBox13;
+        private TextBox textBox14;
+        private TextBox textBox15;
+        private TextBox textBox16;
+        private TextBox textBox17;
+        private TextBox textBox18;
+        private Label label57;
+        private TextBox textBox19;
+        private PictureBox pictureBox23;
+        private Label label58;
+        private PictureBox pictureBox24;
+        private Label label59;
+        private Label label60;
+        private Label label61;
+        private Label label62;
+        private PictureBox pictureBox25;
+        private PictureBox pictureBox26;
+        private PictureBox pictureBox27;
+        private PictureBox pictureBox28;
+        private TextBox textBox20;
+        private Label label63;
+        private TextBox textBox21;
+        private PictureBox pictureBox30;
+        private TextBox textBox22;
+        private Label label64;
+        private TextBox textBox23;
+        private PictureBox pictureBox31;
+        private Label label65;
+        private TextBox CenaTuszka1;
+        private TextBox CenaElementyKrojenie1;
+        private TextBox CenaElementy1;
+        private TextBox CenaElementyPoMrozeniu1;
+        private TextBox CenaTuszka2;
+        private TextBox CenyElementowPoObnizeniuMroz2;
+        private TextBox CenaStrataSuma1;
+        private TextBox CenyElementowPoObnizeniuMroz1;
         private Label label11;
 
         public PokazKrojenieMrozenie()
@@ -338,6 +379,47 @@ namespace Kalendarz1
             label56 = new Label();
             pictureBox22 = new PictureBox();
             RoznicaTuszkaElement3 = new TextBox();
+            textBox8 = new TextBox();
+            textBox9 = new TextBox();
+            textBox10 = new TextBox();
+            textBox11 = new TextBox();
+            textBox12 = new TextBox();
+            textBox13 = new TextBox();
+            textBox14 = new TextBox();
+            textBox15 = new TextBox();
+            textBox16 = new TextBox();
+            textBox17 = new TextBox();
+            textBox18 = new TextBox();
+            label57 = new Label();
+            textBox19 = new TextBox();
+            pictureBox23 = new PictureBox();
+            label58 = new Label();
+            pictureBox24 = new PictureBox();
+            label59 = new Label();
+            label60 = new Label();
+            label61 = new Label();
+            label62 = new Label();
+            pictureBox25 = new PictureBox();
+            pictureBox26 = new PictureBox();
+            pictureBox27 = new PictureBox();
+            pictureBox28 = new PictureBox();
+            textBox20 = new TextBox();
+            label63 = new Label();
+            textBox21 = new TextBox();
+            pictureBox30 = new PictureBox();
+            textBox22 = new TextBox();
+            label64 = new Label();
+            textBox23 = new TextBox();
+            pictureBox31 = new PictureBox();
+            label65 = new Label();
+            CenaTuszka1 = new TextBox();
+            CenaElementyKrojenie1 = new TextBox();
+            CenaElementy1 = new TextBox();
+            CenaElementyPoMrozeniu1 = new TextBox();
+            CenaTuszka2 = new TextBox();
+            CenyElementowPoObnizeniuMroz2 = new TextBox();
+            CenaStrataSuma1 = new TextBox();
+            CenyElementowPoObnizeniuMroz1 = new TextBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
@@ -361,13 +443,21 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox29).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox21).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox22).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox23).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox24).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox25).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox26).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox27).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox28).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox30).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox31).BeginInit();
             SuspendLayout();
             // 
             // sztuki
             // 
             sztuki.BackColor = System.Drawing.SystemColors.ControlLight;
             sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki.Location = new System.Drawing.Point(1587, 233);
+            sztuki.Location = new System.Drawing.Point(1642, 810);
             sztuki.Name = "sztuki";
             sztuki.Size = new System.Drawing.Size(62, 25);
             sztuki.TabIndex = 26;
@@ -424,7 +514,7 @@ namespace Kalendarz1
             // 
             textBox1.BackColor = System.Drawing.SystemColors.ControlLight;
             textBox1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox1.Location = new System.Drawing.Point(1435, 653);
+            textBox1.Location = new System.Drawing.Point(1490, 812);
             textBox1.Name = "textBox1";
             textBox1.Size = new System.Drawing.Size(62, 25);
             textBox1.TabIndex = 31;
@@ -471,7 +561,7 @@ namespace Kalendarz1
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new System.Drawing.Point(1694, 335);
+            label5.Location = new System.Drawing.Point(1835, 338);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(14, 16);
             label5.TabIndex = 36;
@@ -490,7 +580,7 @@ namespace Kalendarz1
             // 
             sumaSztuk.BackColor = System.Drawing.SystemColors.ControlLight;
             sumaSztuk.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sumaSztuk.Location = new System.Drawing.Point(1542, 212);
+            sumaSztuk.Location = new System.Drawing.Point(1597, 789);
             sumaSztuk.Name = "sumaSztuk";
             sumaSztuk.Size = new System.Drawing.Size(86, 25);
             sumaSztuk.TabIndex = 37;
@@ -928,7 +1018,7 @@ namespace Kalendarz1
             // 
             label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label21.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label21.Location = new System.Drawing.Point(1340, 272);
+            label21.Location = new System.Drawing.Point(1340, 690);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(66, 27);
             label21.TabIndex = 95;
@@ -939,7 +1029,7 @@ namespace Kalendarz1
             // 
             label22.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label22.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label22.Location = new System.Drawing.Point(1317, 308);
+            label22.Location = new System.Drawing.Point(1317, 726);
             label22.Name = "label22";
             label22.Size = new System.Drawing.Size(89, 25);
             label22.TabIndex = 97;
@@ -983,9 +1073,9 @@ namespace Kalendarz1
             // label20
             // 
             label20.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label20.Location = new System.Drawing.Point(1634, 574);
+            label20.Location = new System.Drawing.Point(1689, 750);
             label20.Name = "label20";
-            label20.Size = new System.Drawing.Size(89, 27);
+            label20.Size = new System.Drawing.Size(89, 10);
             label20.TabIndex = 101;
             label20.Text = "Elementy po krojeniu";
             label20.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -994,7 +1084,7 @@ namespace Kalendarz1
             // 
             WartoscElementowPoKrojeniu.BackColor = System.Drawing.Color.IndianRed;
             WartoscElementowPoKrojeniu.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowPoKrojeniu.Location = new System.Drawing.Point(1412, 272);
+            WartoscElementowPoKrojeniu.Location = new System.Drawing.Point(1412, 690);
             WartoscElementowPoKrojeniu.Name = "WartoscElementowPoKrojeniu";
             WartoscElementowPoKrojeniu.Size = new System.Drawing.Size(117, 27);
             WartoscElementowPoKrojeniu.TabIndex = 100;
@@ -1004,9 +1094,9 @@ namespace Kalendarz1
             // 
             label23.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label23.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label23.Location = new System.Drawing.Point(1289, 163);
+            label23.Location = new System.Drawing.Point(1344, 757);
             label23.Name = "label23";
-            label23.Size = new System.Drawing.Size(117, 27);
+            label23.Size = new System.Drawing.Size(117, 10);
             label23.TabIndex = 103;
             label23.Text = "Wartość Elementów po krojeniu";
             label23.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1026,9 +1116,9 @@ namespace Kalendarz1
             // 
             label25.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label25.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label25.Location = new System.Drawing.Point(1289, 130);
+            label25.Location = new System.Drawing.Point(1344, 724);
             label25.Name = "label25";
-            label25.Size = new System.Drawing.Size(117, 27);
+            label25.Size = new System.Drawing.Size(117, 10);
             label25.TabIndex = 105;
             label25.Text = "Wartość Tuszki bez przerobu";
             label25.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1048,9 +1138,9 @@ namespace Kalendarz1
             // 
             label26.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label26.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label26.Location = new System.Drawing.Point(1289, 196);
+            label26.Location = new System.Drawing.Point(1344, 790);
             label26.Name = "label26";
-            label26.Size = new System.Drawing.Size(117, 27);
+            label26.Size = new System.Drawing.Size(117, 10);
             label26.TabIndex = 107;
             label26.Text = "Różnica między elementami a tuszką";
             label26.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1059,7 +1149,7 @@ namespace Kalendarz1
             // 
             RoznicaTuszkaElement2.BackColor = System.Drawing.Color.White;
             RoznicaTuszkaElement2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaTuszkaElement2.Location = new System.Drawing.Point(1412, 196);
+            RoznicaTuszkaElement2.Location = new System.Drawing.Point(1467, 773);
             RoznicaTuszkaElement2.Name = "RoznicaTuszkaElement2";
             RoznicaTuszkaElement2.Size = new System.Drawing.Size(117, 27);
             RoznicaTuszkaElement2.TabIndex = 106;
@@ -1068,7 +1158,7 @@ namespace Kalendarz1
             // label27
             // 
             label27.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label27.Location = new System.Drawing.Point(1376, 372);
+            label27.Location = new System.Drawing.Point(1376, 790);
             label27.Name = "label27";
             label27.Size = new System.Drawing.Size(13, 27);
             label27.TabIndex = 108;
@@ -1078,7 +1168,7 @@ namespace Kalendarz1
             // label28
             // 
             label28.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label28.Location = new System.Drawing.Point(1513, 373);
+            label28.Location = new System.Drawing.Point(1513, 791);
             label28.Name = "label28";
             label28.Size = new System.Drawing.Size(16, 27);
             label28.TabIndex = 109;
@@ -1118,9 +1208,9 @@ namespace Kalendarz1
             // label32
             // 
             label32.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label32.Location = new System.Drawing.Point(1532, 623);
+            label32.Location = new System.Drawing.Point(1587, 799);
             label32.Name = "label32";
-            label32.Size = new System.Drawing.Size(117, 27);
+            label32.Size = new System.Drawing.Size(117, 10);
             label32.TabIndex = 113;
             label32.Text = "Wartość Tuszki bez przerobu";
             label32.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -1129,7 +1219,7 @@ namespace Kalendarz1
             // 
             textBox3.BackColor = System.Drawing.Color.Gainsboro;
             textBox3.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox3.Location = new System.Drawing.Point(1234, 635);
+            textBox3.Location = new System.Drawing.Point(1289, 794);
             textBox3.Name = "textBox3";
             textBox3.Size = new System.Drawing.Size(117, 27);
             textBox3.TabIndex = 112;
@@ -1159,7 +1249,7 @@ namespace Kalendarz1
             // 
             textBox5.BackColor = System.Drawing.Color.IndianRed;
             textBox5.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(1513, 619);
+            textBox5.Location = new System.Drawing.Point(1568, 778);
             textBox5.Name = "textBox5";
             textBox5.Size = new System.Drawing.Size(117, 27);
             textBox5.TabIndex = 118;
@@ -1179,7 +1269,7 @@ namespace Kalendarz1
             // 
             textBox6.BackColor = System.Drawing.Color.IndianRed;
             textBox6.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox6.Location = new System.Drawing.Point(1291, 402);
+            textBox6.Location = new System.Drawing.Point(1291, 820);
             textBox6.Multiline = true;
             textBox6.Name = "textBox6";
             textBox6.Size = new System.Drawing.Size(206, 61);
@@ -1190,9 +1280,9 @@ namespace Kalendarz1
             // label31
             // 
             label31.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label31.Location = new System.Drawing.Point(1337, 77);
+            label31.Location = new System.Drawing.Point(1392, 704);
             label31.Name = "label31";
-            label31.Size = new System.Drawing.Size(130, 60);
+            label31.Size = new System.Drawing.Size(130, 10);
             label31.TabIndex = 138;
             label31.Text = "Elementy po krojeniu";
             label31.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1507,9 +1597,9 @@ namespace Kalendarz1
             // pictureBox8
             // 
             pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
-            pictureBox8.Location = new System.Drawing.Point(1605, 477);
+            pictureBox8.Location = new System.Drawing.Point(1660, 683);
             pictureBox8.Name = "pictureBox8";
-            pictureBox8.Size = new System.Drawing.Size(103, 57);
+            pictureBox8.Size = new System.Drawing.Size(103, 10);
             pictureBox8.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox8.TabIndex = 174;
             pictureBox8.TabStop = false;
@@ -1568,7 +1658,7 @@ namespace Kalendarz1
             // 
             textBox7.BackColor = System.Drawing.Color.Gainsboro;
             textBox7.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox7.Location = new System.Drawing.Point(1412, 306);
+            textBox7.Location = new System.Drawing.Point(1412, 724);
             textBox7.Multiline = true;
             textBox7.Name = "textBox7";
             textBox7.Size = new System.Drawing.Size(117, 27);
@@ -1942,9 +2032,476 @@ namespace Kalendarz1
             RoznicaTuszkaElement3.TabIndex = 216;
             RoznicaTuszkaElement3.TextAlign = HorizontalAlignment.Center;
             // 
+            // textBox8
+            // 
+            textBox8.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox8.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox8.Location = new System.Drawing.Point(1464, 338);
+            textBox8.Multiline = true;
+            textBox8.Name = "textBox8";
+            textBox8.Size = new System.Drawing.Size(206, 61);
+            textBox8.TabIndex = 242;
+            textBox8.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox9
+            // 
+            textBox9.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox9.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox9.Location = new System.Drawing.Point(1464, 269);
+            textBox9.Multiline = true;
+            textBox9.Name = "textBox9";
+            textBox9.Size = new System.Drawing.Size(206, 61);
+            textBox9.TabIndex = 241;
+            textBox9.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox10
+            // 
+            textBox10.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox10.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox10.Location = new System.Drawing.Point(1464, 203);
+            textBox10.Multiline = true;
+            textBox10.Name = "textBox10";
+            textBox10.Size = new System.Drawing.Size(206, 61);
+            textBox10.TabIndex = 240;
+            textBox10.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox11
+            // 
+            textBox11.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox11.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox11.Location = new System.Drawing.Point(1464, 135);
+            textBox11.Multiline = true;
+            textBox11.Name = "textBox11";
+            textBox11.Size = new System.Drawing.Size(206, 61);
+            textBox11.TabIndex = 239;
+            textBox11.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox12
+            // 
+            textBox12.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox12.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox12.Location = new System.Drawing.Point(1464, 68);
+            textBox12.Multiline = true;
+            textBox12.Name = "textBox12";
+            textBox12.Size = new System.Drawing.Size(206, 61);
+            textBox12.TabIndex = 238;
+            textBox12.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox13
+            // 
+            textBox13.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox13.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox13.Location = new System.Drawing.Point(1676, 69);
+            textBox13.Multiline = true;
+            textBox13.Name = "textBox13";
+            textBox13.Size = new System.Drawing.Size(111, 61);
+            textBox13.TabIndex = 237;
+            textBox13.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox14
+            // 
+            textBox14.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox14.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox14.Location = new System.Drawing.Point(1676, 405);
+            textBox14.Multiline = true;
+            textBox14.Name = "textBox14";
+            textBox14.Size = new System.Drawing.Size(111, 61);
+            textBox14.TabIndex = 236;
+            textBox14.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox15
+            // 
+            textBox15.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox15.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox15.Location = new System.Drawing.Point(1676, 338);
+            textBox15.Multiline = true;
+            textBox15.Name = "textBox15";
+            textBox15.Size = new System.Drawing.Size(111, 61);
+            textBox15.TabIndex = 235;
+            textBox15.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox16
+            // 
+            textBox16.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox16.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox16.Location = new System.Drawing.Point(1676, 269);
+            textBox16.Multiline = true;
+            textBox16.Name = "textBox16";
+            textBox16.Size = new System.Drawing.Size(111, 61);
+            textBox16.TabIndex = 234;
+            textBox16.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox17
+            // 
+            textBox17.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox17.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox17.Location = new System.Drawing.Point(1676, 135);
+            textBox17.Multiline = true;
+            textBox17.Name = "textBox17";
+            textBox17.Size = new System.Drawing.Size(111, 61);
+            textBox17.TabIndex = 233;
+            textBox17.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox18
+            // 
+            textBox18.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox18.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox18.Location = new System.Drawing.Point(1676, 204);
+            textBox18.Multiline = true;
+            textBox18.Name = "textBox18";
+            textBox18.Size = new System.Drawing.Size(111, 61);
+            textBox18.TabIndex = 232;
+            textBox18.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label57
+            // 
+            label57.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label57.Location = new System.Drawing.Point(1793, 408);
+            label57.Name = "label57";
+            label57.Size = new System.Drawing.Size(130, 60);
+            label57.TabIndex = 231;
+            label57.Text = "Oczyszczanie fileta";
+            label57.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // textBox19
+            // 
+            textBox19.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox19.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox19.Location = new System.Drawing.Point(1464, 405);
+            textBox19.Multiline = true;
+            textBox19.Name = "textBox19";
+            textBox19.Size = new System.Drawing.Size(206, 61);
+            textBox19.TabIndex = 230;
+            textBox19.TextAlign = HorizontalAlignment.Center;
+            // 
+            // pictureBox23
+            // 
+            pictureBox23.Image = (System.Drawing.Image)resources.GetObject("pictureBox23.Image");
+            pictureBox23.Location = new System.Drawing.Point(1322, 546);
+            pictureBox23.Name = "pictureBox23";
+            pictureBox23.Size = new System.Drawing.Size(136, 61);
+            pictureBox23.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox23.TabIndex = 229;
+            pictureBox23.TabStop = false;
+            // 
+            // label58
+            // 
+            label58.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label58.Location = new System.Drawing.Point(1793, 341);
+            label58.Name = "label58";
+            label58.Size = new System.Drawing.Size(130, 60);
+            label58.TabIndex = 228;
+            label58.Text = "Odkrojenie tub";
+            label58.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // pictureBox24
+            // 
+            pictureBox24.Image = (System.Drawing.Image)resources.GetObject("pictureBox24.Image");
+            pictureBox24.Location = new System.Drawing.Point(1322, 270);
+            pictureBox24.Name = "pictureBox24";
+            pictureBox24.Size = new System.Drawing.Size(136, 61);
+            pictureBox24.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox24.TabIndex = 227;
+            pictureBox24.TabStop = false;
+            // 
+            // label59
+            // 
+            label59.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label59.Location = new System.Drawing.Point(1793, 205);
+            label59.Name = "label59";
+            label59.Size = new System.Drawing.Size(130, 60);
+            label59.TabIndex = 226;
+            label59.Text = "Oczyszczanie skrzydełek";
+            label59.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // label60
+            // 
+            label60.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label60.Location = new System.Drawing.Point(1793, 272);
+            label60.Name = "label60";
+            label60.Size = new System.Drawing.Size(130, 60);
+            label60.TabIndex = 225;
+            label60.Text = "Zawieszanie tub";
+            label60.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // label61
+            // 
+            label61.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label61.Location = new System.Drawing.Point(1793, 138);
+            label61.Name = "label61";
+            label61.Size = new System.Drawing.Size(130, 60);
+            label61.TabIndex = 224;
+            label61.Text = "Segregowanie skrzydeł i ćwiartek";
+            label61.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // label62
+            // 
+            label62.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label62.Location = new System.Drawing.Point(1793, 71);
+            label62.Name = "label62";
+            label62.Size = new System.Drawing.Size(130, 60);
+            label62.TabIndex = 223;
+            label62.Text = "Zawieszanie tuszki na dzielarke";
+            label62.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // pictureBox25
+            // 
+            pictureBox25.Image = (System.Drawing.Image)resources.GetObject("pictureBox25.Image");
+            pictureBox25.Location = new System.Drawing.Point(1322, 405);
+            pictureBox25.Name = "pictureBox25";
+            pictureBox25.Size = new System.Drawing.Size(136, 61);
+            pictureBox25.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox25.TabIndex = 222;
+            pictureBox25.TabStop = false;
+            // 
+            // pictureBox26
+            // 
+            pictureBox26.Image = (System.Drawing.Image)resources.GetObject("pictureBox26.Image");
+            pictureBox26.Location = new System.Drawing.Point(1322, 337);
+            pictureBox26.Name = "pictureBox26";
+            pictureBox26.Size = new System.Drawing.Size(136, 61);
+            pictureBox26.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox26.TabIndex = 221;
+            pictureBox26.TabStop = false;
+            // 
+            // pictureBox27
+            // 
+            pictureBox27.Image = (System.Drawing.Image)resources.GetObject("pictureBox27.Image");
+            pictureBox27.Location = new System.Drawing.Point(1322, 69);
+            pictureBox27.Name = "pictureBox27";
+            pictureBox27.Size = new System.Drawing.Size(136, 61);
+            pictureBox27.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox27.TabIndex = 220;
+            pictureBox27.TabStop = false;
+            // 
+            // pictureBox28
+            // 
+            pictureBox28.Image = (System.Drawing.Image)resources.GetObject("pictureBox28.Image");
+            pictureBox28.Location = new System.Drawing.Point(1322, 474);
+            pictureBox28.Name = "pictureBox28";
+            pictureBox28.Size = new System.Drawing.Size(136, 61);
+            pictureBox28.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox28.TabIndex = 219;
+            pictureBox28.TabStop = false;
+            // 
+            // textBox20
+            // 
+            textBox20.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox20.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox20.Location = new System.Drawing.Point(1676, 474);
+            textBox20.Multiline = true;
+            textBox20.Name = "textBox20";
+            textBox20.Size = new System.Drawing.Size(111, 61);
+            textBox20.TabIndex = 246;
+            textBox20.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label63
+            // 
+            label63.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label63.Location = new System.Drawing.Point(1793, 477);
+            label63.Name = "label63";
+            label63.Size = new System.Drawing.Size(130, 60);
+            label63.TabIndex = 245;
+            label63.Text = "Ważenie elementów";
+            label63.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // textBox21
+            // 
+            textBox21.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox21.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox21.Location = new System.Drawing.Point(1464, 474);
+            textBox21.Multiline = true;
+            textBox21.Name = "textBox21";
+            textBox21.Size = new System.Drawing.Size(206, 61);
+            textBox21.TabIndex = 244;
+            textBox21.TextAlign = HorizontalAlignment.Center;
+            // 
+            // pictureBox30
+            // 
+            pictureBox30.Image = (System.Drawing.Image)resources.GetObject("pictureBox30.Image");
+            pictureBox30.Location = new System.Drawing.Point(1322, 135);
+            pictureBox30.Name = "pictureBox30";
+            pictureBox30.Size = new System.Drawing.Size(136, 61);
+            pictureBox30.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox30.TabIndex = 243;
+            pictureBox30.TabStop = false;
+            // 
+            // textBox22
+            // 
+            textBox22.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox22.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox22.Location = new System.Drawing.Point(1676, 543);
+            textBox22.Multiline = true;
+            textBox22.Name = "textBox22";
+            textBox22.Size = new System.Drawing.Size(111, 61);
+            textBox22.TabIndex = 250;
+            textBox22.TextAlign = HorizontalAlignment.Center;
+            // 
+            // label64
+            // 
+            label64.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label64.Location = new System.Drawing.Point(1793, 546);
+            label64.Name = "label64";
+            label64.Size = new System.Drawing.Size(130, 60);
+            label64.TabIndex = 249;
+            label64.Text = "Zużycie energi dzielarki";
+            label64.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // textBox23
+            // 
+            textBox23.BackColor = System.Drawing.SystemColors.ControlLight;
+            textBox23.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBox23.Location = new System.Drawing.Point(1464, 543);
+            textBox23.Multiline = true;
+            textBox23.Name = "textBox23";
+            textBox23.Size = new System.Drawing.Size(206, 61);
+            textBox23.TabIndex = 248;
+            textBox23.TextAlign = HorizontalAlignment.Center;
+            // 
+            // pictureBox31
+            // 
+            pictureBox31.Image = (System.Drawing.Image)resources.GetObject("pictureBox31.Image");
+            pictureBox31.Location = new System.Drawing.Point(1322, 203);
+            pictureBox31.Name = "pictureBox31";
+            pictureBox31.Size = new System.Drawing.Size(136, 61);
+            pictureBox31.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox31.TabIndex = 247;
+            pictureBox31.TabStop = false;
+            // 
+            // label65
+            // 
+            label65.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label65.Location = new System.Drawing.Point(1322, 32);
+            label65.Name = "label65";
+            label65.Size = new System.Drawing.Size(348, 34);
+            label65.TabIndex = 251;
+            label65.Text = "Obliczanie kosztu krojenia";
+            label65.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // CenaTuszka1
+            // 
+            CenaTuszka1.BackColor = System.Drawing.Color.White;
+            CenaTuszka1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaTuszka1.Location = new System.Drawing.Point(666, 83);
+            CenaTuszka1.Name = "CenaTuszka1";
+            CenaTuszka1.Size = new System.Drawing.Size(59, 27);
+            CenaTuszka1.TabIndex = 252;
+            CenaTuszka1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaElementyKrojenie1
+            // 
+            CenaElementyKrojenie1.BackColor = System.Drawing.Color.White;
+            CenaElementyKrojenie1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaElementyKrojenie1.Location = new System.Drawing.Point(666, 357);
+            CenaElementyKrojenie1.Name = "CenaElementyKrojenie1";
+            CenaElementyKrojenie1.Size = new System.Drawing.Size(59, 27);
+            CenaElementyKrojenie1.TabIndex = 253;
+            CenaElementyKrojenie1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaElementy1
+            // 
+            CenaElementy1.BackColor = System.Drawing.Color.White;
+            CenaElementy1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaElementy1.Location = new System.Drawing.Point(666, 219);
+            CenaElementy1.Name = "CenaElementy1";
+            CenaElementy1.Size = new System.Drawing.Size(59, 27);
+            CenaElementy1.TabIndex = 254;
+            CenaElementy1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaElementyPoMrozeniu1
+            // 
+            CenaElementyPoMrozeniu1.BackColor = System.Drawing.Color.White;
+            CenaElementyPoMrozeniu1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaElementyPoMrozeniu1.Location = new System.Drawing.Point(666, 493);
+            CenaElementyPoMrozeniu1.Name = "CenaElementyPoMrozeniu1";
+            CenaElementyPoMrozeniu1.Size = new System.Drawing.Size(59, 27);
+            CenaElementyPoMrozeniu1.TabIndex = 255;
+            CenaElementyPoMrozeniu1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaTuszka2
+            // 
+            CenaTuszka2.BackColor = System.Drawing.Color.White;
+            CenaTuszka2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaTuszka2.Location = new System.Drawing.Point(666, 728);
+            CenaTuszka2.Name = "CenaTuszka2";
+            CenaTuszka2.Size = new System.Drawing.Size(59, 27);
+            CenaTuszka2.TabIndex = 256;
+            CenaTuszka2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenyElementowPoObnizeniuMroz2
+            // 
+            CenyElementowPoObnizeniuMroz2.BackColor = System.Drawing.Color.White;
+            CenyElementowPoObnizeniuMroz2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenyElementowPoObnizeniuMroz2.Location = new System.Drawing.Point(666, 791);
+            CenyElementowPoObnizeniuMroz2.Name = "CenyElementowPoObnizeniuMroz2";
+            CenyElementowPoObnizeniuMroz2.Size = new System.Drawing.Size(59, 27);
+            CenyElementowPoObnizeniuMroz2.TabIndex = 257;
+            CenyElementowPoObnizeniuMroz2.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaStrataSuma1
+            // 
+            CenaStrataSuma1.BackColor = System.Drawing.Color.White;
+            CenaStrataSuma1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaStrataSuma1.Location = new System.Drawing.Point(666, 860);
+            CenaStrataSuma1.Name = "CenaStrataSuma1";
+            CenaStrataSuma1.Size = new System.Drawing.Size(59, 27);
+            CenaStrataSuma1.TabIndex = 258;
+            CenaStrataSuma1.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenyElementowPoObnizeniuMroz1
+            // 
+            CenyElementowPoObnizeniuMroz1.BackColor = System.Drawing.Color.White;
+            CenyElementowPoObnizeniuMroz1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenyElementowPoObnizeniuMroz1.Location = new System.Drawing.Point(666, 631);
+            CenyElementowPoObnizeniuMroz1.Name = "CenyElementowPoObnizeniuMroz1";
+            CenyElementowPoObnizeniuMroz1.Size = new System.Drawing.Size(59, 27);
+            CenyElementowPoObnizeniuMroz1.TabIndex = 259;
+            CenyElementowPoObnizeniuMroz1.TextAlign = HorizontalAlignment.Center;
+            // 
             // PokazKrojenieMrozenie
             // 
-            ClientSize = new System.Drawing.Size(1434, 993);
+            ClientSize = new System.Drawing.Size(1896, 993);
+            Controls.Add(CenyElementowPoObnizeniuMroz1);
+            Controls.Add(CenaStrataSuma1);
+            Controls.Add(CenyElementowPoObnizeniuMroz2);
+            Controls.Add(CenaTuszka2);
+            Controls.Add(CenaElementyPoMrozeniu1);
+            Controls.Add(CenaElementy1);
+            Controls.Add(CenaElementyKrojenie1);
+            Controls.Add(CenaTuszka1);
+            Controls.Add(label65);
+            Controls.Add(textBox22);
+            Controls.Add(label64);
+            Controls.Add(textBox23);
+            Controls.Add(pictureBox31);
+            Controls.Add(textBox20);
+            Controls.Add(label63);
+            Controls.Add(textBox21);
+            Controls.Add(pictureBox30);
+            Controls.Add(textBox8);
+            Controls.Add(textBox9);
+            Controls.Add(textBox10);
+            Controls.Add(textBox11);
+            Controls.Add(textBox12);
+            Controls.Add(textBox13);
+            Controls.Add(textBox14);
+            Controls.Add(textBox15);
+            Controls.Add(textBox16);
+            Controls.Add(textBox17);
+            Controls.Add(textBox18);
+            Controls.Add(label57);
+            Controls.Add(textBox19);
+            Controls.Add(pictureBox23);
+            Controls.Add(label58);
+            Controls.Add(pictureBox24);
+            Controls.Add(label59);
+            Controls.Add(label60);
+            Controls.Add(label61);
+            Controls.Add(label62);
+            Controls.Add(pictureBox25);
+            Controls.Add(pictureBox26);
+            Controls.Add(pictureBox27);
+            Controls.Add(pictureBox28);
             Controls.Add(label56);
             Controls.Add(pictureBox22);
             Controls.Add(RoznicaTuszkaElement3);
@@ -2124,6 +2681,14 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox29).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox21).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox22).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox23).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox24).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox25).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox26).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox27).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox28).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox30).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox31).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2190,6 +2755,8 @@ namespace Kalendarz1
                 SumaWartosc.Text = sumaWartosciElementow.ToString("N2");
                 SumaWartosc2.Text = sumaWartosciElementow.ToString("N2");
 
+                double cenaElementow = sumaWartosciElementow / sumaKg;
+                CenaElementy1.Text = cenaElementow.ToString("N2");
                 double roznicaTuszkaElement = sumaWartosciElementow - tuszkaWartosc;
                 RoznicaTuszkaElement.Text = roznicaTuszkaElement.ToString("N2");
 
@@ -2212,6 +2779,11 @@ namespace Kalendarz1
                 TuszkaWartosc.Text = tuszkaWartosc.ToString("N2");
                 TuszkaWartosc2.Text = tuszkaWartosc.ToString("N2");
                 TuszkaWartosc3.Text = tuszkaWartosc.ToString("N2") + " zł";
+               
+
+                double cenaTuszki = tuszkaWartosc / tuszkaKG;
+                CenaTuszka1.Text = cenaTuszki.ToString("N2") + " zł";
+                CenaTuszka2.Text = cenaTuszki.ToString("N2") + " zł";
 
                 double przelicznikKrojenia = PobierzWartosc(WspolczynnikKrojenia.Text);
                 double wynikKrojenia = tuszkaKG / przelicznikKrojenia;
@@ -2222,6 +2794,9 @@ namespace Kalendarz1
                 double wartoscElementowPoKrojeniu = sumaWartosciElementow - wynikKrojenia;
                 WartoscElementowPoKrojeniu.Text = wartoscElementowPoKrojeniu.ToString("N2");
                 WartoscElementowPoKrojeniu2.Text = wartoscElementowPoKrojeniu.ToString("N2");
+
+                double cenaElementowPoKrojeniu = wartoscElementowPoKrojeniu / tuszkaKG;
+                WartoscElementowZamrozonych.Text = cenaElementowPoKrojeniu.ToString("N2");
 
 
                 double roznicaTuszkaElementPoKrojeniu = wartoscElementowPoKrojeniu - tuszkaWartosc;
@@ -2368,6 +2943,8 @@ namespace Kalendarz1
         {
             try
             {
+                double tuszkaKG = PobierzWartosc(TuszkaKG.Text);
+                double tuszkaCena = PobierzWartosc(TuszkaCena.Text);
                 // Zmienna do przechowywania sumy kosztów mrożenia
                 double sumaKosztowMrozenia = 0;
 
@@ -2387,6 +2964,9 @@ namespace Kalendarz1
                 double ElementyPoKosztach = Elementy - sumaKosztowMrozenia;
                 WartoscElementowZamrozonych.Text = ElementyPoKosztach.ToString("N2") + " zł";
 
+                double cenaElementowPoKosztachMrozenia = ElementyPoKosztach / tuszkaKG;
+                CenaElementyPoMrozeniu1.Text = cenaElementowPoKosztachMrozenia.ToString("N2") + " zł";
+
                 double obnizenieTowaruMrozonego = ElementyPoKosztach * 0.82;
 
                 double roznicaWoBnizce = ElementyPoKosztach - obnizenieTowaruMrozonego;
@@ -2394,6 +2974,10 @@ namespace Kalendarz1
 
                 WartoscElementowMrozonychPoObnizce.Text = obnizenieTowaruMrozonego.ToString("N2") + " zł";
                 WartoscElementowMrozonychPoObnizce2.Text = obnizenieTowaruMrozonego.ToString("N2") + " zł";
+
+                double cenaPoKosztachObnizeniaCeny = obnizenieTowaruMrozonego / tuszkaKG;
+                CenyElementowPoObnizeniuMroz1.Text = cenaPoKosztachObnizeniaCeny.ToString("N2") + " zł";
+                CenyElementowPoObnizeniuMroz2.Text = cenaPoKosztachObnizeniaCeny.ToString("N2") + " zł";
 
                 double tuszkaWartosc = PobierzWartosc(TuszkaWartosc.Text);
                 double wynikStraty = tuszkaWartosc - obnizenieTowaruMrozonego;

@@ -36,7 +36,7 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 // Tworzenie komendy SQL
-                string query = "SELECT LP, Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
+                string query = "SELECT LP, Auta, Dostawca, SztukiDek, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
 
@@ -50,6 +50,7 @@ namespace Kalendarz1
                 finalTable.Columns.Add("Nr", typeof(int)); // Dodanie kolumny "Numer" na początku
                 finalTable.Columns.Add("Auta", typeof(string)); // Typ string, aby można było ukrywać duplikaty
                 finalTable.Columns.Add("Dostawca", typeof(string));
+                finalTable.Columns.Add("SztukiDek", typeof(string));
                 finalTable.Columns.Add("WagaDek", typeof(string)); // Typ string, aby można było dodać przedrostki
                 finalTable.Columns.Add("SztSzuflada", typeof(string)); // Typ string, aby można było dodać przedrostki
                 finalTable.Columns.Add("TotalWeight", typeof(string)); // Kolumna na wynik mnożenia z przedrostkiem
@@ -72,6 +73,7 @@ namespace Kalendarz1
                     int autaValue = (int)row["Auta"];
                     double wagaDekValue = Convert.ToDouble(row["WagaDek"]);
                     int sztSzufladaValue = Convert.ToInt32(row["SztSzuflada"]);
+                    int iloscSztukValue = Convert.ToInt32(row["SztukiDek"]);
                     double totalWeight = wagaDekValue * sztSzufladaValue;
                     double totalWeightMultiplied = totalWeight * 264;
                     double taraAuta = 23500;
@@ -98,6 +100,7 @@ namespace Kalendarz1
                             newRow["Auta"] = row["Auta"];
                             newRow["Dostawca"] = row["Dostawca"];
                             previousDostawca = row["Dostawca"].ToString(); // Zaktualizuj poprzedniego dostawcę
+                            newRow["SztukiDek"] = string.Format("{0:N0} szt", row["SztukiDek"]);
                             paleciakAdded = false; // Reset flagi dla nowego dostawcy
                         }
                         else
@@ -144,6 +147,7 @@ namespace Kalendarz1
                 dataGridView1.Columns["Nr"].HeaderText = "Nr";
                 dataGridView1.Columns["Auta"].HeaderText = "Auta";
                 dataGridView1.Columns["Dostawca"].HeaderText = "Dostawca";
+                dataGridView1.Columns["SztukiDek"].HeaderText = "Sztuki";
                 dataGridView1.Columns["WagaDek"].HeaderText = "Waga";
                 dataGridView1.Columns["SztSzuflada"].HeaderText = "Szt";
                 dataGridView1.Columns["TotalWeight"].HeaderText = "Waga x Szt";

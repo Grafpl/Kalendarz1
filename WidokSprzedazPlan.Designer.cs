@@ -45,7 +45,7 @@
             dataGridView1.Location = new System.Drawing.Point(12, 69);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(745, 214);
+            dataGridView1.Size = new System.Drawing.Size(745, 252);
             dataGridView1.TabIndex = 0;
             // 
             // dateTimePicker1
@@ -74,7 +74,7 @@
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(452, 65);
             label1.TabIndex = 3;
-            label1.Text = "Poniżej zamieszczone dane w tabeli są deklarowanymi przez hodowców. Mogą one odbiegać nieco od faktycznego stanu.";
+            label1.Text = "Podany plan ma charakter orientacyjny i może ulec zmianie, ponieważ mogą pojawić się nowi hodowcy lub inni mogą zakończyć współpracę, co może wpłynąć na ostateczny kształt harmonogramu.";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // pictureBox1
@@ -93,7 +93,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(769, 285);
+            ClientSize = new System.Drawing.Size(769, 333);
             Controls.Add(pictureBox1);
             Controls.Add(label1);
             Controls.Add(button3);
