@@ -199,6 +199,25 @@ namespace Kalendarz1
         private TextBox CenyElementowPoObnizeniuMroz2;
         private TextBox CenaStrataSuma1;
         private TextBox CenyElementowPoObnizeniuMroz1;
+        private TextBox Filet2Wydajnosc;
+        private Label label66;
+        private TextBox Filet2Wartosc;
+        private TextBox Filet2Cena;
+        private TextBox Filet2KG;
+        private TextBox Cwiartka2Wydajnosc;
+        private Label label67;
+        private TextBox Cwiartka2Wartosc;
+        private TextBox Cwiartka2Cena;
+        private TextBox Cwiartka2KG;
+        private TextBox Skrzydlo2Wydajnosc;
+        private Label label68;
+        private TextBox Skrzydlo2Wartosc;
+        private TextBox Skrzydlo2Cena;
+        private TextBox Skrzydlo2KG;
+        private TextBox CenaRoznicaTuszkaElementy;
+        private TextBox CenaKrojenia;
+        private TextBox CenaMrozenia;
+        private TextBox RoznicaObnizeniaCeny;
         private Label label11;
 
         public PokazKrojenieMrozenie()
@@ -207,9 +226,12 @@ namespace Kalendarz1
 
             TuszkaWydajnosc.Text = "100";
             SumaWydajnosc.Text = "100";
-            FiletWydajnosc.Text = "31,4";
-            CwiartkaWydajnosc.Text = "35,4";
-            SkrzydloWydajnosc.Text = "9,7";
+            FiletWydajnosc.Text = "29,5";
+            Filet2Wydajnosc.Text = "1,9";
+            CwiartkaWydajnosc.Text = "33,4";
+            Cwiartka2Wydajnosc.Text = "2,0";
+            SkrzydloWydajnosc.Text = "8,7";
+            Skrzydlo2Wydajnosc.Text = "1,0";
             KorpusWydajnosc.Text = "22,7";
             PozostaleWydajnosc.Text = "0,8";
 
@@ -217,7 +239,7 @@ namespace Kalendarz1
             RozwazanieTowaruCena.Text = "1,5";
             FoliaPojemnikCena.Text = "0,38";
             SktrechNaPaleteCena.Text = "24,00";
-            KartonCena.Text = "0,30";
+            KartonCena.Text = "3";
             PaletaDrewnianaCena.Text = "13,20";
             PradMrozniaCena.Text = "0,30";
 
@@ -420,6 +442,25 @@ namespace Kalendarz1
             CenyElementowPoObnizeniuMroz2 = new TextBox();
             CenaStrataSuma1 = new TextBox();
             CenyElementowPoObnizeniuMroz1 = new TextBox();
+            Filet2Wydajnosc = new TextBox();
+            label66 = new Label();
+            Filet2Wartosc = new TextBox();
+            Filet2Cena = new TextBox();
+            Filet2KG = new TextBox();
+            Cwiartka2Wydajnosc = new TextBox();
+            label67 = new Label();
+            Cwiartka2Wartosc = new TextBox();
+            Cwiartka2Cena = new TextBox();
+            Cwiartka2KG = new TextBox();
+            Skrzydlo2Wydajnosc = new TextBox();
+            label68 = new Label();
+            Skrzydlo2Wartosc = new TextBox();
+            Skrzydlo2Cena = new TextBox();
+            Skrzydlo2KG = new TextBox();
+            CenaRoznicaTuszkaElementy = new TextBox();
+            CenaKrojenia = new TextBox();
+            CenaMrozenia = new TextBox();
+            RoznicaObnizeniaCeny = new TextBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
@@ -669,7 +710,7 @@ namespace Kalendarz1
             // 
             FiletWartosc.BackColor = System.Drawing.Color.White;
             FiletWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletWartosc.Location = new System.Drawing.Point(316, 88);
+            FiletWartosc.Location = new System.Drawing.Point(316, 81);
             FiletWartosc.Name = "FiletWartosc";
             FiletWartosc.Size = new System.Drawing.Size(117, 25);
             FiletWartosc.TabIndex = 52;
@@ -679,7 +720,7 @@ namespace Kalendarz1
             // 
             FiletCena.BackColor = System.Drawing.Color.White;
             FiletCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletCena.Location = new System.Drawing.Point(253, 88);
+            FiletCena.Location = new System.Drawing.Point(253, 81);
             FiletCena.Name = "FiletCena";
             FiletCena.Size = new System.Drawing.Size(57, 25);
             FiletCena.TabIndex = 50;
@@ -690,7 +731,7 @@ namespace Kalendarz1
             // 
             FiletKG.BackColor = System.Drawing.Color.White;
             FiletKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletKG.Location = new System.Drawing.Point(141, 88);
+            FiletKG.Location = new System.Drawing.Point(141, 81);
             FiletKG.Name = "FiletKG";
             FiletKG.Size = new System.Drawing.Size(106, 25);
             FiletKG.TabIndex = 48;
@@ -701,17 +742,18 @@ namespace Kalendarz1
             // 
             CwiartkaWartosc.BackColor = System.Drawing.Color.White;
             CwiartkaWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaWartosc.Location = new System.Drawing.Point(316, 119);
+            CwiartkaWartosc.Location = new System.Drawing.Point(316, 129);
             CwiartkaWartosc.Name = "CwiartkaWartosc";
             CwiartkaWartosc.Size = new System.Drawing.Size(117, 25);
             CwiartkaWartosc.TabIndex = 58;
             CwiartkaWartosc.TextAlign = HorizontalAlignment.Center;
+            CwiartkaWartosc.TextChanged += CwiartkaWartosc_TextChanged;
             // 
             // CwiartkaCena
             // 
             CwiartkaCena.BackColor = System.Drawing.Color.White;
             CwiartkaCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaCena.Location = new System.Drawing.Point(253, 119);
+            CwiartkaCena.Location = new System.Drawing.Point(253, 129);
             CwiartkaCena.Name = "CwiartkaCena";
             CwiartkaCena.Size = new System.Drawing.Size(57, 25);
             CwiartkaCena.TabIndex = 56;
@@ -722,7 +764,7 @@ namespace Kalendarz1
             // 
             CwiartkaKG.BackColor = System.Drawing.Color.White;
             CwiartkaKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaKG.Location = new System.Drawing.Point(141, 119);
+            CwiartkaKG.Location = new System.Drawing.Point(141, 129);
             CwiartkaKG.Name = "CwiartkaKG";
             CwiartkaKG.Size = new System.Drawing.Size(106, 25);
             CwiartkaKG.TabIndex = 54;
@@ -733,7 +775,7 @@ namespace Kalendarz1
             // 
             SkrzydloWartosc.BackColor = System.Drawing.Color.White;
             SkrzydloWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloWartosc.Location = new System.Drawing.Point(316, 150);
+            SkrzydloWartosc.Location = new System.Drawing.Point(316, 177);
             SkrzydloWartosc.Name = "SkrzydloWartosc";
             SkrzydloWartosc.Size = new System.Drawing.Size(117, 25);
             SkrzydloWartosc.TabIndex = 64;
@@ -743,7 +785,7 @@ namespace Kalendarz1
             // 
             SkrzydloCena.BackColor = System.Drawing.Color.White;
             SkrzydloCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloCena.Location = new System.Drawing.Point(253, 150);
+            SkrzydloCena.Location = new System.Drawing.Point(253, 177);
             SkrzydloCena.Name = "SkrzydloCena";
             SkrzydloCena.Size = new System.Drawing.Size(57, 25);
             SkrzydloCena.TabIndex = 62;
@@ -754,7 +796,7 @@ namespace Kalendarz1
             // 
             SkrzydloKG.BackColor = System.Drawing.Color.White;
             SkrzydloKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloKG.Location = new System.Drawing.Point(141, 150);
+            SkrzydloKG.Location = new System.Drawing.Point(141, 177);
             SkrzydloKG.Name = "SkrzydloKG";
             SkrzydloKG.Size = new System.Drawing.Size(106, 25);
             SkrzydloKG.TabIndex = 60;
@@ -765,7 +807,7 @@ namespace Kalendarz1
             // 
             KorpusWartosc.BackColor = System.Drawing.Color.White;
             KorpusWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusWartosc.Location = new System.Drawing.Point(316, 181);
+            KorpusWartosc.Location = new System.Drawing.Point(316, 220);
             KorpusWartosc.Name = "KorpusWartosc";
             KorpusWartosc.Size = new System.Drawing.Size(117, 25);
             KorpusWartosc.TabIndex = 70;
@@ -775,7 +817,7 @@ namespace Kalendarz1
             // 
             KorpusCena.BackColor = System.Drawing.Color.White;
             KorpusCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusCena.Location = new System.Drawing.Point(253, 181);
+            KorpusCena.Location = new System.Drawing.Point(253, 220);
             KorpusCena.Name = "KorpusCena";
             KorpusCena.Size = new System.Drawing.Size(57, 25);
             KorpusCena.TabIndex = 68;
@@ -786,7 +828,7 @@ namespace Kalendarz1
             // 
             KorpusKG.BackColor = System.Drawing.Color.White;
             KorpusKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusKG.Location = new System.Drawing.Point(141, 181);
+            KorpusKG.Location = new System.Drawing.Point(141, 220);
             KorpusKG.Name = "KorpusKG";
             KorpusKG.Size = new System.Drawing.Size(106, 25);
             KorpusKG.TabIndex = 66;
@@ -794,45 +836,45 @@ namespace Kalendarz1
             // 
             // label13
             // 
-            label13.Location = new System.Drawing.Point(15, 88);
+            label13.Location = new System.Drawing.Point(1, 81);
             label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(57, 25);
+            label13.Size = new System.Drawing.Size(71, 25);
             label13.TabIndex = 71;
             label13.Text = "Filet";
             label13.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label14
             // 
-            label14.Location = new System.Drawing.Point(15, 119);
+            label14.Location = new System.Drawing.Point(1, 129);
             label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(57, 25);
+            label14.Size = new System.Drawing.Size(71, 25);
             label14.TabIndex = 72;
             label14.Text = "Ćwiartka";
             label14.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label15
             // 
-            label15.Location = new System.Drawing.Point(15, 150);
+            label15.Location = new System.Drawing.Point(1, 177);
             label15.Name = "label15";
-            label15.Size = new System.Drawing.Size(57, 25);
+            label15.Size = new System.Drawing.Size(71, 25);
             label15.TabIndex = 73;
             label15.Text = "Skrzydło";
             label15.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label16
             // 
-            label16.Location = new System.Drawing.Point(15, 181);
+            label16.Location = new System.Drawing.Point(1, 220);
             label16.Name = "label16";
-            label16.Size = new System.Drawing.Size(57, 25);
+            label16.Size = new System.Drawing.Size(71, 25);
             label16.TabIndex = 74;
             label16.Text = "Korpus";
             label16.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label17
             // 
-            label17.Location = new System.Drawing.Point(15, 212);
+            label17.Location = new System.Drawing.Point(1, 245);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(57, 25);
+            label17.Size = new System.Drawing.Size(71, 25);
             label17.TabIndex = 78;
             label17.Text = "Pozostałe";
             label17.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -841,7 +883,7 @@ namespace Kalendarz1
             // 
             PozostaleWartosc.BackColor = System.Drawing.Color.White;
             PozostaleWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleWartosc.Location = new System.Drawing.Point(316, 212);
+            PozostaleWartosc.Location = new System.Drawing.Point(316, 245);
             PozostaleWartosc.Name = "PozostaleWartosc";
             PozostaleWartosc.Size = new System.Drawing.Size(117, 25);
             PozostaleWartosc.TabIndex = 77;
@@ -851,7 +893,7 @@ namespace Kalendarz1
             // 
             PozostaleCena.BackColor = System.Drawing.Color.White;
             PozostaleCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleCena.Location = new System.Drawing.Point(253, 212);
+            PozostaleCena.Location = new System.Drawing.Point(253, 245);
             PozostaleCena.Name = "PozostaleCena";
             PozostaleCena.Size = new System.Drawing.Size(57, 25);
             PozostaleCena.TabIndex = 76;
@@ -862,7 +904,7 @@ namespace Kalendarz1
             // 
             PozostaleKG.BackColor = System.Drawing.Color.White;
             PozostaleKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleKG.Location = new System.Drawing.Point(141, 212);
+            PozostaleKG.Location = new System.Drawing.Point(141, 245);
             PozostaleKG.Name = "PozostaleKG";
             PozostaleKG.Size = new System.Drawing.Size(106, 25);
             PozostaleKG.TabIndex = 75;
@@ -891,7 +933,7 @@ namespace Kalendarz1
             // 
             FiletWydajnosc.BackColor = System.Drawing.Color.White;
             FiletWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletWydajnosc.Location = new System.Drawing.Point(78, 88);
+            FiletWydajnosc.Location = new System.Drawing.Point(78, 81);
             FiletWydajnosc.Name = "FiletWydajnosc";
             FiletWydajnosc.Size = new System.Drawing.Size(57, 25);
             FiletWydajnosc.TabIndex = 81;
@@ -902,7 +944,7 @@ namespace Kalendarz1
             // 
             CwiartkaWydajnosc.BackColor = System.Drawing.Color.White;
             CwiartkaWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaWydajnosc.Location = new System.Drawing.Point(78, 119);
+            CwiartkaWydajnosc.Location = new System.Drawing.Point(78, 129);
             CwiartkaWydajnosc.Name = "CwiartkaWydajnosc";
             CwiartkaWydajnosc.Size = new System.Drawing.Size(57, 25);
             CwiartkaWydajnosc.TabIndex = 82;
@@ -913,7 +955,7 @@ namespace Kalendarz1
             // 
             SkrzydloWydajnosc.BackColor = System.Drawing.Color.White;
             SkrzydloWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloWydajnosc.Location = new System.Drawing.Point(78, 150);
+            SkrzydloWydajnosc.Location = new System.Drawing.Point(78, 177);
             SkrzydloWydajnosc.Name = "SkrzydloWydajnosc";
             SkrzydloWydajnosc.Size = new System.Drawing.Size(57, 25);
             SkrzydloWydajnosc.TabIndex = 83;
@@ -924,7 +966,7 @@ namespace Kalendarz1
             // 
             KorpusWydajnosc.BackColor = System.Drawing.Color.White;
             KorpusWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusWydajnosc.Location = new System.Drawing.Point(78, 181);
+            KorpusWydajnosc.Location = new System.Drawing.Point(78, 220);
             KorpusWydajnosc.Name = "KorpusWydajnosc";
             KorpusWydajnosc.Size = new System.Drawing.Size(57, 25);
             KorpusWydajnosc.TabIndex = 84;
@@ -935,7 +977,7 @@ namespace Kalendarz1
             // 
             PozostaleWydajnosc.BackColor = System.Drawing.Color.White;
             PozostaleWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleWydajnosc.Location = new System.Drawing.Point(78, 212);
+            PozostaleWydajnosc.Location = new System.Drawing.Point(78, 245);
             PozostaleWydajnosc.Name = "PozostaleWydajnosc";
             PozostaleWydajnosc.Size = new System.Drawing.Size(57, 25);
             PozostaleWydajnosc.TabIndex = 85;
@@ -955,9 +997,9 @@ namespace Kalendarz1
             // label19
             // 
             label19.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(6, 55);
+            label19.Location = new System.Drawing.Point(-8, 55);
             label19.Name = "label19";
-            label19.Size = new System.Drawing.Size(66, 25);
+            label19.Size = new System.Drawing.Size(80, 25);
             label19.TabIndex = 89;
             label19.Text = "Elementy";
             label19.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1637,7 +1679,7 @@ namespace Kalendarz1
             // label43
             // 
             label43.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label43.Location = new System.Drawing.Point(11, 242);
+            label43.Location = new System.Drawing.Point(1236, 648);
             label43.Name = "label43";
             label43.Size = new System.Drawing.Size(348, 34);
             label43.TabIndex = 181;
@@ -1789,7 +1831,7 @@ namespace Kalendarz1
             label47.Name = "label47";
             label47.Size = new System.Drawing.Size(215, 63);
             label47.TabIndex = 195;
-            label47.Text = "Wartość Elementów";
+            label47.Text = "Wartość Elementów po kosztach krojenia";
             label47.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // label48
@@ -2458,9 +2500,226 @@ namespace Kalendarz1
             CenyElementowPoObnizeniuMroz1.TabIndex = 259;
             CenyElementowPoObnizeniuMroz1.TextAlign = HorizontalAlignment.Center;
             // 
+            // Filet2Wydajnosc
+            // 
+            Filet2Wydajnosc.BackColor = System.Drawing.Color.White;
+            Filet2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Filet2Wydajnosc.Location = new System.Drawing.Point(78, 104);
+            Filet2Wydajnosc.Name = "Filet2Wydajnosc";
+            Filet2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Filet2Wydajnosc.TabIndex = 264;
+            Filet2Wydajnosc.TextAlign = HorizontalAlignment.Center;
+            Filet2Wydajnosc.TextChanged += Filet2Wydajnosc_TextChanged;
+            // 
+            // label66
+            // 
+            label66.Location = new System.Drawing.Point(1, 104);
+            label66.Name = "label66";
+            label66.Size = new System.Drawing.Size(71, 25);
+            label66.TabIndex = 263;
+            label66.Text = "Filet II";
+            label66.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // Filet2Wartosc
+            // 
+            Filet2Wartosc.BackColor = System.Drawing.Color.White;
+            Filet2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Filet2Wartosc.Location = new System.Drawing.Point(316, 104);
+            Filet2Wartosc.Name = "Filet2Wartosc";
+            Filet2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Filet2Wartosc.TabIndex = 262;
+            Filet2Wartosc.TextAlign = HorizontalAlignment.Center;
+            Filet2Wartosc.TextChanged += Filet2Wartosc_TextChanged;
+            // 
+            // Filet2Cena
+            // 
+            Filet2Cena.BackColor = System.Drawing.Color.White;
+            Filet2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Filet2Cena.Location = new System.Drawing.Point(253, 104);
+            Filet2Cena.Name = "Filet2Cena";
+            Filet2Cena.Size = new System.Drawing.Size(57, 25);
+            Filet2Cena.TabIndex = 261;
+            Filet2Cena.TextAlign = HorizontalAlignment.Center;
+            Filet2Cena.TextChanged += Filet2Cena_TextChanged;
+            // 
+            // Filet2KG
+            // 
+            Filet2KG.BackColor = System.Drawing.Color.White;
+            Filet2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Filet2KG.Location = new System.Drawing.Point(141, 104);
+            Filet2KG.Name = "Filet2KG";
+            Filet2KG.Size = new System.Drawing.Size(106, 25);
+            Filet2KG.TabIndex = 260;
+            Filet2KG.TextAlign = HorizontalAlignment.Center;
+            Filet2KG.TextChanged += Filet2KG_TextChanged;
+            // 
+            // Cwiartka2Wydajnosc
+            // 
+            Cwiartka2Wydajnosc.BackColor = System.Drawing.Color.White;
+            Cwiartka2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cwiartka2Wydajnosc.Location = new System.Drawing.Point(78, 152);
+            Cwiartka2Wydajnosc.Name = "Cwiartka2Wydajnosc";
+            Cwiartka2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Cwiartka2Wydajnosc.TabIndex = 269;
+            Cwiartka2Wydajnosc.TextAlign = HorizontalAlignment.Center;
+            Cwiartka2Wydajnosc.TextChanged += Cwiartka2Wydajnosc_TextChanged;
+            // 
+            // label67
+            // 
+            label67.Location = new System.Drawing.Point(1, 152);
+            label67.Name = "label67";
+            label67.Size = new System.Drawing.Size(71, 25);
+            label67.TabIndex = 268;
+            label67.Text = "Ćwiartka II";
+            label67.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // Cwiartka2Wartosc
+            // 
+            Cwiartka2Wartosc.BackColor = System.Drawing.Color.White;
+            Cwiartka2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cwiartka2Wartosc.Location = new System.Drawing.Point(316, 152);
+            Cwiartka2Wartosc.Name = "Cwiartka2Wartosc";
+            Cwiartka2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Cwiartka2Wartosc.TabIndex = 267;
+            Cwiartka2Wartosc.TextAlign = HorizontalAlignment.Center;
+            Cwiartka2Wartosc.TextChanged += Cwiartka2Wartosc_TextChanged;
+            // 
+            // Cwiartka2Cena
+            // 
+            Cwiartka2Cena.BackColor = System.Drawing.Color.White;
+            Cwiartka2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cwiartka2Cena.Location = new System.Drawing.Point(253, 152);
+            Cwiartka2Cena.Name = "Cwiartka2Cena";
+            Cwiartka2Cena.Size = new System.Drawing.Size(57, 25);
+            Cwiartka2Cena.TabIndex = 266;
+            Cwiartka2Cena.TextAlign = HorizontalAlignment.Center;
+            Cwiartka2Cena.TextChanged += Cwiartka2Cena_TextChanged;
+            // 
+            // Cwiartka2KG
+            // 
+            Cwiartka2KG.BackColor = System.Drawing.Color.White;
+            Cwiartka2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cwiartka2KG.Location = new System.Drawing.Point(141, 152);
+            Cwiartka2KG.Name = "Cwiartka2KG";
+            Cwiartka2KG.Size = new System.Drawing.Size(106, 25);
+            Cwiartka2KG.TabIndex = 265;
+            Cwiartka2KG.TextAlign = HorizontalAlignment.Center;
+            Cwiartka2KG.TextChanged += Cwiartka2KG_TextChanged;
+            // 
+            // Skrzydlo2Wydajnosc
+            // 
+            Skrzydlo2Wydajnosc.BackColor = System.Drawing.Color.White;
+            Skrzydlo2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Skrzydlo2Wydajnosc.Location = new System.Drawing.Point(78, 197);
+            Skrzydlo2Wydajnosc.Name = "Skrzydlo2Wydajnosc";
+            Skrzydlo2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Skrzydlo2Wydajnosc.TabIndex = 274;
+            Skrzydlo2Wydajnosc.TextAlign = HorizontalAlignment.Center;
+            Skrzydlo2Wydajnosc.TextChanged += Skrzydlo2Wydajnosc_TextChanged;
+            // 
+            // label68
+            // 
+            label68.Location = new System.Drawing.Point(1, 197);
+            label68.Name = "label68";
+            label68.Size = new System.Drawing.Size(71, 25);
+            label68.TabIndex = 273;
+            label68.Text = "Skrzydlo II";
+            label68.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // Skrzydlo2Wartosc
+            // 
+            Skrzydlo2Wartosc.BackColor = System.Drawing.Color.White;
+            Skrzydlo2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Skrzydlo2Wartosc.Location = new System.Drawing.Point(316, 197);
+            Skrzydlo2Wartosc.Name = "Skrzydlo2Wartosc";
+            Skrzydlo2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Skrzydlo2Wartosc.TabIndex = 272;
+            Skrzydlo2Wartosc.TextAlign = HorizontalAlignment.Center;
+            // 
+            // Skrzydlo2Cena
+            // 
+            Skrzydlo2Cena.BackColor = System.Drawing.Color.White;
+            Skrzydlo2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Skrzydlo2Cena.Location = new System.Drawing.Point(253, 197);
+            Skrzydlo2Cena.Name = "Skrzydlo2Cena";
+            Skrzydlo2Cena.Size = new System.Drawing.Size(57, 25);
+            Skrzydlo2Cena.TabIndex = 271;
+            Skrzydlo2Cena.TextAlign = HorizontalAlignment.Center;
+            Skrzydlo2Cena.TextChanged += Skrzydlo2Cena_TextChanged;
+            // 
+            // Skrzydlo2KG
+            // 
+            Skrzydlo2KG.BackColor = System.Drawing.Color.White;
+            Skrzydlo2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Skrzydlo2KG.Location = new System.Drawing.Point(141, 197);
+            Skrzydlo2KG.Name = "Skrzydlo2KG";
+            Skrzydlo2KG.Size = new System.Drawing.Size(106, 25);
+            Skrzydlo2KG.TabIndex = 270;
+            Skrzydlo2KG.TextAlign = HorizontalAlignment.Center;
+            Skrzydlo2KG.TextChanged += Skrzydlo2KG_TextChanged;
+            // 
+            // CenaRoznicaTuszkaElementy
+            // 
+            CenaRoznicaTuszkaElementy.BackColor = System.Drawing.Color.White;
+            CenaRoznicaTuszkaElementy.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaRoznicaTuszkaElementy.Location = new System.Drawing.Point(666, 152);
+            CenaRoznicaTuszkaElementy.Name = "CenaRoznicaTuszkaElementy";
+            CenaRoznicaTuszkaElementy.Size = new System.Drawing.Size(59, 27);
+            CenaRoznicaTuszkaElementy.TabIndex = 275;
+            CenaRoznicaTuszkaElementy.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaKrojenia
+            // 
+            CenaKrojenia.BackColor = System.Drawing.Color.White;
+            CenaKrojenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaKrojenia.Location = new System.Drawing.Point(666, 290);
+            CenaKrojenia.Name = "CenaKrojenia";
+            CenaKrojenia.Size = new System.Drawing.Size(59, 27);
+            CenaKrojenia.TabIndex = 276;
+            CenaKrojenia.TextAlign = HorizontalAlignment.Center;
+            // 
+            // CenaMrozenia
+            // 
+            CenaMrozenia.BackColor = System.Drawing.Color.White;
+            CenaMrozenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CenaMrozenia.Location = new System.Drawing.Point(666, 428);
+            CenaMrozenia.Name = "CenaMrozenia";
+            CenaMrozenia.Size = new System.Drawing.Size(59, 27);
+            CenaMrozenia.TabIndex = 277;
+            CenaMrozenia.TextAlign = HorizontalAlignment.Center;
+            // 
+            // RoznicaObnizeniaCeny
+            // 
+            RoznicaObnizeniaCeny.BackColor = System.Drawing.Color.White;
+            RoznicaObnizeniaCeny.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            RoznicaObnizeniaCeny.Location = new System.Drawing.Point(666, 566);
+            RoznicaObnizeniaCeny.Name = "RoznicaObnizeniaCeny";
+            RoznicaObnizeniaCeny.Size = new System.Drawing.Size(59, 27);
+            RoznicaObnizeniaCeny.TabIndex = 278;
+            RoznicaObnizeniaCeny.TextAlign = HorizontalAlignment.Center;
+            // 
             // PokazKrojenieMrozenie
             // 
             ClientSize = new System.Drawing.Size(1896, 993);
+            Controls.Add(RoznicaObnizeniaCeny);
+            Controls.Add(CenaMrozenia);
+            Controls.Add(CenaKrojenia);
+            Controls.Add(CenaRoznicaTuszkaElementy);
+            Controls.Add(Skrzydlo2Wydajnosc);
+            Controls.Add(label68);
+            Controls.Add(Skrzydlo2Wartosc);
+            Controls.Add(Skrzydlo2Cena);
+            Controls.Add(Skrzydlo2KG);
+            Controls.Add(Cwiartka2Wydajnosc);
+            Controls.Add(label67);
+            Controls.Add(Cwiartka2Wartosc);
+            Controls.Add(Cwiartka2Cena);
+            Controls.Add(Cwiartka2KG);
+            Controls.Add(Filet2Wydajnosc);
+            Controls.Add(label66);
+            Controls.Add(Filet2Wartosc);
+            Controls.Add(Filet2Cena);
+            Controls.Add(Filet2KG);
             Controls.Add(CenyElementowPoObnizeniuMroz1);
             Controls.Add(CenaStrataSuma1);
             Controls.Add(CenyElementowPoObnizeniuMroz2);
@@ -2703,52 +2962,70 @@ namespace Kalendarz1
                 double tuszkaCena = PobierzWartosc(TuszkaCena.Text);
 
                 double cwiartkaWydajnosc = PobierzWartosc(CwiartkaWydajnosc.Text) / 100;
+                double cwiartka2Wydajnosc = PobierzWartosc(Cwiartka2Wydajnosc.Text) / 100;
                 double filetWydajnosc = PobierzWartosc(FiletWydajnosc.Text) / 100;
+                double filet2Wydajnosc = PobierzWartosc(Filet2Wydajnosc.Text) / 100;
                 double korpusWydajnosc = PobierzWartosc(KorpusWydajnosc.Text) / 100;
                 double pozostaleWydajnosc = PobierzWartosc(PozostaleWydajnosc.Text) / 100;
                 double skrzydloWydajnosc = PobierzWartosc(SkrzydloWydajnosc.Text) / 100;
+                double skrzydlo2Wydajnosc = PobierzWartosc(Skrzydlo2Wydajnosc.Text) / 100;
 
                 // Obliczenia dla poszczególnych elementów (wydajność i cena)
                 double cwiartkaKG = tuszkaKG * cwiartkaWydajnosc;
+                double cwiartka2KG = tuszkaKG * cwiartka2Wydajnosc;
                 double filetKG = tuszkaKG * filetWydajnosc;
+                double filet2KG = tuszkaKG * filet2Wydajnosc;
                 double korpusKG = tuszkaKG * korpusWydajnosc;
                 double pozostaleKG = tuszkaKG * pozostaleWydajnosc;
                 double skrzydloKG = tuszkaKG * skrzydloWydajnosc;
+                double skrzydlo2KG = tuszkaKG * skrzydlo2Wydajnosc;
 
                 double cwiartkaCena = PobierzWartosc(CwiartkaCena.Text);
+                double cwiartka2Cena = PobierzWartosc(Cwiartka2Cena.Text);
                 double filetCena = PobierzWartosc(FiletCena.Text);
+                double filet2Cena = PobierzWartosc(Filet2Cena.Text);
                 double korpusCena = PobierzWartosc(KorpusCena.Text);
                 double pozostaleCena = PobierzWartosc(PozostaleCena.Text);
                 double skrzydloCena = PobierzWartosc(SkrzydloCena.Text);
+                double skrzydlo2Cena = PobierzWartosc(Skrzydlo2Cena.Text);
 
 
                 // Obliczenia wartości każdego elementu
                 double cwiartkaWartosc = cwiartkaKG * cwiartkaCena;
+                double cwiartka2Wartosc = cwiartka2KG * cwiartka2Cena;
                 double filetWartosc = filetKG * filetCena;
+                double filet2Wartosc = filet2KG * filet2Cena;
                 double korpusWartosc = korpusKG * korpusCena;
                 double pozostaleWartosc = pozostaleKG * pozostaleCena;
                 double skrzydloWartosc = skrzydloKG * skrzydloCena;
+                double skrzydlo2Wartosc = skrzydlo2KG * skrzydlo2Cena;
                 double tuszkaWartosc = tuszkaKG * tuszkaCena;
 
                 // Ustawienie wartości i kilogramów w TextBoxach z separatorem tysięcy i 2 miejscami po przecinku
                 CwiartkaKG.Text = cwiartkaKG.ToString("N2");
+                Cwiartka2KG.Text = cwiartka2KG.ToString("N2");
                 FiletKG.Text = filetKG.ToString("N2");
+                Filet2KG.Text = filet2KG.ToString("N2");
                 KorpusKG.Text = korpusKG.ToString("N2");
                 PozostaleKG.Text = pozostaleKG.ToString("N2");
                 SkrzydloKG.Text = skrzydloKG.ToString("N2");
+                Skrzydlo2KG.Text = skrzydlo2KG.ToString("N2");
                 TuszkaKG2.Text = tuszkaKG.ToString("N2");
 
                 CwiartkaWartosc.Text = cwiartkaWartosc.ToString("N2");
+                Cwiartka2Wartosc.Text = cwiartka2Wartosc.ToString("N2");
                 FiletWartosc.Text = filetWartosc.ToString("N2");
+                Filet2Wartosc.Text = filet2Wartosc.ToString("N2");
                 KorpusWartosc.Text = korpusWartosc.ToString("N2");
                 PozostaleWartosc.Text = pozostaleWartosc.ToString("N2");
                 SkrzydloWartosc.Text = skrzydloWartosc.ToString("N2");
+                Skrzydlo2Wartosc.Text = skrzydlo2Wartosc.ToString("N2");
 
                 // Suma wartości wszystkich elementów
-                double sumaWartosciElementow = cwiartkaWartosc + filetWartosc + korpusWartosc + pozostaleWartosc + skrzydloWartosc;
+                double sumaWartosciElementow = cwiartkaWartosc + cwiartka2Wartosc + filetWartosc + filet2Wartosc + korpusWartosc + pozostaleWartosc + skrzydloWartosc + skrzydlo2Wartosc;
 
                 // Oblicz sumy kilogramów i wartości
-                double sumaKg = cwiartkaKG + filetKG + korpusKG + pozostaleKG + skrzydloKG;
+                double sumaKg = cwiartkaKG  + cwiartka2KG + filetKG + filet2KG + korpusKG + pozostaleKG + skrzydloKG + skrzydlo2KG;
 
                 // Ustawienie sumy kilogramów i wartości w TextBoxach z separatorem tysięcy i 2 miejscami po przecinku
                 SumaKG.Text = sumaKg.ToString("N2");
@@ -2779,11 +3056,31 @@ namespace Kalendarz1
                 TuszkaWartosc.Text = tuszkaWartosc.ToString("N2");
                 TuszkaWartosc2.Text = tuszkaWartosc.ToString("N2");
                 TuszkaWartosc3.Text = tuszkaWartosc.ToString("N2") + " zł";
-               
+
 
                 double cenaTuszki = tuszkaWartosc / tuszkaKG;
                 CenaTuszka1.Text = cenaTuszki.ToString("N2") + " zł";
                 CenaTuszka2.Text = cenaTuszki.ToString("N2") + " zł";
+
+                double cenaRoznicaTuszkaElementy = cenaElementow - cenaTuszki;
+                CenaRoznicaTuszkaElementy.Text = cenaRoznicaTuszkaElementy.ToString("N2") + " zł";
+
+                // Zmienianie koloru czcionki w zależności od wartości
+                if (cenaRoznicaTuszkaElementy > 0)
+                {
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+                }
+                else if (cenaRoznicaTuszkaElementy < 0)
+                {
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+                }
+                else
+                {
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+                    CenaRoznicaTuszkaElementy.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+                }
 
                 double przelicznikKrojenia = PobierzWartosc(WspolczynnikKrojenia.Text);
                 double wynikKrojenia = tuszkaKG / przelicznikKrojenia;
@@ -2791,25 +3088,29 @@ namespace Kalendarz1
                 WartoscKrojenia.Text = wynikKrojenia.ToString("N2");
                 WartoscKrojenia2.Text = wynikKrojenia.ToString("N2") + " zł";
 
+
+
+                
+
                 double wartoscElementowPoKrojeniu = sumaWartosciElementow - wynikKrojenia;
                 WartoscElementowPoKrojeniu.Text = wartoscElementowPoKrojeniu.ToString("N2");
                 WartoscElementowPoKrojeniu2.Text = wartoscElementowPoKrojeniu.ToString("N2");
 
                 double cenaElementowPoKrojeniu = wartoscElementowPoKrojeniu / tuszkaKG;
-                WartoscElementowZamrozonych.Text = cenaElementowPoKrojeniu.ToString("N2");
+                CenaElementyKrojenie1.Text = cenaElementowPoKrojeniu.ToString("N2");
 
 
                 double roznicaTuszkaElementPoKrojeniu = wartoscElementowPoKrojeniu - tuszkaWartosc;
-                RoznicaTuszkaElement2.Text = roznicaTuszkaElementPoKrojeniu.ToString("N2") + " zł";
-                RoznicaTuszkaElement3.Text = roznicaTuszkaElementPoKrojeniu.ToString("N2") + " zł";
+                RoznicaTuszkaElement2.Text = roznicaTuszkaElement.ToString("N2") + " zł";
+                RoznicaTuszkaElement3.Text = roznicaTuszkaElement.ToString("N2") + " zł";
 
                 // Zmienianie koloru czcionki w zależności od wartości
-                if (roznicaTuszkaElementPoKrojeniu > 0)
+                if (roznicaTuszkaElement > 0)
                 {
                     RoznicaTuszkaElement2.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
                     RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
                 }
-                else if (roznicaTuszkaElementPoKrojeniu < 0)
+                else if (roznicaTuszkaElement < 0)
                 {
                     RoznicaTuszkaElement2.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
                     RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
@@ -2820,7 +3121,25 @@ namespace Kalendarz1
                     RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
                 }
 
+                double cenaKrojenia = cenaElementowPoKrojeniu - cenaElementow;
+                CenaKrojenia.Text = cenaKrojenia.ToString("N2") + " zł";
 
+                // Zmienianie koloru czcionki w zależności od wartości
+                if (cenaKrojenia > 0)
+                {
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+                }
+                else if (cenaKrojenia < 0)
+                {
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+                }
+                else
+                {
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+                    CenaKrojenia.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+                }
 
 
 
@@ -2960,6 +3279,10 @@ namespace Kalendarz1
                 SumaKosztowMrozenia.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
                 SumaKosztowMrozenia2.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
 
+               
+
+                
+
                 double Elementy = PobierzWartosc(WartoscElementowPoKrojeniu2.Text);
                 double ElementyPoKosztach = Elementy - sumaKosztowMrozenia;
                 WartoscElementowZamrozonych.Text = ElementyPoKosztach.ToString("N2") + " zł";
@@ -2967,10 +3290,21 @@ namespace Kalendarz1
                 double cenaElementowPoKosztachMrozenia = ElementyPoKosztach / tuszkaKG;
                 CenaElementyPoMrozeniu1.Text = cenaElementowPoKosztachMrozenia.ToString("N2") + " zł";
 
+                double cenaElementy = Elementy / tuszkaKG;
+
+                double roznicaMrozenia = cenaElementowPoKosztachMrozenia - cenaElementy;
+                CenaMrozenia.Text = roznicaMrozenia.ToString("N2") + " zł";
+
                 double obnizenieTowaruMrozonego = ElementyPoKosztach * 0.82;
 
                 double roznicaWoBnizce = ElementyPoKosztach - obnizenieTowaruMrozonego;
                 KosztZanizeniaCeny.Text = roznicaWoBnizce.ToString("N2") + " zł";
+
+                // Zmienianie koloru czcionki w zależności od wartości
+
+
+
+
 
                 WartoscElementowMrozonychPoObnizce.Text = obnizenieTowaruMrozonego.ToString("N2") + " zł";
                 WartoscElementowMrozonychPoObnizce2.Text = obnizenieTowaruMrozonego.ToString("N2") + " zł";
@@ -2979,10 +3313,53 @@ namespace Kalendarz1
                 CenyElementowPoObnizeniuMroz1.Text = cenaPoKosztachObnizeniaCeny.ToString("N2") + " zł";
                 CenyElementowPoObnizeniuMroz2.Text = cenaPoKosztachObnizeniaCeny.ToString("N2") + " zł";
 
+
+                double roznicaObnizeniaCeny = cenaPoKosztachObnizeniaCeny - cenaElementowPoKosztachMrozenia;
+                RoznicaObnizeniaCeny.Text = roznicaObnizeniaCeny.ToString("N2") + " zł";
+
+                // Zmienianie koloru czcionki w zależności od wartości
+                if (roznicaObnizeniaCeny > 0)
+                {
+                    RoznicaObnizeniaCeny.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+
+                }
+                else if (roznicaObnizeniaCeny < 0)
+                {
+                    RoznicaObnizeniaCeny.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+
+                }
+                else
+                {
+                    RoznicaObnizeniaCeny.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+
+                }
+
                 double tuszkaWartosc = PobierzWartosc(TuszkaWartosc.Text);
                 double wynikStraty = tuszkaWartosc - obnizenieTowaruMrozonego;
 
+
+
                 Strata.Text = wynikStraty.ToString("N2") + " zł";
+
+                double strataCena = cenaPoKosztachObnizeniaCeny - tuszkaCena;
+                CenaStrataSuma1.Text = strataCena.ToString("N2") + " zł";
+
+                // Zmienianie koloru czcionki w zależności od wartości
+                if (strataCena > 0)
+                {
+                    CenaStrataSuma1.ForeColor = System.Drawing.Color.Green;  // Zielona czcionka
+
+                }
+                else if (strataCena < 0)
+                {
+                    CenaStrataSuma1.ForeColor = System.Drawing.Color.Red;  // Czerwona czcionka
+
+                }
+                else
+                {
+                    CenaStrataSuma1.ForeColor = System.Drawing.Color.Black;  // Czarna czcionka, jeśli wynik to 0
+
+                }
 
             }
             catch (Exception ex)
@@ -3099,6 +3476,66 @@ namespace Kalendarz1
         private void PokazKrojenieMrozenie_Load(object sender, EventArgs e)
         {
 
+        }
+
+        private void Filet2Wydajnosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Filet2KG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Filet2Cena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Filet2Wartosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Cwiartka2Wydajnosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Cwiartka2KG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Cwiartka2Cena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void CwiartkaWartosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Cwiartka2Wartosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Skrzydlo2Wydajnosc_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Skrzydlo2KG_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
+        }
+
+        private void Skrzydlo2Cena_TextChanged(object sender, EventArgs e)
+        {
+            ObliczWszystko();
         }
     }
 }
