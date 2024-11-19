@@ -81,7 +81,7 @@ namespace Kalendarz1
 
                     double sredniaTuszkaValue = wagaDekValue * 0.78;
                     double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
-                    double tonazTuszkaAValue = tonazTuszkaValue * 0.75;
+                    double tonazTuszkaAValue = tonazTuszkaValue * 0.85;
                     double tonazTuszkaBValue = tonazTuszkaValue * 0.15;
                     double tonazCwiartkaValue = tonazTuszkaBValue * 0.38;
                     double tonazSkrzydloValue = tonazTuszkaBValue * 0.09;

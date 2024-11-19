@@ -619,8 +619,7 @@ ORDER BY
 
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
-            PokazCeneTuszki_Load(sender, null);
-            PokazCeneHarmonogramDostaw();
+
         }
         private void CalculateDifference()
         {
@@ -777,8 +776,8 @@ ORDER BY
 
                     double sredniaTuszkaValue = wagaDekValue * 0.78;
                     double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
-                    double tonazTuszkaAValue = tonazTuszkaValue * 0.80;
-                    double tonazTuszkaBValue = tonazTuszkaValue * 0.20;
+                    double tonazTuszkaAValue = tonazTuszkaValue * 0.85;
+                    double tonazTuszkaBValue = tonazTuszkaValue * 0.15;
                     double tonazCwiartkaValue = tonazTuszkaBValue * 0.37;
                     double tonazSkrzydloValue = tonazTuszkaBValue * 0.09;
                     double tonazFiletValue = tonazTuszkaBValue * 0.295;
@@ -1094,6 +1093,12 @@ ORDER BY
         private void pictureBox29_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void OdswiezButton_Click(object sender, EventArgs e)
+        {
+            PokazCeneTuszki_Load(sender, null);
+            PokazCeneHarmonogramDostaw();
         }
     }
 

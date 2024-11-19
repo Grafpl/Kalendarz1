@@ -82,6 +82,7 @@
             label23 = new System.Windows.Forms.Label();
             pokaztuszke = new System.Windows.Forms.CheckBox();
             dateTimePicker2 = new System.Windows.Forms.DateTimePicker();
+            OdswiezButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
@@ -585,11 +586,22 @@
             dateTimePicker2.Size = new System.Drawing.Size(228, 23);
             dateTimePicker2.TabIndex = 152;
             // 
+            // OdswiezButton
+            // 
+            OdswiezButton.Location = new System.Drawing.Point(482, 9);
+            OdswiezButton.Name = "OdswiezButton";
+            OdswiezButton.Size = new System.Drawing.Size(75, 23);
+            OdswiezButton.TabIndex = 153;
+            OdswiezButton.Text = "Odśwież";
+            OdswiezButton.UseVisualStyleBackColor = true;
+            OdswiezButton.Click += OdswiezButton_Click;
+            // 
             // PokazCeneTuszki
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1582, 1000);
+            Controls.Add(OdswiezButton);
             Controls.Add(dateTimePicker2);
             Controls.Add(pokaztuszke);
             Controls.Add(label23);
@@ -719,5 +731,6 @@
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.CheckBox pokaztuszke;
         private System.Windows.Forms.DateTimePicker dateTimePicker2;
+        private System.Windows.Forms.Button OdswiezButton;
     }
 }
