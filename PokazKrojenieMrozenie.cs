@@ -1,6 +1,12 @@
 ﻿using System;
 using System.Windows.Forms;
 using System.Globalization;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+
+
 
 namespace Kalendarz1
 {
@@ -223,6 +229,11 @@ namespace Kalendarz1
         private TextBox KosztSprzedazyPokrojonego;
         private PictureBox pictureBox32;
         private PictureBox pictureBox33;
+        private Button OdswiezButton;
+        private DateTimePicker dateTimePicker2;
+        private DateTimePicker dateTimePicker1;
+        private Button PokazMroznie;
+        private DataGridView dataGridView1;
         private Label label11;
 
         public PokazKrojenieMrozenie()
@@ -471,6 +482,11 @@ namespace Kalendarz1
             KosztSprzedazyPokrojonego = new TextBox();
             pictureBox32 = new PictureBox();
             pictureBox33 = new PictureBox();
+            OdswiezButton = new Button();
+            dateTimePicker2 = new DateTimePicker();
+            dateTimePicker1 = new DateTimePicker();
+            PokazMroznie = new Button();
+            dataGridView1 = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
@@ -504,2268 +520,2319 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox31).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox32).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox33).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
             // sztuki
             // 
-            sztuki.BackColor = System.Drawing.SystemColors.ControlLight;
-            sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztuki.Location = new System.Drawing.Point(1642, 810);
+            sztuki.BackColor = SystemColors.ControlLight;
+            sztuki.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            sztuki.Location = new Point(1642, 810);
             sztuki.Name = "sztuki";
-            sztuki.Size = new System.Drawing.Size(62, 25);
+            sztuki.Size = new Size(62, 25);
             sztuki.TabIndex = 26;
             sztuki.TextAlign = HorizontalAlignment.Center;
             // 
             // label11
             // 
-            label11.Location = new System.Drawing.Point(1403, 739);
+            label11.Location = new Point(1403, 739);
             label11.Name = "label11";
-            label11.Size = new System.Drawing.Size(62, 47);
+            label11.Size = new Size(62, 47);
             label11.TabIndex = 25;
             label11.Text = "Ilość skrzynek na 1 auto";
-            label11.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label11.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // sztukNaSzuflade
             // 
-            sztukNaSzuflade.BackColor = System.Drawing.Color.White;
-            sztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sztukNaSzuflade.Location = new System.Drawing.Point(1322, 789);
+            sztukNaSzuflade.BackColor = Color.White;
+            sztukNaSzuflade.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            sztukNaSzuflade.Location = new Point(1322, 789);
             sztukNaSzuflade.Name = "sztukNaSzuflade";
-            sztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
+            sztukNaSzuflade.Size = new Size(57, 25);
             sztukNaSzuflade.TabIndex = 28;
             sztukNaSzuflade.TextAlign = HorizontalAlignment.Center;
             // 
             // label10
             // 
-            label10.Location = new System.Drawing.Point(1621, 690);
+            label10.Location = new Point(1621, 690);
             label10.Name = "label10";
-            label10.Size = new System.Drawing.Size(57, 47);
+            label10.Size = new Size(57, 47);
             label10.TabIndex = 27;
             label10.Text = "Sztuki na szuflade";
-            label10.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label10.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.BackColor = System.Drawing.SystemColors.ControlLight;
-            label1.Location = new System.Drawing.Point(1385, 794);
+            label1.BackColor = SystemColors.ControlLight;
+            label1.Location = new Point(1385, 794);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(12, 16);
+            label1.Size = new Size(12, 16);
             label1.TabIndex = 29;
             label1.Text = "*";
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(1471, 794);
+            label2.Location = new Point(1471, 794);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(14, 16);
+            label2.Size = new Size(14, 16);
             label2.TabIndex = 30;
             label2.Text = "=";
             // 
             // textBox1
             // 
-            textBox1.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox1.Location = new System.Drawing.Point(1490, 812);
+            textBox1.BackColor = SystemColors.ControlLight;
+            textBox1.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox1.Location = new Point(1490, 812);
             textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(62, 25);
+            textBox1.Size = new Size(62, 25);
             textBox1.TabIndex = 31;
             textBox1.Text = "264";
             textBox1.TextAlign = HorizontalAlignment.Center;
             // 
             // label3
             // 
-            label3.Location = new System.Drawing.Point(1492, 736);
+            label3.Location = new Point(1492, 736);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(62, 47);
+            label3.Size = new Size(62, 47);
             label3.TabIndex = 32;
             label3.Text = "Deklarowane sztuki na 1 auto";
-            label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label3.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label4
             // 
             label4.AutoSize = true;
-            label4.Location = new System.Drawing.Point(1560, 794);
+            label4.Location = new Point(1560, 794);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(12, 16);
+            label4.Size = new Size(12, 16);
             label4.TabIndex = 33;
             label4.Text = "*";
             // 
             // obliczeniaAut
             // 
-            obliczeniaAut.BackColor = System.Drawing.SystemColors.Window;
-            obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            obliczeniaAut.Location = new System.Drawing.Point(1578, 789);
+            obliczeniaAut.BackColor = SystemColors.Window;
+            obliczeniaAut.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            obliczeniaAut.Location = new Point(1578, 789);
             obliczeniaAut.Name = "obliczeniaAut";
-            obliczeniaAut.Size = new System.Drawing.Size(36, 25);
+            obliczeniaAut.Size = new Size(36, 25);
             obliczeniaAut.TabIndex = 34;
             obliczeniaAut.TextAlign = HorizontalAlignment.Center;
             // 
             // label12
             // 
-            label12.Location = new System.Drawing.Point(1578, 742);
+            label12.Location = new Point(1578, 742);
             label12.Name = "label12";
-            label12.Size = new System.Drawing.Size(36, 35);
+            label12.Size = new Size(36, 35);
             label12.TabIndex = 35;
             label12.Text = "Ilość aut";
-            label12.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label12.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new System.Drawing.Point(1835, 338);
+            label5.Location = new Point(1874, 376);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(14, 16);
+            label5.Size = new Size(14, 16);
             label5.TabIndex = 36;
             label5.Text = "=";
             // 
             // label6
             // 
-            label6.Location = new System.Drawing.Point(1550, 715);
+            label6.Location = new Point(1550, 715);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(93, 47);
+            label6.Size = new Size(93, 47);
             label6.TabIndex = 38;
             label6.Text = "Suma deklarowanych sztuk";
-            label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label6.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // sumaSztuk
             // 
-            sumaSztuk.BackColor = System.Drawing.SystemColors.ControlLight;
-            sumaSztuk.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            sumaSztuk.Location = new System.Drawing.Point(1597, 789);
+            sumaSztuk.BackColor = SystemColors.ControlLight;
+            sumaSztuk.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            sumaSztuk.Location = new Point(1597, 789);
             sumaSztuk.Name = "sumaSztuk";
-            sumaSztuk.Size = new System.Drawing.Size(86, 25);
+            sumaSztuk.Size = new Size(86, 25);
             sumaSztuk.TabIndex = 37;
             sumaSztuk.TextAlign = HorizontalAlignment.Center;
             // 
             // buttonZamknij
             // 
-            buttonZamknij.BackColor = System.Drawing.Color.IndianRed;
-            buttonZamknij.Location = new System.Drawing.Point(1568, 839);
+            buttonZamknij.BackColor = Color.IndianRed;
+            buttonZamknij.Location = new Point(1568, 839);
             buttonZamknij.Name = "buttonZamknij";
-            buttonZamknij.Size = new System.Drawing.Size(75, 23);
+            buttonZamknij.Size = new Size(75, 23);
             buttonZamknij.TabIndex = 40;
             buttonZamknij.Text = "Anuluj";
             buttonZamknij.UseVisualStyleBackColor = false;
             // 
             // button1
             // 
-            button1.BackColor = System.Drawing.Color.Chartreuse;
-            button1.Location = new System.Drawing.Point(1649, 824);
+            button1.BackColor = Color.Chartreuse;
+            button1.Location = new Point(1649, 824);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
+            button1.Size = new Size(75, 23);
             button1.TabIndex = 39;
             button1.Text = "Stwórz";
             button1.UseVisualStyleBackColor = false;
             // 
             // TuszkaKG
             // 
-            TuszkaKG.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaKG.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            TuszkaKG.Location = new System.Drawing.Point(141, 19);
+            TuszkaKG.BackColor = Color.LightGreen;
+            TuszkaKG.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            TuszkaKG.Location = new Point(141, 19);
             TuszkaKG.Name = "TuszkaKG";
-            TuszkaKG.Size = new System.Drawing.Size(106, 27);
+            TuszkaKG.Size = new Size(106, 27);
             TuszkaKG.TabIndex = 42;
             TuszkaKG.TextAlign = HorizontalAlignment.Center;
             TuszkaKG.TextChanged += TuszkaKG_TextChanged_1;
             // 
             // label7
             // 
-            label7.Location = new System.Drawing.Point(141, 1);
+            label7.Location = new Point(141, 1);
             label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(106, 16);
+            label7.Size = new Size(106, 16);
             label7.TabIndex = 41;
             label7.Text = "KG";
-            label7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label7.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // TuszkaCena
             // 
-            TuszkaCena.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaCena.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            TuszkaCena.Location = new System.Drawing.Point(253, 19);
+            TuszkaCena.BackColor = Color.LightGreen;
+            TuszkaCena.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            TuszkaCena.Location = new Point(253, 19);
             TuszkaCena.Name = "TuszkaCena";
-            TuszkaCena.Size = new System.Drawing.Size(57, 27);
+            TuszkaCena.Size = new Size(57, 27);
             TuszkaCena.TabIndex = 44;
             TuszkaCena.TextAlign = HorizontalAlignment.Center;
             TuszkaCena.TextChanged += TuszkaCena_TextChanged_1;
             // 
             // label8
             // 
-            label8.Location = new System.Drawing.Point(253, 1);
+            label8.Location = new Point(253, 1);
             label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(57, 16);
+            label8.Size = new Size(57, 16);
             label8.TabIndex = 43;
             label8.Text = "Cena";
-            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label8.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // TuszkaWartosc
             // 
-            TuszkaWartosc.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaWartosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            TuszkaWartosc.Location = new System.Drawing.Point(316, 19);
+            TuszkaWartosc.BackColor = Color.LightGreen;
+            TuszkaWartosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            TuszkaWartosc.Location = new Point(316, 19);
             TuszkaWartosc.Name = "TuszkaWartosc";
-            TuszkaWartosc.Size = new System.Drawing.Size(117, 27);
+            TuszkaWartosc.Size = new Size(117, 27);
             TuszkaWartosc.TabIndex = 46;
             TuszkaWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // label9
             // 
-            label9.Location = new System.Drawing.Point(316, 1);
+            label9.Location = new Point(316, 1);
             label9.Name = "label9";
-            label9.Size = new System.Drawing.Size(117, 16);
+            label9.Size = new Size(117, 16);
             label9.TabIndex = 45;
             label9.Text = "Wartość";
-            label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label9.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // FiletWartosc
             // 
-            FiletWartosc.BackColor = System.Drawing.Color.White;
-            FiletWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletWartosc.Location = new System.Drawing.Point(316, 81);
+            FiletWartosc.BackColor = Color.White;
+            FiletWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            FiletWartosc.Location = new Point(316, 81);
             FiletWartosc.Name = "FiletWartosc";
-            FiletWartosc.Size = new System.Drawing.Size(117, 25);
+            FiletWartosc.Size = new Size(117, 25);
             FiletWartosc.TabIndex = 52;
             FiletWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // FiletCena
             // 
-            FiletCena.BackColor = System.Drawing.Color.White;
-            FiletCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletCena.Location = new System.Drawing.Point(253, 81);
+            FiletCena.BackColor = Color.White;
+            FiletCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            FiletCena.Location = new Point(253, 81);
             FiletCena.Name = "FiletCena";
-            FiletCena.Size = new System.Drawing.Size(57, 25);
+            FiletCena.Size = new Size(57, 25);
             FiletCena.TabIndex = 50;
             FiletCena.TextAlign = HorizontalAlignment.Center;
             FiletCena.TextChanged += FiletCena_TextChanged;
             // 
             // FiletKG
             // 
-            FiletKG.BackColor = System.Drawing.Color.White;
-            FiletKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletKG.Location = new System.Drawing.Point(141, 81);
+            FiletKG.BackColor = Color.White;
+            FiletKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            FiletKG.Location = new Point(141, 81);
             FiletKG.Name = "FiletKG";
-            FiletKG.Size = new System.Drawing.Size(106, 25);
+            FiletKG.Size = new Size(106, 25);
             FiletKG.TabIndex = 48;
             FiletKG.TextAlign = HorizontalAlignment.Center;
             FiletKG.TextChanged += FiletKG_TextChanged;
             // 
             // CwiartkaWartosc
             // 
-            CwiartkaWartosc.BackColor = System.Drawing.Color.White;
-            CwiartkaWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaWartosc.Location = new System.Drawing.Point(316, 129);
+            CwiartkaWartosc.BackColor = Color.White;
+            CwiartkaWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            CwiartkaWartosc.Location = new Point(316, 129);
             CwiartkaWartosc.Name = "CwiartkaWartosc";
-            CwiartkaWartosc.Size = new System.Drawing.Size(117, 25);
+            CwiartkaWartosc.Size = new Size(117, 25);
             CwiartkaWartosc.TabIndex = 58;
             CwiartkaWartosc.TextAlign = HorizontalAlignment.Center;
             CwiartkaWartosc.TextChanged += CwiartkaWartosc_TextChanged;
             // 
             // CwiartkaCena
             // 
-            CwiartkaCena.BackColor = System.Drawing.Color.White;
-            CwiartkaCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaCena.Location = new System.Drawing.Point(253, 129);
+            CwiartkaCena.BackColor = Color.White;
+            CwiartkaCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            CwiartkaCena.Location = new Point(253, 129);
             CwiartkaCena.Name = "CwiartkaCena";
-            CwiartkaCena.Size = new System.Drawing.Size(57, 25);
+            CwiartkaCena.Size = new Size(57, 25);
             CwiartkaCena.TabIndex = 56;
             CwiartkaCena.TextAlign = HorizontalAlignment.Center;
             CwiartkaCena.TextChanged += CwiartkaCena_TextChanged;
             // 
             // CwiartkaKG
             // 
-            CwiartkaKG.BackColor = System.Drawing.Color.White;
-            CwiartkaKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaKG.Location = new System.Drawing.Point(141, 129);
+            CwiartkaKG.BackColor = Color.White;
+            CwiartkaKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            CwiartkaKG.Location = new Point(141, 129);
             CwiartkaKG.Name = "CwiartkaKG";
-            CwiartkaKG.Size = new System.Drawing.Size(106, 25);
+            CwiartkaKG.Size = new Size(106, 25);
             CwiartkaKG.TabIndex = 54;
             CwiartkaKG.TextAlign = HorizontalAlignment.Center;
             CwiartkaKG.TextChanged += CwiartkaKG_TextChanged;
             // 
             // SkrzydloWartosc
             // 
-            SkrzydloWartosc.BackColor = System.Drawing.Color.White;
-            SkrzydloWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloWartosc.Location = new System.Drawing.Point(316, 177);
+            SkrzydloWartosc.BackColor = Color.White;
+            SkrzydloWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            SkrzydloWartosc.Location = new Point(316, 177);
             SkrzydloWartosc.Name = "SkrzydloWartosc";
-            SkrzydloWartosc.Size = new System.Drawing.Size(117, 25);
+            SkrzydloWartosc.Size = new Size(117, 25);
             SkrzydloWartosc.TabIndex = 64;
             SkrzydloWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // SkrzydloCena
             // 
-            SkrzydloCena.BackColor = System.Drawing.Color.White;
-            SkrzydloCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloCena.Location = new System.Drawing.Point(253, 177);
+            SkrzydloCena.BackColor = Color.White;
+            SkrzydloCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            SkrzydloCena.Location = new Point(253, 177);
             SkrzydloCena.Name = "SkrzydloCena";
-            SkrzydloCena.Size = new System.Drawing.Size(57, 25);
+            SkrzydloCena.Size = new Size(57, 25);
             SkrzydloCena.TabIndex = 62;
             SkrzydloCena.TextAlign = HorizontalAlignment.Center;
             SkrzydloCena.TextChanged += SkrzydloCena_TextChanged;
             // 
             // SkrzydloKG
             // 
-            SkrzydloKG.BackColor = System.Drawing.Color.White;
-            SkrzydloKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloKG.Location = new System.Drawing.Point(141, 177);
+            SkrzydloKG.BackColor = Color.White;
+            SkrzydloKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            SkrzydloKG.Location = new Point(141, 177);
             SkrzydloKG.Name = "SkrzydloKG";
-            SkrzydloKG.Size = new System.Drawing.Size(106, 25);
+            SkrzydloKG.Size = new Size(106, 25);
             SkrzydloKG.TabIndex = 60;
             SkrzydloKG.TextAlign = HorizontalAlignment.Center;
             SkrzydloKG.TextChanged += SkrzydloKG_TextChanged;
             // 
             // KorpusWartosc
             // 
-            KorpusWartosc.BackColor = System.Drawing.Color.White;
-            KorpusWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusWartosc.Location = new System.Drawing.Point(316, 220);
+            KorpusWartosc.BackColor = Color.White;
+            KorpusWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            KorpusWartosc.Location = new Point(316, 220);
             KorpusWartosc.Name = "KorpusWartosc";
-            KorpusWartosc.Size = new System.Drawing.Size(117, 25);
+            KorpusWartosc.Size = new Size(117, 25);
             KorpusWartosc.TabIndex = 70;
             KorpusWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // KorpusCena
             // 
-            KorpusCena.BackColor = System.Drawing.Color.White;
-            KorpusCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusCena.Location = new System.Drawing.Point(253, 220);
+            KorpusCena.BackColor = Color.White;
+            KorpusCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            KorpusCena.Location = new Point(253, 220);
             KorpusCena.Name = "KorpusCena";
-            KorpusCena.Size = new System.Drawing.Size(57, 25);
+            KorpusCena.Size = new Size(57, 25);
             KorpusCena.TabIndex = 68;
             KorpusCena.TextAlign = HorizontalAlignment.Center;
             KorpusCena.TextChanged += KorpusCena_TextChanged;
             // 
             // KorpusKG
             // 
-            KorpusKG.BackColor = System.Drawing.Color.White;
-            KorpusKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusKG.Location = new System.Drawing.Point(141, 220);
+            KorpusKG.BackColor = Color.White;
+            KorpusKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            KorpusKG.Location = new Point(141, 220);
             KorpusKG.Name = "KorpusKG";
-            KorpusKG.Size = new System.Drawing.Size(106, 25);
+            KorpusKG.Size = new Size(106, 25);
             KorpusKG.TabIndex = 66;
             KorpusKG.TextAlign = HorizontalAlignment.Center;
             // 
             // label13
             // 
-            label13.Location = new System.Drawing.Point(1, 81);
+            label13.Location = new Point(1, 81);
             label13.Name = "label13";
-            label13.Size = new System.Drawing.Size(71, 25);
+            label13.Size = new Size(71, 25);
             label13.TabIndex = 71;
             label13.Text = "Filet";
-            label13.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label13.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label14
             // 
-            label14.Location = new System.Drawing.Point(1, 129);
+            label14.Location = new Point(1, 129);
             label14.Name = "label14";
-            label14.Size = new System.Drawing.Size(71, 25);
+            label14.Size = new Size(71, 25);
             label14.TabIndex = 72;
             label14.Text = "Ćwiartka";
-            label14.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label14.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label15
             // 
-            label15.Location = new System.Drawing.Point(1, 177);
+            label15.Location = new Point(1, 177);
             label15.Name = "label15";
-            label15.Size = new System.Drawing.Size(71, 25);
+            label15.Size = new Size(71, 25);
             label15.TabIndex = 73;
             label15.Text = "Skrzydło";
-            label15.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label15.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label16
             // 
-            label16.Location = new System.Drawing.Point(1, 220);
+            label16.Location = new Point(1, 220);
             label16.Name = "label16";
-            label16.Size = new System.Drawing.Size(71, 25);
+            label16.Size = new Size(71, 25);
             label16.TabIndex = 74;
             label16.Text = "Korpus";
-            label16.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label16.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label17
             // 
-            label17.Location = new System.Drawing.Point(1, 245);
+            label17.Location = new Point(1, 245);
             label17.Name = "label17";
-            label17.Size = new System.Drawing.Size(71, 25);
+            label17.Size = new Size(71, 25);
             label17.TabIndex = 78;
             label17.Text = "Pozostałe";
-            label17.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label17.TextAlign = ContentAlignment.MiddleRight;
             // 
             // PozostaleWartosc
             // 
-            PozostaleWartosc.BackColor = System.Drawing.Color.White;
-            PozostaleWartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleWartosc.Location = new System.Drawing.Point(316, 245);
+            PozostaleWartosc.BackColor = Color.White;
+            PozostaleWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            PozostaleWartosc.Location = new Point(316, 245);
             PozostaleWartosc.Name = "PozostaleWartosc";
-            PozostaleWartosc.Size = new System.Drawing.Size(117, 25);
+            PozostaleWartosc.Size = new Size(117, 25);
             PozostaleWartosc.TabIndex = 77;
             PozostaleWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // PozostaleCena
             // 
-            PozostaleCena.BackColor = System.Drawing.Color.White;
-            PozostaleCena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleCena.Location = new System.Drawing.Point(253, 245);
+            PozostaleCena.BackColor = Color.White;
+            PozostaleCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            PozostaleCena.Location = new Point(253, 245);
             PozostaleCena.Name = "PozostaleCena";
-            PozostaleCena.Size = new System.Drawing.Size(57, 25);
+            PozostaleCena.Size = new Size(57, 25);
             PozostaleCena.TabIndex = 76;
             PozostaleCena.TextAlign = HorizontalAlignment.Center;
             PozostaleCena.TextChanged += PozostaleCena_TextChanged;
             // 
             // PozostaleKG
             // 
-            PozostaleKG.BackColor = System.Drawing.Color.White;
-            PozostaleKG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleKG.Location = new System.Drawing.Point(141, 245);
+            PozostaleKG.BackColor = Color.White;
+            PozostaleKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            PozostaleKG.Location = new Point(141, 245);
             PozostaleKG.Name = "PozostaleKG";
-            PozostaleKG.Size = new System.Drawing.Size(106, 25);
+            PozostaleKG.Size = new Size(106, 25);
             PozostaleKG.TabIndex = 75;
             PozostaleKG.TextAlign = HorizontalAlignment.Center;
             // 
             // TuszkaWydajnosc
             // 
-            TuszkaWydajnosc.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaWydajnosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            TuszkaWydajnosc.Location = new System.Drawing.Point(78, 19);
+            TuszkaWydajnosc.BackColor = Color.LightGreen;
+            TuszkaWydajnosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            TuszkaWydajnosc.Location = new Point(78, 19);
             TuszkaWydajnosc.Name = "TuszkaWydajnosc";
-            TuszkaWydajnosc.Size = new System.Drawing.Size(57, 27);
+            TuszkaWydajnosc.Size = new Size(57, 27);
             TuszkaWydajnosc.TabIndex = 79;
             TuszkaWydajnosc.TextAlign = HorizontalAlignment.Center;
             // 
             // label18
             // 
-            label18.Location = new System.Drawing.Point(78, 1);
+            label18.Location = new Point(78, 1);
             label18.Name = "label18";
-            label18.Size = new System.Drawing.Size(57, 16);
+            label18.Size = new Size(57, 16);
             label18.TabIndex = 80;
             label18.Text = "%";
-            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label18.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // FiletWydajnosc
             // 
-            FiletWydajnosc.BackColor = System.Drawing.Color.White;
-            FiletWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            FiletWydajnosc.Location = new System.Drawing.Point(78, 81);
+            FiletWydajnosc.BackColor = Color.White;
+            FiletWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            FiletWydajnosc.Location = new Point(78, 81);
             FiletWydajnosc.Name = "FiletWydajnosc";
-            FiletWydajnosc.Size = new System.Drawing.Size(57, 25);
+            FiletWydajnosc.Size = new Size(57, 25);
             FiletWydajnosc.TabIndex = 81;
             FiletWydajnosc.TextAlign = HorizontalAlignment.Center;
             FiletWydajnosc.TextChanged += FiletWydajnosc_TextChanged;
             // 
             // CwiartkaWydajnosc
             // 
-            CwiartkaWydajnosc.BackColor = System.Drawing.Color.White;
-            CwiartkaWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CwiartkaWydajnosc.Location = new System.Drawing.Point(78, 129);
+            CwiartkaWydajnosc.BackColor = Color.White;
+            CwiartkaWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            CwiartkaWydajnosc.Location = new Point(78, 129);
             CwiartkaWydajnosc.Name = "CwiartkaWydajnosc";
-            CwiartkaWydajnosc.Size = new System.Drawing.Size(57, 25);
+            CwiartkaWydajnosc.Size = new Size(57, 25);
             CwiartkaWydajnosc.TabIndex = 82;
             CwiartkaWydajnosc.TextAlign = HorizontalAlignment.Center;
             CwiartkaWydajnosc.TextChanged += CwiartkaWydajnosc_TextChanged;
             // 
             // SkrzydloWydajnosc
             // 
-            SkrzydloWydajnosc.BackColor = System.Drawing.Color.White;
-            SkrzydloWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SkrzydloWydajnosc.Location = new System.Drawing.Point(78, 177);
+            SkrzydloWydajnosc.BackColor = Color.White;
+            SkrzydloWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            SkrzydloWydajnosc.Location = new Point(78, 177);
             SkrzydloWydajnosc.Name = "SkrzydloWydajnosc";
-            SkrzydloWydajnosc.Size = new System.Drawing.Size(57, 25);
+            SkrzydloWydajnosc.Size = new Size(57, 25);
             SkrzydloWydajnosc.TabIndex = 83;
             SkrzydloWydajnosc.TextAlign = HorizontalAlignment.Center;
             SkrzydloWydajnosc.TextChanged += SkrzydloWydajnosc_TextChanged;
             // 
             // KorpusWydajnosc
             // 
-            KorpusWydajnosc.BackColor = System.Drawing.Color.White;
-            KorpusWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            KorpusWydajnosc.Location = new System.Drawing.Point(78, 220);
+            KorpusWydajnosc.BackColor = Color.White;
+            KorpusWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            KorpusWydajnosc.Location = new Point(78, 220);
             KorpusWydajnosc.Name = "KorpusWydajnosc";
-            KorpusWydajnosc.Size = new System.Drawing.Size(57, 25);
+            KorpusWydajnosc.Size = new Size(57, 25);
             KorpusWydajnosc.TabIndex = 84;
             KorpusWydajnosc.TextAlign = HorizontalAlignment.Center;
             KorpusWydajnosc.TextChanged += KorpusWydajnosc_TextChanged;
             // 
             // PozostaleWydajnosc
             // 
-            PozostaleWydajnosc.BackColor = System.Drawing.Color.White;
-            PozostaleWydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            PozostaleWydajnosc.Location = new System.Drawing.Point(78, 245);
+            PozostaleWydajnosc.BackColor = Color.White;
+            PozostaleWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            PozostaleWydajnosc.Location = new Point(78, 245);
             PozostaleWydajnosc.Name = "PozostaleWydajnosc";
-            PozostaleWydajnosc.Size = new System.Drawing.Size(57, 25);
+            PozostaleWydajnosc.Size = new Size(57, 25);
             PozostaleWydajnosc.TabIndex = 85;
             PozostaleWydajnosc.TextAlign = HorizontalAlignment.Center;
             PozostaleWydajnosc.TextChanged += PozostaleWydajnosc_TextChanged;
             // 
             // SumaWydajnosc
             // 
-            SumaWydajnosc.BackColor = System.Drawing.Color.IndianRed;
-            SumaWydajnosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SumaWydajnosc.Location = new System.Drawing.Point(78, 55);
+            SumaWydajnosc.BackColor = Color.IndianRed;
+            SumaWydajnosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            SumaWydajnosc.Location = new Point(78, 55);
             SumaWydajnosc.Name = "SumaWydajnosc";
-            SumaWydajnosc.Size = new System.Drawing.Size(57, 27);
+            SumaWydajnosc.Size = new Size(57, 27);
             SumaWydajnosc.TabIndex = 90;
             SumaWydajnosc.TextAlign = HorizontalAlignment.Center;
             // 
             // label19
             // 
-            label19.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label19.Location = new System.Drawing.Point(-8, 55);
+            label19.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            label19.Location = new Point(-8, 55);
             label19.Name = "label19";
-            label19.Size = new System.Drawing.Size(80, 25);
+            label19.Size = new Size(80, 25);
             label19.TabIndex = 89;
             label19.Text = "Elementy";
-            label19.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label19.TextAlign = ContentAlignment.MiddleRight;
             // 
             // SumaWartosc
             // 
-            SumaWartosc.BackColor = System.Drawing.Color.IndianRed;
-            SumaWartosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SumaWartosc.Location = new System.Drawing.Point(316, 55);
+            SumaWartosc.BackColor = Color.IndianRed;
+            SumaWartosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            SumaWartosc.Location = new Point(316, 55);
             SumaWartosc.Name = "SumaWartosc";
-            SumaWartosc.Size = new System.Drawing.Size(117, 27);
+            SumaWartosc.Size = new Size(117, 27);
             SumaWartosc.TabIndex = 88;
             SumaWartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // SumaCena
             // 
-            SumaCena.BackColor = System.Drawing.Color.IndianRed;
-            SumaCena.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SumaCena.Location = new System.Drawing.Point(253, 55);
+            SumaCena.BackColor = Color.IndianRed;
+            SumaCena.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            SumaCena.Location = new Point(253, 55);
             SumaCena.Name = "SumaCena";
-            SumaCena.Size = new System.Drawing.Size(57, 27);
+            SumaCena.Size = new Size(57, 27);
             SumaCena.TabIndex = 87;
             SumaCena.TextAlign = HorizontalAlignment.Center;
             SumaCena.TextChanged += SumaCena_TextChanged;
             // 
             // SumaKG
             // 
-            SumaKG.BackColor = System.Drawing.Color.IndianRed;
-            SumaKG.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            SumaKG.Location = new System.Drawing.Point(141, 55);
+            SumaKG.BackColor = Color.IndianRed;
+            SumaKG.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            SumaKG.Location = new Point(141, 55);
             SumaKG.Name = "SumaKG";
-            SumaKG.Size = new System.Drawing.Size(106, 27);
+            SumaKG.Size = new Size(106, 27);
             SumaKG.TabIndex = 86;
             SumaKG.TextAlign = HorizontalAlignment.Center;
             // 
             // RoznicaTuszkaElement
             // 
-            RoznicaTuszkaElement.BackColor = System.Drawing.Color.White;
-            RoznicaTuszkaElement.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaTuszkaElement.Location = new System.Drawing.Point(439, 38);
+            RoznicaTuszkaElement.BackColor = Color.White;
+            RoznicaTuszkaElement.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            RoznicaTuszkaElement.Location = new Point(439, 38);
             RoznicaTuszkaElement.Name = "RoznicaTuszkaElement";
-            RoznicaTuszkaElement.Size = new System.Drawing.Size(89, 27);
+            RoznicaTuszkaElement.Size = new Size(89, 27);
             RoznicaTuszkaElement.TabIndex = 91;
             RoznicaTuszkaElement.TextAlign = HorizontalAlignment.Center;
             // 
             // SumaWartosc2
             // 
-            SumaWartosc2.BackColor = System.Drawing.SystemColors.ButtonFace;
-            SumaWartosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            SumaWartosc2.Location = new System.Drawing.Point(767, 141);
+            SumaWartosc2.BackColor = SystemColors.ButtonFace;
+            SumaWartosc2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            SumaWartosc2.Location = new Point(767, 141);
             SumaWartosc2.Multiline = true;
             SumaWartosc2.Name = "SumaWartosc2";
-            SumaWartosc2.Size = new System.Drawing.Size(207, 63);
+            SumaWartosc2.Size = new Size(207, 63);
             SumaWartosc2.TabIndex = 94;
             SumaWartosc2.TextAlign = HorizontalAlignment.Center;
             // 
             // label21
             // 
-            label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label21.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label21.Location = new System.Drawing.Point(1340, 690);
+            label21.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            label21.ImageAlign = ContentAlignment.MiddleRight;
+            label21.Location = new Point(1340, 690);
             label21.Name = "label21";
-            label21.Size = new System.Drawing.Size(66, 27);
+            label21.Size = new Size(66, 27);
             label21.TabIndex = 95;
             label21.Text = "Elementy";
-            label21.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label21.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label22
             // 
-            label22.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label22.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label22.Location = new System.Drawing.Point(1317, 726);
+            label22.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point);
+            label22.ImageAlign = ContentAlignment.MiddleRight;
+            label22.Location = new Point(1317, 726);
             label22.Name = "label22";
-            label22.Size = new System.Drawing.Size(89, 25);
+            label22.Size = new Size(89, 25);
             label22.TabIndex = 97;
             label22.Text = "Koszt Krojenia";
-            label22.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label22.TextAlign = ContentAlignment.MiddleRight;
             // 
             // TuszkaKG2
             // 
-            TuszkaKG2.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaKG2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            TuszkaKG2.Location = new System.Drawing.Point(153, 276);
+            TuszkaKG2.BackColor = Color.LightGreen;
+            TuszkaKG2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            TuszkaKG2.Location = new Point(153, 276);
             TuszkaKG2.Multiline = true;
             TuszkaKG2.Name = "TuszkaKG2";
-            TuszkaKG2.Size = new System.Drawing.Size(206, 46);
+            TuszkaKG2.Size = new Size(206, 46);
             TuszkaKG2.TabIndex = 96;
             TuszkaKG2.TextAlign = HorizontalAlignment.Center;
             // 
             // WspolczynnikKrojenia
             // 
-            WspolczynnikKrojenia.BackColor = System.Drawing.Color.Gainsboro;
-            WspolczynnikKrojenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            WspolczynnikKrojenia.Location = new System.Drawing.Point(216, 328);
+            WspolczynnikKrojenia.BackColor = Color.Gainsboro;
+            WspolczynnikKrojenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            WspolczynnikKrojenia.Location = new Point(216, 328);
             WspolczynnikKrojenia.Multiline = true;
             WspolczynnikKrojenia.Name = "WspolczynnikKrojenia";
-            WspolczynnikKrojenia.Size = new System.Drawing.Size(83, 23);
+            WspolczynnikKrojenia.Size = new Size(83, 23);
             WspolczynnikKrojenia.TabIndex = 98;
             WspolczynnikKrojenia.TextAlign = HorizontalAlignment.Center;
             WspolczynnikKrojenia.TextChanged += WspolczynnikKrojenia_TextChanged;
             // 
             // WartoscKrojenia
             // 
-            WartoscKrojenia.BackColor = System.Drawing.Color.Gainsboro;
-            WartoscKrojenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            WartoscKrojenia.Location = new System.Drawing.Point(154, 357);
+            WartoscKrojenia.BackColor = Color.Gainsboro;
+            WartoscKrojenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            WartoscKrojenia.Location = new Point(154, 357);
             WartoscKrojenia.Multiline = true;
             WartoscKrojenia.Name = "WartoscKrojenia";
-            WartoscKrojenia.Size = new System.Drawing.Size(205, 45);
+            WartoscKrojenia.Size = new Size(205, 45);
             WartoscKrojenia.TabIndex = 99;
             WartoscKrojenia.TextAlign = HorizontalAlignment.Center;
             // 
             // label20
             // 
-            label20.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label20.Location = new System.Drawing.Point(1689, 750);
+            label20.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label20.Location = new Point(1689, 750);
             label20.Name = "label20";
-            label20.Size = new System.Drawing.Size(89, 10);
+            label20.Size = new Size(89, 10);
             label20.TabIndex = 101;
             label20.Text = "Elementy po krojeniu";
-            label20.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label20.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // WartoscElementowPoKrojeniu
             // 
-            WartoscElementowPoKrojeniu.BackColor = System.Drawing.Color.IndianRed;
-            WartoscElementowPoKrojeniu.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowPoKrojeniu.Location = new System.Drawing.Point(1412, 690);
+            WartoscElementowPoKrojeniu.BackColor = Color.IndianRed;
+            WartoscElementowPoKrojeniu.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            WartoscElementowPoKrojeniu.Location = new Point(1412, 690);
             WartoscElementowPoKrojeniu.Name = "WartoscElementowPoKrojeniu";
-            WartoscElementowPoKrojeniu.Size = new System.Drawing.Size(117, 27);
+            WartoscElementowPoKrojeniu.Size = new Size(117, 27);
             WartoscElementowPoKrojeniu.TabIndex = 100;
             WartoscElementowPoKrojeniu.TextAlign = HorizontalAlignment.Center;
             // 
             // label23
             // 
-            label23.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label23.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label23.Location = new System.Drawing.Point(1344, 757);
+            label23.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label23.ImageAlign = ContentAlignment.MiddleRight;
+            label23.Location = new Point(1344, 757);
             label23.Name = "label23";
-            label23.Size = new System.Drawing.Size(117, 10);
+            label23.Size = new Size(117, 10);
             label23.TabIndex = 103;
             label23.Text = "Wartość Elementów po krojeniu";
-            label23.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label23.TextAlign = ContentAlignment.MiddleRight;
             // 
             // WartoscElementowPoKrojeniu2
             // 
-            WartoscElementowPoKrojeniu2.BackColor = System.Drawing.SystemColors.ButtonFace;
-            WartoscElementowPoKrojeniu2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowPoKrojeniu2.Location = new System.Drawing.Point(766, 279);
+            WartoscElementowPoKrojeniu2.BackColor = SystemColors.ButtonFace;
+            WartoscElementowPoKrojeniu2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            WartoscElementowPoKrojeniu2.Location = new Point(766, 279);
             WartoscElementowPoKrojeniu2.Multiline = true;
             WartoscElementowPoKrojeniu2.Name = "WartoscElementowPoKrojeniu2";
-            WartoscElementowPoKrojeniu2.Size = new System.Drawing.Size(207, 63);
+            WartoscElementowPoKrojeniu2.Size = new Size(207, 63);
             WartoscElementowPoKrojeniu2.TabIndex = 102;
             WartoscElementowPoKrojeniu2.TextAlign = HorizontalAlignment.Center;
             // 
             // label25
             // 
-            label25.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label25.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label25.Location = new System.Drawing.Point(1344, 724);
+            label25.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label25.ImageAlign = ContentAlignment.MiddleRight;
+            label25.Location = new Point(1344, 724);
             label25.Name = "label25";
-            label25.Size = new System.Drawing.Size(117, 10);
+            label25.Size = new Size(117, 10);
             label25.TabIndex = 105;
             label25.Text = "Wartość Tuszki bez przerobu";
-            label25.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label25.TextAlign = ContentAlignment.MiddleRight;
             // 
             // TuszkaWartosc2
             // 
-            TuszkaWartosc2.BackColor = System.Drawing.SystemColors.ButtonFace;
-            TuszkaWartosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            TuszkaWartosc2.Location = new System.Drawing.Point(767, 5);
+            TuszkaWartosc2.BackColor = SystemColors.ButtonFace;
+            TuszkaWartosc2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            TuszkaWartosc2.Location = new Point(767, 5);
             TuszkaWartosc2.Multiline = true;
             TuszkaWartosc2.Name = "TuszkaWartosc2";
-            TuszkaWartosc2.Size = new System.Drawing.Size(207, 61);
+            TuszkaWartosc2.Size = new Size(207, 61);
             TuszkaWartosc2.TabIndex = 104;
             TuszkaWartosc2.TextAlign = HorizontalAlignment.Center;
             // 
             // label26
             // 
-            label26.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label26.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            label26.Location = new System.Drawing.Point(1344, 790);
+            label26.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label26.ImageAlign = ContentAlignment.MiddleRight;
+            label26.Location = new Point(1344, 790);
             label26.Name = "label26";
-            label26.Size = new System.Drawing.Size(117, 10);
+            label26.Size = new Size(117, 10);
             label26.TabIndex = 107;
             label26.Text = "Różnica między elementami a tuszką";
-            label26.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label26.TextAlign = ContentAlignment.MiddleRight;
             // 
             // RoznicaTuszkaElement2
             // 
-            RoznicaTuszkaElement2.BackColor = System.Drawing.Color.White;
-            RoznicaTuszkaElement2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaTuszkaElement2.Location = new System.Drawing.Point(1467, 773);
+            RoznicaTuszkaElement2.BackColor = Color.White;
+            RoznicaTuszkaElement2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            RoznicaTuszkaElement2.Location = new Point(1467, 773);
             RoznicaTuszkaElement2.Name = "RoznicaTuszkaElement2";
-            RoznicaTuszkaElement2.Size = new System.Drawing.Size(117, 27);
+            RoznicaTuszkaElement2.Size = new Size(117, 27);
             RoznicaTuszkaElement2.TabIndex = 106;
             RoznicaTuszkaElement2.TextAlign = HorizontalAlignment.Center;
             // 
             // label27
             // 
-            label27.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label27.Location = new System.Drawing.Point(1376, 790);
+            label27.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label27.Location = new Point(1376, 790);
             label27.Name = "label27";
-            label27.Size = new System.Drawing.Size(13, 27);
+            label27.Size = new Size(13, 27);
             label27.TabIndex = 108;
             label27.Text = "-";
-            label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label27.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label28
             // 
-            label28.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label28.Location = new System.Drawing.Point(1513, 791);
+            label28.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label28.Location = new Point(1513, 791);
             label28.Name = "label28";
-            label28.Size = new System.Drawing.Size(16, 27);
+            label28.Size = new Size(16, 27);
             label28.TabIndex = 109;
             label28.Text = "=";
-            label28.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label28.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label29
             // 
-            label29.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label29.Location = new System.Drawing.Point(1513, 790);
+            label29.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label29.Location = new Point(1513, 790);
             label29.Name = "label29";
-            label29.Size = new System.Drawing.Size(16, 27);
+            label29.Size = new Size(16, 27);
             label29.TabIndex = 117;
             label29.Text = "=";
-            label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label29.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label30
             // 
-            label30.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label30.Location = new System.Drawing.Point(1376, 789);
+            label30.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label30.Location = new Point(1376, 789);
             label30.Name = "label30";
-            label30.Size = new System.Drawing.Size(13, 27);
+            label30.Size = new Size(13, 27);
             label30.TabIndex = 116;
             label30.Text = "-";
-            label30.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label30.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // textBox2
             // 
-            textBox2.BackColor = System.Drawing.Color.White;
-            textBox2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox2.Location = new System.Drawing.Point(1526, 872);
+            textBox2.BackColor = Color.White;
+            textBox2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox2.Location = new Point(1526, 872);
             textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(117, 27);
+            textBox2.Size = new Size(117, 27);
             textBox2.TabIndex = 114;
             textBox2.TextAlign = HorizontalAlignment.Center;
             // 
             // label32
             // 
-            label32.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label32.Location = new System.Drawing.Point(1587, 799);
+            label32.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label32.Location = new Point(1587, 799);
             label32.Name = "label32";
-            label32.Size = new System.Drawing.Size(117, 10);
+            label32.Size = new Size(117, 10);
             label32.TabIndex = 113;
             label32.Text = "Wartość Tuszki bez przerobu";
-            label32.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label32.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // textBox3
             // 
-            textBox3.BackColor = System.Drawing.Color.Gainsboro;
-            textBox3.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox3.Location = new System.Drawing.Point(1289, 794);
+            textBox3.BackColor = Color.Gainsboro;
+            textBox3.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox3.Location = new Point(1289, 794);
             textBox3.Name = "textBox3";
-            textBox3.Size = new System.Drawing.Size(117, 27);
+            textBox3.Size = new Size(117, 27);
             textBox3.TabIndex = 112;
             textBox3.TextAlign = HorizontalAlignment.Center;
             // 
             // label33
             // 
-            label33.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label33.Location = new System.Drawing.Point(1253, 759);
+            label33.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label33.Location = new Point(1253, 759);
             label33.Name = "label33";
-            label33.Size = new System.Drawing.Size(117, 27);
+            label33.Size = new Size(117, 27);
             label33.TabIndex = 111;
             label33.Text = "Wartość Elementów po krojeniu";
-            label33.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label33.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // textBox4
             // 
-            textBox4.BackColor = System.Drawing.Color.FromArgb(128, 64, 0);
-            textBox4.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox4.Location = new System.Drawing.Point(1280, 864);
+            textBox4.BackColor = Color.FromArgb(128, 64, 0);
+            textBox4.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox4.Location = new Point(1280, 864);
             textBox4.Name = "textBox4";
-            textBox4.Size = new System.Drawing.Size(117, 27);
+            textBox4.Size = new Size(117, 27);
             textBox4.TabIndex = 110;
             textBox4.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox5
             // 
-            textBox5.BackColor = System.Drawing.Color.IndianRed;
-            textBox5.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(1568, 778);
+            textBox5.BackColor = Color.IndianRed;
+            textBox5.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox5.Location = new Point(1568, 778);
             textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(117, 27);
+            textBox5.Size = new Size(117, 27);
             textBox5.TabIndex = 118;
             textBox5.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox3
             // 
-            pictureBox3.Image = (System.Drawing.Image)resources.GetObject("pictureBox3.Image");
-            pictureBox3.Location = new System.Drawing.Point(11, 775);
+            pictureBox3.Image = (Image)resources.GetObject("pictureBox3.Image");
+            pictureBox3.Location = new Point(11, 775);
             pictureBox3.Name = "pictureBox3";
-            pictureBox3.Size = new System.Drawing.Size(136, 61);
+            pictureBox3.Size = new Size(136, 61);
             pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox3.TabIndex = 136;
             pictureBox3.TabStop = false;
             // 
             // textBox6
             // 
-            textBox6.BackColor = System.Drawing.Color.IndianRed;
-            textBox6.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox6.Location = new System.Drawing.Point(1291, 820);
+            textBox6.BackColor = Color.IndianRed;
+            textBox6.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox6.Location = new Point(1291, 820);
             textBox6.Multiline = true;
             textBox6.Name = "textBox6";
-            textBox6.Size = new System.Drawing.Size(206, 61);
+            textBox6.Size = new Size(206, 61);
             textBox6.TabIndex = 137;
             textBox6.TextAlign = HorizontalAlignment.Center;
             textBox6.TextChanged += textBox6_TextChanged;
             // 
             // label31
             // 
-            label31.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label31.Location = new System.Drawing.Point(1392, 704);
+            label31.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            label31.Location = new Point(1392, 704);
             label31.Name = "label31";
-            label31.Size = new System.Drawing.Size(130, 10);
+            label31.Size = new Size(130, 10);
             label31.TabIndex = 138;
             label31.Text = "Elementy po krojeniu";
-            label31.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label31.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox1
             // 
-            pictureBox1.Image = (System.Drawing.Image)resources.GetObject("pictureBox1.Image");
-            pictureBox1.Location = new System.Drawing.Point(11, 505);
+            pictureBox1.Image = (Image)resources.GetObject("pictureBox1.Image");
+            pictureBox1.Location = new Point(11, 505);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(136, 61);
+            pictureBox1.Size = new Size(136, 61);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 139;
             pictureBox1.TabStop = false;
             // 
             // pictureBox2
             // 
-            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
-            pictureBox2.Location = new System.Drawing.Point(10, 638);
+            pictureBox2.Image = (Image)resources.GetObject("pictureBox2.Image");
+            pictureBox2.Location = new Point(10, 638);
             pictureBox2.Name = "pictureBox2";
-            pictureBox2.Size = new System.Drawing.Size(136, 61);
+            pictureBox2.Size = new Size(136, 61);
             pictureBox2.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox2.TabIndex = 140;
             pictureBox2.TabStop = false;
             // 
             // pictureBox4
             // 
-            pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
-            pictureBox4.Location = new System.Drawing.Point(11, 705);
+            pictureBox4.Image = (Image)resources.GetObject("pictureBox4.Image");
+            pictureBox4.Location = new Point(11, 705);
             pictureBox4.Name = "pictureBox4";
-            pictureBox4.Size = new System.Drawing.Size(136, 61);
+            pictureBox4.Size = new Size(136, 61);
             pictureBox4.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox4.TabIndex = 141;
             pictureBox4.TabStop = false;
             // 
             // label34
             // 
-            label34.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label34.Location = new System.Drawing.Point(482, 507);
+            label34.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label34.Location = new Point(482, 507);
             label34.Name = "label34";
-            label34.Size = new System.Drawing.Size(130, 60);
+            label34.Size = new Size(130, 60);
             label34.TabIndex = 144;
             label34.Text = "Za rozważanie 15 kg towaru";
-            label34.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label34.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label35
             // 
-            label35.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label35.Location = new System.Drawing.Point(482, 574);
+            label35.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label35.Location = new Point(482, 574);
             label35.Name = "label35";
-            label35.Size = new System.Drawing.Size(130, 60);
+            label35.Size = new Size(130, 60);
             label35.TabIndex = 146;
             label35.Text = "Za folie za każde 10 kg";
-            label35.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label35.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label36
             // 
-            label36.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label36.Location = new System.Drawing.Point(482, 708);
+            label36.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label36.Location = new Point(482, 708);
             label36.Name = "label36";
-            label36.Size = new System.Drawing.Size(130, 60);
+            label36.Size = new Size(130, 60);
             label36.TabIndex = 148;
             label36.Text = "Paleta drewniana za każde 750 kg towaru";
-            label36.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label36.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label37
             // 
-            label37.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label37.Location = new System.Drawing.Point(482, 641);
+            label37.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label37.Location = new Point(482, 641);
             label37.Name = "label37";
-            label37.Size = new System.Drawing.Size(130, 60);
+            label37.Size = new Size(130, 60);
             label37.TabIndex = 148;
             label37.Text = "Za Sktrech za każde 3000 kg";
-            label37.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label37.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label38
             // 
-            label38.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label38.Location = new System.Drawing.Point(482, 777);
+            label38.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label38.Location = new Point(482, 777);
             label38.Name = "label38";
-            label38.Size = new System.Drawing.Size(130, 60);
+            label38.Size = new Size(130, 60);
             label38.TabIndex = 151;
             label38.Text = "Karton za każde 10 kg towaru";
-            label38.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label38.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox6
             // 
-            pictureBox6.Image = (System.Drawing.Image)resources.GetObject("pictureBox6.Image");
-            pictureBox6.Location = new System.Drawing.Point(11, 571);
+            pictureBox6.Image = (Image)resources.GetObject("pictureBox6.Image");
+            pictureBox6.Location = new Point(11, 571);
             pictureBox6.Name = "pictureBox6";
-            pictureBox6.Size = new System.Drawing.Size(136, 61);
+            pictureBox6.Size = new Size(136, 61);
             pictureBox6.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox6.TabIndex = 149;
             pictureBox6.TabStop = false;
             // 
             // label39
             // 
-            label39.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label39.Location = new System.Drawing.Point(482, 844);
+            label39.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label39.Location = new Point(482, 844);
             label39.Name = "label39";
-            label39.Size = new System.Drawing.Size(130, 60);
+            label39.Size = new Size(130, 60);
             label39.TabIndex = 154;
             label39.Text = "Energia za każde 1 kg towaru";
-            label39.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label39.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // PradMroznia
             // 
-            PradMroznia.BackColor = System.Drawing.Color.Cyan;
-            PradMroznia.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            PradMroznia.Location = new System.Drawing.Point(153, 841);
+            PradMroznia.BackColor = Color.Cyan;
+            PradMroznia.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            PradMroznia.Location = new Point(153, 841);
             PradMroznia.Multiline = true;
             PradMroznia.Name = "PradMroznia";
-            PradMroznia.Size = new System.Drawing.Size(206, 61);
+            PradMroznia.Size = new Size(206, 61);
             PradMroznia.TabIndex = 153;
             PradMroznia.TextAlign = HorizontalAlignment.Center;
             PradMroznia.TextChanged += PradMroznia_TextChanged;
             // 
             // pictureBox7
             // 
-            pictureBox7.Image = (System.Drawing.Image)resources.GetObject("pictureBox7.Image");
-            pictureBox7.Location = new System.Drawing.Point(11, 841);
+            pictureBox7.Image = (Image)resources.GetObject("pictureBox7.Image");
+            pictureBox7.Location = new Point(11, 841);
             pictureBox7.Name = "pictureBox7";
-            pictureBox7.Size = new System.Drawing.Size(136, 61);
+            pictureBox7.Size = new Size(136, 61);
             pictureBox7.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox7.TabIndex = 152;
             pictureBox7.TabStop = false;
             // 
             // SumaKosztowMrozenia
             // 
-            SumaKosztowMrozenia.BackColor = System.Drawing.Color.Cyan;
-            SumaKosztowMrozenia.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            SumaKosztowMrozenia.Location = new System.Drawing.Point(153, 909);
+            SumaKosztowMrozenia.BackColor = Color.Cyan;
+            SumaKosztowMrozenia.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            SumaKosztowMrozenia.Location = new Point(153, 909);
             SumaKosztowMrozenia.Multiline = true;
             SumaKosztowMrozenia.Name = "SumaKosztowMrozenia";
-            SumaKosztowMrozenia.Size = new System.Drawing.Size(206, 61);
+            SumaKosztowMrozenia.Size = new Size(206, 61);
             SumaKosztowMrozenia.TabIndex = 156;
             SumaKosztowMrozenia.TextAlign = HorizontalAlignment.Center;
             SumaKosztowMrozenia.TextChanged += SumaKosztowMrozenia_TextChanged;
             // 
             // label40
             // 
-            label40.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label40.Location = new System.Drawing.Point(365, 909);
+            label40.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label40.Location = new Point(365, 909);
             label40.Name = "label40";
-            label40.Size = new System.Drawing.Size(130, 60);
+            label40.Size = new Size(130, 60);
             label40.TabIndex = 157;
             label40.Text = "Koszt Mrożenia";
-            label40.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label40.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label41
             // 
-            label41.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label41.Location = new System.Drawing.Point(482, 439);
+            label41.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label41.Location = new Point(482, 439);
             label41.Name = "label41";
-            label41.Size = new System.Drawing.Size(130, 60);
+            label41.Size = new Size(130, 60);
             label41.TabIndex = 160;
             label41.Text = "Iloś kilogramów do zagospodarowania an mroźnie";
-            label41.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label41.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // KilogramyDoZamrozenia
             // 
-            KilogramyDoZamrozenia.BackColor = System.Drawing.Color.LightGreen;
-            KilogramyDoZamrozenia.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            KilogramyDoZamrozenia.Location = new System.Drawing.Point(152, 436);
+            KilogramyDoZamrozenia.BackColor = Color.LightGreen;
+            KilogramyDoZamrozenia.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Regular, GraphicsUnit.Point);
+            KilogramyDoZamrozenia.Location = new Point(152, 436);
             KilogramyDoZamrozenia.Multiline = true;
             KilogramyDoZamrozenia.Name = "KilogramyDoZamrozenia";
-            KilogramyDoZamrozenia.Size = new System.Drawing.Size(206, 61);
+            KilogramyDoZamrozenia.Size = new Size(206, 61);
             KilogramyDoZamrozenia.TabIndex = 159;
             KilogramyDoZamrozenia.TextAlign = HorizontalAlignment.Center;
             KilogramyDoZamrozenia.TextChanged += KilogramyDoZamrozenia_TextChanged;
             // 
             // SktrechNaPaleteCena
             // 
-            SktrechNaPaleteCena.BackColor = System.Drawing.Color.Cyan;
-            SktrechNaPaleteCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            SktrechNaPaleteCena.Location = new System.Drawing.Point(365, 640);
+            SktrechNaPaleteCena.BackColor = Color.Cyan;
+            SktrechNaPaleteCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            SktrechNaPaleteCena.Location = new Point(365, 640);
             SktrechNaPaleteCena.Multiline = true;
             SktrechNaPaleteCena.Name = "SktrechNaPaleteCena";
-            SktrechNaPaleteCena.Size = new System.Drawing.Size(111, 61);
+            SktrechNaPaleteCena.Size = new Size(111, 61);
             SktrechNaPaleteCena.TabIndex = 162;
             SktrechNaPaleteCena.TextAlign = HorizontalAlignment.Center;
             SktrechNaPaleteCena.TextChanged += SktrechNaPaleteCena_TextChanged;
             // 
             // FoliaPojemnikCena
             // 
-            FoliaPojemnikCena.BackColor = System.Drawing.Color.Cyan;
-            FoliaPojemnikCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            FoliaPojemnikCena.Location = new System.Drawing.Point(365, 571);
+            FoliaPojemnikCena.BackColor = Color.Cyan;
+            FoliaPojemnikCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            FoliaPojemnikCena.Location = new Point(365, 571);
             FoliaPojemnikCena.Multiline = true;
             FoliaPojemnikCena.Name = "FoliaPojemnikCena";
-            FoliaPojemnikCena.Size = new System.Drawing.Size(111, 61);
+            FoliaPojemnikCena.Size = new Size(111, 61);
             FoliaPojemnikCena.TabIndex = 163;
             FoliaPojemnikCena.TextAlign = HorizontalAlignment.Center;
             FoliaPojemnikCena.TextChanged += FoliaPojemnikCena_TextChanged;
             // 
             // PaletaDrewnianaCena
             // 
-            PaletaDrewnianaCena.BackColor = System.Drawing.Color.Cyan;
-            PaletaDrewnianaCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            PaletaDrewnianaCena.Location = new System.Drawing.Point(365, 705);
+            PaletaDrewnianaCena.BackColor = Color.Cyan;
+            PaletaDrewnianaCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            PaletaDrewnianaCena.Location = new Point(365, 705);
             PaletaDrewnianaCena.Multiline = true;
             PaletaDrewnianaCena.Name = "PaletaDrewnianaCena";
-            PaletaDrewnianaCena.Size = new System.Drawing.Size(111, 61);
+            PaletaDrewnianaCena.Size = new Size(111, 61);
             PaletaDrewnianaCena.TabIndex = 164;
             PaletaDrewnianaCena.TextAlign = HorizontalAlignment.Center;
             PaletaDrewnianaCena.TextChanged += PaletaDrewnianaCena_TextChanged;
             // 
             // KartonCena
             // 
-            KartonCena.BackColor = System.Drawing.Color.Cyan;
-            KartonCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            KartonCena.Location = new System.Drawing.Point(365, 774);
+            KartonCena.BackColor = Color.Cyan;
+            KartonCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            KartonCena.Location = new Point(365, 774);
             KartonCena.Multiline = true;
             KartonCena.Name = "KartonCena";
-            KartonCena.Size = new System.Drawing.Size(111, 61);
+            KartonCena.Size = new Size(111, 61);
             KartonCena.TabIndex = 165;
             KartonCena.TextAlign = HorizontalAlignment.Center;
             KartonCena.TextChanged += KartonCena_TextChanged;
             // 
             // PradMrozniaCena
             // 
-            PradMrozniaCena.BackColor = System.Drawing.Color.Cyan;
-            PradMrozniaCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            PradMrozniaCena.Location = new System.Drawing.Point(365, 841);
+            PradMrozniaCena.BackColor = Color.Cyan;
+            PradMrozniaCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            PradMrozniaCena.Location = new Point(365, 841);
             PradMrozniaCena.Multiline = true;
             PradMrozniaCena.Name = "PradMrozniaCena";
-            PradMrozniaCena.Size = new System.Drawing.Size(111, 61);
+            PradMrozniaCena.Size = new Size(111, 61);
             PradMrozniaCena.TabIndex = 166;
             PradMrozniaCena.TextAlign = HorizontalAlignment.Center;
             PradMrozniaCena.TextChanged += PradMrozniaCena_TextChanged;
             // 
             // label42
             // 
-            label42.Location = new System.Drawing.Point(365, 433);
+            label42.Location = new Point(365, 433);
             label42.Name = "label42";
-            label42.Size = new System.Drawing.Size(111, 64);
+            label42.Size = new Size(111, 64);
             label42.TabIndex = 167;
             label42.Text = "Ceny za poszczególne elementy kosztów mroźni";
-            label42.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label42.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // RozwazanieTowaruCena
             // 
-            RozwazanieTowaruCena.BackColor = System.Drawing.Color.Cyan;
-            RozwazanieTowaruCena.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            RozwazanieTowaruCena.Location = new System.Drawing.Point(365, 505);
+            RozwazanieTowaruCena.BackColor = Color.Cyan;
+            RozwazanieTowaruCena.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            RozwazanieTowaruCena.Location = new Point(365, 505);
             RozwazanieTowaruCena.Multiline = true;
             RozwazanieTowaruCena.Name = "RozwazanieTowaruCena";
-            RozwazanieTowaruCena.Size = new System.Drawing.Size(111, 61);
+            RozwazanieTowaruCena.Size = new Size(111, 61);
             RozwazanieTowaruCena.TabIndex = 168;
             RozwazanieTowaruCena.TextAlign = HorizontalAlignment.Center;
             RozwazanieTowaruCena.TextChanged += RozwazanieTowaruCena_TextChanged;
             // 
             // RozwazanieTowaru
             // 
-            RozwazanieTowaru.BackColor = System.Drawing.Color.Cyan;
-            RozwazanieTowaru.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            RozwazanieTowaru.Location = new System.Drawing.Point(153, 505);
+            RozwazanieTowaru.BackColor = Color.Cyan;
+            RozwazanieTowaru.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            RozwazanieTowaru.Location = new Point(153, 505);
             RozwazanieTowaru.Multiline = true;
             RozwazanieTowaru.Name = "RozwazanieTowaru";
-            RozwazanieTowaru.Size = new System.Drawing.Size(206, 61);
+            RozwazanieTowaru.Size = new Size(206, 61);
             RozwazanieTowaru.TabIndex = 169;
             RozwazanieTowaru.TextAlign = HorizontalAlignment.Center;
             RozwazanieTowaru.TextChanged += RozwazanieTowaru_TextChanged;
             // 
             // FoliaPojemnik
             // 
-            FoliaPojemnik.BackColor = System.Drawing.Color.Cyan;
-            FoliaPojemnik.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            FoliaPojemnik.Location = new System.Drawing.Point(153, 574);
+            FoliaPojemnik.BackColor = Color.Cyan;
+            FoliaPojemnik.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            FoliaPojemnik.Location = new Point(153, 574);
             FoliaPojemnik.Multiline = true;
             FoliaPojemnik.Name = "FoliaPojemnik";
-            FoliaPojemnik.Size = new System.Drawing.Size(206, 61);
+            FoliaPojemnik.Size = new Size(206, 61);
             FoliaPojemnik.TabIndex = 170;
             FoliaPojemnik.TextAlign = HorizontalAlignment.Center;
             FoliaPojemnik.TextChanged += FoliaPojemnik_TextChanged;
             // 
             // SktrechNaPalete
             // 
-            SktrechNaPalete.BackColor = System.Drawing.Color.Cyan;
-            SktrechNaPalete.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            SktrechNaPalete.Location = new System.Drawing.Point(153, 639);
+            SktrechNaPalete.BackColor = Color.Cyan;
+            SktrechNaPalete.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            SktrechNaPalete.Location = new Point(153, 639);
             SktrechNaPalete.Multiline = true;
             SktrechNaPalete.Name = "SktrechNaPalete";
-            SktrechNaPalete.Size = new System.Drawing.Size(206, 61);
+            SktrechNaPalete.Size = new Size(206, 61);
             SktrechNaPalete.TabIndex = 171;
             SktrechNaPalete.TextAlign = HorizontalAlignment.Center;
             SktrechNaPalete.TextChanged += SktrechNaPalete_TextChanged;
             // 
             // PaletaDrewniana
             // 
-            PaletaDrewniana.BackColor = System.Drawing.Color.Cyan;
-            PaletaDrewniana.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            PaletaDrewniana.Location = new System.Drawing.Point(153, 705);
+            PaletaDrewniana.BackColor = Color.Cyan;
+            PaletaDrewniana.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            PaletaDrewniana.Location = new Point(153, 705);
             PaletaDrewniana.Multiline = true;
             PaletaDrewniana.Name = "PaletaDrewniana";
-            PaletaDrewniana.Size = new System.Drawing.Size(206, 61);
+            PaletaDrewniana.Size = new Size(206, 61);
             PaletaDrewniana.TabIndex = 172;
             PaletaDrewniana.TextAlign = HorizontalAlignment.Center;
             PaletaDrewniana.TextChanged += PaletaDrewniana_TextChanged;
             // 
             // Karton
             // 
-            Karton.BackColor = System.Drawing.Color.Cyan;
-            Karton.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            Karton.Location = new System.Drawing.Point(153, 774);
+            Karton.BackColor = Color.Cyan;
+            Karton.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            Karton.Location = new Point(153, 774);
             Karton.Multiline = true;
             Karton.Name = "Karton";
-            Karton.Size = new System.Drawing.Size(206, 61);
+            Karton.Size = new Size(206, 61);
             Karton.TabIndex = 173;
             Karton.TextAlign = HorizontalAlignment.Center;
             Karton.TextChanged += Karton_TextChanged;
             // 
             // pictureBox8
             // 
-            pictureBox8.Image = (System.Drawing.Image)resources.GetObject("pictureBox8.Image");
-            pictureBox8.Location = new System.Drawing.Point(1660, 683);
+            pictureBox8.Image = (Image)resources.GetObject("pictureBox8.Image");
+            pictureBox8.Location = new Point(1660, 683);
             pictureBox8.Name = "pictureBox8";
-            pictureBox8.Size = new System.Drawing.Size(103, 10);
+            pictureBox8.Size = new Size(103, 10);
             pictureBox8.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox8.TabIndex = 174;
             pictureBox8.TabStop = false;
             // 
             // pictureBox10
             // 
-            pictureBox10.Image = (System.Drawing.Image)resources.GetObject("pictureBox10.Image");
-            pictureBox10.Location = new System.Drawing.Point(12, 276);
+            pictureBox10.Image = (Image)resources.GetObject("pictureBox10.Image");
+            pictureBox10.Location = new Point(12, 276);
             pictureBox10.Name = "pictureBox10";
-            pictureBox10.Size = new System.Drawing.Size(137, 75);
+            pictureBox10.Size = new Size(137, 75);
             pictureBox10.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox10.TabIndex = 176;
             pictureBox10.TabStop = false;
             // 
             // pictureBox11
             // 
-            pictureBox11.Image = (System.Drawing.Image)resources.GetObject("pictureBox11.Image");
-            pictureBox11.Location = new System.Drawing.Point(11, 357);
+            pictureBox11.Image = (Image)resources.GetObject("pictureBox11.Image");
+            pictureBox11.Location = new Point(11, 357);
             pictureBox11.Name = "pictureBox11";
-            pictureBox11.Size = new System.Drawing.Size(135, 45);
+            pictureBox11.Size = new Size(135, 45);
             pictureBox11.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox11.TabIndex = 178;
             pictureBox11.TabStop = false;
             // 
             // label24
             // 
-            label24.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label24.Location = new System.Drawing.Point(10, 405);
+            label24.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label24.Location = new Point(10, 405);
             label24.Name = "label24";
-            label24.Size = new System.Drawing.Size(348, 28);
+            label24.Size = new Size(348, 28);
             label24.TabIndex = 180;
             label24.Text = "Obliczanie kosztu mrożenia";
-            label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label24.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label43
             // 
-            label43.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label43.Location = new System.Drawing.Point(1236, 648);
+            label43.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label43.Location = new Point(1236, 648);
             label43.Name = "label43";
-            label43.Size = new System.Drawing.Size(348, 34);
+            label43.Size = new Size(348, 34);
             label43.TabIndex = 181;
             label43.Text = "Obliczanie kosztu krojenia";
-            label43.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label43.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // label44
             // 
-            label44.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label44.Location = new System.Drawing.Point(366, 357);
+            label44.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label44.Location = new Point(366, 357);
             label44.Name = "label44";
-            label44.Size = new System.Drawing.Size(130, 45);
+            label44.Size = new Size(130, 45);
             label44.TabIndex = 182;
             label44.Text = "Koszt Krojenia";
-            label44.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label44.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // textBox7
             // 
-            textBox7.BackColor = System.Drawing.Color.Gainsboro;
-            textBox7.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            textBox7.Location = new System.Drawing.Point(1412, 724);
+            textBox7.BackColor = Color.Gainsboro;
+            textBox7.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            textBox7.Location = new Point(1412, 724);
             textBox7.Multiline = true;
             textBox7.Name = "textBox7";
-            textBox7.Size = new System.Drawing.Size(117, 27);
+            textBox7.Size = new Size(117, 27);
             textBox7.TabIndex = 183;
             textBox7.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox9
             // 
-            pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
-            pictureBox9.Location = new System.Drawing.Point(623, 5);
+            pictureBox9.Image = (Image)resources.GetObject("pictureBox9.Image");
+            pictureBox9.Location = new Point(623, 5);
             pictureBox9.Name = "pictureBox9";
-            pictureBox9.Size = new System.Drawing.Size(138, 61);
+            pictureBox9.Size = new Size(138, 61);
             pictureBox9.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox9.TabIndex = 184;
             pictureBox9.TabStop = false;
             // 
             // pictureBox5
             // 
-            pictureBox5.Image = (System.Drawing.Image)resources.GetObject("pictureBox5.Image");
-            pictureBox5.Location = new System.Drawing.Point(623, 210);
+            pictureBox5.Image = (Image)resources.GetObject("pictureBox5.Image");
+            pictureBox5.Location = new Point(623, 210);
             pictureBox5.Name = "pictureBox5";
-            pictureBox5.Size = new System.Drawing.Size(137, 63);
+            pictureBox5.Size = new Size(137, 63);
             pictureBox5.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox5.TabIndex = 186;
             pictureBox5.TabStop = false;
             // 
             // WartoscKrojenia2
             // 
-            WartoscKrojenia2.BackColor = System.Drawing.SystemColors.ButtonFace;
-            WartoscKrojenia2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscKrojenia2.ForeColor = System.Drawing.Color.Red;
-            WartoscKrojenia2.Location = new System.Drawing.Point(766, 210);
+            WartoscKrojenia2.BackColor = SystemColors.ButtonFace;
+            WartoscKrojenia2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            WartoscKrojenia2.ForeColor = Color.Red;
+            WartoscKrojenia2.Location = new Point(766, 210);
             WartoscKrojenia2.Multiline = true;
             WartoscKrojenia2.Name = "WartoscKrojenia2";
-            WartoscKrojenia2.Size = new System.Drawing.Size(207, 63);
+            WartoscKrojenia2.Size = new Size(207, 63);
             WartoscKrojenia2.TabIndex = 187;
             WartoscKrojenia2.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox13
             // 
-            pictureBox13.Image = (System.Drawing.Image)resources.GetObject("pictureBox13.Image");
-            pictureBox13.Location = new System.Drawing.Point(624, 543);
+            pictureBox13.Image = (Image)resources.GetObject("pictureBox13.Image");
+            pictureBox13.Location = new Point(624, 543);
             pictureBox13.Name = "pictureBox13";
-            pictureBox13.Size = new System.Drawing.Size(138, 63);
+            pictureBox13.Size = new Size(138, 63);
             pictureBox13.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox13.TabIndex = 189;
             pictureBox13.TabStop = false;
             // 
             // WartoscElementowZamrozonych
             // 
-            WartoscElementowZamrozonych.BackColor = System.Drawing.SystemColors.ButtonFace;
-            WartoscElementowZamrozonych.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowZamrozonych.Location = new System.Drawing.Point(768, 543);
+            WartoscElementowZamrozonych.BackColor = SystemColors.ButtonFace;
+            WartoscElementowZamrozonych.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            WartoscElementowZamrozonych.Location = new Point(768, 543);
             WartoscElementowZamrozonych.Multiline = true;
             WartoscElementowZamrozonych.Name = "WartoscElementowZamrozonych";
-            WartoscElementowZamrozonych.Size = new System.Drawing.Size(207, 63);
+            WartoscElementowZamrozonych.Size = new Size(207, 63);
             WartoscElementowZamrozonych.TabIndex = 188;
             WartoscElementowZamrozonych.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox14
             // 
-            pictureBox14.Image = (System.Drawing.Image)resources.GetObject("pictureBox14.Image");
-            pictureBox14.Location = new System.Drawing.Point(623, 474);
+            pictureBox14.Image = (Image)resources.GetObject("pictureBox14.Image");
+            pictureBox14.Location = new Point(623, 474);
             pictureBox14.Name = "pictureBox14";
-            pictureBox14.Size = new System.Drawing.Size(138, 63);
+            pictureBox14.Size = new Size(138, 63);
             pictureBox14.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox14.TabIndex = 191;
             pictureBox14.TabStop = false;
             // 
             // SumaKosztowMrozenia2
             // 
-            SumaKosztowMrozenia2.BackColor = System.Drawing.SystemColors.ButtonFace;
-            SumaKosztowMrozenia2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            SumaKosztowMrozenia2.ForeColor = System.Drawing.Color.Red;
-            SumaKosztowMrozenia2.Location = new System.Drawing.Point(767, 474);
+            SumaKosztowMrozenia2.BackColor = SystemColors.ButtonFace;
+            SumaKosztowMrozenia2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            SumaKosztowMrozenia2.ForeColor = Color.Red;
+            SumaKosztowMrozenia2.Location = new Point(767, 474);
             SumaKosztowMrozenia2.Multiline = true;
             SumaKosztowMrozenia2.Name = "SumaKosztowMrozenia2";
-            SumaKosztowMrozenia2.Size = new System.Drawing.Size(207, 63);
+            SumaKosztowMrozenia2.Size = new Size(207, 63);
             SumaKosztowMrozenia2.TabIndex = 190;
             SumaKosztowMrozenia2.TextAlign = HorizontalAlignment.Center;
             // 
             // label45
             // 
-            label45.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label45.ForeColor = System.Drawing.Color.Red;
-            label45.Location = new System.Drawing.Point(980, 474);
+            label45.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label45.ForeColor = Color.Red;
+            label45.Location = new Point(980, 474);
             label45.Name = "label45";
-            label45.Size = new System.Drawing.Size(215, 63);
+            label45.Size = new Size(215, 63);
             label45.TabIndex = 192;
-            label45.Text = " ";
-            label45.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label45.Text = " Koszt Mrożenia";
+            label45.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label46
             // 
-            label46.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label46.ForeColor = System.Drawing.Color.Red;
-            label46.Location = new System.Drawing.Point(979, 210);
+            label46.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label46.ForeColor = Color.Red;
+            label46.Location = new Point(979, 210);
             label46.Name = "label46";
-            label46.Size = new System.Drawing.Size(215, 63);
+            label46.Size = new Size(215, 63);
             label46.TabIndex = 193;
             label46.Text = "Koszt Krojenia";
-            label46.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label46.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox15
             // 
-            pictureBox15.Image = (System.Drawing.Image)resources.GetObject("pictureBox15.Image");
-            pictureBox15.Location = new System.Drawing.Point(11, 434);
+            pictureBox15.Image = (Image)resources.GetObject("pictureBox15.Image");
+            pictureBox15.Location = new Point(11, 434);
             pictureBox15.Name = "pictureBox15";
-            pictureBox15.Size = new System.Drawing.Size(138, 63);
+            pictureBox15.Size = new Size(138, 63);
             pictureBox15.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox15.TabIndex = 194;
             pictureBox15.TabStop = false;
             // 
             // pictureBox12
             // 
-            pictureBox12.Image = (System.Drawing.Image)resources.GetObject("pictureBox12.Image");
-            pictureBox12.Location = new System.Drawing.Point(10, 909);
+            pictureBox12.Image = (Image)resources.GetObject("pictureBox12.Image");
+            pictureBox12.Location = new Point(10, 909);
             pictureBox12.Name = "pictureBox12";
-            pictureBox12.Size = new System.Drawing.Size(137, 60);
+            pictureBox12.Size = new Size(137, 60);
             pictureBox12.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox12.TabIndex = 179;
             pictureBox12.TabStop = false;
             // 
             // label47
             // 
-            label47.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label47.Location = new System.Drawing.Point(979, 279);
+            label47.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label47.Location = new Point(979, 279);
             label47.Name = "label47";
-            label47.Size = new System.Drawing.Size(215, 63);
+            label47.Size = new Size(215, 63);
             label47.TabIndex = 195;
             label47.Text = "Wartość Elementów po kosztach krojenia";
-            label47.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label47.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label48
             // 
-            label48.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label48.Location = new System.Drawing.Point(980, 5);
+            label48.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label48.Location = new Point(980, 5);
             label48.Name = "label48";
-            label48.Size = new System.Drawing.Size(214, 61);
+            label48.Size = new Size(214, 61);
             label48.TabIndex = 196;
             label48.Text = "Wartość Tuszki";
-            label48.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label48.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label49
             // 
-            label49.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label49.Location = new System.Drawing.Point(981, 543);
+            label49.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label49.Location = new Point(981, 543);
             label49.Name = "label49";
-            label49.Size = new System.Drawing.Size(214, 63);
+            label49.Size = new Size(214, 63);
             label49.TabIndex = 197;
             label49.Text = "Wartość Elementów Mrożonych";
-            label49.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label49.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label50
             // 
-            label50.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label50.ForeColor = System.Drawing.Color.Red;
-            label50.Location = new System.Drawing.Point(980, 612);
+            label50.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label50.ForeColor = Color.Red;
+            label50.Location = new Point(980, 612);
             label50.Name = "label50";
-            label50.Size = new System.Drawing.Size(215, 63);
+            label50.Size = new Size(215, 63);
             label50.TabIndex = 200;
             label50.Text = "Koszt zaniżenia ceny";
-            label50.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label50.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox16
             // 
-            pictureBox16.Image = (System.Drawing.Image)resources.GetObject("pictureBox16.Image");
-            pictureBox16.Location = new System.Drawing.Point(623, 612);
+            pictureBox16.Image = (Image)resources.GetObject("pictureBox16.Image");
+            pictureBox16.Location = new Point(623, 612);
             pictureBox16.Name = "pictureBox16";
-            pictureBox16.Size = new System.Drawing.Size(138, 63);
+            pictureBox16.Size = new Size(138, 63);
             pictureBox16.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox16.TabIndex = 199;
             pictureBox16.TabStop = false;
             // 
             // KosztZanizeniaCeny
             // 
-            KosztZanizeniaCeny.BackColor = System.Drawing.SystemColors.ButtonFace;
-            KosztZanizeniaCeny.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            KosztZanizeniaCeny.ForeColor = System.Drawing.Color.Red;
-            KosztZanizeniaCeny.Location = new System.Drawing.Point(767, 612);
+            KosztZanizeniaCeny.BackColor = SystemColors.ButtonFace;
+            KosztZanizeniaCeny.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            KosztZanizeniaCeny.ForeColor = Color.Red;
+            KosztZanizeniaCeny.Location = new Point(767, 612);
             KosztZanizeniaCeny.Multiline = true;
             KosztZanizeniaCeny.Name = "KosztZanizeniaCeny";
-            KosztZanizeniaCeny.Size = new System.Drawing.Size(207, 63);
+            KosztZanizeniaCeny.Size = new Size(207, 63);
             KosztZanizeniaCeny.TabIndex = 198;
             KosztZanizeniaCeny.TextAlign = HorizontalAlignment.Center;
             // 
             // label51
             // 
-            label51.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label51.Location = new System.Drawing.Point(980, 681);
+            label51.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label51.Location = new Point(980, 681);
             label51.Name = "label51";
-            label51.Size = new System.Drawing.Size(215, 63);
+            label51.Size = new Size(215, 63);
             label51.TabIndex = 203;
             label51.Text = "Wartość Elementów Mrożonych po zniżce";
-            label51.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label51.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox17
             // 
-            pictureBox17.Image = (System.Drawing.Image)resources.GetObject("pictureBox17.Image");
-            pictureBox17.Location = new System.Drawing.Point(623, 681);
+            pictureBox17.Image = (Image)resources.GetObject("pictureBox17.Image");
+            pictureBox17.Location = new Point(623, 681);
             pictureBox17.Name = "pictureBox17";
-            pictureBox17.Size = new System.Drawing.Size(138, 63);
+            pictureBox17.Size = new Size(138, 63);
             pictureBox17.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox17.TabIndex = 202;
             pictureBox17.TabStop = false;
             // 
             // WartoscElementowMrozonychPoObnizce
             // 
-            WartoscElementowMrozonychPoObnizce.BackColor = System.Drawing.SystemColors.ButtonFace;
-            WartoscElementowMrozonychPoObnizce.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowMrozonychPoObnizce.Location = new System.Drawing.Point(767, 681);
+            WartoscElementowMrozonychPoObnizce.BackColor = SystemColors.ButtonFace;
+            WartoscElementowMrozonychPoObnizce.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            WartoscElementowMrozonychPoObnizce.Location = new Point(767, 681);
             WartoscElementowMrozonychPoObnizce.Multiline = true;
             WartoscElementowMrozonychPoObnizce.Name = "WartoscElementowMrozonychPoObnizce";
-            WartoscElementowMrozonychPoObnizce.Size = new System.Drawing.Size(207, 63);
+            WartoscElementowMrozonychPoObnizce.Size = new Size(207, 63);
             WartoscElementowMrozonychPoObnizce.TabIndex = 201;
             WartoscElementowMrozonychPoObnizce.TextAlign = HorizontalAlignment.Center;
             // 
             // label52
             // 
-            label52.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label52.Location = new System.Drawing.Point(980, 788);
+            label52.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label52.Location = new Point(980, 788);
             label52.Name = "label52";
-            label52.Size = new System.Drawing.Size(215, 61);
+            label52.Size = new Size(215, 61);
             label52.TabIndex = 206;
             label52.Text = "Wartość Tuszki";
-            label52.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label52.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox18
             // 
-            pictureBox18.Image = (System.Drawing.Image)resources.GetObject("pictureBox18.Image");
-            pictureBox18.Location = new System.Drawing.Point(623, 788);
+            pictureBox18.Image = (Image)resources.GetObject("pictureBox18.Image");
+            pictureBox18.Location = new Point(623, 788);
             pictureBox18.Name = "pictureBox18";
-            pictureBox18.Size = new System.Drawing.Size(138, 61);
+            pictureBox18.Size = new Size(138, 61);
             pictureBox18.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox18.TabIndex = 205;
             pictureBox18.TabStop = false;
             // 
             // TuszkaWartosc3
             // 
-            TuszkaWartosc3.BackColor = System.Drawing.Color.LightGreen;
-            TuszkaWartosc3.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            TuszkaWartosc3.Location = new System.Drawing.Point(767, 788);
+            TuszkaWartosc3.BackColor = Color.LightGreen;
+            TuszkaWartosc3.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            TuszkaWartosc3.Location = new Point(767, 788);
             TuszkaWartosc3.Multiline = true;
             TuszkaWartosc3.Name = "TuszkaWartosc3";
-            TuszkaWartosc3.Size = new System.Drawing.Size(207, 61);
+            TuszkaWartosc3.Size = new Size(207, 61);
             TuszkaWartosc3.TabIndex = 204;
             TuszkaWartosc3.TextAlign = HorizontalAlignment.Center;
             // 
             // label53
             // 
-            label53.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label53.Location = new System.Drawing.Point(980, 853);
+            label53.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label53.Location = new Point(980, 853);
             label53.Name = "label53";
-            label53.Size = new System.Drawing.Size(215, 63);
+            label53.Size = new Size(215, 63);
             label53.TabIndex = 209;
             label53.Text = "Wartość Elementów Mrożonych po zniżce";
-            label53.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label53.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox19
             // 
-            pictureBox19.Image = (System.Drawing.Image)resources.GetObject("pictureBox19.Image");
-            pictureBox19.Location = new System.Drawing.Point(623, 853);
+            pictureBox19.Image = (Image)resources.GetObject("pictureBox19.Image");
+            pictureBox19.Location = new Point(623, 853);
             pictureBox19.Name = "pictureBox19";
-            pictureBox19.Size = new System.Drawing.Size(138, 63);
+            pictureBox19.Size = new Size(138, 63);
             pictureBox19.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox19.TabIndex = 208;
             pictureBox19.TabStop = false;
             // 
             // WartoscElementowMrozonychPoObnizce2
             // 
-            WartoscElementowMrozonychPoObnizce2.BackColor = System.Drawing.SystemColors.ActiveCaption;
-            WartoscElementowMrozonychPoObnizce2.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            WartoscElementowMrozonychPoObnizce2.Location = new System.Drawing.Point(767, 853);
+            WartoscElementowMrozonychPoObnizce2.BackColor = SystemColors.ActiveCaption;
+            WartoscElementowMrozonychPoObnizce2.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            WartoscElementowMrozonychPoObnizce2.Location = new Point(767, 853);
             WartoscElementowMrozonychPoObnizce2.Multiline = true;
             WartoscElementowMrozonychPoObnizce2.Name = "WartoscElementowMrozonychPoObnizce2";
-            WartoscElementowMrozonychPoObnizce2.Size = new System.Drawing.Size(207, 63);
+            WartoscElementowMrozonychPoObnizce2.Size = new Size(207, 63);
             WartoscElementowMrozonychPoObnizce2.TabIndex = 207;
             WartoscElementowMrozonychPoObnizce2.TextAlign = HorizontalAlignment.Center;
             // 
             // label54
             // 
-            label54.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label54.Location = new System.Drawing.Point(980, 922);
+            label54.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label54.Location = new Point(980, 922);
             label54.Name = "label54";
-            label54.Size = new System.Drawing.Size(215, 63);
+            label54.Size = new Size(215, 63);
             label54.TabIndex = 212;
             label54.Text = "Strata";
-            label54.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label54.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // Strata
             // 
-            Strata.BackColor = System.Drawing.SystemColors.ButtonFace;
-            Strata.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            Strata.ForeColor = System.Drawing.Color.Red;
-            Strata.Location = new System.Drawing.Point(767, 922);
+            Strata.BackColor = SystemColors.ButtonFace;
+            Strata.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            Strata.ForeColor = Color.Red;
+            Strata.Location = new Point(767, 922);
             Strata.Multiline = true;
             Strata.Name = "Strata";
-            Strata.Size = new System.Drawing.Size(207, 63);
+            Strata.Size = new Size(207, 63);
             Strata.TabIndex = 210;
             Strata.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox20
             // 
-            pictureBox20.Image = (System.Drawing.Image)resources.GetObject("pictureBox20.Image");
-            pictureBox20.Location = new System.Drawing.Point(623, 922);
+            pictureBox20.Image = (Image)resources.GetObject("pictureBox20.Image");
+            pictureBox20.Location = new Point(623, 922);
             pictureBox20.Name = "pictureBox20";
-            pictureBox20.Size = new System.Drawing.Size(138, 63);
+            pictureBox20.Size = new Size(138, 63);
             pictureBox20.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox20.TabIndex = 213;
             pictureBox20.TabStop = false;
             // 
             // pictureBox29
             // 
-            pictureBox29.Image = (System.Drawing.Image)resources.GetObject("pictureBox29.Image");
-            pictureBox29.Location = new System.Drawing.Point(622, 279);
+            pictureBox29.Image = (Image)resources.GetObject("pictureBox29.Image");
+            pictureBox29.Location = new Point(622, 279);
             pictureBox29.Name = "pictureBox29";
-            pictureBox29.Size = new System.Drawing.Size(138, 63);
+            pictureBox29.Size = new Size(138, 63);
             pictureBox29.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox29.TabIndex = 185;
             pictureBox29.TabStop = false;
             // 
             // pictureBox21
             // 
-            pictureBox21.Image = (System.Drawing.Image)resources.GetObject("pictureBox21.Image");
-            pictureBox21.Location = new System.Drawing.Point(623, 72);
+            pictureBox21.Image = (Image)resources.GetObject("pictureBox21.Image");
+            pictureBox21.Location = new Point(623, 72);
             pictureBox21.Name = "pictureBox21";
-            pictureBox21.Size = new System.Drawing.Size(138, 63);
+            pictureBox21.Size = new Size(138, 63);
             pictureBox21.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox21.TabIndex = 214;
             pictureBox21.TabStop = false;
             // 
             // label55
             // 
-            label55.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label55.Location = new System.Drawing.Point(980, 72);
+            label55.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label55.Location = new Point(980, 72);
             label55.Name = "label55";
-            label55.Size = new System.Drawing.Size(214, 61);
+            label55.Size = new Size(214, 61);
             label55.TabIndex = 215;
             label55.Text = "Zysk na elementach nie wliczając kosztów krojenia";
-            label55.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label55.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label56
             // 
-            label56.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label56.Location = new System.Drawing.Point(980, 141);
+            label56.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label56.Location = new Point(980, 141);
             label56.Name = "label56";
-            label56.Size = new System.Drawing.Size(214, 61);
+            label56.Size = new Size(214, 61);
             label56.TabIndex = 218;
             label56.Text = "Wartość Elementów";
-            label56.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label56.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox22
             // 
-            pictureBox22.Image = (System.Drawing.Image)resources.GetObject("pictureBox22.Image");
-            pictureBox22.Location = new System.Drawing.Point(623, 141);
+            pictureBox22.Image = (Image)resources.GetObject("pictureBox22.Image");
+            pictureBox22.Location = new Point(623, 141);
             pictureBox22.Name = "pictureBox22";
-            pictureBox22.Size = new System.Drawing.Size(138, 63);
+            pictureBox22.Size = new Size(138, 63);
             pictureBox22.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox22.TabIndex = 217;
             pictureBox22.TabStop = false;
             // 
             // RoznicaTuszkaElement3
             // 
-            RoznicaTuszkaElement3.BackColor = System.Drawing.SystemColors.ButtonFace;
-            RoznicaTuszkaElement3.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            RoznicaTuszkaElement3.ForeColor = System.Drawing.Color.FromArgb(128, 255, 128);
-            RoznicaTuszkaElement3.Location = new System.Drawing.Point(766, 72);
+            RoznicaTuszkaElement3.BackColor = SystemColors.ButtonFace;
+            RoznicaTuszkaElement3.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            RoznicaTuszkaElement3.ForeColor = Color.FromArgb(128, 255, 128);
+            RoznicaTuszkaElement3.Location = new Point(766, 72);
             RoznicaTuszkaElement3.Multiline = true;
             RoznicaTuszkaElement3.Name = "RoznicaTuszkaElement3";
-            RoznicaTuszkaElement3.Size = new System.Drawing.Size(207, 63);
+            RoznicaTuszkaElement3.Size = new Size(207, 63);
             RoznicaTuszkaElement3.TabIndex = 216;
             RoznicaTuszkaElement3.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox8
             // 
-            textBox8.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox8.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox8.Location = new System.Drawing.Point(1464, 338);
+            textBox8.BackColor = SystemColors.ControlLight;
+            textBox8.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox8.Location = new Point(1503, 376);
             textBox8.Multiline = true;
             textBox8.Name = "textBox8";
-            textBox8.Size = new System.Drawing.Size(206, 61);
+            textBox8.Size = new Size(206, 61);
             textBox8.TabIndex = 242;
             textBox8.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox9
             // 
-            textBox9.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox9.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox9.Location = new System.Drawing.Point(1464, 269);
+            textBox9.BackColor = SystemColors.ControlLight;
+            textBox9.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox9.Location = new Point(1503, 307);
             textBox9.Multiline = true;
             textBox9.Name = "textBox9";
-            textBox9.Size = new System.Drawing.Size(206, 61);
+            textBox9.Size = new Size(206, 61);
             textBox9.TabIndex = 241;
             textBox9.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox10
             // 
-            textBox10.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox10.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox10.Location = new System.Drawing.Point(1464, 203);
+            textBox10.BackColor = SystemColors.ControlLight;
+            textBox10.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox10.Location = new Point(1503, 241);
             textBox10.Multiline = true;
             textBox10.Name = "textBox10";
-            textBox10.Size = new System.Drawing.Size(206, 61);
+            textBox10.Size = new Size(206, 61);
             textBox10.TabIndex = 240;
             textBox10.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox11
             // 
-            textBox11.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox11.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox11.Location = new System.Drawing.Point(1464, 135);
+            textBox11.BackColor = SystemColors.ControlLight;
+            textBox11.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox11.Location = new Point(1503, 173);
             textBox11.Multiline = true;
             textBox11.Name = "textBox11";
-            textBox11.Size = new System.Drawing.Size(206, 61);
+            textBox11.Size = new Size(206, 61);
             textBox11.TabIndex = 239;
             textBox11.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox12
             // 
-            textBox12.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox12.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox12.Location = new System.Drawing.Point(1464, 68);
+            textBox12.BackColor = SystemColors.ControlLight;
+            textBox12.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox12.Location = new Point(1503, 106);
             textBox12.Multiline = true;
             textBox12.Name = "textBox12";
-            textBox12.Size = new System.Drawing.Size(206, 61);
+            textBox12.Size = new Size(206, 61);
             textBox12.TabIndex = 238;
             textBox12.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox13
             // 
-            textBox13.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox13.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox13.Location = new System.Drawing.Point(1676, 69);
+            textBox13.BackColor = SystemColors.ControlLight;
+            textBox13.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox13.Location = new Point(1715, 107);
             textBox13.Multiline = true;
             textBox13.Name = "textBox13";
-            textBox13.Size = new System.Drawing.Size(111, 61);
+            textBox13.Size = new Size(111, 61);
             textBox13.TabIndex = 237;
             textBox13.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox14
             // 
-            textBox14.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox14.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox14.Location = new System.Drawing.Point(1676, 405);
+            textBox14.BackColor = SystemColors.ControlLight;
+            textBox14.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox14.Location = new Point(1715, 443);
             textBox14.Multiline = true;
             textBox14.Name = "textBox14";
-            textBox14.Size = new System.Drawing.Size(111, 61);
+            textBox14.Size = new Size(111, 61);
             textBox14.TabIndex = 236;
             textBox14.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox15
             // 
-            textBox15.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox15.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox15.Location = new System.Drawing.Point(1676, 338);
+            textBox15.BackColor = SystemColors.ControlLight;
+            textBox15.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox15.Location = new Point(1715, 376);
             textBox15.Multiline = true;
             textBox15.Name = "textBox15";
-            textBox15.Size = new System.Drawing.Size(111, 61);
+            textBox15.Size = new Size(111, 61);
             textBox15.TabIndex = 235;
             textBox15.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox16
             // 
-            textBox16.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox16.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox16.Location = new System.Drawing.Point(1676, 269);
+            textBox16.BackColor = SystemColors.ControlLight;
+            textBox16.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox16.Location = new Point(1715, 307);
             textBox16.Multiline = true;
             textBox16.Name = "textBox16";
-            textBox16.Size = new System.Drawing.Size(111, 61);
+            textBox16.Size = new Size(111, 61);
             textBox16.TabIndex = 234;
             textBox16.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox17
             // 
-            textBox17.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox17.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox17.Location = new System.Drawing.Point(1676, 135);
+            textBox17.BackColor = SystemColors.ControlLight;
+            textBox17.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox17.Location = new Point(1715, 173);
             textBox17.Multiline = true;
             textBox17.Name = "textBox17";
-            textBox17.Size = new System.Drawing.Size(111, 61);
+            textBox17.Size = new Size(111, 61);
             textBox17.TabIndex = 233;
             textBox17.TextAlign = HorizontalAlignment.Center;
             // 
             // textBox18
             // 
-            textBox18.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox18.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox18.Location = new System.Drawing.Point(1676, 204);
+            textBox18.BackColor = SystemColors.ControlLight;
+            textBox18.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox18.Location = new Point(1715, 242);
             textBox18.Multiline = true;
             textBox18.Name = "textBox18";
-            textBox18.Size = new System.Drawing.Size(111, 61);
+            textBox18.Size = new Size(111, 61);
             textBox18.TabIndex = 232;
             textBox18.TextAlign = HorizontalAlignment.Center;
             // 
             // label57
             // 
-            label57.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label57.Location = new System.Drawing.Point(1793, 408);
+            label57.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label57.Location = new Point(1832, 446);
             label57.Name = "label57";
-            label57.Size = new System.Drawing.Size(130, 60);
+            label57.Size = new Size(130, 60);
             label57.TabIndex = 231;
             label57.Text = "Oczyszczanie fileta";
-            label57.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label57.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // textBox19
             // 
-            textBox19.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox19.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox19.Location = new System.Drawing.Point(1464, 405);
+            textBox19.BackColor = SystemColors.ControlLight;
+            textBox19.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox19.Location = new Point(1503, 443);
             textBox19.Multiline = true;
             textBox19.Name = "textBox19";
-            textBox19.Size = new System.Drawing.Size(206, 61);
+            textBox19.Size = new Size(206, 61);
             textBox19.TabIndex = 230;
             textBox19.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox23
             // 
-            pictureBox23.Image = (System.Drawing.Image)resources.GetObject("pictureBox23.Image");
-            pictureBox23.Location = new System.Drawing.Point(1322, 546);
+            pictureBox23.Image = (Image)resources.GetObject("pictureBox23.Image");
+            pictureBox23.Location = new Point(1361, 584);
             pictureBox23.Name = "pictureBox23";
-            pictureBox23.Size = new System.Drawing.Size(136, 61);
+            pictureBox23.Size = new Size(136, 61);
             pictureBox23.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox23.TabIndex = 229;
             pictureBox23.TabStop = false;
             // 
             // label58
             // 
-            label58.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label58.Location = new System.Drawing.Point(1793, 341);
+            label58.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label58.Location = new Point(1832, 379);
             label58.Name = "label58";
-            label58.Size = new System.Drawing.Size(130, 60);
+            label58.Size = new Size(130, 60);
             label58.TabIndex = 228;
             label58.Text = "Odkrojenie tub";
-            label58.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label58.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox24
             // 
-            pictureBox24.Image = (System.Drawing.Image)resources.GetObject("pictureBox24.Image");
-            pictureBox24.Location = new System.Drawing.Point(1322, 270);
+            pictureBox24.Image = (Image)resources.GetObject("pictureBox24.Image");
+            pictureBox24.Location = new Point(1361, 308);
             pictureBox24.Name = "pictureBox24";
-            pictureBox24.Size = new System.Drawing.Size(136, 61);
+            pictureBox24.Size = new Size(136, 61);
             pictureBox24.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox24.TabIndex = 227;
             pictureBox24.TabStop = false;
             // 
             // label59
             // 
-            label59.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label59.Location = new System.Drawing.Point(1793, 205);
+            label59.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label59.Location = new Point(1832, 243);
             label59.Name = "label59";
-            label59.Size = new System.Drawing.Size(130, 60);
+            label59.Size = new Size(130, 60);
             label59.TabIndex = 226;
             label59.Text = "Oczyszczanie skrzydełek";
-            label59.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label59.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label60
             // 
-            label60.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label60.Location = new System.Drawing.Point(1793, 272);
+            label60.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label60.Location = new Point(1832, 310);
             label60.Name = "label60";
-            label60.Size = new System.Drawing.Size(130, 60);
+            label60.Size = new Size(130, 60);
             label60.TabIndex = 225;
             label60.Text = "Zawieszanie tub";
-            label60.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label60.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label61
             // 
-            label61.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label61.Location = new System.Drawing.Point(1793, 138);
+            label61.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label61.Location = new Point(1832, 176);
             label61.Name = "label61";
-            label61.Size = new System.Drawing.Size(130, 60);
+            label61.Size = new Size(130, 60);
             label61.TabIndex = 224;
             label61.Text = "Segregowanie skrzydeł i ćwiartek";
-            label61.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label61.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // label62
             // 
-            label62.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label62.Location = new System.Drawing.Point(1793, 71);
+            label62.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label62.Location = new Point(1832, 109);
             label62.Name = "label62";
-            label62.Size = new System.Drawing.Size(130, 60);
+            label62.Size = new Size(130, 60);
             label62.TabIndex = 223;
             label62.Text = "Zawieszanie tuszki na dzielarke";
-            label62.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label62.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // pictureBox25
             // 
-            pictureBox25.Image = (System.Drawing.Image)resources.GetObject("pictureBox25.Image");
-            pictureBox25.Location = new System.Drawing.Point(1322, 405);
+            pictureBox25.Image = (Image)resources.GetObject("pictureBox25.Image");
+            pictureBox25.Location = new Point(1361, 443);
             pictureBox25.Name = "pictureBox25";
-            pictureBox25.Size = new System.Drawing.Size(136, 61);
+            pictureBox25.Size = new Size(136, 61);
             pictureBox25.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox25.TabIndex = 222;
             pictureBox25.TabStop = false;
             // 
             // pictureBox26
             // 
-            pictureBox26.Image = (System.Drawing.Image)resources.GetObject("pictureBox26.Image");
-            pictureBox26.Location = new System.Drawing.Point(1322, 337);
+            pictureBox26.Image = (Image)resources.GetObject("pictureBox26.Image");
+            pictureBox26.Location = new Point(1361, 375);
             pictureBox26.Name = "pictureBox26";
-            pictureBox26.Size = new System.Drawing.Size(136, 61);
+            pictureBox26.Size = new Size(136, 61);
             pictureBox26.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox26.TabIndex = 221;
             pictureBox26.TabStop = false;
             // 
             // pictureBox27
             // 
-            pictureBox27.Image = (System.Drawing.Image)resources.GetObject("pictureBox27.Image");
-            pictureBox27.Location = new System.Drawing.Point(1322, 69);
+            pictureBox27.Image = (Image)resources.GetObject("pictureBox27.Image");
+            pictureBox27.Location = new Point(1361, 107);
             pictureBox27.Name = "pictureBox27";
-            pictureBox27.Size = new System.Drawing.Size(136, 61);
+            pictureBox27.Size = new Size(136, 61);
             pictureBox27.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox27.TabIndex = 220;
             pictureBox27.TabStop = false;
             // 
             // pictureBox28
             // 
-            pictureBox28.Image = (System.Drawing.Image)resources.GetObject("pictureBox28.Image");
-            pictureBox28.Location = new System.Drawing.Point(1322, 474);
+            pictureBox28.Image = (Image)resources.GetObject("pictureBox28.Image");
+            pictureBox28.Location = new Point(1361, 512);
             pictureBox28.Name = "pictureBox28";
-            pictureBox28.Size = new System.Drawing.Size(136, 61);
+            pictureBox28.Size = new Size(136, 61);
             pictureBox28.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox28.TabIndex = 219;
             pictureBox28.TabStop = false;
             // 
             // textBox20
             // 
-            textBox20.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox20.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox20.Location = new System.Drawing.Point(1676, 474);
+            textBox20.BackColor = SystemColors.ControlLight;
+            textBox20.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox20.Location = new Point(1715, 512);
             textBox20.Multiline = true;
             textBox20.Name = "textBox20";
-            textBox20.Size = new System.Drawing.Size(111, 61);
+            textBox20.Size = new Size(111, 61);
             textBox20.TabIndex = 246;
             textBox20.TextAlign = HorizontalAlignment.Center;
             // 
             // label63
             // 
-            label63.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label63.Location = new System.Drawing.Point(1793, 477);
+            label63.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label63.Location = new Point(1832, 515);
             label63.Name = "label63";
-            label63.Size = new System.Drawing.Size(130, 60);
+            label63.Size = new Size(130, 60);
             label63.TabIndex = 245;
             label63.Text = "Ważenie elementów";
-            label63.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label63.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // textBox21
             // 
-            textBox21.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox21.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox21.Location = new System.Drawing.Point(1464, 474);
+            textBox21.BackColor = SystemColors.ControlLight;
+            textBox21.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox21.Location = new Point(1503, 512);
             textBox21.Multiline = true;
             textBox21.Name = "textBox21";
-            textBox21.Size = new System.Drawing.Size(206, 61);
+            textBox21.Size = new Size(206, 61);
             textBox21.TabIndex = 244;
             textBox21.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox30
             // 
-            pictureBox30.Image = (System.Drawing.Image)resources.GetObject("pictureBox30.Image");
-            pictureBox30.Location = new System.Drawing.Point(1322, 135);
+            pictureBox30.Image = (Image)resources.GetObject("pictureBox30.Image");
+            pictureBox30.Location = new Point(1361, 173);
             pictureBox30.Name = "pictureBox30";
-            pictureBox30.Size = new System.Drawing.Size(136, 61);
+            pictureBox30.Size = new Size(136, 61);
             pictureBox30.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox30.TabIndex = 243;
             pictureBox30.TabStop = false;
             // 
             // textBox22
             // 
-            textBox22.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox22.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox22.Location = new System.Drawing.Point(1676, 543);
+            textBox22.BackColor = SystemColors.ControlLight;
+            textBox22.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox22.Location = new Point(1715, 581);
             textBox22.Multiline = true;
             textBox22.Name = "textBox22";
-            textBox22.Size = new System.Drawing.Size(111, 61);
+            textBox22.Size = new Size(111, 61);
             textBox22.TabIndex = 250;
             textBox22.TextAlign = HorizontalAlignment.Center;
             // 
             // label64
             // 
-            label64.Font = new System.Drawing.Font("Segoe UI Light", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label64.Location = new System.Drawing.Point(1793, 546);
+            label64.Font = new Font("Segoe UI Light", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label64.Location = new Point(1832, 584);
             label64.Name = "label64";
-            label64.Size = new System.Drawing.Size(130, 60);
+            label64.Size = new Size(130, 60);
             label64.TabIndex = 249;
             label64.Text = "Zużycie energi dzielarki";
-            label64.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label64.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // textBox23
             // 
-            textBox23.BackColor = System.Drawing.SystemColors.ControlLight;
-            textBox23.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox23.Location = new System.Drawing.Point(1464, 543);
+            textBox23.BackColor = SystemColors.ControlLight;
+            textBox23.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            textBox23.Location = new Point(1503, 581);
             textBox23.Multiline = true;
             textBox23.Name = "textBox23";
-            textBox23.Size = new System.Drawing.Size(206, 61);
+            textBox23.Size = new Size(206, 61);
             textBox23.TabIndex = 248;
             textBox23.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox31
             // 
-            pictureBox31.Image = (System.Drawing.Image)resources.GetObject("pictureBox31.Image");
-            pictureBox31.Location = new System.Drawing.Point(1322, 203);
+            pictureBox31.Image = (Image)resources.GetObject("pictureBox31.Image");
+            pictureBox31.Location = new Point(1361, 241);
             pictureBox31.Name = "pictureBox31";
-            pictureBox31.Size = new System.Drawing.Size(136, 61);
+            pictureBox31.Size = new Size(136, 61);
             pictureBox31.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox31.TabIndex = 247;
             pictureBox31.TabStop = false;
             // 
             // label65
             // 
-            label65.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label65.Location = new System.Drawing.Point(1322, 32);
+            label65.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            label65.Location = new Point(1361, 70);
             label65.Name = "label65";
-            label65.Size = new System.Drawing.Size(348, 34);
+            label65.Size = new Size(348, 34);
             label65.TabIndex = 251;
             label65.Text = "Obliczanie kosztu krojenia";
-            label65.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label65.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // CenaTuszka1
             // 
-            CenaTuszka1.BackColor = System.Drawing.Color.White;
-            CenaTuszka1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaTuszka1.Location = new System.Drawing.Point(665, 39);
+            CenaTuszka1.BackColor = Color.White;
+            CenaTuszka1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaTuszka1.Location = new Point(665, 39);
             CenaTuszka1.Name = "CenaTuszka1";
-            CenaTuszka1.Size = new System.Drawing.Size(59, 27);
+            CenaTuszka1.Size = new Size(59, 27);
             CenaTuszka1.TabIndex = 252;
             CenaTuszka1.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaElementyKrojenie1
             // 
-            CenaElementyKrojenie1.BackColor = System.Drawing.Color.White;
-            CenaElementyKrojenie1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaElementyKrojenie1.Location = new System.Drawing.Point(665, 313);
+            CenaElementyKrojenie1.BackColor = Color.White;
+            CenaElementyKrojenie1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaElementyKrojenie1.Location = new Point(665, 313);
             CenaElementyKrojenie1.Name = "CenaElementyKrojenie1";
-            CenaElementyKrojenie1.Size = new System.Drawing.Size(59, 27);
+            CenaElementyKrojenie1.Size = new Size(59, 27);
             CenaElementyKrojenie1.TabIndex = 253;
             CenaElementyKrojenie1.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaElementy1
             // 
-            CenaElementy1.BackColor = System.Drawing.Color.White;
-            CenaElementy1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaElementy1.Location = new System.Drawing.Point(665, 175);
+            CenaElementy1.BackColor = Color.White;
+            CenaElementy1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaElementy1.Location = new Point(665, 175);
             CenaElementy1.Name = "CenaElementy1";
-            CenaElementy1.Size = new System.Drawing.Size(59, 27);
+            CenaElementy1.Size = new Size(59, 27);
             CenaElementy1.TabIndex = 254;
             CenaElementy1.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaElementyPoMrozeniu1
             // 
-            CenaElementyPoMrozeniu1.BackColor = System.Drawing.Color.White;
-            CenaElementyPoMrozeniu1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaElementyPoMrozeniu1.Location = new System.Drawing.Point(666, 575);
+            CenaElementyPoMrozeniu1.BackColor = Color.White;
+            CenaElementyPoMrozeniu1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaElementyPoMrozeniu1.Location = new Point(666, 575);
             CenaElementyPoMrozeniu1.Name = "CenaElementyPoMrozeniu1";
-            CenaElementyPoMrozeniu1.Size = new System.Drawing.Size(59, 27);
+            CenaElementyPoMrozeniu1.Size = new Size(59, 27);
             CenaElementyPoMrozeniu1.TabIndex = 255;
             CenaElementyPoMrozeniu1.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaTuszka2
             // 
-            CenaTuszka2.BackColor = System.Drawing.Color.White;
-            CenaTuszka2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaTuszka2.Location = new System.Drawing.Point(666, 822);
+            CenaTuszka2.BackColor = Color.White;
+            CenaTuszka2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaTuszka2.Location = new Point(666, 822);
             CenaTuszka2.Name = "CenaTuszka2";
-            CenaTuszka2.Size = new System.Drawing.Size(59, 27);
+            CenaTuszka2.Size = new Size(59, 27);
             CenaTuszka2.TabIndex = 256;
             CenaTuszka2.TextAlign = HorizontalAlignment.Center;
             // 
             // CenyElementowPoObnizeniuMroz2
             // 
-            CenyElementowPoObnizeniuMroz2.BackColor = System.Drawing.Color.White;
-            CenyElementowPoObnizeniuMroz2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenyElementowPoObnizeniuMroz2.Location = new System.Drawing.Point(666, 885);
+            CenyElementowPoObnizeniuMroz2.BackColor = Color.White;
+            CenyElementowPoObnizeniuMroz2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenyElementowPoObnizeniuMroz2.Location = new Point(666, 885);
             CenyElementowPoObnizeniuMroz2.Name = "CenyElementowPoObnizeniuMroz2";
-            CenyElementowPoObnizeniuMroz2.Size = new System.Drawing.Size(59, 27);
+            CenyElementowPoObnizeniuMroz2.Size = new Size(59, 27);
             CenyElementowPoObnizeniuMroz2.TabIndex = 257;
             CenyElementowPoObnizeniuMroz2.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaStrataSuma1
             // 
-            CenaStrataSuma1.BackColor = System.Drawing.Color.White;
-            CenaStrataSuma1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaStrataSuma1.Location = new System.Drawing.Point(666, 954);
+            CenaStrataSuma1.BackColor = Color.White;
+            CenaStrataSuma1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaStrataSuma1.Location = new Point(666, 954);
             CenaStrataSuma1.Name = "CenaStrataSuma1";
-            CenaStrataSuma1.Size = new System.Drawing.Size(59, 27);
+            CenaStrataSuma1.Size = new Size(59, 27);
             CenaStrataSuma1.TabIndex = 258;
             CenaStrataSuma1.TextAlign = HorizontalAlignment.Center;
             // 
             // CenyElementowPoObnizeniuMroz1
             // 
-            CenyElementowPoObnizeniuMroz1.BackColor = System.Drawing.Color.White;
-            CenyElementowPoObnizeniuMroz1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenyElementowPoObnizeniuMroz1.Location = new System.Drawing.Point(666, 713);
+            CenyElementowPoObnizeniuMroz1.BackColor = Color.White;
+            CenyElementowPoObnizeniuMroz1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenyElementowPoObnizeniuMroz1.Location = new Point(666, 713);
             CenyElementowPoObnizeniuMroz1.Name = "CenyElementowPoObnizeniuMroz1";
-            CenyElementowPoObnizeniuMroz1.Size = new System.Drawing.Size(59, 27);
+            CenyElementowPoObnizeniuMroz1.Size = new Size(59, 27);
             CenyElementowPoObnizeniuMroz1.TabIndex = 259;
             CenyElementowPoObnizeniuMroz1.TextAlign = HorizontalAlignment.Center;
             // 
             // Filet2Wydajnosc
             // 
-            Filet2Wydajnosc.BackColor = System.Drawing.Color.White;
-            Filet2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Filet2Wydajnosc.Location = new System.Drawing.Point(78, 104);
+            Filet2Wydajnosc.BackColor = Color.White;
+            Filet2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Filet2Wydajnosc.Location = new Point(78, 104);
             Filet2Wydajnosc.Name = "Filet2Wydajnosc";
-            Filet2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Filet2Wydajnosc.Size = new Size(57, 25);
             Filet2Wydajnosc.TabIndex = 264;
             Filet2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Filet2Wydajnosc.TextChanged += Filet2Wydajnosc_TextChanged;
             // 
             // label66
             // 
-            label66.Location = new System.Drawing.Point(1, 104);
+            label66.Location = new Point(1, 104);
             label66.Name = "label66";
-            label66.Size = new System.Drawing.Size(71, 25);
+            label66.Size = new Size(71, 25);
             label66.TabIndex = 263;
             label66.Text = "Filet II";
-            label66.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label66.TextAlign = ContentAlignment.MiddleRight;
             // 
             // Filet2Wartosc
             // 
-            Filet2Wartosc.BackColor = System.Drawing.Color.White;
-            Filet2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Filet2Wartosc.Location = new System.Drawing.Point(316, 104);
+            Filet2Wartosc.BackColor = Color.White;
+            Filet2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Filet2Wartosc.Location = new Point(316, 104);
             Filet2Wartosc.Name = "Filet2Wartosc";
-            Filet2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Filet2Wartosc.Size = new Size(117, 25);
             Filet2Wartosc.TabIndex = 262;
             Filet2Wartosc.TextAlign = HorizontalAlignment.Center;
             Filet2Wartosc.TextChanged += Filet2Wartosc_TextChanged;
             // 
             // Filet2Cena
             // 
-            Filet2Cena.BackColor = System.Drawing.Color.White;
-            Filet2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Filet2Cena.Location = new System.Drawing.Point(253, 104);
+            Filet2Cena.BackColor = Color.White;
+            Filet2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Filet2Cena.Location = new Point(253, 104);
             Filet2Cena.Name = "Filet2Cena";
-            Filet2Cena.Size = new System.Drawing.Size(57, 25);
+            Filet2Cena.Size = new Size(57, 25);
             Filet2Cena.TabIndex = 261;
             Filet2Cena.TextAlign = HorizontalAlignment.Center;
             Filet2Cena.TextChanged += Filet2Cena_TextChanged;
             // 
             // Filet2KG
             // 
-            Filet2KG.BackColor = System.Drawing.Color.White;
-            Filet2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Filet2KG.Location = new System.Drawing.Point(141, 104);
+            Filet2KG.BackColor = Color.White;
+            Filet2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Filet2KG.Location = new Point(141, 104);
             Filet2KG.Name = "Filet2KG";
-            Filet2KG.Size = new System.Drawing.Size(106, 25);
+            Filet2KG.Size = new Size(106, 25);
             Filet2KG.TabIndex = 260;
             Filet2KG.TextAlign = HorizontalAlignment.Center;
             Filet2KG.TextChanged += Filet2KG_TextChanged;
             // 
             // Cwiartka2Wydajnosc
             // 
-            Cwiartka2Wydajnosc.BackColor = System.Drawing.Color.White;
-            Cwiartka2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Cwiartka2Wydajnosc.Location = new System.Drawing.Point(78, 152);
+            Cwiartka2Wydajnosc.BackColor = Color.White;
+            Cwiartka2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Cwiartka2Wydajnosc.Location = new Point(78, 152);
             Cwiartka2Wydajnosc.Name = "Cwiartka2Wydajnosc";
-            Cwiartka2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Cwiartka2Wydajnosc.Size = new Size(57, 25);
             Cwiartka2Wydajnosc.TabIndex = 269;
             Cwiartka2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Wydajnosc.TextChanged += Cwiartka2Wydajnosc_TextChanged;
             // 
             // label67
             // 
-            label67.Location = new System.Drawing.Point(1, 152);
+            label67.Location = new Point(1, 152);
             label67.Name = "label67";
-            label67.Size = new System.Drawing.Size(71, 25);
+            label67.Size = new Size(71, 25);
             label67.TabIndex = 268;
             label67.Text = "Ćwiartka II";
-            label67.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label67.TextAlign = ContentAlignment.MiddleRight;
             // 
             // Cwiartka2Wartosc
             // 
-            Cwiartka2Wartosc.BackColor = System.Drawing.Color.White;
-            Cwiartka2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Cwiartka2Wartosc.Location = new System.Drawing.Point(316, 152);
+            Cwiartka2Wartosc.BackColor = Color.White;
+            Cwiartka2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Cwiartka2Wartosc.Location = new Point(316, 152);
             Cwiartka2Wartosc.Name = "Cwiartka2Wartosc";
-            Cwiartka2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Cwiartka2Wartosc.Size = new Size(117, 25);
             Cwiartka2Wartosc.TabIndex = 267;
             Cwiartka2Wartosc.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Wartosc.TextChanged += Cwiartka2Wartosc_TextChanged;
             // 
             // Cwiartka2Cena
             // 
-            Cwiartka2Cena.BackColor = System.Drawing.Color.White;
-            Cwiartka2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Cwiartka2Cena.Location = new System.Drawing.Point(253, 152);
+            Cwiartka2Cena.BackColor = Color.White;
+            Cwiartka2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Cwiartka2Cena.Location = new Point(253, 152);
             Cwiartka2Cena.Name = "Cwiartka2Cena";
-            Cwiartka2Cena.Size = new System.Drawing.Size(57, 25);
+            Cwiartka2Cena.Size = new Size(57, 25);
             Cwiartka2Cena.TabIndex = 266;
             Cwiartka2Cena.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Cena.TextChanged += Cwiartka2Cena_TextChanged;
             // 
             // Cwiartka2KG
             // 
-            Cwiartka2KG.BackColor = System.Drawing.Color.White;
-            Cwiartka2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Cwiartka2KG.Location = new System.Drawing.Point(141, 152);
+            Cwiartka2KG.BackColor = Color.White;
+            Cwiartka2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Cwiartka2KG.Location = new Point(141, 152);
             Cwiartka2KG.Name = "Cwiartka2KG";
-            Cwiartka2KG.Size = new System.Drawing.Size(106, 25);
+            Cwiartka2KG.Size = new Size(106, 25);
             Cwiartka2KG.TabIndex = 265;
             Cwiartka2KG.TextAlign = HorizontalAlignment.Center;
             Cwiartka2KG.TextChanged += Cwiartka2KG_TextChanged;
             // 
             // Skrzydlo2Wydajnosc
             // 
-            Skrzydlo2Wydajnosc.BackColor = System.Drawing.Color.White;
-            Skrzydlo2Wydajnosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Skrzydlo2Wydajnosc.Location = new System.Drawing.Point(78, 197);
+            Skrzydlo2Wydajnosc.BackColor = Color.White;
+            Skrzydlo2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Skrzydlo2Wydajnosc.Location = new Point(78, 197);
             Skrzydlo2Wydajnosc.Name = "Skrzydlo2Wydajnosc";
-            Skrzydlo2Wydajnosc.Size = new System.Drawing.Size(57, 25);
+            Skrzydlo2Wydajnosc.Size = new Size(57, 25);
             Skrzydlo2Wydajnosc.TabIndex = 274;
             Skrzydlo2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2Wydajnosc.TextChanged += Skrzydlo2Wydajnosc_TextChanged;
             // 
             // label68
             // 
-            label68.Location = new System.Drawing.Point(1, 197);
+            label68.Location = new Point(1, 197);
             label68.Name = "label68";
-            label68.Size = new System.Drawing.Size(71, 25);
+            label68.Size = new Size(71, 25);
             label68.TabIndex = 273;
             label68.Text = "Skrzydlo II";
-            label68.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            label68.TextAlign = ContentAlignment.MiddleRight;
             // 
             // Skrzydlo2Wartosc
             // 
-            Skrzydlo2Wartosc.BackColor = System.Drawing.Color.White;
-            Skrzydlo2Wartosc.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Skrzydlo2Wartosc.Location = new System.Drawing.Point(316, 197);
+            Skrzydlo2Wartosc.BackColor = Color.White;
+            Skrzydlo2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Skrzydlo2Wartosc.Location = new Point(316, 197);
             Skrzydlo2Wartosc.Name = "Skrzydlo2Wartosc";
-            Skrzydlo2Wartosc.Size = new System.Drawing.Size(117, 25);
+            Skrzydlo2Wartosc.Size = new Size(117, 25);
             Skrzydlo2Wartosc.TabIndex = 272;
             Skrzydlo2Wartosc.TextAlign = HorizontalAlignment.Center;
             // 
             // Skrzydlo2Cena
             // 
-            Skrzydlo2Cena.BackColor = System.Drawing.Color.White;
-            Skrzydlo2Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Skrzydlo2Cena.Location = new System.Drawing.Point(253, 197);
+            Skrzydlo2Cena.BackColor = Color.White;
+            Skrzydlo2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Skrzydlo2Cena.Location = new Point(253, 197);
             Skrzydlo2Cena.Name = "Skrzydlo2Cena";
-            Skrzydlo2Cena.Size = new System.Drawing.Size(57, 25);
+            Skrzydlo2Cena.Size = new Size(57, 25);
             Skrzydlo2Cena.TabIndex = 271;
             Skrzydlo2Cena.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2Cena.TextChanged += Skrzydlo2Cena_TextChanged;
             // 
             // Skrzydlo2KG
             // 
-            Skrzydlo2KG.BackColor = System.Drawing.Color.White;
-            Skrzydlo2KG.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            Skrzydlo2KG.Location = new System.Drawing.Point(141, 197);
+            Skrzydlo2KG.BackColor = Color.White;
+            Skrzydlo2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
+            Skrzydlo2KG.Location = new Point(141, 197);
             Skrzydlo2KG.Name = "Skrzydlo2KG";
-            Skrzydlo2KG.Size = new System.Drawing.Size(106, 25);
+            Skrzydlo2KG.Size = new Size(106, 25);
             Skrzydlo2KG.TabIndex = 270;
             Skrzydlo2KG.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2KG.TextChanged += Skrzydlo2KG_TextChanged;
             // 
             // CenaRoznicaTuszkaElementy
             // 
-            CenaRoznicaTuszkaElementy.BackColor = System.Drawing.Color.White;
-            CenaRoznicaTuszkaElementy.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaRoznicaTuszkaElementy.Location = new System.Drawing.Point(665, 108);
+            CenaRoznicaTuszkaElementy.BackColor = Color.White;
+            CenaRoznicaTuszkaElementy.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaRoznicaTuszkaElementy.Location = new Point(665, 108);
             CenaRoznicaTuszkaElementy.Name = "CenaRoznicaTuszkaElementy";
-            CenaRoznicaTuszkaElementy.Size = new System.Drawing.Size(59, 27);
+            CenaRoznicaTuszkaElementy.Size = new Size(59, 27);
             CenaRoznicaTuszkaElementy.TabIndex = 275;
             CenaRoznicaTuszkaElementy.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaKrojenia
             // 
-            CenaKrojenia.BackColor = System.Drawing.Color.White;
-            CenaKrojenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaKrojenia.Location = new System.Drawing.Point(665, 246);
+            CenaKrojenia.BackColor = Color.White;
+            CenaKrojenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaKrojenia.Location = new Point(665, 246);
             CenaKrojenia.Name = "CenaKrojenia";
-            CenaKrojenia.Size = new System.Drawing.Size(59, 27);
+            CenaKrojenia.Size = new Size(59, 27);
             CenaKrojenia.TabIndex = 276;
             CenaKrojenia.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaMrozenia
             // 
-            CenaMrozenia.BackColor = System.Drawing.Color.White;
-            CenaMrozenia.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaMrozenia.Location = new System.Drawing.Point(666, 510);
+            CenaMrozenia.BackColor = Color.White;
+            CenaMrozenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaMrozenia.Location = new Point(666, 510);
             CenaMrozenia.Name = "CenaMrozenia";
-            CenaMrozenia.Size = new System.Drawing.Size(59, 27);
+            CenaMrozenia.Size = new Size(59, 27);
             CenaMrozenia.TabIndex = 277;
             CenaMrozenia.TextAlign = HorizontalAlignment.Center;
             // 
             // RoznicaObnizeniaCeny
             // 
-            RoznicaObnizeniaCeny.BackColor = System.Drawing.Color.White;
-            RoznicaObnizeniaCeny.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            RoznicaObnizeniaCeny.Location = new System.Drawing.Point(666, 648);
+            RoznicaObnizeniaCeny.BackColor = Color.White;
+            RoznicaObnizeniaCeny.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            RoznicaObnizeniaCeny.Location = new Point(666, 648);
             RoznicaObnizeniaCeny.Name = "RoznicaObnizeniaCeny";
-            RoznicaObnizeniaCeny.Size = new System.Drawing.Size(59, 27);
+            RoznicaObnizeniaCeny.Size = new Size(59, 27);
             RoznicaObnizeniaCeny.TabIndex = 278;
             RoznicaObnizeniaCeny.TextAlign = HorizontalAlignment.Center;
             // 
             // CenaRoznicaTuszkaElementyPokrojone
             // 
-            CenaRoznicaTuszkaElementyPokrojone.BackColor = System.Drawing.Color.White;
-            CenaRoznicaTuszkaElementyPokrojone.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            CenaRoznicaTuszkaElementyPokrojone.Location = new System.Drawing.Point(665, 384);
+            CenaRoznicaTuszkaElementyPokrojone.BackColor = Color.White;
+            CenaRoznicaTuszkaElementyPokrojone.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            CenaRoznicaTuszkaElementyPokrojone.Location = new Point(665, 384);
             CenaRoznicaTuszkaElementyPokrojone.Name = "CenaRoznicaTuszkaElementyPokrojone";
-            CenaRoznicaTuszkaElementyPokrojone.Size = new System.Drawing.Size(59, 27);
+            CenaRoznicaTuszkaElementyPokrojone.Size = new Size(59, 27);
             CenaRoznicaTuszkaElementyPokrojone.TabIndex = 282;
             CenaRoznicaTuszkaElementyPokrojone.TextAlign = HorizontalAlignment.Center;
             // 
             // label69
             // 
-            label69.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label69.ForeColor = System.Drawing.Color.Red;
-            label69.Location = new System.Drawing.Point(979, 348);
+            label69.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point);
+            label69.ForeColor = Color.Red;
+            label69.Location = new Point(979, 348);
             label69.Name = "label69";
-            label69.Size = new System.Drawing.Size(215, 63);
+            label69.Size = new Size(215, 63);
             label69.TabIndex = 281;
             label69.Text = "Roznica miedzy Tuszką a Elementami po kosztach";
-            label69.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            label69.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // KosztSprzedazyPokrojonego
             // 
-            KosztSprzedazyPokrojonego.BackColor = System.Drawing.SystemColors.ButtonFace;
-            KosztSprzedazyPokrojonego.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            KosztSprzedazyPokrojonego.ForeColor = System.Drawing.Color.Red;
-            KosztSprzedazyPokrojonego.Location = new System.Drawing.Point(766, 348);
+            KosztSprzedazyPokrojonego.BackColor = SystemColors.ButtonFace;
+            KosztSprzedazyPokrojonego.Font = new Font("Microsoft Sans Serif", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
+            KosztSprzedazyPokrojonego.ForeColor = Color.Red;
+            KosztSprzedazyPokrojonego.Location = new Point(766, 348);
             KosztSprzedazyPokrojonego.Multiline = true;
             KosztSprzedazyPokrojonego.Name = "KosztSprzedazyPokrojonego";
-            KosztSprzedazyPokrojonego.Size = new System.Drawing.Size(207, 63);
+            KosztSprzedazyPokrojonego.Size = new Size(207, 63);
             KosztSprzedazyPokrojonego.TabIndex = 280;
             KosztSprzedazyPokrojonego.TextAlign = HorizontalAlignment.Center;
             // 
             // pictureBox32
             // 
-            pictureBox32.Image = (System.Drawing.Image)resources.GetObject("pictureBox32.Image");
-            pictureBox32.Location = new System.Drawing.Point(623, 348);
+            pictureBox32.Image = (Image)resources.GetObject("pictureBox32.Image");
+            pictureBox32.Location = new Point(623, 348);
             pictureBox32.Name = "pictureBox32";
-            pictureBox32.Size = new System.Drawing.Size(137, 63);
+            pictureBox32.Size = new Size(137, 63);
             pictureBox32.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox32.TabIndex = 279;
             pictureBox32.TabStop = false;
             // 
             // pictureBox33
             // 
-            pictureBox33.Image = (System.Drawing.Image)resources.GetObject("pictureBox33.Image");
-            pictureBox33.Location = new System.Drawing.Point(439, 1);
+            pictureBox33.Image = (Image)resources.GetObject("pictureBox33.Image");
+            pictureBox33.Location = new Point(439, 1);
             pictureBox33.Name = "pictureBox33";
-            pictureBox33.Size = new System.Drawing.Size(89, 35);
+            pictureBox33.Size = new Size(89, 35);
             pictureBox33.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox33.TabIndex = 283;
             pictureBox33.TabStop = false;
             // 
+            // OdswiezButton
+            // 
+            OdswiezButton.Location = new Point(439, 70);
+            OdswiezButton.Name = "OdswiezButton";
+            OdswiezButton.Size = new Size(75, 23);
+            OdswiezButton.TabIndex = 286;
+            OdswiezButton.Text = "Ceny";
+            OdswiezButton.UseVisualStyleBackColor = true;
+            OdswiezButton.Click += OdswiezButton_Click;
+            // 
+            // dateTimePicker2
+            // 
+            dateTimePicker2.CalendarFont = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point);
+            dateTimePicker2.Location = new Point(1356, 5);
+            dateTimePicker2.Name = "dateTimePicker2";
+            dateTimePicker2.Size = new Size(228, 22);
+            dateTimePicker2.TabIndex = 285;
+            // 
+            // dateTimePicker1
+            // 
+            dateTimePicker1.CalendarFont = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point);
+            dateTimePicker1.Location = new Point(1122, 5);
+            dateTimePicker1.Name = "dateTimePicker1";
+            dateTimePicker1.Size = new Size(228, 22);
+            dateTimePicker1.TabIndex = 284;
+            // 
+            // PokazMroznie
+            // 
+            PokazMroznie.Location = new Point(1174, 301);
+            PokazMroznie.Name = "PokazMroznie";
+            PokazMroznie.Size = new Size(75, 23);
+            PokazMroznie.TabIndex = 287;
+            PokazMroznie.Text = "Mroźnia";
+            PokazMroznie.UseVisualStyleBackColor = true;
+            PokazMroznie.Click += PokazMroznie_Click;
+            // 
+            // dataGridView1
+            // 
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView1.Location = new Point(1174, 328);
+            dataGridView1.Name = "dataGridView1";
+            dataGridView1.RowTemplate.Height = 25;
+            dataGridView1.Size = new Size(561, 416);
+            dataGridView1.TabIndex = 288;
+            // 
             // PokazKrojenieMrozenie
             // 
-            ClientSize = new System.Drawing.Size(1896, 993);
+            ClientSize = new Size(1896, 993);
+            Controls.Add(dataGridView1);
+            Controls.Add(PokazMroznie);
+            Controls.Add(OdswiezButton);
+            Controls.Add(dateTimePicker2);
+            Controls.Add(dateTimePicker1);
             Controls.Add(pictureBox33);
             Controls.Add(CenaRoznicaTuszkaElementyPokrojone);
             Controls.Add(label69);
@@ -2983,7 +3050,7 @@ namespace Kalendarz1
             Controls.Add(label10);
             Controls.Add(sztuki);
             Controls.Add(label11);
-            Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point);
             Name = "PokazKrojenieMrozenie";
             Text = " ";
             Load += PokazKrojenieMrozenie_Load;
@@ -3020,6 +3087,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox31).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox32).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox33).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -3097,7 +3165,7 @@ namespace Kalendarz1
                 double sumaWartosciElementow = cwiartkaWartosc + cwiartka2Wartosc + filetWartosc + filet2Wartosc + korpusWartosc + pozostaleWartosc + skrzydloWartosc + skrzydlo2Wartosc;
 
                 // Oblicz sumy kilogramów i wartości
-                double sumaKg = cwiartkaKG  + cwiartka2KG + filetKG + filet2KG + korpusKG + pozostaleKG + skrzydloKG + skrzydlo2KG;
+                double sumaKg = cwiartkaKG + cwiartka2KG + filetKG + filet2KG + korpusKG + pozostaleKG + skrzydloKG + skrzydlo2KG;
 
                 // Suma % wydajnosci
                 double sumaWydajnosciElementow = (cwiartkaWydajnosc + cwiartka2Wydajnosc + filetWydajnosc + filet2Wydajnosc + korpusWydajnosc + pozostaleWydajnosc + skrzydloWydajnosc + skrzydlo2Wydajnosc) * 100;
@@ -3172,7 +3240,7 @@ namespace Kalendarz1
 
 
 
-                
+
 
                 double wartoscElementowPoKrojeniu = sumaWartosciElementow - wynikKrojenia;
                 WartoscElementowPoKrojeniu.Text = wartoscElementowPoKrojeniu.ToString("N2");
@@ -3366,9 +3434,9 @@ namespace Kalendarz1
                 SumaKosztowMrozenia.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
                 SumaKosztowMrozenia2.Text = sumaKosztowMrozenia.ToString("N2") + " zł";
 
-               
 
-                
+
+
 
                 double Elementy = PobierzWartosc(WartoscElementowPoKrojeniu2.Text);
                 double ElementyPoKosztach = Elementy - sumaKosztowMrozenia;
@@ -3624,6 +3692,224 @@ namespace Kalendarz1
         {
             ObliczWszystko();
         }
+
+        private void OdswiezButton_Click(object sender, EventArgs e)
+        {
+            // Pobierz daty z DateTimePicker
+            string dateFrom = dateTimePicker1.Value.ToString("yyyy-MM-dd");
+            string dateTo = dateTimePicker2.Value.ToString("yyyy-MM-dd");
+
+            // Connection string (dostosuj do swojej bazy danych)
+            string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+            // Zapytanie SQL
+            string query = @"
+        SELECT DP.[kod], 
+               SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0) AS SredniaCena
+        FROM [HANDEL].[HM].[DP] DP 
+        INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
+        INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
+        WHERE DP.[data] >= @DateFrom 
+          AND DP.[data] < DATEADD(DAY, 1, @DateTo)
+          AND TW.[katalog] = 67095 
+          AND DP.[kod] != 'Kurczak A'
+        GROUP BY DP.[kod]
+        ORDER BY SredniaCena DESC;";
+
+            // Otwórz połączenie z bazą danych i wykonaj zapytanie
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        // Parametry zapytania SQL
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        // Wykonaj zapytanie i odczytaj wyniki
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string kod = reader["kod"].ToString();
+                                double cena = reader.GetDouble(reader.GetOrdinal("SredniaCena")); // Poprawka: użycie GetDouble
+
+                                // Przypisz wyniki do odpowiednich TextBox
+                                switch (kod)
+                                {
+                                    case "Filet A":
+                                        FiletCena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Filet II":
+                                        Filet2Cena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Ćwiartka":
+                                        CwiartkaCena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Ćwiartka II":
+                                        Cwiartka2Cena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Skrzydło I":
+                                        SkrzydloCena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Skrzydło II":
+                                        Skrzydlo2Cena.Text = cena.ToString("F2");
+                                        break;
+                                    case "Korpus":
+                                        KorpusCena.Text = cena.ToString("F2");
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}");
+                }
+            }
+        }
+
+        private void PokazMroznie_Click(object sender, EventArgs e)
+        {
+            string dateFrom = dateTimePicker1.Value.ToString("yyyy-MM-dd");
+            string dateTo = dateTimePicker2.Value.ToString("yyyy-MM-dd");
+
+            string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+            string query = @"
+            WITH 
+            ScalonaIlosc AS (
+                SELECT
+                    CASE 
+                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
+                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
+                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
+                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
+                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
+                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
+                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
+                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
+                        ELSE MZ.kod
+                    END AS ScalonyKod,
+                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Ilosc
+                FROM [HANDEL].[HM].[MG]
+                JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
+                WHERE MG.magazyn = 65552
+                  AND (MG.seria IN ('sMM+', 'sMM-', 'sMK-', 'sMK+'))
+                  AND MG.[Data] BETWEEN @DateFrom AND @DateTo
+                GROUP BY 
+                    CASE 
+                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
+                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
+                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
+                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
+                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
+                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
+                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
+                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
+                        ELSE MZ.kod
+                    END
+            ),
+            CenyTowarow AS (
+                SELECT 
+                    DP.[kod] AS KodTowaru,
+                    ROUND(SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS SredniaCena
+                FROM [HANDEL].[HM].[DP] DP 
+                INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
+                INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
+                WHERE DP.[data] >= @DateFrom 
+                  AND DP.[data] < DATEADD(DAY, 1, @DateTo)
+                  AND TW.[katalog] = 67095
+                GROUP BY DP.[kod]
+            )
+            SELECT 
+                SI.ScalonyKod,
+                SI.Ilosc,
+                ROUND(COALESCE(CT.SredniaCena, 0), 2) AS Cena,
+                ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0), 2) AS Wartosc,
+                ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82, 2) AS [18%],
+                ROUND((SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82) - (SI.Ilosc * COALESCE(CT.SredniaCena, 0)), 2) AS Strata
+            FROM ScalonaIlosc SI
+            LEFT JOIN CenyTowarow CT ON SI.ScalonyKod = CT.KodTowaru
+            ORDER BY Wartosc DESC;
+            ";
+
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                        DataTable dataTable = new DataTable();
+                        adapter.Fill(dataTable);
+
+                        // Dodaj wiersz sumaryczny
+                        DataRow summaryRow = dataTable.NewRow();
+                        summaryRow["ScalonyKod"] = "SUMA";
+                        summaryRow["Ilosc"] = dataTable.Compute("SUM(Ilosc)", string.Empty);
+                        summaryRow["Wartosc"] = dataTable.Compute("SUM(Wartosc)", string.Empty);
+                        summaryRow["18%"] = dataTable.Compute("SUM([18%])", string.Empty);
+                        summaryRow["Strata"] = dataTable.Compute("SUM(Strata)", string.Empty);
+
+                        dataTable.Rows.InsertAt(summaryRow, 0);
+
+                        dataGridView1.DataSource = dataTable;
+
+                        // Formatowanie DataGridView
+                        dataGridView1.RowHeadersVisible = false; // Usunięcie prawego paska
+                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // Automatyczna szerokość kolumn
+                        dataGridView1.DefaultCellStyle.Font = new Font("Arial", 9); // Ustawienia czcionki
+                        dataGridView1.RowTemplate.Height = 15; // Wysokość wierszy
+
+                        foreach (DataGridViewRow row in dataGridView1.Rows)
+                        {
+                            if (row.Cells["Wartosc"].Value != null && decimal.TryParse(row.Cells["Wartosc"].Value.ToString(), out decimal wartosc))
+                            {
+                                row.Cells["Wartosc"].Value = string.Format("{0:N2} zł", wartosc); // Format z separatorami i zł
+                            }
+
+                            if (row.Cells["18%"].Value != null && decimal.TryParse(row.Cells["18%"].Value.ToString(), out decimal osiemnascieProcent))
+                            {
+                                row.Cells["18%"].Value = string.Format("{0:N2} zł", osiemnascieProcent);
+                            }
+
+                            if (row.Cells["Strata"].Value != null && decimal.TryParse(row.Cells["Strata"].Value.ToString(), out decimal strata))
+                            {
+                                row.Cells["Strata"].Value = string.Format("{0:N2} zł", strata);
+
+                                // Kolumna "Strata" na czerwono, jeśli wartość jest ujemna
+                                if (strata < 0)
+                                {
+                                    row.Cells["Strata"].Style.ForeColor = Color.Red;
+                                }
+                            }
+                        }
+
+                        // Ustawienia DataGridView
+                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // Dopasowanie szerokości kolumn
+                        dataGridView1.RowTemplate.Height = 16; // Wysokość wierszy
+                        dataGridView1.RowHeadersVisible = false; // Usunięcie prawego paska
+
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}");
+                }
+            }
+        }
     }
 }
+
 
