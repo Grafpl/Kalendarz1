@@ -867,31 +867,30 @@ namespace Kalendarz1
         public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
         {
 
-            string selectedValue = Dostawca.SelectedValue?.ToString();
-
+            string selectedValue = Dostawca.SelectedItem.ToString();
 
             string idDostawcy = ZnajdzIdHodowcyString(selectedValue);
             string Zmienna;
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Address");
-            adres.Text = Zmienna ?? "";
+            adres.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "PostalCode");
-            kodPocztowy.Text = Zmienna ?? "";
+            kodPocztowy.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Distance");
-            dystans.Text = Zmienna ?? "";
+            dystans.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "City");
-            miejscowosc.Text = Zmienna ?? "";
+            miejscowosc.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1");
-            telefon1.Text = Zmienna ?? "";
+            telefon1.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone2");
-            telefon2.Text = Zmienna ?? "";
+            telefon2.Text = Zmienna.ToString();
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone3");
-            telefon3.Text = Zmienna ?? "";
+            telefon3.Text = Zmienna.ToString();
 
         }
        
@@ -1061,49 +1060,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        public void UpdateDaneIdDostawcy(int IdSpecyfikacji, string Dostawca)
-
-        {
-            try
-            {
-                using (SqlConnection cnn = new SqlConnection(connectionString))
-                {
-                    cnn.Open();
-
-                    
-                    // Utworzenie zapytania SQL do aktualizacji danych
-                    string strSQL = @"UPDATE dbo.FarmerCalc
-                                  SET CustomerGID = @dostawcaId
-                                  WHERE ID = @ID";
-
-                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                    {
-                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
-                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                        command.Parameters.AddWithValue("@dostawcaId", Dostawca);
-
-
-                        // Wykonanie zapytania SQL
-                        int rowsAffected = command.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
-                        {
-                            // Zaktualizowano dane pomyślnie
-                        }
-                        else
-                        {
-                            MessageBox.Show("Nie udało się zaktualizować Id Hodowcy", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
+       
         public void UpdateDaneRozliczenioweAvilogUbojnia(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
         {
             try
