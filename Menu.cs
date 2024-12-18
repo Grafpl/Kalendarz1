@@ -222,5 +222,13 @@ namespace Kalendarz1
             // Wyświetlanie Form1
             platPokazKrojenieMrozenienosci.Show();
         }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            SprawdzalkaUmow SprawdzalkaUmow = new SprawdzalkaUmow();
+
+            // Wyświetlanie Form1
+            SprawdzalkaUmow.Show();
+        }
     }
 }

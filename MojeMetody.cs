@@ -493,18 +493,26 @@ namespace Kalendarz1
 
         public static DateTime CombineDateAndTime(string godzina, DateTime data)
         {
-            // Parsowanie godziny i minuty z formatu "00:00"
-            TimeSpan timeOfDay;
-            if (!TimeSpan.TryParseExact(godzina, "hh\\:mm", null, out timeOfDay))
+            // Sprawdzenie, czy godzina jest pusta lub null
+            if (string.IsNullOrWhiteSpace(godzina) || godzina == "00:00")
             {
-                throw new ArgumentException("Nieprawidłowy format godziny. Albo jest tylko 00:00");
+                // Jeśli godzina to "00:00" lub jest pusta, zwróć datę z godziną 00:00
+                return data.Date;
             }
 
-            // Tworzenie nowego obiektu DateTime z daty oraz godziny i minuty
-            DateTime combinedDateTime = new DateTime(data.Year, data.Month, data.Day, timeOfDay.Hours, timeOfDay.Minutes, 0);
-
-            return combinedDateTime;
+            // Parsowanie godziny i minuty z formatu "hh:mm"
+            if (TimeSpan.TryParseExact(godzina, "hh\\:mm", null, out TimeSpan timeOfDay))
+            {
+                // Tworzenie nowego obiektu DateTime z daty oraz godziny i minuty
+                return new DateTime(data.Year, data.Month, data.Day, timeOfDay.Hours, timeOfDay.Minutes, 0);
+            }
+            else
+            {
+                // Rzucenie wyjątku, jeśli godzina jest w nieprawidłowym formacie
+                throw new ArgumentException("Nieprawidłowy format godziny. Oczekiwano formatu hh:mm.");
+            }
         }
+
         public string DodajDwukropek(string input)
         {
             // Sprawdź, czy input ma co najmniej 3 znaki
@@ -587,7 +595,6 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    // Budowanie zapytania z bezpośrednim wstawieniem nazw tabeli i kolumny
                     string strSQL = $"SELECT {kolumna} FROM {Bazadanych} WHERE ID = @ID";
 
                     using (SqlCommand command = new SqlCommand(strSQL, connection))
@@ -598,9 +605,17 @@ namespace Kalendarz1
                         {
                             if (reader.Read())
                             {
-                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna))) // Sprawdzenie, czy wartość w kolumnie nie jest DBNull
+                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna)))
                                 {
-                                    wartosc = (T)reader[kolumna];
+                                    object value = reader[kolumna];
+                                    if (value is T castedValue)
+                                    {
+                                        wartosc = castedValue;
+                                    }
+                                    else
+                                    {
+                                        wartosc = (T)Convert.ChangeType(value, typeof(T));
+                                    }
                                 }
                             }
                         }
@@ -614,6 +629,7 @@ namespace Kalendarz1
 
             return wartosc;
         }
+
 
         public T PobierzInformacjeZBazyDanychHarmonogram<T>(int ID, string Bazadanych, string kolumna)
         {
@@ -829,7 +845,9 @@ namespace Kalendarz1
         }
         public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
         {
+
             string selectedValue = Dostawca.SelectedItem.ToString();
+
             string idDostawcy = ZnajdzIdHodowcyString(selectedValue);
             string Zmienna;
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Address");

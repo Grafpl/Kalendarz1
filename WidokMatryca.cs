@@ -58,7 +58,7 @@ namespace Kalendarz1
                 finalTable.Columns.Add("Naczepa", typeof(string)); // Kolumna dla naczepy
                 finalTable.Columns.Add("Wyjazd", typeof(string)); // Kolumna dla wyjazdu (zmieniona na string)
                 finalTable.Columns.Add("Zaladunek", typeof(string)); // Kolumna dla załadunku
-                finalTable.Columns.Add("Powrot", typeof(string)); // Kolumna dla powrotu
+             
                 finalTable.Columns.Add("Przyjazd", typeof(string)); // Kolumna dla przyjazdu (zmieniona na TimeSpan)
                 finalTable.Columns.Add("Wozek", typeof(string)); // Kolumna dla wózka
 
@@ -82,10 +82,6 @@ namespace Kalendarz1
                         newRow["Kierowca"] = ""; // Pozostaw kolumnę Kierowca pustą
                         newRow["Pojazd"] = ""; // Pozostaw kolumnę Pojazd pustą
                         newRow["Naczepa"] = ""; // Pozostaw kolumnę Naczepa pustą
-                        newRow["Wyjazd"] = "00:00"; // Ustaw domyślną wartość dla kolumny Wyjazd
-                        newRow["Zaladunek"] = "00:00"; // Pozostaw kolumnę Zaladunek pustą
-                        newRow["Powrot"] = "00:00"; // Pozostaw kolumnę Powrot pustą
-                        newRow["Przyjazd"] = "00:00"; // Inicjalizacja wartości kolumny "Przyjazd" jako pustej
                         newRow["Wozek"] = ""; // Pozostaw kolumnę Wozek pustą
 
                         finalTable.Rows.Add(newRow);
@@ -127,7 +123,7 @@ namespace Kalendarz1
                     // Sprawdź, czy aktualna kolumna to "Wyjazd", "Zaladunek", "Powrot" lub "Przyjazd"
                     if ((dataGridView1.Columns.Contains("Wyjazd") && e.ColumnIndex == dataGridView1.Columns["Wyjazd"].Index) ||
                         (dataGridView1.Columns.Contains("Zaladunek") && e.ColumnIndex == dataGridView1.Columns["Zaladunek"].Index) ||
-                        (dataGridView1.Columns.Contains("Powrot") && e.ColumnIndex == dataGridView1.Columns["Powrot"].Index) ||
+                    
                         (dataGridView1.Columns.Contains("Przyjazd") && e.ColumnIndex == dataGridView1.Columns["Przyjazd"].Index))
                     {
                         // Sprawdź, czy wartość komórki nie jest pusta
@@ -230,6 +226,7 @@ namespace Kalendarz1
                         string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, Loss, PriceTypeID) " +
                             "VALUES (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @Wozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd, @Cena, @Ubytek, @TypCeny)";
                         // Pobierz dane z wiersza DataGridView
+
                         string Dostawca = row.Cells["Dostawca"].Value.ToString();
                         string Kierowca = row.Cells["Kierowca"].Value.ToString();
                         string LpDostawy = row.Cells["Lp"].Value.ToString();

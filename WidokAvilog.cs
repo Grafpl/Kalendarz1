@@ -176,16 +176,16 @@ namespace Kalendarz1
 
                         if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
                         {
-                            int DostawcaInfo = reader.GetInt32(reader.GetOrdinal("CustomerGID"));
-                            string kierowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(DostawcaInfo, "ShortName");
-                            Dostawca.Text = kierowcaNazwa.ToString(); // Konwersja wartości int na string
+                            string dostawcaInfo = reader["CustomerGID"]?.ToString();
+                            string dostawcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(dostawcaInfo, "ShortName");
+                            Dostawca.Text = dostawcaNazwa.ToString(); // Konwersja wartości int na string
                         }
 
                         if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
                         {
-                            int DostawcaInfo = reader.GetInt32(reader.GetOrdinal("CustomerRealGID"));
-                            string kierowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(DostawcaInfo, "ShortName");
-                            RealDostawca.Text = kierowcaNazwa.ToString(); // Konwersja wartości int na string
+                            string dostawcaInfo = reader["CustomerRealGID"]?.ToString();
+                            string dostawcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(dostawcaInfo, "ShortName");
+                            RealDostawca.Text = dostawcaNazwa.ToString(); // Konwersja wartości int na string
                         }
                     }
                     else

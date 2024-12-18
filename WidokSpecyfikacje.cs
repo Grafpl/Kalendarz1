@@ -68,8 +68,8 @@ namespace Kalendarz1
                     {
                         foreach (DataRow row in dataTable.Rows)
                         {
-                            int customerGID = ZapytaniaSQL.GetValueOrDefault<int>(row, "CustomerGID", defaultValue: -1);
-                            string Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(customerGID, "ShortName");
+                            string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", defaultValue: "-1");
+                            string Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName");
 
                             string BruttoHodowcy = row["FullFarmWeight"] != DBNull.Value ? Convert.ToDecimal(row["FullFarmWeight"]).ToString("#,0") : null;
                             string TaraHodowcy = row["EmptyFarmWeight"] != DBNull.Value ? Convert.ToDecimal(row["EmptyFarmWeight"]).ToString("#,0") : null;

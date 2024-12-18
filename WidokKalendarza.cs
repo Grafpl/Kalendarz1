@@ -205,7 +205,7 @@ namespace Kalendarz1
         private void BiezacePartieSuma()
         {
             // Utwórz połączenie z bazą danych SQL Server
-            using (SqlConnection cnn = new SqlConnection(connectionPermission))
+            using (SqlConnection cnn = new  SqlConnection(connectionPermission))
             {
                 cnn.Open();
 

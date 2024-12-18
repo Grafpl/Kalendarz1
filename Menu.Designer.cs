@@ -202,6 +202,7 @@
             button4.Size = new System.Drawing.Size(262, 193);
             button4.TabIndex = 12;
             button4.UseVisualStyleBackColor = true;
+            button4.Click += button4_Click;
             // 
             // MENU
             // 

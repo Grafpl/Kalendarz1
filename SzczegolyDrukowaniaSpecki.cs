@@ -133,7 +133,7 @@ namespace Kalendarz1
             Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
 
             // Variables for the seller
-            string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "ShortName");
+            string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "ShortName");
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
 
             // Format the DateTime value to the desired string format
@@ -224,9 +224,9 @@ namespace Kalendarz1
 
                 // Variables for the seller
                 //string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "ShortName");
-                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "Address");
-                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "PostalCode");
-                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcow(zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City");
+                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "Address");
+                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "PostalCode");
+                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City");
 
                 // Split seller details into lines and add empty lines between them
                 string[] sellerDetailsLines = { "Sprzedający:", sellerName, sellerStreet, sellerKod + ", " + sellerMiejsc, "", "" }; // Empty lines for spacing
