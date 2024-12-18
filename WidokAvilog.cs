@@ -24,7 +24,7 @@ namespace Kalendarz1
         public WidokAvilog()
         {
             InitializeComponent();
-            zapytaniasql.UzupelnijComboBoxHodowcami(Dostawca); zapytaniasql.UzupelnijComboBoxHodowcami(RealDostawca);
+            zapytaniasql.UzupelnijComboBoxHodowcamiID(Dostawca); ; zapytaniasql.UzupelnijComboBoxHodowcamiID(RealDostawca);
             zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxNaczepami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
             // Tablica zawierająca wszystkie kontrolki
             DateTimePicker[] dateTimePickers = { wyjazdZakladData, dojazdHodowcaData, poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData, poczatekUslugiData, powrotZakladData, koniecUslugiData };
@@ -433,6 +433,9 @@ namespace Kalendarz1
             zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
             zapytaniasql.UpdateDaneDystansu(id2Specyfikacji, kmWyjazd, kmPowrot, Dystans);
+
+            string wybraneId = Dostawca.SelectedValue?.ToString();
+            zapytaniasql.UpdateDaneIdDostawcy(id2Specyfikacji, wybraneId);
 
             zapytaniasql.UpdateCzas(id2Specyfikacji, "PoczatekUslugi", poczatekUslugiData);
             zapytaniasql.UpdateCzas(id2Specyfikacji, "Wyjazd", wyjazdZakladData);

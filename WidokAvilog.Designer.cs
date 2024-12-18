@@ -562,7 +562,8 @@
             // 
             // hNetto
             // 
-            hNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            hNetto.BackColor = System.Drawing.SystemColors.ScrollBar;
+            hNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             hNetto.Location = new System.Drawing.Point(113, 318);
             hNetto.Multiline = true;
             hNetto.Name = "hNetto";
@@ -659,7 +660,8 @@
             // 
             // uNetto
             // 
-            uNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            uNetto.BackColor = System.Drawing.SystemColors.ScrollBar;
+            uNetto.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             uNetto.Location = new System.Drawing.Point(377, 318);
             uNetto.Multiline = true;
             uNetto.Name = "uNetto";

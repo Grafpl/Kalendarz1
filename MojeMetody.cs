@@ -777,6 +777,27 @@ namespace Kalendarz1
                 reader.Close();
             }
         }
+        public void UzupelnijComboBoxHodowcamiID(ComboBox comboBox)
+        {
+            string query = "SELECT DISTINCT Id, Name FROM dbo.DOSTAWCY WHERE halt = '0'";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                connection.Open();
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    DataTable dt = new DataTable();
+                    dt.Load(reader);
+
+                    // Przypisanie źródła danych do ComboBox
+                    comboBox.DataSource = dt;
+                    comboBox.DisplayMember = "Name";
+                    comboBox.ValueMember = "Id";
+                }
+            }
+        }
+
         public void UzupelnijComboBoxKierowcami(ComboBox comboBox)
         {
             string query = "SELECT DISTINCT Name FROM dbo.Driver where halt = '0'";
@@ -846,32 +867,34 @@ namespace Kalendarz1
         public void UzupełnienieDanychHodowcydoTextBoxow(ComboBox Dostawca, TextBox adres, TextBox kodPocztowy, TextBox miejscowosc, TextBox dystans, TextBox telefon1, TextBox telefon2, TextBox telefon3)
         {
 
-            string selectedValue = Dostawca.SelectedItem.ToString();
+            string selectedValue = Dostawca.SelectedValue?.ToString();
+
 
             string idDostawcy = ZnajdzIdHodowcyString(selectedValue);
             string Zmienna;
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Address");
-            adres.Text = Zmienna.ToString();
+            adres.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "PostalCode");
-            kodPocztowy.Text = Zmienna.ToString();
+            kodPocztowy.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Distance");
-            dystans.Text = Zmienna.ToString();
+            dystans.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "City");
-            miejscowosc.Text = Zmienna.ToString();
+            miejscowosc.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1");
-            telefon1.Text = Zmienna.ToString();
+            telefon1.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone2");
-            telefon2.Text = Zmienna.ToString();
+            telefon2.Text = Zmienna ?? "";
 
             Zmienna = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone3");
-            telefon3.Text = Zmienna.ToString();
+            telefon3.Text = Zmienna ?? "";
 
         }
+       
         public void UpdateDaneAdresoweDostawcy(ComboBox Dostawca, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox Dystans)
 
         {
@@ -1038,6 +1061,49 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        public void UpdateDaneIdDostawcy(int IdSpecyfikacji, string Dostawca)
+
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    
+                    // Utworzenie zapytania SQL do aktualizacji danych
+                    string strSQL = @"UPDATE dbo.FarmerCalc
+                                  SET CustomerGID = @dostawcaId
+                                  WHERE ID = @ID";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        command.Parameters.AddWithValue("@dostawcaId", Dostawca);
+
+
+                        // Wykonanie zapytania SQL
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Zaktualizowano dane pomyślnie
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować Id Hodowcy", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         public void UpdateDaneRozliczenioweAvilogUbojnia(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
         {
             try
