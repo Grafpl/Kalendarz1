@@ -139,8 +139,13 @@
             info3 = new System.Windows.Forms.TextBox();
             info2 = new System.Windows.Forms.TextBox();
             info1 = new System.Windows.Forms.TextBox();
-            Email = new System.Windows.Forms.TextBox();
+            EmailR = new System.Windows.Forms.TextBox();
             sa = new System.Windows.Forms.Label();
+            Info3R = new System.Windows.Forms.TextBox();
+            Info2R = new System.Windows.Forms.TextBox();
+            Info1R = new System.Windows.Forms.TextBox();
+            label50 = new System.Windows.Forms.Label();
+            Email = new System.Windows.Forms.TextBox();
             groupBox4.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox2.SuspendLayout();
@@ -389,7 +394,7 @@
             groupBox3.Controls.Add(uLiczbaSztuk);
             groupBox3.Controls.Add(uLiczbaSzuflad);
             groupBox3.Controls.Add(label15);
-            groupBox3.Location = new System.Drawing.Point(5, 261);
+            groupBox3.Location = new System.Drawing.Point(16, 290);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new System.Drawing.Size(634, 362);
             groupBox3.TabIndex = 36;
@@ -1235,30 +1240,77 @@
             info1.TabIndex = 83;
             info1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
-            // Email
+            // EmailR
             // 
-            Email.Location = new System.Drawing.Point(306, 232);
-            Email.Name = "Email";
-            Email.Size = new System.Drawing.Size(127, 23);
-            Email.TabIndex = 86;
-            Email.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            EmailR.Location = new System.Drawing.Point(320, 261);
+            EmailR.Name = "EmailR";
+            EmailR.Size = new System.Drawing.Size(224, 23);
+            EmailR.TabIndex = 86;
+            EmailR.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // sa
             // 
-            sa.Location = new System.Drawing.Point(306, 214);
+            sa.Location = new System.Drawing.Point(550, 264);
             sa.Name = "sa";
-            sa.Size = new System.Drawing.Size(89, 15);
+            sa.Size = new System.Drawing.Size(89, 20);
             sa.TabIndex = 87;
             sa.Text = "Email";
             sa.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // Info3R
+            // 
+            Info3R.Location = new System.Drawing.Point(320, 232);
+            Info3R.Name = "Info3R";
+            Info3R.Size = new System.Drawing.Size(113, 23);
+            Info3R.TabIndex = 90;
+            Info3R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // Info2R
+            // 
+            Info2R.Location = new System.Drawing.Point(320, 204);
+            Info2R.Name = "Info2R";
+            Info2R.Size = new System.Drawing.Size(113, 23);
+            Info2R.TabIndex = 89;
+            Info2R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // Info1R
+            // 
+            Info1R.Location = new System.Drawing.Point(320, 175);
+            Info1R.Name = "Info1R";
+            Info1R.Size = new System.Drawing.Size(113, 23);
+            Info1R.TabIndex = 88;
+            Info1R.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label50
+            // 
+            label50.ImageAlign = System.Drawing.ContentAlignment.BottomRight;
+            label50.Location = new System.Drawing.Point(5, 267);
+            label50.Name = "label50";
+            label50.Size = new System.Drawing.Size(89, 20);
+            label50.TabIndex = 92;
+            label50.Text = "Email";
+            label50.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // Email
+            // 
+            Email.Location = new System.Drawing.Point(100, 264);
+            Email.Name = "Email";
+            Email.Size = new System.Drawing.Size(200, 23);
+            Email.TabIndex = 91;
+            Email.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
             // WidokAvilog
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(882, 624);
-            Controls.Add(sa);
+            ClientSize = new System.Drawing.Size(882, 656);
+            Controls.Add(label50);
             Controls.Add(Email);
+            Controls.Add(Info3R);
+            Controls.Add(Info2R);
+            Controls.Add(Info1R);
+            Controls.Add(sa);
+            Controls.Add(EmailR);
             Controls.Add(info3);
             Controls.Add(info2);
             Controls.Add(info1);
@@ -1433,7 +1485,12 @@
         private System.Windows.Forms.TextBox info3;
         private System.Windows.Forms.TextBox info2;
         private System.Windows.Forms.TextBox info1;
-        private System.Windows.Forms.TextBox Email;
+        private System.Windows.Forms.TextBox EmailR;
         private System.Windows.Forms.Label sa;
+        private System.Windows.Forms.TextBox Info3R;
+        private System.Windows.Forms.TextBox Info2R;
+        private System.Windows.Forms.TextBox Info1R;
+        private System.Windows.Forms.Label label50;
+        private System.Windows.Forms.TextBox Email;
     }
 }

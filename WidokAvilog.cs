@@ -19,12 +19,12 @@ namespace Kalendarz1
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         static string sqlDostawy = "SELECT * FROM [LibraNet].[dbo].[FarmerCalc] WHERE ID = @id";
         static string sqlDostawcy = "SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
-        static string idDostawcy, idrealDostawcy, idKurnika;
+        static string idDostawcy, idrealDostawcy, idKurnika, idDostawcyZmienione;
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public WidokAvilog()
         {
             InitializeComponent();
-            zapytaniasql.UzupelnijComboBoxHodowcami(Dostawca); ; zapytaniasql.UzupelnijComboBoxHodowcami(RealDostawca);
+            zapytaniasql.UzupelnijComboBoxHodowcami3(Dostawca); ; zapytaniasql.UzupelnijComboBoxHodowcami3(RealDostawca);
             zapytaniasql.UzupelnijComboBoxCiagnikami(Auto); zapytaniasql.UzupelnijComboBoxNaczepami(Naczepa); zapytaniasql.UzupelnijComboBoxKierowcami(Kierowca);
             // Tablica zawierająca wszystkie kontrolki
             DateTimePicker[] dateTimePickers = { wyjazdZakladData, dojazdHodowcaData, poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData, poczatekUslugiData, powrotZakladData, koniecUslugiData };
@@ -418,21 +418,50 @@ namespace Kalendarz1
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, Tel1, Tel2, Tel3);
+            if (Dostawca?.SelectedItem is KeyValuePair<string, string> selectedItem)
+            {
+                string selectedId = selectedItem.Key; // Pobieramy tylko ID
+
+                // Wywołanie metody z wybranym ID
+                zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(selectedId, UlicaH, KodPocztowyH, MiejscH, KmH, Tel1, Tel2, Tel3);
+            }
         }
         private void RealDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(RealDostawca, UlicaR, KodPocztowyR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
+            if (RealDostawca?.SelectedItem is KeyValuePair<string, string> selectedItem)
+            {
+                string selectedId = selectedItem.Key; // Pobieramy tylko ID
+
+                // Wywołanie metody z wybranym ID
+                zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(selectedId, UlicaR, KodPocztowyR, MiejscR, KmR, Tel1R, Tel2R, Tel3R);
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
-            zapytaniasql.UpdateDaneKontaktowe(Dostawca, Tel1, info1, Tel2, info2, Tel3, info3, Email);
+            string dostawcaIdString = null;
+            string realDostawcaIdString = null;
+
+            if (Dostawca?.SelectedItem is KeyValuePair<string, string> DostawcaIdlista)
+            {
+                dostawcaIdString = DostawcaIdlista.Key; 
+            }
+            if (RealDostawca?.SelectedItem is KeyValuePair<string, string> RealDostawcaIdlista)
+            {
+                realDostawcaIdString = RealDostawcaIdlista.Key;
+            }
+            zapytaniasql.UpdateDaneHodowowAvilog(id2Specyfikacji, dostawcaIdString, realDostawcaIdString);
+            zapytaniasql.UpdateDaneAdresoweDostawcy(dostawcaIdString, UlicaH, KodPocztowyH, MiejscH, KmH);
+            zapytaniasql.UpdateDaneAdresoweDostawcy(realDostawcaIdString, UlicaR, KodPocztowyR, MiejscR, KmR);
+            zapytaniasql.UpdateDaneKontaktowe(dostawcaIdString, Tel1, info1, Tel2, info2, Tel3, info3, Email);
+            zapytaniasql.UpdateDaneKontaktowe(realDostawcaIdString, Tel1R, Info1R, Tel2R, Info2R, Tel3R, Info3R, EmailR);
             zapytaniasql.UpdateDaneRozliczenioweAvilogHodowca(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
             zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
             zapytaniasql.UpdateDaneDystansu(id2Specyfikacji, kmWyjazd, kmPowrot, Dystans);
+
+
+            
 
 
 

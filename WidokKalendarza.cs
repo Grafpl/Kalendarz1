@@ -349,7 +349,7 @@ namespace Kalendarz1
                 object wartoscKomorki = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
                 lpDostawa = wartoscKomorki != null ? wartoscKomorki.ToString() : "0";
                 PobierzInformacjeZBazyDanych(lpDostawa);
-                zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, tel1, tel2, tel3);
+                //zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, tel1, tel2, tel3);
 
             }
 
@@ -1375,8 +1375,8 @@ namespace Kalendarz1
                         {
                             MessageBox.Show("Nie udało się zaktualizować danych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
-                        zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
-                        zapytaniasql.UpdateDaneKontaktowe(Dostawca, tel1, tel2, tel3, info1, info2, info3, Email);
+                        //zapytaniasql.UpdateDaneAdresoweDostawcy(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH);
+                        //zapytaniasql.UpdateDaneKontaktowe(Dostawca, tel1, tel2, tel3, info1, info2, info3, Email);
 
                     }
                 }
