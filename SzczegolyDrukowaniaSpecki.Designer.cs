@@ -33,68 +33,79 @@
             textBox2 = new System.Windows.Forms.TextBox();
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
+            button2 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
             // PrintButton
             // 
-            PrintButton.Location = new System.Drawing.Point(298, 14);
-            PrintButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            PrintButton.BackColor = System.Drawing.Color.Moccasin;
+            PrintButton.Font = new System.Drawing.Font("Segoe UI", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            PrintButton.Location = new System.Drawing.Point(12, 12);
             PrintButton.Name = "PrintButton";
-            PrintButton.Size = new System.Drawing.Size(96, 35);
+            PrintButton.Size = new System.Drawing.Size(89, 65);
             PrintButton.TabIndex = 0;
-            PrintButton.Text = "button1";
-            PrintButton.UseVisualStyleBackColor = true;
+            PrintButton.Text = "Generuj PDF";
+            PrintButton.UseVisualStyleBackColor = false;
             PrintButton.Click += PrintButton_Click;
             // 
             // textBox1
             // 
-            textBox1.Location = new System.Drawing.Point(298, 68);
-            textBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            textBox1.Location = new System.Drawing.Point(725, 276);
             textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(127, 30);
+            textBox1.Size = new System.Drawing.Size(100, 23);
             textBox1.TabIndex = 2;
             // 
             // textBox2
             // 
-            textBox2.Location = new System.Drawing.Point(298, 108);
-            textBox2.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            textBox2.Location = new System.Drawing.Point(725, 302);
             textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(127, 30);
+            textBox2.Size = new System.Drawing.Size(100, 23);
             textBox2.TabIndex = 3;
             // 
             // dateTimePicker1
             // 
-            dateTimePicker1.Location = new System.Drawing.Point(13, 14);
-            dateTimePicker1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dateTimePicker1.Location = new System.Drawing.Point(188, 54);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(256, 30);
+            dateTimePicker1.Size = new System.Drawing.Size(226, 23);
             dateTimePicker1.TabIndex = 4;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
             // dataGridView1
             // 
+            dataGridView1.BackgroundColor = System.Drawing.SystemColors.ActiveCaption;
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new System.Drawing.Point(13, 148);
-            dataGridView1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            dataGridView1.Location = new System.Drawing.Point(12, 84);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(692, 328);
+            dataGridView1.Size = new System.Drawing.Size(538, 411);
             dataGridView1.TabIndex = 5;
+            // 
+            // button2
+            // 
+            button2.BackColor = System.Drawing.Color.IndianRed;
+            button2.ForeColor = System.Drawing.SystemColors.Control;
+            button2.Location = new System.Drawing.Point(496, 32);
+            button2.Name = "button2";
+            button2.Size = new System.Drawing.Size(54, 46);
+            button2.TabIndex = 68;
+            button2.Text = "Anuluj";
+            button2.UseVisualStyleBackColor = false;
             // 
             // SzczegolyDrukowaniaSpecki
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(9F, 23F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1116, 830);
+            ClientSize = new System.Drawing.Size(557, 507);
+            Controls.Add(button2);
             Controls.Add(dataGridView1);
             Controls.Add(dateTimePicker1);
             Controls.Add(textBox2);
             Controls.Add(textBox1);
             Controls.Add(PrintButton);
-            Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             Name = "SzczegolyDrukowaniaSpecki";
-            Text = "SzczegolyDrukowaniaSpecki";
+            Text = "Drukowanie Spec";
+            Load += SzczegolyDrukowaniaSpecki_Load;
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -107,5 +118,6 @@
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.DateTimePicker dateTimePicker1;
         private System.Windows.Forms.DataGridView dataGridView1;
+        private System.Windows.Forms.Button button2;
     }
 }

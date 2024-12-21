@@ -30,11 +30,6 @@
         {
             dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             dataGridView1 = new System.Windows.Forms.DataGridView();
-            button1 = new System.Windows.Forms.Button();
-            dataGridView2 = new System.Windows.Forms.DataGridView();
-            btnLoadData = new System.Windows.Forms.Button();
-            buttonDown = new System.Windows.Forms.Button();
-            buttonUP = new System.Windows.Forms.Button();
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Nr = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -56,6 +51,11 @@
             TypCeny = new System.Windows.Forms.DataGridViewTextBoxColumn();
             PiK = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             Ubytek = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            button1 = new System.Windows.Forms.Button();
+            dataGridView2 = new System.Windows.Forms.DataGridView();
+            btnLoadData = new System.Windows.Forms.Button();
+            buttonDown = new System.Windows.Forms.Button();
+            buttonUP = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
@@ -64,7 +64,7 @@
             // 
             dateTimePicker1.Location = new System.Drawing.Point(12, 12);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new System.Drawing.Size(200, 23);
+            dateTimePicker1.Size = new System.Drawing.Size(245, 23);
             dateTimePicker1.TabIndex = 0;
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
@@ -81,57 +81,6 @@
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
             dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
             dataGridView1.RowPostPaint += dataGridView1_RowPostPaint;
-            // 
-            // button1
-            // 
-            button1.Location = new System.Drawing.Point(575, 12);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
-            button1.TabIndex = 2;
-            button1.Text = "Drukuj Specyfikacje";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += button1_Click;
-            // 
-            // dataGridView2
-            // 
-            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(1487, 50);
-            dataGridView2.Name = "dataGridView2";
-            dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(264, 552);
-            dataGridView2.TabIndex = 3;
-            // 
-            // btnLoadData
-            // 
-            btnLoadData.Location = new System.Drawing.Point(1487, 21);
-            btnLoadData.Name = "btnLoadData";
-            btnLoadData.Size = new System.Drawing.Size(75, 23);
-            btnLoadData.TabIndex = 4;
-            btnLoadData.Text = "Pokaż LUMEL";
-            btnLoadData.UseVisualStyleBackColor = true;
-            btnLoadData.Click += btnLoadData_Click_1;
-            // 
-            // buttonDown
-            // 
-            buttonDown.Location = new System.Drawing.Point(280, 11);
-            buttonDown.Margin = new System.Windows.Forms.Padding(2);
-            buttonDown.Name = "buttonDown";
-            buttonDown.Size = new System.Drawing.Size(58, 23);
-            buttonDown.TabIndex = 6;
-            buttonDown.Text = "Dol";
-            buttonDown.UseVisualStyleBackColor = true;
-            buttonDown.Click += buttonDown_Click;
-            // 
-            // buttonUP
-            // 
-            buttonUP.Location = new System.Drawing.Point(217, 11);
-            buttonUP.Margin = new System.Windows.Forms.Padding(2);
-            buttonUP.Name = "buttonUP";
-            buttonUP.Size = new System.Drawing.Size(58, 23);
-            buttonUP.TabIndex = 5;
-            buttonUP.Text = "Gora";
-            buttonUP.UseVisualStyleBackColor = true;
-            buttonUP.Click += buttonUP_Click;
             // 
             // ID
             // 
@@ -282,6 +231,57 @@
             Ubytek.HeaderText = "Ubytek";
             Ubytek.Name = "Ubytek";
             Ubytek.Width = 65;
+            // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(575, 12);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(75, 23);
+            button1.TabIndex = 2;
+            button1.Text = "Drukuj Specyfikacje";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
+            // dataGridView2
+            // 
+            dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView2.Location = new System.Drawing.Point(1487, 50);
+            dataGridView2.Name = "dataGridView2";
+            dataGridView2.RowTemplate.Height = 25;
+            dataGridView2.Size = new System.Drawing.Size(264, 552);
+            dataGridView2.TabIndex = 3;
+            // 
+            // btnLoadData
+            // 
+            btnLoadData.Location = new System.Drawing.Point(1487, 21);
+            btnLoadData.Name = "btnLoadData";
+            btnLoadData.Size = new System.Drawing.Size(75, 23);
+            btnLoadData.TabIndex = 4;
+            btnLoadData.Text = "Pokaż LUMEL";
+            btnLoadData.UseVisualStyleBackColor = true;
+            btnLoadData.Click += btnLoadData_Click_1;
+            // 
+            // buttonDown
+            // 
+            buttonDown.Location = new System.Drawing.Point(363, 11);
+            buttonDown.Margin = new System.Windows.Forms.Padding(2);
+            buttonDown.Name = "buttonDown";
+            buttonDown.Size = new System.Drawing.Size(58, 23);
+            buttonDown.TabIndex = 6;
+            buttonDown.Text = "Dol";
+            buttonDown.UseVisualStyleBackColor = true;
+            buttonDown.Click += buttonDown_Click;
+            // 
+            // buttonUP
+            // 
+            buttonUP.Location = new System.Drawing.Point(300, 11);
+            buttonUP.Margin = new System.Windows.Forms.Padding(2);
+            buttonUP.Name = "buttonUP";
+            buttonUP.Size = new System.Drawing.Size(58, 23);
+            buttonUP.TabIndex = 5;
+            buttonUP.Text = "Gora";
+            buttonUP.UseVisualStyleBackColor = true;
+            buttonUP.Click += buttonUP_Click;
             // 
             // WidokSpecyfikacje
             // 

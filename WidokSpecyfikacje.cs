@@ -298,7 +298,7 @@ namespace Kalendarz1
             {
                 case 1: return "CarLp"; // Załóżmy, że CarLp to nazwa kolumny w bazie danych
                 case 3: return "DeclI1"; // Załóżmy, że DeclI1 to nazwa kolumny w bazie danych
-                case 4: return "DeclI2"; // Załóżmy, że DeclI2 to nazwa kolumny w bazie danych
+                case 4: return "DeclI2"; // Załóżmy, że DeclI2 to nazwa kolumny w bazie danych Padłe
                 case 5: return "DeclI3"; // Załóżmy, że DeclI3 to nazwa kolumny w bazie danych
                 case 6: return "DeclI4"; // Załóżmy, że DeclI4 to nazwa kolumny w bazie danych
                 case 7: return "DeclI5"; // Załóżmy, że DeclI5 to nazwa kolumny w bazie danych

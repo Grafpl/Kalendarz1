@@ -1,23 +1,14 @@
 ﻿using Microsoft.Data.SqlClient;
-
-using Microsoft.IdentityModel.Tokens;
-
-using Microsoft.VisualBasic.ApplicationServices;
 using System;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Data;
-using System.Data.SqlTypes;
 using System.Diagnostics;
-using System.Threading.Channels;
 using System.Windows.Forms;
-using System.Windows.Input;
-using System.Diagnostics;
 using System.IO;
-using System.Windows.Forms;
-using System.Security.Policy;
 using System.Globalization;
 using System.Collections.Generic;
-using System.Linq;
+using System.Drawing; // Dodaj tę dyrektywę
+
 
 
 namespace Kalendarz1
@@ -175,7 +166,7 @@ namespace Kalendarz1
                                 // Przypisz pobrane wartości z bazy danych do TextBox-ów
                                 Status.Text = reader["bufor"].ToString(); // Przypisz wartość bufora
                                 Data.Text = reader["DataOdbioru"].ToString(); // Przypisz wartość daty
-                                
+
                                 KmH.Text = reader["KmH"].ToString();
                                 //Kurnik.Text = reader["GID"].ToString();
                                 KmK.Text = reader["KmK"].ToString();
@@ -413,7 +404,8 @@ namespace Kalendarz1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE Name = @Name", conn))
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE Name = @Name" +
+                    "", conn))
                 {
                     cmd.Parameters.AddWithValue("@Name", name);
 
@@ -986,7 +978,7 @@ namespace Kalendarz1
                         // Obsługa wyniku
                         if (rowsAffected > 0)
                         {
-                            
+
                         }
                         else
                         {
@@ -1095,7 +1087,7 @@ namespace Kalendarz1
 
                             if (rowsAffected > 0)
                             {
-                                
+
                             }
                             else
                             {
@@ -1120,12 +1112,12 @@ namespace Kalendarz1
         {
             try
             {
-                    using (SqlConnection cnn = new SqlConnection(connectionString))
-                    {
-                        cnn.Open();
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
 
-                        // Utworzenie zapytania SQL do aktualizacji danych
-                        string strSQL = @"UPDATE dbo.FarmerCalc
+                    // Utworzenie zapytania SQL do aktualizacji danych
+                    string strSQL = @"UPDATE dbo.FarmerCalc
                                   SET FullFarmWeight = @FullFarmWeight,
                                       EmptyFarmWeight = @EmptyFarmWeight,
                                       NettoFarmWeight = @NettoFarmWeight,
@@ -1134,31 +1126,31 @@ namespace Kalendarz1
                                       SztPoj = @SztPoj
                                   WHERE ID = @ID";
 
-                        using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                        {
-                            // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
-                            command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                            command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
-                            command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
-                            command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
-                            command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
-                            command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : decimal.Parse(PiecesFarm.Text));
-                            command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
+                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
+                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
+                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
+                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : decimal.Parse(PiecesFarm.Text));
+                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
 
 
                         // Wykonanie zapytania SQL
                         int rowsAffected = command.ExecuteNonQuery();
 
-                            if (rowsAffected > 0)
-                            {
-                                // Zaktualizowano dane pomyślnie
-                            }
-                            else
-                            {
-                                MessageBox.Show("Nie udało się zaktualizować DANYCH ROZLICZENIOWYCH HODOWCY", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
+                        if (rowsAffected > 0)
+                        {
+                            // Zaktualizowano dane pomyślnie
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować DANYCH ROZLICZENIOWYCH HODOWCY", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                     }
+                }
 
             }
             catch (Exception ex)
@@ -1166,7 +1158,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-       
+
         public void UpdateDaneRozliczenioweAvilogUbojnia(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
         {
             try
@@ -1254,7 +1246,7 @@ namespace Kalendarz1
 
                         if (rowsAffected > 0)
                         {
-                     
+
                         }
                         else
                         {
@@ -1271,103 +1263,103 @@ namespace Kalendarz1
 
         public void UpdateDaneDystansu(int IdSpecyfikacji, TextBox KMstart, TextBox KMkoniec, TextBox KMdystans)
 
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
                 {
-                    try
-                    {
-                        using (SqlConnection cnn = new SqlConnection(connectionString))
-                        {
-                            cnn.Open();
-                            string strSQL = @"UPDATE dbo.FarmerCalc
+                    cnn.Open();
+                    string strSQL = @"UPDATE dbo.FarmerCalc
                                   SET StartKM = @KMstart,
                                       StopKM = @KMkoniec,
                                       DistanceKM = @KMdystans
                                   WHERE ID = @ID";
 
-                            using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                            {
-                                // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
-                                command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                                command.Parameters.AddWithValue("@KMstart", string.IsNullOrEmpty(KMstart.Text) ? (object)DBNull.Value : int.Parse(KMstart.Text));
-                                command.Parameters.AddWithValue("@KMkoniec", string.IsNullOrEmpty(KMkoniec.Text) ? (object)DBNull.Value : int.Parse(KMkoniec.Text));
-                                command.Parameters.AddWithValue("@KMdystans", string.IsNullOrEmpty(KMdystans.Text) ? (object)DBNull.Value : int.Parse(KMdystans.Text));
-                                // Wykonanie zapytania SQL
-                                int rowsAffected = command.ExecuteNonQuery();
-
-                                if (rowsAffected > 0)
-                                {
-                                    // Zaktualizowano dane pomyślnie
-                                }
-                                else
-                                {
-                                    MessageBox.Show("Nie udało się zaktualizować DANYCH Kilometrowych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                }
-                            }
-                        }
-
-                    }
-                    catch (Exception ex)
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
                     {
-                        MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                public void UpdateCzas(int IdSpecyfikacji, String kolumna, DateTimePicker PoczatekUslugi)
-                {
-                    try
-                    {
-                        using (SqlConnection cnn = new SqlConnection(connectionString))
+                        // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        command.Parameters.AddWithValue("@KMstart", string.IsNullOrEmpty(KMstart.Text) ? (object)DBNull.Value : int.Parse(KMstart.Text));
+                        command.Parameters.AddWithValue("@KMkoniec", string.IsNullOrEmpty(KMkoniec.Text) ? (object)DBNull.Value : int.Parse(KMkoniec.Text));
+                        command.Parameters.AddWithValue("@KMdystans", string.IsNullOrEmpty(KMdystans.Text) ? (object)DBNull.Value : int.Parse(KMdystans.Text));
+                        // Wykonanie zapytania SQL
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
                         {
-                            cnn.Open();
+                            // Zaktualizowano dane pomyślnie
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować DANYCH Kilometrowych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
 
-                            // Pobierz datę z kolumny CalcDate
-                            string queryDate = "SELECT CalcDate FROM dbo.FarmerCalc WHERE ID = @ID";
-                            using (SqlCommand dateCommand = new SqlCommand(queryDate, cnn))
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        public void UpdateCzas(int IdSpecyfikacji, String kolumna, DateTimePicker PoczatekUslugi)
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    // Pobierz datę z kolumny CalcDate
+                    string queryDate = "SELECT CalcDate FROM dbo.FarmerCalc WHERE ID = @ID";
+                    using (SqlCommand dateCommand = new SqlCommand(queryDate, cnn))
+                    {
+                        dateCommand.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                        DateTime calcDate = Convert.ToDateTime(dateCommand.ExecuteScalar());
+
+                        // Aktualizuj godzinę i minutę w zaktualizowanym PoczatekUslugi
+                        DateTime updatedDateTime = new DateTime(
+                            calcDate.Year,
+                            calcDate.Month,
+                            calcDate.Day,
+                            PoczatekUslugi.Value.Hour,
+                            PoczatekUslugi.Value.Minute,
+                            0 // Zeruj sekundy
+                        );
+
+                        // Jeśli godzina jest między 17 a 23, zmniejsz datę o jeden dzień
+                        if (PoczatekUslugi.Value.Hour >= 17 && PoczatekUslugi.Value.Hour <= 23)
+                        {
+                            updatedDateTime = updatedDateTime.AddDays(-1);
+                        }
+
+                        // Zaktualizuj rekord w bazie danych
+                        string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
+
+                        using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                        {
+                            command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
+                            command.Parameters.AddWithValue("@Zmienna", updatedDateTime);
+
+                            int rowsAffected = command.ExecuteNonQuery();
+
+                            if (rowsAffected > 0)
                             {
-                                dateCommand.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                                DateTime calcDate = Convert.ToDateTime(dateCommand.ExecuteScalar());
 
-                                // Aktualizuj godzinę i minutę w zaktualizowanym PoczatekUslugi
-                                DateTime updatedDateTime = new DateTime(
-                                    calcDate.Year,
-                                    calcDate.Month,
-                                    calcDate.Day,
-                                    PoczatekUslugi.Value.Hour,
-                                    PoczatekUslugi.Value.Minute,
-                                    0 // Zeruj sekundy
-                                );
-
-                                // Jeśli godzina jest między 17 a 23, zmniejsz datę o jeden dzień
-                                if (PoczatekUslugi.Value.Hour >= 17 && PoczatekUslugi.Value.Hour <= 23)
-                                {
-                                    updatedDateTime = updatedDateTime.AddDays(-1);
-                                }
-
-                                // Zaktualizuj rekord w bazie danych
-                                string strSQL = $"UPDATE dbo.FarmerCalc SET {kolumna} = @Zmienna WHERE ID = @ID";
-
-                                using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                                {
-                                    command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                                    command.Parameters.AddWithValue("@Zmienna", updatedDateTime);
-
-                                    int rowsAffected = command.ExecuteNonQuery();
-
-                                    if (rowsAffected > 0)
-                                    {
-                                       
-                                    }
-                                    else
-                                    {
-                                        MessageBox.Show("Nie udało się zaktualizować danych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    }
-                                }
+                            }
+                            else
+                            {
+                                MessageBox.Show("Nie udało się zaktualizować danych", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         public void OtworzGoogleMaps(TextBox UlicaK, TextBox KodPocztowyK)
         {
             string przegladarka = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
@@ -1461,99 +1453,161 @@ namespace Kalendarz1
                 resultTextBox.Text = "";
             }
         }
+        public void PokazwTabeliRozliczeniaAvilogazDanegoDnia(DateTime selectedDate, DataGridView grid)
+        {
+            string query = @"
+        SELECT 
+            F.[CarLp] AS Nr,
+            P.[ShortName] AS Dostawca, -- Zamiast CustomerGID wyświetlamy nazwę dostawcy
+            DATEDIFF(MINUTE, F.[Wyjazd], F.[DojazdHodowca]) AS [Dojazd],
+            DATEDIFF(MINUTE, F.[Zaladunek], F.[ZaladunekKoniec]) AS [Zaladunek],
+            DATEDIFF(MINUTE, F.[WyjazdHodowca], F.[Przyjazd]) AS [Przyjazd],
+            F.[DistanceKM] AS KmAvi,
+            P.Distance * 2 AS KmHod, 
+            (F.[DistanceKM] - (P.Distance * 2)) AS [Km-],
+            F.[DeclI2] AS P,
+            F.[CarID] AS Auto
+        FROM 
+            [LibraNet].[dbo].[FarmerCalc] F
+        LEFT JOIN 
+            [LibraNet].[dbo].[Dostawcy] P 
+            ON F.CustomerGID = P.ID -- Łączenie z tabelą zawierającą nazwy dostawców
+        WHERE 
+            F.[CalcDate] = @CalcDate
+        ORDER BY 
+            F.CustomerGID;";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@CalcDate", selectedDate.ToString("yyyy-MM-dd"));
+
+                SqlDataAdapter adapter = new SqlDataAdapter(command);
+                DataTable dataTable = new DataTable();
+
+                try
+                {
+                    connection.Open();
+                    adapter.Fill(dataTable);
+                    grid.DataSource = dataTable;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error fetching data: " + ex.Message);
+                }
+            }
+        
+
 
     }
-    // Metoda pomocnicza do otwierania URL w domyślnej przeglądarce
+    public void stylGridaPodstawowy(DataGridView grid)
+        {
+            // Automatyczne dopasowanie szerokości kolumn
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
 
-}
+            // Ustawienia wysokości wierszy
+            grid.RowTemplate.Height = 18; // Zmniejszona wysokość wierszy
+
+            // Wyłącz automatyczne generowanie kolumn, jeśli nie jest potrzebne
+            grid.AutoGenerateColumns = true;
+
+            // Opcjonalnie: Ustawienie stylu dla nagłówków kolumn
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Arial", 9F, FontStyle.Bold);
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 25;
+        }
+        // Metoda pomocnicza do otwierania URL w domyślnej przeglądarce
+
+    }
+
 
     public class CenoweMetody
+    {
+        static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+        public double PobierzCeneRolniczaDzisiaj()
         {
-            static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-            private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+            string zapytanie = "SELECT Cena FROM CenaRolnicza WHERE Data = @Data";
+            double cena = 0.0;
 
-            public double PobierzCeneRolniczaDzisiaj()
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                string zapytanie = "SELECT Cena FROM CenaRolnicza WHERE Data = @Data";
-                double cena = 0.0;
+                SqlCommand command = new SqlCommand(zapytanie, connection);
+                command.Parameters.AddWithValue("@Data", DateTime.Today);
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                try
                 {
-                    SqlCommand command = new SqlCommand(zapytanie, connection);
-                    command.Parameters.AddWithValue("@Data", DateTime.Today);
-
-                    try
-                    {
-                        connection.Open();
-                        object result = command.ExecuteScalar();
-                        cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Obsługa błędów
-                        Console.WriteLine("Błąd: " + ex.Message);
-                    }
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
                 }
-
-                return cena;
+                catch (Exception ex)
+                {
+                    // Obsługa błędów
+                    Console.WriteLine("Błąd: " + ex.Message);
+                }
             }
 
-            public double PobierzCeneMinisterialnaDzisiaj()
+            return cena;
+        }
+
+        public double PobierzCeneMinisterialnaDzisiaj()
+        {
+            string zapytanie = "SELECT Cena FROM CenaMinisterialna WHERE Data = @Data";
+            double cena = 0.0;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                string zapytanie = "SELECT Cena FROM CenaMinisterialna WHERE Data = @Data";
-                double cena = 0.0;
+                SqlCommand command = new SqlCommand(zapytanie, connection);
+                command.Parameters.AddWithValue("@Data", DateTime.Today);
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                try
                 {
-                    SqlCommand command = new SqlCommand(zapytanie, connection);
-                    command.Parameters.AddWithValue("@Data", DateTime.Today);
-
-                    try
-                    {
-                        connection.Open();
-                        object result = command.ExecuteScalar();
-                        cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Obsługa błędów
-                        Console.WriteLine("Błąd: " + ex.Message);
-                    }
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
                 }
-
-                return cena;
-            }
-            public double PobierzCeneTuszkiDzisiaj()
-            {
-                string zapytanie = "SELECT Cena FROM CenaTuszki WHERE Data = @Data";
-                double cena = 0.0;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                catch (Exception ex)
                 {
-                    SqlCommand command = new SqlCommand(zapytanie, connection);
-                    command.Parameters.AddWithValue("@Data", DateTime.Today);
-
-                    try
-                    {
-                        connection.Open();
-                        object result = command.ExecuteScalar();
-                        cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Obsługa błędów
-                        Console.WriteLine("Błąd: " + ex.Message);
-                    }
+                    // Obsługa błędów
+                    Console.WriteLine("Błąd: " + ex.Message);
                 }
-
-                return cena;
             }
 
-            public double PobierzCeneKurczakaA()
-                    {
-                        double cena = 0.0;
+            return cena;
+        }
+        public double PobierzCeneTuszkiDzisiaj()
+        {
+            string zapytanie = "SELECT Cena FROM CenaTuszki WHERE Data = @Data";
+            double cena = 0.0;
 
-                        string zapytanie = @"
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                SqlCommand command = new SqlCommand(zapytanie, connection);
+                command.Parameters.AddWithValue("@Data", DateTime.Today);
+
+                try
+                {
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    cena = (result != null && result != DBNull.Value) ? Convert.ToDouble(result) : 0.0;
+                }
+                catch (Exception ex)
+                {
+                    // Obsługa błędów
+                    Console.WriteLine("Błąd: " + ex.Message);
+                }
+            }
+
+            return cena;
+        }
+
+        public double PobierzCeneKurczakaA()
+        {
+            double cena = 0.0;
+
+            string zapytanie = @"
                     SELECT
                        ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
                     FROM [HANDEL].[HM].[DP] DP 
@@ -1565,31 +1619,31 @@ namespace Kalendarz1
                       AND TW.[katalog] = 67095
                     GROUP BY DP.[kod], CONVERT(date, DP.[data])";
 
-                        using (SqlConnection connection = new SqlConnection(connectionString2))
-                        using (SqlCommand command = new SqlCommand(zapytanie, connection))
-                        {
-                            try
-                            {
-                                connection.Open();
-                                object result = command.ExecuteScalar();
-                                if (result != null && result != DBNull.Value)
-                                {
-                                    cena = Convert.ToDouble(result);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("Błąd: " + ex.Message);
-                            }
-                        }
-
-                        return cena;
-                    }
-            public double PobierzSredniaCeneWolnorynkowa()
+            using (SqlConnection connection = new SqlConnection(connectionString2))
+            using (SqlCommand command = new SqlCommand(zapytanie, connection))
             {
-                double sredniaCena = 0.0;
+                try
+                {
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        cena = Convert.ToDouble(result);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Błąd: " + ex.Message);
+                }
+            }
 
-                string zapytanie = @"
+            return cena;
+        }
+        public double PobierzSredniaCeneWolnorynkowa()
+        {
+            double sredniaCena = 0.0;
+
+            string zapytanie = @"
             SELECT 
                 SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
             FROM 
@@ -1601,31 +1655,31 @@ namespace Kalendarz1
                 AND DataOdbioru < DATEADD(DAY, 1, CAST(GETDATE() AS DATE))
             ";
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                using (SqlCommand command = new SqlCommand(zapytanie, connection))
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand(zapytanie, connection))
+            {
+                try
                 {
-                    try
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
                     {
-                        connection.Open();
-                        object result = command.ExecuteScalar();
-                        if (result != null && result != DBNull.Value)
-                        {
-                            sredniaCena = Convert.ToDouble(result);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine("Błąd: " + ex.Message);
+                        sredniaCena = Convert.ToDouble(result);
                     }
                 }
-
-                return sredniaCena;
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Błąd: " + ex.Message);
+                }
             }
-    public double PobierzSredniaCenePotwierdzone()
-    {
-        double sredniaCena = 0.0;
 
-        string zapytanie = @"
+            return sredniaCena;
+        }
+        public double PobierzSredniaCenePotwierdzone()
+        {
+            double sredniaCena = 0.0;
+
+            string zapytanie = @"
             SELECT 
                 SUM(CAST(Auta AS DECIMAL(10, 2)) * CAST(Cena AS DECIMAL(10, 2))) / NULLIF(SUM(CAST(Auta AS DECIMAL(10, 2))), 0) AS SredniaCena
             FROM 
@@ -1638,28 +1692,29 @@ namespace Kalendarz1
 
 
 
-        using (SqlConnection connection = new SqlConnection(connectionString))
-        using (SqlCommand command = new SqlCommand(zapytanie, connection))
-        {
-            try
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlCommand command = new SqlCommand(zapytanie, connection))
             {
-                //command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.Date) { Value = startDate });
-                connection.Open();
-                object result = command.ExecuteScalar();
-                if (result != null && result != DBNull.Value)
+                try
                 {
-                    sredniaCena = Convert.ToDouble(result);
+                    //command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.Date) { Value = startDate });
+                    connection.Open();
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        sredniaCena = Convert.ToDouble(result);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Błąd: " + ex.Message);
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Błąd: " + ex.Message);
-            }
+
+            return sredniaCena;
         }
 
-        return sredniaCena;
+
     }
-
-
 }
 

@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Collections.Generic;
 using Microsoft.Extensions.Primitives;
 using System.Windows.Input;
+using System.Linq;
 
 
 namespace Kalendarz1
@@ -66,7 +67,7 @@ namespace Kalendarz1
             //TimeSpan start = new TimeSpan(14, 30, 0); // 14:30
             //TimeSpan end = new TimeSpan(15, 30, 0);    // 15:00
             //TimeSpan now = DateTime.Now.TimeOfDay;
-           // DayOfWeek today = DateTime.Now.DayOfWeek;
+            // DayOfWeek today = DateTime.Now.DayOfWeek;
 
             /*
             bool isDateInDatabase = false;
@@ -205,7 +206,7 @@ namespace Kalendarz1
         private void BiezacePartieSuma()
         {
             // Utwórz połączenie z bazą danych SQL Server
-            using (SqlConnection cnn = new  SqlConnection(connectionPermission))
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
             {
                 cnn.Open();
 
@@ -2043,5 +2044,126 @@ namespace Kalendarz1
             BiezacePartie();
             BiezacePartieSuma();
         }
+
+        private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
+        {
+            // Pobierz wybraną datę z DateTimePicker
+            DateTime selectedDate = dateTimePicker1.Value;
+
+            // Wywołaj metodę z przekazaną datą i kontrolką DataGridView
+            zapytaniasql.PokazwTabeliRozliczeniaAvilogazDanegoDnia(selectedDate, dataGridAvilog);
+        }
+        private void dataGridAvilog_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return; // Pomijamy nagłówki
+
+            var grid = (DataGridView)sender;
+
+            // Sprawdź, czy kolumna istnieje przed kontynuowaniem
+            if (!grid.Columns.Contains("Dostawca") || !grid.Columns.Contains("Km-") || !grid.Columns.Contains("P"))
+            {
+                return; // Pomijamy jeśli brakuje kluczowych kolumn
+            }
+
+            string columnName = grid.Columns[e.ColumnIndex].Name;
+
+            // Podświetlanie dla kolumny "Km-"
+            if (columnName == "Km-")
+            {
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out int value) && value > 20)
+                {
+                    e.CellStyle.BackColor = Color.Red; // Tło na czerwono
+                    e.CellStyle.ForeColor = Color.White; // Tekst na biało
+                }
+
+                // Dodaj " km" do wartości
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out value))
+                {
+                    e.Value = $"{value} km";
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Podświetlanie dla kolumny "P"
+            if (columnName == "P")
+            {
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out int value) && value > 25)
+                {
+                    e.CellStyle.BackColor = Color.Red; // Tło na czerwono
+                    e.CellStyle.ForeColor = Color.White; // Tekst na biało
+                }
+
+                // Dodaj " szt" do wartości
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out value))
+                {
+                    e.Value = $"{value} szt";
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Dodawanie " km" do kolumn "KmAvi" i "KmHod"
+            if (columnName == "KmAvi" || columnName == "KmHod")
+            {
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out int value))
+                {
+                    e.Value = $"{value} km";
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Dodaj podświetlanie dla kolumn "Dojazd", "Zaladunek", "Przyjazd"
+            if (columnName == "Dojazd" || columnName == "Zaladunek" || columnName == "Przyjazd")
+            {
+                // Pobierz nazwę dostawcy dla bieżącego wiersza
+                string dostawca = grid.Rows[e.RowIndex].Cells["Dostawca"].Value?.ToString();
+
+                // Pobierz wartości wszystkich wierszy dla tego dostawcy
+                var valuesForDostawca = grid.Rows.Cast<DataGridViewRow>()
+                    .Where(row => row.Cells["Dostawca"].Value?.ToString() == dostawca)
+                    .Select(row => new
+                    {
+                        ColumnName = columnName,
+                        Value = int.TryParse(row.Cells[columnName].Value?.ToString(), out int result) ? result : (int?)null
+                    })
+                    .Where(v => v.Value.HasValue && v.Value.Value > 0) // Ignorujemy wartości 0
+                    .ToList();
+
+                // Sprawdź, ile wierszy ma ten dostawca
+                int rowCount = valuesForDostawca.Count;
+
+                // Znajdź największą wartość dla tej kolumny i tego dostawcy
+                int? maxValue = valuesForDostawca.Max(v => v.Value);
+
+                // Sprawdź, ile wartości jest równych maksymalnej
+                int maxCount = valuesForDostawca.Count(v => v.Value == maxValue);
+
+                // Jeśli więcej niż 70% wartości to maksymalne, nie podświetlaj
+                if (rowCount > 0 && maxValue.HasValue && maxCount <= (0.7 * rowCount))
+                {
+                    // Jeśli bieżąca wartość to największa wartość, zmień kolor
+                    if (e.Value != null && int.TryParse(e.Value.ToString(), out int currentValue) && currentValue == maxValue)
+                    {
+                        e.CellStyle.BackColor = Color.Red; // Tło na czerwono
+                        e.CellStyle.ForeColor = Color.White; // Tekst na biało
+                    }
+                }
+
+                // Dodaj " min" do wartości
+                if (e.Value != null && int.TryParse(e.Value.ToString(), out int value))
+                {
+                    e.Value = $"{value} min";
+                    e.FormattingApplied = true;
+                }
+            }
+
+            // Dostosowanie stylu siatki
+            zapytaniasql.stylGridaPodstawowy(dataGridAvilog);
+        }
+
+
+
+
+
+
     }
 }

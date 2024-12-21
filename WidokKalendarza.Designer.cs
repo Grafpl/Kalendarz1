@@ -233,9 +233,10 @@ namespace Kalendarz1
             button16 = new Button();
             pokazDlaSprzedazy = new Button();
             pictureBox1 = new PictureBox();
-            dataGridViewWstawienia = new DataGridView();
+            dataGridAvilog = new DataGridView();
             dataGridSumaPartie = new DataGridView();
             button17 = new Button();
+            dateTimePicker1 = new DateTimePicker();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -253,7 +254,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dataGridPartie).BeginInit();
             groupBoxPrzyciski.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridAvilog).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
             SuspendLayout();
             // 
@@ -2475,14 +2476,16 @@ namespace Kalendarz1
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
             // 
-            // dataGridViewWstawienia
+            // dataGridAvilog
             // 
-            dataGridViewWstawienia.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewWstawienia.Location = new System.Drawing.Point(1292, 462);
-            dataGridViewWstawienia.Name = "dataGridViewWstawienia";
-            dataGridViewWstawienia.RowTemplate.Height = 25;
-            dataGridViewWstawienia.Size = new System.Drawing.Size(306, 325);
-            dataGridViewWstawienia.TabIndex = 130;
+            dataGridAvilog.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridAvilog.Location = new System.Drawing.Point(1292, 488);
+            dataGridAvilog.Name = "dataGridAvilog";
+            dataGridAvilog.RowHeadersVisible = false;
+            dataGridAvilog.RowTemplate.Height = 25;
+            dataGridAvilog.Size = new System.Drawing.Size(539, 311);
+            dataGridAvilog.TabIndex = 130;
+            dataGridAvilog.CellFormatting += dataGridAvilog_CellFormatting;
             // 
             // dataGridSumaPartie
             // 
@@ -2503,14 +2506,28 @@ namespace Kalendarz1
             button17.UseVisualStyleBackColor = true;
             button17.Click += button17_Click;
             // 
+            // dateTimePicker1
+            // 
+            dateTimePicker1.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker1.CustomFormat = "yyyy-MM-dd";
+            dateTimePicker1.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker1.Format = DateTimePickerFormat.Custom;
+            dateTimePicker1.Location = new System.Drawing.Point(1292, 465);
+            dateTimePicker1.Name = "dateTimePicker1";
+            dateTimePicker1.Size = new System.Drawing.Size(89, 22);
+            dateTimePicker1.TabIndex = 133;
+            dateTimePicker1.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
+            dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1626, 982);
+            ClientSize = new System.Drawing.Size(1857, 982);
+            Controls.Add(dateTimePicker1);
             Controls.Add(button17);
             Controls.Add(dataGridSumaPartie);
-            Controls.Add(dataGridViewWstawienia);
+            Controls.Add(dataGridAvilog);
             Controls.Add(pictureBox1);
             Controls.Add(label49);
             Controls.Add(groupBoxPrzyciski);
@@ -2601,7 +2618,7 @@ namespace Kalendarz1
             groupBoxPrzyciski.ResumeLayout(false);
             groupBoxPrzyciski.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWstawienia).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridAvilog).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
             ResumeLayout(false);
             PerformLayout();
@@ -2809,8 +2826,9 @@ namespace Kalendarz1
         private Label label46;
         private TextBox textBox2;
         private Label label51;
-        private DataGridView dataGridViewWstawienia;
+        private DataGridView dataGridAvilog;
         private DataGridView dataGridSumaPartie;
         private Button button17;
+        private DateTimePicker dateTimePicker1;
     }
 }

@@ -74,6 +74,7 @@ namespace Kalendarz1
         }
         private void PrintButton_Click(object sender, EventArgs e)
         {
+
             if (selectedRow != null)
             {
                 // Pobierz wartość CustomerRealGID z zaznaczonego wiersza
@@ -81,8 +82,10 @@ namespace Kalendarz1
 
                 if (!string.IsNullOrEmpty(selectedCustomerRealGID))
                 {
-                    // Pobierz wszystkie wartości ID z kolumny "ID" dla wierszy z tym samym CustomerRealGID
+
+                    // Inicjalizuj pustą listę IDs (jest wyzerowana)
                     List<int> ids = new List<int>();
+
 
                     foreach (DataGridViewRow row in dataGridView1.Rows)
                     {
@@ -113,6 +116,7 @@ namespace Kalendarz1
                 MessageBox.Show("Nie wybrano żadnego wiersza.");
             }
         }
+
 
         private void DataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -512,7 +516,7 @@ namespace Kalendarz1
                     {
                         padleKG = 0;
                     }
-                    
+
                     string strPadleKG = "- " + Math.Round(padleKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // KG Padłe
@@ -547,7 +551,7 @@ namespace Kalendarz1
                     string strKlasaB = "- " + Math.Round(klasaB, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
 
                     // Suma KG do Zapłaty
-                    
+
 
                     decimal sumaDoZaplaty;
 
@@ -573,6 +577,7 @@ namespace Kalendarz1
                         );
                     string strWartosc = Math.Round(Wartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
 
+
                     sumaWartosc = Wartosc + sumaWartosc;
                     sumaKG = sumaDoZaplaty + sumaKG;
 
@@ -580,7 +585,6 @@ namespace Kalendarz1
 
                     AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strOpasienieKG, strUbytekUstalonyKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
                 }
-
                 string strSumaWartosc = Math.Round(sumaWartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
                 string strSumaKG = Math.Round(sumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
@@ -611,7 +615,7 @@ namespace Kalendarz1
                 Paragraph summaryKG = new Paragraph($"Suma kilogramów: {strSumaKG}", textFont);
                 summaryKG.Alignment = Element.ALIGN_RIGHT;
                 doc.Add(summaryKG);
-                
+
 
                 // Summary
                 Paragraph summaryZL = new Paragraph($"Suma wartości netto: {strSumaWartosc}", textFont);
@@ -619,10 +623,11 @@ namespace Kalendarz1
                 doc.Add(summaryZL);
 
                 // Summary
-               // Paragraph platnosc = new Paragraph("Termin płatności : 45 dni", ItalicFont);
+                // Paragraph platnosc = new Paragraph("Termin płatności : 45 dni", ItalicFont);
                 //platnosc.Alignment = Element.ALIGN_RIGHT;
-               // doc.Add(platnosc);
-
+                // doc.Add(platnosc);
+                sumaWartosc = 0;
+                sumaKG = 0;
 
                 // Close the document
                 doc.Close();
@@ -660,6 +665,11 @@ namespace Kalendarz1
 
             // Zaktualizuj dane w DataGridView na podstawie nowej daty
             PokazWiersze(wybranaData);
+        }
+
+        private void SzczegolyDrukowaniaSpecki_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
