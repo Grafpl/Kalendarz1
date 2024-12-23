@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Windows.Forms;
-using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
+using DrawingFont = System.Drawing.Font;
 
 namespace Kalendarz1
 {

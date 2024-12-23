@@ -33,6 +33,7 @@
             ID = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Nr = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Dostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            RealDostawca = new System.Windows.Forms.DataGridViewTextBoxColumn();
             SztukiDek = new System.Windows.Forms.DataGridViewTextBoxColumn();
             Padle = new System.Windows.Forms.DataGridViewTextBoxColumn();
             CH = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -56,6 +57,7 @@
             btnLoadData = new System.Windows.Forms.Button();
             buttonDown = new System.Windows.Forms.Button();
             buttonUP = new System.Windows.Forms.Button();
+            buttonBon = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
@@ -71,12 +73,13 @@
             // dataGridView1
             // 
             dataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Nr, Dostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
-            dataGridView1.Location = new System.Drawing.Point(12, 50);
+            dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Nr, Dostawca, RealDostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
+            dataGridView1.Location = new System.Drawing.Point(12, 81);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(1469, 452);
+            dataGridView1.Size = new System.Drawing.Size(1469, 521);
             dataGridView1.TabIndex = 1;
+            dataGridView1.CellClick += dataGridView1_CellClick;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
             dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
@@ -102,6 +105,13 @@
             Dostawca.HeaderText = "Dostawca";
             Dostawca.Name = "Dostawca";
             Dostawca.Width = 83;
+            // 
+            // RealDostawca
+            // 
+            RealDostawca.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            RealDostawca.HeaderText = "Prawdziwy";
+            RealDostawca.Name = "RealDostawca";
+            RealDostawca.Width = 88;
             // 
             // SztukiDek
             // 
@@ -234,11 +244,12 @@
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(575, 12);
+            button1.BackgroundImage = Properties.Resources.Printer1;
+            button1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button1.Location = new System.Drawing.Point(427, 14);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
+            button1.Size = new System.Drawing.Size(90, 45);
             button1.TabIndex = 2;
-            button1.Text = "Drukuj Specyfikacje";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
@@ -263,7 +274,7 @@
             // 
             // buttonDown
             // 
-            buttonDown.Location = new System.Drawing.Point(363, 11);
+            buttonDown.Location = new System.Drawing.Point(262, 38);
             buttonDown.Margin = new System.Windows.Forms.Padding(2);
             buttonDown.Name = "buttonDown";
             buttonDown.Size = new System.Drawing.Size(58, 23);
@@ -274,7 +285,7 @@
             // 
             // buttonUP
             // 
-            buttonUP.Location = new System.Drawing.Point(300, 11);
+            buttonUP.Location = new System.Drawing.Point(262, 11);
             buttonUP.Margin = new System.Windows.Forms.Padding(2);
             buttonUP.Name = "buttonUP";
             buttonUP.Size = new System.Drawing.Size(58, 23);
@@ -283,11 +294,23 @@
             buttonUP.UseVisualStyleBackColor = true;
             buttonUP.Click += buttonUP_Click;
             // 
+            // buttonBon
+            // 
+            buttonBon.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            buttonBon.BackgroundImage = Properties.Resources.avilog;
+            buttonBon.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            buttonBon.Location = new System.Drawing.Point(325, 12);
+            buttonBon.Name = "buttonBon";
+            buttonBon.Size = new System.Drawing.Size(96, 47);
+            buttonBon.TabIndex = 7;
+            buttonBon.UseVisualStyleBackColor = false;
+            // 
             // WidokSpecyfikacje
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1831, 690);
+            Controls.Add(buttonBon);
             Controls.Add(buttonDown);
             Controls.Add(buttonUP);
             Controls.Add(btnLoadData);
@@ -315,6 +338,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn ID;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nr;
         private System.Windows.Forms.DataGridViewTextBoxColumn Dostawca;
+        private System.Windows.Forms.DataGridViewTextBoxColumn RealDostawca;
         private System.Windows.Forms.DataGridViewTextBoxColumn SztukiDek;
         private System.Windows.Forms.DataGridViewTextBoxColumn Padle;
         private System.Windows.Forms.DataGridViewTextBoxColumn CH;
@@ -333,5 +357,6 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn TypCeny;
         private System.Windows.Forms.DataGridViewCheckBoxColumn PiK;
         private System.Windows.Forms.DataGridViewTextBoxColumn Ubytek;
+        private System.Windows.Forms.Button buttonBon;
     }
 }

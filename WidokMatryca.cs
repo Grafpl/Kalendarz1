@@ -32,121 +32,356 @@ namespace Kalendarz1
         }
         private void DisplayData()
         {
-            // Tworzenie połączenia z bazą danych i pobieranie danych
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                // Tworzenie komendy SQL
-                string query = "SELECT Lp, Auta, Dostawca, WagaDek, SztSzuflada FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @StartDate AND Bufor = 'Potwierdzony'";
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
+                
 
-                // Tworzenie adaptera danych i wypełnianie DataTable
-                SqlDataAdapter adapter = new SqlDataAdapter(command);
+                connection.Open();
+
+                // 1. Pobierz listę kierowców (GID, Name) do driverTable
+                string driverQuery = @"
+                    SELECT 
+                        GID, 
+                        [Name]
+                    FROM [LibraNet].[dbo].[Driver]
+                    WHERE Deleted = 0
+                    Order by name ASC
+                ";
+                SqlCommand driverCommand = new SqlCommand(driverQuery, connection);
+                SqlDataAdapter driverAdapter = new SqlDataAdapter(driverCommand);
+                DataTable driverTable = new DataTable();
+                driverAdapter.Fill(driverTable);
+
+                // Tabela CarID (Kind = '1')
+                string carQuery = @"
+                SELECT DISTINCT ID
+                FROM dbo.CarTrailer
+                WHERE kind = '1'
+                order by ID DESC
+            ";
+                SqlCommand carCommand = new SqlCommand(carQuery, connection);
+                SqlDataAdapter carAdapter = new SqlDataAdapter(carCommand);
+                DataTable carTable = new DataTable();
+                carAdapter.Fill(carTable);
+
+                // Tabela TrailerID (Kind = '2')
+                string trailerQuery = @"
+                SELECT DISTINCT ID
+                FROM dbo.CarTrailer
+                WHERE kind = '2'
+                order by ID DESC
+            ";
+                SqlCommand trailerCommand = new SqlCommand(trailerQuery, connection);
+                SqlDataAdapter trailerAdapter = new SqlDataAdapter(trailerCommand);
+                DataTable trailerTable = new DataTable();
+                trailerAdapter.Fill(trailerTable);
+
+                // 3) Przygotuj wozekTable
+                DataTable wozekTable = new DataTable();
+                wozekTable.Columns.Add("WozekValue", typeof(string));
+                wozekTable.Rows.Add("");
+                wozekTable.Rows.Add("Wieziesz wozek");
+                wozekTable.Rows.Add("Przywozisz wozek");
+                wozekTable.Rows.Add("Wozek w obie strony");
+
+
+                // 2. Sprawdź, czy istnieją rekordy w FarmerCalc dla wybranej daty
+                string checkQuery = @"
+                    SELECT COUNT(*) 
+                    FROM [LibraNet].[dbo].[FarmerCalc] 
+                    WHERE CalcDate = @SelectedDate
+                ";
+                SqlCommand checkCommand = new SqlCommand(checkQuery, connection);
+                checkCommand.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
+                int count = (int)checkCommand.ExecuteScalar();
+
                 DataTable table = new DataTable();
-                adapter.Fill(table);
+                bool isFarmerCalc = false;
 
-                // Dodanie pozostałych kolumn do tabeli finalTable
+                if (count > 0)
+                {
+                    // Jeśli są dane w FarmerCalc
+                    string query = @"
+                        SELECT 
+                            ID, 
+                            CarLp, 
+                            CustomerGID, 
+                            WagaDek, 
+                            SztPoj, 
+                            DriverGID, 
+                            CarID, 
+                            TrailerID, 
+                            Wyjazd, 
+                            Zaladunek, 
+                            Przyjazd,
+                            NotkaWozek
+                        FROM [LibraNet].[dbo].[FarmerCalc] 
+                        WHERE CalcDate = @SelectedDate
+                    ";
+                    SqlCommand command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
+                    SqlDataAdapter adapter = new SqlDataAdapter(command);
+                    adapter.Fill(table);
+                    isFarmerCalc = true;
+                }
+                else
+                {
+                    // Jeśli nie ma danych w FarmerCalc – pobierz z HarmonogramDostaw
+                    string query = @"
+                        SELECT
+                            Lp AS CarLp,
+                            Auta,
+                            Dostawca AS CustomerGID,
+                            WagaDek,
+                            SztSzuflada AS SztPoj
+                        FROM dbo.HarmonogramDostaw 
+                        WHERE DataOdbioru = @StartDate 
+                        AND Bufor = 'Potwierdzony'
+                    ";
+                    SqlCommand command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@StartDate", dateTimePicker1.Value.Date);
+                    SqlDataAdapter adapter = new SqlDataAdapter(command);
+                    adapter.Fill(table);
+                }
+
+                if (table.Rows.Count == 0)
+                {
+                    MessageBox.Show(
+                        "Brak danych do wyświetlenia na wybrany dzień.",
+                        "Informacja",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+                    connection.Close();
+                    return;
+                }
+                dataGridView1.EditMode = DataGridViewEditMode.EditOnEnter;
+                // 3. Tworzymy finalTable z odpowiednimi kolumnami
                 DataTable finalTable = new DataTable();
-                finalTable.Columns.Add("Nr", typeof(int)); // Dodanie kolumny "Numer" na początku
-                finalTable.Columns.Add("Lp", typeof(int)); // Dodanie kolumny "Numer" na początku
+                finalTable.Columns.Add("NrAuta", typeof(int));
+                finalTable.Columns.Add("CarLp", typeof(int));
+                finalTable.Columns.Add("ID", typeof(int));
                 finalTable.Columns.Add("Auta", typeof(int));
-                finalTable.Columns.Add("Dostawca", typeof(string));
+                finalTable.Columns.Add("CustomerGID", typeof(string));
                 finalTable.Columns.Add("WagaDek", typeof(double));
-                finalTable.Columns.Add("SztSzuflada", typeof(int));
-                finalTable.Columns.Add("Kierowca", typeof(string)); // Kolumna dla kierowcy
-                finalTable.Columns.Add("Pojazd", typeof(string)); // Kolumna dla pojazdu
-                finalTable.Columns.Add("Naczepa", typeof(string)); // Kolumna dla naczepy
-                finalTable.Columns.Add("Wyjazd", typeof(string)); // Kolumna dla wyjazdu (zmieniona na string)
-                finalTable.Columns.Add("Zaladunek", typeof(string)); // Kolumna dla załadunku
-             
-                finalTable.Columns.Add("Przyjazd", typeof(string)); // Kolumna dla przyjazdu (zmieniona na TimeSpan)
-                finalTable.Columns.Add("Wozek", typeof(string)); // Kolumna dla wózka
+                finalTable.Columns.Add("SztPoj", typeof(int));
+                finalTable.Columns.Add("DriverGID", typeof(int));
+                finalTable.Columns.Add("CarID", typeof(string));
+                finalTable.Columns.Add("TrailerID", typeof(string));
+                finalTable.Columns.Add("Wyjazd", typeof(string));
+                finalTable.Columns.Add("Zaladunek", typeof(string));
+                finalTable.Columns.Add("Przyjazd", typeof(string));
+                finalTable.Columns.Add("NotkaWozek", typeof(string));
 
-                int numer = 1; // Początkowa wartość numeru
+                int numer = 1; // Licznik 'NrAuta'
 
-                // Iteracja przez wiersze tabeli źródłowej
+                // 4. Przeniesienie danych z table do finalTable
                 foreach (DataRow row in table.Rows)
                 {
-                    int autaValue = (int)row["Auta"];
+                    int autaValue = 1;
+                    if (row.Table.Columns.Contains("Auta") && row["Auta"] != DBNull.Value)
+                        autaValue = Convert.ToInt32(row["Auta"]);
 
-                    // Duplikowanie wiersza tyle razy, ile wynosi wartość w kolumnie Auta
+                    // Duplikowanie wierszy według liczby Auta
                     for (int i = 0; i < autaValue; i++)
                     {
                         DataRow newRow = finalTable.NewRow();
-                        newRow["Nr"] = numer++; // Ustaw numer i zwiększ wartość
-                        newRow["Lp"] = row["Lp"];
-                        newRow["Auta"] = row["Auta"];
-                        newRow["Dostawca"] = row["Dostawca"];
+                        newRow["NrAuta"] = numer++;
+                        newRow["CarLp"] = row.Table.Columns.Contains("CarLp") ? row["CarLp"] : DBNull.Value;
+                        newRow["ID"] = isFarmerCalc && row.Table.Columns.Contains("ID") ? row["ID"] : DBNull.Value;
+                        newRow["Auta"] = row.Table.Columns.Contains("Auta") ? row["Auta"] : DBNull.Value;
+                        newRow["CustomerGID"] = row["CustomerGID"];
                         newRow["WagaDek"] = row["WagaDek"];
-                        newRow["SztSzuflada"] = row["SztSzuflada"];
-                        newRow["Kierowca"] = ""; // Pozostaw kolumnę Kierowca pustą
-                        newRow["Pojazd"] = ""; // Pozostaw kolumnę Pojazd pustą
-                        newRow["Naczepa"] = ""; // Pozostaw kolumnę Naczepa pustą
-                        newRow["Wozek"] = ""; // Pozostaw kolumnę Wozek pustą
+                        newRow["SztPoj"] = row["SztPoj"];
+
+                        // Dla FarmerCalc – kolumny DriverGID, CarID, TrailerID, Wyjazd, Zaladunek, Przyjazd, NotkaWozek
+                        newRow["DriverGID"] = isFarmerCalc && row.Table.Columns.Contains("DriverGID")
+                            ? row["DriverGID"]
+                            : DBNull.Value;
+                        newRow["CarID"] = isFarmerCalc && row.Table.Columns.Contains("CarID")
+                            ? row["CarID"]
+                            : DBNull.Value;
+                        newRow["TrailerID"] = isFarmerCalc && row.Table.Columns.Contains("TrailerID")
+                            ? row["TrailerID"]
+                            : DBNull.Value;
+
+                        // Formatowanie pól czasowych
+                        newRow["Wyjazd"] = FormatToHHMM(
+                            isFarmerCalc && row.Table.Columns.Contains("Wyjazd")
+                                ? row["Wyjazd"].ToString()
+                                : ""
+                        );
+                        newRow["Zaladunek"] = FormatToHHMM(
+                            isFarmerCalc && row.Table.Columns.Contains("Zaladunek")
+                                ? row["Zaladunek"].ToString()
+                                : ""
+                        );
+                        newRow["Przyjazd"] = FormatToHHMM(
+                            isFarmerCalc && row.Table.Columns.Contains("Przyjazd")
+                                ? row["Przyjazd"].ToString()
+                                : ""
+                        );
+                        newRow["NotkaWozek"] = FormatToHHMM(
+                            isFarmerCalc && row.Table.Columns.Contains("NotkaWozek")
+                                ? row["NotkaWozek"].ToString()
+                                : ""
+                        );
 
                         finalTable.Rows.Add(newRow);
                     }
                 }
 
-                // Ustawienie źródła danych dla DataGridView
+                // 5. Ustawianie DataGridView
+                dataGridView1.AutoGenerateColumns = false; // wyłącz automatyczne generowanie kolumn
+                dataGridView1.Columns.Clear();             // wyczyść, gdyby były jakieś kolumny
+
+                // Przykładowe kolumny tekstowe:
+
+                var colNrAuta = new DataGridViewTextBoxColumn();
+                colNrAuta.Name = "NrAuta";
+                colNrAuta.HeaderText = "Nr Auta";
+                colNrAuta.DataPropertyName = "NrAuta";
+                dataGridView1.Columns.Add(colNrAuta);
+
+                var colCarLp = new DataGridViewTextBoxColumn();
+                colCarLp.Name = "CarLp";
+                colCarLp.HeaderText = "Numer";
+                colCarLp.DataPropertyName = "CarLp";
+                dataGridView1.Columns.Add(colCarLp);
+
+                var colID = new DataGridViewTextBoxColumn();
+                colID.Name = "ID";
+                colID.HeaderText = "Identyfikator";
+                colID.DataPropertyName = "ID";
+                dataGridView1.Columns.Add(colID);
+
+                var colAuta = new DataGridViewTextBoxColumn();
+                colAuta.Name = "Auta";
+                colAuta.HeaderText = "Liczba Aut";
+                colAuta.DataPropertyName = "Auta";
+                dataGridView1.Columns.Add(colAuta);
+
+                var colCustomerGID = new DataGridViewTextBoxColumn();
+                colCustomerGID.Name = "CustomerGID";
+                colCustomerGID.HeaderText = "Nazwa Dostawcy";
+                colCustomerGID.DataPropertyName = "CustomerGID";
+                dataGridView1.Columns.Add(colCustomerGID);
+
+                var colWagaDek = new DataGridViewTextBoxColumn();
+                colWagaDek.Name = "WagaDek";
+                colWagaDek.HeaderText = "Deklarowana Waga";
+                colWagaDek.DataPropertyName = "WagaDek";
+                dataGridView1.Columns.Add(colWagaDek);
+
+                var colSztPoj = new DataGridViewTextBoxColumn();
+                colSztPoj.Name = "SztPoj";
+                colSztPoj.HeaderText = "Sztuki w Szufladzie";
+                colSztPoj.DataPropertyName = "SztPoj";
+                dataGridView1.Columns.Add(colSztPoj);
+
+                // Kolumna ComboBox dla DriverGID:
+                var colDriver = new DataGridViewComboBoxColumn();
+                colDriver.Name = "DriverGID";
+                colDriver.HeaderText = "Imię Kierowcy";
+                colDriver.DataPropertyName = "DriverGID";
+                colDriver.DataSource = driverTable;
+                colDriver.DisplayMember = "Name";  // to, co widać na liście
+                colDriver.ValueMember = "GID";      // wartość, która będzie trafiać do finalTable["DriverGID"]
+                dataGridView1.Columns.Add(colDriver);
+
+                // DGV - ComboBox CarID
+                var colCarID = new DataGridViewComboBoxColumn();
+                colCarID.Name = "CarID";
+                colCarID.HeaderText = "Numer Pojazdu";
+                colCarID.DataPropertyName = "CarID";
+                colCarID.DataSource = carTable;
+                colCarID.DisplayMember = "ID";
+                colCarID.ValueMember = "ID";
+                dataGridView1.Columns.Add(colCarID);
+                // DGV - ComboBox TrailerID
+                var colTrailerID = new DataGridViewComboBoxColumn();
+                colTrailerID.Name = "TrailerID";
+                colTrailerID.HeaderText = "Numer Naczepy";
+                colTrailerID.DataPropertyName = "TrailerID";
+                colTrailerID.DataSource = trailerTable;
+                colTrailerID.DisplayMember = "ID";
+                colTrailerID.ValueMember = "ID";
+                dataGridView1.Columns.Add(colTrailerID);
+
+                var colWyjazd = new DataGridViewTextBoxColumn();
+                colWyjazd.Name = "Wyjazd";
+                colWyjazd.HeaderText = "Godzina Wyjazdu";
+                colWyjazd.DataPropertyName = "Wyjazd";
+                dataGridView1.Columns.Add(colWyjazd);
+
+                var colZaladunek = new DataGridViewTextBoxColumn();
+                colZaladunek.Name = "Zaladunek";
+                colZaladunek.HeaderText = "Godzina Załadunku";
+                colZaladunek.DataPropertyName = "Zaladunek";
+                dataGridView1.Columns.Add(colZaladunek);
+
+                var colPrzyjazd = new DataGridViewTextBoxColumn();
+                colPrzyjazd.Name = "Przyjazd";
+                colPrzyjazd.HeaderText = "Godzina Przyjazdu";
+                colPrzyjazd.DataPropertyName = "Przyjazd";
+                dataGridView1.Columns.Add(colPrzyjazd);
+                // DGV - ComboBox NotkaWozek
+                var colWozek = new DataGridViewComboBoxColumn();
+                colWozek.Name = "NotkaWozek";
+                colWozek.HeaderText = "Numer Wózka";
+                colWozek.DataPropertyName = "NotkaWozek";
+                colWozek.DataSource = wozekTable;
+                colWozek.DisplayMember = "WozekValue";
+                colWozek.ValueMember = "WozekValue";
+                dataGridView1.Columns.Add(colWozek);
+
+                // 6. Przypisz finalTable jako DataSource
                 dataGridView1.DataSource = finalTable;
 
-                // Automatyczne dopasowanie szerokości kolumn
-                foreach (DataGridViewColumn column in dataGridView1.Columns)
-                {
-                    column.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-                }
-
-                // Dodanie kolumny DataGridViewComboBoxColumn dla kolumny "Kierowca"
-                DataGridViewComboBoxColumn comboBoxColumn = new DataGridViewComboBoxColumn();
-                comboBoxColumn.Name = "Kierowca";
-                comboBoxColumn.HeaderText = "Kierowca";
-                comboBoxColumn.DataPropertyName = "Kierowca";
-
-                // Pobranie unikalnych wartości kierowców z bazy danych i dodanie ich do ComboBoxa w kolumnie "Kierowca"
-                connection.Open();
-                SqlCommand cmd = new SqlCommand("SELECT Name FROM [LibraNet].[dbo].[Driver]", connection);
-                SqlDataReader reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    comboBoxColumn.Items.Add(reader["Name"].ToString());
-                }
-                reader.Close();
-                connection.Close();
-
-                // Dodanie kolumny ComboBox do DataGridView
-                dataGridView1.Columns.Add(comboBoxColumn);
-
-                // Ustawienie zawsze ":" w kolumnie "Wyjazd"
+                // 7. Ewentualnie formatowanie komórek
                 dataGridView1.CellFormatting += (sender, e) =>
                 {
-                    // Sprawdź, czy aktualna kolumna to "Wyjazd", "Zaladunek", "Powrot" lub "Przyjazd"
+                    // Jeżeli chcesz w locie formatować godziny, możesz użyć takiego kodu:
                     if ((dataGridView1.Columns.Contains("Wyjazd") && e.ColumnIndex == dataGridView1.Columns["Wyjazd"].Index) ||
                         (dataGridView1.Columns.Contains("Zaladunek") && e.ColumnIndex == dataGridView1.Columns["Zaladunek"].Index) ||
-                    
-                        (dataGridView1.Columns.Contains("Przyjazd") && e.ColumnIndex == dataGridView1.Columns["Przyjazd"].Index))
+                        (dataGridView1.Columns.Contains("Przyjazd") && e.ColumnIndex == dataGridView1.Columns["Przyjazd"].Index) ||
+                        (dataGridView1.Columns.Contains("NotkaWozek") && e.ColumnIndex == dataGridView1.Columns["NotkaWozek"].Index))
                     {
-                        // Sprawdź, czy wartość komórki nie jest pusta
-                        if (e.Value != null)
+                        if (e.Value != null && e.Value is string value)
                         {
-                            string value = e.Value.ToString();
                             if (value.Length == 3)
                             {
-                                // Dodaj "0" na początku i ":" na 3. miejscu
                                 e.Value = "0" + value.Substring(0, 1) + ":" + value.Substring(1);
                             }
                             else if (value.Length == 4)
                             {
-                                // Wstaw ":" w 3. miejscu
                                 e.Value = value.Substring(0, 2) + ":" + value.Substring(2);
                             }
                         }
                     }
                 };
-
+                
+                connection.Close();
             }
         }
 
+        private string FormatToHHMM(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            if (value.Length == 3)
+            {
+                // Np. "800" → "08:00"
+                return "0" + value.Substring(0, 1) + ":" + value.Substring(1);
+            }
+            else if (value.Length == 4)
+            {
+                // Np. "1230" → "12:30"
+                return value.Substring(0, 2) + ":" + value.Substring(2);
+            }
+            return value;
+        }
 
 
 
@@ -195,7 +430,7 @@ namespace Kalendarz1
         {
             for (int i = 0; i < dataGridView1.Rows.Count; i++)
             {
-                dataGridView1.Rows[i].Cells["Nr"].Value = i + 1;
+                dataGridView1.Rows[i].Cells["NrAuta"].Value = i + 1;
             }
         }
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
@@ -224,18 +459,18 @@ namespace Kalendarz1
                     {
 
                         string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, Loss, PriceTypeID) " +
-                            "VALUES (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @Wozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd, @Cena, @Ubytek, @TypCeny)";
+                            "VALUES (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @NotkaWozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd, @Cena, @Ubytek, @TypCeny)";
                         // Pobierz dane z wiersza DataGridView
 
-                        string Dostawca = row.Cells["Dostawca"].Value.ToString();
-                        string Kierowca = row.Cells["Kierowca"].Value.ToString();
-                        string LpDostawy = row.Cells["Lp"].Value.ToString();
-                        string Nr = row.Cells["Nr"].Value.ToString();
-                        string SztPoj = row.Cells["SztSzuflada"].Value.ToString();
+                        string Dostawca = row.Cells["CustomerGID"].Value.ToString();
+                        string Kierowca = row.Cells["DriverGID"].Value.ToString();
+                        string LpDostawy = row.Cells["CarLp"].Value.ToString();
+                        string Nr = row.Cells["CarLp"].Value.ToString();
+                        string SztPoj = row.Cells["SztPoj"].Value.ToString();
                         string WagaDek = row.Cells["WagaDek"].Value.ToString();
-                        string Ciagnik = row.Cells["Pojazd"].Value.ToString();
-                        string Naczepa = row.Cells["Naczepa"].Value.ToString();
-                        string Wozek = row.Cells["Wozek"].Value.ToString();
+                        string Ciagnik = row.Cells["CarID"].Value.ToString();
+                        string Naczepa = row.Cells["TrailerID"].Value.ToString();
+                        string NotkaWozek = row.Cells["NotkaWozek"].Value.ToString();
                         
                         string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
                         string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
@@ -300,7 +535,7 @@ namespace Kalendarz1
 
                             cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
                             cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
-                            cmd.Parameters.AddWithValue("@Wozek", string.IsNullOrEmpty(Wozek) ? (object)DBNull.Value : Wozek);
+                            cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek) ? (object)DBNull.Value : NotkaWozek);
 
                             cmd.ExecuteNonQuery();
                         }
