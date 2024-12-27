@@ -31,6 +31,7 @@ namespace Kalendarz1
         {
 
             InitializeComponent();
+            LoadData(dateTimePicker1.Value.Date);
 
         }
 
@@ -136,6 +137,7 @@ namespace Kalendarz1
 
         private void DataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
+            /*
             // Sprawdź, czy wiersz i kolumna zostały kliknięte
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
@@ -147,6 +149,7 @@ namespace Kalendarz1
                 WidokAvilog dostawaForm = new WidokAvilog(idSpecyfikacja);
                 dostawaForm.Show();
             }
+            */
         }
         private void dataGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
@@ -200,14 +203,16 @@ namespace Kalendarz1
         {
             try
             {
-                // Sprawdź czy edytowana komórka jest w drugiej kolumnie i w pierwszym wierszu
+                // Sprawdź, czy edytowana komórka to kolumna 1 i wiersz 0
                 if (e.ColumnIndex == 1 && e.RowIndex == 0)
                 {
-                    // Sprawdź czy wpisano liczbę w pierwszym wierszu pierwszej kolumny
                     int newValue;
-                    if (int.TryParse(dataGridView1.Rows[0].Cells[0].Value?.ToString(), out newValue))
+                    // Bezpiecznie pobieramy wartość z kolumny 0, wiersza 0
+                    var cellValue = dataGridView1.Rows[0].Cells[0].Value;
+
+                    if (cellValue != null && int.TryParse(cellValue.ToString(), out newValue))
                     {
-                        // Inkrementuj liczbę w dół dla pozostałych wierszy
+                        // Inkrementuj liczbę dla pozostałych wierszy
                         for (int i = 1; i < dataGridView1.Rows.Count; i++)
                         {
                             newValue++;
@@ -217,25 +222,38 @@ namespace Kalendarz1
                 }
                 else
                 {
-                    DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
+                    // Upewnijmy się, że wiersz/kolumna jest w prawidłowym zakresie
+                    if (e.RowIndex >= 0 && e.RowIndex < dataGridView1.Rows.Count &&
+                        e.ColumnIndex >= 0 && e.ColumnIndex < dataGridView1.Columns.Count)
+                    {
+                        DataGridViewRow editedRow = dataGridView1.Rows[e.RowIndex];
 
-                    // Pobierz ID z edytowanego wiersza
-                    int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
+                        // Sprawdzamy, czy komórka "ID" i aktualna komórka nie są puste
+                        if (editedRow.Cells["ID"]?.Value != null &&
+                            editedRow.Cells[e.ColumnIndex]?.Value != null)
+                        {
+                            // Pobierz ID z edytowanego wiersza (najlepiej też w bloku try-catch)
+                            int id = Convert.ToInt32(editedRow.Cells["ID"].Value);
 
-                    // Pobierz nową wartość z edytowanej komórki
-                    string newValue = editedRow.Cells[e.ColumnIndex].Value.ToString();
+                            // Pobierz nową wartość z edytowanej komórki
+                            string newValue = editedRow.Cells[e.ColumnIndex].Value.ToString();
 
-                    // Zaktualizuj odpowiednią kolumnę w bazie danych
-                    UpdateDatabase(id, e.ColumnIndex, newValue);
+                            // Zaktualizuj odpowiednią kolumnę w bazie danych
+                            UpdateDatabase(id, e.ColumnIndex, newValue);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Wiersz lub kolumna nie zawiera wartości (null).");
+                        }
+                    }
                 }
-
-
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Wystąpił błąd podczas aktualizacji danych: " + ex.Message);
             }
         }
+
 
 
 
@@ -1016,11 +1034,11 @@ namespace Kalendarz1
                 // doc.Add(platnosc);
                 sumaWartosc = 0;
                 sumaKG = 0;
-                
+
 
                 // Close the document
                 doc.Close();
-                
+
             }
             MessageBox.Show($"Wygenerowano dokument PDF o nazwie: {Path.GetFileName(filePath)}\nŚcieżka: {filePath}", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -1049,10 +1067,11 @@ namespace Kalendarz1
             }
         }
 
+
+        // Obsługa kliknięcia w komórkę DataGridView
         private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Sprawdzenie, czy kliknięto na wiersz (jeśli e.RowIndex jest większe lub równe zero)
-            if (e.RowIndex >= 0)
+            if (e.RowIndex >= 0 && e.RowIndex < dataGridView1.Rows.Count)
             {
                 // Pobranie zaznaczonego wiersza
                 selectedRow = dataGridView1.Rows[e.RowIndex];
@@ -1061,5 +1080,55 @@ namespace Kalendarz1
                 selectedRow.Selected = true;
             }
         }
+
+        // Obsługa kliknięcia przycisku buttonBon
+        private void buttonBon_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Sprawdzamy, czy mamy w ogóle zaznaczony wiersz
+                if (selectedRow == null)
+                {
+                    MessageBox.Show("Nie wybrano wiersza z tabeli.",
+                                    "Błąd",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Upewniamy się, że kolumna "ID" istnieje i nie jest null
+                if (selectedRow.Cells["ID"]?.Value == null)
+                {
+                    MessageBox.Show("Wiersz nie zawiera prawidłowego ID.",
+                                    "Błąd",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Konwersja wartości komórki z kolumny "ID" na int
+                if (int.TryParse(selectedRow.Cells["ID"].Value.ToString(), out int idSpecyfikacja))
+                {
+                    // Wywołaj nowe okno Dostawa, przekazując wartość ID
+                    WidokAvilog dostawaForm = new WidokAvilog(idSpecyfikacja);
+                    dostawaForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("Nie można przekonwertować wartości w kolumnie ID na liczbę całkowitą.",
+                                    "Błąd",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message,
+                                "Błąd",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+            }
+        }
+
     }
 }

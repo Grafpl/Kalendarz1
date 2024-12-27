@@ -304,6 +304,7 @@
             buttonBon.Size = new System.Drawing.Size(96, 47);
             buttonBon.TabIndex = 7;
             buttonBon.UseVisualStyleBackColor = false;
+            buttonBon.Click += buttonBon_Click;
             // 
             // WidokSpecyfikacje
             // 

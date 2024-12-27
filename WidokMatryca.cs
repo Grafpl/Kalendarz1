@@ -450,97 +450,147 @@ namespace Kalendarz1
 
         private void button3_Click(object sender, EventArgs e)
         {
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-                foreach (DataGridViewRow row in dataGridView1.Rows)
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if (!row.IsNewRow) // Pomijamy wiersz tworzący nowe rekordy
+                    conn.Open();
+
+                    // Rozpoczęcie transakcji
+                    using (SqlTransaction transaction = conn.BeginTransaction())
                     {
-
-                        string sql = "INSERT INTO dbo.FarmerCalc (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, Loss, PriceTypeID) " +
-                            "VALUES (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, @Ciagnik, @Naczepa, @NotkaWozek, @LpDostawy, @Wyjazd, @Zaladunek, @Przyjazd, @Cena, @Ubytek, @TypCeny)";
-                        // Pobierz dane z wiersza DataGridView
-
-                        string Dostawca = row.Cells["CustomerGID"].Value.ToString();
-                        string Kierowca = row.Cells["DriverGID"].Value.ToString();
-                        string LpDostawy = row.Cells["CarLp"].Value.ToString();
-                        string Nr = row.Cells["CarLp"].Value.ToString();
-                        string SztPoj = row.Cells["SztPoj"].Value.ToString();
-                        string WagaDek = row.Cells["WagaDek"].Value.ToString();
-                        string Ciagnik = row.Cells["CarID"].Value.ToString();
-                        string Naczepa = row.Cells["TrailerID"].Value.ToString();
-                        string NotkaWozek = row.Cells["NotkaWozek"].Value.ToString();
-                        
-                        string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
-                        string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
-                        string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
-
-                        double Ubytek;
-                        if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek)) Ubytek = 0.0;
-                        double Cena;
-                        if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena)) Cena = 0.0;
-                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
-                        int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
-
-
-
-
-                        // Znajdź ID kierowcy i dostawcy
-                        int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
-                        int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
-
-                        StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
-                        StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
-                        StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
-
-                        DateTime data = dateTimePicker1.Value; // Przyjmijmy, że to wartość z DateTimePicker
-                        DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
-                        DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
-                        DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
-
-                        //int Cena = zapytaniasql.ZnajdzIdCeny(Dostawca);
-
-                        // Znajdź największe ID w tabeli FarmerCalc
-                        long maxLP;
-                        string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
-                        using (SqlCommand command = new SqlCommand(maxLPSql, conn))
+                        try
                         {
-                            object result = command.ExecuteScalar();
-                            maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                            foreach (DataGridViewRow row in dataGridView1.Rows)
+                            {
+                                if (!row.IsNewRow)
+                                {
+                                    // Tworzymy polecenie SQL w transakcji
+                                    string sql = @"INSERT INTO dbo.FarmerCalc 
+                                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, 
+                                         CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, 
+                                         Loss, PriceTypeID) 
+                                        VALUES 
+                                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, 
+                                         @Ciagnik, @Naczepa, @NotkaWozek, @LpDostawy, @Wyjazd, @Zaladunek, 
+                                         @Przyjazd, @Cena, @Ubytek, @TypCeny)";
+
+                                    // Pobierz dane z wiersza DataGridView
+                                    string Dostawca = row.Cells["CustomerGID"].Value.ToString();
+                                    string Kierowca = row.Cells["DriverGID"].Value.ToString();
+                                    string LpDostawy = row.Cells["CarLp"].Value.ToString();
+                                    string Nr = row.Cells["CarLp"].Value.ToString();
+                                    string SztPoj = row.Cells["SztPoj"].Value.ToString();
+                                    string WagaDek = row.Cells["WagaDek"].Value.ToString();
+                                    string Ciagnik = row.Cells["CarID"].Value.ToString();
+                                    string Naczepa = row.Cells["TrailerID"].Value.ToString();
+                                    string NotkaWozek = row.Cells["NotkaWozek"].Value.ToString();
+
+                                    string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
+                                    string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
+                                    string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
+
+                                    double Ubytek;
+                                    if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek))
+                                        Ubytek = 0.0;
+                                    double Cena;
+                                    if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena))
+                                        Cena = 0.0;
+                                    string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
+                                    int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+
+                                    // Znajdź ID kierowcy i dostawcy
+                                    int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
+                                    int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
+
+                                    // Dodaj dwukropek do formy czasu
+                                    StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
+                                    StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
+                                    StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
+
+                                    DateTime data = dateTimePicker1.Value;
+                                    DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
+                                    DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
+                                    DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
+
+                                    // Znajdź największe ID w tabeli FarmerCalc
+                                    long maxLP;
+                                    string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
+                                    using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
+                                    {
+                                        object result = command.ExecuteScalar();
+                                        maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                                    }
+
+                                    // Wstaw dane do tabeli FarmerCalc
+                                    using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
+                                    {
+                                        cmd.Parameters.AddWithValue("@ID", maxLP);
+                                        cmd.Parameters.AddWithValue("@Dostawca", userId2);
+                                        cmd.Parameters.AddWithValue("@Kierowca", userId);
+                                        cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy)
+                                            ? (object)DBNull.Value
+                                            : LpDostawy);
+                                        cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr)
+                                            ? (object)DBNull.Value
+                                            : Nr);
+                                        cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj)
+                                            ? (object)DBNull.Value
+                                            : decimal.Parse(SztPoj));
+                                        cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek)
+                                            ? (object)DBNull.Value
+                                            : decimal.Parse(WagaDek));
+                                        cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
+
+                                        cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
+                                        cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
+                                        cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
+
+                                        cmd.Parameters.AddWithValue("@Cena", Cena);
+                                        cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
+                                        cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
+
+                                        cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik)
+                                            ? (object)DBNull.Value
+                                            : Ciagnik);
+                                        cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa)
+                                            ? (object)DBNull.Value
+                                            : Naczepa);
+                                        cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek)
+                                            ? (object)DBNull.Value
+                                            : NotkaWozek);
+
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+
+                            // Jeśli wszystko OK – zatwierdzamy zmiany
+                            transaction.Commit();
+                            MessageBox.Show("Pomyślnie dodano dane do bazy.",
+                                            "Sukces",
+                                            MessageBoxButtons.OK,
+                                            MessageBoxIcon.Information);
                         }
-                        
-
-                        // Wstaw dane do tabeli FarmerCalc
-                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        catch (Exception ex)
                         {
-                            cmd.Parameters.AddWithValue("@ID", maxLP);
-                            cmd.Parameters.AddWithValue("@Dostawca", userId2);
-                            cmd.Parameters.AddWithValue("@Kierowca", userId);
-                            cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy) ? (object)DBNull.Value : LpDostawy);
-                            cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr) ? (object)DBNull.Value : Nr);
-                            cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? (object)DBNull.Value : decimal.Parse(SztPoj));
-                            cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? (object)DBNull.Value : decimal.Parse(WagaDek));
-                            cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
-
-                            cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
-                            cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
-                            cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
-
-                            cmd.Parameters.AddWithValue("@Cena", Cena);
-                            cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
-                            cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
-
-                            //cmd.Parameters.AddWithValue("@Cena", CenaInt);
-
-                            cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? (object)DBNull.Value : Ciagnik);
-                            cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? (object)DBNull.Value : Naczepa);
-                            cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek) ? (object)DBNull.Value : NotkaWozek);
-
-                            cmd.ExecuteNonQuery();
+                            // Jeśli coś pójdzie nie tak – wycofujemy zmiany
+                            transaction.Rollback();
+                            MessageBox.Show($"Wystąpił błąd podczas dodawania danych:\n{ex.Message}",
+                                            "Błąd",
+                                            MessageBoxButtons.OK,
+                                            MessageBoxIcon.Error);
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                // Ten catch złapie błędy z poziomu np. otwarcia połączenia
+                MessageBox.Show($"Wystąpił błąd aplikacji lub połączenia z bazą:\n{ex.Message}",
+                                "Błąd",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
             }
         }
     }
