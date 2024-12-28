@@ -32,6 +32,7 @@ namespace Kalendarz1
 
             InitializeComponent();
             LoadData(dateTimePicker1.Value.Date);
+            SetColumnColors();
 
         }
 
@@ -185,7 +186,7 @@ namespace Kalendarz1
 
             if (isChecked)
             {
-                style.Font = new System.Drawing.Font(dataGridView1.Font, FontStyle.Strikeout); // Użyj System.Drawing.Font
+                style.Font = new System.Drawing.Font(dataGridView1.Font, FontStyle.Strikeout);
                 style.ForeColor = Color.Red;
             }
             else
@@ -194,7 +195,11 @@ namespace Kalendarz1
                 style.ForeColor = dataGridView1.ForeColor;
             }
 
-            row.Cells["Padle"].Style = style; // Assuming DeclI2 is the "Padle" column
+            // Jeśli faktycznie masz w tabeli kolumny o nazwach "Padle", "NW", "ZW" i "CH":
+            row.Cells["Padle"].Style = style; // Kolumna "Padle"
+            row.Cells["NW"].Style = style;    // Kolumna "NW"
+            row.Cells["ZM"].Style = style;    // Kolumna "ZW"
+            row.Cells["CH"].Style = style;    // Kolumna "CH"
         }
 
 
@@ -537,6 +542,59 @@ namespace Kalendarz1
         {
             MoveRowDown();
         }
+
+        private void SetColumnColors()
+        {
+            // 1) BIAŁY
+            dataGridView1.Columns["ID"].DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.Columns["NR"].DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.Columns["Dostawca"].DefaultCellStyle.BackColor = Color.White;
+            dataGridView1.Columns["RealDostawca"].DefaultCellStyle.BackColor = Color.White;
+
+            // 2) SZARY
+            dataGridView1.Columns["Padle"].DefaultCellStyle.BackColor = Color.Gray;
+            dataGridView1.Columns["SztukiDek"].DefaultCellStyle.BackColor = Color.Gray;
+            dataGridView1.Columns["CH"].DefaultCellStyle.BackColor = Color.Gray;
+            dataGridView1.Columns["NW"].DefaultCellStyle.BackColor = Color.Gray;
+            dataGridView1.Columns["ZM"].DefaultCellStyle.BackColor = Color.Gray;
+
+            // 3) #FFDAB9 (PEACH PUFF)
+            dataGridView1.Columns["BruttoHodowcy"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+            dataGridView1.Columns["TaraHodowcy"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+            dataGridView1.Columns["NettoHodowcy"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+            dataGridView1.Columns["BruttoUbojni"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+            dataGridView1.Columns["TaraUbojni"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+            dataGridView1.Columns["NettoUbojni"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFDAB9");
+
+            // 4) #DDA0DD (PLUM)
+            dataGridView1.Columns["LUMEL"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#DDA0DD");
+
+            // 5) #FFF0F5 (LAVENDER BLUSH)
+            dataGridView1.Columns["SztukiWybijak"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFF0F5");
+            dataGridView1.Columns["KilogramyWybijak"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#FFF0F5");
+
+            // 6) #90EE90 (LIGHTGREEN)
+            dataGridView1.Columns["Cena"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#90EE90");
+            dataGridView1.Columns["TypCeny"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#90EE90");
+
+            // 7) #A1EDEE
+            dataGridView1.Columns["PiK"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#A1EDEE");
+            dataGridView1.Columns["Ubytek"].DefaultCellStyle.BackColor =
+                ColorTranslator.FromHtml("#A1EDEE");
+        }
+
         private void GeneratePDFReport(List<int> ids)
         {
             // Set up the document in portrait mode

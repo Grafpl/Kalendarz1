@@ -478,7 +478,7 @@ namespace Kalendarz1
                                     // Pobierz dane z wiersza DataGridView
                                     string Dostawca = row.Cells["CustomerGID"].Value.ToString();
                                     string Kierowca = row.Cells["DriverGID"].Value.ToString();
-                                    string LpDostawy = row.Cells["CarLp"].Value.ToString();
+                                    string LpDostawy = row.Cells["LpDostawy"].Value.ToString();
                                     string Nr = row.Cells["CarLp"].Value.ToString();
                                     string SztPoj = row.Cells["SztPoj"].Value.ToString();
                                     string WagaDek = row.Cells["WagaDek"].Value.ToString();
