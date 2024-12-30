@@ -36,10 +36,23 @@ namespace Kalendarz1
                 // Przypisz ID do TextBox
                 textBoxIdOdbiorca.Text = selectedId;
 
-                // Przypisz Nazwe do TextBox
-                textBoxNazwaOdbiorca.Text = selectedKod;
+                RozwijanieComboBox.PobierzWartoscNaPodstawieIdKontrahentaSymfonia(selectedId, "limitKwota", textBoxLimit);
+                RozwijanieComboBox.PobierzWartoscNaPodstawieIdKontrahentaSymfonia(selectedId, "nazwa", textBoxNazwaOdbiorca);
+                RozwijanieComboBox.PobierzWartoscNaPodstawieIdKontrahentaSymfonia(selectedId, "nip", textBoxNIP);
+                RozwijanieComboBox.PobierzWartoscNaPodstawieIdKontrahentaSymfonia(selectedId, "kodpocz", textBoxKod);
+                RozwijanieComboBox.PobierzWartoscNaPodstawieIdKontrahentaSymfonia(selectedId, "miejscowosc", textBoxMiejscowosc);
+                RozwijanieComboBox.PobierzHandlowca(selectedId, textBoxHandlowiec);
             }
         }
 
+        private void WidokZamowienia_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBoxIdOdbiorca_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -92,7 +92,7 @@ INNER JOIN
     [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
 INNER JOIN 
     [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+LEFT JOIN  [HANDEL].[SSCommon].[ContractorClassification]    ON C.Id = WYM.ElementId
 WHERE 
     DP.[data] >= '{formattedDate}' 
     AND DP.[data] < DATEADD(DAY, 1, '{formattedDate2}') 

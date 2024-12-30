@@ -379,6 +379,7 @@ namespace Kalendarz1
                     string kod = reader["kod"].ToString();
                     string id = reader["id"].ToString();
 
+
                     // Dodawanie KeyValuePair do ComboBox
                     comboBox.Items.Add(new KeyValuePair<string, string>(id, kod));
                 }
@@ -390,6 +391,64 @@ namespace Kalendarz1
             comboBox.DisplayMember = "Value"; // Wyświetlany tekst
             comboBox.ValueMember = "Key";    // Ukryty klucz
         }
+
+        public void PobierzWartoscNaPodstawieIdKontrahentaSymfonia(string id, string columnName, TextBox textBox)
+        {
+            string query = $@"
+        SELECT [{columnName}]
+        FROM [SSCommon].[vKontrahenci]
+        WHERE [id] = @Id";
+
+            using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Id", id);
+
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                if (reader.Read())
+                {
+                    // Pobierz wartość kolumny i przypisz do TextBox
+                    string value = reader[columnName].ToString();
+                    textBox.Text = value;
+                }
+
+                reader.Close();
+            }
+        }
+        public void PobierzHandlowca(string id, TextBox textBox)
+        {
+            string query = @"
+        SELECT ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+        FROM [HANDEL].[SSCommon].[STContractors] C
+        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+        WHERE C.Id = @Id";
+
+            using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Id", id);
+
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                if (reader.Read())
+                {
+                    // Pobierz wartość Handlowiec i przypisz do TextBox
+                    string handlowiec = reader["Handlowiec"].ToString();
+                    textBox.Text = handlowiec;
+                }
+                else
+                {
+                    // Jeśli brak danych, ustaw wartość domyślną
+                    textBox.Text = "-";
+                }
+
+                reader.Close();
+            }
+        }
+
 
 
     }
