@@ -230,5 +230,13 @@ namespace Kalendarz1
             // Wyświetlanie Form1
             SprawdzalkaUmow.Show();
         }
+
+        private void odbiorcaButton_Click(object sender, EventArgs e)
+        {
+            WidokZamowienia WidokZamowienia = new WidokZamowienia();
+
+            // Wyświetlanie Form1
+            WidokZamowienia.Show();
+        }
     }
 }

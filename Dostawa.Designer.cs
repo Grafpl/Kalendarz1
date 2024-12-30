@@ -122,6 +122,7 @@ namespace Kalendarz1
             UlicaH = new System.Windows.Forms.TextBox();
             label4 = new System.Windows.Forms.Label();
             groupBox3 = new System.Windows.Forms.GroupBox();
+            comboBox2 = new System.Windows.Forms.ComboBox();
             groupBox2.SuspendLayout();
             groupBox1.SuspendLayout();
             tablicaHodowca.SuspendLayout();
@@ -1008,11 +1009,21 @@ namespace Kalendarz1
             groupBox3.TabIndex = 2;
             groupBox3.TabStop = false;
             // 
+            // comboBox2
+            // 
+            comboBox2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            comboBox2.FormattingEnabled = true;
+            comboBox2.Location = new System.Drawing.Point(376, 149);
+            comboBox2.Name = "comboBox2";
+            comboBox2.Size = new System.Drawing.Size(152, 20);
+            comboBox2.TabIndex = 108;
+            // 
             // Dostawa
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(351, 239);
+            ClientSize = new System.Drawing.Size(632, 252);
+            Controls.Add(comboBox2);
             Controls.Add(groupBox3);
             Controls.Add(label22);
             Controls.Add(dataWstawienia);
@@ -1069,7 +1080,7 @@ namespace Kalendarz1
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Controls.Add(tablicaHodowca);
-            Name = "Dostawa";
+            Name = "WidodZamowienia";
             Text = "Dodaj Dost.";
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
@@ -1176,5 +1187,6 @@ namespace Kalendarz1
         private System.Windows.Forms.Label label25;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.ComboBox Dostawca;
+        private System.Windows.Forms.ComboBox comboBox2;
     }
 }

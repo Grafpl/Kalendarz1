@@ -144,6 +144,7 @@
             odbiorcaButton.Size = new System.Drawing.Size(262, 193);
             odbiorcaButton.TabIndex = 7;
             odbiorcaButton.UseVisualStyleBackColor = true;
+            odbiorcaButton.Click += odbiorcaButton_Click;
             // 
             // pictureBox1
             // 

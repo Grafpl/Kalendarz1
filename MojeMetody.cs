@@ -31,6 +31,7 @@ namespace Kalendarz1
     public class NazwaZiD
     {
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        
         public string GetNameById(string id)
         {
             string name = null;
@@ -355,6 +356,45 @@ namespace Kalendarz1
             }
         }
     }
+    public class RozwijanieComboBox
+    {
+        private string connectionStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        public void RozwijanieOdbiorcowSymfonia(ComboBox comboBox)
+        {
+            string query = @"
+                SELECT DISTINCT [vKh].[id], [vKh].[kod]
+                FROM [SSCommon].[vKontrahenci] AS [vKh]
+                INNER JOIN [HM].[ContractorCatalog] AS [ContrCata]
+                    ON [vKh].[katalog] = CAST([ContrCata].[id] AS VARCHAR(MAX))
+                WHERE [ContrCata].[Name] LIKE 'Odbiorcy Drobiu' Order by [vKh].[kod] DESC";
+
+            using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    string kod = reader["kod"].ToString();
+                    string id = reader["id"].ToString();
+
+                    // Dodawanie KeyValuePair do ComboBox
+                    comboBox.Items.Add(new KeyValuePair<string, string>(id, kod));
+                }
+
+                reader.Close();
+            }
+
+            // Ustawienie wyświetlania tylko wartości 'kod' w ComboBox
+            comboBox.DisplayMember = "Value"; // Wyświetlany tekst
+            comboBox.ValueMember = "Key";    // Ukryty klucz
+        }
+
+
+    }
+
+
     public class ZapytaniaSQL
     {
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";

@@ -16,6 +16,7 @@ namespace Kalendarz1
         private DateTime dzienUbojowy;
         public string UserID { get; set; }
         static string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        
         private MojeObliczenia obliczenia = new MojeObliczenia();
         private NazwaZiD nazwaZiD = new NazwaZiD();
         public Dostawa()
@@ -286,6 +287,8 @@ namespace Kalendarz1
                 }
             }
         }
+        
+
         private void FillComboBox()
         {
             string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY";
