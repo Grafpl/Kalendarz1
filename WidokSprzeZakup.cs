@@ -1,6 +1,4 @@
 ﻿using Microsoft.Data.SqlClient;
-using OfficeOpenXml.Style;
-using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -344,58 +342,7 @@ namespace Kalendarz1
 
             return (sumaWarto, sumaIlosc);
         }
-        private void ExportToExcel(DataGridView dataGridView)
-        {
-            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-            {
-                saveFileDialog.Filter = "Excel files (*.xlsx)|*.xlsx";
-                saveFileDialog.FilterIndex = 2;
-                saveFileDialog.RestoreDirectory = true;
-
-                if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    string filePath = saveFileDialog.FileName;
-
-                    // Set the license context to NonCommercial
-                    OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-
-                    using (ExcelPackage excelPackage = new ExcelPackage())
-                    {
-                        ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Add("Data");
-
-                        // Adding headers
-                        for (int i = 0; i < dataGridView.Columns.Count; i++)
-                        {
-                            worksheet.Cells[1, i + 1].Value = dataGridView.Columns[i].HeaderText;
-                            worksheet.Cells[1, i + 1].Style.Font.Bold = true;
-                            worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                            worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(Color.Gray);
-                            worksheet.Cells[1, i + 1].Style.Font.Color.SetColor(Color.White);
-                            worksheet.Cells[1, i + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                        }
-
-                        // Adding data
-                        for (int i = 0; i < dataGridView.Rows.Count; i++)
-                        {
-                            for (int j = 0; j < dataGridView.Columns.Count; j++)
-                            {
-                                worksheet.Cells[i + 2, j + 1].Value = dataGridView.Rows[i].Cells[j].Value;
-                                worksheet.Cells[i + 2, j + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
-                            }
-                        }
-
-                        // Auto fit columns
-                        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
-
-                        // Save to file
-                        FileInfo fi = new FileInfo(filePath);
-                        excelPackage.SaveAs(fi);
-                    }
-
-                    MessageBox.Show("Export successful!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-        }
+        
 
         private void WykonajZapytanieSQL2()
         {
@@ -570,7 +517,7 @@ namespace Kalendarz1
 
         private void button1_Click(object sender, EventArgs e)
         {
-            ExportToExcel(dataGridView1);
+           
         }
     }
 }

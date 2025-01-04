@@ -8,9 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.ReactiveUI;
+
 
 namespace Kalendarz1
 {
@@ -212,6 +210,8 @@ namespace Kalendarz1
 
         private void button3_Click(object sender, EventArgs e)
         {
+           
+      
 
         }
 
@@ -233,10 +233,10 @@ namespace Kalendarz1
 
         private void odbiorcaButton_Click(object sender, EventArgs e)
         {
-            WidokZamowienia WidokZamowienia = new WidokZamowienia();
+            WidokZamowieniaPodsumowanie widokZamowieniaPodsumowanie = new WidokZamowieniaPodsumowanie();
 
             // Wyświetlanie Form1
-            WidokZamowienia.Show();
+            widokZamowieniaPodsumowanie.Show();
         }
     }
 }

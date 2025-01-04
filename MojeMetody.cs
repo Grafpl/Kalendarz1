@@ -392,12 +392,32 @@ namespace Kalendarz1
             comboBox.ValueMember = "Key";    // Ukryty klucz
         }
 
-        public void PobierzWartoscNaPodstawieIdKontrahentaSymfonia(string id, string columnName, TextBox textBox)
+        public enum DaneKontrahenta
+        {Kod=0, Limit=1, Nazwa=2, NIP=3, KodPocztowy=4, Miejscowosc=5}
+
+
+        public string PobierzNazweKolumny(DaneKontrahenta kolumna)
         {
+            return kolumna switch
+            {
+                DaneKontrahenta.Kod => "kod",
+                DaneKontrahenta.Limit => "limitKwota",
+                DaneKontrahenta.Nazwa => "nazwa",
+                DaneKontrahenta.NIP=> "nip",
+                DaneKontrahenta.KodPocztowy => "kodpocz",
+                DaneKontrahenta.Miejscowosc => "miejscowosc",
+                _ => throw new ArgumentException("Nieznana kolumna.")
+            };
+        }
+
+        public void PrzypiszDaneOdbiorcySYMF(string id, DaneKontrahenta kolumna, TextBox textBox)
+        {
+            string columnName = PobierzNazweKolumny(kolumna);
+
             string query = $@"
-        SELECT [{columnName}]
-        FROM [SSCommon].[vKontrahenci]
-        WHERE [id] = @Id";
+            SELECT [{columnName}]
+            FROM [SSCommon].[vKontrahenci]
+            WHERE [id] = @Id";
 
             using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
             {
@@ -417,13 +437,20 @@ namespace Kalendarz1
                 reader.Close();
             }
         }
-        public void PobierzHandlowca(string id, TextBox textBox)
+    }
+
+    public class DataService
+    {
+        private readonly string connectionStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+        internal Dictionary<RozwijanieComboBox.DaneKontrahenta, string> PobierzDaneOdbiorcy(string id)
         {
+            var dane = new Dictionary<RozwijanieComboBox.DaneKontrahenta, string>();
             string query = @"
-        SELECT ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
-        FROM [HANDEL].[SSCommon].[STContractors] C
-        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-        WHERE C.Id = @Id";
+            SELECT 
+                kod, limitKwota, nazwa, nip, kodpocz, miejscowosc
+            FROM [SSCommon].[vKontrahenci]
+            WHERE id = @Id";
 
             using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
             {
@@ -435,23 +462,46 @@ namespace Kalendarz1
 
                 if (reader.Read())
                 {
-                    // Pobierz wartość Handlowiec i przypisz do TextBox
-                    string handlowiec = reader["Handlowiec"].ToString();
-                    textBox.Text = handlowiec;
-                }
-                else
-                {
-                    // Jeśli brak danych, ustaw wartość domyślną
-                    textBox.Text = "-";
+                    dane[RozwijanieComboBox.DaneKontrahenta.Kod] = reader["kod"].ToString();
+                    dane[RozwijanieComboBox.DaneKontrahenta.Limit] = reader["limitKwota"].ToString();
+                    dane[RozwijanieComboBox.DaneKontrahenta.Nazwa] = reader["nazwa"].ToString();
+                    dane[RozwijanieComboBox.DaneKontrahenta.NIP] = reader["nip"].ToString();
+                    dane[RozwijanieComboBox.DaneKontrahenta.KodPocztowy] = reader["kodpocz"].ToString();
+                    dane[RozwijanieComboBox.DaneKontrahenta.Miejscowosc] = reader["miejscowosc"].ToString();
                 }
 
                 reader.Close();
             }
+
+            return dane;
         }
 
+        public string PobierzHandlowca(string id)
+        {
+            string query = @"
+            SELECT ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+            FROM [HANDEL].[SSCommon].[STContractors] C
+            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+            WHERE C.Id = @Id";
 
+            using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
+            {
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Id", id);
 
+                connection.Open();
+                SqlDataReader reader = command.ExecuteReader();
+
+                if (reader.Read())
+                {
+                    return reader["Handlowiec"].ToString();
+                }
+
+                return "-";
+            }
+        }
     }
+
 
 
     public class ZapytaniaSQL
@@ -1812,6 +1862,9 @@ namespace Kalendarz1
 
             return sredniaCena;
         }
+
+
+
 
 
     }

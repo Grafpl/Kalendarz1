@@ -237,6 +237,16 @@ namespace Kalendarz1
             dataGridSumaPartie = new DataGridView();
             button17 = new Button();
             dateTimePicker1 = new DateTimePicker();
+            pictureBox2 = new PictureBox();
+            textBox7 = new TextBox();
+            pictureBox3 = new PictureBox();
+            textBox8 = new TextBox();
+            pictureBox6 = new PictureBox();
+            pictureBox9 = new PictureBox();
+            pictureBox13 = new PictureBox();
+            textBox9 = new TextBox();
+            textBox14 = new TextBox();
+            textBox15 = new TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -256,6 +266,11 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridAvilog).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox13).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
@@ -338,7 +353,7 @@ namespace Kalendarz1
             groupBox1.Controls.Add(ktoStwo);
             groupBox1.Controls.Add(label29);
             groupBox1.FlatStyle = FlatStyle.Flat;
-            groupBox1.Location = new System.Drawing.Point(714, 12);
+            groupBox1.Location = new System.Drawing.Point(940, 9);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new System.Drawing.Size(834, 447);
             groupBox1.TabIndex = 24;
@@ -2519,11 +2534,121 @@ namespace Kalendarz1
             dateTimePicker1.Value = new DateTime(2024, 3, 25, 0, 0, 0, 0);
             dateTimePicker1.ValueChanged += dateTimePicker1_ValueChanged;
             // 
+            // pictureBox2
+            // 
+            pictureBox2.Image = (System.Drawing.Image)resources.GetObject("pictureBox2.Image");
+            pictureBox2.Location = new System.Drawing.Point(718, 100);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(68, 38);
+            pictureBox2.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox2.TabIndex = 134;
+            pictureBox2.TabStop = false;
+            // 
+            // textBox7
+            // 
+            textBox7.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox7.Location = new System.Drawing.Point(793, 100);
+            textBox7.Multiline = true;
+            textBox7.Name = "textBox7";
+            textBox7.Size = new System.Drawing.Size(72, 38);
+            textBox7.TabIndex = 126;
+            textBox7.TextAlign = HorizontalAlignment.Center;
+            // 
+            // pictureBox3
+            // 
+            pictureBox3.Image = (System.Drawing.Image)resources.GetObject("pictureBox3.Image");
+            pictureBox3.Location = new System.Drawing.Point(718, 141);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new System.Drawing.Size(67, 38);
+            pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 135;
+            pictureBox3.TabStop = false;
+            // 
+            // textBox8
+            // 
+            textBox8.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox8.Location = new System.Drawing.Point(793, 140);
+            textBox8.Multiline = true;
+            textBox8.Name = "textBox8";
+            textBox8.Size = new System.Drawing.Size(72, 38);
+            textBox8.TabIndex = 136;
+            textBox8.TextAlign = HorizontalAlignment.Center;
+            // 
+            // pictureBox6
+            // 
+            pictureBox6.Image = (System.Drawing.Image)resources.GetObject("pictureBox6.Image");
+            pictureBox6.Location = new System.Drawing.Point(717, 181);
+            pictureBox6.Name = "pictureBox6";
+            pictureBox6.Size = new System.Drawing.Size(68, 38);
+            pictureBox6.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox6.TabIndex = 137;
+            pictureBox6.TabStop = false;
+            // 
+            // pictureBox9
+            // 
+            pictureBox9.Image = (System.Drawing.Image)resources.GetObject("pictureBox9.Image");
+            pictureBox9.Location = new System.Drawing.Point(717, 223);
+            pictureBox9.Name = "pictureBox9";
+            pictureBox9.Size = new System.Drawing.Size(68, 38);
+            pictureBox9.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox9.TabIndex = 138;
+            pictureBox9.TabStop = false;
+            // 
+            // pictureBox13
+            // 
+            pictureBox13.Image = (System.Drawing.Image)resources.GetObject("pictureBox13.Image");
+            pictureBox13.Location = new System.Drawing.Point(717, 269);
+            pictureBox13.Name = "pictureBox13";
+            pictureBox13.Size = new System.Drawing.Size(68, 40);
+            pictureBox13.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox13.TabIndex = 141;
+            pictureBox13.TabStop = false;
+            // 
+            // textBox9
+            // 
+            textBox9.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox9.Location = new System.Drawing.Point(793, 181);
+            textBox9.Multiline = true;
+            textBox9.Name = "textBox9";
+            textBox9.Size = new System.Drawing.Size(72, 38);
+            textBox9.TabIndex = 142;
+            textBox9.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox14
+            // 
+            textBox14.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox14.Location = new System.Drawing.Point(793, 225);
+            textBox14.Multiline = true;
+            textBox14.Name = "textBox14";
+            textBox14.Size = new System.Drawing.Size(72, 38);
+            textBox14.TabIndex = 143;
+            textBox14.TextAlign = HorizontalAlignment.Center;
+            // 
+            // textBox15
+            // 
+            textBox15.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox15.Location = new System.Drawing.Point(793, 268);
+            textBox15.Multiline = true;
+            textBox15.Name = "textBox15";
+            textBox15.Size = new System.Drawing.Size(72, 41);
+            textBox15.TabIndex = 144;
+            textBox15.TextAlign = HorizontalAlignment.Center;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1857, 982);
+            Controls.Add(textBox15);
+            Controls.Add(textBox14);
+            Controls.Add(textBox9);
+            Controls.Add(pictureBox13);
+            Controls.Add(pictureBox9);
+            Controls.Add(pictureBox6);
+            Controls.Add(textBox8);
+            Controls.Add(pictureBox3);
+            Controls.Add(textBox7);
+            Controls.Add(pictureBox2);
             Controls.Add(dateTimePicker1);
             Controls.Add(button17);
             Controls.Add(dataGridSumaPartie);
@@ -2620,6 +2745,11 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridAvilog).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox6).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox13).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2830,5 +2960,15 @@ namespace Kalendarz1
         private DataGridView dataGridSumaPartie;
         private Button button17;
         private DateTimePicker dateTimePicker1;
+        private PictureBox pictureBox2;
+        private TextBox textBox7;
+        private PictureBox pictureBox3;
+        private TextBox textBox8;
+        private PictureBox pictureBox6;
+        private PictureBox pictureBox9;
+        private PictureBox pictureBox13;
+        private TextBox textBox9;
+        private TextBox textBox14;
+        private TextBox textBox15;
     }
 }

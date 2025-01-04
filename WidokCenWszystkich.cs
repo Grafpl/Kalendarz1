@@ -201,7 +201,7 @@ namespace Kalendarz1
             }
         }
 
-        private void ExcelButton_Click(object sender, EventArgs e)
+        /*private void ExcelButton_Click(object sender, EventArgs e)
         {
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
             {
@@ -246,8 +246,8 @@ namespace Kalendarz1
                         MessageBox.Show($"Wystąpił błąd podczas eksportowania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
-            }
+            }*/
         }
 
     }
-}
+ 

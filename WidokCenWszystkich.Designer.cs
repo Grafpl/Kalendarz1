@@ -81,7 +81,7 @@
             ExcelButton.TabIndex = 121;
             ExcelButton.Text = "Excel";
             ExcelButton.UseVisualStyleBackColor = true;
-            ExcelButton.Click += ExcelButton_Click;
+            //ExcelButton.Click += ExcelButton_Click;
             // 
             // WidokCenWszystkich
             // 
