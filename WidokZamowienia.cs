@@ -199,7 +199,8 @@ namespace Kalendarz1
                         string queryMaxIdZamowienie = "SELECT ISNULL(MAX(Id), 0) + 1 FROM [LibraNet].[dbo].[ZamowieniaMieso]";
                         SqlCommand commandMaxIdZamowienie = new SqlCommand(queryMaxIdZamowienie, connection, transaction);
                         int newZamowienieId = Convert.ToInt32(commandMaxIdZamowienie.ExecuteScalar());
-                        DateTime selectedDate = dateTimePickerSprzedaz.Value;
+                        DateTime selectedDate = dateTimePickerSprzedaz.Value.Date;
+
 
 
                         // Wstaw nowe zamówienie

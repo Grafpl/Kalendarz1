@@ -54,6 +54,8 @@
             dataGridViewSrodaSuma = new System.Windows.Forms.DataGridView();
             dataGridViewCzwartekSuma = new System.Windows.Forms.DataGridView();
             dataGridViewPiatekSuma = new System.Windows.Forms.DataGridView();
+            buttonOdswiez = new System.Windows.Forms.Button();
+            pictureBox1 = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWtorek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).BeginInit();
@@ -65,6 +67,7 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
             // dataGridViewPoniedzialek
@@ -211,11 +214,12 @@
             myCalendar.Margin = new System.Windows.Forms.Padding(2);
             myCalendar.Name = "myCalendar";
             myCalendar.TabIndex = 139;
+            myCalendar.DateChanged += myCalendar_DateChanged;
             // 
             // dataGridViewPodglad
             // 
             dataGridViewPodglad.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPodglad.Location = new System.Drawing.Point(851, 33);
+            dataGridViewPodglad.Location = new System.Drawing.Point(1319, 42);
             dataGridViewPodglad.Name = "dataGridViewPodglad";
             dataGridViewPodglad.RowTemplate.Height = 25;
             dataGridViewPodglad.Size = new System.Drawing.Size(389, 223);
@@ -224,7 +228,7 @@
             // label6
             // 
             label6.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(851, 5);
+            label6.Location = new System.Drawing.Point(1319, 14);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(389, 25);
             label6.TabIndex = 145;
@@ -233,7 +237,11 @@
             // 
             // comboBoxTowar
             // 
+            comboBoxTowar.DropDownHeight = 300;
+            comboBoxTowar.DropDownWidth = 200;
             comboBoxTowar.FormattingEnabled = true;
+            comboBoxTowar.IntegralHeight = false;
+            comboBoxTowar.ItemHeight = 15;
             comboBoxTowar.Location = new System.Drawing.Point(29, 203);
             comboBoxTowar.Name = "comboBoxTowar";
             comboBoxTowar.Size = new System.Drawing.Size(176, 23);
@@ -316,11 +324,35 @@
             dataGridViewPiatekSuma.Size = new System.Drawing.Size(335, 140);
             dataGridViewPiatekSuma.TabIndex = 154;
             // 
+            // buttonOdswiez
+            // 
+            buttonOdswiez.BackColor = System.Drawing.Color.WhiteSmoke;
+            buttonOdswiez.Location = new System.Drawing.Point(211, 194);
+            buttonOdswiez.Name = "buttonOdswiez";
+            buttonOdswiez.Size = new System.Drawing.Size(78, 39);
+            buttonOdswiez.TabIndex = 155;
+            buttonOdswiez.Text = "Odśwież";
+            buttonOdswiez.UseVisualStyleBackColor = false;
+            buttonOdswiez.Click += buttonOdswiez_Click;
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.BackgroundImage = Properties.Resources.pm;
+            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox1.Location = new System.Drawing.Point(539, 12);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(656, 137);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 156;
+            pictureBox1.TabStop = false;
+            // 
             // WidokZamowieniaPodsumowanie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(2178, 839);
+            Controls.Add(pictureBox1);
+            Controls.Add(buttonOdswiez);
             Controls.Add(dataGridViewPiatekSuma);
             Controls.Add(dataGridViewCzwartekSuma);
             Controls.Add(dataGridViewSrodaSuma);
@@ -360,6 +392,7 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -392,5 +425,7 @@
         private System.Windows.Forms.DataGridView dataGridViewSrodaSuma;
         private System.Windows.Forms.DataGridView dataGridViewCzwartekSuma;
         private System.Windows.Forms.DataGridView dataGridViewPiatekSuma;
+        private System.Windows.Forms.Button buttonOdswiez;
+        private System.Windows.Forms.PictureBox pictureBox1;
     }
 }

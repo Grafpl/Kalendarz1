@@ -501,6 +501,43 @@ namespace Kalendarz1
                 return "-";
             }
         }
+
+        public double WydajnoscElement(double tuszka, int kod)
+        {
+            // Wynikowa wartość
+            double wynik = 0;
+
+            // Oblicz wydajność w zależności od kodu
+            switch (kod)
+            {
+                case 66443: // Kurczak A
+                    wynik = tuszka; // Kurczak A to cały tuszka
+                    break;
+
+                case 66444: // Noga
+                    wynik = tuszka * 0.37;
+                    break;
+
+                case 66445: // Filet A
+                    wynik = tuszka * 0.295;
+                    break;
+
+                case 66442: // Korpus
+                    wynik = tuszka * 0.235;
+                    break;
+
+                case 66818: // Skrzydło I
+                    wynik = tuszka * 0.09;
+                    break;
+
+                default:
+                    wynik = 0; // Kod nieobsługiwany
+                    break;
+            }
+
+            return wynik;
+        }
+
     }
 
 
