@@ -443,7 +443,8 @@ namespace Kalendarz1
     {
         private readonly string connectionStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-        internal Dictionary<RozwijanieComboBox.DaneKontrahenta, string> PobierzDaneOdbiorcy(string id)
+        internal Dictionary<RozwijanieComboBox.DaneKontrahenta, string> 
+            PobierzDaneOdbiorcy(string id)
         {
             var dane = new Dictionary<RozwijanieComboBox.DaneKontrahenta, string>();
             string query = @"
