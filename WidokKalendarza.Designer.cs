@@ -2365,7 +2365,7 @@ namespace Kalendarz1
             // button6
             // 
             button6.BackColor = System.Drawing.Color.DarkOrange;
-            button6.Location = new System.Drawing.Point(1549, 305);
+            button6.Location = new System.Drawing.Point(1146, 793);
             button6.Name = "button6";
             button6.Size = new System.Drawing.Size(71, 39);
             button6.TabIndex = 120;
