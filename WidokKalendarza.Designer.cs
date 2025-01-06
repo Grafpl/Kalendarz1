@@ -39,13 +39,13 @@ namespace Kalendarz1
             weekNumberTextBox = new TextBox();
             userTextbox = new TextBox();
             groupBox1 = new GroupBox();
-            textBox5 = new TextBox();
+            KtoSztuki = new TextBox();
             label52 = new Label();
-            textBox6 = new TextBox();
+            KiedySztuki = new TextBox();
             label53 = new Label();
-            textBox1 = new TextBox();
+            KtoWaga = new TextBox();
             label46 = new Label();
-            textBox2 = new TextBox();
+            KiedyWaga = new TextBox();
             label51 = new Label();
             label26 = new Label();
             textBox3 = new TextBox();
@@ -327,13 +327,13 @@ namespace Kalendarz1
             // groupBox1
             // 
             groupBox1.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            groupBox1.Controls.Add(textBox5);
+            groupBox1.Controls.Add(KtoSztuki);
             groupBox1.Controls.Add(label52);
-            groupBox1.Controls.Add(textBox6);
+            groupBox1.Controls.Add(KiedySztuki);
             groupBox1.Controls.Add(label53);
-            groupBox1.Controls.Add(textBox1);
+            groupBox1.Controls.Add(KtoWaga);
             groupBox1.Controls.Add(label46);
-            groupBox1.Controls.Add(textBox2);
+            groupBox1.Controls.Add(KiedyWaga);
             groupBox1.Controls.Add(label51);
             groupBox1.Controls.Add(label26);
             groupBox1.Controls.Add(textBox3);
@@ -361,15 +361,15 @@ namespace Kalendarz1
             groupBox1.Text = "Dostawa";
             groupBox1.Enter += groupBox1_Enter;
             // 
-            // textBox5
+            // KtoSztuki
             // 
-            textBox5.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox5.Location = new System.Drawing.Point(611, 425);
-            textBox5.Name = "textBox5";
-            textBox5.Size = new System.Drawing.Size(95, 19);
-            textBox5.TabIndex = 131;
-            textBox5.TextAlign = HorizontalAlignment.Center;
+            KtoSztuki.BackColor = System.Drawing.SystemColors.ScrollBar;
+            KtoSztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KtoSztuki.Location = new System.Drawing.Point(611, 425);
+            KtoSztuki.Name = "KtoSztuki";
+            KtoSztuki.Size = new System.Drawing.Size(95, 19);
+            KtoSztuki.TabIndex = 131;
+            KtoSztuki.TextAlign = HorizontalAlignment.Center;
             // 
             // label52
             // 
@@ -381,15 +381,15 @@ namespace Kalendarz1
             label52.Text = "Data potw. Sztuk";
             label52.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // textBox6
+            // KiedySztuki
             // 
-            textBox6.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox6.Location = new System.Drawing.Point(712, 425);
-            textBox6.Name = "textBox6";
-            textBox6.Size = new System.Drawing.Size(95, 19);
-            textBox6.TabIndex = 133;
-            textBox6.TextAlign = HorizontalAlignment.Center;
+            KiedySztuki.BackColor = System.Drawing.SystemColors.ScrollBar;
+            KiedySztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KiedySztuki.Location = new System.Drawing.Point(712, 425);
+            KiedySztuki.Name = "KiedySztuki";
+            KiedySztuki.Size = new System.Drawing.Size(95, 19);
+            KiedySztuki.TabIndex = 133;
+            KiedySztuki.TextAlign = HorizontalAlignment.Center;
             // 
             // label53
             // 
@@ -401,15 +401,15 @@ namespace Kalendarz1
             label53.Text = "Kto potw. Sztuki";
             label53.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // textBox1
+            // KtoWaga
             // 
-            textBox1.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox1.Location = new System.Drawing.Point(409, 425);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new System.Drawing.Size(95, 19);
-            textBox1.TabIndex = 127;
-            textBox1.TextAlign = HorizontalAlignment.Center;
+            KtoWaga.BackColor = System.Drawing.SystemColors.ScrollBar;
+            KtoWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KtoWaga.Location = new System.Drawing.Point(409, 425);
+            KtoWaga.Name = "KtoWaga";
+            KtoWaga.Size = new System.Drawing.Size(95, 19);
+            KtoWaga.TabIndex = 127;
+            KtoWaga.TextAlign = HorizontalAlignment.Center;
             // 
             // label46
             // 
@@ -421,15 +421,15 @@ namespace Kalendarz1
             label46.Text = "Data potw. Wagi";
             label46.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // textBox2
+            // KiedyWaga
             // 
-            textBox2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            textBox2.Location = new System.Drawing.Point(510, 425);
-            textBox2.Name = "textBox2";
-            textBox2.Size = new System.Drawing.Size(95, 19);
-            textBox2.TabIndex = 129;
-            textBox2.TextAlign = HorizontalAlignment.Center;
+            KiedyWaga.BackColor = System.Drawing.SystemColors.ScrollBar;
+            KiedyWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KiedyWaga.Location = new System.Drawing.Point(510, 425);
+            KiedyWaga.Name = "KiedyWaga";
+            KiedyWaga.Size = new System.Drawing.Size(95, 19);
+            KiedyWaga.TabIndex = 129;
+            KiedyWaga.TextAlign = HorizontalAlignment.Center;
             // 
             // label51
             // 
@@ -1768,7 +1768,7 @@ namespace Kalendarz1
             // 
             // SMSupomnienie
             // 
-            SMSupomnienie.Location = new System.Drawing.Point(1549, 423);
+            SMSupomnienie.Location = new System.Drawing.Point(1549, 459);
             SMSupomnienie.Name = "SMSupomnienie";
             SMSupomnienie.Size = new System.Drawing.Size(62, 23);
             SMSupomnienie.TabIndex = 126;
@@ -2948,13 +2948,13 @@ namespace Kalendarz1
         private PictureBox pictureBox1;
         private Button pokazDlaSprzedazy;
         private Button button16;
-        private TextBox textBox5;
+        private TextBox KtoSztuki;
         private Label label52;
-        private TextBox textBox6;
+        private TextBox KiedySztuki;
         private Label label53;
-        private TextBox textBox1;
+        private TextBox KtoWaga;
         private Label label46;
-        private TextBox textBox2;
+        private TextBox KiedyWaga;
         private Label label51;
         private DataGridView dataGridAvilog;
         private DataGridView dataGridSumaPartie;

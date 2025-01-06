@@ -22,7 +22,8 @@ namespace Kalendarz1
         public WidokZamowienia()
         {
             InitializeComponent();
-            RozwijanieComboBox.RozwijanieOdbiorcowSymfonia(comboBoxOdbiorca);
+            ConfigureDateTimePicker();
+            RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxOdbiorca, "Odbiorcy Drobiu");
             PrzygotujDataGridView();
 
         }
@@ -60,6 +61,18 @@ namespace Kalendarz1
             }
             
         }
+
+        private void ConfigureDateTimePicker()
+        {
+            // Ustaw format niestandardowy, aby wyświetlać datę i czas
+            dateTimePickerGodzinaPrzyjazdu.Format = DateTimePickerFormat.Custom;
+            dateTimePickerGodzinaPrzyjazdu.CustomFormat = "HH:mm"; // Data + Godzina:Minuta
+
+            // Ustaw tryb góra/dół (bez kalendarza, opcjonalnie)
+            dateTimePickerGodzinaPrzyjazdu.ShowUpDown = true;
+        }
+
+
 
         private void PrzygotujDataGridView()
         {
@@ -199,19 +212,22 @@ namespace Kalendarz1
                         string queryMaxIdZamowienie = "SELECT ISNULL(MAX(Id), 0) + 1 FROM [LibraNet].[dbo].[ZamowieniaMieso]";
                         SqlCommand commandMaxIdZamowienie = new SqlCommand(queryMaxIdZamowienie, connection, transaction);
                         int newZamowienieId = Convert.ToInt32(commandMaxIdZamowienie.ExecuteScalar());
-                        DateTime selectedDate = dateTimePickerSprzedaz.Value.Date;
+                        DateTime dataSprzedazy = dateTimePickerSprzedaz.Value.Date;
+                        DateTime godzinaPrzyjazdu = dateTimePickerSprzedaz.Value.Date;
 
 
 
                         // Wstaw nowe zamówienie
                         string queryZamowienie = @"
-                    INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, KlientId, Uwagi)
-                    VALUES (@Id, @DataZamowienia, @KlientId, @Uwagi)";
+                    INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, IdUser)
+                    VALUES (@Id, @DataZamowienia, @KlientId, @Uwagi, @DataPrzyjazdu, @IdUser)";
                         SqlCommand commandZamowienie = new SqlCommand(queryZamowienie, connection, transaction);
                         commandZamowienie.Parameters.AddWithValue("@Id", newZamowienieId);
-                        commandZamowienie.Parameters.AddWithValue("@DataZamowienia", selectedDate);
+                        commandZamowienie.Parameters.AddWithValue("@DataZamowienia", dataSprzedazy);
                         commandZamowienie.Parameters.AddWithValue("@KlientId", selectedId);
                         commandZamowienie.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
+                        commandZamowienie.Parameters.AddWithValue("@DataPrzyjazdu", godzinaPrzyjazdu);
+                        commandZamowienie.Parameters.AddWithValue("@IdUser", UserID);
                         commandZamowienie.ExecuteNonQuery();
 
                         // Wstaw szczegóły zamówienia (bez kolumny Id)

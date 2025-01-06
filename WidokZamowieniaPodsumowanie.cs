@@ -21,6 +21,7 @@ namespace Kalendarz1
         private string connectionString1 = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
+        private NazwaZiD nazwaZiD = new NazwaZiD();
         private DataService dataService = new DataService();
         private DateTime startOfWeek;
         private DateTime poniedzialek;
@@ -30,12 +31,21 @@ namespace Kalendarz1
         private DateTime piatek;
         private decimal totalIloscZamowiona; // Suma dla wszystkich dni tygodnia
         private Dictionary<string, decimal> dzienneSumaIloscZamowiona = new Dictionary<string, decimal>();
+        public string UserID { get; set; }
 
         public WidokZamowieniaPodsumowanie()
         {
             InitializeComponent();
             this.WindowState = FormWindowState.Maximized;
             ZaladujTowary();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
+
+            // Podłączanie wspólnej metody obsługi do wszystkich DataGridView
+            dataGridViewPoniedzialek.CellClick += UniwersalnyCellClick;
+            dataGridViewWtorek.CellClick += UniwersalnyCellClick;
+            dataGridViewSroda.CellClick += UniwersalnyCellClick;
+            dataGridViewCzwartek.CellClick += UniwersalnyCellClick;
+            dataGridViewPiatek.CellClick += UniwersalnyCellClick;
 
         }
 
@@ -62,28 +72,29 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString1)) // Połączenie do serwera .109
             {
                 string query = @"
-        SELECT 
-            zm.DataZamowienia, 
-            zm.KlientId, 
-            tw.Kod AS KodTowaru, 
-            SUM(zmt.Ilosc) AS IloscZamowiona
-        FROM 
-            [LibraNet].[dbo].[ZamowieniaMieso] zm
-        JOIN 
-            [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
-        ON 
-            zm.Id = zmt.ZamowienieId
-        JOIN 
-            [RemoteServer].[HANDEL].[HM].[TW] tw
-        ON 
-            zmt.KodTowaru = tw.ID
-        WHERE 
-            zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
-            AND tw.ID = @TowarId
-        GROUP BY 
-            zm.DataZamowienia, zm.KlientId, tw.Kod
-        ORDER BY 
-            zm.DataZamowienia;";
+                SELECT 
+                    zm.Id,
+                    zm.DataZamowienia, 
+                    zm.KlientId, 
+                    tw.Kod AS KodTowaru, 
+                    SUM(zmt.Ilosc) AS IloscZamowiona
+                FROM 
+                    [LibraNet].[dbo].[ZamowieniaMieso] zm
+                JOIN 
+                    [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
+                ON 
+                    zm.Id = zmt.ZamowienieId
+                JOIN 
+                    [RemoteServer].[HANDEL].[HM].[TW] tw
+                ON 
+                    zmt.KodTowaru = tw.ID
+                WHERE 
+                    zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
+                    AND tw.ID = @TowarId
+                GROUP BY 
+                    zm.Id, zm.DataZamowienia, zm.KlientId, tw.Kod
+                ORDER BY 
+                    zm.DataZamowienia;";
 
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartOfWeek", startOfWeek);
@@ -94,17 +105,19 @@ namespace Kalendarz1
                 DataTable dataTable = new DataTable();
                 adapter.Fill(dataTable);
 
-                DataTable dtPoniedzialek = CreateDataTable(new string[] { "Klient", "Ilosc" });
-                DataTable dtWtorek = CreateDataTable(new string[] { "Klient", "Ilosc" });
-                DataTable dtSroda = CreateDataTable(new string[] { "Klient", "Ilosc" });
-                DataTable dtCzwartek = CreateDataTable(new string[] { "Klient", "Ilosc" });
-                DataTable dtPiatek = CreateDataTable(new string[] { "Klient", "Ilosc" });
+                DataTable dtPoniedzialek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
+                DataTable dtWtorek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
+                DataTable dtSroda = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
+                DataTable dtCzwartek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
+                DataTable dtPiatek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
+
 
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    
+
                     DateTime dataZamowienia = Convert.ToDateTime(row["DataZamowienia"]);
                     string klientId = row["KlientId"].ToString();
+                    string idZamowienia = row["Id"].ToString();
                     var daneOdbiorcy = dataService.PobierzDaneOdbiorcy(klientId);
                     string nazwaOdbiorcy = daneOdbiorcy[RozwijanieComboBox.DaneKontrahenta.Kod];
                     decimal iloscZamowiona = Convert.ToDecimal(row["IloscZamowiona"]);
@@ -113,27 +126,27 @@ namespace Kalendarz1
 
                     if (dataZamowienia.Date == startOfWeek.Date)
                     {
-                        dtPoniedzialek.Rows.Add(nazwaOdbiorcy, iloscZamowiona);
+                        dtPoniedzialek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
                         AddToDailySum("Poniedziałek", iloscZamowiona);
                     }
                     else if (dataZamowienia.Date == startOfWeek.AddDays(1).Date)
                     {
-                        dtWtorek.Rows.Add(nazwaOdbiorcy, iloscZamowiona);
+                        dtWtorek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
                         AddToDailySum("Wtorek", iloscZamowiona);
                     }
                     else if (dataZamowienia.Date == startOfWeek.AddDays(2).Date)
                     {
-                        dtSroda.Rows.Add(nazwaOdbiorcy, iloscZamowiona);
+                        dtSroda.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
                         AddToDailySum("Środa", iloscZamowiona);
                     }
                     else if (dataZamowienia.Date == startOfWeek.AddDays(3).Date)
                     {
-                        dtCzwartek.Rows.Add(nazwaOdbiorcy, iloscZamowiona);
+                        dtCzwartek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
                         AddToDailySum("Czwartek", iloscZamowiona);
                     }
                     else if (dataZamowienia.Date == startOfWeek.AddDays(4).Date)
                     {
-                        dtPiatek.Rows.Add(nazwaOdbiorcy, iloscZamowiona);
+                        dtPiatek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
                         AddToDailySum("Piątek", iloscZamowiona);
                     }
                 }
@@ -167,6 +180,12 @@ namespace Kalendarz1
         {
             gridView.DataSource = dataSource;
 
+            // Ukrycie kolumny "IdZamowienia"
+            if (gridView.Columns.Contains("IdZamowienia"))
+            {
+                gridView.Columns["IdZamowienia"].Visible = false;
+            }
+
             // Szerokość kolumny "Klient"
             if (gridView.Columns.Contains("Klient"))
             {
@@ -188,26 +207,20 @@ namespace Kalendarz1
             // Wyrównanie tekstu w kolumnach
             gridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            // Ustawienie naprzemiennych kolorów wierszy
-            gridView.DefaultCellStyle.BackColor = Color.White; // Kolor dla zwykłych wierszy
-            gridView.AlternatingRowsDefaultCellStyle.BackColor = Color.LightGray; // Kolor dla naprzemiennych wierszy
-
-            // Dodanie zdarzenia formatowania dla kolumny "Ilosc"
+            // Formatowanie kolumny "Ilosc" z separatorem tysięcy i jednostką "kg"
             gridView.CellFormatting += (sender, e) =>
             {
                 if (gridView.Columns[e.ColumnIndex].HeaderText == "Ilosc" && e.Value != null)
                 {
                     if (decimal.TryParse(e.Value.ToString(), out decimal value))
                     {
-                        e.Value = $"{value:N0} kg"; // Formatowanie z separatorem tysięcy i "kg"
+                        e.Value = $"{value:N0} kg";
                         e.FormattingApplied = true;
                     }
                 }
             };
+            gridView.ClearSelection();
         }
-
-
-
 
         private void ZaladujTowary()
         {
@@ -330,23 +343,19 @@ namespace Kalendarz1
         private void FormatSumRow(DataGridView gridView, int nrWiersz)
         {
             DataGridViewRow sumRow = gridView.Rows[nrWiersz];
-            sumRow.DefaultCellStyle.BackColor = SystemColors.Highlight;
-            sumRow.DefaultCellStyle.ForeColor = Color.White;
+            sumRow.DefaultCellStyle.ForeColor = Color.Black;
             sumRow.DefaultCellStyle.Font = new Font(gridView.Font, FontStyle.Bold);
+            // Wyłączanie wiersza nagłówka po lewej stronie
+            gridView.RowHeadersVisible = false;
+            gridView.ClearSelection();
         }
 
 
         private void CommandButton_Update_Click(object sender, EventArgs e)
         {
             WidokZamowienia widokZamowienia = new WidokZamowienia();
-
-            // Wyświetlanie Form1
+            widokZamowienia.UserID = App.UserID;
             widokZamowienia.Show();
-            int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
-            DateTime selectedDate = myCalendar.SelectionStart;
-            DateTime startOfWeek = selectedDate.AddDays(-(int)selectedDate.DayOfWeek + 1);
-            DateTime endOfWeek = startOfWeek.AddDays(4);
-            WyswietlPodsumowanie(selectedTowarId, startOfWeek, endOfWeek);
         }
 
 
@@ -390,12 +399,93 @@ namespace Kalendarz1
             }
         }
 
+        private void UniwersalnyCellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Sprawdź, czy kliknięto na wiersz (pomijamy nagłówki kolumn)
+            if (e.RowIndex >= 0)
+            {
+                // Rzutuj sender na DataGridView
+                DataGridView gridView = sender as DataGridView;
+
+                // Sprawdź, czy kolumna "IdZamowienia" istnieje w danym DataGridView
+                if (gridView.Columns.Contains("IdZamowienia"))
+                {
+                    // Pobierz wartość z ukrytej kolumny "IdZamowienia"
+                    var idZamowieniaValue = gridView.Rows[e.RowIndex].Cells["IdZamowienia"].Value;
+
+                    if (idZamowieniaValue != null && int.TryParse(idZamowieniaValue.ToString(), out int idZamowienia))
+                    {
+                        // Wyświetlenie szczegółów zamówienia w innym DataGridView
+                        WyswietlSzczegolyZamowienia(idZamowienia, dataGridViewSzczegoly);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nieprawidłowy Id Zamówienia.", "Błąd");
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Kolumna 'IdZamowienia' nie istnieje w tym DataGridView.");
+                }
+            }
+        }
+
+
+        private void WyswietlSzczegolyZamowienia(int zamowienieId, DataGridView gridView)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString1)) // Połączenie do bazy danych
+            {
+                string query = @"
+        SELECT 
+            zmt.KodTowaru, 
+            zmt.Ilosc, 
+            zmt.Cena
+        FROM 
+            [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
+        WHERE 
+            zmt.ZamowienieId = @ZamowienieId";
+
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@ZamowienieId", zamowienieId);
+
+                SqlDataAdapter adapter = new SqlDataAdapter(command);
+                DataTable dataTable = new DataTable();
+                adapter.Fill(dataTable);
+
+                // Wypełnienie DataGridView
+                gridView.DataSource = dataTable;
+
+                // Formatowanie DataGridView
+                ConfigureSzczegolyGridView(gridView);
+            }
+        }
+        private void ConfigureSzczegolyGridView(DataGridView gridView)
+        {
+            gridView.RowHeadersVisible = false;
+            gridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            gridView.AllowUserToResizeRows = false;
+            gridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+            // Formatowanie kolumn
+            if (gridView.Columns.Contains("Ilosc"))
+            {
+                gridView.Columns["Ilosc"].DefaultCellStyle.Format = "N0"; // Separator tysięcy
+            }
+            if (gridView.Columns.Contains("Cena"))
+            {
+                gridView.Columns["Cena"].DefaultCellStyle.Format = "C2"; // Format waluty
+            }
+        }
+
+
+
 
 
         // Wywołanie z przycisku
         private void buttonOdswiez_Click(object sender, EventArgs e)
         {
             OdswiezPodsumowanie();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
         }
 
         private void myCalendar_DateChanged(object sender, DateRangeEventArgs e)

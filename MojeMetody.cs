@@ -147,7 +147,7 @@ namespace Kalendarz1
 
 
         public void publicPobierzInformacjeZBazyDanych(string lp, ComboBox LpWstawienia, ComboBox Status, DateTimePicker Data, ComboBox Dostawca, TextBox KmH, TextBox KmK, TextBox liczbaAut, TextBox srednia, TextBox sztukNaSzuflade
-            , TextBox sztuki, ComboBox TypUmowy, ComboBox TypCeny, TextBox Cena, TextBox Uwagi, TextBox Dodatek, TextBox dataStwo, TextBox dataMod, TextBox Ubytek, TextBox ktoMod, TextBox ktoStwo)
+            , TextBox sztuki, ComboBox TypUmowy, ComboBox TypCeny, TextBox Cena, TextBox Uwagi, TextBox Dodatek, TextBox dataStwo, TextBox dataMod, TextBox Ubytek, TextBox ktoMod, TextBox ktoStwo, TextBox ktoWaga, TextBox KiedyWaga, TextBox KtoSztuki, TextBox KiedySztuki)
         {
             try
             {
@@ -164,6 +164,8 @@ namespace Kalendarz1
                         {
                             if (reader.Read())
                             {
+                                string idModyfikujacego = GetNameById(reader["ktoMod"].ToString()), idTworzacego = GetNameById(reader["ktoStwo"].ToString());
+                                string idWagi = GetNameById(reader["KtoWaga"].ToString()), idSztuki = GetNameById(reader["KtoSztuki"].ToString());
                                 // Przypisz pobrane wartości z bazy danych do TextBox-ów
                                 Status.Text = reader["bufor"].ToString(); // Przypisz wartość bufora
                                 Data.Text = reader["DataOdbioru"].ToString(); // Przypisz wartość daty
@@ -184,10 +186,14 @@ namespace Kalendarz1
                                 Dodatek.Text = reader["Dodatek"].ToString();
                                 dataStwo.Text = reader["DataUtw"].ToString();
                                 dataMod.Text = reader["DataMod"].ToString();
-                                ktoStwo.Text = reader["ktoStwo"].ToString();
-                                ktoMod.Text = reader["ktoMod"].ToString();
+                                ktoStwo.Text = idTworzacego;
+                                ktoMod.Text = idModyfikujacego;
                                 Ubytek.Text = reader["Ubytek"].ToString();
                                 LpWstawienia.Text = reader["LpW"].ToString();
+                                ktoWaga.Text = idWagi;
+                                KiedyWaga.Text = reader["KiedyWaga"].ToString();
+                                KtoSztuki.Text = idSztuki;
+                                KiedySztuki.Text = reader["KiedySztuki"].ToString();
                             }
                         }
                     }
@@ -242,6 +248,90 @@ namespace Kalendarz1
             }
 
         }
+
+        public void PokazPojTuszki(DataGridView dataGrid)
+        {
+            // Utwórz połączenie z bazą danych SQL Server
+            using (SqlConnection cnn = new SqlConnection(connectionString))
+            {
+                cnn.Open();
+
+                string strSQL = @"
+        SELECT 
+            k.CreateData AS Data, 
+            k.QntInCont AS poj, 
+            COUNT(*) AS Palety
+        FROM [LibraNet].[dbo].[In0E] K
+        JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
+        LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
+        WHERE ArticleID = 40 
+            AND k.QntInCont > 4
+            AND k.CreateData = CAST(GETDATE() AS DATE)
+        GROUP BY k.CreateData, k.QntInCont
+        ORDER BY k.CreateData DESC, k.QntInCont DESC;
+        ";
+
+                using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                {
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        try
+                        {
+                            // Przygotowanie DataGrid
+                            dataGrid.Rows.Clear();
+                            dataGrid.Columns.Clear();
+                            dataGrid.RowHeadersVisible = false;
+
+                            // Dodaj kolumny do DataGrid
+                            if (dataGrid.Columns["Data"] == null)
+                            {
+                                dataGrid.Columns.Add("Data", "Data");
+                            }
+                            if (dataGrid.Columns["poj"] == null)
+                            {
+                                dataGrid.Columns.Add("poj", "poj");
+                            }
+                            if (dataGrid.Columns["Palety"] == null)
+                            {
+                                dataGrid.Columns.Add("Palety", "Palety");
+                            }
+
+                            // Ustawienia kolumn
+                            dataGrid.Columns["Data"].Visible = false;
+                            dataGrid.Columns["poj"].Width = 35;
+                            dataGrid.Columns["Palety"].Width = 45;
+
+                            // Dodaj dane do DataGrid
+                            while (reader.Read())
+                            {
+                                DataGridViewRow newRow = new DataGridViewRow();
+                                newRow.CreateCells(dataGrid);
+                                newRow.Cells[0].Value = reader["Data"];
+                                newRow.Cells[1].Value = reader["poj"];
+                                newRow.Cells[2].Value = reader["Palety"];
+
+                                dataGrid.Rows.Add(newRow);
+                            }
+
+                            // Ustawienia dla wierszy
+                            foreach (DataGridViewRow row in dataGrid.Rows)
+                            {
+                                row.Height = 17; // Wysokość wierszy
+                                foreach (DataGridViewCell cell in row.Cells)
+                                {
+                                    cell.Style.Font = new Font("Arial", 7); // Czcionka w wierszach
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show("Błąd odczytu danych: " + ex.Message);
+                        }
+                    }
+                }
+            }
+        }
+
         public void ZmianaDostawcy(ComboBox Dostawca, ComboBox Kurnik, TextBox UlicaK, TextBox KodPocztowyK, TextBox MiejscK, TextBox KmK, TextBox UlicaH, TextBox KodPocztowyH, TextBox MiejscH, TextBox KmH, TextBox Dodatek, TextBox Ubytek, TextBox tel1, TextBox tel2, TextBox tel3, TextBox info1, TextBox info2, TextBox info3, TextBox Email)
         {
             try
@@ -359,14 +449,14 @@ namespace Kalendarz1
     public class RozwijanieComboBox
     {
         private string connectionStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-        public void RozwijanieOdbiorcowSymfonia(ComboBox comboBox)
+        public void RozwijanieKontrPoKatalogu(ComboBox comboBox, string katalog)
         {
-            string query = @"
+            string query = $@"
                 SELECT DISTINCT [vKh].[id], [vKh].[kod]
                 FROM [SSCommon].[vKontrahenci] AS [vKh]
                 INNER JOIN [HM].[ContractorCatalog] AS [ContrCata]
                     ON [vKh].[katalog] = CAST([ContrCata].[id] AS VARCHAR(MAX))
-                WHERE [ContrCata].[Name] LIKE 'Odbiorcy Drobiu' Order by [vKh].[kod] DESC";
+                WHERE [ContrCata].[Name] LIKE '{katalog}' Order by [vKh].[kod] DESC";
 
             using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
             {
@@ -391,6 +481,7 @@ namespace Kalendarz1
             comboBox.DisplayMember = "Value"; // Wyświetlany tekst
             comboBox.ValueMember = "Key";    // Ukryty klucz
         }
+
 
         public enum DaneKontrahenta
         {Kod=0, Limit=1, Nazwa=2, NIP=3, KodPocztowy=4, Miejscowosc=5}

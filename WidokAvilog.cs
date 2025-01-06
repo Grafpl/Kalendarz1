@@ -21,6 +21,7 @@ namespace Kalendarz1
         static string sqlDostawcy = "SELECT * FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @id";
         static string idDostawcy, idrealDostawcy, idKurnika, idDostawcyZmienione;
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
+        private RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
         public WidokAvilog()
         {
             InitializeComponent();
@@ -36,6 +37,7 @@ namespace Kalendarz1
                 dateTimePicker.ShowUpDown = true;
                 dateTimePicker.Value = DateTime.Today.Date;
             }
+            RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxSymfonia, "Dostawcy Drobiu");
 
         }
         public WidokAvilog(int idSpecyfikacji) : this()

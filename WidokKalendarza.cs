@@ -99,7 +99,7 @@ namespace Kalendarz1
             // Ta metoda zostanie wywołana co określony interwał czasowy
             PokazCeny();
             BiezacePartie();
-            BiezacePartieSuma();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
         }
         private void BiezacePartie()
         {
@@ -203,95 +203,12 @@ namespace Kalendarz1
                 }
             }
         }
-        private void BiezacePartieSuma()
-        {
-            // Utwórz połączenie z bazą danych SQL Server
-            using (SqlConnection cnn = new SqlConnection(connectionPermission))
-            {
-                cnn.Open();
-
-                string strSQL = @"
-            SELECT 
-                k.CreateData AS Data, 
-                k.QntInCont AS poj, 
-                COUNT(*) AS Palety
-            FROM [LibraNet].[dbo].[In0E] K
-            JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
-            LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
-            WHERE ArticleID = 40 
-                AND k.QntInCont > 4
-                AND k.CreateData = CAST(GETDATE() AS DATE)
-            GROUP BY k.CreateData, k.QntInCont
-            ORDER BY k.CreateData DESC, k.QntInCont DESC;
-        ";
-
-                using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
-                {
-                    using (SqlDataReader reader = command2.ExecuteReader())
-                    {
-                        try
-                        {
-                            // Przygotowanie DataGridWstawienia
-                            dataGridSumaPartie.Rows.Clear();
-                            dataGridSumaPartie.Columns.Clear();
-                            dataGridSumaPartie.RowHeadersVisible = false;
-
-                            // Dodaj kolumny do DataGridWstawienia, jeżeli nie istnieją
-                            if (dataGridSumaPartie.Columns["Data"] == null)
-                            {
-                                dataGridSumaPartie.Columns.Add("Data", "Data");
-                            }
-                            if (dataGridSumaPartie.Columns["poj"] == null)
-                            {
-                                dataGridSumaPartie.Columns.Add("poj", "poj");
-                            }
-                            if (dataGridSumaPartie.Columns["Palety"] == null)
-                            {
-                                dataGridSumaPartie.Columns.Add("Palety", "Palety");
-                            }
-
-                            dataGridSumaPartie.Columns["Data"].Visible = false;
-                            dataGridSumaPartie.Columns["poj"].Width = 35;
-                            dataGridSumaPartie.Columns["Palety"].Width = 45;
-
-
-                            while (reader.Read())
-                            {
-                                // Dodaj nowy wiersz do DataGridWstawienia
-                                DataGridViewRow newRow = new DataGridViewRow();
-                                newRow.CreateCells(dataGridSumaPartie);
-                                newRow.Cells[0].Value = reader["Data"];
-                                newRow.Cells[1].Value = reader["poj"];
-                                newRow.Cells[2].Value = reader["Palety"];
-
-                                // Dodaj nowy wiersz do kontrolki DataGridWstawienia
-                                dataGridSumaPartie.Rows.Add(newRow);
-
-                                foreach (DataGridViewRow row in dataGridSumaPartie.Rows)
-                                {
-                                    row.Height = 17; // Ustawienie wysokości każdego wiersza na 18 pikseli
-                                }
-
-                                // Ustaw czcionkę dla nowo dodanego wiersza
-                                foreach (DataGridViewCell cell in newRow.Cells)
-                                {
-                                    cell.Style.Font = new Font("Arial", 7); // Ustawienie czcionki Arial o rozmiarze 7 punktów
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show("Błąd odczytu danych: " + ex.Message);
-                        }
-                    }
-                }
-            }
-        }
+     
 
         private void WidokKalendarza_Load(object sender, EventArgs e)
         {
             BiezacePartie();
-            BiezacePartieSuma();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
             NazwaZiD databaseManager = new NazwaZiD();
             string name = databaseManager.GetNameById(UserID);
             // Przypisanie wartości UserID do TextBoxa userTextbox
@@ -445,25 +362,33 @@ namespace Kalendarz1
                     DateTime endOfWeek = startOfWeek.AddDays(7);
 
                     string strSQL = $@"
-                        SELECT DISTINCT HD.LP, 
-                                        HD.DataOdbioru, 
-                                        HD.Dostawca, 
-                                        HD.Auta, 
-                                        HD.SztukiDek, 
-                                        HD.WagaDek, 
-                                        HD.bufor, 
-                                        HD.TypCeny, 
-                                        HD.Cena, 
-                                        WK.DataWstawienia,
-                                        D.Distance,
-                                        HD.Ubytek,
-                                        HD.UWAGI,
-                                        HD.PotwWaga,
-                                        HD.PotwSztuki
-                        FROM HarmonogramDostaw HD
-                        LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
-                        LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON HD.Dostawca = D.Name
-                        WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate AND D.Halt = '0'";
+    SELECT DISTINCT 
+        HD.LP, 
+        HD.DataOdbioru, 
+        HD.Dostawca, 
+        HD.Auta, 
+        HD.SztukiDek, 
+        HD.WagaDek, 
+        HD.bufor, 
+        HD.TypCeny, 
+        HD.Cena, 
+        WK.DataWstawienia,
+        D.Distance,
+        HD.Ubytek,
+        HD.UWAGI,
+        HD.PotwWaga,
+        HD.PotwSztuki,
+        CASE 
+            WHEN HD.bufor = 'Potwierdzony' THEN 1
+            WHEN HD.bufor = 'B.Kontr.' THEN 2
+            WHEN HD.bufor = 'B.Wolny.' THEN 3
+            WHEN HD.bufor = 'Do Wykupienia' THEN 5
+            ELSE 4
+        END AS buforPriority
+    FROM HarmonogramDostaw HD
+    LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+    LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON HD.Dostawca = D.Name
+    WHERE HD.DataOdbioru >= @startDate AND HD.DataOdbioru <= @endDate AND D.Halt = '0'";
 
                     if (!checkBoxAnulowane.Checked)
                     {
@@ -478,8 +403,12 @@ namespace Kalendarz1
                         strSQL += " AND bufor != 'Do Wykupienia'";
                     }
 
+                    strSQL += @"
+    ORDER BY 
+        HD.DataOdbioru, 
+        buforPriority, 
+        HD.WagaDek DESC";
 
-                    strSQL += " ORDER BY HD.DataOdbioru, HD.bufor, HD.WagaDek Desc";
 
                     using (SqlCommand command = new SqlCommand(strSQL, connection))
                     {
@@ -1172,7 +1101,7 @@ namespace Kalendarz1
 
         private void PobierzInformacjeZBazyDanych(string lp)
         {
-            nazwaZiD.publicPobierzInformacjeZBazyDanych(lp, LpWstawienia, Status, Data, Dostawca, KmH, KmK, liczbaAut, srednia, sztukNaSzuflade, sztuki, TypUmowy, TypCeny, Cena, Uwagi, Dodatek, dataStwo, dataMod, Ubytek, ktoMod, ktoStwo);
+            nazwaZiD.publicPobierzInformacjeZBazyDanych(lp, LpWstawienia, Status, Data, Dostawca, KmH, KmK, liczbaAut, srednia, sztukNaSzuflade, sztuki, TypUmowy, TypCeny, Cena, Uwagi, Dodatek, dataStwo, dataMod, Ubytek, ktoMod, ktoStwo, KtoWaga, KiedyWaga, KtoSztuki, KiedySztuki);
             nazwaZiD.PobierzCheckBoxyWagSztuk(lp, potwWaga, potwSztuki);
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
@@ -2042,7 +1971,7 @@ namespace Kalendarz1
             PokazCeny();
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             BiezacePartie();
-            BiezacePartieSuma();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
         }
 
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)

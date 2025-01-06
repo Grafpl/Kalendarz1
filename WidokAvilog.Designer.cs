@@ -146,6 +146,7 @@
             Info1R = new System.Windows.Forms.TextBox();
             label50 = new System.Windows.Forms.Label();
             Email = new System.Windows.Forms.TextBox();
+            comboBoxSymfonia = new System.Windows.Forms.ComboBox();
             groupBox4.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox2.SuspendLayout();
@@ -1299,11 +1300,23 @@
             Email.TabIndex = 91;
             Email.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             // 
+            // comboBoxSymfonia
+            // 
+            comboBoxSymfonia.DropDownHeight = 300;
+            comboBoxSymfonia.DropDownWidth = 200;
+            comboBoxSymfonia.FormattingEnabled = true;
+            comboBoxSymfonia.IntegralHeight = false;
+            comboBoxSymfonia.Location = new System.Drawing.Point(887, 26);
+            comboBoxSymfonia.Name = "comboBoxSymfonia";
+            comboBoxSymfonia.Size = new System.Drawing.Size(144, 23);
+            comboBoxSymfonia.TabIndex = 93;
+            // 
             // WidokAvilog
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(882, 656);
+            ClientSize = new System.Drawing.Size(1211, 656);
+            Controls.Add(comboBoxSymfonia);
             Controls.Add(label50);
             Controls.Add(Email);
             Controls.Add(Info3R);
@@ -1492,5 +1505,6 @@
         private System.Windows.Forms.TextBox Info1R;
         private System.Windows.Forms.Label label50;
         private System.Windows.Forms.TextBox Email;
+        private System.Windows.Forms.ComboBox comboBoxSymfonia;
     }
 }

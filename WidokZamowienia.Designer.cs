@@ -39,10 +39,8 @@
             label8 = new System.Windows.Forms.Label();
             groupBox1 = new System.Windows.Forms.GroupBox();
             groupBox2 = new System.Windows.Forms.GroupBox();
-            dateTimePicker3 = new System.Windows.Forms.DateTimePicker();
-            dateTimePicker2 = new System.Windows.Forms.DateTimePicker();
+            dateTimePickerGodzinaPrzyjazdu = new System.Windows.Forms.DateTimePicker();
             dateTimePickerSprzedaz = new System.Windows.Forms.DateTimePicker();
-            label3 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
             textBoxLimit = new System.Windows.Forms.TextBox();
             groupBox3 = new System.Windows.Forms.GroupBox();
@@ -82,7 +80,7 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(6, 20);
+            label1.Location = new System.Drawing.Point(6, 36);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(130, 25);
             label1.TabIndex = 109;
@@ -158,10 +156,8 @@
             // 
             // groupBox2
             // 
-            groupBox2.Controls.Add(dateTimePicker3);
-            groupBox2.Controls.Add(dateTimePicker2);
+            groupBox2.Controls.Add(dateTimePickerGodzinaPrzyjazdu);
             groupBox2.Controls.Add(dateTimePickerSprzedaz);
-            groupBox2.Controls.Add(label3);
             groupBox2.Controls.Add(label2);
             groupBox2.Controls.Add(label1);
             groupBox2.Location = new System.Drawing.Point(461, 12);
@@ -171,41 +167,24 @@
             groupBox2.TabStop = false;
             groupBox2.Text = "Data";
             // 
-            // dateTimePicker3
+            // dateTimePickerGodzinaPrzyjazdu
             // 
-            dateTimePicker3.Location = new System.Drawing.Point(142, 83);
-            dateTimePicker3.Name = "dateTimePicker3";
-            dateTimePicker3.Size = new System.Drawing.Size(228, 23);
-            dateTimePicker3.TabIndex = 114;
-            // 
-            // dateTimePicker2
-            // 
-            dateTimePicker2.Location = new System.Drawing.Point(142, 54);
-            dateTimePicker2.Name = "dateTimePicker2";
-            dateTimePicker2.Size = new System.Drawing.Size(228, 23);
-            dateTimePicker2.TabIndex = 113;
+            dateTimePickerGodzinaPrzyjazdu.Location = new System.Drawing.Point(142, 70);
+            dateTimePickerGodzinaPrzyjazdu.Name = "dateTimePickerGodzinaPrzyjazdu";
+            dateTimePickerGodzinaPrzyjazdu.Size = new System.Drawing.Size(86, 23);
+            dateTimePickerGodzinaPrzyjazdu.TabIndex = 113;
             // 
             // dateTimePickerSprzedaz
             // 
-            dateTimePickerSprzedaz.Location = new System.Drawing.Point(142, 22);
+            dateTimePickerSprzedaz.Location = new System.Drawing.Point(142, 38);
             dateTimePickerSprzedaz.Name = "dateTimePickerSprzedaz";
             dateTimePickerSprzedaz.Size = new System.Drawing.Size(228, 23);
             dateTimePickerSprzedaz.TabIndex = 112;
             // 
-            // label3
-            // 
-            label3.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(6, 83);
-            label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(130, 25);
-            label3.TabIndex = 111;
-            label3.Text = "Godzina Odbioru :";
-            label3.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
             // label2
             // 
             label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(6, 52);
+            label2.Location = new System.Drawing.Point(6, 68);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(130, 25);
             label2.TabIndex = 110;
@@ -372,11 +351,9 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox textBoxLimit;
-        private System.Windows.Forms.DateTimePicker dateTimePicker3;
-        private System.Windows.Forms.DateTimePicker dateTimePicker2;
+        private System.Windows.Forms.DateTimePicker dateTimePickerGodzinaPrzyjazdu;
         private System.Windows.Forms.DateTimePicker dateTimePickerSprzedaz;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Label label6;

@@ -43,7 +43,7 @@
             button5 = new System.Windows.Forms.Button();
             button1 = new System.Windows.Forms.Button();
             myCalendar = new System.Windows.Forms.MonthCalendar();
-            dataGridViewPodglad = new System.Windows.Forms.DataGridView();
+            dataGridViewSzczegoly = new System.Windows.Forms.DataGridView();
             label6 = new System.Windows.Forms.Label();
             comboBoxTowar = new System.Windows.Forms.ComboBox();
             label7 = new System.Windows.Forms.Label();
@@ -56,18 +56,21 @@
             dataGridViewPiatekSuma = new System.Windows.Forms.DataGridView();
             buttonOdswiez = new System.Windows.Forms.Button();
             pictureBox1 = new System.Windows.Forms.PictureBox();
+            dataGridSumaPartie = new System.Windows.Forms.DataGridView();
+            label8 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWtorek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewSroda).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartek).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPodglad).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewSzczegoly).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialekSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWtorekSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
             SuspendLayout();
             // 
             // dataGridViewPoniedzialek
@@ -168,7 +171,7 @@
             // weekNumberTextBox
             // 
             weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            weekNumberTextBox.Location = new System.Drawing.Point(295, 105);
+            weekNumberTextBox.Location = new System.Drawing.Point(118, 197);
             weekNumberTextBox.Multiline = true;
             weekNumberTextBox.Name = "weekNumberTextBox";
             weekNumberTextBox.Size = new System.Drawing.Size(50, 38);
@@ -178,7 +181,7 @@
             // label21
             // 
             label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(295, 85);
+            label21.Location = new System.Drawing.Point(118, 177);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(50, 20);
             label21.TabIndex = 141;
@@ -188,7 +191,7 @@
             // button5
             // 
             button5.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button5.Location = new System.Drawing.Point(320, 142);
+            button5.Location = new System.Drawing.Point(143, 234);
             button5.Name = "button5";
             button5.Size = new System.Drawing.Size(36, 31);
             button5.TabIndex = 143;
@@ -199,7 +202,7 @@
             // button1
             // 
             button1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button1.Location = new System.Drawing.Point(283, 142);
+            button1.Location = new System.Drawing.Point(106, 234);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(38, 31);
             button1.TabIndex = 142;
@@ -216,14 +219,14 @@
             myCalendar.TabIndex = 139;
             myCalendar.DateChanged += myCalendar_DateChanged;
             // 
-            // dataGridViewPodglad
+            // dataGridViewSzczegoly
             // 
-            dataGridViewPodglad.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPodglad.Location = new System.Drawing.Point(1319, 42);
-            dataGridViewPodglad.Name = "dataGridViewPodglad";
-            dataGridViewPodglad.RowTemplate.Height = 25;
-            dataGridViewPodglad.Size = new System.Drawing.Size(389, 223);
-            dataGridViewPodglad.TabIndex = 144;
+            dataGridViewSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewSzczegoly.Location = new System.Drawing.Point(1319, 42);
+            dataGridViewSzczegoly.Name = "dataGridViewSzczegoly";
+            dataGridViewSzczegoly.RowTemplate.Height = 25;
+            dataGridViewSzczegoly.Size = new System.Drawing.Size(389, 223);
+            dataGridViewSzczegoly.TabIndex = 144;
             // 
             // label6
             // 
@@ -242,7 +245,7 @@
             comboBoxTowar.FormattingEnabled = true;
             comboBoxTowar.IntegralHeight = false;
             comboBoxTowar.ItemHeight = 15;
-            comboBoxTowar.Location = new System.Drawing.Point(29, 203);
+            comboBoxTowar.Location = new System.Drawing.Point(762, 177);
             comboBoxTowar.Name = "comboBoxTowar";
             comboBoxTowar.Size = new System.Drawing.Size(176, 23);
             comboBoxTowar.TabIndex = 146;
@@ -251,7 +254,7 @@
             // label7
             // 
             label7.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(29, 175);
+            label7.Location = new System.Drawing.Point(762, 149);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(176, 25);
             label7.TabIndex = 147;
@@ -327,7 +330,7 @@
             // buttonOdswiez
             // 
             buttonOdswiez.BackColor = System.Drawing.Color.WhiteSmoke;
-            buttonOdswiez.Location = new System.Drawing.Point(211, 194);
+            buttonOdswiez.Location = new System.Drawing.Point(815, 206);
             buttonOdswiez.Name = "buttonOdswiez";
             buttonOdswiez.Size = new System.Drawing.Size(78, 39);
             buttonOdswiez.TabIndex = 155;
@@ -339,18 +342,39 @@
             // 
             pictureBox1.BackgroundImage = Properties.Resources.pm;
             pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            pictureBox1.Location = new System.Drawing.Point(539, 12);
+            pictureBox1.Location = new System.Drawing.Point(530, 1);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new System.Drawing.Size(656, 137);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 156;
             pictureBox1.TabStop = false;
             // 
+            // dataGridSumaPartie
+            // 
+            dataGridSumaPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridSumaPartie.Location = new System.Drawing.Point(283, 120);
+            dataGridSumaPartie.Name = "dataGridSumaPartie";
+            dataGridSumaPartie.RowTemplate.Height = 25;
+            dataGridSumaPartie.Size = new System.Drawing.Size(94, 176);
+            dataGridSumaPartie.TabIndex = 157;
+            // 
+            // label8
+            // 
+            label8.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label8.Location = new System.Drawing.Point(283, 92);
+            label8.Name = "label8";
+            label8.Size = new System.Drawing.Size(94, 25);
+            label8.TabIndex = 158;
+            label8.Text = "Tuszka";
+            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // WidokZamowieniaPodsumowanie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(2178, 839);
+            Controls.Add(label8);
+            Controls.Add(dataGridSumaPartie);
             Controls.Add(pictureBox1);
             Controls.Add(buttonOdswiez);
             Controls.Add(dataGridViewPiatekSuma);
@@ -363,7 +387,7 @@
             Controls.Add(label7);
             Controls.Add(comboBoxTowar);
             Controls.Add(label6);
-            Controls.Add(dataGridViewPodglad);
+            Controls.Add(dataGridViewSzczegoly);
             Controls.Add(weekNumberTextBox);
             Controls.Add(label21);
             Controls.Add(button5);
@@ -386,13 +410,14 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewSroda).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartek).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPodglad).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewSzczegoly).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialekSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWtorekSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -414,7 +439,7 @@
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.MonthCalendar myCalendar;
-        private System.Windows.Forms.DataGridView dataGridViewPodglad;
+        private System.Windows.Forms.DataGridView dataGridViewSzczegoly;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.ComboBox comboBoxTowar;
         private System.Windows.Forms.Label label7;
@@ -427,5 +452,7 @@
         private System.Windows.Forms.DataGridView dataGridViewPiatekSuma;
         private System.Windows.Forms.Button buttonOdswiez;
         private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.DataGridView dataGridSumaPartie;
+        private System.Windows.Forms.Label label8;
     }
 }

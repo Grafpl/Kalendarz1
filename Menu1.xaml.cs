@@ -52,10 +52,7 @@ namespace Kalendarz1
                         MENU menuWindow = new MENU();
                         menuWindow.Show();
                         string name = databaseManager.GetNameById(username);
-                        MessageBox.Show("Witaj " + name + ".", "Login Success", MessageBoxButton.OK, MessageBoxImage.Information);
-
-
-
+                     
                         // Close the current Menu1 window
                         this.Hide(); // Ukryj, zamiast zamykać
                     }
