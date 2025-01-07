@@ -19,6 +19,7 @@ namespace Kalendarz1
         static string connectionString1 = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
         private string selectedId { get; set; }
+        private int? modyfikowaneIdZamowienia;
         public WidokZamowienia()
         {
             InitializeComponent();
@@ -27,6 +28,26 @@ namespace Kalendarz1
             PrzygotujDataGridView();
 
         }
+        public WidokZamowienia(int? idZamowienia = null)
+        {
+            InitializeComponent();
+
+            // Konfiguruj kontrolki
+            ConfigureDateTimePicker();
+            RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxOdbiorca, "Odbiorcy Drobiu");
+            PrzygotujDataGridView(); // Upewnij się, że DataGridView ma już kolumny
+
+            if (idZamowienia.HasValue)
+            {
+                modyfikowaneIdZamowienia = idZamowienia;
+                ZaladujDaneZamowienia(modyfikowaneIdZamowienia.Value);
+            }
+            else
+            {
+                modyfikowaneIdZamowienia = null; // Nowe zamówienie
+            }
+        }
+
         public class Towar
         {
             public string Kod { get; set; }
@@ -59,7 +80,7 @@ namespace Kalendarz1
                 string handlowiec = dataService.PobierzHandlowca(selectedId);
                 textBoxHandlowiec.Text = handlowiec;
             }
-            
+
         }
 
         private void ConfigureDateTimePicker()
@@ -76,13 +97,24 @@ namespace Kalendarz1
 
         private void PrzygotujDataGridView()
         {
+            // Dodaj kolumnę z przyciskiem "Usuń"
+            DataGridViewButtonColumn kolumnaUsun = new DataGridViewButtonColumn
+            {
+                Name = "Usun",
+                HeaderText = "Usuń",
+                Text = "Usuń",
+                UseColumnTextForButtonValue = true, // Ustaw tekst w przycisku
+                Width = 75
+            };
+
+            // Dodaj inne kolumny, jak wcześniej
             DataGridViewComboBoxColumn kolumnaTowar = new DataGridViewComboBoxColumn
             {
                 Name = "Towar",
                 HeaderText = "Kod Towaru",
-                DataSource = PobierzListeTowarow(), // Pobiera listę obiektów Towar
-                DisplayMember = "Kod", // Wyświetlany tekst
-                ValueMember = "Id",   // Przechowywana wartość
+                DataSource = PobierzListeTowarow(),
+                DisplayMember = "Kod",
+                ValueMember = "Id",
                 Width = 200
             };
 
@@ -104,7 +136,7 @@ namespace Kalendarz1
             {
                 Name = "Wartosc",
                 HeaderText = "Wartość",
-                ReadOnly = true, // Tylko do odczytu (automatycznie obliczana)
+                ReadOnly = true,
                 Width = 150
             };
 
@@ -112,11 +144,38 @@ namespace Kalendarz1
             dataGridViewZamowienie.Columns.Add(kolumnaIlosc);
             dataGridViewZamowienie.Columns.Add(kolumnaCena);
             dataGridViewZamowienie.Columns.Add(kolumnaWartosc);
+            dataGridViewZamowienie.Columns.Add(kolumnaUsun); // Dodaj kolumnę "Usuń"
 
-            // Obsługa zdarzeń, aby automatycznie aktualizować wartości
+            // Obsługa zdarzeń
             dataGridViewZamowienie.CellValueChanged += DataGridViewZamowienie_CellValueChanged;
             dataGridViewZamowienie.RowsAdded += DataGridViewZamowienie_RowsAdded;
+            dataGridViewZamowienie.CellClick += DataGridViewZamowienie_CellClick; // Dodaj obsługę kliknięcia
         }
+
+        private void DataGridViewZamowienie_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                // Sprawdź, czy kliknięto w kolumnę "Usuń"
+                if (dataGridViewZamowienie.Columns[e.ColumnIndex].Name == "Usun")
+                {
+                    // Potwierdź usunięcie
+                    var confirmResult = MessageBox.Show("Czy na pewno chcesz usunąć ten wiersz?",
+                                                        "Potwierdzenie usunięcia",
+                                                        MessageBoxButtons.YesNo);
+                    if (confirmResult == DialogResult.Yes)
+                    {
+                        // Usuń wiersz
+                        dataGridViewZamowienie.Rows.RemoveAt(e.RowIndex);
+
+                        // Zaktualizuj sumę wartości
+                        AktualizujSumeWartosci();
+                    }
+                }
+            }
+        }
+
+
         private void DataGridViewZamowienie_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
@@ -191,16 +250,67 @@ namespace Kalendarz1
         }
 
 
+        private void ZaladujDaneZamowienia(int idZamowienia)
+        {
+            if (dataGridViewZamowienie.Columns.Count == 0)
+            {
+                PrzygotujDataGridView(); // Upewnij się, że kolumny są zdefiniowane
+            }
+
+            using (SqlConnection connection = new SqlConnection(connectionString1))
+            {
+                connection.Open();
+
+                // Pobierz dane zamówienia
+                string queryZamowienie = @"
+            SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu
+            FROM [LibraNet].[dbo].[ZamowieniaMieso]
+            WHERE Id = @Id";
+                SqlCommand commandZamowienie = new SqlCommand(queryZamowienie, connection);
+                commandZamowienie.Parameters.AddWithValue("@Id", idZamowienia);
+
+                SqlDataReader readerZamowienie = commandZamowienie.ExecuteReader();
+
+                if (readerZamowienie.Read())
+                {
+                    dateTimePickerSprzedaz.Value = Convert.ToDateTime(readerZamowienie["DataZamowienia"]);
+                    selectedId = readerZamowienie["KlientId"].ToString();
+                    textBoxUwagi.Text = readerZamowienie["Uwagi"].ToString();
+                    dateTimePickerGodzinaPrzyjazdu.Value = Convert.ToDateTime(readerZamowienie["DataPrzyjazdu"]);
+                }
+                readerZamowienie.Close();
+
+                // Pobierz szczegóły zamówienia (towary)
+                string queryTowary = @"
+            SELECT KodTowaru, Ilosc, Cena
+            FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar]
+            WHERE ZamowienieId = @ZamowienieId";
+                SqlCommand commandTowary = new SqlCommand(queryTowary, connection);
+                commandTowary.Parameters.AddWithValue("@ZamowienieId", idZamowienia);
+
+                SqlDataReader readerTowary = commandTowary.ExecuteReader();
+
+                dataGridViewZamowienie.Rows.Clear();
+
+                while (readerTowary.Read())
+                {
+                    int rowIndex = dataGridViewZamowienie.Rows.Add();
+                    DataGridViewRow row = dataGridViewZamowienie.Rows[rowIndex];
+                    row.Cells["Towar"].Value = readerTowary["KodTowaru"];
+                    row.Cells["Ilosc"].Value = readerTowary["Ilosc"];
+                    row.Cells["Cena"].Value = readerTowary["Cena"];
+                }
+                readerTowary.Close();
+
+                // Pobierz dane odbiorcy
+                var daneOdbiorcy = dataService.PobierzDaneOdbiorcy(selectedId);
+                PrzypiszDaneDoUI(daneOdbiorcy);
+            }
+        }
 
 
         private void ZapiszZamowienie()
         {
-            if (selectedId == null)
-            {
-                MessageBox.Show("Proszę wybrać klienta przed zapisaniem zamówienia.");
-                return;
-            }
-
             using (SqlConnection connection = new SqlConnection(connectionString1))
             {
                 connection.Open();
@@ -208,49 +318,68 @@ namespace Kalendarz1
                 {
                     try
                     {
-                        // Pobierz maksymalne Id z tabeli ZamowieniaMieso
-                        string queryMaxIdZamowienie = "SELECT ISNULL(MAX(Id), 0) + 1 FROM [LibraNet].[dbo].[ZamowieniaMieso]";
-                        SqlCommand commandMaxIdZamowienie = new SqlCommand(queryMaxIdZamowienie, connection, transaction);
-                        int newZamowienieId = Convert.ToInt32(commandMaxIdZamowienie.ExecuteScalar());
-                        DateTime dataSprzedazy = dateTimePickerSprzedaz.Value.Date;
-                        DateTime godzinaPrzyjazdu = dateTimePickerSprzedaz.Value.Date;
+                        if (modyfikowaneIdZamowienia.HasValue)
+                        {
+                            // Aktualizacja istniejącego zamówienia
+                            string queryUpdate = @"
+                        UPDATE [LibraNet].[dbo].[ZamowieniaMieso]
+                        SET DataZamowienia = @DataZamowienia,
+                            DataPrzyjazdu = @DataPrzyjazdu,
+                            KlientId = @KlientId,
+                            Uwagi = @Uwagi
+                        WHERE Id = @Id";
+                            SqlCommand commandUpdate = new SqlCommand(queryUpdate, connection, transaction);
+                            commandUpdate.Parameters.AddWithValue("@DataZamowienia", dateTimePickerSprzedaz.Value.Date);
+                            commandUpdate.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value.Date);
+                            commandUpdate.Parameters.AddWithValue("@KlientId", selectedId);
+                            commandUpdate.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text);
+                            commandUpdate.Parameters.AddWithValue("@Id", modyfikowaneIdZamowienia.Value);
+                            commandUpdate.ExecuteNonQuery();
 
+                            // Usuń stare towary
+                            string queryDeleteTowary = @"
+                        DELETE FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar]
+                        WHERE ZamowienieId = @ZamowienieId";
+                            SqlCommand commandDeleteTowary = new SqlCommand(queryDeleteTowary, connection, transaction);
+                            commandDeleteTowary.Parameters.AddWithValue("@ZamowienieId", modyfikowaneIdZamowienia.Value);
+                            commandDeleteTowary.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            // Dodanie nowego zamówienia
+                            string queryMaxId = "SELECT ISNULL(MAX(Id), 0) + 1 FROM [LibraNet].[dbo].[ZamowieniaMieso]";
+                            SqlCommand commandMaxId = new SqlCommand(queryMaxId, connection, transaction);
+                            int newId = Convert.ToInt32(commandMaxId.ExecuteScalar());
 
+                            string queryInsert = @"
+                        INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi)
+                        VALUES (@Id, @DataZamowienia, @KlientId, @Uwagi)";
+                            SqlCommand commandInsert = new SqlCommand(queryInsert, connection, transaction);
+                            commandInsert.Parameters.AddWithValue("@Id", newId);
+                            commandInsert.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value);
+                            commandInsert.Parameters.AddWithValue("@DataZamowienia", dateTimePickerSprzedaz.Value.Date);
+                            commandInsert.Parameters.AddWithValue("@KlientId", selectedId);
+                            commandInsert.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text);
+                            commandInsert.ExecuteNonQuery();
 
-                        // Wstaw nowe zamówienie
-                        string queryZamowienie = @"
-                    INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, IdUser)
-                    VALUES (@Id, @DataZamowienia, @KlientId, @Uwagi, @DataPrzyjazdu, @IdUser)";
-                        SqlCommand commandZamowienie = new SqlCommand(queryZamowienie, connection, transaction);
-                        commandZamowienie.Parameters.AddWithValue("@Id", newZamowienieId);
-                        commandZamowienie.Parameters.AddWithValue("@DataZamowienia", dataSprzedazy);
-                        commandZamowienie.Parameters.AddWithValue("@KlientId", selectedId);
-                        commandZamowienie.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
-                        commandZamowienie.Parameters.AddWithValue("@DataPrzyjazdu", godzinaPrzyjazdu);
-                        commandZamowienie.Parameters.AddWithValue("@IdUser", UserID);
-                        commandZamowienie.ExecuteNonQuery();
+                            modyfikowaneIdZamowienia = newId; // Ustaw nowe ID
+                        }
 
-                        // Wstaw szczegóły zamówienia (bez kolumny Id)
+                        // Dodaj nowe towary
                         foreach (DataGridViewRow row in dataGridViewZamowienie.Rows)
                         {
                             if (row.IsNewRow) continue;
 
-                            if (row.Cells["Towar"].Value == null ||
-                                !decimal.TryParse(row.Cells["Ilosc"].Value?.ToString(), out decimal ilosc) ||
-                                !decimal.TryParse(row.Cells["Cena"].Value?.ToString(), out decimal cena))
-                            {
-                                throw new Exception("Nieprawidłowe dane w wierszu zamówienia.");
-                            }
-
-                            string queryTowar = @"
+                            string queryInsertTowar = @"
                         INSERT INTO [LibraNet].[dbo].[ZamowieniaMiesoTowar] (ZamowienieId, KodTowaru, Ilosc, Cena)
                         VALUES (@ZamowienieId, @KodTowaru, @Ilosc, @Cena)";
-                            SqlCommand commandTowar = new SqlCommand(queryTowar, connection, transaction);
-                            commandTowar.Parameters.AddWithValue("@ZamowienieId", newZamowienieId);
-                            commandTowar.Parameters.AddWithValue("@KodTowaru", row.Cells["Towar"].Value); // Przechowuje Id towaru
-                            commandTowar.Parameters.AddWithValue("@Ilosc", ilosc);
-                            commandTowar.Parameters.AddWithValue("@Cena", cena);
-                            commandTowar.ExecuteNonQuery();
+                            SqlCommand commandInsertTowar = new SqlCommand(queryInsertTowar, connection, transaction);
+                            commandInsertTowar.Parameters.AddWithValue("@ZamowienieId", modyfikowaneIdZamowienia.Value);
+
+                            commandInsertTowar.Parameters.AddWithValue("@KodTowaru", row.Cells["Towar"].Value);
+                            commandInsertTowar.Parameters.AddWithValue("@Ilosc", Convert.ToDecimal(row.Cells["Ilosc"].Value));
+                            commandInsertTowar.Parameters.AddWithValue("@Cena", Convert.ToDecimal(row.Cells["Cena"].Value));
+                            commandInsertTowar.ExecuteNonQuery();
                         }
 
                         transaction.Commit();
@@ -259,11 +388,12 @@ namespace Kalendarz1
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        MessageBox.Show($"Wystąpił błąd podczas zapisywania zamówienia: {ex.Message}");
+                        MessageBox.Show($"Wystąpił błąd: {ex.Message}");
                     }
                 }
             }
         }
+
 
 
         private void WidokZamowienia_Load(object sender, EventArgs e)
@@ -294,6 +424,11 @@ namespace Kalendarz1
         private void CommandButton_Update_Click(object sender, EventArgs e)
         {
             ZapiszZamowienie();
+        }
+
+        private void dateTimePickerGodzinaPrzyjazdu_ValueChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

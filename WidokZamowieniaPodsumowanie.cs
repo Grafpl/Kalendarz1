@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Kalendarz1.CenoweMetody;
+using System.Windows.Controls;
 
 namespace Kalendarz1
 {
@@ -32,6 +33,7 @@ namespace Kalendarz1
         private decimal totalIloscZamowiona; // Suma dla wszystkich dni tygodnia
         private Dictionary<string, decimal> dzienneSumaIloscZamowiona = new Dictionary<string, decimal>();
         public string UserID { get; set; }
+        private int? aktualneIdZamowienia; // Zmienna klasy do przechowywania Id Zamówieniavar idZamowieniaValue = null;
 
         public WidokZamowieniaPodsumowanie()
         {
@@ -415,8 +417,14 @@ namespace Kalendarz1
 
                     if (idZamowieniaValue != null && int.TryParse(idZamowieniaValue.ToString(), out int idZamowienia))
                     {
+                        // Zapisz Id Zamówienia w zmiennej klasy
+                        aktualneIdZamowienia = idZamowienia;
+
                         // Wyświetlenie szczegółów zamówienia w innym DataGridView
                         WyswietlSzczegolyZamowienia(idZamowienia, dataGridViewSzczegoly);
+
+                        // Opcjonalnie: Pokaż komunikat, że wartość została zapisana
+                        MessageBox.Show($"Wybrane Id Zamówienia: {aktualneIdZamowienia}");
                     }
                     else
                     {
@@ -491,6 +499,15 @@ namespace Kalendarz1
         private void myCalendar_DateChanged(object sender, DateRangeEventArgs e)
         {
             OdswiezPodsumowanie();
+        }
+
+        private void buttonModyfikuj_Click(object sender, EventArgs e)
+        {
+
+                WidokZamowienia widokZamowienia = new WidokZamowienia(aktualneIdZamowienia);
+                widokZamowienia.UserID = App.UserID;
+                widokZamowienia.ShowDialog(); // Otwórz jako dialog
+
         }
     }
 }

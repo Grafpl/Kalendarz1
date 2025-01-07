@@ -58,6 +58,7 @@
             pictureBox1 = new System.Windows.Forms.PictureBox();
             dataGridSumaPartie = new System.Windows.Forms.DataGridView();
             label8 = new System.Windows.Forms.Label();
+            buttonModyfikuj = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewWtorek).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).BeginInit();
@@ -368,11 +369,23 @@
             label8.Text = "Tuszka";
             label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // buttonModyfikuj
+            // 
+            buttonModyfikuj.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
+            buttonModyfikuj.Location = new System.Drawing.Point(1219, 197);
+            buttonModyfikuj.Name = "buttonModyfikuj";
+            buttonModyfikuj.Size = new System.Drawing.Size(94, 69);
+            buttonModyfikuj.TabIndex = 159;
+            buttonModyfikuj.Text = "Modyfikuj zamówienie";
+            buttonModyfikuj.UseVisualStyleBackColor = false;
+            buttonModyfikuj.Click += buttonModyfikuj_Click;
+            // 
             // WidokZamowieniaPodsumowanie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(2178, 839);
+            Controls.Add(buttonModyfikuj);
             Controls.Add(label8);
             Controls.Add(dataGridSumaPartie);
             Controls.Add(pictureBox1);
@@ -454,5 +467,6 @@
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.DataGridView dataGridSumaPartie;
         private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Button buttonModyfikuj;
     }
 }

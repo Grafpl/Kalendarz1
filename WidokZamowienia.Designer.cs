@@ -173,6 +173,7 @@
             dateTimePickerGodzinaPrzyjazdu.Name = "dateTimePickerGodzinaPrzyjazdu";
             dateTimePickerGodzinaPrzyjazdu.Size = new System.Drawing.Size(86, 23);
             dateTimePickerGodzinaPrzyjazdu.TabIndex = 113;
+            dateTimePickerGodzinaPrzyjazdu.ValueChanged += dateTimePickerGodzinaPrzyjazdu_ValueChanged;
             // 
             // dateTimePickerSprzedaz
             // 
