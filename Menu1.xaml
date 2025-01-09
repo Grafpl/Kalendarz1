@@ -8,10 +8,15 @@
         Title="Menu1" Height="223" Width="299"
         WindowStartupLocation="CenterScreen">
     <Grid>
-        <TextBox x:Name="UsernameTextBox" HorizontalAlignment="Center" Margin="0,122,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="120" KeyDown="UsernameTextBox_KeyDown"/>
+        <!-- Zamieniono TextBox na PasswordBox -->
+        <PasswordBox x:Name="PasswordBox" HorizontalAlignment="Center" Margin="0,122,0,0" VerticalAlignment="Top" Width="120" KeyDown="PasswordBox_KeyDown"/>
+
         <Label Content="Login" HorizontalAlignment="Center" Margin="0,98,0,0" VerticalAlignment="Top"/>
+
         <Button Content="Zaloguj" HorizontalAlignment="Left" Margin="56,156,0,0" VerticalAlignment="Top" Width="74" Click="LoginButton_Click" x:Name="LoginButton"/>
+
         <Button Content="Anuluj" HorizontalAlignment="Left" Margin="175,156,0,0" VerticalAlignment="Top" Width="74" Click="CancelButton_Click"/>
+
         <Image HorizontalAlignment="Center" Height="100" VerticalAlignment="Top" Width="100" Source="/Screenshot_8.jpg"/>
     </Grid>
 </Window>

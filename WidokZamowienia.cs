@@ -343,24 +343,28 @@ namespace Kalendarz1
                         {
                             // Aktualizacja istniejącego zamówienia
                             string queryUpdate = @"
-                        UPDATE [LibraNet].[dbo].[ZamowieniaMieso]
-                        SET DataZamowienia = @DataZamowienia,
-                            DataPrzyjazdu = @DataPrzyjazdu,
-                            KlientId = @KlientId,
-                            Uwagi = @Uwagi
-                        WHERE Id = @Id";
+                    UPDATE [LibraNet].[dbo].[ZamowieniaMieso]
+                    SET DataZamowienia = @DataZamowienia,
+                        DataPrzyjazdu = @DataPrzyjazdu,
+                        KlientId = @KlientId,
+                        Uwagi = @Uwagi,
+                        KtoMod = @KtoModyfikowal,
+                        KiedyMod = @KiedyModyfikowal
+                    WHERE Id = @Id";
                             SqlCommand commandUpdate = new SqlCommand(queryUpdate, connection, transaction);
                             commandUpdate.Parameters.AddWithValue("@DataZamowienia", dateTimePickerSprzedaz.Value.Date);
-                            commandUpdate.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value.Date);
+                            commandUpdate.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value);
+                            commandUpdate.Parameters.AddWithValue("@KtoModyfikowal", UserID);
+                            commandUpdate.Parameters.AddWithValue("@KiedyModyfikowal", dateTimePickerGodzinaPrzyjazdu.Value);
                             commandUpdate.Parameters.AddWithValue("@KlientId", selectedId);
-                            commandUpdate.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text);
+                            commandUpdate.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text ?? (object)DBNull.Value);
                             commandUpdate.Parameters.AddWithValue("@Id", modyfikowaneIdZamowienia.Value);
                             commandUpdate.ExecuteNonQuery();
 
                             // Usuń stare towary
                             string queryDeleteTowary = @"
-                        DELETE FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar]
-                        WHERE ZamowienieId = @ZamowienieId";
+                    DELETE FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar]
+                    WHERE ZamowienieId = @ZamowienieId";
                             SqlCommand commandDeleteTowary = new SqlCommand(queryDeleteTowary, connection, transaction);
                             commandDeleteTowary.Parameters.AddWithValue("@ZamowienieId", modyfikowaneIdZamowienia.Value);
                             commandDeleteTowary.ExecuteNonQuery();
@@ -373,14 +377,15 @@ namespace Kalendarz1
                             int newId = Convert.ToInt32(commandMaxId.ExecuteScalar());
 
                             string queryInsert = @"
-                        INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi)
-                        VALUES (@Id, @DataZamowienia, @KlientId, @Uwagi)";
+                    INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser)
+                    VALUES (@Id, @DataZamowienia, @DataPrzyjazdu, @KlientId, @Uwagi, @KtoStworzyl)";
                             SqlCommand commandInsert = new SqlCommand(queryInsert, connection, transaction);
                             commandInsert.Parameters.AddWithValue("@Id", newId);
-                            commandInsert.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value);
+                            commandInsert.Parameters.AddWithValue("@KtoStworzyl", UserID);
                             commandInsert.Parameters.AddWithValue("@DataZamowienia", dateTimePickerSprzedaz.Value.Date);
+                            commandInsert.Parameters.AddWithValue("@DataPrzyjazdu", dateTimePickerGodzinaPrzyjazdu.Value);
                             commandInsert.Parameters.AddWithValue("@KlientId", selectedId);
-                            commandInsert.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text);
+                            commandInsert.Parameters.AddWithValue("@Uwagi", textBoxUwagi.Text ?? (object)DBNull.Value);
                             commandInsert.ExecuteNonQuery();
 
                             modyfikowaneIdZamowienia = newId; // Ustaw nowe ID
@@ -392,11 +397,10 @@ namespace Kalendarz1
                             if (row.IsNewRow) continue;
 
                             string queryInsertTowar = @"
-                        INSERT INTO [LibraNet].[dbo].[ZamowieniaMiesoTowar] (ZamowienieId, KodTowaru, Ilosc, Cena)
-                        VALUES (@ZamowienieId, @KodTowaru, @Ilosc, @Cena)";
+                    INSERT INTO [LibraNet].[dbo].[ZamowieniaMiesoTowar] (ZamowienieId, KodTowaru, Ilosc, Cena)
+                    VALUES (@ZamowienieId, @KodTowaru, @Ilosc, @Cena)";
                             SqlCommand commandInsertTowar = new SqlCommand(queryInsertTowar, connection, transaction);
                             commandInsertTowar.Parameters.AddWithValue("@ZamowienieId", modyfikowaneIdZamowienia.Value);
-
                             commandInsertTowar.Parameters.AddWithValue("@KodTowaru", row.Cells["Towar"].Value);
                             commandInsertTowar.Parameters.AddWithValue("@Ilosc", Convert.ToDecimal(row.Cells["Ilosc"].Value));
                             commandInsertTowar.Parameters.AddWithValue("@Cena", Convert.ToDecimal(row.Cells["Cena"].Value));
@@ -414,8 +418,6 @@ namespace Kalendarz1
                 }
             }
         }
-
-
 
         private void WidokZamowienia_Load(object sender, EventArgs e)
         {

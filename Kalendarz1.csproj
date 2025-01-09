@@ -39,6 +39,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="MenuZakup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="MenuSprzedaz.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WidokZamowienia.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -65,10 +71,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Update="MenuZakup.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Update="MenuSprzedaz.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Kalendarz\" />
   </ItemGroup>
 
 </Project>

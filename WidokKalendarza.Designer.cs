@@ -247,6 +247,7 @@ namespace Kalendarz1
             textBox9 = new TextBox();
             textBox14 = new TextBox();
             textBox15 = new TextBox();
+            pictureBox14 = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -271,6 +272,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox6).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox13).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox14).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
@@ -2634,11 +2636,23 @@ namespace Kalendarz1
             textBox15.TabIndex = 144;
             textBox15.TextAlign = HorizontalAlignment.Center;
             // 
+            // pictureBox14
+            // 
+            pictureBox14.Image = (System.Drawing.Image)resources.GetObject("pictureBox14.Image");
+            pictureBox14.Location = new System.Drawing.Point(768, 376);
+            pictureBox14.Name = "pictureBox14";
+            pictureBox14.Size = new System.Drawing.Size(67, 38);
+            pictureBox14.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox14.TabIndex = 145;
+            pictureBox14.TabStop = false;
+            pictureBox14.Click += pictureBox14_Click;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1857, 982);
+            Controls.Add(pictureBox14);
             Controls.Add(textBox15);
             Controls.Add(textBox14);
             Controls.Add(textBox9);
@@ -2750,6 +2764,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)pictureBox6).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox9).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox13).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox14).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2970,5 +2985,6 @@ namespace Kalendarz1
         private TextBox textBox9;
         private TextBox textBox14;
         private TextBox textBox15;
+        private PictureBox pictureBox14;
     }
 }

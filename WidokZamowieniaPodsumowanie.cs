@@ -221,8 +221,18 @@ namespace Kalendarz1
                     }
                 }
             };
+
+            // Koloryzowanie wierszy naprzemiennie
+            gridView.AlternatingRowsDefaultCellStyle.BackColor = Color.LightGray; // Kolor dla naprzemiennych wierszy
+            gridView.DefaultCellStyle.BackColor = Color.White; // Kolor dla pozostałych wierszy
+
+            // Ustawienie domyślnego koloru tekstu
+            gridView.DefaultCellStyle.ForeColor = Color.Black;
+
+            // Wyczyść zaznaczenie domyślne
             gridView.ClearSelection();
         }
+
 
         private void ZaladujTowary()
         {
@@ -424,11 +434,11 @@ namespace Kalendarz1
                         WyswietlSzczegolyZamowienia(idZamowienia, dataGridViewSzczegoly);
 
                         // Opcjonalnie: Pokaż komunikat, że wartość została zapisana
-                        MessageBox.Show($"Wybrane Id Zamówienia: {aktualneIdZamowienia}");
+                       
                     }
                     else
                     {
-                        MessageBox.Show("Nieprawidłowy Id Zamówienia.", "Błąd");
+                       
                     }
                 }
                 else
@@ -445,11 +455,15 @@ namespace Kalendarz1
             {
                 string query = @"
         SELECT 
-            zmt.KodTowaru, 
+            tw.Kod AS NazwaTowaru, -- Wyświetlenie nazwy towaru
             zmt.Ilosc, 
             zmt.Cena
         FROM 
             [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
+        JOIN 
+            [RemoteServer].[HANDEL].[HM].[TW] tw -- Dołączenie tabeli towarów z zdalnego serwera
+        ON 
+            zmt.KodTowaru = tw.ID
         WHERE 
             zmt.ZamowienieId = @ZamowienieId";
 

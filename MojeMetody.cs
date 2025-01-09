@@ -9,6 +9,11 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Drawing; // Dodaj tę dyrektywę
 
+using System.Net.Http;
+using System.Threading.Tasks;
+
+using Newtonsoft.Json.Linq;
+
 
 
 namespace Kalendarz1
@@ -602,8 +607,76 @@ namespace Kalendarz1
             return wynik;
         }
 
-    }
+        public async Task CalculateAverageSpeed(TextBox destinationStreetTextBox, TextBox destinationPostalCodeTextBox)
+        {
+            try
+            {
+                // Pobierz dane z TextBoxów
+                string startPoint = "Koziołki 40, 95-061 Dmosin"; // Domyślny punkt startowy
+                string destinationStreet = destinationStreetTextBox.Text; // Ulica z TextBox
+                string destinationPostalCode = destinationPostalCodeTextBox.Text; // Kod pocztowy z TextBox
+                string destination = $"{destinationStreet}, {destinationPostalCode}";
 
+                // Pobierz dane o trasie
+                var routeData = await GetRouteDataAsync(startPoint, destination);
+                if (routeData != null)
+                {
+                    // Oblicz średnią prędkość
+                    double distance = routeData.Item1; // w km
+                    double duration = routeData.Item2; // w godzinach
+                    double averageSpeed = distance / duration;
+
+                    // Wyświetl wynik w MessageBox
+                    MessageBox.Show(
+                        $"Odległość: {distance:F2} km\nCzas: {duration:F2} godz.\nŚrednia prędkość: {averageSpeed:F2} km/h",
+                        "Wynik",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        public async Task<Tuple<double, double>> GetRouteDataAsync(string origin, string destination)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                string url = $"https://maps.googleapis.com/maps/api/directions/json?origin={origin}&destination={destination}&key={"AIzaSyCFXL2NYDnLBpiih1pG27SbsY62ZYsKdgo"}";
+
+                HttpResponseMessage response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    JObject data = JObject.Parse(jsonResponse);
+
+                    // Sprawdź, czy odpowiedź zawiera dane
+                    var route = data["routes"]?[0]?["legs"]?[0];
+                    if (route != null)
+                    {
+                        double distance = (double)route["distance"]["value"] / 1000.0; // w km
+                        double duration = (double)route["duration"]["value"] / 3600.0; // w godzinach
+                        return Tuple.Create(distance, duration);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Brak danych o trasie.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show($"Błąd API: {response.StatusCode}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            return null;
+        }
+
+    }
 
 
     public class ZapytaniaSQL

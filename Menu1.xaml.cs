@@ -1,31 +1,32 @@
 ﻿using System;
 using System.Windows;
 using Microsoft.Data.SqlClient;
-using Kalendarz1;
 using System.Windows.Input;
-
+using System.Windows.Controls;
 
 namespace Kalendarz1
 {
     public partial class Menu1 : Window
     {
         private string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         public Menu1()
         {
             InitializeComponent();
-
         }
-        private void UsernameTextBox_KeyDown(object sender, KeyEventArgs e)
+
+        private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
                 LoginButton_Click(sender, null);
             }
         }
+
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             NazwaZiD databaseManager = new NazwaZiD();
-            string username = UsernameTextBox.Text;
+            string username = PasswordBox.Password; // Pobierz hasło z PasswordBox
 
             // Ensure that the username field is not empty
             if (string.IsNullOrWhiteSpace(username))
@@ -48,13 +49,25 @@ namespace Kalendarz1
                         // Set the user ID
                         App.UserID = username;
 
-                        // Utwórz i wyświetl nowe okno menu
-                        MENU menuWindow = new MENU();
-                        menuWindow.Show();
-                        string name = databaseManager.GetNameById(username);
-                     
-                        // Close the current Menu1 window
-                        this.Hide(); // Ukryj, zamiast zamykać
+                        // Wybór menu na podstawie loginu
+                        if (username == "11111")
+                        {
+                            MENU menuWindow = new MENU();
+                            menuWindow.Show();
+                        }
+                        else if (username == "2121" || username == "1122")
+                        {
+                            MenuZakup menuZakup = new MenuZakup();
+                            menuZakup.Show();
+                        }
+                        else
+                        {
+                            MenuZakup menuZakup = new MenuZakup();
+                            menuZakup.Show();
+                        }
+
+                        // Ukryj obecne okno Menu1
+                        this.Hide();
                     }
                     else
                     {
@@ -63,6 +76,7 @@ namespace Kalendarz1
                 }
             }
         }
+
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             // Close the login window without setting DialogResult

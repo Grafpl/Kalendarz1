@@ -8,6 +8,10 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Primitives;
 using System.Windows.Input;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+
+using Newtonsoft.Json.Linq;
 
 
 namespace Kalendarz1
@@ -25,6 +29,7 @@ namespace Kalendarz1
         private MojeObliczenia obliczenia = new MojeObliczenia();
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private CenoweMetody CenoweMetody = new CenoweMetody();
+        private DataService dataService = new DataService();
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public WidokKalendarza()
         {
@@ -203,7 +208,7 @@ namespace Kalendarz1
                 }
             }
         }
-     
+
 
         private void WidokKalendarza_Load(object sender, EventArgs e)
         {
@@ -2089,7 +2094,11 @@ namespace Kalendarz1
             zapytaniasql.stylGridaPodstawowy(dataGridAvilog);
         }
 
-
+        private async void pictureBox14_Click(object sender, EventArgs e)
+        {
+            var dataService = new DataService(); // Tworzenie instancji klasy
+            await dataService.CalculateAverageSpeed(UlicaH, KodPocztowyH);
+        }
 
 
 
