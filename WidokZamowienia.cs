@@ -24,6 +24,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             ConfigureDateTimePicker();
+            PrzestawienieDaty();
             RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxOdbiorca, "Odbiorcy Drobiu");
             PrzygotujDataGridView();
 
@@ -41,10 +42,13 @@ namespace Kalendarz1
             {
                 modyfikowaneIdZamowienia = idZamowienia;
                 ZaladujDaneZamowienia(modyfikowaneIdZamowienia.Value);
+                CommandButton_Update.BackColor = Color.LightYellow;
+                CommandButton_Update.Text = "Modyfikuj";
             }
             else
             {
                 modyfikowaneIdZamowienia = null; // Nowe zamówienie
+                PrzestawienieDaty();
             }
         }
 
@@ -194,6 +198,23 @@ namespace Kalendarz1
 
                 // Zaktualizuj sumę wartości
                 AktualizujSumeWartosci();
+            }
+        }
+        private void PrzestawienieDaty()
+        {
+            // Pobierz aktualną datę
+            DateTime dzisiaj = DateTime.Now.Date;
+
+            // Sprawdź, czy jest sobota
+            if (dzisiaj.DayOfWeek == DayOfWeek.Friday)
+            {
+                // Ustaw na najbliższy poniedziałek
+                dateTimePickerSprzedaz.Value = dzisiaj.AddDays(2);
+            }
+            else
+            {
+                // Przesuń datę o jeden dzień
+                dateTimePickerSprzedaz.Value = dzisiaj.AddDays(1);
             }
         }
         private void AktualizujSumeWartosci()

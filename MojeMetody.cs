@@ -456,7 +456,7 @@ namespace Kalendarz1
                 FROM [SSCommon].[vKontrahenci] AS [vKh]
                 INNER JOIN [HM].[ContractorCatalog] AS [ContrCata]
                     ON [vKh].[katalog] = CAST([ContrCata].[id] AS VARCHAR(MAX))
-                WHERE [ContrCata].[Name] LIKE '{katalog}' Order by [vKh].[kod] DESC";
+                WHERE [ContrCata].[Name] LIKE '{katalog}' Order by [vKh].[kod] ASC";
 
             using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
             {
@@ -500,35 +500,8 @@ namespace Kalendarz1
                 _ => throw new ArgumentException("Nieznana kolumna.")
             };
         }
-
-        public void PrzypiszDaneOdbiorcySYMF(string id, DaneKontrahenta kolumna, TextBox textBox)
-        {
-            string columnName = PobierzNazweKolumny(kolumna);
-
-            string query = $@"
-            SELECT [{columnName}]
-            FROM [SSCommon].[vKontrahenci]
-            WHERE [id] = @Id";
-
-            using (SqlConnection connection = new SqlConnection(connectionStringSymfonia))
-            {
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@Id", id);
-
-                connection.Open();
-                SqlDataReader reader = command.ExecuteReader();
-
-                if (reader.Read())
-                {
-                    // Pobierz wartość kolumny i przypisz do TextBox
-                    string value = reader[columnName].ToString();
-                    textBox.Text = value;
-                }
-
-                reader.Close();
-            }
-        }
     }
+
 
     public class DataService
     {
