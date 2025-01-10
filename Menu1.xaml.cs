@@ -62,8 +62,8 @@ namespace Kalendarz1
                         }
                         else
                         {
-                            MenuZakup menuZakup = new MenuZakup();
-                            menuZakup.Show();
+                            MenuSprzedaz menuSprzedaz = new MenuSprzedaz();
+                            menuSprzedaz.Show();
                         }
 
                         // Ukryj obecne okno Menu1

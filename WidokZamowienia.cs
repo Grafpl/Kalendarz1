@@ -209,7 +209,7 @@ namespace Kalendarz1
             if (dzisiaj.DayOfWeek == DayOfWeek.Friday)
             {
                 // Ustaw na najbliższy poniedziałek
-                dateTimePickerSprzedaz.Value = dzisiaj.AddDays(2);
+                dateTimePickerSprzedaz.Value = dzisiaj.AddDays(3);
             }
             else
             {

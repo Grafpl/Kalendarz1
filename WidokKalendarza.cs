@@ -2097,7 +2097,7 @@ namespace Kalendarz1
         private async void pictureBox14_Click(object sender, EventArgs e)
         {
             var dataService = new DataService(); // Tworzenie instancji klasy
-            await dataService.CalculateAverageSpeed(UlicaH, KodPocztowyH);
+            await dataService.CalculateAverageSpeed(UlicaH, KodPocztowyH); // Przekazanie TextBoxów
         }
 
 
