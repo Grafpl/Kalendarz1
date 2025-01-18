@@ -83,5 +83,11 @@ namespace Kalendarz1
             WidokPojemniki widokPojemniki = new WidokPojemniki();
             widokPojemniki.Show();
         }
+
+        private void buttonPojemnikiZestawienie_Click(object sender, EventArgs e)
+        {
+            WidokPojemnikiZestawienie widokPojemnikiZestawienie = new WidokPojemnikiZestawienie();
+            widokPojemnikiZestawienie.Show();
+        }
     }
 }

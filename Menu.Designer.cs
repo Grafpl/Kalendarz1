@@ -43,7 +43,7 @@
             button3 = new System.Windows.Forms.Button();
             button4 = new System.Windows.Forms.Button();
             UzgodnienieSaldButton = new System.Windows.Forms.Button();
-            button5 = new System.Windows.Forms.Button();
+            buttonPojemnikiZestawienie = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -219,16 +219,17 @@
             UzgodnienieSaldButton.UseVisualStyleBackColor = true;
             UzgodnienieSaldButton.Click += UzgodnienieSaldButton_Click;
             // 
-            // button5
+            // buttonPojemnikiZestawienie
             // 
-            button5.BackgroundImage = (System.Drawing.Image)resources.GetObject("button5.BackgroundImage");
-            button5.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            button5.Location = new System.Drawing.Point(12, 742);
-            button5.Name = "button5";
-            button5.Size = new System.Drawing.Size(262, 193);
-            button5.TabIndex = 14;
-            button5.UseVisualStyleBackColor = true;
+            buttonPojemnikiZestawienie.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonPojemnikiZestawienie.BackgroundImage");
+            buttonPojemnikiZestawienie.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            buttonPojemnikiZestawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonPojemnikiZestawienie.Location = new System.Drawing.Point(12, 742);
+            buttonPojemnikiZestawienie.Name = "buttonPojemnikiZestawienie";
+            buttonPojemnikiZestawienie.Size = new System.Drawing.Size(262, 193);
+            buttonPojemnikiZestawienie.TabIndex = 14;
+            buttonPojemnikiZestawienie.UseVisualStyleBackColor = true;
+            buttonPojemnikiZestawienie.Click += buttonPojemnikiZestawienie_Click;
             // 
             // MENU
             // 
@@ -236,7 +237,7 @@
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1094, 989);
-            Controls.Add(button5);
+            Controls.Add(buttonPojemnikiZestawienie);
             Controls.Add(UzgodnienieSaldButton);
             Controls.Add(button4);
             Controls.Add(button3);
@@ -275,6 +276,6 @@
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.Button UzgodnienieSaldButton;
-        private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.Button buttonPojemnikiZestawienie;
     }
 }
