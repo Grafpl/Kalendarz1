@@ -77,5 +77,11 @@ namespace Kalendarz1
             widokZamowieniaPodsumowanie.UserID = App.UserID;
             widokZamowieniaPodsumowanie.Show();
         }
+
+        private void UzgodnienieSaldButton_Click(object sender, EventArgs e)
+        {
+            WidokPojemniki widokPojemniki = new WidokPojemniki();
+            widokPojemniki.Show();
+        }
     }
 }
