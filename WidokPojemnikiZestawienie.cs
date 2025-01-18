@@ -74,7 +74,7 @@ namespace Kalendarz1
                 INNER JOIN 
                     [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
                 WHERE 
-                    MZ.[data] >= '2025-01-01' 
+                    MZ.[data] >= '2020-01-01' 
                     AND MZ.[data] <= @DataDo 
                     AND MG.[anulowany] = 0
                     AND TW.[nazwa] = '{towar}'
@@ -94,7 +94,7 @@ namespace Kalendarz1
                 LEFT JOIN  
                     [HANDEL].[SSCommon].[ContractorClassification] AS WYM ON C.Id = WYM.ElementId
                 WHERE 
-                    MZ.[data] >= '2025-01-01' 
+                    MZ.[data] >= '2020-01-01' 
                     AND MZ.[data] <= @DataDo 
                     AND MG.[anulowany] = 0
                     AND TW.[nazwa] = '{towar}'

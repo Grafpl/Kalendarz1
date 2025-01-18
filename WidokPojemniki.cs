@@ -151,11 +151,24 @@ namespace Kalendarz1
                 return;
             }
 
-            // Ścieżka do pliku w folderze tymczasowym
-            string filePath = Path.Combine(Path.GetTempPath(), "ZestawieniePojemników.pdf");
+            // Ścieżka do pliku w folderze C:\Nowy folder
+            string directoryPath = @"C:\Nowy folder";
+            string filePath = Path.Combine(directoryPath, "ZestawieniePojemników.pdf");
 
             try
             {
+                // Sprawdź, czy folder istnieje, jeśli nie - utwórz
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                // Sprawdź, czy plik już istnieje i usuń go
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+
                 using (PdfWriter writer = new PdfWriter(filePath))
                 {
                     PdfDocument pdf = new PdfDocument(writer);
@@ -189,8 +202,15 @@ namespace Kalendarz1
                     document.Close();
                 }
 
-                MessageBox.Show($"PDF został wygenerowany w: {filePath}");
-                SendEmailWithAttachment(filePath);
+                MessageBox.Show($"PDF został wygenerowany i zapisany w lokalizacji: {filePath}");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show("Brak dostępu do folderu C:\\Nowy folder. Uruchom aplikację jako administrator.");
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisu pliku. Upewnij się, że plik nie jest otwarty.\n{ex.Message}");
             }
             catch (Exception ex)
             {
@@ -198,46 +218,5 @@ namespace Kalendarz1
             }
         }
 
-
-
-        private void SendEmailWithAttachment(string filePath)
-        {
-            try
-            {
-                MailMessage mail = new MailMessage
-                {
-                    From = new MailAddress("your_email@example.com"),
-                    Subject = "Prośba o potwierdzenie salda opakowań",
-                    Body = @"
-Szanowni Państwo,
-
-W załączniku przesyłamy saldo, w którym wyszczególnione zostały dni z wydaniem i przyjęciem poszczególnych asortymentów.
-
-Uprzejmie prosimy o potwierdzenie salda dotyczącego opakowań E2, palet H1 oraz pozostałych pozycji.
-
-W przypadku jakichkolwiek pytań lub wątpliwości pozostajemy do Państwa dyspozycji.
-
-Z poważaniem,
-Ubojnia Drobiu Piórkowscy"
-                };
-
-                mail.To.Add("recipient@example.com");
-                mail.Attachments.Add(new Attachment(filePath));
-
-                SmtpClient client = new SmtpClient("smtp.example.com")
-                {
-                    Port = 587,
-                    Credentials = new NetworkCredential("your_email@example.com", "your_password"),
-                    EnableSsl = true
-                };
-
-                client.Send(mail);
-                MessageBox.Show("E-mail został wysłany.");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas wysyłania e-maila: {ex.Message}");
-            }
-        }
     }
 }
