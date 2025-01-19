@@ -33,7 +33,7 @@ namespace Kalendarz1
                     [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
                 WHERE 
                     MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @DataDo 
+                    AND MZ.[data] <= @dataOd 
                     AND MG.[anulowany] = 0
                     AND TW.[nazwa] = '{towar}'
                 UNION ALL
@@ -53,7 +53,7 @@ namespace Kalendarz1
                     [HANDEL].[SSCommon].[ContractorClassification] AS WYM ON C.Id = WYM.ElementId
                 WHERE 
                     MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @DataDo 
+                    AND MZ.[data] <= @dataOd 
                     AND MG.[anulowany] = 0
                     AND TW.[nazwa] = '{towar}'
                 GROUP BY 
