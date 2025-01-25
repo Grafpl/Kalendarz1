@@ -77,54 +77,54 @@
             // dataGridViewPoniedzialek
             // 
             dataGridViewPoniedzialek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPoniedzialek.Location = new System.Drawing.Point(9, 448);
+            dataGridViewPoniedzialek.Location = new System.Drawing.Point(2, 448);
             dataGridViewPoniedzialek.Name = "dataGridViewPoniedzialek";
             dataGridViewPoniedzialek.RowTemplate.Height = 25;
-            dataGridViewPoniedzialek.Size = new System.Drawing.Size(335, 379);
+            dataGridViewPoniedzialek.Size = new System.Drawing.Size(294, 379);
             dataGridViewPoniedzialek.TabIndex = 130;
             // 
             // dataGridViewWtorek
             // 
             dataGridViewWtorek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewWtorek.Location = new System.Drawing.Point(350, 448);
+            dataGridViewWtorek.Location = new System.Drawing.Point(302, 448);
             dataGridViewWtorek.Name = "dataGridViewWtorek";
             dataGridViewWtorek.RowTemplate.Height = 25;
-            dataGridViewWtorek.Size = new System.Drawing.Size(335, 379);
+            dataGridViewWtorek.Size = new System.Drawing.Size(294, 379);
             dataGridViewWtorek.TabIndex = 131;
             // 
             // dataGridViewPiatek
             // 
             dataGridViewPiatek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPiatek.Location = new System.Drawing.Point(1373, 448);
+            dataGridViewPiatek.Location = new System.Drawing.Point(1202, 448);
             dataGridViewPiatek.Name = "dataGridViewPiatek";
             dataGridViewPiatek.RowTemplate.Height = 25;
-            dataGridViewPiatek.Size = new System.Drawing.Size(335, 379);
+            dataGridViewPiatek.Size = new System.Drawing.Size(294, 379);
             dataGridViewPiatek.TabIndex = 132;
             // 
             // dataGridViewSroda
             // 
             dataGridViewSroda.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSroda.Location = new System.Drawing.Point(691, 448);
+            dataGridViewSroda.Location = new System.Drawing.Point(602, 448);
             dataGridViewSroda.Name = "dataGridViewSroda";
             dataGridViewSroda.RowTemplate.Height = 25;
-            dataGridViewSroda.Size = new System.Drawing.Size(335, 379);
+            dataGridViewSroda.Size = new System.Drawing.Size(294, 379);
             dataGridViewSroda.TabIndex = 132;
             // 
             // dataGridViewCzwartek
             // 
             dataGridViewCzwartek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCzwartek.Location = new System.Drawing.Point(1032, 448);
+            dataGridViewCzwartek.Location = new System.Drawing.Point(902, 448);
             dataGridViewCzwartek.Name = "dataGridViewCzwartek";
             dataGridViewCzwartek.RowTemplate.Height = 25;
-            dataGridViewCzwartek.Size = new System.Drawing.Size(335, 379);
+            dataGridViewCzwartek.Size = new System.Drawing.Size(294, 379);
             dataGridViewCzwartek.TabIndex = 133;
             // 
             // label4
             // 
             label4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label4.Location = new System.Drawing.Point(9, 274);
+            label4.Location = new System.Drawing.Point(2, 274);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(335, 25);
+            label4.Size = new System.Drawing.Size(294, 25);
             label4.TabIndex = 134;
             label4.Text = "Poniedziałek";
             label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -132,9 +132,9 @@
             // label1
             // 
             label1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(350, 274);
+            label1.Location = new System.Drawing.Point(302, 274);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(335, 25);
+            label1.Size = new System.Drawing.Size(294, 25);
             label1.TabIndex = 135;
             label1.Text = "Wtorek";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -142,9 +142,9 @@
             // label2
             // 
             label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(691, 274);
+            label2.Location = new System.Drawing.Point(602, 274);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(335, 25);
+            label2.Size = new System.Drawing.Size(294, 25);
             label2.TabIndex = 136;
             label2.Text = "Środa";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -152,9 +152,9 @@
             // label3
             // 
             label3.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(1032, 274);
+            label3.Location = new System.Drawing.Point(902, 274);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(335, 25);
+            label3.Size = new System.Drawing.Size(294, 25);
             label3.TabIndex = 137;
             label3.Text = "Czwartek";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -162,9 +162,9 @@
             // label5
             // 
             label5.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label5.Location = new System.Drawing.Point(1373, 274);
+            label5.Location = new System.Drawing.Point(1202, 274);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(335, 25);
+            label5.Size = new System.Drawing.Size(294, 25);
             label5.TabIndex = 138;
             label5.Text = "Piątek";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -223,18 +223,18 @@
             // dataGridViewSzczegoly
             // 
             dataGridViewSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSzczegoly.Location = new System.Drawing.Point(1319, 42);
+            dataGridViewSzczegoly.Location = new System.Drawing.Point(1182, 33);
             dataGridViewSzczegoly.Name = "dataGridViewSzczegoly";
             dataGridViewSzczegoly.RowTemplate.Height = 25;
-            dataGridViewSzczegoly.Size = new System.Drawing.Size(389, 223);
+            dataGridViewSzczegoly.Size = new System.Drawing.Size(304, 223);
             dataGridViewSzczegoly.TabIndex = 144;
             // 
             // label6
             // 
             label6.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(1319, 14);
+            label6.Location = new System.Drawing.Point(1182, 3);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(389, 25);
+            label6.Size = new System.Drawing.Size(304, 25);
             label6.TabIndex = 145;
             label6.Text = "Podgląd innych zamówień od odbiorcy";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -246,7 +246,7 @@
             comboBoxTowar.FormattingEnabled = true;
             comboBoxTowar.IntegralHeight = false;
             comboBoxTowar.ItemHeight = 15;
-            comboBoxTowar.Location = new System.Drawing.Point(762, 177);
+            comboBoxTowar.Location = new System.Drawing.Point(448, 148);
             comboBoxTowar.Name = "comboBoxTowar";
             comboBoxTowar.Size = new System.Drawing.Size(176, 23);
             comboBoxTowar.TabIndex = 146;
@@ -255,7 +255,7 @@
             // label7
             // 
             label7.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(762, 149);
+            label7.Location = new System.Drawing.Point(448, 120);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(176, 25);
             label7.TabIndex = 147;
@@ -286,52 +286,52 @@
             // dataGridViewPoniedzialekSuma
             // 
             dataGridViewPoniedzialekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPoniedzialekSuma.Location = new System.Drawing.Point(9, 302);
+            dataGridViewPoniedzialekSuma.Location = new System.Drawing.Point(2, 302);
             dataGridViewPoniedzialekSuma.Name = "dataGridViewPoniedzialekSuma";
             dataGridViewPoniedzialekSuma.RowTemplate.Height = 25;
-            dataGridViewPoniedzialekSuma.Size = new System.Drawing.Size(335, 140);
+            dataGridViewPoniedzialekSuma.Size = new System.Drawing.Size(294, 140);
             dataGridViewPoniedzialekSuma.TabIndex = 150;
             // 
             // dataGridViewWtorekSuma
             // 
             dataGridViewWtorekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewWtorekSuma.Location = new System.Drawing.Point(350, 302);
+            dataGridViewWtorekSuma.Location = new System.Drawing.Point(302, 302);
             dataGridViewWtorekSuma.Name = "dataGridViewWtorekSuma";
             dataGridViewWtorekSuma.RowTemplate.Height = 25;
-            dataGridViewWtorekSuma.Size = new System.Drawing.Size(335, 140);
+            dataGridViewWtorekSuma.Size = new System.Drawing.Size(294, 140);
             dataGridViewWtorekSuma.TabIndex = 151;
             // 
             // dataGridViewSrodaSuma
             // 
             dataGridViewSrodaSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSrodaSuma.Location = new System.Drawing.Point(691, 302);
+            dataGridViewSrodaSuma.Location = new System.Drawing.Point(602, 302);
             dataGridViewSrodaSuma.Name = "dataGridViewSrodaSuma";
             dataGridViewSrodaSuma.RowTemplate.Height = 25;
-            dataGridViewSrodaSuma.Size = new System.Drawing.Size(335, 140);
+            dataGridViewSrodaSuma.Size = new System.Drawing.Size(294, 140);
             dataGridViewSrodaSuma.TabIndex = 152;
             // 
             // dataGridViewCzwartekSuma
             // 
             dataGridViewCzwartekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCzwartekSuma.Location = new System.Drawing.Point(1032, 302);
+            dataGridViewCzwartekSuma.Location = new System.Drawing.Point(902, 302);
             dataGridViewCzwartekSuma.Name = "dataGridViewCzwartekSuma";
             dataGridViewCzwartekSuma.RowTemplate.Height = 25;
-            dataGridViewCzwartekSuma.Size = new System.Drawing.Size(335, 140);
+            dataGridViewCzwartekSuma.Size = new System.Drawing.Size(294, 140);
             dataGridViewCzwartekSuma.TabIndex = 153;
             // 
             // dataGridViewPiatekSuma
             // 
             dataGridViewPiatekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPiatekSuma.Location = new System.Drawing.Point(1373, 302);
+            dataGridViewPiatekSuma.Location = new System.Drawing.Point(1202, 302);
             dataGridViewPiatekSuma.Name = "dataGridViewPiatekSuma";
             dataGridViewPiatekSuma.RowTemplate.Height = 25;
-            dataGridViewPiatekSuma.Size = new System.Drawing.Size(335, 140);
+            dataGridViewPiatekSuma.Size = new System.Drawing.Size(294, 140);
             dataGridViewPiatekSuma.TabIndex = 154;
             // 
             // buttonOdswiez
             // 
             buttonOdswiez.BackColor = System.Drawing.Color.WhiteSmoke;
-            buttonOdswiez.Location = new System.Drawing.Point(815, 206);
+            buttonOdswiez.Location = new System.Drawing.Point(501, 177);
             buttonOdswiez.Name = "buttonOdswiez";
             buttonOdswiez.Size = new System.Drawing.Size(78, 39);
             buttonOdswiez.TabIndex = 155;
@@ -343,9 +343,9 @@
             // 
             pictureBox1.BackgroundImage = Properties.Resources.pm;
             pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            pictureBox1.Location = new System.Drawing.Point(530, 1);
+            pictureBox1.Location = new System.Drawing.Point(446, 1);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(656, 137);
+            pictureBox1.Size = new System.Drawing.Size(363, 80);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 156;
             pictureBox1.TabStop = false;
@@ -353,7 +353,7 @@
             // dataGridSumaPartie
             // 
             dataGridSumaPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridSumaPartie.Location = new System.Drawing.Point(283, 120);
+            dataGridSumaPartie.Location = new System.Drawing.Point(283, 106);
             dataGridSumaPartie.Name = "dataGridSumaPartie";
             dataGridSumaPartie.RowTemplate.Height = 25;
             dataGridSumaPartie.Size = new System.Drawing.Size(94, 176);
@@ -362,7 +362,7 @@
             // label8
             // 
             label8.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(283, 92);
+            label8.Location = new System.Drawing.Point(283, 78);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(94, 25);
             label8.TabIndex = 158;
@@ -372,7 +372,7 @@
             // buttonModyfikuj
             // 
             buttonModyfikuj.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
-            buttonModyfikuj.Location = new System.Drawing.Point(1219, 197);
+            buttonModyfikuj.Location = new System.Drawing.Point(1082, 181);
             buttonModyfikuj.Name = "buttonModyfikuj";
             buttonModyfikuj.Size = new System.Drawing.Size(94, 69);
             buttonModyfikuj.TabIndex = 159;
@@ -384,7 +384,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(2178, 839);
+            ClientSize = new System.Drawing.Size(1498, 839);
             Controls.Add(buttonModyfikuj);
             Controls.Add(label8);
             Controls.Add(dataGridSumaPartie);

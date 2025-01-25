@@ -133,6 +133,56 @@ namespace Kalendarz1.Properties {
         /// <summary>
         ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap PaletaDrewniana {
+            get {
+                object obj = ResourceManager.GetObject("PaletaDrewniana", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap PaletaEuro {
+            get {
+                object obj = ResourceManager.GetObject("PaletaEuro", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap PaletaEuro1 {
+            get {
+                object obj = ResourceManager.GetObject("PaletaEuro1", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap PaletaH1 {
+            get {
+                object obj = ResourceManager.GetObject("PaletaH1", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap PaletaPlast {
+            get {
+                object obj = ResourceManager.GetObject("PaletaPlast", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap pieni {
             get {
                 object obj = ResourceManager.GetObject("pieni", resourceCulture);
@@ -156,6 +206,16 @@ namespace Kalendarz1.Properties {
         internal static System.Drawing.Bitmap pm {
             get {
                 object obj = ResourceManager.GetObject("pm", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Wyszukuje zlokalizowany zasób typu System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap PojemnikE2 {
+            get {
+                object obj = ResourceManager.GetObject("PojemnikE2", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

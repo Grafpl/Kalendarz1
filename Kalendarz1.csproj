@@ -18,7 +18,7 @@
     <EmbeddedResource Include="Resources\Screenshot_4.ico" />
   </ItemGroup>
 
-  <ItemGroup>    <PackageReference Include="GMap.NET.WindowsForms" Version="1.7.5" />    <PackageReference Include="itext7" Version="8.0.4" />
+  <ItemGroup>    <PackageReference Include="GMap.NET.WindowsForms" Version="1.7.5" />    <PackageReference Include="itext7" Version="9.0.0" />
     <PackageReference Include="itext7.pdfhtml" Version="5.0.4" />
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.5" />

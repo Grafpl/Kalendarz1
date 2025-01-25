@@ -38,104 +38,136 @@
             button2 = new System.Windows.Forms.Button();
             button3 = new System.Windows.Forms.Button();
             button4 = new System.Windows.Forms.Button();
+            label2 = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)dataGridViewZestawienie).BeginInit();
             SuspendLayout();
             // 
             // dataGridViewZestawienie
             // 
             dataGridViewZestawienie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewZestawienie.Location = new System.Drawing.Point(12, 57);
+            dataGridViewZestawienie.Location = new System.Drawing.Point(12, 75);
             dataGridViewZestawienie.Name = "dataGridViewZestawienie";
             dataGridViewZestawienie.RowTemplate.Height = 25;
-            dataGridViewZestawienie.Size = new System.Drawing.Size(1262, 691);
+            dataGridViewZestawienie.Size = new System.Drawing.Size(551, 585);
             dataGridViewZestawienie.TabIndex = 0;
             // 
             // comboBoxKontrahent
             // 
             comboBoxKontrahent.FormattingEnabled = true;
-            comboBoxKontrahent.Location = new System.Drawing.Point(12, 28);
+            comboBoxKontrahent.Location = new System.Drawing.Point(616, 404);
             comboBoxKontrahent.Name = "comboBoxKontrahent";
-            comboBoxKontrahent.Size = new System.Drawing.Size(247, 23);
+            comboBoxKontrahent.Size = new System.Drawing.Size(10, 23);
             comboBoxKontrahent.TabIndex = 1;
             // 
             // dateTimePickerOd
             // 
-            dateTimePickerOd.Location = new System.Drawing.Point(265, 28);
+            dateTimePickerOd.CalendarMonthBackground = System.Drawing.SystemColors.ScrollBar;
+            dateTimePickerOd.CalendarTrailingForeColor = System.Drawing.Color.Gray;
+            dateTimePickerOd.Location = new System.Drawing.Point(11, 46);
             dateTimePickerOd.Name = "dateTimePickerOd";
             dateTimePickerOd.Size = new System.Drawing.Size(273, 23);
             dateTimePickerOd.TabIndex = 2;
+            dateTimePickerOd.Value = new System.DateTime(2024, 12, 31, 0, 0, 0, 0);
             // 
             // dateTimePickerDo
             // 
-            dateTimePickerDo.Location = new System.Drawing.Point(544, 28);
+            dateTimePickerDo.Location = new System.Drawing.Point(290, 46);
             dateTimePickerDo.Name = "dateTimePickerDo";
             dateTimePickerDo.Size = new System.Drawing.Size(273, 23);
             dateTimePickerDo.TabIndex = 3;
             // 
             // btnSearch
             // 
-            btnSearch.Location = new System.Drawing.Point(823, 27);
+            btnSearch.BackColor = System.Drawing.Color.White;
+            btnSearch.Image = Properties.Resources.PojemnikE2;
+            btnSearch.Location = new System.Drawing.Point(569, 75);
             btnSearch.Name = "btnSearch";
-            btnSearch.Size = new System.Drawing.Size(51, 23);
+            btnSearch.Size = new System.Drawing.Size(130, 56);
             btnSearch.TabIndex = 4;
-            btnSearch.Text = "E2";
-            btnSearch.UseVisualStyleBackColor = true;
+            btnSearch.UseVisualStyleBackColor = false;
             btnSearch.Click += btnSearch_Click;
             // 
             // btnGeneratePDF
             // 
-            btnGeneratePDF.Location = new System.Drawing.Point(1160, 27);
+            btnGeneratePDF.Location = new System.Drawing.Point(569, 17);
             btnGeneratePDF.Name = "btnGeneratePDF";
-            btnGeneratePDF.Size = new System.Drawing.Size(143, 23);
+            btnGeneratePDF.Size = new System.Drawing.Size(128, 52);
             btnGeneratePDF.TabIndex = 5;
             btnGeneratePDF.Text = "PDF i Wyślij";
             btnGeneratePDF.UseVisualStyleBackColor = true;
             // 
             // button1
             // 
-            button1.Location = new System.Drawing.Point(880, 27);
+            button1.BackColor = System.Drawing.Color.White;
+            button1.Image = Properties.Resources.PaletaH1;
+            button1.Location = new System.Drawing.Point(569, 133);
             button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(51, 23);
+            button1.Size = new System.Drawing.Size(130, 56);
             button1.TabIndex = 6;
-            button1.Text = "H1";
-            button1.UseVisualStyleBackColor = true;
+            button1.UseVisualStyleBackColor = false;
             button1.Click += button1_Click;
             // 
             // button2
             // 
-            button2.Location = new System.Drawing.Point(937, 27);
+            button2.BackColor = System.Drawing.Color.White;
+            button2.Image = Properties.Resources.PaletaEuro;
+            button2.Location = new System.Drawing.Point(569, 196);
             button2.Name = "button2";
-            button2.Size = new System.Drawing.Size(51, 23);
+            button2.Size = new System.Drawing.Size(130, 56);
             button2.TabIndex = 7;
-            button2.Text = "Euro";
-            button2.UseVisualStyleBackColor = true;
+            button2.UseVisualStyleBackColor = false;
             button2.Click += button2_Click;
             // 
             // button3
             // 
-            button3.Location = new System.Drawing.Point(1056, 27);
+            button3.BackColor = System.Drawing.Color.White;
+            button3.Image = Properties.Resources.PaletaPlast;
+            button3.Location = new System.Drawing.Point(569, 258);
             button3.Name = "button3";
-            button3.Size = new System.Drawing.Size(56, 23);
+            button3.Size = new System.Drawing.Size(130, 56);
             button3.TabIndex = 8;
-            button3.Text = "Plast.";
-            button3.UseVisualStyleBackColor = true;
+            button3.UseVisualStyleBackColor = false;
             button3.Click += button3_Click;
             // 
             // button4
             // 
-            button4.Location = new System.Drawing.Point(994, 28);
+            button4.BackColor = System.Drawing.Color.White;
+            button4.Image = Properties.Resources.PaletaDrewniana;
+            button4.Location = new System.Drawing.Point(569, 320);
             button4.Name = "button4";
-            button4.Size = new System.Drawing.Size(56, 23);
+            button4.Size = new System.Drawing.Size(130, 56);
             button4.TabIndex = 9;
-            button4.Text = "Drewno";
-            button4.UseVisualStyleBackColor = true;
+            button4.UseVisualStyleBackColor = false;
             button4.Click += button4_Click;
+            // 
+            // label2
+            // 
+            label2.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label2.Location = new System.Drawing.Point(11, 9);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(174, 34);
+            label2.TabIndex = 73;
+            label2.Text = "Do pierwszego zakresu";
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label1
+            // 
+            label1.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(290, 9);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(160, 34);
+            label1.TabIndex = 74;
+            label1.Text = "Do drugiego zakresu";
+            label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // WidokPojemnikiZestawienie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1315, 760);
+            ClientSize = new System.Drawing.Size(701, 665);
+            Controls.Add(label1);
+            Controls.Add(label2);
             Controls.Add(button4);
             Controls.Add(button3);
             Controls.Add(button2);
@@ -147,7 +179,7 @@
             Controls.Add(comboBoxKontrahent);
             Controls.Add(dataGridViewZestawienie);
             Name = "WidokPojemnikiZestawienie";
-            Text = "WidokPojemniki";
+            Text = "Zestawienie Opakowań";
             ((System.ComponentModel.ISupportInitialize)dataGridViewZestawienie).EndInit();
             ResumeLayout(false);
         }
@@ -164,5 +196,7 @@
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label1;
     }
 }

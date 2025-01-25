@@ -60,6 +60,11 @@ namespace Kalendarz1
                             MenuZakup menuZakup = new MenuZakup();
                             menuZakup.Show();
                         }
+                        else if (username == "2020")
+                        {
+                            MenuPojemniki menuPojemniki = new MenuPojemniki();
+                            menuPojemniki.Show();
+                        }
                         else
                         {
                             MenuSprzedaz menuSprzedaz = new MenuSprzedaz();

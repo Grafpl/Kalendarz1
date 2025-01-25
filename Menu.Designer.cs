@@ -44,6 +44,8 @@
             button4 = new System.Windows.Forms.Button();
             UzgodnienieSaldButton = new System.Windows.Forms.Button();
             buttonPojemnikiZestawienie = new System.Windows.Forms.Button();
+            button5 = new System.Windows.Forms.Button();
+            button6 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -231,12 +233,36 @@
             buttonPojemnikiZestawienie.UseVisualStyleBackColor = true;
             buttonPojemnikiZestawienie.Click += buttonPojemnikiZestawienie_Click;
             // 
+            // button5
+            // 
+            button5.BackgroundImage = (System.Drawing.Image)resources.GetObject("button5.BackgroundImage");
+            button5.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button5.Location = new System.Drawing.Point(548, 742);
+            button5.Name = "button5";
+            button5.Size = new System.Drawing.Size(262, 193);
+            button5.TabIndex = 15;
+            button5.UseVisualStyleBackColor = true;
+            // 
+            // button6
+            // 
+            button6.BackgroundImage = (System.Drawing.Image)resources.GetObject("button6.BackgroundImage");
+            button6.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button6.Location = new System.Drawing.Point(816, 742);
+            button6.Name = "button6";
+            button6.Size = new System.Drawing.Size(262, 193);
+            button6.TabIndex = 16;
+            button6.UseVisualStyleBackColor = true;
+            // 
             // MENU
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1094, 989);
+            Controls.Add(button6);
+            Controls.Add(button5);
             Controls.Add(buttonPojemnikiZestawienie);
             Controls.Add(UzgodnienieSaldButton);
             Controls.Add(button4);
@@ -277,5 +303,7 @@
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.Button UzgodnienieSaldButton;
         private System.Windows.Forms.Button buttonPojemnikiZestawienie;
+        private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.Button button6;
     }
 }
