@@ -77,5 +77,32 @@ namespace Kalendarz1
             widokZamowieniaPodsumowanie.UserID = App.UserID;
             widokZamowieniaPodsumowanie.Show();
         }
+
+        private void buttonPojemnikiZestawienie_Click(object sender, EventArgs e)
+        {
+            WidokPojemnikiZestawienie widokPojemnikiZestawienie = new WidokPojemnikiZestawienie();
+            widokPojemnikiZestawienie.Show();
+        }
+
+        private void UzgodnienieSaldButton_Click(object sender, EventArgs e)
+        {
+            WidokPojemniki widokPojemniki = new WidokPojemniki();
+            widokPojemniki.Show();
+        }
+
+        private void mrozniaButton_Click_1(object sender, EventArgs e)
+        {
+            Mroznia mroznia = new Mroznia();
+            mroznia.Show();
+        }
+
+        private void krojenieButton_Click_1(object sender, EventArgs e)
+        {
+          
+                PokazKrojenieMrozenie platPokazKrojenieMrozenienosci = new PokazKrojenieMrozenie();
+                platPokazKrojenieMrozenienosci.WindowState = FormWindowState.Maximized;
+                platPokazKrojenieMrozenienosci.Show();
+            
+        }
     }
 }

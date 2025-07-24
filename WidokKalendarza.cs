@@ -1,17 +1,17 @@
-﻿using System;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Primitives;
+using Microsoft.VisualBasic.ApplicationServices;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
 using System.Data;
-using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
 using System.Drawing; // Dodaj tę dyrektywę
 using System.Globalization;
-using System.Collections.Generic;
-using Microsoft.Extensions.Primitives;
-using System.Windows.Input;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-
-using Newtonsoft.Json.Linq;
+using System.Windows.Forms;
+using System.Windows.Input;
 
 
 namespace Kalendarz1
@@ -142,6 +142,12 @@ namespace Kalendarz1
                         {
                             // Przygotowanie DataGridWstawienia
                             dataGridPartie.Rows.Clear();
+                            dataGridViewNotatki.Rows.Clear();
+                            dataGridViewNotatki.RowHeadersVisible = false;
+                            dataGridViewNotatki.ColumnHeadersVisible = false;
+                            dataGridViewNotatki.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                            dataGridViewNotatki.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+                            dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
                             dataGridPartie.Columns.Clear();
                             dataGridPartie.RowHeadersVisible = false;
                             // Dodaj kolumny do DataGridWstawienia
@@ -202,7 +208,7 @@ namespace Kalendarz1
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show("Błąd odczytu danych: " + ex.Message);
+                            //MessageBox.Show("Błąd odczytu danych: " + ex.Message);
                         }
                     }
                 }
@@ -218,6 +224,8 @@ namespace Kalendarz1
             string name = databaseManager.GetNameById(UserID);
             // Przypisanie wartości UserID do TextBoxa userTextbox
             userTextbox.Text = name;
+            //Mozliwosci prawego klikniecia na kalendarz
+            dataGridView1.ContextMenuStrip = contextMenuStrip1;
         }
         private void CheckBoxAnulowane_CheckedChanged(object sender, EventArgs e)
         {
@@ -275,6 +283,10 @@ namespace Kalendarz1
                 //zapytaniasql.UzupełnienieDanychHodowcydoTextBoxow(Dostawca, UlicaH, KodPocztowyH, MiejscH, KmH, tel1, tel2, tel3);
 
             }
+            if (int.TryParse(lpDostawa, out int dostawaId))
+            {
+                WczytajNotatki(dostawaId);
+            }
 
             KolorZielonyCheckbox(potwWaga, srednia);
             KolorZielonyCheckbox(potwSztuki, sztuki);
@@ -283,16 +295,154 @@ namespace Kalendarz1
             obliczenia.ProponowanaIloscNaSkrzynke(sztukNaSzuflade2, srednia, KGwSkrzynce2);
 
         }
+        private void WczytajNotatki(int lpDostawa)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionPermission))
+            {
+                try
+                {
+                    conn.Open();
+                    string query = @"
+                SELECT 
+                    N.DataUtworzenia AS [Data], 
+                    O.Name AS [Kto dodał], 
+                    N.Tresc AS [Treść]
+                FROM [LibraNet].[dbo].[Notatki] N
+                LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
+                WHERE N.IndeksID = @Lp
+                ORDER BY N.DataUtworzenia DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Lp", lpDostawa);
+
+                        SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+
+                        dataGridViewNotatki.DataSource = dt;
+
+                        // 🔒 WYŁĄCZ auto-rozszerzanie kolumn
+                        dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                        dataGridViewNotatki.Columns["Data"].Width = 70;
+                        dataGridViewNotatki.Columns["Data"].DefaultCellStyle.Format = "dd.MM HH:mm";
+                        dataGridViewNotatki.Columns["Kto dodał"].Width = 50;
+                        dataGridViewNotatki.Columns["Kto dodał"].DefaultCellStyle.WrapMode = DataGridViewTriState.False;
+                        dataGridViewNotatki.Columns["Treść"].Width = 270;
+
+                        // Zawijanie tekstu i dynamiczna wysokość wierszy
+                        dataGridViewNotatki.Columns["Treść"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                        dataGridViewNotatki.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+
+                        // (opcjonalnie) Wyłącz możliwość zmiany rozmiaru kolumn przez użytkownika
+                        foreach (DataGridViewColumn col in dataGridViewNotatki.Columns)
+                        {
+                            col.Resizable = DataGridViewTriState.False;
+                        }
+
+
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd podczas wczytywania notatek: " + ex.Message);
+                }
+            }
+        }
+
+        private void WczytajNotatkiDoGrida(DataGridView grid)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionPermission))
+            {
+                conn.Open();
+
+                string query = @"
+        SELECT TOP (20) 
+            N.DataUtworzenia,
+            FORMAT(H.DataOdbioru, 'MM-dd ddd') AS DataOdbioru,
+            H.Dostawca, 
+            N.Tresc, 
+            O.Name AS KtoStworzyl
+        FROM [LibraNet].[dbo].[Notatki] N
+        LEFT JOIN [LibraNet].[dbo].[operators] O ON N.KtoStworzyl = O.ID
+        LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] H ON N.IndeksID = H.LP
+        WHERE N.TypID = 1
+        ORDER BY N.DataUtworzenia DESC;";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    grid.DataSource = dt;
+                }
+
+                // Format daty – tylko wygląd
+                if (grid.Columns.Contains("DataUtworzenia"))
+                {
+                    grid.Columns["DataUtworzenia"].DefaultCellStyle.Format = "MM-dd HH:mm";
+                    grid.Columns["DataUtworzenia"].HeaderText = "Data Utworzenia";
+                }
+
+                // Przytnij autora do 6 znaków
+                foreach (DataGridViewRow row in grid.Rows)
+                {
+                    if (row.Cells["KtoStworzyl"].Value != null)
+                    {
+                        string autor = row.Cells["KtoStworzyl"].Value.ToString();
+                        row.Cells["KtoStworzyl"].Value = autor.Length > 6 ? autor.Substring(0, 5) : autor;
+                    }
+                }
+
+                // Styl ogólny
+                grid.RowHeadersVisible = false;
+                grid.ColumnHeadersVisible = true;
+                grid.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+
+                // 📐 Szerokość proporcjonalna
+                int totalWidth = grid.Width;
+
+                grid.Columns["Tresc"].Width = (int)(totalWidth * 0.36);
+                grid.Columns["Dostawca"].Width = (int)(totalWidth * 0.25);
+                grid.Columns["DataOdbioru"].Width = (int)(totalWidth * 0.13);
+                grid.Columns["DataUtworzenia"].Width = (int)(totalWidth * 0.14);
+                grid.Columns["KtoStworzyl"].Width = (int)(totalWidth * 0.10);
+
+                // Wyłącz zawijanie wszędzie poza Treść
+                foreach (DataGridViewColumn col in grid.Columns)
+                {
+                    col.DefaultCellStyle.WrapMode = col.Name == "Tresc"
+                        ? DataGridViewTriState.True
+                        : DataGridViewTriState.False;
+                }
+                // Wyłącz zawijanie wszędzie poza Treść
+                foreach (DataGridViewColumn col in grid.Columns)
+                {
+                    col.DefaultCellStyle.WrapMode = col.Name == "Dostawca"
+                        ? DataGridViewTriState.True
+                        : DataGridViewTriState.False;
+                }
+            }
+        }
+
+
         private void buttonUpDate_Click(object sender, EventArgs e)
         {
             ZmienDate(lpDostawa, 1); // Zwiększenie daty o jeden dzień
             MyCalendar_DateChanged_1(sender, null);
+            DodajAktywnosc(1);
+
         }
 
         private void buttonDownDate_Click(object sender, EventArgs e)
         {
             ZmienDate(lpDostawa, -1); // Zmniejszenie daty o jeden dzień
             MyCalendar_DateChanged_1(sender, null);
+            DodajAktywnosc(1);
+
         }
         private void ZmienDate(string lpDostawa, int dni)
         {
@@ -348,6 +498,7 @@ namespace Kalendarz1
 
         private void MyCalendar_DateChanged_1(object sender, DateRangeEventArgs e)
         {
+            DodajAktywnosc(7);
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionPermission))
@@ -380,9 +531,18 @@ namespace Kalendarz1
         WK.DataWstawienia,
         D.Distance,
         HD.Ubytek,
-        HD.UWAGI,
+        (
+    SELECT TOP 1 N.Tresc 
+    FROM Notatki N 
+    WHERE N.IndeksID = HD.Lp 
+    ORDER BY N.DataUtworzenia DESC
+) AS UWAGI,
+
         HD.PotwWaga,
         HD.PotwSztuki,
+        WK.isConf,
+        D.TypOsobowosci,
+        D.TypOsobowosci2,
         CASE 
             WHEN HD.bufor = 'Potwierdzony' THEN 1
             WHEN HD.bufor = 'B.Kontr.' THEN 2
@@ -441,6 +601,7 @@ namespace Kalendarz1
                             dataGridView1.Columns.Add("UwagaKolumna", "Uwagi");
                             dataGridView1.Columns.Add("PotwWagaKolumna", "PotwWaga");
                             dataGridView1.Columns.Add("PotwSztuki", "PotwSztuki");
+                            dataGridView1.Columns.Add("Osobowosc", "Osobowosc");
 
                             if (!checkBoxCena.Checked)
                             {
@@ -458,6 +619,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["LP"].Visible = false;
                             dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
                             dataGridView1.Columns["bufor"].Visible = false;
+                            dataGridView1.Columns["procentUbytek"].Visible = false;
 
                             // Ustawienie szerokości kolumn
                             dataGridView1.Columns["LP"].Width = 50;
@@ -472,6 +634,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["CenaKolumna"].Width = 50;
                             dataGridView1.Columns["KmKolumna"].Width = 50;
                             dataGridView1.Columns["procentUbytek"].Width = 43;
+                            dataGridView1.Columns["Osobowosc"].Width = 130;
 
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
@@ -480,6 +643,15 @@ namespace Kalendarz1
                             confirmColumn.Width = 80;
                             dataGridView1.Columns.Add(confirmColumn);
                             dataGridView1.Columns["ConfirmColumn"].Width = 35;
+
+                            DataGridViewCheckBoxColumn isConfColumn = new DataGridViewCheckBoxColumn();
+                            isConfColumn.HeaderText = "✓ Wstaw.";
+                            isConfColumn.Name = "WstawienieConfirmed";
+                            isConfColumn.Width = 80;
+
+
+                            dataGridView1.Columns.Add(isConfColumn);
+                            dataGridView1.Columns["WstawienieConfirmed"].Width = 35;
 
                             foreach (DataGridViewColumn column in dataGridView1.Columns)
                             {
@@ -541,7 +713,6 @@ namespace Kalendarz1
                                     if (currentGroupRow != null)
                                     {
                                         currentGroupRow.Cells["AutaKolumna"].Value = sumaAuta.ToString();
-                                        currentGroupRow.Cells["AutaKolumna"].Value = sumaAuta.ToString();
                                         currentGroupRow.Cells["SztukiDekKolumna"].Value = sumaSztukiDek.ToString("N0") + " szt";
                                         if (sumaAuta != 0)
                                         {
@@ -567,7 +738,6 @@ namespace Kalendarz1
                                     dataGridView1.Rows.Add(currentGroupRow);
 
                                     currentDate = date;
-
                                     sumaAuta = 0;
                                     sumaSztukiDek = 0;
                                     sumaWagaDek = 0;
@@ -578,21 +748,96 @@ namespace Kalendarz1
                                     count = 0;
                                 }
 
-                                DataGridViewRow row = new DataGridViewRow();
-                                row.CreateCells(dataGridView1);
-                                for (int i = 0; i < reader.FieldCount; i++)
+                                // Wiersz danych
+                                DataGridViewRow newRow = new DataGridViewRow();
+                                newRow.CreateCells(dataGridView1);
+
+                                for (int i = 0; i < dataGridView1.Columns.Count; i++)
+
                                 {
-                                    row.Cells[i].Value = reader.GetValue(i);
-                                    if (dataGridView1.Columns[i].Name == "AutaKolumna" && reader["Auta"] != DBNull.Value)
+                                    string columnName = dataGridView1.Columns[i].Name;
+
+                                    if (columnName == "DataOdbioruKolumna")
+                                    {
+                                        newRow.Cells[i].Value = formattedDate;
+                                    }
+                                    else if (columnName == "SztukiDekKolumna")
+                                    {
+                                        if (!Convert.IsDBNull(reader["SztukiDek"]))
+                                            newRow.Cells[i].Value = $"{Convert.ToDouble(reader["SztukiDek"]):#,0} szt";
+                                        else
+                                            newRow.Cells[i].Value = "";
+                                    }
+                                    else if (columnName == "procentUbytek")
+                                    {
+                                        newRow.Cells[i].Value = reader["Ubytek"] + "%";
+                                    }
+                                    else if (columnName == "WagaDek")
+                                    {
+                                        newRow.Cells[i].Value = reader["WagaDek"] + " kg";
+                                    }
+                                    else if (columnName == "RóżnicaDni")
+                                    {
+                                        DateTime dataWstawienia = reader.IsDBNull(reader.GetOrdinal("DataWstawienia")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DataWstawienia"));
+                                        if (dataWstawienia == DateTime.MinValue)
+                                            newRow.Cells[i].Value = "-";
+                                        else
+                                        {
+                                            int roznicaDni = (date - dataWstawienia).Days;
+                                            newRow.Cells[i].Value = roznicaDni + " dni";
+                                        }
+                                    }
+                                    else if (columnName == "TypCenyKolumna")
+                                    {
+                                        newRow.Cells[i].Value = reader["TypCeny"];
+                                    }
+                                    else if (columnName == "CenaKolumna")
+                                    {
+                                        newRow.Cells[i].Value = reader["Cena"] != DBNull.Value ? reader["Cena"] + " zł" : "-";
+                                    }
+                                    else if (columnName == "KmKolumna")
+                                    {
+                                        newRow.Cells[i].Value = reader["Distance"] != DBNull.Value ? reader["Distance"] + " km" : "-";
+                                    }
+                                    else if (columnName == "Osobowosc")
+                                    {
+                                        string osobowosc1 = reader["TypOsobowosci"] != DBNull.Value ? reader["TypOsobowosci"].ToString() : "";
+                                        string osobowosc2 = reader["TypOsobowosci2"] != DBNull.Value ? reader["TypOsobowosci2"].ToString() : "";
+
+                                        if (!string.IsNullOrWhiteSpace(osobowosc1) && !string.IsNullOrWhiteSpace(osobowosc2))
+                                        {
+                                            newRow.Cells[i].Value = $"{osobowosc1} - {osobowosc2}";
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(osobowosc1))
+                                        {
+                                            newRow.Cells[i].Value = osobowosc1;
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(osobowosc2))
+                                        {
+                                            newRow.Cells[i].Value = osobowosc2;
+                                        }
+                                        else
+                                        {
+                                            newRow.Cells[i].Value = "-";
+                                        }
+                                    }
+
+                                    else
+                                    {
+                                        newRow.Cells[i].Value = reader.GetValue(i);
+                                    }
+
+                                    // Suma do obliczeń
+                                    if (columnName == "AutaKolumna" && reader["Auta"] != DBNull.Value)
                                     {
                                         double auta = Convert.ToDouble(reader["Auta"]);
                                         sumaAuta += auta;
                                     }
-                                    else if (dataGridView1.Columns[i].Name == "SztukiDekKolumna" && reader["SztukiDek"] != DBNull.Value)
+                                    else if (columnName == "SztukiDekKolumna" && reader["SztukiDek"] != DBNull.Value)
                                     {
                                         sumaSztukiDek += Convert.ToDouble(reader["SztukiDek"]);
                                     }
-                                    else if (dataGridView1.Columns[i].Name == "WagaDek" && reader["WagaDek"] != DBNull.Value)
+                                    else if (columnName == "WagaDek" && reader["WagaDek"] != DBNull.Value)
                                     {
                                         double wagaDek = Convert.ToDouble(reader["WagaDek"]);
                                         sumaWagaDek += wagaDek;
@@ -603,7 +848,7 @@ namespace Kalendarz1
                                             count += (int)auta;
                                         }
                                     }
-                                    else if (dataGridView1.Columns[i].Name == "CenaKolumna" && reader["Cena"] != DBNull.Value)
+                                    else if (columnName == "CenaKolumna" && reader["Cena"] != DBNull.Value)
                                     {
                                         double cena = Convert.ToDouble(reader["Cena"]);
                                         if (reader["Auta"] != DBNull.Value)
@@ -612,7 +857,7 @@ namespace Kalendarz1
                                             sumaCenaPomnozona += cena * auta;
                                         }
                                     }
-                                    else if (dataGridView1.Columns[i].Name == "KmKolumna" && reader["Distance"] != DBNull.Value)
+                                    else if (columnName == "KmKolumna" && reader["Distance"] != DBNull.Value)
                                     {
                                         double KM = Convert.ToDouble(reader["Distance"]);
                                         if (reader["Auta"] != DBNull.Value)
@@ -621,96 +866,28 @@ namespace Kalendarz1
                                             sumaKMPomnozona += KM * auta;
                                         }
                                     }
-                                    else if (dataGridView1.Columns[i].Name == "RóżnicaDni" && reader["WagaDek"] != DBNull.Value)
+                                    else if (columnName == "RóżnicaDni" && reader["WagaDek"] != DBNull.Value)
                                     {
                                         double typCeny = Convert.ToDouble(reader["WagaDek"]);
-                                        if (typCeny >= 0.5 && typCeny <= 2.4)
+                                        if (typCeny >= 0.5 && typCeny <= 2.4 && reader["Auta"] != DBNull.Value)
                                         {
-                                            if (reader["Auta"] != DBNull.Value)
-                                            {
-                                                double auta = Convert.ToDouble(reader["Auta"]);
-                                                sumaTypCenyKolumnaPomnozona += 1 * auta; // Liczymy liczbę wystąpień i mnożymy przez auta
-                                            }
+                                            double auta = Convert.ToDouble(reader["Auta"]);
+                                            sumaTypCenyKolumnaPomnozona += 1 * auta;
                                         }
                                     }
                                 }
 
-                                if (!isFirstRow)
+                                // Ustawienie checkboxa WstawienieConfirmed
+                                if (dataGridView1.Columns.Contains("WstawienieConfirmed"))
                                 {
-                                    DataGridViewRow newRow = new DataGridViewRow();
-                                    newRow.CreateCells(dataGridView1);
-                                    for (int i = 0; i < reader.FieldCount; i++)
-                                    {
-                                        if (dataGridView1.Columns[i].Name == "DataOdbioruKolumna")
-                                        {
-                                            newRow.Cells[i].Value = "";
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "SztukiDekKolumna")
-                                        {
-                                            if (!Convert.IsDBNull(reader["SztukiDek"]))
-                                            {
-                                                newRow.Cells[i].Value = string.Format("{0:#,0} szt", Convert.ToDouble(reader["SztukiDek"]));
-                                            }
-                                            else
-                                            {
-                                                newRow.Cells[i].Value = "";
-                                            }
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "procentUbytek")
-                                        {
-                                            newRow.Cells[i].Value = reader["Ubytek"] + "%";
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "WagaDek")
-                                        {
-                                            newRow.Cells[i].Value = reader["WagaDek"] + " kg";
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "RóżnicaDni")
-                                        {
-                                            DateTime dataWstawienia = reader.IsDBNull(reader.GetOrdinal("DataWstawienia")) ? DateTime.MinValue : reader.GetDateTime(reader.GetOrdinal("DataWstawienia"));
-                                            DateTime dataOdbioru = reader.GetDateTime(reader.GetOrdinal("DataOdbioru"));
-
-                                            if (dataWstawienia == DateTime.MinValue)
-                                                newRow.Cells[i].Value = "-";
-                                            else
-                                            {
-                                                int roznicaDni = (dataOdbioru - dataWstawienia).Days;
-                                                newRow.Cells[i].Value = roznicaDni + " dni";
-                                            }
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "TypCenyKolumna")
-                                        {
-                                            newRow.Cells[i].Value = reader["TypCeny"];
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "CenaKolumna")
-                                        {
-                                            if (!Convert.IsDBNull(reader["Cena"]))
-                                            {
-                                                newRow.Cells[i].Value = reader["Cena"] + " zł";
-                                            }
-                                            else
-                                            {
-                                                newRow.Cells[i].Value = "-";
-                                            }
-                                        }
-                                        else if (dataGridView1.Columns[i].Name == "KmKolumna")
-                                        {
-                                            if (!Convert.IsDBNull(reader["Distance"]))
-                                            {
-                                                newRow.Cells[i].Value = reader["Distance"] + " km";
-                                            }
-                                            else
-                                            {
-                                                newRow.Cells[i].Value = "-";
-                                            }
-                                        }
-                                        else
-                                        {
-                                            newRow.Cells[i].Value = reader.GetValue(i);
-                                        }
-                                    }
-                                    dataGridView1.Rows.Add(newRow);
+                                    bool confirmed = reader["isConf"] != DBNull.Value && Convert.ToBoolean(reader["isConf"]);
+                                    newRow.Cells[dataGridView1.Columns["WstawienieConfirmed"].Index].Value = confirmed;
                                 }
+
+                                dataGridView1.Rows.Add(newRow);
                             }
+
+
 
                             if (currentGroupRow != null)
                             {
@@ -750,7 +927,10 @@ namespace Kalendarz1
             // Ustawienie wysokości wierszy na minimalną wartość
             // Ustawienie wysokości wierszy na określoną wartość (np. 25 pikseli)
             SetRowHeights(18, dataGridView1);
+            WczytajNotatkiDoGrida(dataGridViewOstatnieNotatki);
         }
+
+
         private void SetRowHeights(int height, DataGridView dataGridView)
         {
             // Ustawienie wysokości wszystkich wierszy na określoną wartość
@@ -775,6 +955,7 @@ namespace Kalendarz1
                 }
             }
         }
+
         // Obsługa zdarzenia zmiany stanu checkboxa
         private void PokazCeny()
         {
@@ -854,7 +1035,65 @@ namespace Kalendarz1
                     dataGridView1.Rows[e.RowIndex].Cells["ConfirmColumn"].Value = isChecked;
                     MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
                 }
+
+
             }
+
+            if (e.RowIndex >= 0 && e.ColumnIndex == dataGridView1.Columns["WstawienieConfirmed"].Index)
+            {
+                DataGridViewCheckBoxCell checkboxCell = (DataGridViewCheckBoxCell)dataGridView1.Rows[e.RowIndex].Cells["WstawienieConfirmed"];
+                bool currentValue = checkboxCell.Value != null && (bool)checkboxCell.Value;
+
+                bool newValue = !currentValue;
+                checkboxCell.Value = newValue;
+
+                // 1. Pobierz LP dostawy (czyli z HarmonogramDostaw)
+                object lpValueObj = dataGridView1.Rows[e.RowIndex].Cells["LP"].Value;
+                if (lpValueObj == null || lpValueObj == DBNull.Value)
+                    return;
+
+                string lpDostawy = lpValueObj.ToString();
+                string lpWstawienia = null;
+
+                using (SqlConnection conn = new SqlConnection(connectionPermission))
+                {
+                    conn.Open();
+
+                    // 2. Najpierw pobierz LpW z tabeli HarmonogramDostaw
+                    string selectLpW = "SELECT LpW FROM HarmonogramDostaw WHERE Lp = @lp";
+                    using (SqlCommand cmdSelect = new SqlCommand(selectLpW, conn))
+                    {
+                        cmdSelect.Parameters.AddWithValue("@lp", lpDostawy);
+                        object result = cmdSelect.ExecuteScalar();
+                        if (result == null || result == DBNull.Value)
+                            return;
+
+                        lpWstawienia = result.ToString();
+                    }
+
+                    // 3. Teraz zaktualizuj WstawieniaKurczakow
+                    string updateQuery = @"
+                        UPDATE WstawieniaKurczakow
+                        SET isConf = @isConf,
+                            KtoConf = @UserID,
+                            DataConf = @DateConf
+                        WHERE Lp = @lpw";
+
+                    using (SqlCommand cmdUpdate = new SqlCommand(updateQuery, conn))
+                    {
+                        cmdUpdate.Parameters.AddWithValue("@isConf", newValue ? 1 : 0);
+                        cmdUpdate.Parameters.AddWithValue("@UserID", UserID); // lub inna wartość użytkownika
+                        cmdUpdate.Parameters.AddWithValue("@DateConf", DateTime.Now);
+                        cmdUpdate.Parameters.AddWithValue("@lpw", lpWstawienia);
+
+                        cmdUpdate.ExecuteNonQuery();
+                    }
+
+                }
+
+                MyCalendar_DateChanged_1(this, null);
+            }
+
         }
         // Metoda aktualizacji statusu bufora w bazie danych
         private void UpdateBufferStatus(string lp, string status)
@@ -1108,11 +1347,20 @@ namespace Kalendarz1
         {
             nazwaZiD.publicPobierzInformacjeZBazyDanych(lp, LpWstawienia, Status, Data, Dostawca, KmH, KmK, liczbaAut, srednia, sztukNaSzuflade, sztuki, TypUmowy, TypCeny, Cena, Uwagi, Dodatek, dataStwo, dataMod, Ubytek, ktoMod, ktoStwo, KtoWaga, KiedyWaga, KtoSztuki, KiedySztuki);
             nazwaZiD.PobierzCheckBoxyWagSztuk(lp, potwWaga, potwSztuki);
+            string hodowca = Dostawca.Text;
+            string hodowcaid = zapytaniasql.ZnajdzIdHodowcyString(hodowca);
+            nazwaZiD.PobierzTypOsobowosci(hodowcaid, comboBoxOsobowosc, comboBoxOsobowosc2);
+            // Nadpisanie pola Uwagi pustym tekstem:
+            Uwagi.Text = "";
+            UstawPoradyDlaOsobowosci();
+
+
         }
         private void Dostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
             nazwaZiD.ZmianaDostawcy(Dostawca, Kurnik, UlicaK, KodPocztowyK, MiejscK, KmK, UlicaH, KodPocztowyH, MiejscH, KmH, Dodatek, Ubytek, tel1, tel2, tel3, info1, info2, info3, Email);
             nazwaZiD.WypelnienieLpWstawienia(Dostawca, LpWstawienia);
+
         }
         private void Kurnik_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -1174,6 +1422,13 @@ namespace Kalendarz1
 
             // Opcjonalnie ustaw domyślną opcję wybraną
             TypCeny.SelectedIndex = 0; // Wybierz pierwszą opcję
+
+            // Dodaj opcje do comboBox2
+            comboBoxOsobowosc.Items.AddRange(new string[] { "Analityk", "Na Cel", "Wpływowy", "Relacyjny" });
+            comboBoxOsobowosc2.Items.AddRange(new string[] { "Analityk", "Na Cel", "Wpływowy", "Relacyjny" });
+
+
+
         }
         private void srednia_TextChanged(object sender, EventArgs e)
         {
@@ -1239,6 +1494,7 @@ namespace Kalendarz1
         private void Cena_TextChanged(object sender, EventArgs e)
         {
             nazwaZiD.ReplaceCommaWithDot(Cena);
+            DodajAktywnosc(8);
         }
 
 
@@ -1345,6 +1601,7 @@ namespace Kalendarz1
         {
             WidokCena widokcena = new WidokCena();
             widokcena.Show();
+            DodajAktywnosc(6);
         }
         private void WidokKalendarza_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -1507,11 +1764,13 @@ namespace Kalendarz1
         private void button1_Click(object sender, EventArgs e)
         {
             ChangeDateByWeeks(1);
+            DodajAktywnosc(7);
         }
 
         private void button5_Click(object sender, EventArgs e)
         {
             ChangeDateByWeeks(-1);
+            DodajAktywnosc(7);
         }
         private void ChangeDateByWeeks(int weeks)
         {
@@ -1824,6 +2083,7 @@ namespace Kalendarz1
                     MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 MyCalendar_DateChanged_1(sender, null);
+                DodajAktywnosc(4);
             }
         }
 
@@ -1929,7 +2189,7 @@ namespace Kalendarz1
                     SztSzuflada, TypUmowy, TypCeny, Cena, Bufor, UWAGI, Dodatek, DataUtw, LpW, Ubytek, ktoStwo) 
                     VALUES 
                     (@Lp, @DataOdbioru, @Dostawca, @KmH, @Kurnik, @KmK, @Auta, @SztukiDek, @WagaDek, 
-                    @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @ktoStwo)";
+                    @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @)";
 
                     SqlCommand insertCmd = new SqlCommand(insertSql, cnn);
                     insertCmd.Parameters.AddWithValue("@Lp", maxLP);
@@ -1963,6 +2223,7 @@ namespace Kalendarz1
             {
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            DodajAktywnosc(3);
             MyCalendar_DateChanged_1(sender, null);
         }
 
@@ -2100,8 +2361,406 @@ namespace Kalendarz1
             await dataService.CalculateAverageSpeed(UlicaH, KodPocztowyH); // Przekazanie TextBoxów
         }
 
+        private void updateInfoBotton_Click(object sender, EventArgs e)
+        {
+
+
+            // Wyciągnięcie tekstu z ComboBoxa/TextBoxa dostawcy
+            string dostawcaNazwa = Dostawca.Text;
+            string idHodowca = zapytaniasql.ZnajdzIdHodowcyString(dostawcaNazwa);
+
+            // Wykonanie aktualizacji danych kontaktowych i adresowych
+            zapytaniasql.UpdateDaneAdresoweDostawcy(idHodowca, UlicaH, KodPocztowyH, MiejscH, KmH);
+            zapytaniasql.UpdateDaneKontaktowe(idHodowca, tel1, tel2, tel3, info1, info2, info3, Email, comboBoxOsobowosc, comboBoxOsobowosc2);
 
 
 
+            MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
+            DodajAktywnosc(5);
+        }
+
+        private void textBox3_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+        private void UstawPoradyDlaOsobowosci()
+        {
+            string o1 = comboBoxOsobowosc.Text.Trim();
+            string o2 = comboBoxOsobowosc2.Text.Trim();
+            string typ = (string.IsNullOrWhiteSpace(o2) ? o1 : $"{o1}-{o2}");
+            string porada = "";
+
+            switch (typ)
+            {
+                case "Na Cel":
+                    porada =
+                        "Styl: Szybki, konkretny, nastawiony na wynik\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Mów konkretnie: ile, za ile, na kiedy\n" +
+                        "- Daj wybór: '4,80 dzisiaj, 4,85 jutro – decyduj'\n" +
+                        "- Nie tłumacz się – liczby mówią same za siebie\n" +
+                        "- Pokazuj zysk: 'tu zarobisz więcej'\n" +
+                        "Osoba: Tereska – zdecydowana i konkretna.";
+                    break;
+
+                case "Wpływowy":
+                    porada =
+                        "Styl: Rozmowny, emocjonalny, otwarty\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Zacznij rozmowę od small talku, nie od ceny\n" +
+                        "- Ustal cel z humorem: 'Jak zwykle coś ugrasz, co?'\n" +
+                        "- Pochwal towar, wspomnij o innych klientach\n" +
+                        "- Cena? Powiedz: 'Tyle daję, bo Ci ufam'\n" +
+                        "Osoba: Tereska – dynamiczna i kontaktowa.";
+                    break;
+
+                case "Relacyjny":
+                    porada =
+                        "Styl: Spokojny, lojalny, niekonfliktowy\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Nie wywieraj presji – on potrzebuje czasu\n" +
+                        "- Mów: 'Zawsze się dogadujemy, nie?' \n" +
+                        "- Uprzedź każdą zmianę – nie lubi niespodzianek\n" +
+                        "- Zapytaj co u niego – to ważniejsze niż cena\n" +
+                        "Osoba: Paulina – spokojna i empatyczna.";
+                    break;
+
+                case "Analityk":
+                    porada =
+                        "Styl: Precyzyjny, logiczny, ostrożny\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Przygotuj tabelę cen, wydajności, historii\n" +
+                        "- Nie gadaj – pokazuj dane\n" +
+                        "- Zostaw mu czas na przemyślenie\n" +
+                        "- Pokaż różnicę: 'przy tej cenie zyskujesz X zł'\n" +
+                        "Osoba: Paulina – cierpliwa i przygotowana.";
+                    break;
+
+                case "Analityk-Na Cel":
+                case "Na Cel-Analityk":
+                    porada =
+                        "Styl: Twardy, konkretny, analityczny\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Pokaż mu tabelę + decyzję: 'Tu masz liczby, decyduj'\n" +
+                        "- Nie lej wody – zero historii, sama esencja\n" +
+                        "- Cena: pokaż mu co zyskuje i czemu tak\n" +
+                        "- Wysyłaj oferty na maila z wyliczeniami\n" +
+                        "Osoba: Tereska – konkretna i szybka.";
+                    break;
+
+                case "Analityk-Relacyjny":
+                case "Relacyjny-Analityk":
+                    porada =
+                        "Styl: Dokładny, lojalny, przewidywalny\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Rozpisz dokładnie każdą opcję\n" +
+                        "- Powiedz mu spokojnie: 'Masz czas, przemyśl'\n" +
+                        "- Nie dzwoń po godzinie – poczekaj dzień\n" +
+                        "- Cena? Podkreśl uczciwość i stałość\n" +
+                        "Osoba: Paulina – cierpliwa i rzeczowa.";
+                    break;
+
+                case "Analityk-Wpływowy":
+                case "Wpływowy-Analityk":
+                    porada =
+                        "Styl: Rozdarty – potrzebuje danych, ale lubi pogadać\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Najpierw relacja – potem prezentacja danych\n" +
+                        "- Ustal cenę żartem, ale pokaż tabelkę\n" +
+                        "- Przygotuj PDF z porównaniem\n" +
+                        "- Powiedz: 'To uczciwa cena – sprawdź sam'\n" +
+                        "Osoba: Paulina – łączy dane i relację.";
+                    break;
+
+                case "Dominujący-Relacyjny":
+                case "Relacyjny-Dominujący":
+                    porada =
+                        "Styl: Rządzi, ale szanuje relacje\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Mów krótko: 'Daję 4,85, jak zawsze, ok?'\n" +
+                        "- Nie spieraj się – pokaż szacunek\n" +
+                        "- Cena? Stała – bo ufa Ci\n" +
+                        "- Doceniaj lojalność: 'Tacy jak Ty to podstawa'\n" +
+                        "Osoba: Paulina – łagodna i opanowana.";
+                    break;
+
+                case "Dominujący-Wpływowy":
+                case "Wpływowy-Dominujący":
+                    porada =
+                        "Styl: Szybki, emocjonalny, chce wygrać\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Bądź odważny, ale trzymaj ramy\n" +
+                        "- Cena? Daj jedno zdanie: 'To moja najlepsza oferta'\n" +
+                        "- Pozwól mu mówić – i wracaj do celu\n" +
+                        "- Zakończ mocno: 'Dogadane. Działamy?'\n" +
+                        "Osoba: Tereska – zdecydowana i przebojowa.";
+                    break;
+
+                case "Relacyjny-Wpływowy":
+                case "Wpływowy-Relacyjny":
+                    porada =
+                        "Styl: Ciepły, ale negocjacyjny między wierszami\n" +
+                        "Jak rozmawiać:\n" +
+                        "- Zacznij rozmowę od relacji, potem płynnie do ceny\n" +
+                        "- Cena? Powiedz: 'Dla Ciebie, jak zawsze – uczciwie'\n" +
+                        "- Nie wchodź w konflikt – żartuj, ale ustal granice\n" +
+                        "- Powiedz: 'Zawsze się dogadamy, jak zwykle'\n" +
+                        "Osoba: Paulina – spokojna i elastyczna.";
+                    break;
+
+                default:
+                    porada = "Brak wybranej lub rozpoznanej kombinacji osobowości.";
+                    break;
+            }
+
+            //textBox3.Text = porada;
+        }
+
+        private void buttonNotatka_Click(object sender, EventArgs e)
+        {
+            int indeksId = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
+            string tresc = Uwagi.Text?.Trim();
+
+            if (indeksId == 0 || string.IsNullOrWhiteSpace(tresc))
+            {
+                MessageBox.Show("Brak numeru LP lub treść notatki jest pusta.");
+                return;
+            }
+
+            using (SqlConnection conn = new SqlConnection(connectionPermission))
+            {
+                try
+                {
+                    conn.Open();
+
+                    string query = @"
+                INSERT INTO [LibraNet].[dbo].[Notatki] (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia)
+                VALUES (@IndeksID, @TypID, @Tresc, @KtoStworzyl, @DataUtworzenia);
+
+                SELECT SCOPE_IDENTITY();";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@IndeksID", indeksId);
+                        cmd.Parameters.AddWithValue("@TypID", 1); // Stała wartość
+                        cmd.Parameters.AddWithValue("@Tresc", tresc);
+                        cmd.Parameters.AddWithValue("@KtoStworzyl", UserID);
+                        cmd.Parameters.AddWithValue("@DataUtworzenia", DateTime.Now);
+
+                        // Pobierz nowy NotatkaID
+                        int newNoteId = Convert.ToInt32(cmd.ExecuteScalar());
+
+                        MessageBox.Show($"Dodano notatkę o treści : {newNoteId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd przy dodawaniu notatki: " + ex.Message);
+                }
+                MyCalendar_DateChanged_1(sender, null);
+                if (int.TryParse(lpDostawa, out int dostawaId))
+                {
+                    WczytajNotatki(dostawaId);
+                }
+            }
+        }
+
+        private void dataGridView1_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hitTest = dataGridView1.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0)
+                {
+                    dataGridView1.ClearSelection();
+                    dataGridView1.Rows[hitTest.RowIndex].Selected = true;
+                    selectedRowIndex = hitTest.RowIndex;
+                }
+                else
+                {
+                    selectedRowIndex = -1;
+                }
+            }
+        }
+
+        private void Dubluj_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionPermission))
+                {
+                    cnn.Open();
+
+                    // Pobranie istniejącego wiersza do zduplikowania
+                    string getRowSql = "SELECT * FROM dbo.HarmonogramDostaw WHERE Lp = @selectedLP;";
+                    SqlCommand getRowCmd = new SqlCommand(getRowSql, cnn);
+                    getRowCmd.Parameters.AddWithValue("@selectedLP", lpDostawa);
+                    DataTable dt = new DataTable();
+                    using (SqlDataAdapter da = new SqlDataAdapter(getRowCmd))
+                    {
+                        da.Fill(dt);
+                    }
+
+                    if (dt.Rows.Count == 0)
+                    {
+                        MessageBox.Show("Nie znaleziono wiersza do duplikacji.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    DataRow row = dt.Rows[0];
+
+                    // Pobranie maksymalnego LP
+                    string getMaxLpSql = "SELECT MAX(Lp) AS MaxLP FROM dbo.HarmonogramDostaw;";
+                    SqlCommand getMaxLpCmd = new SqlCommand(getMaxLpSql, cnn);
+                    int maxLP = Convert.ToInt32(getMaxLpCmd.ExecuteScalar()) + 1;
+
+                    // Utworzenie zapytania SQL do wstawienia danych
+                    string insertSql = @"
+                    INSERT INTO dbo.HarmonogramDostaw 
+                    (Lp, DataOdbioru, Dostawca, KmH, Kurnik, KmK, Auta, SztukiDek, WagaDek, 
+                    SztSzuflada, TypUmowy, TypCeny, Cena, Bufor, UWAGI, Dodatek, DataUtw, LpW, Ubytek, ktoStwo) 
+                    VALUES 
+                    (@Lp, @DataOdbioru, @Dostawca, @KmH, @Kurnik, @KmK, @Auta, @SztukiDek, @WagaDek, 
+                    @SztSzuflada, @TypUmowy, @TypCeny, @Cena, @Bufor, @UWAGI, @Dodatek, @DataUtw, @LpW, @Ubytek, @ktoStwo)";
+
+                    SqlCommand insertCmd = new SqlCommand(insertSql, cnn);
+                    insertCmd.Parameters.AddWithValue("@Lp", maxLP);
+                    insertCmd.Parameters.AddWithValue("@DataOdbioru", row["DataOdbioru"] != DBNull.Value ? row["DataOdbioru"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Dostawca", row["Dostawca"] != DBNull.Value ? row["Dostawca"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@KmH", row["KmH"] != DBNull.Value ? row["KmH"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Kurnik", row["Kurnik"] != DBNull.Value ? row["Kurnik"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@KmK", row["KmK"] != DBNull.Value ? row["KmK"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Auta", row["Auta"] != DBNull.Value ? row["Auta"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@SztukiDek", row["SztukiDek"] != DBNull.Value ? row["SztukiDek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@WagaDek", row["WagaDek"] != DBNull.Value ? row["WagaDek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@SztSzuflada", row["SztSzuflada"] != DBNull.Value ? row["SztSzuflada"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@TypUmowy", row["TypUmowy"] != DBNull.Value ? row["TypUmowy"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@TypCeny", row["TypCeny"] != DBNull.Value ? row["TypCeny"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Cena", row["Cena"] != DBNull.Value ? row["Cena"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Bufor", row["Bufor"] != DBNull.Value ? row["Bufor"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@UWAGI", row["UWAGI"] != DBNull.Value ? row["UWAGI"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Dodatek", row["Dodatek"] != DBNull.Value ? row["Dodatek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@DataUtw", DateTime.Now);
+                    insertCmd.Parameters.AddWithValue("@LpW", row["LpW"] != DBNull.Value ? row["LpW"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@Ubytek", row["Ubytek"] != DBNull.Value ? row["Ubytek"] : (object)DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("@ktoStwo", UserID);
+
+                    insertCmd.ExecuteNonQuery();
+
+                    // Komunikat potwierdzający
+                    MessageBox.Show("Wiersz został zduplikowany w bazie danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            MyCalendar_DateChanged_1(sender, null);
+        }
+
+        private void Anuluj_Click(object sender, EventArgs e)
+        {
+            if (selectedRowIndex >= 0)
+            {
+                // np. zaznacz status w kolumnie jako "anulowany"
+                dataGridView1.Rows[selectedRowIndex].Cells["Status"].Value = "Anulowany";
+            }
+        }
+
+        private void Usuń_Click(object sender, EventArgs e)
+        {
+            if (selectedRowIndex >= 0)
+            {
+                dataGridView1.Rows.RemoveAt(selectedRowIndex);
+            }
+        }
+
+        private void buttonModWstawienie_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (SqlConnection cnn = new SqlConnection(connectionPermission))
+                {
+                    cnn.Open();
+
+                    string strSQL = @"
+                UPDATE dbo.WstawieniaKurczakow
+                SET DataWstawienia = @dataWstawienia,
+                    DataMod = @DataMod,
+                    KtoMod = @KtoMod
+                WHERE Lp = @LpWstawienia;";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, cnn))
+                    {
+                        // Zakładamy, że dataWstawienia.Text to textbox z datą
+                        command.Parameters.AddWithValue("@dataWstawienia", string.IsNullOrEmpty(dataWstawienia.Text)
+                            ? (object)DBNull.Value
+                            : DateTime.Parse(dataWstawienia.Text).Date);
+
+                        // Ustawiamy bieżącą datę i godzinę
+                        command.Parameters.AddWithValue("@DataMod", DateTime.Now);
+
+                        // Ustawiamy identyfikator użytkownika
+                        command.Parameters.AddWithValue("@KtoMod", UserID);
+
+                        // Lp z tabeli WstawieniaKurczakow – przekazywane np. z textboxa lub wybranego wiersza
+                        command.Parameters.AddWithValue("@LpWstawienia", int.Parse(LpWstawienia.Text));
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            MessageBox.Show("Wstawienie zostało zaktualizowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie znaleziono takiego wstawienia.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas aktualizacji: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            MyCalendar_DateChanged_1(sender, null);
+        }
+        private void DodajAktywnosc(int typLicznika)
+        {
+            using (SqlConnection conn = new SqlConnection(connectionPermission))
+            {
+                conn.Open();
+
+                int nextLp;
+                using (SqlCommand getMaxCmd = new SqlCommand("SELECT ISNULL(MAX(Lp), 0) + 1 FROM Aktywnosc", conn))
+                {
+                    nextLp = (int)getMaxCmd.ExecuteScalar();
+                }
+
+                string insertQuery = @"
+            INSERT INTO Aktywnosc (Lp, Licznik, TypLicznika, KtoStworzyl, Data)
+            VALUES (@Lp, @Licznik, @TypLicznika, @KtoStworzyl, @Data)";
+
+                using (SqlCommand cmd = new SqlCommand(insertQuery, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Lp", nextLp);
+                    cmd.Parameters.AddWithValue("@Licznik", 1);
+                    cmd.Parameters.AddWithValue("@TypLicznika", typLicznika);
+                    cmd.Parameters.AddWithValue("@KtoStworzyl", App.UserID); // ⬅️ to działa!
+                    cmd.Parameters.AddWithValue("@Data", DateTime.Now);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+
+        private void Status_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //DodajAktywnosc(2);
+        }
     }
 }
+
+
+     

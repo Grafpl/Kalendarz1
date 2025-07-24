@@ -104,7 +104,7 @@ namespace Kalendarz1
                     string query = @"
                         SELECT 
                             ID, 
-                            CarLp, 
+                            LpDostawy, 
                             CustomerGID, 
                             WagaDek, 
                             SztPoj, 
@@ -129,7 +129,7 @@ namespace Kalendarz1
                     // Jeśli nie ma danych w FarmerCalc – pobierz z HarmonogramDostaw
                     string query = @"
                         SELECT
-                            Lp AS CarLp,
+                            Lp AS LpDostawy,
                             Auta,
                             Dostawca AS CustomerGID,
                             WagaDek,
@@ -159,7 +159,7 @@ namespace Kalendarz1
                 // 3. Tworzymy finalTable z odpowiednimi kolumnami
                 DataTable finalTable = new DataTable();
                 finalTable.Columns.Add("NrAuta", typeof(int));
-                finalTable.Columns.Add("CarLp", typeof(int));
+                finalTable.Columns.Add("LpDostawy", typeof(int));
                 finalTable.Columns.Add("ID", typeof(int));
                 finalTable.Columns.Add("Auta", typeof(int));
                 finalTable.Columns.Add("CustomerGID", typeof(string));
@@ -187,7 +187,7 @@ namespace Kalendarz1
                     {
                         DataRow newRow = finalTable.NewRow();
                         newRow["NrAuta"] = numer++;
-                        newRow["CarLp"] = row.Table.Columns.Contains("CarLp") ? row["CarLp"] : DBNull.Value;
+                        newRow["LpDostawy"] = row.Table.Columns.Contains("LpDostawy") ? row["LpDostawy"] : DBNull.Value;
                         newRow["ID"] = isFarmerCalc && row.Table.Columns.Contains("ID") ? row["ID"] : DBNull.Value;
                         newRow["Auta"] = row.Table.Columns.Contains("Auta") ? row["Auta"] : DBNull.Value;
                         newRow["CustomerGID"] = row["CustomerGID"];
@@ -221,11 +221,10 @@ namespace Kalendarz1
                                 ? row["Przyjazd"].ToString()
                                 : ""
                         );
-                        newRow["NotkaWozek"] = FormatToHHMM(
-                            isFarmerCalc && row.Table.Columns.Contains("NotkaWozek")
+                        newRow["NotkaWozek"] = isFarmerCalc && row.Table.Columns.Contains("NotkaWozek")
                                 ? row["NotkaWozek"].ToString()
-                                : ""
-                        );
+                                : "";
+
 
                         finalTable.Rows.Add(newRow);
                     }
@@ -243,11 +242,11 @@ namespace Kalendarz1
                 colNrAuta.DataPropertyName = "NrAuta";
                 dataGridView1.Columns.Add(colNrAuta);
 
-                var colCarLp = new DataGridViewTextBoxColumn();
-                colCarLp.Name = "CarLp";
-                colCarLp.HeaderText = "Numer";
-                colCarLp.DataPropertyName = "CarLp";
-                dataGridView1.Columns.Add(colCarLp);
+                var colLpDostawy = new DataGridViewTextBoxColumn();
+                colLpDostawy.Name = "LpDostawy";
+                colLpDostawy.HeaderText = "LpDostawy";
+                colLpDostawy.DataPropertyName = "LpDostawy";
+                dataGridView1.Columns.Add(colLpDostawy);
 
                 var colID = new DataGridViewTextBoxColumn();
                 colID.Name = "ID";
@@ -455,6 +454,15 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+                    // Tworzymy polecenie SQL w transakcji
+                    string sql = @"INSERT INTO dbo.FarmerCalc 
+                    (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek, 
+                     CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price, 
+                     Loss, PriceTypeID) 
+                    VALUES 
+                    (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek, 
+                     @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek, 
+                     @Przyjazd, @Cena, @Ubytek, @TypCeny)";
 
                     // Rozpoczęcie transakcji
                     using (SqlTransaction transaction = conn.BeginTransaction())
@@ -465,105 +473,96 @@ namespace Kalendarz1
                             {
                                 if (!row.IsNewRow)
                                 {
-                                    // Tworzymy polecenie SQL w transakcji
-                                    string sql = @"INSERT INTO dbo.FarmerCalc 
-                                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, CarLp, SztPoj, WagaDek, 
-                                         CarID, TrailerID, NotkaWozek, LpDostawy, Wyjazd, Zaladunek, Przyjazd, Price, 
-                                         Loss, PriceTypeID) 
-                                        VALUES 
-                                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @Nr, @SztPoj, @WagaDek, 
-                                         @Ciagnik, @Naczepa, @NotkaWozek, @LpDostawy, @Wyjazd, @Zaladunek, 
-                                         @Przyjazd, @Cena, @Ubytek, @TypCeny)";
-
-                                    // Pobierz dane z wiersza DataGridView
-                                    string Dostawca = row.Cells["CustomerGID"].Value.ToString();
-                                    string Kierowca = row.Cells["DriverGID"].Value.ToString();
-                                    string LpDostawy = row.Cells["LpDostawy"].Value.ToString();
-                                    string Nr = row.Cells["CarLp"].Value.ToString();
-                                    string SztPoj = row.Cells["SztPoj"].Value.ToString();
-                                    string WagaDek = row.Cells["WagaDek"].Value.ToString();
-                                    string Ciagnik = row.Cells["CarID"].Value.ToString();
-                                    string Naczepa = row.Cells["TrailerID"].Value.ToString();
-                                    string NotkaWozek = row.Cells["NotkaWozek"].Value.ToString();
-
-                                    string StringPrzyjazd = row.Cells["Przyjazd"].Value.ToString();
-                                    string StringZaladunek = row.Cells["Zaladunek"].Value.ToString();
-                                    string StringWyjazd = row.Cells["Wyjazd"].Value.ToString();
-
-                                    double Ubytek;
-                                    if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek))
-                                        Ubytek = 0.0;
-                                    double Cena;
-                                    if (!double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena))
-                                        Cena = 0.0;
-                                    string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
-                                    int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
-
-                                    // Znajdź ID kierowcy i dostawcy
-                                    int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
-                                    int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
-
-                                    // Dodaj dwukropek do formy czasu
-                                    StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
-                                    StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
-                                    StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
-
-                                    DateTime data = dateTimePicker1.Value;
-                                    DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
-                                    DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
-                                    DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
-
-                                    // Znajdź największe ID w tabeli FarmerCalc
-                                    long maxLP;
-                                    string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
-                                    using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
+                                    try
                                     {
-                                        object result = command.ExecuteScalar();
-                                        maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                                        string Dostawca = row.Cells["CustomerGID"].Value?.ToString() ?? "";
+                                        string Kierowca = row.Cells["DriverGID"].Value?.ToString() ?? "";
+                                        string LpDostawy = row.Cells["LpDostawy"].Value?.ToString() ?? "";
+                                        string Nr = row.Cells["LpDostawy"].Value?.ToString() ?? "";
+                                        string SztPoj = row.Cells["SztPoj"].Value?.ToString() ?? "";
+                                        string WagaDek = row.Cells["WagaDek"].Value?.ToString() ?? "";
+                                        string Ciagnik = row.Cells["CarID"].Value?.ToString() ?? "";
+                                        string Naczepa = row.Cells["TrailerID"].Value?.ToString() ?? "";
+                                        string NotkaWozek = row.Cells["NotkaWozek"].Value?.ToString() ?? "";
+
+                                        string StringPrzyjazd = row.Cells["Przyjazd"].Value?.ToString() ?? "";
+                                        string StringZaladunek = row.Cells["Zaladunek"].Value?.ToString() ?? "";
+                                        string StringWyjazd = row.Cells["Wyjazd"].Value?.ToString() ?? "";
+
+                                        // Pobieranie danych z bazy na podstawie LpDostawy
+                                        double Ubytek = 0.0;
+                                        if (!string.IsNullOrWhiteSpace(LpDostawy))
+                                        {
+                                            double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek);
+                                        }
+
+                                        double Cena = 0.0;
+                                        if (!string.IsNullOrWhiteSpace(LpDostawy))
+                                        {
+                                            double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena);
+                                        }
+
+                                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
+                                        int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+
+                                        // Znajdź ID kierowcy i hodowcy
+                                        int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
+                                        int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
+
+                                        // Formatowanie godzin
+                                        StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
+                                        StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
+                                        StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
+
+                                        DateTime data = dateTimePicker1.Value;
+                                        DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
+                                        DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
+                                        DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
+
+                                        // Znalezienie nowego ID
+                                        long maxLP;
+                                        string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
+                                        using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
+                                        {
+                                            object result = command.ExecuteScalar();
+                                            maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                                        }
+
+                                        // Wstawienie do bazy
+                                        using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
+                                        {
+                                            cmd.Parameters.AddWithValue("@ID", maxLP);
+                                            cmd.Parameters.AddWithValue("@Dostawca", userId2);
+                                            cmd.Parameters.AddWithValue("@Kierowca", userId);
+                                            cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy) ? DBNull.Value : LpDostawy);
+                                            cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr) ? DBNull.Value : Nr);
+                                            cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? DBNull.Value : decimal.Parse(SztPoj));
+                                            cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? DBNull.Value : decimal.Parse(WagaDek));
+                                            cmd.Parameters.AddWithValue("@Date", data);
+
+                                            cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
+                                            cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
+                                            cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
+
+                                            cmd.Parameters.AddWithValue("@Cena", Cena);
+                                            cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
+                                            cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
+
+                                            cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? DBNull.Value : Ciagnik);
+                                            cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? DBNull.Value : Naczepa);
+                                            cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek) ? DBNull.Value : NotkaWozek);
+
+                                            cmd.ExecuteNonQuery();
+                                        }
                                     }
-
-                                    // Wstaw dane do tabeli FarmerCalc
-                                    using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
+                                    catch (Exception ex)
                                     {
-                                        cmd.Parameters.AddWithValue("@ID", maxLP);
-                                        cmd.Parameters.AddWithValue("@Dostawca", userId2);
-                                        cmd.Parameters.AddWithValue("@Kierowca", userId);
-                                        cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy)
-                                            ? (object)DBNull.Value
-                                            : LpDostawy);
-                                        cmd.Parameters.AddWithValue("@Nr", string.IsNullOrEmpty(Nr)
-                                            ? (object)DBNull.Value
-                                            : Nr);
-                                        cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj)
-                                            ? (object)DBNull.Value
-                                            : decimal.Parse(SztPoj));
-                                        cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek)
-                                            ? (object)DBNull.Value
-                                            : decimal.Parse(WagaDek));
-                                        cmd.Parameters.AddWithValue("@Date", dateTimePicker1.Value.Date);
-
-                                        cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
-                                        cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
-                                        cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
-
-                                        cmd.Parameters.AddWithValue("@Cena", Cena);
-                                        cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
-                                        cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
-
-                                        cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik)
-                                            ? (object)DBNull.Value
-                                            : Ciagnik);
-                                        cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa)
-                                            ? (object)DBNull.Value
-                                            : Naczepa);
-                                        cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek)
-                                            ? (object)DBNull.Value
-                                            : NotkaWozek);
-
-                                        cmd.ExecuteNonQuery();
+                                        MessageBox.Show($"Błąd w wierszu {row.Index + 1}:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        throw; // Możesz usunąć, jeśli nie chcesz przerywać całego przetwarzania
                                     }
                                 }
                             }
+
 
                             // Jeśli wszystko OK – zatwierdzamy zmiany
                             transaction.Commit();

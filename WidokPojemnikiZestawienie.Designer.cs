@@ -49,13 +49,13 @@
             dataGridViewZestawienie.Location = new System.Drawing.Point(12, 75);
             dataGridViewZestawienie.Name = "dataGridViewZestawienie";
             dataGridViewZestawienie.RowTemplate.Height = 25;
-            dataGridViewZestawienie.Size = new System.Drawing.Size(551, 585);
+            dataGridViewZestawienie.Size = new System.Drawing.Size(986, 585);
             dataGridViewZestawienie.TabIndex = 0;
             // 
             // comboBoxKontrahent
             // 
             comboBoxKontrahent.FormattingEnabled = true;
-            comboBoxKontrahent.Location = new System.Drawing.Point(616, 404);
+            comboBoxKontrahent.Location = new System.Drawing.Point(1065, 406);
             comboBoxKontrahent.Name = "comboBoxKontrahent";
             comboBoxKontrahent.Size = new System.Drawing.Size(10, 23);
             comboBoxKontrahent.TabIndex = 1;
@@ -81,7 +81,7 @@
             // 
             btnSearch.BackColor = System.Drawing.Color.White;
             btnSearch.Image = Properties.Resources.PojemnikE2;
-            btnSearch.Location = new System.Drawing.Point(569, 75);
+            btnSearch.Location = new System.Drawing.Point(1004, 73);
             btnSearch.Name = "btnSearch";
             btnSearch.Size = new System.Drawing.Size(130, 56);
             btnSearch.TabIndex = 4;
@@ -101,7 +101,7 @@
             // 
             button1.BackColor = System.Drawing.Color.White;
             button1.Image = Properties.Resources.PaletaH1;
-            button1.Location = new System.Drawing.Point(569, 133);
+            button1.Location = new System.Drawing.Point(1004, 131);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(130, 56);
             button1.TabIndex = 6;
@@ -112,7 +112,7 @@
             // 
             button2.BackColor = System.Drawing.Color.White;
             button2.Image = Properties.Resources.PaletaEuro;
-            button2.Location = new System.Drawing.Point(569, 196);
+            button2.Location = new System.Drawing.Point(1004, 194);
             button2.Name = "button2";
             button2.Size = new System.Drawing.Size(130, 56);
             button2.TabIndex = 7;
@@ -123,7 +123,7 @@
             // 
             button3.BackColor = System.Drawing.Color.White;
             button3.Image = Properties.Resources.PaletaPlast;
-            button3.Location = new System.Drawing.Point(569, 258);
+            button3.Location = new System.Drawing.Point(1004, 256);
             button3.Name = "button3";
             button3.Size = new System.Drawing.Size(130, 56);
             button3.TabIndex = 8;
@@ -134,7 +134,7 @@
             // 
             button4.BackColor = System.Drawing.Color.White;
             button4.Image = Properties.Resources.PaletaDrewniana;
-            button4.Location = new System.Drawing.Point(569, 320);
+            button4.Location = new System.Drawing.Point(1004, 318);
             button4.Name = "button4";
             button4.Size = new System.Drawing.Size(130, 56);
             button4.TabIndex = 9;
@@ -165,7 +165,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(701, 665);
+            ClientSize = new System.Drawing.Size(1156, 665);
             Controls.Add(label1);
             Controls.Add(label2);
             Controls.Add(button4);

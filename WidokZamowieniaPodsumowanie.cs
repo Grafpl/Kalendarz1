@@ -68,35 +68,31 @@ namespace Kalendarz1
 
         private void WyswietlPodsumowanie(int towarId, DateTime startOfWeek, DateTime endOfWeek)
         {
-            totalIloscZamowiona = 0; // Reset sumy na początku
-            dzienneSumaIloscZamowiona.Clear(); // Reset słownika dla dni tygodnia
+            totalIloscZamowiona = 0;
+            dzienneSumaIloscZamowiona.Clear();
 
-            using (SqlConnection connection = new SqlConnection(connectionString1)) // Połączenie do serwera .109
+            using (SqlConnection connection = new SqlConnection(connectionString1)) // zamówienia
             {
                 string query = @"
-                SELECT 
-                    zm.Id,
-                    zm.DataZamowienia, 
-                    zm.KlientId, 
-                    tw.Kod AS KodTowaru, 
-                    SUM(zmt.Ilosc) AS IloscZamowiona
-                FROM 
-                    [LibraNet].[dbo].[ZamowieniaMieso] zm
-                JOIN 
-                    [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
-                ON 
-                    zm.Id = zmt.ZamowienieId
-                JOIN 
-                    [RemoteServer].[HANDEL].[HM].[TW] tw
-                ON 
-                    zmt.KodTowaru = tw.ID
-                WHERE 
-                    zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
-                    AND tw.ID = @TowarId
-                GROUP BY 
-                    zm.Id, zm.DataZamowienia, zm.KlientId, tw.Kod
-                ORDER BY 
-                    zm.DataZamowienia;";
+        SELECT 
+            zm.Id,
+            zm.DataZamowienia, 
+            zm.KlientId, 
+            tw.Kod AS KodTowaru, 
+            SUM(zmt.Ilosc) AS IloscZamowiona
+        FROM 
+            [LibraNet].[dbo].[ZamowieniaMieso] zm
+        JOIN 
+            [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+        JOIN 
+            [RemoteServer].[HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.ID
+        WHERE 
+            zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
+            AND tw.ID = @TowarId
+        GROUP BY 
+            zm.Id, zm.DataZamowienia, zm.KlientId, tw.Kod
+        ORDER BY 
+            zm.DataZamowienia;";
 
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartOfWeek", startOfWeek);
@@ -107,66 +103,147 @@ namespace Kalendarz1
                 DataTable dataTable = new DataTable();
                 adapter.Fill(dataTable);
 
-                DataTable dtPoniedzialek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
-                DataTable dtWtorek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
-                DataTable dtSroda = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
-                DataTable dtCzwartek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
-                DataTable dtPiatek = CreateDataTable(new string[] { "IdZamowienia", "Klient", "Ilosc" });
-
+                // Tworzenie DataTable dla każdego dnia
+                DataTable dtPon = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+                DataTable dtWto = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+                DataTable dtSro = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+                DataTable dtCzw = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+                DataTable dtPia = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
 
                 foreach (DataRow row in dataTable.Rows)
                 {
-
                     DateTime dataZamowienia = Convert.ToDateTime(row["DataZamowienia"]);
                     string klientId = row["KlientId"].ToString();
                     string idZamowienia = row["Id"].ToString();
+                    decimal iloscZamowiona = Convert.ToDecimal(row["IloscZamowiona"]);
+                    totalIloscZamowiona += iloscZamowiona;
+
                     var daneOdbiorcy = dataService.PobierzDaneOdbiorcy(klientId);
                     string nazwaOdbiorcy = daneOdbiorcy[RozwijanieComboBox.DaneKontrahenta.Kod];
-                    decimal iloscZamowiona = Convert.ToDecimal(row["IloscZamowiona"]);
 
-                    totalIloscZamowiona += iloscZamowiona; // Aktualizacja sumy całkowitej
+                    decimal faktycznaIlosc = 0;
+                    using (SqlConnection connReal = new SqlConnection(connectionString2))
+                    {
+                        string realQuery = @"
+                SELECT SUM(ABS(MZ.ilosc)) AS RIlosc
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                WHERE MG.data = @Data
+                  AND MG.aktywny = 1
+                  AND MG.khid = @KlientId
+                  AND MG.seria IN ('sWZ', 'sWZ-W')
+                  AND MZ.idtw = @TowarId";
 
-                    if (dataZamowienia.Date == startOfWeek.Date)
-                    {
-                        dtPoniedzialek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
-                        AddToDailySum("Poniedziałek", iloscZamowiona);
+                        SqlCommand realCmd = new SqlCommand(realQuery, connReal);
+                        realCmd.Parameters.AddWithValue("@Data", dataZamowienia);
+                        realCmd.Parameters.AddWithValue("@KlientId", klientId);
+                        realCmd.Parameters.AddWithValue("@TowarId", towarId);
+
+                        connReal.Open();
+                        var realResult = realCmd.ExecuteScalar();
+                        if (realResult != null && realResult != DBNull.Value)
+                            faktycznaIlosc = Convert.ToDecimal(realResult);
                     }
-                    else if (dataZamowienia.Date == startOfWeek.AddDays(1).Date)
+
+                    int dayOffset = (dataZamowienia - startOfWeek).Days;
+                    switch (dayOffset)
                     {
-                        dtWtorek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
-                        AddToDailySum("Wtorek", iloscZamowiona);
-                    }
-                    else if (dataZamowienia.Date == startOfWeek.AddDays(2).Date)
-                    {
-                        dtSroda.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
-                        AddToDailySum("Środa", iloscZamowiona);
-                    }
-                    else if (dataZamowienia.Date == startOfWeek.AddDays(3).Date)
-                    {
-                        dtCzwartek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
-                        AddToDailySum("Czwartek", iloscZamowiona);
-                    }
-                    else if (dataZamowienia.Date == startOfWeek.AddDays(4).Date)
-                    {
-                        dtPiatek.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona);
-                        AddToDailySum("Piątek", iloscZamowiona);
+                        case 0:
+                            dtPon.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
+                            AddToDailySum("Poniedziałek", iloscZamowiona);
+                            break;
+                        case 1:
+                            dtWto.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
+                            AddToDailySum("Wtorek", iloscZamowiona);
+                            break;
+                        case 2:
+                            dtSro.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
+                            AddToDailySum("Środa", iloscZamowiona);
+                            break;
+                        case 3:
+                            dtCzw.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
+                            AddToDailySum("Czwartek", iloscZamowiona);
+                            break;
+                        case 4:
+                            dtPia.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
+                            AddToDailySum("Piątek", iloscZamowiona);
+                            break;
                     }
                 }
 
-                ConfigureDataGridView(dataGridViewPoniedzialek, dtPoniedzialek);
-                ConfigureDataGridView(dataGridViewWtorek, dtWtorek);
-                ConfigureDataGridView(dataGridViewSroda, dtSroda);
-                ConfigureDataGridView(dataGridViewCzwartek, dtCzwartek);
-                ConfigureDataGridView(dataGridViewPiatek, dtPiatek);
+                // 🔁 DODATKOWO: dodaj klientów z RIlosc > 0, ale bez zamówienia
+                using (SqlConnection connExtra = new SqlConnection(connectionString2))
+                {
+                    string extraQuery = @"
+                SELECT 
+                    MG.data,
+                    MG.khid,
+                    SUM(ABS(MZ.ilosc)) AS RIlosc
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                WHERE 
+                    MG.data BETWEEN @StartOfWeek AND @EndOfWeek
+                    AND MG.seria IN ('sWZ', 'sWZ-W')
+                    AND MG.aktywny = 1
+                    AND MZ.idtw = @TowarId
+                GROUP BY MG.data, MG.khid";
+
+                    SqlCommand extraCmd = new SqlCommand(extraQuery, connExtra);
+                    extraCmd.Parameters.AddWithValue("@StartOfWeek", startOfWeek);
+                    extraCmd.Parameters.AddWithValue("@EndOfWeek", endOfWeek);
+                    extraCmd.Parameters.AddWithValue("@TowarId", towarId);
+
+                    SqlDataAdapter extraAdapter = new SqlDataAdapter(extraCmd);
+                    DataTable odbiorcyBezZamowienia = new DataTable();
+                    extraAdapter.Fill(odbiorcyBezZamowienia);
+
+                    foreach (DataRow odb in odbiorcyBezZamowienia.Rows)
+                    {
+                        DateTime data = Convert.ToDateTime(odb["data"]);
+                        string khid = odb["khid"].ToString();
+                        decimal rilosc = Convert.ToDecimal(odb["RIlosc"]);
+
+                        bool alreadyExists = dataTable.AsEnumerable().Any(r =>
+                            Convert.ToDateTime(r["DataZamowienia"]).Date == data.Date &&
+                            r["KlientId"].ToString() == khid);
+
+                        if (!alreadyExists)
+                        {
+                            var odbiorca = dataService.PobierzDaneOdbiorcy(khid);
+                            if (!odbiorca.ContainsKey(RozwijanieComboBox.DaneKontrahenta.Kod))
+                            {
+                                
+                                continue;
+                            }
+                            string nazwa = odbiorca[RozwijanieComboBox.DaneKontrahenta.Kod];
+
+                            int dzienOffset = (data - startOfWeek).Days;
+
+                            switch (dzienOffset)
+                            {
+                                case 0: dtPon.Rows.Add("—", nazwa, 0m, rilosc); break;
+                                case 1: dtWto.Rows.Add("—", nazwa, 0m, rilosc); break;
+                                case 2: dtSro.Rows.Add("—", nazwa, 0m, rilosc); break;
+                                case 3: dtCzw.Rows.Add("—", nazwa, 0m, rilosc); break;
+                                case 4: dtPia.Rows.Add("—", nazwa, 0m, rilosc); break;
+                            }
+                        }
+                    }
+                }
+
+                // Wyświetl w siatkach
+                ConfigureDataGridView(dataGridViewPoniedzialek, dtPon);
+                ConfigureDataGridView(dataGridViewWtorek, dtWto);
+                ConfigureDataGridView(dataGridViewSroda, dtSro);
+                ConfigureDataGridView(dataGridViewCzwartek, dtCzw);
+                ConfigureDataGridView(dataGridViewPiatek, dtPia);
             }
 
-            // Wyświetlenie sumy w kontrolkach lub logu
             Console.WriteLine($"Suma całkowita: {totalIloscZamowiona}");
             foreach (var dzien in dzienneSumaIloscZamowiona)
-            {
                 Console.WriteLine($"{dzien.Key}: {dzien.Value}");
-            }
         }
+
 
         private void AddToDailySum(string day, decimal amount)
         {
@@ -191,7 +268,7 @@ namespace Kalendarz1
             // Szerokość kolumny "Klient"
             if (gridView.Columns.Contains("Klient"))
             {
-                gridView.Columns["Klient"].Width = 200;
+                gridView.Columns["Klient"].Width = 90;
             }
 
             // Wyłączanie wiersza nagłówka po lewej stronie
@@ -209,18 +286,51 @@ namespace Kalendarz1
             // Wyrównanie tekstu w kolumnach
             gridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            // Formatowanie kolumny "Ilosc" z separatorem tysięcy i jednostką "kg"
+            // Formatowanie wartości i kolorowanie
             gridView.CellFormatting += (sender, e) =>
             {
-                if (gridView.Columns[e.ColumnIndex].HeaderText == "Ilosc" && e.Value != null)
+                if (e.Value != null)
                 {
-                    if (decimal.TryParse(e.Value.ToString(), out decimal value))
+                    string columnName = gridView.Columns[e.ColumnIndex].Name;
+
+                    if (columnName == "Ilosc" || columnName == "RIlosc")
                     {
-                        e.Value = $"{value:N0} kg";
-                        e.FormattingApplied = true;
+                        if (decimal.TryParse(e.Value.ToString(), out decimal value))
+                        {
+                            e.Value = $"{value:N0} kg";
+                            e.FormattingApplied = true;
+                        }
+                    }
+
+                    // Kolorowanie tylko dla RIlosc
+                    if (columnName == "RIlosc")
+                    {
+                        var row = gridView.Rows[e.RowIndex];
+                        if (gridView.Columns.Contains("Ilosc") && row.Cells["Ilosc"].Value != null && row.Cells["RIlosc"].Value != null)
+                        {
+                            if (decimal.TryParse(row.Cells["Ilosc"].Value.ToString(), out decimal ilosc) &&
+                                decimal.TryParse(row.Cells["RIlosc"].Value.ToString(), out decimal rilosc))
+                            {
+                                if (rilosc >= ilosc)
+                                {
+                                    row.Cells["RIlosc"].Style.ForeColor = Color.Green;
+                                }
+                                else if (rilosc > 0 && rilosc < ilosc)
+                                {
+                                    row.Cells["RIlosc"].Style.ForeColor = Color.Red;
+                                    row.Cells["RIlosc"].Style.Font = new Font(gridView.Font, FontStyle.Bold);
+                                }
+                                else
+                                {
+                                    row.Cells["RIlosc"].Style.ForeColor = Color.Black;
+                                }
+                            }
+                        }
                     }
                 }
             };
+
+
 
             // Koloryzowanie wierszy naprzemiennie
             gridView.AlternatingRowsDefaultCellStyle.BackColor = Color.LightGray; // Kolor dla naprzemiennych wierszy
@@ -260,21 +370,23 @@ namespace Kalendarz1
         private void PokazPrzewidywalneKilogramy(DataGridView datagrid, DateTime dzien, string zamowienie)
         {
             DataTable finalTable = new DataTable();
+            finalTable.Columns.Add("Kategoria", typeof(string));
+            finalTable.Columns.Add("Przewidywalny", typeof(string));
+            finalTable.Columns.Add("Faktyczny", typeof(string));
 
-            // Dodanie odpowiednich kolumn do tabeli
-            finalTable.Columns.Add("Kategoria", typeof(string)); // Kolumna dla kategorii
-            finalTable.Columns.Add("Przewidywalny", typeof(string)); // Kolumna dla sum
-            finalTable.Columns.Add("Faktyczny", typeof(string)); // Kolumna dla procentów
+            double sumTonazTuszkiA = 0;
+            double sumTonazTuszkiB = 0;
 
-            // Tworzenie połączenia z bazą danych i pobieranie danych
+            // Przewidywany przychód z Harmonogramu
             using (SqlConnection connection = new SqlConnection(connectionString1))
             {
                 string query = @"
-        SELECT LP, Auta, Dostawca, WagaDek, SztukiDek 
-        FROM dbo.HarmonogramDostaw 
-        WHERE DataOdbioru = @StartDate 
-          AND Bufor = 'Potwierdzony' 
-        ORDER BY WagaDek DESC";
+            SELECT LP, Auta, Dostawca, WagaDek, SztukiDek 
+            FROM dbo.HarmonogramDostaw 
+            WHERE DataOdbioru = @StartDate 
+              AND Bufor = 'Potwierdzony' 
+            ORDER BY WagaDek DESC";
+
                 SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@StartDate", dzien);
 
@@ -282,73 +394,122 @@ namespace Kalendarz1
                 DataTable table = new DataTable();
                 adapter.Fill(table);
 
-                double sumTonazTuszkiA = 0;
-                double sumTonazTuszkiB = 0;
-
                 foreach (DataRow row in table.Rows)
                 {
-                    double wagaDekValue = row["WagaDek"] != DBNull.Value ? Convert.ToDouble(row["WagaDek"]) : 0.0;
-                    int sztukiDekValue = row["SztukiDek"] != DBNull.Value ? Convert.ToInt32(row["SztukiDek"]) : 0;
+                    double wagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDouble(row["WagaDek"]) : 0.0;
+                    int sztukiDek = row["SztukiDek"] != DBNull.Value ? Convert.ToInt32(row["SztukiDek"]) : 0;
 
-                    double sredniaTuszkaValue = wagaDekValue * 0.78;
-                    double tonazTuszkaValue = sredniaTuszkaValue * sztukiDekValue;
-                    double tonazTuszkaAValue = tonazTuszkaValue * 0.85;
-                    double tonazTuszkaBValue = tonazTuszkaValue * 0.15;
+                    double sredniaTuszka = wagaDek * 0.78;
+                    double tonazTuszka = sredniaTuszka * sztukiDek;
+                    double tonazA = tonazTuszka * 0.85;
+                    double tonazB = tonazTuszka * 0.15;
 
-                    sumTonazTuszkiA += tonazTuszkaAValue;
-                    sumTonazTuszkiB += tonazTuszkaBValue;
+                    sumTonazTuszkiA += tonazA;
+                    sumTonazTuszkiB += tonazB;
                 }
-
-                double wynikPrzychodu = 0;
-                int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
-                //kurczak a
-                if (selectedTowarId == 66443)
-                {
-                    wynikPrzychodu = sumTonazTuszkiA;
-                }
-                else
-                {
-                    wynikPrzychodu = dataService.WydajnoscElement(sumTonazTuszkiB, selectedTowarId);
-                }
-
-
-                double przewidywalny = dzienneSumaIloscZamowiona.ContainsKey(zamowienie)
-                    ? (double)dzienneSumaIloscZamowiona[zamowienie]
-                    : 0.0;
-
-
-
-                // Dodanie wierszy do tabeli
-                DataRow przychod = finalTable.NewRow();
-                przychod["Kategoria"] = "Przychód";
-                przychod["Przewidywalny"] = $"{wynikPrzychodu:N0} kg";
-                przychod["Faktyczny"] = "";
-                finalTable.Rows.Add(przychod);
-
-                DataRow zamowienia = finalTable.NewRow();
-                zamowienia["Kategoria"] = "Zamówione";
-                zamowienia["Przewidywalny"] = $"{przewidywalny:N0} kg";
-                zamowienia["Faktyczny"] = $"{przewidywalny:N0} kg";
-                finalTable.Rows.Add(zamowienia);
-
-                DataRow pozostalo = finalTable.NewRow();
-                pozostalo["Kategoria"] = "Pozostalo";
-                double pozostaloKg = wynikPrzychodu - przewidywalny;
-                pozostalo["Przewidywalny"] = $"{pozostaloKg:N0} ";
-                pozostalo["Faktyczny"] = "";
-                finalTable.Rows.Add(pozostalo);
-
-
             }
 
-            // Ustawienie źródła danych dla DataGridView
+            // Wylicz przychód przewidywalny
+            double wynikPrzychodu = 0;
+            int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
+
+            if (selectedTowarId == 66443)
+                wynikPrzychodu = sumTonazTuszkiA;
+            else
+                wynikPrzychodu = dataService.WydajnoscElement(sumTonazTuszkiB, selectedTowarId);
+
+            // Zamówienie przewidywane
+            double przewidywalny = dzienneSumaIloscZamowiona.ContainsKey(zamowienie)
+                ? (double)dzienneSumaIloscZamowiona[zamowienie]
+                : 0.0;
+
+            // Faktyczny przychód z dokumentów sPWU
+            double faktycznyPrzychod = 0.0;
+
+            using (SqlConnection conn = new SqlConnection(connectionString2))
+            {
+                string sql = @"
+            SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
+            FROM [HANDEL].[HM].[MZ] MZ
+            JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+            WHERE 
+                MG.seria = 'sPWU'
+                AND MG.aktywny = 1
+                AND MG.data = @dzien
+                AND MZ.idtw = @idtw";
+
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@dzien", dzien);
+                cmd.Parameters.AddWithValue("@idtw", selectedTowarId);
+
+                conn.Open();
+                object result = cmd.ExecuteScalar();
+                if (result != null && result != DBNull.Value)
+                {
+                    faktycznyPrzychod = Convert.ToDouble(result);
+                }
+            }
+
+            // Faktyczne zamówienie z dokumentów sWZ + sWZ-W
+            double faktyczneZamowienie = 0.0;
+
+            using (SqlConnection conn = new SqlConnection(connectionString2))
+            {
+                string sql = @"
+            SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
+            FROM [HANDEL].[HM].[MZ] MZ
+            JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+            WHERE 
+                MG.seria IN ('sWZ', 'sWZ-W')
+                AND MG.aktywny = 1
+                AND MG.data = @dzien
+                AND MZ.idtw = @idtw";
+
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@dzien", dzien);
+                cmd.Parameters.AddWithValue("@idtw", selectedTowarId);
+
+                conn.Open();
+                object result = cmd.ExecuteScalar();
+                if (result != null && result != DBNull.Value)
+                {
+                    faktyczneZamowienie = Convert.ToDouble(result);
+                }
+            }
+
+            // Wiersz 1: Przychód
+            DataRow przychod = finalTable.NewRow();
+            przychod["Kategoria"] = "Przychód";
+            przychod["Przewidywalny"] = $"{wynikPrzychodu:N0} kg";
+            przychod["Faktyczny"] = $"{faktycznyPrzychod:N0} kg";
+            finalTable.Rows.Add(przychod);
+
+            // Wiersz 2: Zamówione
+            DataRow zamowienia = finalTable.NewRow();
+            zamowienia["Kategoria"] = "Zamówione";
+            zamowienia["Przewidywalny"] = $"{przewidywalny:N0} kg";
+            zamowienia["Faktyczny"] = $"{faktyczneZamowienie:N0} kg";
+            finalTable.Rows.Add(zamowienia);
+
+            // Wiersz 3: Pozostało
+            DataRow pozostalo = finalTable.NewRow();
+            pozostalo["Kategoria"] = "Pozostało";
+            double pozostaloKg = wynikPrzychodu - przewidywalny;
+            pozostalo["Przewidywalny"] = $"{pozostaloKg:N0} kg";
+            double faktycznieKg = faktycznyPrzychod - faktyczneZamowienie;
+            pozostalo["Faktyczny"] = $"{faktycznieKg:N0} kg";
+            finalTable.Rows.Add(pozostalo);
+
+            // Wyświetlenie
             datagrid.DataSource = finalTable;
             datagrid.Columns["Kategoria"].HeaderText = "Kategoria";
             datagrid.Columns["Przewidywalny"].HeaderText = "Przewidywalny";
             datagrid.Columns["Faktyczny"].HeaderText = "Faktyczny";
-            FormatSumRow(datagrid, 2);
 
+            // Formatowanie wiersza końcowego (opcjonalnie)
+            FormatSumRow(datagrid, 2);
         }
+
 
 
 

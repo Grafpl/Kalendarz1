@@ -13,6 +13,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json.Linq;
+using System.Text;
 
 
 
@@ -209,6 +210,48 @@ namespace Kalendarz1
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        public void PobierzTypOsobowosci(string lp, ComboBox typOsobowosci, ComboBox typOsobowosci2)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string strSQL = "SELECT typOsobowosci, typOsobowosci2 FROM dbo.Dostawcy WHERE ID = @Lp AND halt = 0";
+
+                    using (SqlCommand command = new SqlCommand(strSQL, connection))
+                    {
+                        command.Parameters.AddWithValue("@Lp", lp);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                typOsobowosci.Text = reader["typOsobowosci"] != DBNull.Value
+                                    ? reader["typOsobowosci"].ToString()
+                                    : "";
+
+                                typOsobowosci2.Text = reader["typOsobowosci2"] != DBNull.Value
+                                    ? reader["typOsobowosci2"].ToString()
+                                    : "";
+                            }
+                            else
+                            {
+                                typOsobowosci.Text = "";
+                                typOsobowosci2.Text = "";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
         public void UpdateValueInDatabase(double newValue, string columnName, string lpDostawa)
         {
             try
@@ -263,17 +306,20 @@ namespace Kalendarz1
 
                 string strSQL = @"
         SELECT 
-            k.CreateData AS Data, 
-            k.QntInCont AS poj, 
-            COUNT(*) AS Palety
-        FROM [LibraNet].[dbo].[In0E] K
-        JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
-        LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
-        WHERE ArticleID = 40 
-            AND k.QntInCont > 4
-            AND k.CreateData = CAST(GETDATE() AS DATE)
-        GROUP BY k.CreateData, k.QntInCont
-        ORDER BY k.CreateData DESC, k.QntInCont DESC;
+    k.CreateData AS Data, 
+    k.QntInCont AS poj, 
+    COUNT(DISTINCT k.GUID) AS Palety  -- Usunięcie duplikatów po GUID
+FROM [LibraNet].[dbo].[In0E] K
+JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
+LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd 
+    ON k.CreateData = hd.DataOdbioru 
+    AND Partia.CustomerName = hd.Dostawca
+WHERE k.ArticleID = 40 
+    AND k.QntInCont > 4
+    AND k.CreateData = CAST(GETDATE() AS DATE)
+GROUP BY k.CreateData, k.QntInCont
+ORDER BY k.CreateData DESC, k.QntInCont DESC;
+
         ";
 
                 using (SqlCommand command = new SqlCommand(strSQL, cnn))
@@ -1372,58 +1418,70 @@ namespace Kalendarz1
             }
         }
 
-        public void UpdateDaneKontaktowe(string idHodowcy, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3, TextBox Email)
+        public void UpdateDaneKontaktowe(string idHodowcy, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3, TextBox Email, ComboBox typOsobowosci, ComboBox typOsobowosci2)
         {
             try
             {
-                // Sprawdź, czy idHodowcy nie jest puste
-                if (!string.IsNullOrEmpty(idHodowcy))
-                {
-                    // Utworzenie połączenia z bazą danych
-                    using (SqlConnection cnn = new SqlConnection(connectionString))
-                    {
-                        cnn.Open();
-
-                        // Utworzenie zapytania SQL do aktualizacji danych
-                        string strSQL = @"UPDATE dbo.Dostawcy
-                                  SET phone1 = @Phone1,
-                                      phone2 = @Phone2,
-                                      phone3 = @Phone3,
-                                      info1 = @Info1,
-                                      info2 = @Info2,
-                                      info3 = @Info3,
-                                      Email = @Email
-                                  WHERE ID = @ID AND halt = '0';";
-
-                        using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                        {
-                            // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
-                            command.Parameters.AddWithValue("@ID", idHodowcy);
-                            command.Parameters.AddWithValue("@Phone1", string.IsNullOrEmpty(Phone1.Text) ? (object)DBNull.Value : Phone1.Text);
-                            command.Parameters.AddWithValue("@Phone2", string.IsNullOrEmpty(Phone2.Text) ? (object)DBNull.Value : Phone2.Text);
-                            command.Parameters.AddWithValue("@Phone3", string.IsNullOrEmpty(Phone3.Text) ? (object)DBNull.Value : Phone3.Text);
-                            command.Parameters.AddWithValue("@Info1", string.IsNullOrEmpty(Info1.Text) ? (object)DBNull.Value : Info1.Text);
-                            command.Parameters.AddWithValue("@Info2", string.IsNullOrEmpty(Info2.Text) ? (object)DBNull.Value : Info2.Text);
-                            command.Parameters.AddWithValue("@Info3", string.IsNullOrEmpty(Info3.Text) ? (object)DBNull.Value : Info3.Text);
-                            command.Parameters.AddWithValue("@Email", string.IsNullOrEmpty(Email.Text) ? (object)DBNull.Value : Email.Text);
-
-                            // Wykonanie zapytania SQL
-                            int rowsAffected = command.ExecuteNonQuery();
-
-                            if (rowsAffected > 0)
-                            {
-
-                            }
-                            else
-                            {
-                                MessageBox.Show("Nie udało się zaktualizować danych kontaktowych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        }
-                    }
-                }
-                else
+                if (string.IsNullOrEmpty(idHodowcy))
                 {
                     MessageBox.Show("Proszę podać poprawne ID dostawcy.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                using (SqlConnection cnn = new SqlConnection(connectionString))
+                {
+                    cnn.Open();
+
+                    StringBuilder sqlBuilder = new StringBuilder();
+                    sqlBuilder.Append(@"UPDATE dbo.Dostawcy
+                                SET phone1 = @Phone1,
+                                    phone2 = @Phone2,
+                                    phone3 = @Phone3,
+                                    info1 = @Info1,
+                                    info2 = @Info2,
+                                    info3 = @Info3,
+                                    Email = @Email");
+
+                    bool uwzglTypOsob = typOsobowosci != null &&
+                                        !string.IsNullOrWhiteSpace(typOsobowosci.Text) &&
+                                        typOsobowosci.Text.Trim() != "0";
+
+                    bool uwzglTypOsob2 = typOsobowosci2 != null &&
+                                         !string.IsNullOrWhiteSpace(typOsobowosci2.Text) &&
+                                         typOsobowosci2.Text.Trim() != "0";
+
+                    if (uwzglTypOsob)
+                        sqlBuilder.Append(", typOsobowosci = @typOsobowosci");
+
+                    if (uwzglTypOsob2)
+                        sqlBuilder.Append(", typOsobowosci2 = @typOsobowosci2");
+
+                    sqlBuilder.Append(" WHERE ID = @ID AND halt = '0';");
+
+                    using (SqlCommand command = new SqlCommand(sqlBuilder.ToString(), cnn))
+                    {
+                        command.Parameters.AddWithValue("@ID", idHodowcy);
+                        command.Parameters.AddWithValue("@Phone1", string.IsNullOrEmpty(Phone1.Text) ? (object)DBNull.Value : Phone1.Text);
+                        command.Parameters.AddWithValue("@Phone2", string.IsNullOrEmpty(Phone2.Text) ? (object)DBNull.Value : Phone2.Text);
+                        command.Parameters.AddWithValue("@Phone3", string.IsNullOrEmpty(Phone3.Text) ? (object)DBNull.Value : Phone3.Text);
+                        command.Parameters.AddWithValue("@Info1", string.IsNullOrEmpty(Info1.Text) ? (object)DBNull.Value : Info1.Text);
+                        command.Parameters.AddWithValue("@Info2", string.IsNullOrEmpty(Info2.Text) ? (object)DBNull.Value : Info2.Text);
+                        command.Parameters.AddWithValue("@Info3", string.IsNullOrEmpty(Info3.Text) ? (object)DBNull.Value : Info3.Text);
+                        command.Parameters.AddWithValue("@Email", string.IsNullOrEmpty(Email.Text) ? (object)DBNull.Value : Email.Text);
+
+                        if (uwzglTypOsob)
+                            command.Parameters.AddWithValue("@typOsobowosci", typOsobowosci.Text);
+
+                        if (uwzglTypOsob2)
+                            command.Parameters.AddWithValue("@typOsobowosci2", typOsobowosci2.Text);
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected == 0)
+                        {
+                            MessageBox.Show("Nie udało się zaktualizować danych kontaktowych.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -1431,6 +1489,7 @@ namespace Kalendarz1
                 MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         public void UpdateDaneRozliczenioweAvilogHodowca(int IdSpecyfikacji, TextBox FullFarmWeight, TextBox EmptyFarmWeight, TextBox NettoFarmWeight, TextBox AvWeightFarm, TextBox PiecesFarm, TextBox SztPoj)
 

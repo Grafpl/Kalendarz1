@@ -130,168 +130,87 @@ namespace Kalendarz1
                     DateTime data3Value = Data3.Value;
                     int maxLP = 0;
 
-                    if (TypCeny.SelectedItem.ToString() == "Rolnicza")
-                    {
-                        string strSQL2 = "SELECT MAX(Lp) AS MaxLP FROM dbo.CenaRolnicza;";
-                        using (SqlCommand cmd = new SqlCommand(strSQL2, cnn))
-                        {
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                if (reader.Read())
-                                {
-                                    maxLP = reader["MaxLP"] != DBNull.Value ? Convert.ToInt32(reader["MaxLP"]) : 1;
-                                }
-                            }
-                        }
-
-                        maxLP++;
-
-                        while (data3Value <= data2Value)
-                        {
-                            // Sprawdzenie, czy rekord z daną datą już istnieje
-                            string checkSQL = "SELECT COUNT(*) FROM dbo.CenaRolnicza WHERE Data = @Data";
-                            bool recordExists = false;
-
-                            using (SqlCommand checkCmd = new SqlCommand(checkSQL, cnn))
-                            {
-                                checkCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                recordExists = (int)checkCmd.ExecuteScalar() > 0;
-                            }
-
-                            // Jeśli rekord istnieje, wyświetl komunikat i przerwij kod
-                            if (recordExists)
-                            {
-                                MessageBox.Show($"Rekord z datą {data3Value.ToShortDateString()} już istnieje w bazie danych.", "Duplikat daty", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return; // Zakończ wykonywanie metody
-                            }
-                            else
-                            {
-                                // Jeśli rekord nie istnieje, wstaw nowy
-                                string insertSQL = "INSERT INTO dbo.CenaRolnicza (Lp, Data, Cena) VALUES (@Lp, @Data, @Cena)";
-
-                                using (SqlCommand insertCmd = new SqlCommand(insertSQL, cnn))
-                                {
-                                    insertCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                    insertCmd.Parameters.AddWithValue("@Lp", maxLP);
-                                    insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : Convert.ToDecimal(Cena.Text));
-                                    insertCmd.ExecuteNonQuery();
-                                }
-
-                                maxLP++;
-                            }
-
-                            data3Value = data3Value.AddDays(1);
-                        }
-                    }
-                    else if (TypCeny.SelectedItem.ToString() == "Tuszka")
-                    {
-                        string strSQL2 = "SELECT MAX(Lp) AS MaxLP FROM dbo.CenaTuszki;";
-                        using (SqlCommand cmd = new SqlCommand(strSQL2, cnn))
-                        {
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                if (reader.Read())
-                                {
-                                    maxLP = reader["MaxLP"] != DBNull.Value ? Convert.ToInt32(reader["MaxLP"]) : 1;
-                                }
-                            }
-                        }
-
-                        maxLP++;
-
-                        while (data3Value <= data2Value)
-                        {
-                            // Sprawdzenie, czy rekord z daną datą już istnieje
-                            string checkSQL = "SELECT COUNT(*) FROM dbo.CenaTuszki WHERE Data = @Data";
-                            bool recordExists = false;
-
-                            using (SqlCommand checkCmd = new SqlCommand(checkSQL, cnn))
-                            {
-                                checkCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                recordExists = (int)checkCmd.ExecuteScalar() > 0;
-                            }
-
-                            // Jeśli rekord istnieje, wyświetl komunikat i przerwij kod
-                            if (recordExists)
-                            {
-                                MessageBox.Show($"Rekord z datą {data3Value.ToShortDateString()} już istnieje w bazie danych.", "Duplikat daty", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return; // Zakończ wykonywanie metody
-                            }
-                            else
-                            {
-                                // Jeśli rekord nie istnieje, wstaw nowy
-                                string insertSQL = "INSERT INTO dbo.CenaTuszki (Lp, Data, Cena) VALUES (@Lp, @Data, @Cena)";
-
-                                using (SqlCommand insertCmd = new SqlCommand(insertSQL, cnn))
-                                {
-                                    insertCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                    insertCmd.Parameters.AddWithValue("@Lp", maxLP);
-                                    insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : Convert.ToDecimal(Cena.Text));
-                                    insertCmd.ExecuteNonQuery();
-                                }
-
-                                maxLP++;
-                            }
-
-                            data3Value = data3Value.AddDays(1);
-                        }
-                    }
-                    else if (TypCeny.SelectedItem.ToString() == "Ministerialna")
-                    {
-                        string strSQL3 = "SELECT MAX(Lp) AS MaxLP FROM dbo.CenaMinisterialna;";
-                        using (SqlCommand cmd = new SqlCommand(strSQL3, cnn))
-                        {
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                if (reader.Read())
-                                {
-                                    maxLP = reader["MaxLP"] != DBNull.Value ? Convert.ToInt32(reader["MaxLP"]) : 1;
-                                }
-                            }
-                        }
-
-                        maxLP++;
-
-                        while (data3Value <= data2Value)
-                        {
-                            // Sprawdzenie, czy rekord z daną datą już istnieje
-                            string checkSQL = "SELECT COUNT(*) FROM dbo.CenaMinisterialna WHERE Data = @Data";
-                            bool recordExists = false;
-
-                            using (SqlCommand checkCmd = new SqlCommand(checkSQL, cnn))
-                            {
-                                checkCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                recordExists = (int)checkCmd.ExecuteScalar() > 0;
-                            }
-
-                            // Jeśli rekord istnieje, wyświetl komunikat i przerwij kod
-                            if (recordExists)
-                            {
-                                MessageBox.Show($"Rekord z datą {data3Value.ToShortDateString()} już istnieje w bazie danych.", "Duplikat daty", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return; // Zakończ wykonywanie metody
-                            }
-                            else
-                            {
-                                // Jeśli rekord nie istnieje, wstaw nowy
-                                string insertSQL = "INSERT INTO dbo.CenaMinisterialna (Lp, Data, Cena) VALUES (@Lp, @Data, @Cena)";
-
-                                using (SqlCommand insertCmd = new SqlCommand(insertSQL, cnn))
-                                {
-                                    insertCmd.Parameters.AddWithValue("@Data", data3Value.Date); // Używamy tylko części daty
-                                    insertCmd.Parameters.AddWithValue("@Lp", maxLP);
-                                    insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : Convert.ToDecimal(Cena.Text));
-                                    insertCmd.ExecuteNonQuery();
-                                }
-
-                                maxLP++;
-                            }
-
-                            data3Value = data3Value.AddDays(1);
-                        }
-                    }
+                    string tabela = "";
+                    if (TypCeny.SelectedItem.ToString() == "Rolnicza") tabela = "dbo.CenaRolnicza";
+                    else if (TypCeny.SelectedItem.ToString() == "Tuszka") tabela = "dbo.CenaTuszki";
+                    else if (TypCeny.SelectedItem.ToString() == "Ministerialna") tabela = "dbo.CenaMinisterialna";
                     else
                     {
-                        MessageBox.Show("Proszę wybrać poprawny Typ Ceny.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        MessageBox.Show("Niepoprawny typ ceny.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    string strSQL2 = $"SELECT MAX(Lp) AS MaxLP FROM {tabela};";
+                    using (SqlCommand cmd = new SqlCommand(strSQL2, cnn))
+                    {
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                maxLP = reader["MaxLP"] != DBNull.Value ? Convert.ToInt32(reader["MaxLP"]) : 1;
+                            }
+                        }
+                    }
+
+                    maxLP++;
+
+                    // Sprawdzenie istniejących rekordów w zakresie dat
+                    List<(DateTime Data, decimal Cena)> existingRecords = new List<(DateTime, decimal)>();
+                    string selectQuery = $"SELECT Data, Cena FROM {tabela} WHERE Data BETWEEN @start AND @end";
+                    using (SqlCommand cmd = new SqlCommand(selectQuery, cnn))
+                    {
+                        cmd.Parameters.AddWithValue("@start", data3Value.Date);
+                        cmd.Parameters.AddWithValue("@end", data2Value.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime data = reader.GetDateTime(0);
+                                decimal cena = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                                existingRecords.Add((data, cena));
+                            }
+                        }
+                    }
+
+                    // Jeśli istnieją jakiekolwiek ceny w tym zakresie — zapytaj użytkownika
+                    if (existingRecords.Any())
+                    {
+                        string lista = string.Join(Environment.NewLine, existingRecords.Select(r => $"{r.Data:yyyy-MM-dd}: {r.Cena} zł"));
+                        DialogResult result = MessageBox.Show(
+                            $"W bazie istnieją już ceny w dniach od {data3Value:yyyy-MM-dd} do {data2Value:yyyy-MM-dd}:\n\n{lista}\n\nCzy chcesz je nadpisać?",
+                            "Ceny już istnieją",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning
+                        );
+
+                        if (result == DialogResult.No)
+                            return;
+
+                        // Usuń istniejące rekordy z zakresu
+                        string deleteQuery = $"DELETE FROM {tabela} WHERE Data BETWEEN @start AND @end";
+                        using (SqlCommand deleteCmd = new SqlCommand(deleteQuery, cnn))
+                        {
+                            deleteCmd.Parameters.AddWithValue("@start", data3Value.Date);
+                            deleteCmd.Parameters.AddWithValue("@end", data2Value.Date);
+                            deleteCmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Wstaw nowe rekordy
+                    while (data3Value <= data2Value)
+                    {
+                        string insertSQL = $"INSERT INTO {tabela} (Lp, Data, Cena) VALUES (@Lp, @Data, @Cena)";
+                        using (SqlCommand insertCmd = new SqlCommand(insertSQL, cnn))
+                        {
+                            insertCmd.Parameters.AddWithValue("@Data", data3Value.Date);
+                            insertCmd.Parameters.AddWithValue("@Lp", maxLP);
+                            insertCmd.Parameters.AddWithValue("@Cena", string.IsNullOrEmpty(Cena.Text) ? (object)DBNull.Value : Convert.ToDecimal(Cena.Text));
+                            insertCmd.ExecuteNonQuery();
+                        }
+
+                        maxLP++;
+                        data3Value = data3Value.AddDays(1);
                     }
 
                     cnn.Close();
@@ -302,8 +221,8 @@ namespace Kalendarz1
             {
                 MessageBox.Show("Proszę wybrać Typ Ceny przed wykonaniem operacji.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
-
         }
+
 
         private void button1_Click(object sender, EventArgs e)
         {

@@ -529,7 +529,7 @@ namespace Kalendarz1
             sztuki.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             sztuki.Location = new Point(1642, 810);
             sztuki.Name = "sztuki";
-            sztuki.Size = new Size(62, 25);
+            sztuki.Size = new Size(62, 29);
             sztuki.TabIndex = 26;
             sztuki.TextAlign = HorizontalAlignment.Center;
             // 
@@ -548,7 +548,7 @@ namespace Kalendarz1
             sztukNaSzuflade.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             sztukNaSzuflade.Location = new Point(1322, 789);
             sztukNaSzuflade.Name = "sztukNaSzuflade";
-            sztukNaSzuflade.Size = new Size(57, 25);
+            sztukNaSzuflade.Size = new Size(57, 29);
             sztukNaSzuflade.TabIndex = 28;
             sztukNaSzuflade.TextAlign = HorizontalAlignment.Center;
             // 
@@ -567,7 +567,7 @@ namespace Kalendarz1
             label1.BackColor = SystemColors.ControlLight;
             label1.Location = new Point(1385, 794);
             label1.Name = "label1";
-            label1.Size = new Size(12, 16);
+            label1.Size = new Size(15, 20);
             label1.TabIndex = 29;
             label1.Text = "*";
             // 
@@ -576,7 +576,7 @@ namespace Kalendarz1
             label2.AutoSize = true;
             label2.Location = new Point(1471, 794);
             label2.Name = "label2";
-            label2.Size = new Size(14, 16);
+            label2.Size = new Size(19, 20);
             label2.TabIndex = 30;
             label2.Text = "=";
             // 
@@ -586,7 +586,7 @@ namespace Kalendarz1
             textBox1.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             textBox1.Location = new Point(1490, 812);
             textBox1.Name = "textBox1";
-            textBox1.Size = new Size(62, 25);
+            textBox1.Size = new Size(62, 29);
             textBox1.TabIndex = 31;
             textBox1.Text = "264";
             textBox1.TextAlign = HorizontalAlignment.Center;
@@ -605,7 +605,7 @@ namespace Kalendarz1
             label4.AutoSize = true;
             label4.Location = new Point(1560, 794);
             label4.Name = "label4";
-            label4.Size = new Size(12, 16);
+            label4.Size = new Size(15, 20);
             label4.TabIndex = 33;
             label4.Text = "*";
             // 
@@ -615,7 +615,7 @@ namespace Kalendarz1
             obliczeniaAut.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             obliczeniaAut.Location = new Point(1578, 789);
             obliczeniaAut.Name = "obliczeniaAut";
-            obliczeniaAut.Size = new Size(36, 25);
+            obliczeniaAut.Size = new Size(36, 29);
             obliczeniaAut.TabIndex = 34;
             obliczeniaAut.TextAlign = HorizontalAlignment.Center;
             // 
@@ -633,7 +633,7 @@ namespace Kalendarz1
             label5.AutoSize = true;
             label5.Location = new Point(1874, 376);
             label5.Name = "label5";
-            label5.Size = new Size(14, 16);
+            label5.Size = new Size(19, 20);
             label5.TabIndex = 36;
             label5.Text = "=";
             // 
@@ -652,7 +652,7 @@ namespace Kalendarz1
             sumaSztuk.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             sumaSztuk.Location = new Point(1597, 789);
             sumaSztuk.Name = "sumaSztuk";
-            sumaSztuk.Size = new Size(86, 25);
+            sumaSztuk.Size = new Size(86, 29);
             sumaSztuk.TabIndex = 37;
             sumaSztuk.TextAlign = HorizontalAlignment.Center;
             // 
@@ -682,7 +682,7 @@ namespace Kalendarz1
             TuszkaKG.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             TuszkaKG.Location = new Point(141, 19);
             TuszkaKG.Name = "TuszkaKG";
-            TuszkaKG.Size = new Size(106, 27);
+            TuszkaKG.Size = new Size(106, 32);
             TuszkaKG.TabIndex = 42;
             TuszkaKG.TextAlign = HorizontalAlignment.Center;
             TuszkaKG.TextChanged += TuszkaKG_TextChanged_1;
@@ -702,7 +702,7 @@ namespace Kalendarz1
             TuszkaCena.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             TuszkaCena.Location = new Point(253, 19);
             TuszkaCena.Name = "TuszkaCena";
-            TuszkaCena.Size = new Size(57, 27);
+            TuszkaCena.Size = new Size(57, 32);
             TuszkaCena.TabIndex = 44;
             TuszkaCena.TextAlign = HorizontalAlignment.Center;
             TuszkaCena.TextChanged += TuszkaCena_TextChanged_1;
@@ -722,7 +722,7 @@ namespace Kalendarz1
             TuszkaWartosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             TuszkaWartosc.Location = new Point(316, 19);
             TuszkaWartosc.Name = "TuszkaWartosc";
-            TuszkaWartosc.Size = new Size(117, 27);
+            TuszkaWartosc.Size = new Size(117, 32);
             TuszkaWartosc.TabIndex = 46;
             TuszkaWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -741,7 +741,7 @@ namespace Kalendarz1
             FiletWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             FiletWartosc.Location = new Point(316, 81);
             FiletWartosc.Name = "FiletWartosc";
-            FiletWartosc.Size = new Size(117, 25);
+            FiletWartosc.Size = new Size(117, 29);
             FiletWartosc.TabIndex = 52;
             FiletWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -751,7 +751,7 @@ namespace Kalendarz1
             FiletCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             FiletCena.Location = new Point(253, 81);
             FiletCena.Name = "FiletCena";
-            FiletCena.Size = new Size(57, 25);
+            FiletCena.Size = new Size(57, 29);
             FiletCena.TabIndex = 50;
             FiletCena.TextAlign = HorizontalAlignment.Center;
             FiletCena.TextChanged += FiletCena_TextChanged;
@@ -762,7 +762,7 @@ namespace Kalendarz1
             FiletKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             FiletKG.Location = new Point(141, 81);
             FiletKG.Name = "FiletKG";
-            FiletKG.Size = new Size(106, 25);
+            FiletKG.Size = new Size(106, 29);
             FiletKG.TabIndex = 48;
             FiletKG.TextAlign = HorizontalAlignment.Center;
             FiletKG.TextChanged += FiletKG_TextChanged;
@@ -773,7 +773,7 @@ namespace Kalendarz1
             CwiartkaWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             CwiartkaWartosc.Location = new Point(316, 129);
             CwiartkaWartosc.Name = "CwiartkaWartosc";
-            CwiartkaWartosc.Size = new Size(117, 25);
+            CwiartkaWartosc.Size = new Size(117, 29);
             CwiartkaWartosc.TabIndex = 58;
             CwiartkaWartosc.TextAlign = HorizontalAlignment.Center;
             CwiartkaWartosc.TextChanged += CwiartkaWartosc_TextChanged;
@@ -784,7 +784,7 @@ namespace Kalendarz1
             CwiartkaCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             CwiartkaCena.Location = new Point(253, 129);
             CwiartkaCena.Name = "CwiartkaCena";
-            CwiartkaCena.Size = new Size(57, 25);
+            CwiartkaCena.Size = new Size(57, 29);
             CwiartkaCena.TabIndex = 56;
             CwiartkaCena.TextAlign = HorizontalAlignment.Center;
             CwiartkaCena.TextChanged += CwiartkaCena_TextChanged;
@@ -795,7 +795,7 @@ namespace Kalendarz1
             CwiartkaKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             CwiartkaKG.Location = new Point(141, 129);
             CwiartkaKG.Name = "CwiartkaKG";
-            CwiartkaKG.Size = new Size(106, 25);
+            CwiartkaKG.Size = new Size(106, 29);
             CwiartkaKG.TabIndex = 54;
             CwiartkaKG.TextAlign = HorizontalAlignment.Center;
             CwiartkaKG.TextChanged += CwiartkaKG_TextChanged;
@@ -806,7 +806,7 @@ namespace Kalendarz1
             SkrzydloWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             SkrzydloWartosc.Location = new Point(316, 177);
             SkrzydloWartosc.Name = "SkrzydloWartosc";
-            SkrzydloWartosc.Size = new Size(117, 25);
+            SkrzydloWartosc.Size = new Size(117, 29);
             SkrzydloWartosc.TabIndex = 64;
             SkrzydloWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -816,7 +816,7 @@ namespace Kalendarz1
             SkrzydloCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             SkrzydloCena.Location = new Point(253, 177);
             SkrzydloCena.Name = "SkrzydloCena";
-            SkrzydloCena.Size = new Size(57, 25);
+            SkrzydloCena.Size = new Size(57, 29);
             SkrzydloCena.TabIndex = 62;
             SkrzydloCena.TextAlign = HorizontalAlignment.Center;
             SkrzydloCena.TextChanged += SkrzydloCena_TextChanged;
@@ -827,7 +827,7 @@ namespace Kalendarz1
             SkrzydloKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             SkrzydloKG.Location = new Point(141, 177);
             SkrzydloKG.Name = "SkrzydloKG";
-            SkrzydloKG.Size = new Size(106, 25);
+            SkrzydloKG.Size = new Size(106, 29);
             SkrzydloKG.TabIndex = 60;
             SkrzydloKG.TextAlign = HorizontalAlignment.Center;
             SkrzydloKG.TextChanged += SkrzydloKG_TextChanged;
@@ -838,7 +838,7 @@ namespace Kalendarz1
             KorpusWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             KorpusWartosc.Location = new Point(316, 220);
             KorpusWartosc.Name = "KorpusWartosc";
-            KorpusWartosc.Size = new Size(117, 25);
+            KorpusWartosc.Size = new Size(117, 29);
             KorpusWartosc.TabIndex = 70;
             KorpusWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -848,7 +848,7 @@ namespace Kalendarz1
             KorpusCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             KorpusCena.Location = new Point(253, 220);
             KorpusCena.Name = "KorpusCena";
-            KorpusCena.Size = new Size(57, 25);
+            KorpusCena.Size = new Size(57, 29);
             KorpusCena.TabIndex = 68;
             KorpusCena.TextAlign = HorizontalAlignment.Center;
             KorpusCena.TextChanged += KorpusCena_TextChanged;
@@ -859,7 +859,7 @@ namespace Kalendarz1
             KorpusKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             KorpusKG.Location = new Point(141, 220);
             KorpusKG.Name = "KorpusKG";
-            KorpusKG.Size = new Size(106, 25);
+            KorpusKG.Size = new Size(106, 29);
             KorpusKG.TabIndex = 66;
             KorpusKG.TextAlign = HorizontalAlignment.Center;
             // 
@@ -914,7 +914,7 @@ namespace Kalendarz1
             PozostaleWartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             PozostaleWartosc.Location = new Point(316, 245);
             PozostaleWartosc.Name = "PozostaleWartosc";
-            PozostaleWartosc.Size = new Size(117, 25);
+            PozostaleWartosc.Size = new Size(117, 29);
             PozostaleWartosc.TabIndex = 77;
             PozostaleWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -924,7 +924,7 @@ namespace Kalendarz1
             PozostaleCena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             PozostaleCena.Location = new Point(253, 245);
             PozostaleCena.Name = "PozostaleCena";
-            PozostaleCena.Size = new Size(57, 25);
+            PozostaleCena.Size = new Size(57, 29);
             PozostaleCena.TabIndex = 76;
             PozostaleCena.TextAlign = HorizontalAlignment.Center;
             PozostaleCena.TextChanged += PozostaleCena_TextChanged;
@@ -935,7 +935,7 @@ namespace Kalendarz1
             PozostaleKG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             PozostaleKG.Location = new Point(141, 245);
             PozostaleKG.Name = "PozostaleKG";
-            PozostaleKG.Size = new Size(106, 25);
+            PozostaleKG.Size = new Size(106, 29);
             PozostaleKG.TabIndex = 75;
             PozostaleKG.TextAlign = HorizontalAlignment.Center;
             // 
@@ -945,7 +945,7 @@ namespace Kalendarz1
             TuszkaWydajnosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             TuszkaWydajnosc.Location = new Point(78, 19);
             TuszkaWydajnosc.Name = "TuszkaWydajnosc";
-            TuszkaWydajnosc.Size = new Size(57, 27);
+            TuszkaWydajnosc.Size = new Size(57, 32);
             TuszkaWydajnosc.TabIndex = 79;
             TuszkaWydajnosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -964,7 +964,7 @@ namespace Kalendarz1
             FiletWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             FiletWydajnosc.Location = new Point(78, 81);
             FiletWydajnosc.Name = "FiletWydajnosc";
-            FiletWydajnosc.Size = new Size(57, 25);
+            FiletWydajnosc.Size = new Size(57, 29);
             FiletWydajnosc.TabIndex = 81;
             FiletWydajnosc.TextAlign = HorizontalAlignment.Center;
             FiletWydajnosc.TextChanged += FiletWydajnosc_TextChanged;
@@ -975,7 +975,7 @@ namespace Kalendarz1
             CwiartkaWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             CwiartkaWydajnosc.Location = new Point(78, 129);
             CwiartkaWydajnosc.Name = "CwiartkaWydajnosc";
-            CwiartkaWydajnosc.Size = new Size(57, 25);
+            CwiartkaWydajnosc.Size = new Size(57, 29);
             CwiartkaWydajnosc.TabIndex = 82;
             CwiartkaWydajnosc.TextAlign = HorizontalAlignment.Center;
             CwiartkaWydajnosc.TextChanged += CwiartkaWydajnosc_TextChanged;
@@ -986,7 +986,7 @@ namespace Kalendarz1
             SkrzydloWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             SkrzydloWydajnosc.Location = new Point(78, 177);
             SkrzydloWydajnosc.Name = "SkrzydloWydajnosc";
-            SkrzydloWydajnosc.Size = new Size(57, 25);
+            SkrzydloWydajnosc.Size = new Size(57, 29);
             SkrzydloWydajnosc.TabIndex = 83;
             SkrzydloWydajnosc.TextAlign = HorizontalAlignment.Center;
             SkrzydloWydajnosc.TextChanged += SkrzydloWydajnosc_TextChanged;
@@ -997,7 +997,7 @@ namespace Kalendarz1
             KorpusWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             KorpusWydajnosc.Location = new Point(78, 220);
             KorpusWydajnosc.Name = "KorpusWydajnosc";
-            KorpusWydajnosc.Size = new Size(57, 25);
+            KorpusWydajnosc.Size = new Size(57, 29);
             KorpusWydajnosc.TabIndex = 84;
             KorpusWydajnosc.TextAlign = HorizontalAlignment.Center;
             KorpusWydajnosc.TextChanged += KorpusWydajnosc_TextChanged;
@@ -1008,7 +1008,7 @@ namespace Kalendarz1
             PozostaleWydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             PozostaleWydajnosc.Location = new Point(78, 245);
             PozostaleWydajnosc.Name = "PozostaleWydajnosc";
-            PozostaleWydajnosc.Size = new Size(57, 25);
+            PozostaleWydajnosc.Size = new Size(57, 29);
             PozostaleWydajnosc.TabIndex = 85;
             PozostaleWydajnosc.TextAlign = HorizontalAlignment.Center;
             PozostaleWydajnosc.TextChanged += PozostaleWydajnosc_TextChanged;
@@ -1019,7 +1019,7 @@ namespace Kalendarz1
             SumaWydajnosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             SumaWydajnosc.Location = new Point(78, 55);
             SumaWydajnosc.Name = "SumaWydajnosc";
-            SumaWydajnosc.Size = new Size(57, 27);
+            SumaWydajnosc.Size = new Size(57, 32);
             SumaWydajnosc.TabIndex = 90;
             SumaWydajnosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1039,7 +1039,7 @@ namespace Kalendarz1
             SumaWartosc.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             SumaWartosc.Location = new Point(316, 55);
             SumaWartosc.Name = "SumaWartosc";
-            SumaWartosc.Size = new Size(117, 27);
+            SumaWartosc.Size = new Size(117, 32);
             SumaWartosc.TabIndex = 88;
             SumaWartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1049,7 +1049,7 @@ namespace Kalendarz1
             SumaCena.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             SumaCena.Location = new Point(253, 55);
             SumaCena.Name = "SumaCena";
-            SumaCena.Size = new Size(57, 27);
+            SumaCena.Size = new Size(57, 32);
             SumaCena.TabIndex = 87;
             SumaCena.TextAlign = HorizontalAlignment.Center;
             SumaCena.TextChanged += SumaCena_TextChanged;
@@ -1060,7 +1060,7 @@ namespace Kalendarz1
             SumaKG.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             SumaKG.Location = new Point(141, 55);
             SumaKG.Name = "SumaKG";
-            SumaKG.Size = new Size(106, 27);
+            SumaKG.Size = new Size(106, 32);
             SumaKG.TabIndex = 86;
             SumaKG.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1070,7 +1070,7 @@ namespace Kalendarz1
             RoznicaTuszkaElement.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             RoznicaTuszkaElement.Location = new Point(439, 38);
             RoznicaTuszkaElement.Name = "RoznicaTuszkaElement";
-            RoznicaTuszkaElement.Size = new Size(89, 27);
+            RoznicaTuszkaElement.Size = new Size(89, 32);
             RoznicaTuszkaElement.TabIndex = 91;
             RoznicaTuszkaElement.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1084,6 +1084,7 @@ namespace Kalendarz1
             SumaWartosc2.Size = new Size(207, 63);
             SumaWartosc2.TabIndex = 94;
             SumaWartosc2.TextAlign = HorizontalAlignment.Center;
+            SumaWartosc2.TextChanged += SumaWartosc2_TextChanged;
             // 
             // label21
             // 
@@ -1157,7 +1158,7 @@ namespace Kalendarz1
             WartoscElementowPoKrojeniu.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             WartoscElementowPoKrojeniu.Location = new Point(1412, 690);
             WartoscElementowPoKrojeniu.Name = "WartoscElementowPoKrojeniu";
-            WartoscElementowPoKrojeniu.Size = new Size(117, 27);
+            WartoscElementowPoKrojeniu.Size = new Size(117, 32);
             WartoscElementowPoKrojeniu.TabIndex = 100;
             WartoscElementowPoKrojeniu.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1222,7 +1223,7 @@ namespace Kalendarz1
             RoznicaTuszkaElement2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             RoznicaTuszkaElement2.Location = new Point(1467, 773);
             RoznicaTuszkaElement2.Name = "RoznicaTuszkaElement2";
-            RoznicaTuszkaElement2.Size = new Size(117, 27);
+            RoznicaTuszkaElement2.Size = new Size(117, 32);
             RoznicaTuszkaElement2.TabIndex = 106;
             RoznicaTuszkaElement2.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1272,7 +1273,7 @@ namespace Kalendarz1
             textBox2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             textBox2.Location = new Point(1526, 872);
             textBox2.Name = "textBox2";
-            textBox2.Size = new Size(117, 27);
+            textBox2.Size = new Size(117, 32);
             textBox2.TabIndex = 114;
             textBox2.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1292,7 +1293,7 @@ namespace Kalendarz1
             textBox3.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             textBox3.Location = new Point(1289, 794);
             textBox3.Name = "textBox3";
-            textBox3.Size = new Size(117, 27);
+            textBox3.Size = new Size(117, 32);
             textBox3.TabIndex = 112;
             textBox3.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1312,7 +1313,7 @@ namespace Kalendarz1
             textBox4.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             textBox4.Location = new Point(1280, 864);
             textBox4.Name = "textBox4";
-            textBox4.Size = new Size(117, 27);
+            textBox4.Size = new Size(117, 32);
             textBox4.TabIndex = 110;
             textBox4.TextAlign = HorizontalAlignment.Center;
             // 
@@ -1322,7 +1323,7 @@ namespace Kalendarz1
             textBox5.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             textBox5.Location = new Point(1568, 778);
             textBox5.Name = "textBox5";
-            textBox5.Size = new Size(117, 27);
+            textBox5.Size = new Size(117, 32);
             textBox5.TabIndex = 118;
             textBox5.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2455,7 +2456,7 @@ namespace Kalendarz1
             CenaTuszka1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaTuszka1.Location = new Point(665, 39);
             CenaTuszka1.Name = "CenaTuszka1";
-            CenaTuszka1.Size = new Size(59, 27);
+            CenaTuszka1.Size = new Size(59, 32);
             CenaTuszka1.TabIndex = 252;
             CenaTuszka1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2465,7 +2466,7 @@ namespace Kalendarz1
             CenaElementyKrojenie1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaElementyKrojenie1.Location = new Point(665, 313);
             CenaElementyKrojenie1.Name = "CenaElementyKrojenie1";
-            CenaElementyKrojenie1.Size = new Size(59, 27);
+            CenaElementyKrojenie1.Size = new Size(59, 32);
             CenaElementyKrojenie1.TabIndex = 253;
             CenaElementyKrojenie1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2475,7 +2476,7 @@ namespace Kalendarz1
             CenaElementy1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaElementy1.Location = new Point(665, 175);
             CenaElementy1.Name = "CenaElementy1";
-            CenaElementy1.Size = new Size(59, 27);
+            CenaElementy1.Size = new Size(59, 32);
             CenaElementy1.TabIndex = 254;
             CenaElementy1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2485,7 +2486,7 @@ namespace Kalendarz1
             CenaElementyPoMrozeniu1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaElementyPoMrozeniu1.Location = new Point(666, 575);
             CenaElementyPoMrozeniu1.Name = "CenaElementyPoMrozeniu1";
-            CenaElementyPoMrozeniu1.Size = new Size(59, 27);
+            CenaElementyPoMrozeniu1.Size = new Size(59, 32);
             CenaElementyPoMrozeniu1.TabIndex = 255;
             CenaElementyPoMrozeniu1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2495,7 +2496,7 @@ namespace Kalendarz1
             CenaTuszka2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaTuszka2.Location = new Point(666, 822);
             CenaTuszka2.Name = "CenaTuszka2";
-            CenaTuszka2.Size = new Size(59, 27);
+            CenaTuszka2.Size = new Size(59, 32);
             CenaTuszka2.TabIndex = 256;
             CenaTuszka2.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2505,7 +2506,7 @@ namespace Kalendarz1
             CenyElementowPoObnizeniuMroz2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenyElementowPoObnizeniuMroz2.Location = new Point(666, 885);
             CenyElementowPoObnizeniuMroz2.Name = "CenyElementowPoObnizeniuMroz2";
-            CenyElementowPoObnizeniuMroz2.Size = new Size(59, 27);
+            CenyElementowPoObnizeniuMroz2.Size = new Size(59, 32);
             CenyElementowPoObnizeniuMroz2.TabIndex = 257;
             CenyElementowPoObnizeniuMroz2.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2515,7 +2516,7 @@ namespace Kalendarz1
             CenaStrataSuma1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaStrataSuma1.Location = new Point(666, 954);
             CenaStrataSuma1.Name = "CenaStrataSuma1";
-            CenaStrataSuma1.Size = new Size(59, 27);
+            CenaStrataSuma1.Size = new Size(59, 32);
             CenaStrataSuma1.TabIndex = 258;
             CenaStrataSuma1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2525,7 +2526,7 @@ namespace Kalendarz1
             CenyElementowPoObnizeniuMroz1.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenyElementowPoObnizeniuMroz1.Location = new Point(666, 713);
             CenyElementowPoObnizeniuMroz1.Name = "CenyElementowPoObnizeniuMroz1";
-            CenyElementowPoObnizeniuMroz1.Size = new Size(59, 27);
+            CenyElementowPoObnizeniuMroz1.Size = new Size(59, 32);
             CenyElementowPoObnizeniuMroz1.TabIndex = 259;
             CenyElementowPoObnizeniuMroz1.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2535,7 +2536,7 @@ namespace Kalendarz1
             Filet2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Filet2Wydajnosc.Location = new Point(78, 104);
             Filet2Wydajnosc.Name = "Filet2Wydajnosc";
-            Filet2Wydajnosc.Size = new Size(57, 25);
+            Filet2Wydajnosc.Size = new Size(57, 29);
             Filet2Wydajnosc.TabIndex = 264;
             Filet2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Filet2Wydajnosc.TextChanged += Filet2Wydajnosc_TextChanged;
@@ -2555,7 +2556,7 @@ namespace Kalendarz1
             Filet2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Filet2Wartosc.Location = new Point(316, 104);
             Filet2Wartosc.Name = "Filet2Wartosc";
-            Filet2Wartosc.Size = new Size(117, 25);
+            Filet2Wartosc.Size = new Size(117, 29);
             Filet2Wartosc.TabIndex = 262;
             Filet2Wartosc.TextAlign = HorizontalAlignment.Center;
             Filet2Wartosc.TextChanged += Filet2Wartosc_TextChanged;
@@ -2566,7 +2567,7 @@ namespace Kalendarz1
             Filet2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Filet2Cena.Location = new Point(253, 104);
             Filet2Cena.Name = "Filet2Cena";
-            Filet2Cena.Size = new Size(57, 25);
+            Filet2Cena.Size = new Size(57, 29);
             Filet2Cena.TabIndex = 261;
             Filet2Cena.TextAlign = HorizontalAlignment.Center;
             Filet2Cena.TextChanged += Filet2Cena_TextChanged;
@@ -2577,7 +2578,7 @@ namespace Kalendarz1
             Filet2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Filet2KG.Location = new Point(141, 104);
             Filet2KG.Name = "Filet2KG";
-            Filet2KG.Size = new Size(106, 25);
+            Filet2KG.Size = new Size(106, 29);
             Filet2KG.TabIndex = 260;
             Filet2KG.TextAlign = HorizontalAlignment.Center;
             Filet2KG.TextChanged += Filet2KG_TextChanged;
@@ -2588,7 +2589,7 @@ namespace Kalendarz1
             Cwiartka2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Cwiartka2Wydajnosc.Location = new Point(78, 152);
             Cwiartka2Wydajnosc.Name = "Cwiartka2Wydajnosc";
-            Cwiartka2Wydajnosc.Size = new Size(57, 25);
+            Cwiartka2Wydajnosc.Size = new Size(57, 29);
             Cwiartka2Wydajnosc.TabIndex = 269;
             Cwiartka2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Wydajnosc.TextChanged += Cwiartka2Wydajnosc_TextChanged;
@@ -2608,7 +2609,7 @@ namespace Kalendarz1
             Cwiartka2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Cwiartka2Wartosc.Location = new Point(316, 152);
             Cwiartka2Wartosc.Name = "Cwiartka2Wartosc";
-            Cwiartka2Wartosc.Size = new Size(117, 25);
+            Cwiartka2Wartosc.Size = new Size(117, 29);
             Cwiartka2Wartosc.TabIndex = 267;
             Cwiartka2Wartosc.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Wartosc.TextChanged += Cwiartka2Wartosc_TextChanged;
@@ -2619,7 +2620,7 @@ namespace Kalendarz1
             Cwiartka2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Cwiartka2Cena.Location = new Point(253, 152);
             Cwiartka2Cena.Name = "Cwiartka2Cena";
-            Cwiartka2Cena.Size = new Size(57, 25);
+            Cwiartka2Cena.Size = new Size(57, 29);
             Cwiartka2Cena.TabIndex = 266;
             Cwiartka2Cena.TextAlign = HorizontalAlignment.Center;
             Cwiartka2Cena.TextChanged += Cwiartka2Cena_TextChanged;
@@ -2630,7 +2631,7 @@ namespace Kalendarz1
             Cwiartka2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Cwiartka2KG.Location = new Point(141, 152);
             Cwiartka2KG.Name = "Cwiartka2KG";
-            Cwiartka2KG.Size = new Size(106, 25);
+            Cwiartka2KG.Size = new Size(106, 29);
             Cwiartka2KG.TabIndex = 265;
             Cwiartka2KG.TextAlign = HorizontalAlignment.Center;
             Cwiartka2KG.TextChanged += Cwiartka2KG_TextChanged;
@@ -2641,7 +2642,7 @@ namespace Kalendarz1
             Skrzydlo2Wydajnosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Skrzydlo2Wydajnosc.Location = new Point(78, 197);
             Skrzydlo2Wydajnosc.Name = "Skrzydlo2Wydajnosc";
-            Skrzydlo2Wydajnosc.Size = new Size(57, 25);
+            Skrzydlo2Wydajnosc.Size = new Size(57, 29);
             Skrzydlo2Wydajnosc.TabIndex = 274;
             Skrzydlo2Wydajnosc.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2Wydajnosc.TextChanged += Skrzydlo2Wydajnosc_TextChanged;
@@ -2661,7 +2662,7 @@ namespace Kalendarz1
             Skrzydlo2Wartosc.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Skrzydlo2Wartosc.Location = new Point(316, 197);
             Skrzydlo2Wartosc.Name = "Skrzydlo2Wartosc";
-            Skrzydlo2Wartosc.Size = new Size(117, 25);
+            Skrzydlo2Wartosc.Size = new Size(117, 29);
             Skrzydlo2Wartosc.TabIndex = 272;
             Skrzydlo2Wartosc.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2671,7 +2672,7 @@ namespace Kalendarz1
             Skrzydlo2Cena.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Skrzydlo2Cena.Location = new Point(253, 197);
             Skrzydlo2Cena.Name = "Skrzydlo2Cena";
-            Skrzydlo2Cena.Size = new Size(57, 25);
+            Skrzydlo2Cena.Size = new Size(57, 29);
             Skrzydlo2Cena.TabIndex = 271;
             Skrzydlo2Cena.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2Cena.TextChanged += Skrzydlo2Cena_TextChanged;
@@ -2682,7 +2683,7 @@ namespace Kalendarz1
             Skrzydlo2KG.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point);
             Skrzydlo2KG.Location = new Point(141, 197);
             Skrzydlo2KG.Name = "Skrzydlo2KG";
-            Skrzydlo2KG.Size = new Size(106, 25);
+            Skrzydlo2KG.Size = new Size(106, 29);
             Skrzydlo2KG.TabIndex = 270;
             Skrzydlo2KG.TextAlign = HorizontalAlignment.Center;
             Skrzydlo2KG.TextChanged += Skrzydlo2KG_TextChanged;
@@ -2693,7 +2694,7 @@ namespace Kalendarz1
             CenaRoznicaTuszkaElementy.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaRoznicaTuszkaElementy.Location = new Point(665, 108);
             CenaRoznicaTuszkaElementy.Name = "CenaRoznicaTuszkaElementy";
-            CenaRoznicaTuszkaElementy.Size = new Size(59, 27);
+            CenaRoznicaTuszkaElementy.Size = new Size(59, 32);
             CenaRoznicaTuszkaElementy.TabIndex = 275;
             CenaRoznicaTuszkaElementy.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2703,7 +2704,7 @@ namespace Kalendarz1
             CenaKrojenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaKrojenia.Location = new Point(665, 246);
             CenaKrojenia.Name = "CenaKrojenia";
-            CenaKrojenia.Size = new Size(59, 27);
+            CenaKrojenia.Size = new Size(59, 32);
             CenaKrojenia.TabIndex = 276;
             CenaKrojenia.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2713,7 +2714,7 @@ namespace Kalendarz1
             CenaMrozenia.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaMrozenia.Location = new Point(666, 510);
             CenaMrozenia.Name = "CenaMrozenia";
-            CenaMrozenia.Size = new Size(59, 27);
+            CenaMrozenia.Size = new Size(59, 32);
             CenaMrozenia.TabIndex = 277;
             CenaMrozenia.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2723,7 +2724,7 @@ namespace Kalendarz1
             RoznicaObnizeniaCeny.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             RoznicaObnizeniaCeny.Location = new Point(666, 648);
             RoznicaObnizeniaCeny.Name = "RoznicaObnizeniaCeny";
-            RoznicaObnizeniaCeny.Size = new Size(59, 27);
+            RoznicaObnizeniaCeny.Size = new Size(59, 32);
             RoznicaObnizeniaCeny.TabIndex = 278;
             RoznicaObnizeniaCeny.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2733,7 +2734,7 @@ namespace Kalendarz1
             CenaRoznicaTuszkaElementyPokrojone.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
             CenaRoznicaTuszkaElementyPokrojone.Location = new Point(665, 384);
             CenaRoznicaTuszkaElementyPokrojone.Name = "CenaRoznicaTuszkaElementyPokrojone";
-            CenaRoznicaTuszkaElementyPokrojone.Size = new Size(59, 27);
+            CenaRoznicaTuszkaElementyPokrojone.Size = new Size(59, 32);
             CenaRoznicaTuszkaElementyPokrojone.TabIndex = 282;
             CenaRoznicaTuszkaElementyPokrojone.TextAlign = HorizontalAlignment.Center;
             // 
@@ -2795,7 +2796,7 @@ namespace Kalendarz1
             dateTimePicker2.CalendarFont = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point);
             dateTimePicker2.Location = new Point(1356, 5);
             dateTimePicker2.Name = "dateTimePicker2";
-            dateTimePicker2.Size = new Size(228, 22);
+            dateTimePicker2.Size = new Size(228, 26);
             dateTimePicker2.TabIndex = 285;
             // 
             // dateTimePicker1
@@ -2803,7 +2804,7 @@ namespace Kalendarz1
             dateTimePicker1.CalendarFont = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point);
             dateTimePicker1.Location = new Point(1122, 5);
             dateTimePicker1.Name = "dateTimePicker1";
-            dateTimePicker1.Size = new Size(228, 22);
+            dateTimePicker1.Size = new Size(228, 26);
             dateTimePicker1.TabIndex = 284;
             // 
             // PokazMroznie
@@ -2821,6 +2822,7 @@ namespace Kalendarz1
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView1.Location = new Point(1174, 328);
             dataGridView1.Name = "dataGridView1";
+            dataGridView1.RowHeadersWidth = 51;
             dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new Size(561, 416);
             dataGridView1.TabIndex = 288;
@@ -3711,8 +3713,7 @@ namespace Kalendarz1
         INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
         WHERE DP.[data] >= @DateFrom 
           AND DP.[data] < DATEADD(DAY, 1, @DateTo)
-          AND TW.[katalog] = 67095 
-          AND DP.[kod] != 'Kurczak A'
+          AND TW.[katalog] = 67095
         GROUP BY DP.[kod]
         ORDER BY SredniaCena DESC;";
 
@@ -3760,6 +3761,9 @@ namespace Kalendarz1
                                     case "Korpus":
                                         KorpusCena.Text = cena.ToString("F2");
                                         break;
+                                    case "Kurczak A":
+                                        TuszkaCena.Text = cena.ToString("F2");
+                                        break;
                                     default:
                                         break;
                                 }
@@ -3771,6 +3775,7 @@ namespace Kalendarz1
                 {
                     MessageBox.Show($"Błąd: {ex.Message}");
                 }
+                ObliczWszystko();
             }
         }
 
@@ -3782,62 +3787,62 @@ namespace Kalendarz1
             string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
             string query = @"
-            WITH 
-            ScalonaIlosc AS (
-                SELECT
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END AS ScalonyKod,
-                    ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Ilosc
-                FROM [HANDEL].[HM].[MG]
-                JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
-                WHERE MG.magazyn = 65552
-                  AND (MG.seria IN ('sMM+', 'sMM-', 'sMK-', 'sMK+'))
-                  AND MG.[Data] BETWEEN @DateFrom AND @DateTo
-                GROUP BY 
-                    CASE 
-                        WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
-                        WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
-                        WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
-                        WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
-                        WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
-                        WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
-                        WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
-                        WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
-                        ELSE MZ.kod
-                    END
-            ),
-            CenyTowarow AS (
-                SELECT 
-                    DP.[kod] AS KodTowaru,
-                    ROUND(SUM(DP.[wartnetto]) / NULLIF(SUM(DP.[ilosc]), 0), 2) AS SredniaCena
-                FROM [HANDEL].[HM].[DP] DP 
-                INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id]
-                INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id]
-                WHERE DP.[data] >= @DateFrom 
-                  AND DP.[data] < DATEADD(DAY, 1, @DateTo)
-                  AND TW.[katalog] = 67095
-                GROUP BY DP.[kod]
-            )
-            SELECT 
-                SI.ScalonyKod,
-                SI.Ilosc,
-                ROUND(COALESCE(CT.SredniaCena, 0), 2) AS Cena,
-                ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0), 2) AS Wartosc,
-                ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82, 2) AS [18%],
-                ROUND((SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82) - (SI.Ilosc * COALESCE(CT.SredniaCena, 0)), 2) AS Strata
-            FROM ScalonaIlosc SI
-            LEFT JOIN CenyTowarow CT ON SI.ScalonyKod = CT.KodTowaru
-            ORDER BY Wartosc DESC;
-            ";
+    WITH 
+    ScalonaIlosc AS (
+        SELECT
+            CASE 
+                WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
+                WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
+                WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
+                WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
+                WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
+                WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
+                WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
+                WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
+                ELSE MZ.kod
+            END AS ScalonyKod,
+            ABS(SUM(CASE WHEN MZ.ilosc < 0 THEN MZ.ilosc ELSE 0 END)) AS Ilosc
+        FROM [HANDEL].[HM].[MG]
+        JOIN [HANDEL].[HM].[MZ] ON MG.ID = MZ.super
+        WHERE MG.magazyn = 65552
+          AND MG.seria IN ('sMM+', 'sMM-', 'sMK-', 'sMK+')
+          AND MG.[Data] BETWEEN @DateFrom AND @DateTo
+        GROUP BY 
+            CASE 
+                WHEN MZ.kod LIKE 'Kurczak A%' THEN 'Kurczak A'
+                WHEN MZ.kod LIKE 'Korpus%' THEN 'Korpus'
+                WHEN MZ.kod LIKE 'Ćwiartka%' THEN 'Ćwiartka'
+                WHEN MZ.kod LIKE 'Filet II%' THEN 'Filet II'
+                WHEN MZ.kod LIKE 'Filet %' THEN 'Filet A'
+                WHEN MZ.kod LIKE 'Skrzydło I%' THEN 'Skrzydło I'
+                WHEN MZ.kod LIKE 'Trybowane bez skóry%' THEN 'Trybowane bez skóry'
+                WHEN MZ.kod LIKE 'Trybowane ze skórą%' THEN 'Trybowane ze skórą'
+                ELSE MZ.kod
+            END
+    ),
+    CenyTowarow AS (
+        SELECT 
+            DP.kod AS KodTowaru,
+            ROUND(SUM(DP.wartnetto) / NULLIF(SUM(DP.ilosc), 0), 2) AS SredniaCena
+        FROM [HANDEL].[HM].[DP] DP 
+        INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.id
+        INNER JOIN [HANDEL].[HM].[DK] DK ON DP.super = DK.id
+        WHERE DP.data >= @DateFrom 
+          AND DP.data < DATEADD(DAY, 1, @DateTo)
+          AND TW.katalog = 67095
+        GROUP BY DP.kod
+    )
+    SELECT 
+        SI.ScalonyKod,
+        SI.Ilosc,
+        ROUND(COALESCE(CT.SredniaCena, 0), 2) AS Cena,
+        ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0), 2) AS Wartosc,
+        ROUND(SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82, 2) AS [18%],
+        ROUND((SI.Ilosc * COALESCE(CT.SredniaCena, 0) * 0.82) - (SI.Ilosc * COALESCE(CT.SredniaCena, 0)), 2) AS Strata
+    FROM ScalonaIlosc SI
+    LEFT JOIN CenyTowarow CT ON SI.ScalonyKod = CT.KodTowaru
+    ORDER BY Wartosc DESC;
+    ";
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -3853,61 +3858,103 @@ namespace Kalendarz1
                         DataTable dataTable = new DataTable();
                         adapter.Fill(dataTable);
 
-                        // Dodaj wiersz sumaryczny
-                        DataRow summaryRow = dataTable.NewRow();
-                        summaryRow["ScalonyKod"] = "SUMA";
-                        summaryRow["Ilosc"] = dataTable.Compute("SUM(Ilosc)", string.Empty);
-                        summaryRow["Wartosc"] = dataTable.Compute("SUM(Wartosc)", string.Empty);
-                        summaryRow["18%"] = dataTable.Compute("SUM([18%])", string.Empty);
-                        summaryRow["Strata"] = dataTable.Compute("SUM(Strata)", string.Empty);
-
-                        dataTable.Rows.InsertAt(summaryRow, 0);
-
-                        dataGridView1.DataSource = dataTable;
-
-                        // Formatowanie DataGridView
-                        dataGridView1.RowHeadersVisible = false; // Usunięcie prawego paska
-                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // Automatyczna szerokość kolumn
-                        dataGridView1.DefaultCellStyle.Font = new Font("Arial", 9); // Ustawienia czcionki
-                        dataGridView1.RowTemplate.Height = 15; // Wysokość wierszy
-
-                        foreach (DataGridViewRow row in dataGridView1.Rows)
+                        // Usuń wiersze z Wartosc = 0
+                        for (int i = dataTable.Rows.Count - 1; i >= 0; i--)
                         {
-                            if (row.Cells["Wartosc"].Value != null && decimal.TryParse(row.Cells["Wartosc"].Value.ToString(), out decimal wartosc))
+                            if (decimal.TryParse(dataTable.Rows[i]["Wartosc"].ToString(), out decimal val) && val == 0)
                             {
-                                row.Cells["Wartosc"].Value = string.Format("{0:N2} zł", wartosc); // Format z separatorami i zł
-                            }
-
-                            if (row.Cells["18%"].Value != null && decimal.TryParse(row.Cells["18%"].Value.ToString(), out decimal osiemnascieProcent))
-                            {
-                                row.Cells["18%"].Value = string.Format("{0:N2} zł", osiemnascieProcent);
-                            }
-
-                            if (row.Cells["Strata"].Value != null && decimal.TryParse(row.Cells["Strata"].Value.ToString(), out decimal strata))
-                            {
-                                row.Cells["Strata"].Value = string.Format("{0:N2} zł", strata);
-
-                                // Kolumna "Strata" na czerwono, jeśli wartość jest ujemna
-                                if (strata < 0)
-                                {
-                                    row.Cells["Strata"].Style.ForeColor = Color.Red;
-                                }
+                                dataTable.Rows.RemoveAt(i);
                             }
                         }
 
-                        // Ustawienia DataGridView
-                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // Dopasowanie szerokości kolumn
-                        dataGridView1.RowTemplate.Height = 16; // Wysokość wierszy
-                        dataGridView1.RowHeadersVisible = false; // Usunięcie prawego paska
+                        // Oblicz sumy
+                        decimal sumaIlosc = Convert.ToDecimal(dataTable.Compute("SUM(Ilosc)", string.Empty));
+                        decimal sumaWartosc = Convert.ToDecimal(dataTable.Compute("SUM(Wartosc)", string.Empty));
+                        decimal suma18 = Convert.ToDecimal(dataTable.Compute("SUM([18%])", string.Empty));
+                        decimal sumaStrata = Convert.ToDecimal(dataTable.Compute("SUM(Strata)", string.Empty));
+                        decimal sumaCena = sumaIlosc != 0 ? sumaWartosc / sumaIlosc : 0;
 
+                        // Dodaj SUMA jako pierwszy wiersz
+                        DataRow summaryRow = dataTable.NewRow();
+                        summaryRow["ScalonyKod"] = "SUMA";
+                        summaryRow["Ilosc"] = sumaIlosc;
+                        summaryRow["Cena"] = sumaCena;
+                        summaryRow["Wartosc"] = sumaWartosc;
+                        summaryRow["18%"] = suma18;
+                        summaryRow["Strata"] = sumaStrata;
+                        dataTable.Rows.InsertAt(summaryRow, 0);
+
+                        // Tworzymy tabelę do wyświetlania
+                        DataTable formattedTable = new DataTable();
+                        formattedTable.Columns.Add("ScalonyKod");
+                        formattedTable.Columns.Add("Ilosc");
+                        formattedTable.Columns.Add("Cena");
+                        formattedTable.Columns.Add("Wartosc");
+                        formattedTable.Columns.Add("18%");
+                        formattedTable.Columns.Add("Strata");
+
+                        foreach (DataRow row in dataTable.Rows)
+                        {
+                            string kod = row["ScalonyKod"].ToString();
+
+                            decimal.TryParse(row["Ilosc"]?.ToString(), out decimal ilosc);
+                            decimal.TryParse(row["Cena"]?.ToString(), out decimal cena);
+                            decimal.TryParse(row["Wartosc"]?.ToString(), out decimal wartosc);
+                            decimal.TryParse(row["18%"]?.ToString(), out decimal osiemnascie);
+                            decimal.TryParse(row["Strata"]?.ToString(), out decimal strata);
+
+                            formattedTable.Rows.Add(
+                                kod,
+                                $"{ilosc:N0} kg",
+                                $"{cena:N2} zł",
+                                $"{wartosc:N2} zł",
+                                $"{osiemnascie:N2} zł",
+                                $"{strata:N2} zł"
+                            );
+                        }
+
+                        dataGridView1.DataSource = formattedTable;
+
+                        // Styl siatki
+                        dataGridView1.RowHeadersVisible = false;
+                        dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                        dataGridView1.DefaultCellStyle.Font = new Font("Arial", 9);
+                        dataGridView1.RowTemplate.Height = 16;
+
+                        // Formatowanie wyglądu komórek
+                        foreach (DataGridViewRow row in dataGridView1.Rows)
+                        {
+                            string scalonyKod = row.Cells["ScalonyKod"]?.Value?.ToString();
+
+                            if (scalonyKod == "SUMA")
+                            {
+                                row.DefaultCellStyle.Font = new Font("Arial", 9, FontStyle.Bold);
+
+                                // Sprawdź wartość Strata w wierszu SUMA i zaznacz na czerwono jeśli ujemna
+                                if (row.Cells["Strata"]?.Value != null)
+                                {
+                                    string raw = row.Cells["Strata"].Value.ToString().Replace(" zł", "").Replace(" ", "").Replace(",", ".");
+                                    row.Cells["Strata"].Style.ForeColor = Color.Red;
+                                    if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal strataSuma) && strataSuma < 0)
+                                    {
+                                        row.Cells["Strata"].Style.ForeColor = Color.Red;
+                                    }
+                                }
+                            }
+                        }
 
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd: {ex.Message}");
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        private void SumaWartosc2_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

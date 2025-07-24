@@ -16,107 +16,121 @@ namespace Kalendarz1
 
         private void LoadData(DateTime dataOd, DateTime dataDo, string towar)
         {
-            string query = $@"
-            -- Common Table Expression dla pierwszego zakresu dat
-            WITH WynikPierwszyZakres AS (
-                SELECT 
-                    'Suma' AS Kontrahent,
-                    SUM(MZ.Ilosc) AS SumaIlosci,
-                    '' AS Handlowiec
-                FROM 
-                    [HANDEL].[HM].[MZ] AS MZ
-                INNER JOIN 
-                    [HANDEL].[HM].[TW] AS TW ON MZ.[idtw] = TW.[id] 
-                INNER JOIN 
-                    [HANDEL].[HM].[MG] AS MG ON MZ.[super] = MG.[id] 
-                INNER JOIN 
-                    [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
-                WHERE 
-                    MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @dataOd 
-                    AND MG.[anulowany] = 0
-                    AND TW.[nazwa] = '{towar}'
-                UNION ALL
-                SELECT
-                    C.Shortcut AS Kontrahent,
-                    SUM(MZ.Ilosc) AS SumaIlosci,
-                    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
-                FROM 
-                    [HANDEL].[HM].[MZ] AS MZ
-                INNER JOIN 
-                    [HANDEL].[HM].[TW] AS TW ON MZ.[idtw] = TW.[id] 
-                INNER JOIN 
-                    [HANDEL].[HM].[MG] AS MG ON MZ.[super] = MG.[id] 
-                INNER JOIN 
-                    [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
-                LEFT JOIN  
-                    [HANDEL].[SSCommon].[ContractorClassification] AS WYM ON C.Id = WYM.ElementId
-                WHERE 
-                    MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @dataOd 
-                    AND MG.[anulowany] = 0
-                    AND TW.[nazwa] = '{towar}'
-                GROUP BY 
-                    C.Shortcut, WYM.CDim_Handlowiec_Val
-            ),
-            -- Common Table Expression dla drugiego zakresu dat
-            WynikDrugiZakres AS (
-                SELECT 
-                    'Suma' AS Kontrahent,
-                    SUM(MZ.Ilosc) AS SumaIlosci,
-                    '' AS Handlowiec
-                FROM 
-                    [HANDEL].[HM].[MZ] AS MZ
-                INNER JOIN 
-                    [HANDEL].[HM].[TW] AS TW ON MZ.[idtw] = TW.[id] 
-                INNER JOIN 
-                    [HANDEL].[HM].[MG] AS MG ON MZ.[super] = MG.[id] 
-                INNER JOIN 
-                    [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
-                WHERE 
-                    MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @DataDo 
-                    AND MG.[anulowany] = 0
-                    AND TW.[nazwa] = '{towar}'
-                UNION ALL
-                SELECT
-                    C.Shortcut AS Kontrahent,
-                    SUM(MZ.Ilosc) AS SumaIlosci,
-                    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
-                FROM 
-                    [HANDEL].[HM].[MZ] AS MZ
-                INNER JOIN 
-                    [HANDEL].[HM].[TW] AS TW ON MZ.[idtw] = TW.[id] 
-                INNER JOIN 
-                    [HANDEL].[HM].[MG] AS MG ON MZ.[super] = MG.[id] 
-                INNER JOIN 
-                    [HANDEL].[SSCommon].[STContractors] AS C ON MG.khid = C.id
-                LEFT JOIN  
-                    [HANDEL].[SSCommon].[ContractorClassification] AS WYM ON C.Id = WYM.ElementId
-                WHERE 
-                    MZ.[data] >= '2020-01-01' 
-                    AND MZ.[data] <= @DataDo 
-                    AND MG.[anulowany] = 0
-                    AND TW.[nazwa] = '{towar}'
-                GROUP BY 
-                    C.Shortcut, WYM.CDim_Handlowiec_Val
-            )
-            SELECT 
-                COALESCE(Pierwszy.Kontrahent, Drugi.Kontrahent) AS [Kontrahent],
-                ISNULL(Pierwszy.SumaIlosci, 0) AS [Ilość w pierwszym zakresie],
-                ISNULL(Drugi.SumaIlosci, 0) AS [Ilość w drugim zakresie],
-                ISNULL(Drugi.SumaIlosci, 0) - ISNULL(Pierwszy.SumaIlosci, 0) AS [Różnica],
-                COALESCE(Pierwszy.Handlowiec, Drugi.Handlowiec) AS [Handlowiec]
-            FROM 
-                WynikPierwszyZakres AS Pierwszy
-            FULL OUTER JOIN 
-                WynikDrugiZakres AS Drugi ON Pierwszy.Kontrahent = Drugi.Kontrahent
-            WHERE 
-                ISNULL(Pierwszy.SumaIlosci, 0) != 0 
-                OR ISNULL(Drugi.SumaIlosci, 0) != 0 
-                OR ISNULL(Drugi.SumaIlosci, 0) - ISNULL(Pierwszy.SumaIlosci, 0) != 0
-            ORDER BY 
-                [Ilość w drugim zakresie] DESC, [Kontrahent]";
+            string query = @"
+WITH WynikPierwszyZakres AS (
+    SELECT 
+        'Suma' AS Kontrahent,
+        SUM(MZ.Ilosc) AS SumaIlosci,
+        '' AS Handlowiec
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+    WHERE MZ.data >= '2020-01-01' 
+      AND MZ.data <= @DataOd 
+      AND MG.anulowany = 0
+      AND TW.nazwa = @Towar
+
+    UNION ALL
+
+    SELECT
+        C.Shortcut AS Kontrahent,
+        SUM(MZ.Ilosc) AS SumaIlosci,
+        ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+    WHERE MZ.data >= '2020-01-01' 
+      AND MZ.data <= @DataOd 
+      AND MG.anulowany = 0
+      AND TW.nazwa = @Towar
+    GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val
+),
+
+WynikDrugiZakres AS (
+    SELECT 
+        'Suma' AS Kontrahent,
+        SUM(MZ.Ilosc) AS SumaIlosci,
+        '' AS Handlowiec
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+    WHERE MZ.data >= '2020-01-01' 
+      AND MZ.data <= @DataDo 
+      AND MG.anulowany = 0
+      AND TW.nazwa = @Towar
+
+    UNION ALL
+
+    SELECT
+        C.Shortcut AS Kontrahent,
+        SUM(MZ.Ilosc) AS SumaIlosci,
+        ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec
+    FROM [HANDEL].[HM].[MZ] MZ
+    INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id 
+    INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+    WHERE MZ.data >= '2020-01-01' 
+      AND MZ.data <= @DataDo 
+      AND MG.anulowany = 0
+      AND TW.nazwa = @Towar
+    GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val
+)
+
+SELECT 
+    COALESCE(P.Kontrahent, D.Kontrahent) AS [Kontrahent],
+    ISNULL(P.SumaIlosci, 0) AS [Ilość w pierwszym zakresie],
+    ISNULL(D.SumaIlosci, 0) AS [Ilość w drugim zakresie],
+    ISNULL(D.SumaIlosci, 0) - ISNULL(P.SumaIlosci, 0) AS [Różnica],
+    COALESCE(P.Handlowiec, D.Handlowiec) AS [Handlowiec],
+    OD.DataOstatniegoDokumentu,
+    OD.TowarZDokumentu
+FROM WynikPierwszyZakres P
+FULL OUTER JOIN WynikDrugiZakres D
+    ON P.Kontrahent = D.Kontrahent
+
+OUTER APPLY (
+    SELECT TOP 1 *
+    FROM (
+        SELECT 
+            MG.Data AS DataOstatniegoDokumentu,
+            MG.Nazwa AS TowarZDokumentu,
+            MG.seria
+        FROM [HANDEL].[HM].[MG] MG
+        INNER JOIN [HANDEL].[HM].[MZ] MZ ON MZ.super = MG.id
+        INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
+        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+        WHERE MG.anulowany = 0 
+          AND MG.seria IN ('sMW', 'sMP')
+          AND C.Shortcut = COALESCE(P.Kontrahent, D.Kontrahent)
+          AND MG.Data <= @DataDo
+    ) AS Sub
+    WHERE Sub.DataOstatniegoDokumentu = (
+        SELECT MAX(MG2.Data)
+        FROM [HANDEL].[HM].[MG] MG2
+        INNER JOIN [HANDEL].[SSCommon].[STContractors] C2 ON MG2.khid = C2.id
+        WHERE MG2.anulowany = 0 
+          AND MG2.seria IN ('sMW', 'sMP')
+          AND C2.Shortcut = COALESCE(P.Kontrahent, D.Kontrahent)
+          AND MG2.Data <= @DataDo
+    )
+    ORDER BY 
+        CASE WHEN Sub.seria = 'sMP' THEN 1 ELSE 2 END
+) OD
+
+
+WHERE 
+    ISNULL(P.SumaIlosci, 0) != 0 
+    OR ISNULL(D.SumaIlosci, 0) != 0 
+    OR ISNULL(D.SumaIlosci, 0) - ISNULL(P.SumaIlosci, 0) != 0
+
+ORDER BY 
+    [Ilość w drugim zakresie] DESC, [Kontrahent];
+";
 
             try
             {
@@ -126,6 +140,7 @@ namespace Kalendarz1
                     SqlCommand command = new SqlCommand(query, connection);
                     command.Parameters.AddWithValue("@DataOd", dataOd);
                     command.Parameters.AddWithValue("@DataDo", dataDo);
+                    command.Parameters.AddWithValue("@Towar", towar);
 
                     SqlDataAdapter adapter = new SqlDataAdapter(command);
                     DataTable table = new DataTable();
@@ -133,8 +148,14 @@ namespace Kalendarz1
 
                     dataGridViewZestawienie.DataSource = table;
 
-                    // Formatowanie tabeli
-                   // FormatDataGridView();
+                    // Ustaw szerokość ostatniej kolumny na 300
+                    if (dataGridViewZestawienie.Columns.Contains("TowarZDokumentu"))
+                    {
+                        dataGridViewZestawienie.Columns["TowarZDokumentu"].Width = 300;
+                    }
+
+                    // Opcjonalnie:
+                    // dataGridViewZestawienie.AutoResizeColumns();
                 }
             }
             catch (Exception ex)
@@ -142,6 +163,7 @@ namespace Kalendarz1
                 MessageBox.Show($"Błąd podczas ładowania danych: {ex.Message}");
             }
         }
+
 
         /*private void FormatDataGridView()
         {
@@ -153,7 +175,7 @@ namespace Kalendarz1
             // Stała szerokość kolumny "Kontrahent"
             dataGridViewZestawienie.Columns["Kontrahent"].Width = 200;
 
-            // Kolorowanie i pogrubienie wierszy dla drugiego zakresu
+            // Kolorowanie i pogrubienie wierszy dla drugiIlość w drugim zakresieego zakresu
             foreach (DataGridViewRow row in dataGridViewZestawienie.Rows)
             {
                 if (row.Cells["Ilość w drugim zakresie"].Value != null)

@@ -455,8 +455,8 @@ namespace Kalendarz1
             zapytaniasql.UpdateDaneHodowowAvilog(id2Specyfikacji, dostawcaIdString, realDostawcaIdString);
             zapytaniasql.UpdateDaneAdresoweDostawcy(dostawcaIdString, UlicaH, KodPocztowyH, MiejscH, KmH);
             zapytaniasql.UpdateDaneAdresoweDostawcy(realDostawcaIdString, UlicaR, KodPocztowyR, MiejscR, KmR);
-            zapytaniasql.UpdateDaneKontaktowe(dostawcaIdString, Tel1, info1, Tel2, info2, Tel3, info3, Email);
-            zapytaniasql.UpdateDaneKontaktowe(realDostawcaIdString, Tel1R, Info1R, Tel2R, Info2R, Tel3R, Info3R, EmailR);
+            zapytaniasql.UpdateDaneKontaktowe(dostawcaIdString, Tel1, info1, Tel2, info2, Tel3, info3, Email, null, null);
+            zapytaniasql.UpdateDaneKontaktowe(realDostawcaIdString, Tel1R, Info1R, Tel2R, Info2R, Tel3R, Info3R, EmailR, null, null);
             zapytaniasql.UpdateDaneRozliczenioweAvilogHodowca(id2Specyfikacji, hBrutto, hTara, hNetto, hSrednia, hSumaSztuk, hLiczbaSztuk);
             zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
