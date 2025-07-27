@@ -89,5 +89,12 @@ namespace Kalendarz1
             WidokPojemnikiZestawienie widokPojemnikiZestawienie = new WidokPojemnikiZestawienie();
             widokPojemnikiZestawienie.Show();
         }
+
+        private void CRM_Click(object sender, EventArgs e)
+        {
+            CRM crm = new CRM();
+//crm.UserID = App.UserID;
+            crm.Show();
+        }
     }
 }

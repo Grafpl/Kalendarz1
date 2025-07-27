@@ -48,6 +48,9 @@
     <Compile Update="MenuSprzedaz.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="CRM.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WidokPojemnikiZestawienie.cs">
       <SubType>Form</SubType>
     </Compile>
