@@ -127,8 +127,7 @@ namespace Kalendarz1
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
     { "9998", new List<string> { "Mazowieckie", "Wielkopolskie" } },
     { "871231", new List<string> { "Opolskie", "Śląskie" } },
-    { "321143", new List<string> { "Łódzkie" } },
-    { "111222", new List<string> { "Świętokrzyskie" } }
+    { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } },
 };
 
         private void WczytajOdbiorcow()
@@ -386,11 +385,65 @@ namespace Kalendarz1
             }
         }
 
+        private void WczytajRankingHandlowcow()
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                var query = @"
+WITH WojHandlowcy AS (
+    SELECT 
+        V.UserID,
+        V.NazwaHandlowca,
+        O.Status
+    FROM OdbiorcyCRM O
+    JOIN (
+        VALUES 
+            ('9991', 'Dawid'),
+            ('9998', 'Daniel'),
+            ('871231', 'Radek'),
+            ('321143', 'Ania')
+        -- Dodaj więcej jeśli trzeba
+    ) AS V(UserID, NazwaHandlowca)
+    ON (
+        (V.UserID = '9991' AND O.Wojewodztwo LIKE '%kujaws%') OR
+        (V.UserID = '9998' AND (O.Wojewodztwo LIKE '%mazow%' OR O.Wojewodztwo LIKE '%wielkop%')) OR
+        (V.UserID = '871231' AND (O.Wojewodztwo LIKE '%opol%' OR O.Wojewodztwo LIKE '%ślą%')) OR
+        (V.UserID = '321143' AND (O.Wojewodztwo LIKE '%łódz%' OR O.Wojewodztwo LIKE '%wielkop%'))
+    )
+)
+
+SELECT 
+    NazwaHandlowca,
+    COUNT(CASE WHEN Status IS NULL OR Status = 'Nowy' THEN 1 END) AS [Nowy],
+    COUNT(CASE WHEN Status = 'Próba kontaktu' THEN 1 END) AS [Próba kontaktu],
+    COUNT(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 END) AS [Nawiązano kontakt],
+    COUNT(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 END) AS [Zgoda],
+    COUNT(CASE WHEN Status = 'Do wysłania oferta' THEN 1 END) AS [Do wysłania],
+    COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) AS [Nie zainteresowany],
+    COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) AS [Usunąć],
+    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Błędny]
+FROM WojHandlowcy
+GROUP BY NazwaHandlowca
+ORDER BY NazwaHandlowca";
+
+                var cmd = new SqlCommand(query, conn);
+                var adapter = new SqlDataAdapter(cmd);
+                var dt = new DataTable();
+                adapter.Fill(dt);
+
+                dataGridViewRanking.DataSource = dt;
+            }
+        }
+
         private void CRM_Load(object sender, EventArgs e)
         {
             // Wywołanie metod konfigurujących i wczytujących dane
             KonfigurujDataGridView();
             WczytajOdbiorcow();
+            WczytajRankingHandlowcow();
+
         }
     }
 }

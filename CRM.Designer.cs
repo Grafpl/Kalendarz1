@@ -37,21 +37,21 @@
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
-            pictureBox1 = new System.Windows.Forms.PictureBox();
+            dataGridViewRanking = new System.Windows.Forms.DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridViewOdbiorcy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewRanking).BeginInit();
             SuspendLayout();
             // 
             // dataGridViewOdbiorcy
             // 
             dataGridViewOdbiorcy.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             dataGridViewOdbiorcy.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewOdbiorcy.Location = new System.Drawing.Point(2, 124);
+            dataGridViewOdbiorcy.Location = new System.Drawing.Point(12, 185);
             dataGridViewOdbiorcy.Name = "dataGridViewOdbiorcy";
             dataGridViewOdbiorcy.RowTemplate.Height = 25;
             dataGridViewOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1713, 915);
+            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1713, 865);
             dataGridViewOdbiorcy.TabIndex = 2;
             dataGridViewOdbiorcy.CellEnter += dataGridViewOdbiorcy_CellEnter;
             dataGridViewOdbiorcy.CellValueChanged += dataGridViewOdbiorcy_CellValueChanged;
@@ -61,15 +61,15 @@
             // dataGridViewNotatki
             // 
             dataGridViewNotatki.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewNotatki.Location = new System.Drawing.Point(340, 12);
+            dataGridViewNotatki.Location = new System.Drawing.Point(352, 9);
             dataGridViewNotatki.Name = "dataGridViewNotatki";
             dataGridViewNotatki.RowTemplate.Height = 25;
-            dataGridViewNotatki.Size = new System.Drawing.Size(313, 106);
+            dataGridViewNotatki.Size = new System.Drawing.Size(313, 167);
             dataGridViewNotatki.TabIndex = 3;
             // 
             // textBoxNotatka
             // 
-            textBoxNotatka.Location = new System.Drawing.Point(2, 33);
+            textBoxNotatka.Location = new System.Drawing.Point(12, 94);
             textBoxNotatka.Multiline = true;
             textBoxNotatka.Name = "textBoxNotatka";
             textBoxNotatka.Size = new System.Drawing.Size(240, 85);
@@ -77,7 +77,7 @@
             // 
             // buttonDodajNotatke
             // 
-            buttonDodajNotatke.Location = new System.Drawing.Point(248, 75);
+            buttonDodajNotatke.Location = new System.Drawing.Point(258, 136);
             buttonDodajNotatke.Name = "buttonDodajNotatke";
             buttonDodajNotatke.Size = new System.Drawing.Size(86, 43);
             buttonDodajNotatke.TabIndex = 5;
@@ -129,23 +129,23 @@
             label3.TabIndex = 10;
             label3.Text = "Notatka";
             // 
-            // pictureBox1
+            // dataGridViewRanking
             // 
-            pictureBox1.BackgroundImage = Properties.Resources.pm;
-            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            pictureBox1.Location = new System.Drawing.Point(1044, 9);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(671, 109);
-            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            pictureBox1.TabIndex = 11;
-            pictureBox1.TabStop = false;
+            dataGridViewRanking.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridViewRanking.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewRanking.Location = new System.Drawing.Point(971, 9);
+            dataGridViewRanking.Name = "dataGridViewRanking";
+            dataGridViewRanking.RowTemplate.Height = 25;
+            dataGridViewRanking.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewRanking.Size = new System.Drawing.Size(744, 170);
+            dataGridViewRanking.TabIndex = 11;
             // 
             // CRM
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1727, 1051);
-            Controls.Add(pictureBox1);
+            Controls.Add(dataGridViewRanking);
             Controls.Add(label3);
             Controls.Add(label2);
             Controls.Add(label1);
@@ -160,7 +160,7 @@
             Load += CRM_Load;
             ((System.ComponentModel.ISupportInitialize)dataGridViewOdbiorcy).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewRanking).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -176,6 +176,6 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.DataGridView dataGridViewRanking;
     }
 }
