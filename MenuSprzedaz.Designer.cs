@@ -35,6 +35,7 @@
             UzgodnienieSaldButton = new System.Windows.Forms.Button();
             mrozniaButton = new System.Windows.Forms.Button();
             krojenieButton = new System.Windows.Forms.Button();
+            CRM = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -102,12 +103,24 @@
             krojenieButton.BackgroundImage = Properties.Resources.przcięt;
             krojenieButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             krojenieButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            krojenieButton.Location = new System.Drawing.Point(395, 356);
+            krojenieButton.Location = new System.Drawing.Point(271, 356);
             krojenieButton.Name = "krojenieButton";
             krojenieButton.Size = new System.Drawing.Size(262, 193);
             krojenieButton.TabIndex = 20;
             krojenieButton.UseVisualStyleBackColor = true;
             krojenieButton.Click += krojenieButton_Click_1;
+            // 
+            // CRM
+            // 
+            CRM.BackgroundImage = (System.Drawing.Image)resources.GetObject("CRM.BackgroundImage");
+            CRM.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            CRM.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CRM.Location = new System.Drawing.Point(539, 356);
+            CRM.Name = "CRM";
+            CRM.Size = new System.Drawing.Size(262, 193);
+            CRM.TabIndex = 21;
+            CRM.UseVisualStyleBackColor = true;
+            CRM.Click += CRM_Click;
             // 
             // MenuSprzedaz
             // 
@@ -115,6 +128,7 @@
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1080, 577);
+            Controls.Add(CRM);
             Controls.Add(krojenieButton);
             Controls.Add(mrozniaButton);
             Controls.Add(buttonPojemnikiZestawienie);
@@ -136,5 +150,6 @@
         private System.Windows.Forms.Button UzgodnienieSaldButton;
         private System.Windows.Forms.Button mrozniaButton;
         private System.Windows.Forms.Button krojenieButton;
+        private System.Windows.Forms.Button CRM;
     }
 }

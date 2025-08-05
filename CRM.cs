@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
@@ -43,9 +44,7 @@ namespace Kalendarz1
             this.dataGridViewOdbiorcy.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.dataGridViewOdbiorcy_RowPrePaint);
             this.dataGridViewOdbiorcy.CellEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewOdbiorcy_CellEnter);
 
-            // Wywołanie metod konfigurujących i wczytujących dane
-            KonfigurujDataGridView();
-            WczytajOdbiorcow();
+
         }
         // NOWA METODA DO WYPEŁNIANIA FILTRA POWIATÓW
         private void WypelnijFiltrPowiatow()
@@ -123,6 +122,14 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Gmina", DataPropertyName = "Gmina", HeaderText = "Gmina", ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataOstatniejNotatki", DataPropertyName = "DataOstatniejNotatki", HeaderText = "Ost. Notatka", Width = 120, ReadOnly = true });
         }
+        private readonly Dictionary<string, List<string>> mapaWojewodztw = new()
+{
+    { "9991", new List<string> { "Kujawsko-Pomorskie" } },
+    { "9998", new List<string> { "Mazowieckie", "Wielkopolskie" } },
+    { "871231", new List<string> { "Opolskie", "Śląskie" } },
+    { "321143", new List<string> { "Łódzkie" } },
+    { "111222", new List<string> { "Świętokrzyskie" } }
+};
 
         private void WczytajOdbiorcow()
         {
@@ -130,18 +137,77 @@ namespace Kalendarz1
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                string query = @"
-        SELECT 
-            O.ID, O.Nazwa, ISNULL(O.Status, 'Nowy') AS Status, O.KOD AS KodPocztowy, O.MIASTO, 
-            O.Ulica, O.Telefon_K, O.Wojewodztwo, O.Powiat, O.Gmina, MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
-        FROM OdbiorcyCRM O 
-        LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
-        GROUP BY 
-            O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.Gmina 
-        ORDER BY O.Nazwa";
 
-                var cmd = new SqlCommand(query, conn);
+                string query;
+                SqlCommand cmd;
+
+                if (!string.IsNullOrEmpty(UserID) && UserID == "11111")
+                {
+                    // Użytkownik 11111 widzi wszystkich odbiorców
+                    query = @"
+            SELECT 
+                O.ID, 
+                O.Nazwa, 
+                ISNULL(O.Status, 'Nowy') AS Status, 
+                O.KOD AS KodPocztowy, 
+                O.MIASTO, 
+                O.Ulica, 
+                O.Telefon_K, 
+                O.Wojewodztwo, 
+                O.Powiat, 
+                O.Gmina, 
+                MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
+            FROM OdbiorcyCRM O 
+            LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
+            GROUP BY 
+                O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
+                O.Wojewodztwo, O.Powiat, O.Gmina 
+            ORDER BY O.Nazwa";
+                    cmd = new SqlCommand(query, conn);
+                }
+                else if (!string.IsNullOrEmpty(UserID) && mapaWojewodztw.TryGetValue(UserID, out var wojewodztwa))
+                {
+                    // Filtrowanie po województwach przypisanych do handlowca
+                    var likeClauses = wojewodztwa
+                        .Select((w, i) => $"LOWER(O.Wojewodztwo) LIKE @Wojewodztwo{i}")
+                        .ToList();
+                    var whereClause = string.Join(" OR ", likeClauses);
+
+                    query = $@"
+            SELECT 
+                O.ID, 
+                O.Nazwa, 
+                ISNULL(O.Status, 'Nowy') AS Status, 
+                O.KOD AS KodPocztowy, 
+                O.MIASTO, 
+                O.Ulica, 
+                O.Telefon_K, 
+                O.Wojewodztwo, 
+                O.Powiat, 
+                O.Gmina, 
+                MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
+            FROM OdbiorcyCRM O 
+            LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
+            WHERE {whereClause} 
+            GROUP BY 
+                O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
+                O.Wojewodztwo, O.Powiat, O.Gmina 
+            ORDER BY O.Nazwa";
+
+                    cmd = new SqlCommand(query, conn);
+                    for (int i = 0; i < wojewodztwa.Count; i++)
+                    {
+                        string likeParam = "%" + wojewodztwa[i].Substring(0, 5).ToLower() + "%";
+                        cmd.Parameters.AddWithValue($"@Wojewodztwo{i}", likeParam);
+                    }
+                }
+                else
+                {
+                    // Brak przypisanego województwa – nie pokazuj nic
+                    dataGridViewOdbiorcy.DataSource = null;
+                    return;
+                }
+
                 var adapter = new SqlDataAdapter(cmd);
                 var dt = new DataTable();
                 adapter.Fill(dt);
@@ -150,7 +216,7 @@ namespace Kalendarz1
             isDataLoading = false;
             dataGridViewOdbiorcy.Refresh();
 
-            // Po załadowaniu głównych danych, wypełniamy listę powiatów do filtrowania
+            // Po załadowaniu danych wypełnij filtry
             WypelnijFiltrPowiatow();
         }
         // ZASTĄP STARĄ METODĘ FILTRUJĄCĄ TĄ PONIŻEJ
@@ -322,7 +388,9 @@ namespace Kalendarz1
 
         private void CRM_Load(object sender, EventArgs e)
         {
-            // Puste, nie jest potrzebne w tym momencie
+            // Wywołanie metod konfigurujących i wczytujących dane
+            KonfigurujDataGridView();
+            WczytajOdbiorcow();
         }
     }
 }

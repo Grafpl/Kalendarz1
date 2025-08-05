@@ -98,11 +98,18 @@ namespace Kalendarz1
 
         private void krojenieButton_Click_1(object sender, EventArgs e)
         {
-          
-                PokazKrojenieMrozenie platPokazKrojenieMrozenienosci = new PokazKrojenieMrozenie();
-                platPokazKrojenieMrozenienosci.WindowState = FormWindowState.Maximized;
-                platPokazKrojenieMrozenienosci.Show();
-            
+
+            PokazKrojenieMrozenie platPokazKrojenieMrozenienosci = new PokazKrojenieMrozenie();
+            platPokazKrojenieMrozenienosci.WindowState = FormWindowState.Maximized;
+            platPokazKrojenieMrozenienosci.Show();
+
+        }
+
+        private void CRM_Click(object sender, EventArgs e)
+        {
+            CRM crm = new CRM();
+            crm.UserID = App.UserID;
+            crm.Show();
         }
     }
 }
