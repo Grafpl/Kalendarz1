@@ -140,7 +140,7 @@ namespace Kalendarz1
                 string query;
                 SqlCommand cmd;
 
-                if (!string.IsNullOrEmpty(UserID) && UserID == "11111")
+                if (UserID == "11111")
                 {
                     // Użytkownik 11111 widzi wszystkich odbiorców
                     query = @"
@@ -407,11 +407,12 @@ WITH WojHandlowcy AS (
         -- Dodaj więcej jeśli trzeba
     ) AS V(UserID, NazwaHandlowca)
     ON (
-        (V.UserID = '9991' AND O.Wojewodztwo LIKE '%kujaws%') OR
-        (V.UserID = '9998' AND (O.Wojewodztwo LIKE '%mazow%' OR O.Wojewodztwo LIKE '%wielkop%')) OR
-        (V.UserID = '871231' AND (O.Wojewodztwo LIKE '%opol%' OR O.Wojewodztwo LIKE '%ślą%')) OR
-        (V.UserID = '321143' AND (O.Wojewodztwo LIKE '%łódz%' OR O.Wojewodztwo LIKE '%wielkop%'))
-    )
+    (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
+    (V.UserID = '9998' AND (LOWER(O.Wojewodztwo) = 'mazowieckie' OR LOWER(O.Wojewodztwo) = 'wielkopolskie')) OR
+    (V.UserID = '871231' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'śląskie')) OR
+    (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
+)
+
 )
 
 SELECT 
