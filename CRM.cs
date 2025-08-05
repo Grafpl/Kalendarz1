@@ -122,13 +122,14 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Gmina", DataPropertyName = "Gmina", HeaderText = "Gmina", ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataOstatniejNotatki", DataPropertyName = "DataOstatniejNotatki", HeaderText = "Ost. Notatka", Width = 120, ReadOnly = true });
         }
-        private readonly Dictionary<string, List<string>> mapaWojewodztw = new()
+        private readonly Dictionary<string, List<string>> mapaWojewodztw = new Dictionary<string, List<string>>
 {
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
     { "9998", new List<string> { "Mazowieckie", "Wielkopolskie" } },
     { "871231", new List<string> { "Opolskie", "Śląskie" } },
-    { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } },
+    { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } }
 };
+
 
         private void WczytajOdbiorcow()
         {
@@ -144,65 +145,63 @@ namespace Kalendarz1
                 {
                     // Użytkownik 11111 widzi wszystkich odbiorców
                     query = @"
-            SELECT 
-                O.ID, 
-                O.Nazwa, 
-                ISNULL(O.Status, 'Nowy') AS Status, 
-                O.KOD AS KodPocztowy, 
-                O.MIASTO, 
-                O.Ulica, 
-                O.Telefon_K, 
-                O.Wojewodztwo, 
-                O.Powiat, 
-                O.Gmina, 
-                MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
-            FROM OdbiorcyCRM O 
-            LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
-            GROUP BY 
-                O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-                O.Wojewodztwo, O.Powiat, O.Gmina 
-            ORDER BY O.Nazwa";
+        SELECT 
+            O.ID, 
+            O.Nazwa, 
+            ISNULL(O.Status, 'Nowy') AS Status, 
+            O.KOD AS KodPocztowy, 
+            O.MIASTO, 
+            O.Ulica, 
+            O.Telefon_K, 
+            O.Wojewodztwo, 
+            O.Powiat, 
+            O.Gmina, 
+            MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
+        FROM OdbiorcyCRM O 
+        LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
+        GROUP BY 
+            O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
+            O.Wojewodztwo, O.Powiat, O.Gmina 
+        ORDER BY O.Nazwa";
                     cmd = new SqlCommand(query, conn);
                 }
                 else if (!string.IsNullOrEmpty(UserID) && mapaWojewodztw.TryGetValue(UserID, out var wojewodztwa))
                 {
-                    // Filtrowanie po województwach przypisanych do handlowca
-                    var likeClauses = wojewodztwa
-                        .Select((w, i) => $"LOWER(O.Wojewodztwo) LIKE @Wojewodztwo{i}")
+                    var clauses = wojewodztwa
+                        .Select((w, i) => $"LOWER(O.Wojewodztwo) = @Wojewodztwo{i}")
                         .ToList();
-                    var whereClause = string.Join(" OR ", likeClauses);
 
+                    var whereClause = string.Join(" OR ", clauses);
                     query = $@"
-            SELECT 
-                O.ID, 
-                O.Nazwa, 
-                ISNULL(O.Status, 'Nowy') AS Status, 
-                O.KOD AS KodPocztowy, 
-                O.MIASTO, 
-                O.Ulica, 
-                O.Telefon_K, 
-                O.Wojewodztwo, 
-                O.Powiat, 
-                O.Gmina, 
-                MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
-            FROM OdbiorcyCRM O 
-            LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
-            WHERE {whereClause} 
-            GROUP BY 
-                O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-                O.Wojewodztwo, O.Powiat, O.Gmina 
-            ORDER BY O.Nazwa";
+        SELECT 
+            O.ID, 
+            O.Nazwa, 
+            ISNULL(O.Status, 'Nowy') AS Status, 
+            O.KOD AS KodPocztowy, 
+            O.MIASTO, 
+            O.Ulica, 
+            O.Telefon_K, 
+            O.Wojewodztwo, 
+            O.Powiat, 
+            O.Gmina, 
+            MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
+        FROM OdbiorcyCRM O 
+        LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
+        WHERE {whereClause} 
+        GROUP BY 
+            O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
+            O.Wojewodztwo, O.Powiat, O.Gmina 
+        ORDER BY O.Nazwa";
 
                     cmd = new SqlCommand(query, conn);
                     for (int i = 0; i < wojewodztwa.Count; i++)
                     {
-                        string likeParam = "%" + wojewodztwa[i].Substring(0, 5).ToLower() + "%";
-                        cmd.Parameters.AddWithValue($"@Wojewodztwo{i}", likeParam);
+                        string param = wojewodztwa[i].ToLower(); // ← dokładne dopasowanie
+                        cmd.Parameters.AddWithValue($"@Wojewodztwo{i}", param);
                     }
                 }
                 else
                 {
-                    // Brak przypisanego województwa – nie pokazuj nic
                     dataGridViewOdbiorcy.DataSource = null;
                     return;
                 }
@@ -214,11 +213,9 @@ namespace Kalendarz1
             }
             isDataLoading = false;
             dataGridViewOdbiorcy.Refresh();
-
-            // Po załadowaniu danych wypełnij filtry
             WypelnijFiltrPowiatow();
         }
-        // ZASTĄP STARĄ METODĘ FILTRUJĄCĄ TĄ PONIŻEJ
+
         private void ZastosujFiltry(object sender, EventArgs e)
         {
             DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
@@ -403,16 +400,14 @@ WITH WojHandlowcy AS (
             ('9991', 'Dawid'),
             ('9998', 'Daniel'),
             ('871231', 'Radek'),
-            ('321143', 'Ania')
-        -- Dodaj więcej jeśli trzeba
+            ('432143', 'Ania')
     ) AS V(UserID, NazwaHandlowca)
     ON (
-    (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
-    (V.UserID = '9998' AND (LOWER(O.Wojewodztwo) = 'mazowieckie' OR LOWER(O.Wojewodztwo) = 'wielkopolskie')) OR
-    (V.UserID = '871231' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'śląskie')) OR
-    (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
-)
-
+        (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
+        (V.UserID = '9998' AND (LOWER(O.Wojewodztwo) = 'mazowieckie' OR LOWER(O.Wojewodztwo) = 'wielkopolskie')) OR
+        (V.UserID = '871231' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'śląskie')) OR
+        (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
+    )
 )
 
 SELECT 
