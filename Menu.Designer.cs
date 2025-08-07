@@ -51,7 +51,7 @@
             // 
             // kalendarzButton
             // 
-            kalendarzButton.BackgroundImage = Properties.Resources.pieni;
+            kalendarzButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("kalendarzButton.BackgroundImage");
             kalendarzButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             kalendarzButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             kalendarzButton.ForeColor = System.Drawing.Color.Black;
@@ -128,7 +128,7 @@
             // 
             // krojenieButton
             // 
-            krojenieButton.BackgroundImage = Properties.Resources.przcięt;
+            krojenieButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("krojenieButton.BackgroundImage");
             krojenieButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             krojenieButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             krojenieButton.Location = new System.Drawing.Point(548, 543);
@@ -175,7 +175,7 @@
             // 
             // button2
             // 
-            button2.BackgroundImage = Properties.Resources.Nepa;
+            button2.BackgroundImage = (System.Drawing.Image)resources.GetObject("button2.BackgroundImage");
             button2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             button2.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             button2.Location = new System.Drawing.Point(280, 344);
