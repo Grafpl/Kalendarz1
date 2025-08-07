@@ -262,7 +262,7 @@
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
-            ClientSize = new System.Drawing.Size(1094, 989);
+            ClientSize = new System.Drawing.Size(1094, 942);
             Controls.Add(buttonFakturySprzedazy);
             Controls.Add(CRM);
             Controls.Add(buttonPojemnikiZestawienie);

@@ -247,6 +247,7 @@ namespace Kalendarz1
             Dubluj = new ToolStripMenuItem();
             Anuluj = new ToolStripMenuItem();
             Usuń = new ToolStripMenuItem();
+            pictureBox3 = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
@@ -270,6 +271,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewOstatnieNotatki).BeginInit();
             contextMenuStrip1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
@@ -2480,9 +2482,9 @@ namespace Kalendarz1
             button15.BackColor = System.Drawing.Color.Azure;
             button15.BackgroundImage = (System.Drawing.Image)resources.GetObject("button15.BackgroundImage");
             button15.BackgroundImageLayout = ImageLayout.Stretch;
-            button15.Location = new System.Drawing.Point(638, 13);
+            button15.Location = new System.Drawing.Point(730, 30);
             button15.Name = "button15";
-            button15.Size = new System.Drawing.Size(71, 39);
+            button15.Size = new System.Drawing.Size(65, 33);
             button15.TabIndex = 125;
             button15.UseVisualStyleBackColor = false;
             button15.Click += button15_Click;
@@ -2523,9 +2525,9 @@ namespace Kalendarz1
             pokazDlaSprzedazy.BackColor = System.Drawing.Color.Azure;
             pokazDlaSprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("pokazDlaSprzedazy.BackgroundImage");
             pokazDlaSprzedazy.BackgroundImageLayout = ImageLayout.Stretch;
-            pokazDlaSprzedazy.Location = new System.Drawing.Point(715, 13);
+            pokazDlaSprzedazy.Location = new System.Drawing.Point(730, -1);
             pokazDlaSprzedazy.Name = "pokazDlaSprzedazy";
-            pokazDlaSprzedazy.Size = new System.Drawing.Size(71, 39);
+            pokazDlaSprzedazy.Size = new System.Drawing.Size(65, 33);
             pokazDlaSprzedazy.TabIndex = 126;
             pokazDlaSprzedazy.UseVisualStyleBackColor = false;
             pokazDlaSprzedazy.Click += pokazDlaSprzedazy_Click;
@@ -2622,11 +2624,23 @@ namespace Kalendarz1
             Usuń.Text = "toolStripMenuItem3";
             Usuń.Click += Usuń_Click;
             // 
+            // pictureBox3
+            // 
+            pictureBox3.BackgroundImage = (System.Drawing.Image)resources.GetObject("pictureBox3.BackgroundImage");
+            pictureBox3.BackgroundImageLayout = ImageLayout.Stretch;
+            pictureBox3.Location = new System.Drawing.Point(638, 5);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new System.Drawing.Size(86, 62);
+            pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 135;
+            pictureBox3.TabStop = false;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1879, 1005);
+            Controls.Add(pictureBox3);
             Controls.Add(dataGridViewOstatnieNotatki);
             Controls.Add(pokazDlaSprzedazy);
             Controls.Add(button15);
@@ -2729,6 +2743,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewOstatnieNotatki).EndInit();
             contextMenuStrip1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2948,5 +2963,6 @@ namespace Kalendarz1
         private ToolStripMenuItem Anuluj;
         private ToolStripMenuItem Usuń;
         private Button buttonModWstawienie;
+        private PictureBox pictureBox3;
     }
 }

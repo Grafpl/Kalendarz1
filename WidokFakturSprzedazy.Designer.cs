@@ -28,132 +28,149 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WidokFakturSprzedazy));
             dataGridViewOdbiorcy = new System.Windows.Forms.DataGridView();
             dataGridViewNotatki = new System.Windows.Forms.DataGridView();
-            textBoxNotatka = new System.Windows.Forms.TextBox();
-            buttonDodajNotatke = new System.Windows.Forms.Button();
-            comboBoxStatusFilter = new System.Windows.Forms.ComboBox();
-            comboBoxPowiatFilter = new System.Windows.Forms.ComboBox();
+            comboBoxTowar = new System.Windows.Forms.ComboBox();
+            comboBoxKontrahent = new System.Windows.Forms.ComboBox();
             label1 = new System.Windows.Forms.Label();
             label2 = new System.Windows.Forms.Label();
-            label3 = new System.Windows.Forms.Label();
-            dataGridViewRanking = new System.Windows.Forms.DataGridView();
+            dataGridViewAnaliza = new System.Windows.Forms.DataGridView();
+            pictureBox1 = new System.Windows.Forms.PictureBox();
+            pictureBox2 = new System.Windows.Forms.PictureBox();
+            pictureBox3 = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewOdbiorcy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewRanking).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewAnaliza).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             SuspendLayout();
             // 
             // dataGridViewOdbiorcy
             // 
             dataGridViewOdbiorcy.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             dataGridViewOdbiorcy.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewOdbiorcy.Location = new System.Drawing.Point(12, 185);
+            dataGridViewOdbiorcy.Location = new System.Drawing.Point(1, 2);
             dataGridViewOdbiorcy.Name = "dataGridViewOdbiorcy";
             dataGridViewOdbiorcy.RowTemplate.Height = 25;
             dataGridViewOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1713, 865);
+            dataGridViewOdbiorcy.Size = new System.Drawing.Size(715, 478);
             dataGridViewOdbiorcy.TabIndex = 2;
             // 
             // dataGridViewNotatki
             // 
             dataGridViewNotatki.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewNotatki.Location = new System.Drawing.Point(352, 9);
+            dataGridViewNotatki.Location = new System.Drawing.Point(722, 2);
             dataGridViewNotatki.Name = "dataGridViewNotatki";
             dataGridViewNotatki.RowTemplate.Height = 25;
-            dataGridViewNotatki.Size = new System.Drawing.Size(313, 167);
+            dataGridViewNotatki.Size = new System.Drawing.Size(395, 167);
             dataGridViewNotatki.TabIndex = 3;
             // 
-            // textBoxNotatka
+            // comboBoxTowar
             // 
-            textBoxNotatka.Location = new System.Drawing.Point(12, 94);
-            textBoxNotatka.Multiline = true;
-            textBoxNotatka.Name = "textBoxNotatka";
-            textBoxNotatka.Size = new System.Drawing.Size(240, 85);
-            textBoxNotatka.TabIndex = 4;
+            comboBoxTowar.FormattingEnabled = true;
+            comboBoxTowar.Location = new System.Drawing.Point(794, 187);
+            comboBoxTowar.Name = "comboBoxTowar";
+            comboBoxTowar.Size = new System.Drawing.Size(174, 23);
+            comboBoxTowar.TabIndex = 6;
+            comboBoxTowar.SelectedIndexChanged += comboBoxTowar_SelectedIndexChanged;
             // 
-            // buttonDodajNotatke
+            // comboBoxKontrahent
             // 
-            buttonDodajNotatke.Location = new System.Drawing.Point(258, 136);
-            buttonDodajNotatke.Name = "buttonDodajNotatke";
-            buttonDodajNotatke.Size = new System.Drawing.Size(86, 43);
-            buttonDodajNotatke.TabIndex = 5;
-            buttonDodajNotatke.Text = "Dodaj notatke";
-            buttonDodajNotatke.UseVisualStyleBackColor = true;
-            // 
-            // comboBoxStatusFilter
-            // 
-            comboBoxStatusFilter.FormattingEnabled = true;
-            comboBoxStatusFilter.Location = new System.Drawing.Point(762, 9);
-            comboBoxStatusFilter.Name = "comboBoxStatusFilter";
-            comboBoxStatusFilter.Size = new System.Drawing.Size(174, 23);
-            comboBoxStatusFilter.TabIndex = 6;
-            // 
-            // comboBoxPowiatFilter
-            // 
-            comboBoxPowiatFilter.FormattingEnabled = true;
-            comboBoxPowiatFilter.Location = new System.Drawing.Point(762, 51);
-            comboBoxPowiatFilter.Name = "comboBoxPowiatFilter";
-            comboBoxPowiatFilter.Size = new System.Drawing.Size(174, 23);
-            comboBoxPowiatFilter.TabIndex = 7;
+            comboBoxKontrahent.FormattingEnabled = true;
+            comboBoxKontrahent.Location = new System.Drawing.Point(794, 231);
+            comboBoxKontrahent.Name = "comboBoxKontrahent";
+            comboBoxKontrahent.Size = new System.Drawing.Size(174, 23);
+            comboBoxKontrahent.TabIndex = 7;
+            comboBoxKontrahent.SelectedIndexChanged += comboBoxKontrahent_SelectedIndexChanged;
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(671, 12);
+            label1.Location = new System.Drawing.Point(749, 190);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(68, 15);
+            label1.Size = new System.Drawing.Size(39, 15);
             label1.TabIndex = 8;
-            label1.Text = "Filtr : Status";
+            label1.Text = "Towar";
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(671, 54);
+            label2.Location = new System.Drawing.Point(722, 234);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(72, 15);
+            label2.Size = new System.Drawing.Size(66, 15);
             label2.TabIndex = 9;
-            label2.Text = "Filtr : Powiat";
+            label2.Text = "Kontrahent";
             // 
-            // label3
+            // dataGridViewAnaliza
             // 
-            label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(2, 9);
-            label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(49, 15);
-            label3.TabIndex = 10;
-            label3.Text = "Notatka";
+            dataGridViewAnaliza.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridViewAnaliza.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewAnaliza.Location = new System.Drawing.Point(1, 484);
+            dataGridViewAnaliza.Name = "dataGridViewAnaliza";
+            dataGridViewAnaliza.RowTemplate.Height = 25;
+            dataGridViewAnaliza.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewAnaliza.Size = new System.Drawing.Size(1116, 226);
+            dataGridViewAnaliza.TabIndex = 12;
             // 
-            // dataGridViewRanking
+            // pictureBox1
             // 
-            dataGridViewRanking.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            dataGridViewRanking.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewRanking.Location = new System.Drawing.Point(971, 9);
-            dataGridViewRanking.Name = "dataGridViewRanking";
-            dataGridViewRanking.RowTemplate.Height = 25;
-            dataGridViewRanking.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewRanking.Size = new System.Drawing.Size(744, 170);
-            dataGridViewRanking.TabIndex = 11;
+            pictureBox1.BackgroundImage = Properties.Resources.pm;
+            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox1.Location = new System.Drawing.Point(722, 276);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(395, 94);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 13;
+            pictureBox1.TabStop = false;
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.BackgroundImage = (System.Drawing.Image)resources.GetObject("pictureBox2.BackgroundImage");
+            pictureBox2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox2.Location = new System.Drawing.Point(974, 175);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new System.Drawing.Size(143, 95);
+            pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox2.TabIndex = 14;
+            pictureBox2.TabStop = false;
+            // 
+            // pictureBox3
+            // 
+            pictureBox3.BackgroundImage = (System.Drawing.Image)resources.GetObject("pictureBox3.BackgroundImage");
+            pictureBox3.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox3.Location = new System.Drawing.Point(722, 376);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new System.Drawing.Size(395, 104);
+            pictureBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 15;
+            pictureBox3.TabStop = false;
             // 
             // WidokFakturSprzedazy
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1727, 1051);
-            Controls.Add(dataGridViewRanking);
-            Controls.Add(label3);
+            ClientSize = new System.Drawing.Size(1121, 712);
+            Controls.Add(pictureBox3);
+            Controls.Add(pictureBox2);
+            Controls.Add(pictureBox1);
+            Controls.Add(dataGridViewAnaliza);
             Controls.Add(label2);
             Controls.Add(label1);
-            Controls.Add(comboBoxPowiatFilter);
-            Controls.Add(comboBoxStatusFilter);
-            Controls.Add(buttonDodajNotatke);
-            Controls.Add(textBoxNotatka);
+            Controls.Add(comboBoxKontrahent);
+            Controls.Add(comboBoxTowar);
             Controls.Add(dataGridViewNotatki);
             Controls.Add(dataGridViewOdbiorcy);
             Name = "WidokFakturSprzedazy";
             Text = " WidokFakturSprzedazy";
+            Load += WidokFakturSprzedazy_Load;
             ((System.ComponentModel.ISupportInitialize)dataGridViewOdbiorcy).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewRanking).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewAnaliza).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -161,14 +178,14 @@
         #endregion
         private System.Windows.Forms.DataGridView dataGridViewOdbiorcy;
         private System.Windows.Forms.DataGridView dataGridViewNotatki;
-        private System.Windows.Forms.TextBox textBoxNotatka;
-        private System.Windows.Forms.Button buttonDodajNotatke;
-        private System.Windows.Forms.ComboBox comboBoxStatusFilter;
+        private System.Windows.Forms.ComboBox comboBoxTowar;
         private System.Windows.Forms.ComboBox comboBox1;
-        private System.Windows.Forms.ComboBox comboBoxPowiatFilter;
+        private System.Windows.Forms.ComboBox comboBoxKontrahent;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.DataGridView dataGridViewRanking;
+        private System.Windows.Forms.DataGridView dataGridViewAnaliza;
+        private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.PictureBox pictureBox2;
+        private System.Windows.Forms.PictureBox pictureBox3;
     }
 }

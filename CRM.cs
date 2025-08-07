@@ -125,7 +125,7 @@ namespace Kalendarz1
         private readonly Dictionary<string, List<string>> mapaWojewodztw = new Dictionary<string, List<string>>
 {
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
-    { "9998", new List<string> { "Mazowieckie", "Wielkopolskie" } },
+    { "9998", new List<string> { "Wielkopolskie" } },
     { "871231", new List<string> { "Opolskie", "Śląskie" } },
     { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } }
 };

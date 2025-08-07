@@ -100,7 +100,7 @@ namespace Kalendarz1
         private void buttonFakturySprzedazy_Click(object sender, EventArgs e)
         {
             WidokFakturSprzedazy widokFakturSprzedazy = new WidokFakturSprzedazy();
-            //widokFakturSprzedazy.UserID = App.UserID;
+            widokFakturSprzedazy.UserID = App.UserID;
             widokFakturSprzedazy.Show();
         }
     }

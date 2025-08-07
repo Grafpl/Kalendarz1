@@ -36,6 +36,7 @@
             mrozniaButton = new System.Windows.Forms.Button();
             krojenieButton = new System.Windows.Forms.Button();
             CRM = new System.Windows.Forms.Button();
+            buttonFakturySprzedazy = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -122,12 +123,25 @@
             CRM.UseVisualStyleBackColor = true;
             CRM.Click += CRM_Click;
             // 
+            // buttonFakturySprzedazy
+            // 
+            buttonFakturySprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonFakturySprzedazy.BackgroundImage");
+            buttonFakturySprzedazy.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            buttonFakturySprzedazy.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonFakturySprzedazy.Location = new System.Drawing.Point(806, 356);
+            buttonFakturySprzedazy.Name = "buttonFakturySprzedazy";
+            buttonFakturySprzedazy.Size = new System.Drawing.Size(262, 193);
+            buttonFakturySprzedazy.TabIndex = 22;
+            buttonFakturySprzedazy.UseVisualStyleBackColor = true;
+            buttonFakturySprzedazy.Click += buttonFakturySprzedazy_Click;
+            // 
             // MenuSprzedaz
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1080, 577);
+            Controls.Add(buttonFakturySprzedazy);
             Controls.Add(CRM);
             Controls.Add(krojenieButton);
             Controls.Add(mrozniaButton);
@@ -151,5 +165,6 @@
         private System.Windows.Forms.Button mrozniaButton;
         private System.Windows.Forms.Button krojenieButton;
         private System.Windows.Forms.Button CRM;
+        private System.Windows.Forms.Button buttonFakturySprzedazy;
     }
 }
