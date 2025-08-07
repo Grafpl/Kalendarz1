@@ -45,7 +45,7 @@
             UzgodnienieSaldButton = new System.Windows.Forms.Button();
             buttonPojemnikiZestawienie = new System.Windows.Forms.Button();
             CRM = new System.Windows.Forms.Button();
-            button6 = new System.Windows.Forms.Button();
+            buttonFakturySprzedazy = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -245,16 +245,17 @@
             CRM.UseVisualStyleBackColor = true;
             CRM.Click += CRM_Click;
             // 
-            // button6
+            // buttonFakturySprzedazy
             // 
-            button6.BackgroundImage = (System.Drawing.Image)resources.GetObject("button6.BackgroundImage");
-            button6.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            button6.Location = new System.Drawing.Point(816, 742);
-            button6.Name = "button6";
-            button6.Size = new System.Drawing.Size(262, 193);
-            button6.TabIndex = 16;
-            button6.UseVisualStyleBackColor = true;
+            buttonFakturySprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonFakturySprzedazy.BackgroundImage");
+            buttonFakturySprzedazy.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            buttonFakturySprzedazy.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonFakturySprzedazy.Location = new System.Drawing.Point(816, 742);
+            buttonFakturySprzedazy.Name = "buttonFakturySprzedazy";
+            buttonFakturySprzedazy.Size = new System.Drawing.Size(262, 193);
+            buttonFakturySprzedazy.TabIndex = 16;
+            buttonFakturySprzedazy.UseVisualStyleBackColor = true;
+            buttonFakturySprzedazy.Click += buttonFakturySprzedazy_Click;
             // 
             // MENU
             // 
@@ -262,7 +263,7 @@
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1094, 989);
-            Controls.Add(button6);
+            Controls.Add(buttonFakturySprzedazy);
             Controls.Add(CRM);
             Controls.Add(buttonPojemnikiZestawienie);
             Controls.Add(UzgodnienieSaldButton);
@@ -305,6 +306,6 @@
         private System.Windows.Forms.Button UzgodnienieSaldButton;
         private System.Windows.Forms.Button buttonPojemnikiZestawienie;
         private System.Windows.Forms.Button CRM;
-        private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.Button buttonFakturySprzedazy;
     }
 }

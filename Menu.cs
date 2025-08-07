@@ -96,5 +96,12 @@ namespace Kalendarz1
             crm.UserID = App.UserID;
             crm.Show();
         }
+
+        private void buttonFakturySprzedazy_Click(object sender, EventArgs e)
+        {
+            WidokFakturSprzedazy widokFakturSprzedazy = new WidokFakturSprzedazy();
+            //widokFakturSprzedazy.UserID = App.UserID;
+            widokFakturSprzedazy.Show();
+        }
     }
 }

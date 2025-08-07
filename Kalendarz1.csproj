@@ -39,6 +39,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="WidokFakturSprzedazy.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="MenuPojemniki.cs">
       <SubType>Form</SubType>
     </Compile>
