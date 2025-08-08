@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using OpenAI.Chat;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,6 +9,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json;
 
 namespace Kalendarz1
 {
@@ -327,6 +335,47 @@ ORDER BY
         }
 
 
+
+
+
+
+        private async void buttonWyslij_Click(object sender, EventArgs e)
+        {
+            buttonWyslij.Enabled = false;
+            textBoxOdpowiedz.Text = "Myślę...";
+
+            try
+            {
+                // 1) Klucz z ENV (User/Machine)
+                var key =
+                    Environment.GetEnvironmentVariable("OPENAI_API_KEY") ??
+                    Environment.GetEnvironmentVariable("OPENAI_API_KEY", EnvironmentVariableTarget.User) ??
+                    Environment.GetEnvironmentVariable("OPENAI_API_KEY", EnvironmentVariableTarget.Machine);
+
+                if (string.IsNullOrWhiteSpace(key))
+                    throw new InvalidOperationException("Brak klucza API w OPENAI_API_KEY.");
+
+                // 2) Klient
+                var client = new OpenAiClient(key);
+
+                // 3) Pytanie → odpowiedź
+                var prompt = textBoxPytanie.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(prompt))
+                    throw new InvalidOperationException("Wpisz pytanie.");
+
+                var answer = await client.AskAsync(prompt, "gpt-5");
+                textBoxOdpowiedz.Text = answer;
+            }
+            catch (Exception ex)
+            {
+                textBoxOdpowiedz.Text = "Błąd: " + ex.Message;
+            }
+            finally
+            {
+                buttonWyslij.Enabled = true;
+            }
+
+        }
 
         private void PokazCeneHarmonogramDostaw()
         {

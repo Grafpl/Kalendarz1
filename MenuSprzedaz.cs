@@ -118,5 +118,10 @@ namespace Kalendarz1
             widokFakturSprzedazy.UserID = App.UserID;
             widokFakturSprzedazy.Show();
         }
+
+        private void label8_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

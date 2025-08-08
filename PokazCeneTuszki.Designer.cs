@@ -83,6 +83,9 @@
             pokaztuszke = new System.Windows.Forms.CheckBox();
             dateTimePicker2 = new System.Windows.Forms.DateTimePicker();
             OdswiezButton = new System.Windows.Forms.Button();
+            textBoxPytanie = new System.Windows.Forms.TextBox();
+            textBoxOdpowiedz = new System.Windows.Forms.TextBox();
+            buttonWyslij = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
@@ -596,11 +599,44 @@
             OdswiezButton.UseVisualStyleBackColor = true;
             OdswiezButton.Click += OdswiezButton_Click;
             // 
+            // textBoxPytanie
+            // 
+            textBoxPytanie.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBoxPytanie.Location = new System.Drawing.Point(866, 634);
+            textBoxPytanie.Multiline = true;
+            textBoxPytanie.Name = "textBoxPytanie";
+            textBoxPytanie.Size = new System.Drawing.Size(251, 116);
+            textBoxPytanie.TabIndex = 154;
+            textBoxPytanie.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // textBoxOdpowiedz
+            // 
+            textBoxOdpowiedz.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBoxOdpowiedz.Location = new System.Drawing.Point(1123, 634);
+            textBoxOdpowiedz.Multiline = true;
+            textBoxOdpowiedz.Name = "textBoxOdpowiedz";
+            textBoxOdpowiedz.Size = new System.Drawing.Size(447, 232);
+            textBoxOdpowiedz.TabIndex = 155;
+            textBoxOdpowiedz.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // buttonWyslij
+            // 
+            buttonWyslij.Location = new System.Drawing.Point(1364, 592);
+            buttonWyslij.Name = "buttonWyslij";
+            buttonWyslij.Size = new System.Drawing.Size(75, 23);
+            buttonWyslij.TabIndex = 156;
+            buttonWyslij.Text = "Odśwież";
+            buttonWyslij.UseVisualStyleBackColor = true;
+            buttonWyslij.Click += buttonWyslij_Click;
+            // 
             // PokazCeneTuszki
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1582, 1000);
+            Controls.Add(buttonWyslij);
+            Controls.Add(textBoxOdpowiedz);
+            Controls.Add(textBoxPytanie);
             Controls.Add(OdswiezButton);
             Controls.Add(dateTimePicker2);
             Controls.Add(pokaztuszke);
@@ -732,5 +768,8 @@
         private System.Windows.Forms.CheckBox pokaztuszke;
         private System.Windows.Forms.DateTimePicker dateTimePicker2;
         private System.Windows.Forms.Button OdswiezButton;
+        private System.Windows.Forms.TextBox textBoxPytanie;
+        private System.Windows.Forms.TextBox textBoxOdpowiedz;
+        private System.Windows.Forms.Button buttonWyslij;
     }
 }

@@ -33,6 +33,7 @@
             textBoxKalendarz = new System.Windows.Forms.TextBox();
             textBoxPartie = new System.Windows.Forms.TextBox();
             dateTimePicker = new System.Windows.Forms.DateTimePicker();
+            CommandButton_Insert = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).BeginInit();
             SuspendLayout();
@@ -44,13 +45,14 @@
             dataGridViewKalendarz.Name = "dataGridViewKalendarz";
             dataGridViewKalendarz.RowHeadersVisible = false;
             dataGridViewKalendarz.RowTemplate.Height = 25;
-            dataGridViewKalendarz.Size = new System.Drawing.Size(753, 757);
+            dataGridViewKalendarz.Size = new System.Drawing.Size(840, 757);
             dataGridViewKalendarz.TabIndex = 116;
+            dataGridViewKalendarz.CellContentClick += dataGridViewKalendarz_CellContentClick;
             // 
             // dataGridViewPartie
             // 
             dataGridViewPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPartie.Location = new System.Drawing.Point(779, 81);
+            dataGridViewPartie.Location = new System.Drawing.Point(858, 81);
             dataGridViewPartie.Name = "dataGridViewPartie";
             dataGridViewPartie.RowHeadersVisible = false;
             dataGridViewPartie.RowTemplate.Height = 25;
@@ -63,7 +65,6 @@
             textBoxKalendarz.Name = "textBoxKalendarz";
             textBoxKalendarz.Size = new System.Drawing.Size(100, 23);
             textBoxKalendarz.TabIndex = 118;
-
             // 
             // textBoxPartie
             // 
@@ -71,7 +72,6 @@
             textBoxPartie.Name = "textBoxPartie";
             textBoxPartie.Size = new System.Drawing.Size(100, 23);
             textBoxPartie.TabIndex = 119;
-
             // 
             // dateTimePicker
             // 
@@ -80,20 +80,33 @@
             dateTimePicker.Name = "dateTimePicker";
             dateTimePicker.Size = new System.Drawing.Size(228, 23);
             dateTimePicker.TabIndex = 153;
-
+            // 
+            // CommandButton_Insert
+            // 
+            CommandButton_Insert.BackColor = System.Drawing.Color.Lime;
+            CommandButton_Insert.Location = new System.Drawing.Point(466, 36);
+            CommandButton_Insert.Name = "CommandButton_Insert";
+            CommandButton_Insert.Size = new System.Drawing.Size(71, 39);
+            CommandButton_Insert.TabIndex = 154;
+            CommandButton_Insert.Text = "+ Dodaj + dostawe";
+            CommandButton_Insert.UseVisualStyleBackColor = false;
+            CommandButton_Insert.Click += CommandButton_Insert_Click;
             // 
             // SprawdzalkaUmow
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1594, 850);
+            Controls.Add(CommandButton_Insert);
             Controls.Add(dateTimePicker);
             Controls.Add(textBoxPartie);
             Controls.Add(textBoxKalendarz);
             Controls.Add(dataGridViewPartie);
             Controls.Add(dataGridViewKalendarz);
             Name = "SprawdzalkaUmow";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             Text = "SprawdzalkaUmow";
+            WindowState = System.Windows.Forms.FormWindowState.Maximized;
             ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).EndInit();
             ResumeLayout(false);
@@ -107,5 +120,6 @@
         private System.Windows.Forms.TextBox textBoxKalendarz;
         private System.Windows.Forms.TextBox textBoxPartie;
         private System.Windows.Forms.DateTimePicker dateTimePicker;
+        private System.Windows.Forms.Button CommandButton_Insert;
     }
 }
