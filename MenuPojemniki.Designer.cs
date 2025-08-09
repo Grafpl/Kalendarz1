@@ -78,6 +78,7 @@
             UzgodnienieSaldButton.Size = new System.Drawing.Size(262, 193);
             UzgodnienieSaldButton.TabIndex = 58;
             UzgodnienieSaldButton.UseVisualStyleBackColor = true;
+            UzgodnienieSaldButton.Click += UzgodnienieSaldButton_Click_1;
             // 
             // buttonPojemnikiZestawienie
             // 
@@ -89,6 +90,7 @@
             buttonPojemnikiZestawienie.Size = new System.Drawing.Size(262, 193);
             buttonPojemnikiZestawienie.TabIndex = 57;
             buttonPojemnikiZestawienie.UseVisualStyleBackColor = true;
+            buttonPojemnikiZestawienie.Click += buttonPojemnikiZestawienie_Click;
             // 
             // MenuPojemniki
             // 

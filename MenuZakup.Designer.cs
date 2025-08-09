@@ -150,6 +150,7 @@
             button4.Size = new System.Drawing.Size(262, 193);
             button4.TabIndex = 52;
             button4.UseVisualStyleBackColor = true;
+            button4.Click += button4_Click;
             // 
             // button3
             // 
@@ -161,6 +162,7 @@
             button3.Size = new System.Drawing.Size(262, 193);
             button3.TabIndex = 51;
             button3.UseVisualStyleBackColor = true;
+            button3.Click += button3_Click;
             // 
             // button2
             // 
@@ -172,6 +174,7 @@
             button2.Size = new System.Drawing.Size(262, 193);
             button2.TabIndex = 50;
             button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click;
             // 
             // button1
             // 
@@ -183,6 +186,7 @@
             button1.Size = new System.Drawing.Size(262, 193);
             button1.TabIndex = 49;
             button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
             // 
             // buttonKontrahenci
             // 
@@ -195,6 +199,7 @@
             buttonKontrahenci.Size = new System.Drawing.Size(262, 193);
             buttonKontrahenci.TabIndex = 48;
             buttonKontrahenci.UseVisualStyleBackColor = true;
+            buttonKontrahenci.Click += buttonKontrahenci_Click;
             // 
             // buttonWstawienia
             // 
@@ -207,6 +212,7 @@
             buttonWstawienia.Size = new System.Drawing.Size(262, 193);
             buttonWstawienia.TabIndex = 47;
             buttonWstawienia.UseVisualStyleBackColor = true;
+            buttonWstawienia.Click += buttonWstawienia_Click;
             // 
             // terminyButton
             // 
@@ -220,6 +226,7 @@
             terminyButton.Size = new System.Drawing.Size(262, 193);
             terminyButton.TabIndex = 46;
             terminyButton.UseVisualStyleBackColor = true;
+            terminyButton.Click += terminyButton_Click;
             // 
             // kalendarzButton
             // 
@@ -232,6 +239,7 @@
             kalendarzButton.Size = new System.Drawing.Size(262, 193);
             kalendarzButton.TabIndex = 45;
             kalendarzButton.UseVisualStyleBackColor = true;
+            kalendarzButton.Click += kalendarzButton_Click;
             // 
             // MenuZakup
             // 

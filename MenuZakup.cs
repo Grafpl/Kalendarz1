@@ -69,6 +69,7 @@ namespace Kalendarz1
         private void button4_Click(object sender, EventArgs e)
         {
             SprawdzalkaUmow SprawdzalkaUmow = new SprawdzalkaUmow();
+            SprawdzalkaUmow.UserID = App.UserID;
             SprawdzalkaUmow.Show();
         }
         private void odbiorcaButton_Click(object sender, EventArgs e)

@@ -30,10 +30,9 @@
         {
             dataGridViewKalendarz = new System.Windows.Forms.DataGridView();
             dataGridViewPartie = new System.Windows.Forms.DataGridView();
-            textBoxKalendarz = new System.Windows.Forms.TextBox();
             textBoxPartie = new System.Windows.Forms.TextBox();
-            dateTimePicker = new System.Windows.Forms.DateTimePicker();
             CommandButton_Insert = new System.Windows.Forms.Button();
+            nieUzupelnione = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).BeginInit();
             SuspendLayout();
@@ -47,7 +46,6 @@
             dataGridViewKalendarz.RowTemplate.Height = 25;
             dataGridViewKalendarz.Size = new System.Drawing.Size(840, 757);
             dataGridViewKalendarz.TabIndex = 116;
-            dataGridViewKalendarz.CellContentClick += dataGridViewKalendarz_CellContentClick;
             // 
             // dataGridViewPartie
             // 
@@ -59,13 +57,6 @@
             dataGridViewPartie.Size = new System.Drawing.Size(684, 757);
             dataGridViewPartie.TabIndex = 117;
             // 
-            // textBoxKalendarz
-            // 
-            textBoxKalendarz.Location = new System.Drawing.Point(665, 52);
-            textBoxKalendarz.Name = "textBoxKalendarz";
-            textBoxKalendarz.Size = new System.Drawing.Size(100, 23);
-            textBoxKalendarz.TabIndex = 118;
-            // 
             // textBoxPartie
             // 
             textBoxPartie.Location = new System.Drawing.Point(1363, 52);
@@ -73,34 +64,36 @@
             textBoxPartie.Size = new System.Drawing.Size(100, 23);
             textBoxPartie.TabIndex = 119;
             // 
-            // dateTimePicker
-            // 
-            dateTimePicker.CalendarFont = new System.Drawing.Font("Segoe UI Semibold", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            dateTimePicker.Location = new System.Drawing.Point(651, 12);
-            dateTimePicker.Name = "dateTimePicker";
-            dateTimePicker.Size = new System.Drawing.Size(228, 23);
-            dateTimePicker.TabIndex = 153;
-            // 
             // CommandButton_Insert
             // 
             CommandButton_Insert.BackColor = System.Drawing.Color.Lime;
-            CommandButton_Insert.Location = new System.Drawing.Point(466, 36);
+            CommandButton_Insert.Location = new System.Drawing.Point(12, 12);
             CommandButton_Insert.Name = "CommandButton_Insert";
-            CommandButton_Insert.Size = new System.Drawing.Size(71, 39);
+            CommandButton_Insert.Size = new System.Drawing.Size(116, 63);
             CommandButton_Insert.TabIndex = 154;
-            CommandButton_Insert.Text = "+ Dodaj + dostawe";
+            CommandButton_Insert.Text = "Dodaj umowe";
             CommandButton_Insert.UseVisualStyleBackColor = false;
             CommandButton_Insert.Click += CommandButton_Insert_Click;
+            // 
+            // nieUzupelnione
+            // 
+            nieUzupelnione.AutoSize = true;
+            nieUzupelnione.Location = new System.Drawing.Point(134, 52);
+            nieUzupelnione.Name = "nieUzupelnione";
+            nieUzupelnione.Size = new System.Drawing.Size(112, 19);
+            nieUzupelnione.TabIndex = 155;
+            nieUzupelnione.Text = "Nie uzupełnione";
+            nieUzupelnione.UseVisualStyleBackColor = true;
+            nieUzupelnione.CheckedChanged += nieUzupelnione_CheckedChanged;
             // 
             // SprawdzalkaUmow
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1594, 850);
+            Controls.Add(nieUzupelnione);
             Controls.Add(CommandButton_Insert);
-            Controls.Add(dateTimePicker);
             Controls.Add(textBoxPartie);
-            Controls.Add(textBoxKalendarz);
             Controls.Add(dataGridViewPartie);
             Controls.Add(dataGridViewKalendarz);
             Name = "SprawdzalkaUmow";
@@ -117,9 +110,8 @@
 
         private System.Windows.Forms.DataGridView dataGridViewKalendarz;
         private System.Windows.Forms.DataGridView dataGridViewPartie;
-        private System.Windows.Forms.TextBox textBoxKalendarz;
         private System.Windows.Forms.TextBox textBoxPartie;
-        private System.Windows.Forms.DateTimePicker dateTimePicker;
         private System.Windows.Forms.Button CommandButton_Insert;
+        private System.Windows.Forms.CheckBox nieUzupelnione;
     }
 }

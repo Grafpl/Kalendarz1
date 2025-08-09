@@ -17,9 +17,6 @@ namespace Kalendarz1
 
         private void InitializeComponent()
         {
-            data = new TextBox();
-            frameDatePicker = new Panel();
-            monthCalendar1 = new MonthCalendar();
             CommandButton_Update = new Button();
             Vatowiec = new CheckBox();
             PaszaPisklak = new ComboBox();
@@ -47,52 +44,43 @@ namespace Kalendarz1
             Address = new TextBox();
             City = new TextBox();
             IDLibra = new TextBox();
-            checkBox1 = new CheckBox();
-            button1 = new Button();
             ComboBox1 = new ComboBox();
-            dateButton0 = new Button();
-            dateButton1 = new Button();
-            button4 = new Button();
-            button5 = new Button();
-            dataPodpisania = new TextBox();
             label3 = new Label();
-            label1 = new Label();
-            label2 = new Label();
-            label4 = new Label();
+            label9 = new Label();
+            label10 = new Label();
+            label11 = new Label();
+            label12 = new Label();
+            label13 = new Label();
+            label14 = new Label();
+            label15 = new Label();
+            label16 = new Label();
+            label18 = new Label();
+            label19 = new Label();
+            label20 = new Label();
+            label21 = new Label();
+            label17 = new Label();
+            label22 = new Label();
+            label23 = new Label();
+            label24 = new Label();
             label5 = new Label();
+            label25 = new Label();
             label6 = new Label();
-            label7 = new Label();
             label8 = new Label();
+            label7 = new Label();
+            label26 = new Label();
+            label27 = new Label();
+            label28 = new Label();
+            label1 = new Label();
+            dtpData = new DateTimePicker();
+            dtpDataPodpisania = new DateTimePicker();
             SuspendLayout();
-            // 
-            // data
-            // 
-            data.Location = new System.Drawing.Point(140, 7);
-            data.Name = "data";
-            data.Size = new System.Drawing.Size(120, 23);
-            data.TabIndex = 0;
-            // 
-            // frameDatePicker
-            // 
-            frameDatePicker.BorderStyle = BorderStyle.FixedSingle;
-            frameDatePicker.Location = new System.Drawing.Point(570, 471);
-            frameDatePicker.Name = "frameDatePicker";
-            frameDatePicker.Size = new System.Drawing.Size(230, 185);
-            frameDatePicker.TabIndex = 4;
-            frameDatePicker.Visible = false;
-            // 
-            // monthCalendar1
-            // 
-            monthCalendar1.Location = new System.Drawing.Point(850, 500);
-            monthCalendar1.MaxSelectionCount = 1;
-            monthCalendar1.Name = "monthCalendar1";
-            monthCalendar1.TabIndex = 0;
             // 
             // CommandButton_Update
             // 
-            CommandButton_Update.Location = new System.Drawing.Point(370, 50);
+            CommandButton_Update.Font = new System.Drawing.Font("Segoe UI Semibold", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CommandButton_Update.Location = new System.Drawing.Point(514, 357);
             CommandButton_Update.Name = "CommandButton_Update";
-            CommandButton_Update.Size = new System.Drawing.Size(180, 30);
+            CommandButton_Update.Size = new System.Drawing.Size(266, 80);
             CommandButton_Update.TabIndex = 6;
             CommandButton_Update.Text = "Utwórz umowę (Word/PDF)";
             CommandButton_Update.UseVisualStyleBackColor = true;
@@ -101,7 +89,7 @@ namespace Kalendarz1
             // Vatowiec
             // 
             Vatowiec.AutoSize = true;
-            Vatowiec.Location = new System.Drawing.Point(12, 616);
+            Vatowiec.Location = new System.Drawing.Point(580, 333);
             Vatowiec.Name = "Vatowiec";
             Vatowiec.Size = new System.Drawing.Size(76, 19);
             Vatowiec.TabIndex = 7;
@@ -111,7 +99,7 @@ namespace Kalendarz1
             // PaszaPisklak
             // 
             PaszaPisklak.FormattingEnabled = true;
-            PaszaPisklak.Location = new System.Drawing.Point(285, 193);
+            PaszaPisklak.Location = new System.Drawing.Point(580, 121);
             PaszaPisklak.Name = "PaszaPisklak";
             PaszaPisklak.Size = new System.Drawing.Size(121, 23);
             PaszaPisklak.TabIndex = 8;
@@ -119,7 +107,7 @@ namespace Kalendarz1
             // CzyjaWaga
             // 
             CzyjaWaga.FormattingEnabled = true;
-            CzyjaWaga.Location = new System.Drawing.Point(412, 193);
+            CzyjaWaga.Location = new System.Drawing.Point(581, 150);
             CzyjaWaga.Name = "CzyjaWaga";
             CzyjaWaga.Size = new System.Drawing.Size(121, 23);
             CzyjaWaga.TabIndex = 9;
@@ -127,7 +115,7 @@ namespace Kalendarz1
             // KonfPadl
             // 
             KonfPadl.FormattingEnabled = true;
-            KonfPadl.Location = new System.Drawing.Point(539, 193);
+            KonfPadl.Location = new System.Drawing.Point(581, 181);
             KonfPadl.Name = "KonfPadl";
             KonfPadl.Size = new System.Drawing.Size(121, 23);
             KonfPadl.TabIndex = 10;
@@ -135,323 +123,474 @@ namespace Kalendarz1
             // typCeny
             // 
             typCeny.FormattingEnabled = true;
-            typCeny.Location = new System.Drawing.Point(158, 193);
+            typCeny.Location = new System.Drawing.Point(581, 92);
             typCeny.Name = "typCeny";
             typCeny.Size = new System.Drawing.Size(121, 23);
             typCeny.TabIndex = 11;
             // 
             // Address1
             // 
-            Address1.Location = new System.Drawing.Point(12, 152);
+            Address1.Location = new System.Drawing.Point(136, 38);
             Address1.Name = "Address1";
-            Address1.Size = new System.Drawing.Size(100, 23);
+            Address1.Size = new System.Drawing.Size(161, 23);
             Address1.TabIndex = 12;
             // 
             // Address2
             // 
-            Address2.Location = new System.Drawing.Point(12, 181);
+            Address2.Location = new System.Drawing.Point(136, 67);
             Address2.Name = "Address2";
-            Address2.Size = new System.Drawing.Size(100, 23);
+            Address2.Size = new System.Drawing.Size(161, 23);
             Address2.TabIndex = 13;
             // 
             // NIP
             // 
-            NIP.Location = new System.Drawing.Point(12, 210);
+            NIP.Location = new System.Drawing.Point(136, 96);
             NIP.Name = "NIP";
-            NIP.Size = new System.Drawing.Size(100, 23);
+            NIP.Size = new System.Drawing.Size(161, 23);
             NIP.TabIndex = 14;
             // 
             // REGON
             // 
-            REGON.Location = new System.Drawing.Point(12, 239);
+            REGON.Location = new System.Drawing.Point(136, 154);
             REGON.Name = "REGON";
-            REGON.Size = new System.Drawing.Size(100, 23);
+            REGON.Size = new System.Drawing.Size(161, 23);
             REGON.TabIndex = 15;
             // 
             // PESEL
             // 
-            PESEL.Location = new System.Drawing.Point(12, 268);
+            PESEL.Location = new System.Drawing.Point(136, 125);
             PESEL.Name = "PESEL";
-            PESEL.Size = new System.Drawing.Size(100, 23);
+            PESEL.Size = new System.Drawing.Size(161, 23);
             PESEL.TabIndex = 16;
             // 
             // Phone1
             // 
-            Phone1.Location = new System.Drawing.Point(12, 297);
+            Phone1.Location = new System.Drawing.Point(136, 183);
             Phone1.Name = "Phone1";
-            Phone1.Size = new System.Drawing.Size(100, 23);
+            Phone1.Size = new System.Drawing.Size(161, 23);
             Phone1.TabIndex = 17;
             // 
             // Phone2
             // 
-            Phone2.Location = new System.Drawing.Point(12, 326);
+            Phone2.Location = new System.Drawing.Point(136, 212);
             Phone2.Name = "Phone2";
-            Phone2.Size = new System.Drawing.Size(100, 23);
+            Phone2.Size = new System.Drawing.Size(161, 23);
             Phone2.TabIndex = 18;
             // 
             // Info1
             // 
-            Info1.Location = new System.Drawing.Point(12, 355);
+            Info1.Location = new System.Drawing.Point(300, 183);
             Info1.Name = "Info1";
-            Info1.Size = new System.Drawing.Size(100, 23);
+            Info1.Size = new System.Drawing.Size(143, 23);
             Info1.TabIndex = 19;
             // 
             // Info2
             // 
-            Info2.Location = new System.Drawing.Point(12, 384);
+            Info2.Location = new System.Drawing.Point(300, 212);
             Info2.Name = "Info2";
-            Info2.Size = new System.Drawing.Size(100, 23);
+            Info2.Size = new System.Drawing.Size(143, 23);
             Info2.TabIndex = 20;
             // 
             // Email
             // 
-            Email.Location = new System.Drawing.Point(12, 413);
+            Email.Location = new System.Drawing.Point(136, 241);
             Email.Name = "Email";
-            Email.Size = new System.Drawing.Size(100, 23);
+            Email.Size = new System.Drawing.Size(307, 23);
             Email.TabIndex = 21;
             // 
             // Cena
             // 
-            Cena.Location = new System.Drawing.Point(666, 193);
+            Cena.Location = new System.Drawing.Point(581, 210);
             Cena.Name = "Cena";
             Cena.Size = new System.Drawing.Size(100, 23);
             Cena.TabIndex = 22;
             // 
             // NrGosp
             // 
-            NrGosp.Location = new System.Drawing.Point(12, 442);
+            NrGosp.Location = new System.Drawing.Point(136, 270);
             NrGosp.Name = "NrGosp";
-            NrGosp.Size = new System.Drawing.Size(100, 23);
+            NrGosp.Size = new System.Drawing.Size(161, 23);
             NrGosp.TabIndex = 23;
             // 
             // Ubytek
             // 
-            Ubytek.Location = new System.Drawing.Point(12, 123);
+            Ubytek.Location = new System.Drawing.Point(581, 297);
             Ubytek.Name = "Ubytek";
             Ubytek.Size = new System.Drawing.Size(100, 23);
             Ubytek.TabIndex = 24;
             // 
             // srednia
             // 
-            srednia.Location = new System.Drawing.Point(770, 193);
+            srednia.Location = new System.Drawing.Point(581, 239);
             srednia.Name = "srednia";
             srednia.Size = new System.Drawing.Size(100, 23);
             srednia.TabIndex = 25;
             // 
             // sztuki
             // 
-            sztuki.Location = new System.Drawing.Point(876, 193);
+            sztuki.Location = new System.Drawing.Point(580, 268);
             sztuki.Name = "sztuki";
             sztuki.Size = new System.Drawing.Size(100, 23);
             sztuki.TabIndex = 26;
             // 
             // Dostawca
             // 
-            Dostawca.Location = new System.Drawing.Point(310, 500);
+            Dostawca.Location = new System.Drawing.Point(136, 9);
             Dostawca.Name = "Dostawca";
-            Dostawca.Size = new System.Drawing.Size(120, 23);
+            Dostawca.Size = new System.Drawing.Size(307, 23);
             Dostawca.TabIndex = 27;
             // 
             // IRZPlus
             // 
-            IRZPlus.Location = new System.Drawing.Point(12, 471);
+            IRZPlus.Location = new System.Drawing.Point(136, 299);
             IRZPlus.Name = "IRZPlus";
-            IRZPlus.Size = new System.Drawing.Size(100, 23);
+            IRZPlus.Size = new System.Drawing.Size(161, 23);
             IRZPlus.TabIndex = 28;
             // 
             // PostalCode
             // 
-            PostalCode.Location = new System.Drawing.Point(12, 500);
+            PostalCode.Location = new System.Drawing.Point(136, 328);
             PostalCode.Name = "PostalCode";
-            PostalCode.Size = new System.Drawing.Size(100, 23);
+            PostalCode.Size = new System.Drawing.Size(161, 23);
             PostalCode.TabIndex = 29;
             // 
             // Address
             // 
-            Address.Location = new System.Drawing.Point(12, 529);
+            Address.Location = new System.Drawing.Point(136, 357);
             Address.Name = "Address";
-            Address.Size = new System.Drawing.Size(200, 23);
+            Address.Size = new System.Drawing.Size(161, 23);
             Address.TabIndex = 30;
             // 
             // City
             // 
-            City.Location = new System.Drawing.Point(12, 558);
+            City.Location = new System.Drawing.Point(136, 386);
             City.Name = "City";
-            City.Size = new System.Drawing.Size(100, 23);
+            City.Size = new System.Drawing.Size(161, 23);
             City.TabIndex = 31;
             // 
             // IDLibra
             // 
-            IDLibra.Location = new System.Drawing.Point(12, 587);
+            IDLibra.Location = new System.Drawing.Point(136, 415);
             IDLibra.Name = "IDLibra";
-            IDLibra.Size = new System.Drawing.Size(100, 23);
+            IDLibra.Size = new System.Drawing.Size(161, 23);
             IDLibra.TabIndex = 32;
-            // 
-            // checkBox1
-            // 
-            checkBox1.AutoSize = true;
-            checkBox1.Location = new System.Drawing.Point(982, 195);
-            checkBox1.Name = "checkBox1";
-            checkBox1.Size = new System.Drawing.Size(82, 19);
-            checkBox1.TabIndex = 33;
-            checkBox1.Text = "checkBox1";
-            // 
-            // button1
-            // 
-            button1.Location = new System.Drawing.Point(416, 284);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(75, 23);
-            button1.TabIndex = 34;
-            button1.Text = "button1";
             // 
             // ComboBox1
             // 
+            ComboBox1.BackColor = System.Drawing.Color.DarkGray;
             ComboBox1.FormattingEnabled = true;
-            ComboBox1.Location = new System.Drawing.Point(370, 12);
+            ComboBox1.Location = new System.Drawing.Point(581, 8);
             ComboBox1.Name = "ComboBox1";
             ComboBox1.Size = new System.Drawing.Size(121, 23);
             ComboBox1.TabIndex = 5;
             // 
-            // dateButton0
-            // 
-            dateButton0.Location = new System.Drawing.Point(270, 7);
-            dateButton0.Name = "dateButton0";
-            dateButton0.Size = new System.Drawing.Size(85, 23);
-            dateButton0.TabIndex = 2;
-            dateButton0.Text = "📅 Data";
-            dateButton0.UseVisualStyleBackColor = true;
-            // 
-            // dateButton1
-            // 
-            dateButton1.Location = new System.Drawing.Point(270, 36);
-            dateButton1.Name = "dateButton1";
-            dateButton1.Size = new System.Drawing.Size(85, 23);
-            dateButton1.TabIndex = 3;
-            dateButton1.Text = "📅 Podpis";
-            dateButton1.UseVisualStyleBackColor = true;
-            // 
-            // button4
-            // 
-            button4.Location = new System.Drawing.Point(703, 284);
-            button4.Name = "button4";
-            button4.Size = new System.Drawing.Size(75, 23);
-            button4.TabIndex = 35;
-            button4.Text = "button4";
-            // 
-            // button5
-            // 
-            button5.Location = new System.Drawing.Point(795, 284);
-            button5.Name = "button5";
-            button5.Size = new System.Drawing.Size(75, 23);
-            button5.TabIndex = 36;
-            button5.Text = "button5";
-            // 
-            // dataPodpisania
-            // 
-            dataPodpisania.Location = new System.Drawing.Point(140, 36);
-            dataPodpisania.Name = "dataPodpisania";
-            dataPodpisania.Size = new System.Drawing.Size(120, 23);
-            dataPodpisania.TabIndex = 1;
-            // 
             // label3
             // 
             label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(310, 459);
+            label3.Location = new System.Drawing.Point(12, 9);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(120, 38);
+            label3.Size = new System.Drawing.Size(118, 22);
             label3.TabIndex = 87;
             label3.Text = "Hodowca";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label1
+            // label9
             // 
-            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(876, 152);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(100, 38);
-            label1.TabIndex = 88;
-            label1.Text = "Sztuki";
-            label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label9.Location = new System.Drawing.Point(454, 36);
+            label9.Name = "label9";
+            label9.Size = new System.Drawing.Size(121, 23);
+            label9.TabIndex = 95;
+            label9.Text = "Data Odbioru";
+            label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label2
+            // label10
             // 
-            label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(770, 152);
-            label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(100, 38);
-            label2.TabIndex = 89;
-            label2.Text = "Waga";
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label10.Location = new System.Drawing.Point(454, 63);
+            label10.Name = "label10";
+            label10.Size = new System.Drawing.Size(121, 23);
+            label10.TabIndex = 96;
+            label10.Text = "Data Podpisania";
+            label10.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label4
+            // label11
             // 
-            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label4.Location = new System.Drawing.Point(666, 152);
-            label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(100, 38);
-            label4.TabIndex = 90;
-            label4.Text = "Cena";
-            label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label11.Location = new System.Drawing.Point(12, 39);
+            label11.Name = "label11";
+            label11.Size = new System.Drawing.Size(118, 22);
+            label11.TabIndex = 97;
+            label11.Text = "Ulica";
+            label11.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label12
+            // 
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label12.Location = new System.Drawing.Point(12, 68);
+            label12.Name = "label12";
+            label12.Size = new System.Drawing.Size(118, 22);
+            label12.TabIndex = 98;
+            label12.Text = "Kod Pocztowy";
+            label12.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label13
+            // 
+            label13.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label13.Location = new System.Drawing.Point(12, 97);
+            label13.Name = "label13";
+            label13.Size = new System.Drawing.Size(118, 22);
+            label13.TabIndex = 99;
+            label13.Text = "NIP";
+            label13.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label14
+            // 
+            label14.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label14.Location = new System.Drawing.Point(12, 126);
+            label14.Name = "label14";
+            label14.Size = new System.Drawing.Size(118, 22);
+            label14.TabIndex = 100;
+            label14.Text = "Pesel";
+            label14.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label15
+            // 
+            label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label15.Location = new System.Drawing.Point(12, 152);
+            label15.Name = "label15";
+            label15.Size = new System.Drawing.Size(118, 22);
+            label15.TabIndex = 101;
+            label15.Text = "REGON";
+            label15.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label16
+            // 
+            label16.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label16.Location = new System.Drawing.Point(12, 184);
+            label16.Name = "label16";
+            label16.Size = new System.Drawing.Size(118, 22);
+            label16.TabIndex = 102;
+            label16.Text = "Numer kontaktowy 1";
+            label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label18
+            // 
+            label18.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label18.Location = new System.Drawing.Point(12, 213);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(118, 22);
+            label18.TabIndex = 104;
+            label18.Text = "Numer kontaktowy 2";
+            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label19
+            // 
+            label19.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label19.Location = new System.Drawing.Point(12, 242);
+            label19.Name = "label19";
+            label19.Size = new System.Drawing.Size(118, 22);
+            label19.TabIndex = 105;
+            label19.Text = "Email";
+            label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label20
+            // 
+            label20.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label20.Location = new System.Drawing.Point(12, 270);
+            label20.Name = "label20";
+            label20.Size = new System.Drawing.Size(118, 22);
+            label20.TabIndex = 106;
+            label20.Text = "Nr Gospodarstwa";
+            label20.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label21
+            // 
+            label21.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label21.Location = new System.Drawing.Point(12, 300);
+            label21.Name = "label21";
+            label21.Size = new System.Drawing.Size(118, 22);
+            label21.TabIndex = 107;
+            label21.Text = "IRZPlus";
+            label21.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label17
+            // 
+            label17.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label17.Location = new System.Drawing.Point(12, 329);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(118, 22);
+            label17.TabIndex = 108;
+            label17.Text = "Adres Kurnika";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label22
+            // 
+            label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label22.Location = new System.Drawing.Point(12, 358);
+            label22.Name = "label22";
+            label22.Size = new System.Drawing.Size(118, 22);
+            label22.TabIndex = 109;
+            label22.Text = "Kod pocztowy kurnika";
+            label22.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label23
+            // 
+            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label23.Location = new System.Drawing.Point(12, 387);
+            label23.Name = "label23";
+            label23.Size = new System.Drawing.Size(118, 22);
+            label23.TabIndex = 110;
+            label23.Text = "Miejscowość kurnika";
+            label23.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label24
+            // 
+            label24.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label24.Location = new System.Drawing.Point(12, 416);
+            label24.Name = "label24";
+            label24.Size = new System.Drawing.Size(118, 22);
+            label24.TabIndex = 111;
+            label24.Text = "Id Libra";
+            label24.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label5
             // 
             label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label5.Location = new System.Drawing.Point(158, 152);
+            label5.Location = new System.Drawing.Point(454, 92);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(121, 38);
-            label5.TabIndex = 91;
+            label5.Size = new System.Drawing.Size(121, 23);
+            label5.TabIndex = 112;
             label5.Text = "Typ Ceny";
             label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // label25
+            // 
+            label25.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label25.Location = new System.Drawing.Point(454, 119);
+            label25.Name = "label25";
+            label25.Size = new System.Drawing.Size(121, 23);
+            label25.TabIndex = 113;
+            label25.Text = "Czy jest Pasza/Pisklak";
+            label25.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // label6
             // 
-            label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(412, 152);
+            label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label6.Location = new System.Drawing.Point(454, 148);
             label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(121, 38);
-            label6.TabIndex = 92;
-            label6.Text = "Hodowca?";
+            label6.Size = new System.Drawing.Size(121, 23);
+            label6.TabIndex = 114;
+            label6.Text = "Waga Samochodowa";
             label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // label7
-            // 
-            label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(539, 152);
-            label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(121, 38);
-            label7.TabIndex = 93;
-            label7.Text = "Czyja Waga?";
-            label7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // label8
             // 
             label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(285, 152);
+            label8.Location = new System.Drawing.Point(454, 179);
             label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(121, 38);
-            label8.TabIndex = 94;
-            label8.Text = "Odliczane padłe?";
+            label8.Size = new System.Drawing.Size(121, 23);
+            label8.TabIndex = 115;
+            label8.Text = "Obiążenie padłymi";
             label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label7
+            // 
+            label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label7.Location = new System.Drawing.Point(454, 210);
+            label7.Name = "label7";
+            label7.Size = new System.Drawing.Size(121, 23);
+            label7.TabIndex = 116;
+            label7.Text = "Cena";
+            label7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label26
+            // 
+            label26.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label26.Location = new System.Drawing.Point(454, 237);
+            label26.Name = "label26";
+            label26.Size = new System.Drawing.Size(121, 23);
+            label26.TabIndex = 117;
+            label26.Text = "Waga";
+            label26.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label27
+            // 
+            label27.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label27.Location = new System.Drawing.Point(454, 266);
+            label27.Name = "label27";
+            label27.Size = new System.Drawing.Size(121, 23);
+            label27.TabIndex = 118;
+            label27.Text = "Sztuki";
+            label27.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label28
+            // 
+            label28.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label28.Location = new System.Drawing.Point(454, 9);
+            label28.Name = "label28";
+            label28.Size = new System.Drawing.Size(121, 23);
+            label28.TabIndex = 119;
+            label28.Text = "Identyfikator";
+            label28.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label1
+            // 
+            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(454, 295);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(121, 23);
+            label1.TabIndex = 120;
+            label1.Text = "Ubytek";
+            label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // dtpData
+            // 
+            dtpData.Location = new System.Drawing.Point(580, 35);
+            dtpData.Name = "dtpData";
+            dtpData.Size = new System.Drawing.Size(200, 23);
+            dtpData.TabIndex = 121;
+            // 
+            // dtpDataPodpisania
+            // 
+            dtpDataPodpisania.Location = new System.Drawing.Point(581, 64);
+            dtpDataPodpisania.Name = "dtpDataPodpisania";
+            dtpDataPodpisania.Size = new System.Drawing.Size(200, 23);
+            dtpDataPodpisania.TabIndex = 122;
             // 
             // UmowyForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1152, 700);
-            Controls.Add(label8);
-            Controls.Add(label7);
-            Controls.Add(label6);
-            Controls.Add(label5);
-            Controls.Add(label4);
-            Controls.Add(label2);
+            ClientSize = new System.Drawing.Size(789, 448);
+            Controls.Add(dtpDataPodpisania);
+            Controls.Add(dtpData);
             Controls.Add(label1);
+            Controls.Add(label28);
+            Controls.Add(label27);
+            Controls.Add(label26);
+            Controls.Add(label7);
+            Controls.Add(label8);
+            Controls.Add(label6);
+            Controls.Add(label25);
+            Controls.Add(label5);
+            Controls.Add(label24);
+            Controls.Add(label23);
+            Controls.Add(label22);
+            Controls.Add(label17);
+            Controls.Add(label21);
+            Controls.Add(label20);
+            Controls.Add(label19);
+            Controls.Add(label18);
+            Controls.Add(label16);
+            Controls.Add(label15);
+            Controls.Add(label14);
+            Controls.Add(label13);
+            Controls.Add(label12);
+            Controls.Add(label11);
+            Controls.Add(label10);
+            Controls.Add(label9);
             Controls.Add(label3);
-            Controls.Add(monthCalendar1);
-            Controls.Add(data);
-            Controls.Add(dataPodpisania);
-            Controls.Add(dateButton0);
-            Controls.Add(dateButton1);
-            Controls.Add(frameDatePicker);
             Controls.Add(ComboBox1);
             Controls.Add(CommandButton_Update);
             Controls.Add(Vatowiec);
@@ -480,10 +619,6 @@ namespace Kalendarz1
             Controls.Add(Address);
             Controls.Add(City);
             Controls.Add(IDLibra);
-            Controls.Add(checkBox1);
-            Controls.Add(button1);
-            Controls.Add(button4);
-            Controls.Add(button5);
             Name = "UmowyForm";
             Text = "UmowyForm";
             ResumeLayout(false);
@@ -494,11 +629,6 @@ namespace Kalendarz1
         }
 
         #endregion
-
-        // ====== DEKLARACJE PÓL (muszą zgadzać się z nazwami użytymi w logice) ======
-        private TextBox data;
-        private Panel frameDatePicker;
-        private MonthCalendar monthCalendar1;
         private Button CommandButton_Update;
         private System.Windows.Forms.CheckBox Vatowiec;
 
@@ -527,21 +657,34 @@ namespace Kalendarz1
         private TextBox Address;
         private TextBox City;
         private TextBox IDLibra;
-        private System.Windows.Forms.CheckBox checkBox1;
-        private Button button1;
         private ComboBox ComboBox1;
-        private Button dateButton0;
-        private Button dateButton1;
-        private Button button4;
-        private Button button5;
-        private TextBox dataPodpisania;
         private Label label3;
-        private Label label1;
-        private Label label2;
-        private Label label4;
+        private Label label9;
+        private Label label10;
+        private Label label11;
+        private Label label12;
+        private Label label13;
+        private Label label14;
+        private Label label15;
+        private Label label16;
+        private Label label18;
+        private Label label19;
+        private Label label20;
+        private Label label21;
+        private Label label17;
+        private Label label22;
+        private Label label23;
+        private Label label24;
         private Label label5;
+        private Label label25;
         private Label label6;
-        private Label label7;
         private Label label8;
+        private Label label7;
+        private Label label26;
+        private Label label27;
+        private Label label28;
+        private Label label1;
+        private DateTimePicker dtpData;
+        private DateTimePicker dtpDataPodpisania;
     }
 }

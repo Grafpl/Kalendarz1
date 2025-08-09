@@ -80,6 +80,7 @@
             odbiorcaButton.Size = new System.Drawing.Size(262, 193);
             odbiorcaButton.TabIndex = 23;
             odbiorcaButton.UseVisualStyleBackColor = true;
+            odbiorcaButton.Click += odbiorcaButton_Click;
             // 
             // buttonPojemnikiZestawienie
             // 
@@ -91,6 +92,7 @@
             buttonPojemnikiZestawienie.Size = new System.Drawing.Size(262, 193);
             buttonPojemnikiZestawienie.TabIndex = 24;
             buttonPojemnikiZestawienie.UseVisualStyleBackColor = true;
+            buttonPojemnikiZestawienie.Click += buttonPojemnikiZestawienie_Click;
             // 
             // UzgodnienieSaldButton
             // 
@@ -102,6 +104,7 @@
             UzgodnienieSaldButton.Size = new System.Drawing.Size(262, 193);
             UzgodnienieSaldButton.TabIndex = 25;
             UzgodnienieSaldButton.UseVisualStyleBackColor = true;
+            UzgodnienieSaldButton.Click += UzgodnienieSaldButton_Click;
             // 
             // mrozniaButton
             // 
@@ -114,6 +117,7 @@
             mrozniaButton.Size = new System.Drawing.Size(262, 193);
             mrozniaButton.TabIndex = 26;
             mrozniaButton.UseVisualStyleBackColor = true;
+            mrozniaButton.Click += mrozniaButton_Click_1;
             // 
             // krojenieButton
             // 
@@ -125,6 +129,7 @@
             krojenieButton.Size = new System.Drawing.Size(262, 193);
             krojenieButton.TabIndex = 27;
             krojenieButton.UseVisualStyleBackColor = true;
+            krojenieButton.Click += krojenieButton_Click_1;
             // 
             // CRM
             // 
@@ -136,6 +141,7 @@
             CRM.Size = new System.Drawing.Size(262, 193);
             CRM.TabIndex = 28;
             CRM.UseVisualStyleBackColor = true;
+            CRM.Click += CRM_Click;
             // 
             // label9
             // 
