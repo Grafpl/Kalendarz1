@@ -19,6 +19,7 @@ namespace Kalendarz1
         // Parametry wejściowe (opcjonalne)
         private readonly string? _initialLp;
         private readonly string? _initialIdLibra;
+        public string UserID { get; set; }
 
         public UmowyForm() : this(null, null) { }
 
@@ -292,33 +293,48 @@ namespace Kalendarz1
 
         private void CommandButton_Update_Click(object? sender, EventArgs e)
         {
-            // 1) Update Utworzone = 1 dla wybranego LP
+            // 1) Walidacja wyboru LP
             if (ComboBox1.SelectedItem == null)
             {
                 MessageBox.Show("Wybierz Lp.");
                 return;
             }
-
             var selectedLp = ComboBox1.SelectedItem.ToString();
 
-            const string updateSql = @"UPDATE dbo.HarmonogramDostaw SET Utworzone = 1 WHERE Lp = @lp;";
+            // 2) Parsowanie UserID -> int (wymagane przez kolumnę KtoUtw)
+            if (!int.TryParse(UserID, out var userIdInt))
+            {
+                MessageBox.Show("UserID musi być liczbą całkowitą (potrzebne do zapisania KtoUtw).");
+                return;
+            }
+
+            // 3) UPDATE: ustaw Utworzone=1 + KtoUtw/KiedyUtw (bez nadpisywania, jeżeli już były)
+            const string updateSql = @"
+UPDATE dbo.HarmonogramDostaw
+SET
+    Utworzone = 1,
+    KtoUtw    = CASE WHEN ISNULL(KtoUtw, 0) = 0 THEN @kto ELSE KtoUtw END,
+    KiedyUtw  = CASE WHEN KiedyUtw IS NULL     THEN GETDATE() ELSE KiedyUtw END
+WHERE Lp = @lp;";
+
             try
             {
                 using (var conn = new SqlConnection(_connString))
                 using (var cmd = new SqlCommand(updateSql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@lp", selectedLp);
+                    cmd.Parameters.AddWithValue("@lp", selectedLp ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@kto", userIdInt);
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Błąd aktualizacji Utworzone: " + ex.Message);
+                MessageBox.Show("Błąd aktualizacji Utworzone/KtoUtw/KiedyUtw: " + ex.Message);
                 return;
             }
 
-            // 2) Word: wstaw zamienniki i zapisz DOCX
+            // 4) Word: wygeneruj dokument
             try
             {
                 GenerateWordDocx();
@@ -329,9 +345,10 @@ namespace Kalendarz1
                 return;
             }
 
-            // 3) Zamknij okno (jak w VBA Unload Me)
+            // 5) Zamknij okno
             Close();
         }
+
 
         private void GenerateWordDocx()
         {

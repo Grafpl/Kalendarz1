@@ -30,7 +30,6 @@
         {
             dataGridViewKalendarz = new System.Windows.Forms.DataGridView();
             dataGridViewPartie = new System.Windows.Forms.DataGridView();
-            textBoxPartie = new System.Windows.Forms.TextBox();
             CommandButton_Insert = new System.Windows.Forms.Button();
             nieUzupelnione = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).BeginInit();
@@ -44,25 +43,18 @@
             dataGridViewKalendarz.Name = "dataGridViewKalendarz";
             dataGridViewKalendarz.RowHeadersVisible = false;
             dataGridViewKalendarz.RowTemplate.Height = 25;
-            dataGridViewKalendarz.Size = new System.Drawing.Size(840, 757);
+            dataGridViewKalendarz.Size = new System.Drawing.Size(1570, 757);
             dataGridViewKalendarz.TabIndex = 116;
             // 
             // dataGridViewPartie
             // 
             dataGridViewPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPartie.Location = new System.Drawing.Point(858, 81);
+            dataGridViewPartie.Location = new System.Drawing.Point(868, 12);
             dataGridViewPartie.Name = "dataGridViewPartie";
             dataGridViewPartie.RowHeadersVisible = false;
             dataGridViewPartie.RowTemplate.Height = 25;
-            dataGridViewPartie.Size = new System.Drawing.Size(684, 757);
+            dataGridViewPartie.Size = new System.Drawing.Size(421, 30);
             dataGridViewPartie.TabIndex = 117;
-            // 
-            // textBoxPartie
-            // 
-            textBoxPartie.Location = new System.Drawing.Point(1363, 52);
-            textBoxPartie.Name = "textBoxPartie";
-            textBoxPartie.Size = new System.Drawing.Size(100, 23);
-            textBoxPartie.TabIndex = 119;
             // 
             // CommandButton_Insert
             // 
@@ -93,7 +85,6 @@
             ClientSize = new System.Drawing.Size(1594, 850);
             Controls.Add(nieUzupelnione);
             Controls.Add(CommandButton_Insert);
-            Controls.Add(textBoxPartie);
             Controls.Add(dataGridViewPartie);
             Controls.Add(dataGridViewKalendarz);
             Name = "SprawdzalkaUmow";
@@ -110,7 +101,6 @@
 
         private System.Windows.Forms.DataGridView dataGridViewKalendarz;
         private System.Windows.Forms.DataGridView dataGridViewPartie;
-        private System.Windows.Forms.TextBox textBoxPartie;
         private System.Windows.Forms.Button CommandButton_Insert;
         private System.Windows.Forms.CheckBox nieUzupelnione;
     }

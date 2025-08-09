@@ -386,6 +386,7 @@ WHERE [LP] = @id;";
 
             string lp = cellVal.ToString()!;
             var form = new UmowyForm(initialLp: lp, initialIdLibra: null);
+            form.UserID = App.UserID;
             form.Show();
         }
 
