@@ -1,6 +1,7 @@
 ﻿using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -15,11 +16,17 @@ namespace Kalendarz1
     {
         private readonly string _connString =
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         // Parametry wejściowe (opcjonalne)
         private readonly string? _initialLp;
         private readonly string? _initialIdLibra;
         public string UserID { get; set; }
+        private DataTable _hodowcyTable;
+        private readonly BindingSource _hodowcyBS = new BindingSource();
+        private DataTable _kontrahenciTable;
+        private readonly BindingSource _kontrahenciBS = new BindingSource();
+        private readonly Timer _filterTimer = new Timer { Interval = 250 };
 
         public UmowyForm() : this(null, null) { }
 
@@ -38,12 +45,52 @@ namespace Kalendarz1
             ComboBox1.SelectedIndexChanged += ComboBox1_SelectedIndexChanged;
             Dostawca.TextChanged += Dostawca_TextChanged;
 
+            dataGridViewKontrahenci.DataBindingComplete += DataGridViewKontrahenci_DataBindingComplete;
+            dataGridViewKontrahenci.RowHeadersVisible = false;
+
+
             CommandButton_Update.Click += CommandButton_Update_Click;
+            // Debounce filtrowania
+            _filterTimer.Tick += (s, e) =>
+            {
+                _filterTimer.Stop();
+                ApplyFilter(textBoxFiltrKontrahent.Text);
+            };
+            textBoxFiltrKontrahent.TextChanged += (s, e) =>
+            {
+                _filterTimer.Stop();
+                _filterTimer.Start();
+            };
         }
 
         #region Load / init
+        private void DataGridViewKontrahenci_DataBindingComplete(object? sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            var g = dataGridViewKontrahenci;
+            if (g.Columns.Count == 0) return;
 
-        private void UmowyForm_Load(object? sender, EventArgs e)
+            // Najpierw: wszystkie kolumny dopasuj do zawartości
+            foreach (DataGridViewColumn c in g.Columns)
+            {
+                c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                c.MinimumWidth = 60;
+            }
+
+            // Potem: Kontrahent ma wypełniać resztę miejsca
+            var colKontr = g.Columns["Kontrahent"];
+            if (colKontr != null)
+            {
+                colKontr.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                colKontr.FillWeight = 300;   // większa waga = więcej miejsca
+                colKontr.MinimumWidth = 250; // sensowne minimum
+            }
+
+            // (opcjonalnie) format daty
+            if (g.Columns.Contains("DataOstatniegoDokumentu"))
+                g.Columns["DataOstatniegoDokumentu"].DefaultCellStyle.Format = "yyyy-MM-dd";
+        }
+
+        private async void UmowyForm_Load(object? sender, EventArgs e)
         {
             try
             {
@@ -98,6 +145,12 @@ namespace Kalendarz1
 
                 // Pierwsze przeliczenie daty podpisania na podstawie dtpData
                 DtpData_ValueChanged(dtpData, EventArgs.Empty);
+
+                 WczytajKontrahentowAsync();
+                 WczytajHodowcowAsync();
+
+                // Opcjonalnie: od razu zastosuj pusty filtr (czyści ewentualny stary)
+                ApplyFilter(string.Empty);
             }
             catch (Exception ex)
             {
@@ -348,8 +401,157 @@ WHERE Lp = @lp;";
             // 5) Zamknij okno
             Close();
         }
+        private async Task WczytajHodowcowAsync()
+        {
+            string sql = @"
+SELECT
+    [Lp#]                                   AS Lp,
+    [Dostawca Drobiu_Nazwisko i Imie]       AS Dostawca,
+    [Typ ceny]                              AS TypCeny,
+    [Dodatek]                               AS Dodatek,
+    [Ubytek]                                AS Ubytek,
+    [Dane]                                  AS Dane,
+    [Kod Pocztowy]                          AS KodPocztowy,
+    [Kontakt]                               AS Kontakt,
+    [F9]                                    AS F9,
+    [F10]                                   AS F10,
+    [Adres zamieszkania Hodowcy]            AS AdresZamHodowcy,
+    [F12]                                   AS F12,
+    [Adres Fermy (opcjonalne)]              AS AdresFermy,
+    [F14]                                   AS F14,
+    [Województwo]                           AS Wojewodztwo,
+    [KM]                                    AS KM,
+    [archiwalne ceny]                       AS ArchiwalneCeny,
+    [ID_Na prdukcji]                        AS IDNaProdukcji,
+    [IRZPLUS]                               AS IRZPLUS,
+    [Kontrola urzędowa , badanie urzędowe , wynik ujemny, dodatni] AS KontrolaUrz,
+    [Test PCR]                              AS TestPCR,
+    [F22]                                   AS F22,
+    [F23]                                   AS F23
+  FROM [LibraNet].[dbo].['Dane hodowców$']";
+
+            try
+            {
+                using var conn = new SqlConnection(_connString); // wskazuje na LibraNet
+                using var cmd = new SqlCommand(sql, conn);
+                await conn.OpenAsync();
+
+                using var rdr = await cmd.ExecuteReaderAsync();
+                var dt = new DataTable { CaseSensitive = false };
+                dt.Load(rdr);
+
+                _hodowcyTable = dt;
+                _hodowcyBS.DataSource = _hodowcyTable.DefaultView;
+                dataGridViewHodowcy.AutoGenerateColumns = true;
+                dataGridViewHodowcy.DataSource = _hodowcyBS;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd wczytywania hodowców: " + ex.Message);
+            }
+        }
+
+        #region Kontrahenci – ostatnie dokumenty
+
+        // Pole prywatne do przechowania wszystkich danych
+        // --- ŁADOWANIE DANYCH (raz, do pamięci) ---
+        private async Task WczytajKontrahentowAsync()
+        {
+            string sql = @"
+SELECT
+    COALESCE(C.Name,'') AS Kontrahent,
+    CASE 
+        WHEN LastDocs.seria IN ('sFVS', 'sFVZ') THEN 'VATowiec'
+        WHEN LastDocs.seria = 'sFVR' THEN 'Rolnik'
+        ELSE LastDocs.seria
+    END AS TypKontrahenta,
+    LastDocs.data AS DataOstatniegoDokumentu,
+    LastDocs.DK_kod AS OstatniKodDokumentu
+FROM 
+    [HANDEL].[SSCommon].[STContractors] C
+INNER JOIN (
+    SELECT 
+        DK.khid,
+        DK.seria,
+        DP.data,
+        DK.kod AS DK_kod,
+        ROW_NUMBER() OVER (PARTITION BY DK.khid ORDER BY DP.data DESC) AS rn
+    FROM 
+        [HANDEL].[HM].[DP] DP
+    INNER JOIN [HANDEL].[HM].[TW] TW 
+        ON DP.idtw = TW.id
+    INNER JOIN [HANDEL].[HM].[DK] DK 
+        ON DP.super = DK.id
+    WHERE 
+        DP.data >= '2023-01-01'
+        AND TW.kod LIKE '%Kurczak żywy%'
+) LastDocs 
+    ON LastDocs.khid = C.id 
+   AND LastDocs.rn = 1
+ORDER BY C.Shortcut;";
+
+            try
+            {
+                using var conn = new SqlConnection(connectionString2);
+                using var cmd = new SqlCommand(sql, conn);
+                await conn.OpenAsync();
+
+                using var rdr = await cmd.ExecuteReaderAsync();
+                var dt = new DataTable
+                {
+                    // Bez rozróżnienia wielkości liter przy filtrowaniu
+                    CaseSensitive = false
+                };
+                dt.Load(rdr);
+
+                _kontrahenciTable = dt;
+
+                // Podpinamy jako DataView przez BindingSource (wspiera .Filter)
+                _kontrahenciBS.DataSource = _kontrahenciTable.DefaultView;
+                dataGridViewKontrahenci.DataSource = _kontrahenciBS;
+                await WczytajKontrahentowAsync();
+                await WczytajHodowcowAsync();        // <— DODAJ TO
+                ApplyFilter(string.Empty);
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd wczytywania kontrahentów: " + ex.Message);
+            }
+        }
+
+        // --- FILTROWANIE LOKALNE ---
+        private void ApplyFilter(string rawText)
+        {
+            string pattern = EscapeLikeValue((rawText ?? string.Empty).Trim());
+
+            // Kontrahenci
+            if (_kontrahenciBS.DataSource is DataView dv1)
+                _kontrahenciBS.Filter = string.IsNullOrEmpty(pattern)
+                    ? string.Empty
+                    : $"Convert([Kontrahent],'System.String') LIKE '%{pattern}%'";
+
+            // Hodowcy (Dostawca)
+            if (_hodowcyBS.DataSource is DataView dv2)
+                _hodowcyBS.Filter = string.IsNullOrEmpty(pattern)
+                    ? string.Empty
+                    : $"Convert([Dostawca],'System.String') LIKE '%{pattern}%'";
+        }
 
 
+        // Escapowanie znaków specjalnych dla LIKE w RowFilter
+        private static string EscapeLikeValue(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            // Ucieczka nawiasu [, %, _ oraz pojedynczego apostrofu
+            return value
+                .Replace("[", "[[]")
+                .Replace("%", "[%]")
+                .Replace("_", "[_]")
+                .Replace("'", "''");
+        }
+
+        #endregion
         private void GenerateWordDocx()
         {
             // Ścieżki

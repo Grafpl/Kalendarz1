@@ -73,6 +73,15 @@ namespace Kalendarz1
             label1 = new Label();
             dtpData = new DateTimePicker();
             dtpDataPodpisania = new DateTimePicker();
+            textBoxFiltrKontrahent = new TextBox();
+            dataGridViewKontrahenci = new DataGridView();
+            dataGridViewHodowcy = new DataGridView();
+            label2 = new Label();
+            label4 = new Label();
+            label29 = new Label();
+            label30 = new Label();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewKontrahenci).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewHodowcy).BeginInit();
             SuspendLayout();
             // 
             // CommandButton_Update
@@ -558,11 +567,82 @@ namespace Kalendarz1
             dtpDataPodpisania.Size = new System.Drawing.Size(200, 23);
             dtpDataPodpisania.TabIndex = 122;
             // 
+            // textBoxFiltrKontrahent
+            // 
+            textBoxFiltrKontrahent.Location = new System.Drawing.Point(808, 302);
+            textBoxFiltrKontrahent.Name = "textBoxFiltrKontrahent";
+            textBoxFiltrKontrahent.Size = new System.Drawing.Size(161, 23);
+            textBoxFiltrKontrahent.TabIndex = 123;
+            // 
+            // dataGridViewKontrahenci
+            // 
+            dataGridViewKontrahenci.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewKontrahenci.Location = new System.Drawing.Point(12, 444);
+            dataGridViewKontrahenci.Name = "dataGridViewKontrahenci";
+            dataGridViewKontrahenci.RowTemplate.Height = 25;
+            dataGridViewKontrahenci.Size = new System.Drawing.Size(629, 399);
+            dataGridViewKontrahenci.TabIndex = 124;
+            // 
+            // dataGridViewHodowcy
+            // 
+            dataGridViewHodowcy.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewHodowcy.Location = new System.Drawing.Point(647, 444);
+            dataGridViewHodowcy.Name = "dataGridViewHodowcy";
+            dataGridViewHodowcy.RowTemplate.Height = 25;
+            dataGridViewHodowcy.Size = new System.Drawing.Size(781, 399);
+            dataGridViewHodowcy.TabIndex = 125;
+            // 
+            // label2
+            // 
+            label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label2.Location = new System.Drawing.Point(808, 276);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(121, 23);
+            label2.TabIndex = 126;
+            label2.Text = "Szukaj";
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label4
+            // 
+            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label4.Location = new System.Drawing.Point(356, 418);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(121, 23);
+            label4.TabIndex = 127;
+            label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label29
+            // 
+            label29.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label29.Location = new System.Drawing.Point(856, 384);
+            label29.Name = "label29";
+            label29.Size = new System.Drawing.Size(210, 57);
+            label29.TabIndex = 128;
+            label29.Text = "Dane hodowców";
+            label29.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label30
+            // 
+            label30.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label30.Location = new System.Drawing.Point(300, 387);
+            label30.Name = "label30";
+            label30.Size = new System.Drawing.Size(210, 57);
+            label30.TabIndex = 129;
+            label30.Text = "Symfonia";
+            label30.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // UmowyForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(789, 448);
+            ClientSize = new System.Drawing.Size(1440, 871);
+            Controls.Add(label30);
+            Controls.Add(label29);
+            Controls.Add(label4);
+            Controls.Add(label2);
+            Controls.Add(dataGridViewHodowcy);
+            Controls.Add(dataGridViewKontrahenci);
+            Controls.Add(textBoxFiltrKontrahent);
             Controls.Add(dtpDataPodpisania);
             Controls.Add(dtpData);
             Controls.Add(label1);
@@ -621,11 +701,10 @@ namespace Kalendarz1
             Controls.Add(IDLibra);
             Name = "UmowyForm";
             Text = "UmowyForm";
+            ((System.ComponentModel.ISupportInitialize)dataGridViewKontrahenci).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewHodowcy).EndInit();
             ResumeLayout(false);
             PerformLayout();
-
-            // Podłącz zdarzenie Load jeśli chcesz przez Designer (opcjonalnie – i tak podpinałem w kodzie)
-            // this.Load += new System.EventHandler(this.UmowyForm_Load);
         }
 
         #endregion
@@ -686,5 +765,12 @@ namespace Kalendarz1
         private Label label1;
         private DateTimePicker dtpData;
         private DateTimePicker dtpDataPodpisania;
+        private TextBox textBoxFiltrKontrahent;
+        private DataGridView dataGridViewKontrahenci;
+        private DataGridView dataGridViewHodowcy;
+        private Label label2;
+        private Label label4;
+        private Label label29;
+        private Label label30;
     }
 }
