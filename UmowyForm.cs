@@ -27,7 +27,8 @@ namespace Kalendarz1
         private DataTable _kontrahenciTable;
         private readonly BindingSource _kontrahenciBS = new BindingSource();
         private readonly Timer _filterTimer = new Timer { Interval = 250 };
-
+        private NazwaZiD nazwaZiD = new NazwaZiD();
+        private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         public UmowyForm() : this(null, null) { }
 
         public UmowyForm(string? initialLp, string? initialIdLibra)
@@ -36,14 +37,14 @@ namespace Kalendarz1
             _initialIdLibra = initialIdLibra;
 
             InitializeComponent();
-
+            zapytaniasql.UzupelnijComboBoxHodowcami3(comboBoxDostawca);
             // Zdarzenia
             Load += UmowyForm_Load;
 
             dtpData.ValueChanged += DtpData_ValueChanged; // przelicza datę podpisania
 
             ComboBox1.SelectedIndexChanged += ComboBox1_SelectedIndexChanged;
-            Dostawca.TextChanged += Dostawca_TextChanged;
+            Dostawca1.TextChanged += Dostawca_TextChanged;
 
             dataGridViewKontrahenci.DataBindingComplete += DataGridViewKontrahenci_DataBindingComplete;
             dataGridViewKontrahenci.RowHeadersVisible = false;
@@ -146,8 +147,8 @@ namespace Kalendarz1
                 // Pierwsze przeliczenie daty podpisania na podstawie dtpData
                 DtpData_ValueChanged(dtpData, EventArgs.Empty);
 
-                 WczytajKontrahentowAsync();
-                 WczytajHodowcowAsync();
+                WczytajKontrahentowAsync();
+                WczytajHodowcowAsync();
 
                 // Opcjonalnie: od razu zastosuj pusty filtr (czyści ewentualny stary)
                 ApplyFilter(string.Empty);
@@ -204,7 +205,7 @@ namespace Kalendarz1
                     {
                         if (!rd.Read()) return;
 
-                        SetText(Dostawca, rd, "Dostawca");
+                        SetText(Dostawca1, rd, "Dostawca");
 
                         // DataOdbioru -> dtpData
                         var v = rd["DataOdbioru"];
@@ -247,7 +248,7 @@ namespace Kalendarz1
 
         private void Dostawca_TextChanged(object? sender, EventArgs e)
         {
-            var name = Dostawca.Text?.Trim();
+            var name = Dostawca1.Text?.Trim();
             if (string.IsNullOrEmpty(name)) return;
 
             const string sql = @"SELECT TOP(1) * FROM dbo.Dostawcy WHERE Name = @name;";
@@ -296,7 +297,7 @@ namespace Kalendarz1
 
                         // Ustaw także nazwę do TextBoxa 'Dostawca' dla spójności z resztą logiki:
                         var nameObj = rd["Name"];
-                        if (nameObj != DBNull.Value) Dostawca.Text = nameObj.ToString();
+                        if (nameObj != DBNull.Value) Dostawca1.Text = nameObj.ToString();
 
                         FillSupplierFieldsFromReader(rd);
                     }
@@ -311,6 +312,7 @@ namespace Kalendarz1
         private void FillSupplierFieldsFromReader(IDataRecord rd)
         {
             SetText(IDLibra, rd, "ID");
+            SetText(Dostawca, rd, "ID");
             SetText(Address1, rd, "Address1");
             SetText(Address2, rd, "Address2");
             SetText(NIP, rd, "NIP");
@@ -562,7 +564,7 @@ ORDER BY C.Shortcut;";
 
             var dt = dtpData.Value;
 
-            string baseFileName = $"Umowa Zakupu {Dostawca.Text} {dt.Day}-{dt.Month}-{dt.Year}";
+            string baseFileName = $"Umowa Zakupu {Dostawca1.Text} {dt.Day}-{dt.Month}-{dt.Year}";
             string docxPath = Path.Combine(root, baseFileName + ".docx");
 
             // 1) Skopiuj szablon
@@ -571,7 +573,7 @@ ORDER BY C.Shortcut;";
             // 2) Mapowanie znaczników -> wartości (daty z DTP)
             var repl = new Dictionary<string, string?>
             {
-                ["[NAZWA]"] = Dostawca.Text,
+                ["[NAZWA]"] = Dostawca1.Text,
                 ["[AdresHodowcy]"] = Address1.Text,
                 ["[KodPocztowyHodowcy]"] = Address2.Text,
                 ["[NIP]"] = NIP.Text,
@@ -720,6 +722,16 @@ ORDER BY C.Shortcut;";
         #endregion
 
         private void CommandButton_Update_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void UmowyForm_Load_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void comboBoxDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
 
         }

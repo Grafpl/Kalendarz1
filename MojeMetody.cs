@@ -383,79 +383,105 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
             }
         }
 
-        public void ZmianaDostawcy(ComboBox Dostawca, ComboBox Kurnik, TextBox UlicaK, TextBox KodPocztowyK, TextBox MiejscK, TextBox KmK, TextBox UlicaH, TextBox KodPocztowyH, TextBox MiejscH, TextBox KmH, TextBox Dodatek, TextBox Ubytek, TextBox tel1, TextBox tel2, TextBox tel3, TextBox info1, TextBox info2, TextBox info3, TextBox Email)
+        public void ZmianaDostawcy(
+            ComboBox Dostawca,
+            ComboBox Kurnik = null,
+            TextBox UlicaK = null,
+            TextBox KodPocztowyK = null,
+            TextBox MiejscK = null,
+            TextBox KmK = null,
+            TextBox UlicaH = null,
+            TextBox KodPocztowyH = null,
+            TextBox MiejscH = null,
+            TextBox KmH = null,
+            TextBox Dodatek = null,
+            TextBox Ubytek = null,
+            TextBox tel1 = null,
+            TextBox tel2 = null,
+            TextBox tel3 = null,
+            TextBox info1 = null,
+            TextBox info2 = null,
+            TextBox info3 = null,
+            TextBox Email = null
+        )
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    // Pobierz wartość wybraną w ComboBox "dostawca"
                     string selectedDostawca = Dostawca.Text;
-                    string GID;
-                    Kurnik.Items.Clear(); // Wyczyść listę elementów
-                    Kurnik.SelectedIndex = -1; // Ustaw wartość wybraną na brak wyboru
-                    UlicaK.Text = string.Empty;
-                    KodPocztowyK.Text = string.Empty;
-                    MiejscK.Text = string.Empty;
-                    KmK.Text = string.Empty;
-                    Kurnik.Text = string.Empty;
-                    // Znajdź GID dostawcy na podstawie jego nazwy
-                    using (SqlCommand cmd = new SqlCommand("SELECT GID, PriceTypeID FROM dbo.DOSTAWCY WHERE Name = @selectedDostawca", conn))
+                    string GID = null;
+
+                    // Wczytanie GID + PriceTypeID (jeśli potrzebujesz)
+                    using (var cmd = new SqlCommand(
+                        "SELECT GID, PriceTypeID FROM dbo.DOSTAWCY WHERE Name = @selectedDostawca", conn))
                     {
                         cmd.Parameters.AddWithValue("@selectedDostawca", selectedDostawca);
-
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (var reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
                                 GID = reader["GID"].ToString();
+                            }
+                        }
+                    }
 
-                                // Znajdź rekordy w tabeli [LibraNet].[dbo].[DostawcyAdresy] na podstawie CustomerGID
-                                reader.Close();
-                                using (SqlCommand cmd2 = new SqlCommand("SELECT Name FROM [LibraNet].[dbo].[DostawcyAdresy] WHERE CustomerGID = @GID", conn))
+                    // Sekcja Kurnik (tylko jeśli podano ComboBox)
+                    if (Kurnik != null && !string.IsNullOrEmpty(GID))
+                    {
+                        Kurnik.Items.Clear();
+                        Kurnik.SelectedIndex = -1;
+                        if (UlicaK != null) UlicaK.Text = string.Empty;
+                        if (KodPocztowyK != null) KodPocztowyK.Text = string.Empty;
+                        if (MiejscK != null) MiejscK.Text = string.Empty;
+                        if (KmK != null) KmK.Text = string.Empty;
+                        Kurnik.Text = string.Empty;
+
+                        using (var cmd2 = new SqlCommand(
+                            "SELECT Name FROM [LibraNet].[dbo].[DostawcyAdresy] WHERE CustomerGID = @GID", conn))
+                        {
+                            cmd2.Parameters.AddWithValue("@GID", GID);
+                            using (var reader2 = cmd2.ExecuteReader())
+                            {
+                                while (reader2.Read())
                                 {
-                                    cmd2.Parameters.AddWithValue("@GID", GID);
-                                    using (SqlDataReader reader2 = cmd2.ExecuteReader())
-                                    {
-                                        while (reader2.Read())
-                                        {
-                                            Kurnik.Items.Add(reader2["Name"].ToString());
-                                        }
-                                    }
+                                    Kurnik.Items.Add(reader2["Name"].ToString());
                                 }
                             }
                         }
                     }
 
-                    // Znajdź rekordy w tabeli [LibraNet].[dbo].[DostawcyAdresy] na podstawie GID dostawcy
-                    using (SqlCommand cmd4 = new SqlCommand("SELECT Address, PostalCode, City, Addition, Loss, Distance, Phone1, Phone2, Phone3, Info1, Info2, Info3, Email FROM [LibraNet].[dbo].[DOSTAWCY] WHERE Name = @selectedDostawca", conn))
+                    // Dane z DOSTAWCY (Hodowca, Finanse, Kontakt)
+                    using (var cmd4 = new SqlCommand(@"
+                SELECT Address, PostalCode, City, Addition, Loss, Distance, 
+                       Phone1, Phone2, Phone3, Info1, Info2, Info3, Email
+                FROM [LibraNet].[dbo].[DOSTAWCY] WHERE Name = @selectedDostawca", conn))
                     {
-
                         cmd4.Parameters.AddWithValue("@selectedDostawca", selectedDostawca);
-                        using (SqlDataReader reader3 = cmd4.ExecuteReader())
+                        using (var reader3 = cmd4.ExecuteReader())
                         {
                             if (reader3.Read())
                             {
-                                // Dane Hodowcy
-                                UlicaH.Text = reader3["Address"].ToString();
-                                KodPocztowyH.Text = reader3["PostalCode"].ToString();
-                                MiejscH.Text = reader3["City"].ToString();
-                                KmH.Text = reader3["Distance"].ToString();
+                                // Dane Hodowcy (H)
+                                if (UlicaH != null) UlicaH.Text = reader3["Address"]?.ToString();
+                                if (KodPocztowyH != null) KodPocztowyH.Text = reader3["PostalCode"]?.ToString();
+                                if (MiejscH != null) MiejscH.Text = reader3["City"]?.ToString();
+                                if (KmH != null) KmH.Text = reader3["Distance"]?.ToString();
 
-                                // Dane Finansowe
-                                Dodatek.Text = reader3["Addition"].ToString();
-                                Ubytek.Text = reader3["Loss"].ToString();
+                                // Finanse
+                                if (Dodatek != null) Dodatek.Text = reader3["Addition"]?.ToString();
+                                if (Ubytek != null) Ubytek.Text = reader3["Loss"]?.ToString();
 
                                 // Kontakt
-                                tel1.Text = reader3["Phone1"].ToString();
-                                tel2.Text = reader3["Phone2"].ToString();
-                                tel3.Text = reader3["Phone3"].ToString();
-                                info1.Text = reader3["Info1"].ToString();
-                                info2.Text = reader3["Info2"].ToString();
-                                info3.Text = reader3["Info3"].ToString();
-                                Email.Text = reader3["Email"].ToString();
+                                if (tel1 != null) tel1.Text = reader3["Phone1"]?.ToString();
+                                if (tel2 != null) tel2.Text = reader3["Phone2"]?.ToString();
+                                if (tel3 != null) tel3.Text = reader3["Phone3"]?.ToString();
+                                if (info1 != null) info1.Text = reader3["Info1"]?.ToString();
+                                if (info2 != null) info2.Text = reader3["Info2"]?.ToString();
+                                if (info3 != null) info3.Text = reader3["Info3"]?.ToString();
+                                if (Email != null) Email.Text = reader3["Email"]?.ToString();
                             }
                         }
                     }
@@ -463,9 +489,11 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
             }
             catch (SqlException ex)
             {
-                MessageBox.Show("Błąd połączenia z bazą danych: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                MessageBox.Show("Błąd połączenia z bazą danych: " + ex.Message, "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
             }
         }
+
         public void WypelnienieLpWstawienia(ComboBox dostawcaComboBox, ComboBox lpWstawieniaComboBox)
         {
             try
