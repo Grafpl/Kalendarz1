@@ -730,7 +730,7 @@ ORDER BY C.Shortcut;";
         {
 
         }
-
+        
         private void comboBoxDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
 
