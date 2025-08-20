@@ -371,23 +371,32 @@ WHERE [LP] = @id;";
 
         private void CommandButton_Insert_Click(object sender, EventArgs e)
         {
-            if (dataGridViewKalendarz.CurrentRow == null)
             {
-                MessageBox.Show("Zaznacz pozycję w kalendarzu.");
-                return;
-            }
+                if (dataGridViewKalendarz.CurrentRow == null)
+                {
+                    MessageBox.Show("Zaznacz pozycję w kalendarzu.");
+                    return;
+                }
 
-            var cellVal = dataGridViewKalendarz.CurrentRow.Cells["ID"]?.Value;
-            if (cellVal == null || cellVal == DBNull.Value)
-            {
-                MessageBox.Show("Brak wartości LP (ID) w zaznaczonym wierszu.");
-                return;
-            }
+                var cellVal = dataGridViewKalendarz.CurrentRow.Cells["ID"]?.Value;
+                if (cellVal == null || cellVal == DBNull.Value)
+                {
+                    MessageBox.Show("Brak wartości LP (ID) w zaznaczonym wierszu.");
+                    return;
+                }
 
-            string lp = cellVal.ToString()!;
-            var form = new UmowyForm(initialLp: lp, initialIdLibra: null);
-            form.UserID = App.UserID;
-            form.Show();
+                string lp = cellVal.ToString()!;
+                var form = new UmowyForm(initialLp: lp, initialIdLibra: null);
+                form.UserID = App.UserID;
+
+                form.FormClosed += (s, args) =>
+                {
+                    // opcjonalnie: tylko jeśli coś zapisano (np. form.HasSaved == true)
+                    LoadDataGridKalendarz();
+                };
+
+                form.Show(this);
+            }
         }
 
         private void nieUzupelnione_CheckedChanged(object sender, EventArgs e)

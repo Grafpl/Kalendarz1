@@ -47,11 +47,11 @@
             // 
             dataGridViewOdbiorcy.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             dataGridViewOdbiorcy.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewOdbiorcy.Location = new System.Drawing.Point(12, 185);
+            dataGridViewOdbiorcy.Location = new System.Drawing.Point(12, 256);
             dataGridViewOdbiorcy.Name = "dataGridViewOdbiorcy";
             dataGridViewOdbiorcy.RowTemplate.Height = 25;
             dataGridViewOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1713, 865);
+            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1713, 794);
             dataGridViewOdbiorcy.TabIndex = 2;
             dataGridViewOdbiorcy.CellEnter += dataGridViewOdbiorcy_CellEnter;
             dataGridViewOdbiorcy.CellValueChanged += dataGridViewOdbiorcy_CellValueChanged;
@@ -64,12 +64,12 @@
             dataGridViewNotatki.Location = new System.Drawing.Point(352, 9);
             dataGridViewNotatki.Name = "dataGridViewNotatki";
             dataGridViewNotatki.RowTemplate.Height = 25;
-            dataGridViewNotatki.Size = new System.Drawing.Size(313, 167);
+            dataGridViewNotatki.Size = new System.Drawing.Size(433, 241);
             dataGridViewNotatki.TabIndex = 3;
             // 
             // textBoxNotatka
             // 
-            textBoxNotatka.Location = new System.Drawing.Point(12, 94);
+            textBoxNotatka.Location = new System.Drawing.Point(14, 147);
             textBoxNotatka.Multiline = true;
             textBoxNotatka.Name = "textBoxNotatka";
             textBoxNotatka.Size = new System.Drawing.Size(240, 85);
@@ -77,7 +77,7 @@
             // 
             // buttonDodajNotatke
             // 
-            buttonDodajNotatke.Location = new System.Drawing.Point(258, 136);
+            buttonDodajNotatke.Location = new System.Drawing.Point(260, 189);
             buttonDodajNotatke.Name = "buttonDodajNotatke";
             buttonDodajNotatke.Size = new System.Drawing.Size(86, 43);
             buttonDodajNotatke.TabIndex = 5;
@@ -88,7 +88,7 @@
             // comboBoxStatusFilter
             // 
             comboBoxStatusFilter.FormattingEnabled = true;
-            comboBoxStatusFilter.Location = new System.Drawing.Point(762, 9);
+            comboBoxStatusFilter.Location = new System.Drawing.Point(791, 112);
             comboBoxStatusFilter.Name = "comboBoxStatusFilter";
             comboBoxStatusFilter.Size = new System.Drawing.Size(174, 23);
             comboBoxStatusFilter.TabIndex = 6;
@@ -97,7 +97,7 @@
             // comboBoxPowiatFilter
             // 
             comboBoxPowiatFilter.FormattingEnabled = true;
-            comboBoxPowiatFilter.Location = new System.Drawing.Point(762, 51);
+            comboBoxPowiatFilter.Location = new System.Drawing.Point(791, 156);
             comboBoxPowiatFilter.Name = "comboBoxPowiatFilter";
             comboBoxPowiatFilter.Size = new System.Drawing.Size(174, 23);
             comboBoxPowiatFilter.TabIndex = 7;
@@ -105,7 +105,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(671, 12);
+            label1.Location = new System.Drawing.Point(897, 97);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(68, 15);
             label1.TabIndex = 8;
@@ -114,7 +114,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(671, 54);
+            label2.Location = new System.Drawing.Point(893, 138);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(72, 15);
             label2.TabIndex = 9;
@@ -137,7 +137,7 @@
             dataGridViewRanking.Name = "dataGridViewRanking";
             dataGridViewRanking.RowTemplate.Height = 25;
             dataGridViewRanking.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewRanking.Size = new System.Drawing.Size(744, 170);
+            dataGridViewRanking.Size = new System.Drawing.Size(744, 241);
             dataGridViewRanking.TabIndex = 11;
             // 
             // CRM

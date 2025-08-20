@@ -312,7 +312,7 @@ namespace Kalendarz1
         private void FillSupplierFieldsFromReader(IDataRecord rd)
         {
             SetText(IDLibra, rd, "ID");
-            SetText(Dostawca, rd, "ID");
+            SetText(Dostawca, rd, "Name");
             SetText(Address1, rd, "Address1");
             SetText(Address2, rd, "Address2");
             SetText(NIP, rd, "NIP");
@@ -573,7 +573,7 @@ ORDER BY C.Shortcut;";
             // 2) Mapowanie znaczników -> wartości (daty z DTP)
             var repl = new Dictionary<string, string?>
             {
-                ["[NAZWA]"] = Dostawca1.Text,
+                ["[NAZWA]"] = Dostawca.Text,
                 ["[AdresHodowcy]"] = Address1.Text,
                 ["[KodPocztowyHodowcy]"] = Address2.Text,
                 ["[NIP]"] = NIP.Text,
@@ -730,10 +730,12 @@ ORDER BY C.Shortcut;";
         {
 
         }
-        
+
         private void comboBoxDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-
+            Dostawca1.Text = comboBoxDostawca.Text; // też zwróci Name
+            Dostawca.Text = comboBoxDostawca.Text; // też zwróci Name
         }
+
     }
 }
