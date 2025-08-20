@@ -126,6 +126,7 @@ namespace Kalendarz1
 {
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
     { "9998", new List<string> { "Wielkopolskie" } },
+    { "98122", new List<string> { "Mazowieckie", "Mazowieckie" } },
     { "871231", new List<string> { "Opolskie", "Śląskie" } },
     { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } }
 };
@@ -400,11 +401,15 @@ WITH WojHandlowcy AS (
             ('9991', 'Dawid'),
             ('9998', 'Daniel'),
             ('871231', 'Radek'),
+            ('98122', 'A'),
+            ('11111', 'Z'),
             ('432143', 'Ania')
     ) AS V(UserID, NazwaHandlowca)
     ON (
         (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
-        (V.UserID = '9998' AND (LOWER(O.Wojewodztwo) = 'mazowieckie' OR LOWER(O.Wojewodztwo) = 'wielkopolskie')) OR
+        (V.UserID = '9998' AND LOWER(O.Wojewodztwo) = 'wielkopolskie') OR
+        (V.UserID = '98122' AND LOWER(O.Wojewodztwo) = 'mazowieckie') OR
+        (V.UserID = '11111' AND LOWER(O.Wojewodztwo) = 'mazowieckie') OR
         (V.UserID = '871231' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'śląskie')) OR
         (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
     )
