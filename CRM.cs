@@ -97,7 +97,7 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Clear();
 
             // ... (inne kolumny bez zmian) ...
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID", DataPropertyName = "ID", HeaderText = "ID", Visible = false });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID", DataPropertyName = "ID", HeaderText = "ID", Visible = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Nazwa", DataPropertyName = "Nazwa", HeaderText = "Nazwa", Width = 200, ReadOnly = true });
 
             var statusColumn = new DataGridViewComboBoxColumn
@@ -119,7 +119,7 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefon_K", DataPropertyName = "Telefon_K", HeaderText = "Telefon", Width = 100, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wojewodztwo", DataPropertyName = "Wojewodztwo", HeaderText = "Województwo", ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Powiat", DataPropertyName = "Powiat", HeaderText = "Powiat", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Gmina", DataPropertyName = "Gmina", HeaderText = "Gmina", ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Prio", DataPropertyName = "Prio", HeaderText = "Prio", ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataOstatniejNotatki", DataPropertyName = "DataOstatniejNotatki", HeaderText = "Ost. Notatka", Width = 120, ReadOnly = true });
         }
         private readonly Dictionary<string, List<string>> mapaWojewodztw = new Dictionary<string, List<string>>
@@ -156,13 +156,13 @@ namespace Kalendarz1
             O.Telefon_K, 
             O.Wojewodztwo, 
             O.Powiat, 
-            O.Gmina, 
+            O.Prio, 
             MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
         FROM OdbiorcyCRM O 
         LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
         GROUP BY 
             O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.Gmina 
+            O.Wojewodztwo, O.Powiat, O.Prio 
         ORDER BY O.Nazwa";
                     cmd = new SqlCommand(query, conn);
                 }
@@ -184,14 +184,14 @@ namespace Kalendarz1
             O.Telefon_K, 
             O.Wojewodztwo, 
             O.Powiat, 
-            O.Gmina, 
+            O.Prio, 
             MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
         FROM OdbiorcyCRM O 
         LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
         WHERE {whereClause} 
         GROUP BY 
             O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.Gmina 
+            O.Wojewodztwo, O.Powiat, O.Prio
         ORDER BY O.Nazwa";
 
                     cmd = new SqlCommand(query, conn);
@@ -281,7 +281,6 @@ namespace Kalendarz1
                 cmd.ExecuteNonQuery();
             }
             WczytajNotatki(idOdbiorcy);
-            WczytajOdbiorcow();
         }
 
         private void buttonDodajNotatke_Click(object sender, EventArgs e)
@@ -445,6 +444,14 @@ ORDER BY NazwaHandlowca";
             WczytajOdbiorcow();
             WczytajRankingHandlowcow();
 
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Wywołanie metod konfigurujących i wczytujących dane
+            KonfigurujDataGridView();
+            WczytajOdbiorcow();
+            WczytajRankingHandlowcow();
         }
     }
 }

@@ -38,6 +38,7 @@
             label2 = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
             dataGridViewRanking = new System.Windows.Forms.DataGridView();
+            button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)dataGridViewOdbiorcy).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewRanking).BeginInit();
@@ -88,7 +89,7 @@
             // comboBoxStatusFilter
             // 
             comboBoxStatusFilter.FormattingEnabled = true;
-            comboBoxStatusFilter.Location = new System.Drawing.Point(791, 112);
+            comboBoxStatusFilter.Location = new System.Drawing.Point(791, 43);
             comboBoxStatusFilter.Name = "comboBoxStatusFilter";
             comboBoxStatusFilter.Size = new System.Drawing.Size(174, 23);
             comboBoxStatusFilter.TabIndex = 6;
@@ -97,7 +98,7 @@
             // comboBoxPowiatFilter
             // 
             comboBoxPowiatFilter.FormattingEnabled = true;
-            comboBoxPowiatFilter.Location = new System.Drawing.Point(791, 156);
+            comboBoxPowiatFilter.Location = new System.Drawing.Point(791, 117);
             comboBoxPowiatFilter.Name = "comboBoxPowiatFilter";
             comboBoxPowiatFilter.Size = new System.Drawing.Size(174, 23);
             comboBoxPowiatFilter.TabIndex = 7;
@@ -105,7 +106,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(897, 97);
+            label1.Location = new System.Drawing.Point(897, 9);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(68, 15);
             label1.TabIndex = 8;
@@ -114,7 +115,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new System.Drawing.Point(893, 138);
+            label2.Location = new System.Drawing.Point(893, 85);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(72, 15);
             label2.TabIndex = 9;
@@ -140,11 +141,22 @@
             dataGridViewRanking.Size = new System.Drawing.Size(744, 241);
             dataGridViewRanking.TabIndex = 11;
             // 
+            // button1
+            // 
+            button1.Location = new System.Drawing.Point(791, 207);
+            button1.Name = "button1";
+            button1.Size = new System.Drawing.Size(86, 43);
+            button1.TabIndex = 12;
+            button1.Text = "Odśwież";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
             // CRM
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1727, 1051);
+            Controls.Add(button1);
             Controls.Add(dataGridViewRanking);
             Controls.Add(label3);
             Controls.Add(label2);
@@ -177,5 +189,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.DataGridView dataGridViewRanking;
+        private System.Windows.Forms.Button button1;
     }
 }
