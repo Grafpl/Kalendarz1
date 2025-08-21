@@ -32,6 +32,7 @@ namespace Kalendarz1
         public WidokFakturSprzedazy()
         {
             InitializeComponent();
+
             UserID = "11111"; // Przykładowa wartość domyślna dla testów - admin
         }
 
@@ -57,12 +58,17 @@ namespace Kalendarz1
             KonfigurujDataGridViewDokumenty();
             KonfigurujDataGridViewPozycje();
             KonfigurujDataGridViewAnalizy();
+            KonfigurujDataGridViewPlatnosci();
+
+            WczytajPlatnosciPerKontrahent(_docelowyHandlowiec);
 
             ZaladujTowary();
             ZaladujKontrahentow();
+
             dataGridViewNotatki.RowHeadersVisible = false;
             dataGridViewOdbiorcy.RowHeadersVisible = false;
             dataGridViewAnaliza.RowHeadersVisible = false;
+            dataGridViewPlatnosci.RowHeadersVisible = false;
             isDataLoading = false;
             OdswiezDaneGlownejSiatki();
         }
@@ -92,6 +98,73 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.RowPrePaint += new DataGridViewRowPrePaintEventHandler(this.dataGridViewOdbiorcy_RowPrePaint);
             dataGridViewOdbiorcy.CellFormatting += new DataGridViewCellFormattingEventHandler(this.dataGridViewOdbiorcy_CellFormatting);
         }
+
+        private void KonfigurujDataGridViewPlatnosci()
+        {
+            dataGridViewPlatnosci.AutoGenerateColumns = false;
+            dataGridViewPlatnosci.Columns.Clear();
+            dataGridViewPlatnosci.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGridViewPlatnosci.MultiSelect = false;
+            dataGridViewPlatnosci.ReadOnly = true;
+            dataGridViewPlatnosci.AllowUserToAddRows = false;
+            dataGridViewPlatnosci.AllowUserToDeleteRows = false;
+            dataGridViewPlatnosci.RowHeadersVisible = false;
+
+            // Kontrahent (tekst)
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Kontrahent",
+                DataPropertyName = "Kontrahent",
+                HeaderText = "Kontrahent",
+                Width = 200,
+            });
+
+            // Limit (z bazy, bez modyfikacji wartości)
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Limit",
+                DataPropertyName = "Limit",
+                HeaderText = "Limit",
+                Width = 120,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
+            // DoZaplacenia
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DoZaplacenia",
+                DataPropertyName = "DoZaplacenia",
+                HeaderText = "Do zapłacenia",
+                Width = 130,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
+            // Terminowe
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Terminowe",
+                DataPropertyName = "Terminowe",
+                HeaderText = "Terminowe",
+                Width = 120,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
+            // Przeterminowane
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Przeterminowane",
+                DataPropertyName = "Przeterminowane",
+                HeaderText = "Przeterminowane",
+                Width = 140,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
+            // (opcjonalnie) zdarzenia – jeśli te metody istnieją i mają sens dla tego grida:
+            // dataGridViewPlatnosci.SelectionChanged += dataGridViewPlatnosci_SelectionChanged;
+            // dataGridViewPlatnosci.RowPrePaint += dataGridViewPlatnosci_RowPrePaint;
+            // dataGridViewPlatnosci.CellFormatting += dataGridViewPlatnosci_CellFormatting;
+        }
+
 
         private void KonfigurujDataGridViewPozycje()
         {
@@ -127,6 +200,7 @@ namespace Kalendarz1
         // METODY WCZYTYWANIA DANYCH
         // =================================================================
 
+
         private void ZaladujTowary()
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
@@ -144,6 +218,138 @@ namespace Kalendarz1
                 comboBoxTowar.DataSource = towary;
             }
         }
+
+        private void WczytajPlatnosciPerKontrahent(string? handlowiec)
+        {
+            const string sql = @"
+DECLARE @Param NVARCHAR(100) = @pHandlowiec;
+
+WITH PNAgg AS (
+    SELECT PN.dkid,
+           SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona,
+           MAX(PN.Termin)              AS TerminPrawdziwy
+    FROM [HANDEL].[HM].[PN] PN
+    GROUP BY PN.dkid
+),
+Dokumenty AS (
+    SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
+    FROM [HANDEL].[HM].[DK] DK
+    WHERE DK.anulowany = 0
+      AND (
+            NULLIF(LTRIM(RTRIM(@Param)), N'') IS NULL          
+            OR EXISTS (
+                SELECT 1
+                FROM [HANDEL].[SSCommon].[ContractorClassification] W
+                WHERE W.ElementId = DK.khid
+                  AND (
+                        (TRY_CONVERT(INT, @Param) IS NOT NULL 
+                         AND TRY_CONVERT(INT, W.CDim_Handlowiec) = TRY_CONVERT(INT, @Param))  
+                     OR (TRY_CONVERT(INT, @Param) IS NULL
+                         AND LTRIM(RTRIM(W.CDim_Handlowiec_Val)) = LTRIM(RTRIM(@Param)))      
+                  )
+            )
+          )
+),
+Saldo AS (
+    SELECT D.khid,
+           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
+           ISNULL(PA.TerminPrawdziwy, D.plattermin)     AS TerminPlatnosci
+    FROM Dokumenty D
+    LEFT JOIN PNAgg PA ON PA.dkid = D.id
+)
+SELECT 
+    C.Shortcut AS Kontrahent,
+    C.LimitAmount AS Limit,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))                                    AS DoZaplacenia,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))  AS Terminowe,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() >  S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))  AS Przeterminowane
+FROM Saldo S
+JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
+GROUP BY C.Shortcut, C.LimitAmount
+HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
+ORDER BY DoZaplacenia DESC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    object param = string.IsNullOrWhiteSpace(handlowiec) ? DBNull.Value : handlowiec;
+                    cmd.Parameters.AddWithValue("@pHandlowiec", param);
+
+                    var dt = new DataTable();
+                    new SqlDataAdapter(cmd).Fill(dt);
+
+                    // --- SUMA na górze ---
+                    if (dt.Rows.Count > 0)
+                    {
+                        decimal sumaLimit = 0m, sumaDoZap = 0m, sumaTerm = 0m, sumaPrzet = 0m;
+
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (r["Limit"] != DBNull.Value) sumaLimit += Convert.ToDecimal(r["Limit"]);
+                            if (r["DoZaplacenia"] != DBNull.Value) sumaDoZap += Convert.ToDecimal(r["DoZaplacenia"]);
+                            if (r["Terminowe"] != DBNull.Value) sumaTerm += Convert.ToDecimal(r["Terminowe"]);
+                            if (r["Przeterminowane"] != DBNull.Value) sumaPrzet += Convert.ToDecimal(r["Przeterminowane"]);
+                        }
+
+                        var sumaRow = dt.NewRow();
+                        sumaRow["Kontrahent"] = "SUMA";
+                        sumaRow["Limit"] = Math.Round(sumaLimit, 2);
+                        sumaRow["DoZaplacenia"] = Math.Round(sumaDoZap, 2);
+                        sumaRow["Terminowe"] = Math.Round(sumaTerm, 2);
+                        sumaRow["Przeterminowane"] = Math.Round(sumaPrzet, 2);
+
+                        dt.Rows.InsertAt(sumaRow, 0);
+                    }
+
+                    dataGridViewPlatnosci.DataSource = dt;
+
+                    // Format liczbowy
+                    foreach (var col in new[] { "Limit", "DoZaplacenia", "Terminowe", "Przeterminowane" })
+                    {
+                        if (dataGridViewPlatnosci.Columns.Contains(col))
+                        {
+                            dataGridViewPlatnosci.Columns[col].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                        }
+                    }
+
+                    // Dodaj formatowanie – przedrostek "zł "
+                    dataGridViewPlatnosci.CellFormatting -= DataGridViewPlatnosci_CellFormatting;
+                    dataGridViewPlatnosci.CellFormatting += DataGridViewPlatnosci_CellFormatting;
+
+                    // Podświetl SUMĘ
+                    if (dataGridViewPlatnosci.Rows.Count > 0)
+                    {
+                        var row0 = dataGridViewPlatnosci.Rows[0];
+                        row0.DefaultCellStyle.BackColor = Color.LightGray;
+                        row0.DefaultCellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas wczytywania płatności: " + ex.Message,
+                                "Błąd bazy danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DataGridViewPlatnosci_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.Value != null && e.ColumnIndex >= 0)
+            {
+                var colName = dataGridViewPlatnosci.Columns[e.ColumnIndex].Name;
+                if (colName == "Limit" || colName == "DoZaplacenia" || colName == "Terminowe" || colName == "Przeterminowane")
+                {
+                    if (decimal.TryParse(e.Value.ToString(), out decimal val))
+                    {
+                        e.Value = val.ToString("N2") + " zł";
+                        e.FormattingApplied = true;
+                    }
+                }
+            }
+        }
+
 
         private void ZaladujKontrahentow()
         {
@@ -310,6 +516,16 @@ FROM DaneZrodlowe GROUP BY NazwaTowaru HAVING SUM(ilosc) > 0 ORDER BY NazwaTowar
         {
             if (e.RowIndex < 0) return;
             if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value)) { if (e.ColumnIndex == dataGridViewOdbiorcy.Columns["NumerDokumentu"].Index) { if (dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["SortDate"].Value is DateTime dateValue) { e.Value = dateValue.ToString("dddd, dd MMMM yyyy", new CultureInfo("pl-PL")); } } else { e.Value = ""; e.FormattingApplied = true; } }
+        }
+
+        private void dataGridViewPlatnosci_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            if (e.RowIndex == dataGridViewPlatnosci.Rows.Count - 1)
+            {
+                var row = dataGridViewPlatnosci.Rows[e.RowIndex];
+                row.DefaultCellStyle.BackColor = Color.LightGray;
+                row.DefaultCellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+            }
         }
     }
 }
