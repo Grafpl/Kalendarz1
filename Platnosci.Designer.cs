@@ -36,10 +36,8 @@
             textBox2 = new System.Windows.Forms.TextBox();
             button1 = new System.Windows.Forms.Button();
             dataGridView2 = new System.Windows.Forms.DataGridView();
-            dataGridView3 = new System.Windows.Forms.DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
             SuspendLayout();
             // 
             // dataGridView1
@@ -48,7 +46,7 @@
             dataGridView1.Location = new System.Drawing.Point(12, 82);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.Size = new System.Drawing.Size(494, 708);
+            dataGridView1.Size = new System.Drawing.Size(317, 708);
             dataGridView1.TabIndex = 0;
             dataGridView1.RowPrePaint += dataGridView1_RowPrePaint;
             // 
@@ -99,27 +97,17 @@
             // dataGridView2
             // 
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView2.Location = new System.Drawing.Point(520, 82);
+            dataGridView2.Location = new System.Drawing.Point(335, 82);
             dataGridView2.Name = "dataGridView2";
             dataGridView2.RowTemplate.Height = 25;
-            dataGridView2.Size = new System.Drawing.Size(473, 708);
+            dataGridView2.Size = new System.Drawing.Size(1165, 708);
             dataGridView2.TabIndex = 6;
-            // 
-            // dataGridView3
-            // 
-            dataGridView3.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView3.Location = new System.Drawing.Point(999, 82);
-            dataGridView3.Name = "dataGridView3";
-            dataGridView3.RowTemplate.Height = 25;
-            dataGridView3.Size = new System.Drawing.Size(473, 708);
-            dataGridView3.TabIndex = 7;
             // 
             // Platnosci
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1512, 802);
-            Controls.Add(dataGridView3);
             Controls.Add(dataGridView2);
             Controls.Add(button1);
             Controls.Add(textBox2);
@@ -132,7 +120,6 @@
             Text = "Platnosci";
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -146,6 +133,5 @@
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.DataGridView dataGridView2;
-        private System.Windows.Forms.DataGridView dataGridView3;
     }
 }

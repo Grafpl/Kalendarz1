@@ -1304,326 +1304,203 @@ namespace Kalendarz1
             return (TypUmowy, TypCeny, Bufor);
         }
 
+        // ========= Wstawienie nagłówka (bez Open/Close) =========
         private long WstawianieWstawienia(
-    SqlConnection connection,
-    ComboBox dostawca,
-    DateTimePicker dataWstawienia,
-    TextBox sztukiWstawienia,
-    TextBox uwagi,
-    String TypUmowy,
-    String TypCeny)
+            SqlConnection conn,
+            SqlTransaction tx,
+            ComboBox dostawca,
+            DateTimePicker dataWstawienia,
+            TextBox sztukiWstawienia,
+            TextBox uwagi,
+            string TypUmowy,
+            string TypCeny)
         {
-            long maxLP = 0;
+            if (dostawca.SelectedItem is null)
+                throw new InvalidOperationException("Dostawca nie został wybrany.");
 
-            try
+            long lpW;
+            using (var cmdMax = new SqlCommand("SELECT MAX(Lp) FROM dbo.WstawieniaKurczakow;", conn, tx))
             {
-                connection.Open();
-
-                using (SqlTransaction transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        string maxLPSql = "SELECT MAX(Lp) AS MaxLP FROM dbo.WstawieniaKurczakow;";
-                        using (SqlCommand command = new SqlCommand(maxLPSql, connection, transaction))
-                        {
-                            object result = command.ExecuteScalar();
-                            maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
-                        }
-
-                        if (dostawca.SelectedItem != null)
-                        {
-                            string insertDostawaSql = @"INSERT INTO dbo.WstawieniaKurczakow (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny) 
-                                            VALUES (@MaxLP, @Dostawca, @DataWstawienia, @IloscWstawienia, @DataUtw, @KtoStwo, @Uwagi, @TypUmowy, @TypCeny)";
-                            using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
-                            {
-                                command.Parameters.AddWithValue("@MaxLP", maxLP);
-                                command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
-                                command.Parameters.AddWithValue("@DataWstawienia", dataWstawienia.Value);
-                                command.Parameters.AddWithValue("@IloscWstawienia", string.IsNullOrEmpty(sztukiWstawienia.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukiWstawienia.Text));
-                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);
-                                command.Parameters.AddWithValue("@KtoStwo", UserID);  // Upewnij się, że UserID jest zdefiniowane
-                                command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
-                                command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
-                                command.Parameters.AddWithValue("@TypCeny", TypCeny);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("Dostawca nie został wybrany.");
-                        }
-
-                        transaction.Commit();
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        MessageBox.Show("Wystąpił błąd: " + ex.Message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Wystąpił błąd: " + ex.Message);
-            }
-            finally
-            {
-                connection.Close();
+                object v = cmdMax.ExecuteScalar();
+                lpW = (v == DBNull.Value) ? 1 : Convert.ToInt64(v) + 1;
             }
 
-            return maxLP;
+            const string insertSql = @"
+INSERT INTO dbo.WstawieniaKurczakow
+    (Lp, Dostawca, DataWstawienia, IloscWstawienia, DataUtw, KtoStwo, Uwagi, TypUmowy, TypCeny)
+VALUES
+    (@Lp, @D, @DW, @Il, SYSDATETIME(), @Kto, @Uw, @TU, @TC);";
+
+            using (var cmd = new SqlCommand(insertSql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@Lp", lpW);
+                cmd.Parameters.AddWithValue("@D", dostawca.SelectedItem.ToString());
+                cmd.Parameters.AddWithValue("@DW", dataWstawienia.Value);
+                cmd.Parameters.AddWithValue("@Il", string.IsNullOrWhiteSpace(sztukiWstawienia.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukiWstawienia.Text));
+                cmd.Parameters.AddWithValue("@Kto", UserID ?? "");
+                cmd.Parameters.AddWithValue("@Uw", string.IsNullOrWhiteSpace(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
+                cmd.Parameters.AddWithValue("@TU", TypUmowy);
+                cmd.Parameters.AddWithValue("@TC", TypCeny);
+                cmd.ExecuteNonQuery();
+            }
+
+            return lpW;
         }
 
 
 
-        private Tuple<string, string, string, string> WstawianieDanych(
-    SqlConnection connection,
-    CheckBox checkBox,
-    ComboBox dostawca,
-    DateTimePicker dataOdbioru,
-    TextBox kmK,
-    TextBox kmH,
-    TextBox ubytek,
-    TextBox srednia,
-    TextBox sztuki,
-    TextBox sztukNaSzuflade,
-    TextBox liczbaAut,
-    TextBox uwagi,
-    String TypUmowy,
-    String TypCeny,
-    String Bufor,
-    long LpW)
+
+        // ========= Wstawienie dostawy (bez Open/Close) =========
+        private (long Lp, DateTime Data, int? Sztuki, int? Auta) WstawianieDanych(
+            SqlConnection conn,
+            SqlTransaction tx,
+            ComboBox dostawca,
+            DateTimePicker dataOdbioru,
+            TextBox kmK,
+            TextBox kmH,
+            TextBox ubytek,
+            TextBox srednia,
+            TextBox sztuki,
+            TextBox sztukNaSzuflade,
+            TextBox liczbaAut,
+            TextBox uwagi,
+            string TypUmowy,
+            string TypCeny,
+            string Bufor,
+            long LpW)
         {
-            string maxLP2Str = string.Empty;
-            string dataOdbioruStr = string.Empty;
-            string sztukiStr = string.Empty;
-            string liczbaAutStr = string.Empty;
+            if (dostawca.SelectedItem is null)
+                throw new InvalidOperationException("Dostawca nie został wybrany.");
 
-            try
+            long lp;
+            using (var cmdMax = new SqlCommand("SELECT MAX(Lp) FROM dbo.HarmonogramDostaw;", conn, tx))
             {
-                connection.Open();
-
-                using (SqlTransaction transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        long maxLP2;
-                        string maxLP2Sql = "SELECT MAX(Lp) AS MaxLP2 FROM dbo.HarmonogramDostaw;";
-                        using (SqlCommand command = new SqlCommand(maxLP2Sql, connection, transaction))
-                        {
-                            object maxLP2Result = command.ExecuteScalar();
-                            maxLP2 = maxLP2Result == DBNull.Value ? 1 : Convert.ToInt64(maxLP2Result) + 1;
-                        }
-
-                        if (dostawca.SelectedItem != null)
-                        {
-                            string insertDostawaSql = @"INSERT INTO dbo.HarmonogramDostaw (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor, SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo) 
-                                    VALUES (@MaxLP2, @MaxLP, @Dostawca, @DataOdbioru, @KmK, @KmH, @Ubytek, @Srednia, @Sztuki, @TypUmowy, @Status, @SztukNaSzuflade, @LiczbaAut, @TypCeny, @Uwagi, @DataUtw, @KtoStwo)";
-                            using (SqlCommand command = new SqlCommand(insertDostawaSql, connection, transaction))
-                            {
-                                // Capture the values as strings before executing the command
-                                maxLP2Str = maxLP2.ToString();
-                                dataOdbioruStr = dataOdbioru.Value.ToString("yyyy-MM-dd");
-                                sztukiStr = string.IsNullOrEmpty(sztuki.Text) ? "NULL" : Convert.ToInt32(sztuki.Text).ToString();
-                                liczbaAutStr = string.IsNullOrEmpty(liczbaAut.Text) ? "NULL" : Convert.ToInt32(liczbaAut.Text).ToString();
-
-                                command.Parameters.AddWithValue("@MaxLP2", maxLP2);
-                                command.Parameters.AddWithValue("@MaxLP", LpW);
-                                command.Parameters.AddWithValue("@Dostawca", dostawca.SelectedItem.ToString());
-                                command.Parameters.AddWithValue("@DataOdbioru", dataOdbioru.Value);
-                                command.Parameters.AddWithValue("@KmK", string.IsNullOrEmpty(kmK.Text) ? (object)DBNull.Value : kmK.Text);
-                                command.Parameters.AddWithValue("@KmH", string.IsNullOrEmpty(kmH.Text) ? (object)DBNull.Value : kmH.Text);
-                                command.Parameters.AddWithValue("@Ubytek", string.IsNullOrEmpty(ubytek.Text) ? (object)DBNull.Value : Convert.ToDecimal(ubytek.Text));
-                                command.Parameters.AddWithValue("@Srednia", string.IsNullOrEmpty(srednia.Text) ? (object)DBNull.Value : Convert.ToDecimal(srednia.Text));
-                                command.Parameters.AddWithValue("@Sztuki", string.IsNullOrEmpty(sztuki.Text) ? (object)DBNull.Value : Convert.ToInt32(sztuki.Text));
-                                command.Parameters.AddWithValue("@TypUmowy", TypUmowy);
-                                command.Parameters.AddWithValue("@Status", Bufor);
-                                command.Parameters.AddWithValue("@SztukNaSzuflade", string.IsNullOrEmpty(sztukNaSzuflade.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukNaSzuflade.Text));
-                                command.Parameters.AddWithValue("@LiczbaAut", string.IsNullOrEmpty(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
-                                command.Parameters.AddWithValue("@TypCeny", TypCeny);
-                                command.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
-                                command.Parameters.AddWithValue("@DataUtw", DateTime.Now);
-                                command.Parameters.AddWithValue("@KtoStwo", UserID);
-                                command.ExecuteNonQuery();
-
-                                // Commit the transaction
-                                transaction.Commit();
-                            }
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("Dostawca nie został wybrany.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        MessageBox.Show("Wystąpił błąd: " + ex.Message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Wystąpił błąd: " + ex.Message);
-            }
-            finally
-            {
-                connection.Close();
+                object v = cmdMax.ExecuteScalar();
+                lp = (v == DBNull.Value) ? 1 : Convert.ToInt64(v) + 1;
             }
 
-            return Tuple.Create(maxLP2Str, dataOdbioruStr, sztukiStr, liczbaAutStr);
+            const string insertSql = @"
+INSERT INTO dbo.HarmonogramDostaw
+ (Lp, LpW, Dostawca, DataOdbioru, Kmk, KmH, Ubytek, WagaDek, SztukiDek, TypUmowy, bufor,
+  SztSzuflada, Auta, typCeny, UWAGI, DataUtw, KtoStwo)
+VALUES
+ (@Lp, @LpW, @D, @DO, @KmK, @KmH, @Ub, @W, @Szt, @TU, @Buf,
+  @Szuf, @Auta, @TC, @Uw, SYSDATETIME(), @Kto);";
+
+            using (var cmd = new SqlCommand(insertSql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@Lp", lp);
+                cmd.Parameters.AddWithValue("@LpW", LpW);
+                cmd.Parameters.AddWithValue("@D", dostawca.SelectedItem.ToString());
+                cmd.Parameters.AddWithValue("@DO", dataOdbioru.Value);
+                cmd.Parameters.AddWithValue("@KmK", string.IsNullOrWhiteSpace(kmK.Text) ? (object)DBNull.Value : kmK.Text);
+                cmd.Parameters.AddWithValue("@KmH", string.IsNullOrWhiteSpace(kmH.Text) ? (object)DBNull.Value : kmH.Text);
+                cmd.Parameters.AddWithValue("@Ub", string.IsNullOrWhiteSpace(ubytek.Text) ? (object)DBNull.Value : Convert.ToDecimal(ubytek.Text));
+                cmd.Parameters.AddWithValue("@W", string.IsNullOrWhiteSpace(srednia.Text) ? (object)DBNull.Value : Convert.ToDecimal(srednia.Text));
+                cmd.Parameters.AddWithValue("@Szt", string.IsNullOrWhiteSpace(sztuki.Text) ? (object)DBNull.Value : Convert.ToInt32(sztuki.Text));
+                cmd.Parameters.AddWithValue("@TU", TypUmowy);
+                cmd.Parameters.AddWithValue("@Buf", Bufor);
+                cmd.Parameters.AddWithValue("@Szuf", string.IsNullOrWhiteSpace(sztukNaSzuflade.Text) ? (object)DBNull.Value : Convert.ToInt32(sztukNaSzuflade.Text));
+                cmd.Parameters.AddWithValue("@Auta", string.IsNullOrWhiteSpace(liczbaAut.Text) ? (object)DBNull.Value : Convert.ToInt32(liczbaAut.Text));
+                cmd.Parameters.AddWithValue("@TC", TypCeny);
+                cmd.Parameters.AddWithValue("@Uw", string.IsNullOrWhiteSpace(uwagi.Text) ? (object)DBNull.Value : uwagi.Text);
+                cmd.Parameters.AddWithValue("@Kto", UserID ?? "");
+                cmd.ExecuteNonQuery();
+            }
+
+            int? szt = string.IsNullOrWhiteSpace(sztuki.Text) ? (int?)null : Convert.ToInt32(sztuki.Text);
+            int? a = string.IsNullOrWhiteSpace(liczbaAut.Text) ? (int?)null : Convert.ToInt32(liczbaAut.Text);
+            return (lp, dataOdbioru.Value, szt, a);
         }
 
+        // ========= HELPER: Notatki (jedna transakcja) =========
+        private int DodajNotatke(SqlConnection conn, SqlTransaction tx, long indeksId, string tresc, string userId)
+        {
+            const string sql = @"
+INSERT INTO [LibraNet].[dbo].[Notatki] (IndeksID, TypID, Tresc, KtoStworzyl, DataUtworzenia)
+VALUES (@IndeksID, @TypID, @Tresc, @KtoStworzyl, SYSDATETIME());
+SELECT CAST(SCOPE_IDENTITY() AS int);";
+
+            using var cmd = new SqlCommand(sql, conn, tx);
+            cmd.Parameters.AddWithValue("@IndeksID", indeksId);
+            cmd.Parameters.AddWithValue("@TypID", 1);
+            cmd.Parameters.AddWithValue("@Tresc", string.IsNullOrWhiteSpace(tresc) ? "" : tresc);
+            cmd.Parameters.AddWithValue("@KtoStworzyl", userId ?? "");
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        // ========= GŁÓWNY KLIK: jedna transakcja =========
         private void buttonWstawianie_Click(object sender, EventArgs e)
         {
-            var contractDetails = JakiTypKontraktu();
+            var (TypUmowy, TypCeny, Bufor) = JakiTypKontraktu();
+            string selectedDostawca = Dostawca.SelectedItem?.ToString()?.Trim() ?? "";
+            string noteText = uwagi?.Text?.Trim() ?? "";          // ta sama notatka do każdej pozycji
+            bool dodajNotatki = !string.IsNullOrWhiteSpace(noteText);
 
-            string TypUmowy = contractDetails.TypUmowy;
-            string TypCeny = contractDetails.TypCeny;
-            string Bufor = contractDetails.Bufor;
-            string selectedDostawca = Dostawca.SelectedItem?.ToString().Trim() ?? "";
+            using var conn = new SqlConnection(connectionPermission);
+            conn.Open();
+            using var tx = conn.BeginTransaction();
 
-            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            try
             {
-                long LpW = WstawianieWstawienia(
-                    connection,
-                    Dostawca,
-                    dataWstawienia,
-                    sztukiWstawienia,
-                    uwagi,
-                    TypUmowy,
-                    TypCeny
-                );
+                var sb = new StringBuilder();
+                sb.AppendLine($"Dostawca: {selectedDostawca}");
+                sb.AppendLine($"Typ Umowy: {TypUmowy}, Typ Ceny: {TypCeny}");
 
-                StringBuilder successMessages = new StringBuilder();
+                // 1) Nagłówek
+                long LpW = WstawianieWstawienia(conn, tx, Dostawca, dataWstawienia, sztukiWstawienia, uwagi, TypUmowy, TypCeny);
 
-                successMessages.AppendLine($"Dostawca : {selectedDostawca}, Typ Umowy: {TypUmowy}, TypCeny: {TypCeny} ");
+                int nr = 0;
+                void DodajNote(long lp)
+                {
+                    if (!dodajNotatki) return;
+                    int noteId = DodajNotatke(conn, tx, lp, noteText, UserID ?? "");
+                    sb.AppendLine($"   ↳ Notatka (ID: {noteId}) do LP: {lp}");
+                }
 
+                // 2) Dostawy (każdą dodajemy gdy checkbox jest zaznaczony)
                 if (checkBox1.Checked)
                 {
-                    var result1 = WstawianieDanych(
-                        connection,
-                        checkBox1,
-                        Dostawca,
-                        Data1,
-                        KmK,
-                        KmH,
-                        Ubytek,
-                        srednia1,
-                        sztuki1,
-                        sztukNaSzuflade1,
-                        liczbaAut1,
-                        uwagi,
-                        TypUmowy,
-                        TypCeny,
-                        Bufor,
-                        LpW
-                    );
-                    successMessages.AppendLine($"1.Lp: {result1.Item1}, Data: {result1.Item2}, Sztuki: {result1.Item3}, Auta: {result1.Item4}");
+                    var r = WstawianieDanych(conn, tx, Dostawca, Data1, KmK, KmH, Ubytek, srednia1, sztuki1, sztukNaSzuflade1, liczbaAut1, uwagi, TypUmowy, TypCeny, Bufor, LpW);
+                    nr++; sb.AppendLine($"{nr}. Lp: {r.Lp}, Data: {r.Data:yyyy-MM-dd}, Sztuki: {r.Sztuki?.ToString() ?? "-"}, Auta: {r.Auta?.ToString() ?? "-"}");
+                    DodajNote(r.Lp);
                 }
-
                 if (checkBox2.Checked)
                 {
-                    var result2 = WstawianieDanych(
-                        connection,
-                        checkBox2,
-                        Dostawca,
-                        Data2,
-                        KmK,
-                        KmH,
-                        Ubytek,
-                        srednia2,
-                        sztuki2,
-                        sztukNaSzuflade2,
-                        liczbaAut2,
-                        uwagi,
-                        TypUmowy,
-                        TypCeny,
-                        Bufor,
-                        LpW
-                    );
-                    successMessages.AppendLine($"2.Lp: {result2.Item1}, Data: {result2.Item2}, Sztuki: {result2.Item3}, Auta: {result2.Item4}");
+                    var r = WstawianieDanych(conn, tx, Dostawca, Data2, KmK, KmH, Ubytek, srednia2, sztuki2, sztukNaSzuflade2, liczbaAut2, uwagi, TypUmowy, TypCeny, Bufor, LpW);
+                    nr++; sb.AppendLine($"{nr}. Lp: {r.Lp}, Data: {r.Data:yyyy-MM-dd}, Sztuki: {r.Sztuki?.ToString() ?? "-"}, Auta: {r.Auta?.ToString() ?? "-"}");
+                    DodajNote(r.Lp);
                 }
-
                 if (checkBox3.Checked)
                 {
-                    var result3 = WstawianieDanych(
-                        connection,
-                        checkBox3,
-                        Dostawca,
-                        Data3,
-                        KmK,
-                        KmH,
-                        Ubytek,
-                        srednia3,
-                        sztuki3,
-                        sztukNaSzuflade3,
-                        liczbaAut3,
-                        uwagi,
-                        TypUmowy,
-                        TypCeny,
-                        Bufor,
-                        LpW
-                    );
-                    successMessages.AppendLine($"3.Lp: {result3.Item1}, Data: {result3.Item2}, Sztuki: {result3.Item3}, Auta: {result3.Item4}");
+                    var r = WstawianieDanych(conn, tx, Dostawca, Data3, KmK, KmH, Ubytek, srednia3, sztuki3, sztukNaSzuflade3, liczbaAut3, uwagi, TypUmowy, TypCeny, Bufor, LpW);
+                    nr++; sb.AppendLine($"{nr}. Lp: {r.Lp}, Data: {r.Data:yyyy-MM-dd}, Sztuki: {r.Sztuki?.ToString() ?? "-"}, Auta: {r.Auta?.ToString() ?? "-"}");
+                    DodajNote(r.Lp);
                 }
-
                 if (checkBox4.Checked)
                 {
-                    var result4 = WstawianieDanych(
-                        connection,
-                        checkBox4,
-                        Dostawca,
-                        Data4,
-                        KmK,
-                        KmH,
-                        Ubytek,
-                        srednia4,
-                        sztuki4,
-                        sztukNaSzuflade4,
-                        liczbaAut4,
-                        uwagi,
-                        TypUmowy,
-                        TypCeny,
-                        Bufor,
-                        LpW
-                    );
-                    successMessages.AppendLine($"4.Lp: {result4.Item1}, Data: {result4.Item2}, Sztuki: {result4.Item3}, Auta: {result4.Item4}");
+                    var r = WstawianieDanych(conn, tx, Dostawca, Data4, KmK, KmH, Ubytek, srednia4, sztuki4, sztukNaSzuflade4, liczbaAut4, uwagi, TypUmowy, TypCeny, Bufor, LpW);
+                    nr++; sb.AppendLine($"{nr}. Lp: {r.Lp}, Data: {r.Data:yyyy-MM-dd}, Sztuki: {r.Sztuki?.ToString() ?? "-"}, Auta: {r.Auta?.ToString() ?? "-"}");
+                    DodajNote(r.Lp);
                 }
-
                 if (checkBox5.Checked)
                 {
-                    var result5 = WstawianieDanych(
-                        connection,
-                        checkBox5,
-                        Dostawca,
-                        Data5,
-                        KmK,
-                        KmH,
-                        Ubytek,
-                        srednia5,
-                        sztuki5,
-                        sztukNaSzuflade5,
-                        liczbaAut5,
-                        uwagi,
-                        TypUmowy,
-                        TypCeny,
-                        Bufor,
-                        LpW
-                    );
-                    successMessages.AppendLine($"5.Lp: {result5.Item1}, Data: {result5.Item2}, Sztuki: {result5.Item3}, Auta: {result5.Item4}");
+                    var r = WstawianieDanych(conn, tx, Dostawca, Data5, KmK, KmH, Ubytek, srednia5, sztuki5, sztukNaSzuflade5, liczbaAut5, uwagi, TypUmowy, TypCeny, Bufor, LpW);
+                    nr++; sb.AppendLine($"{nr}. Lp: {r.Lp}, Data: {r.Data:yyyy-MM-dd}, Sztuki: {r.Sztuki?.ToString() ?? "-"}, Auta: {r.Auta?.ToString() ?? "-"}");
+                    DodajNote(r.Lp);
                 }
 
-                // Display all success messages at the end
-                if (successMessages.Length > 0)
-                {
-                    MessageBox.Show(successMessages.ToString(), "Successful Entries", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show("No entries were processed.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                tx.Commit();
+
+                MessageBox.Show(nr > 0 ? sb.ToString() : "Brak pozycji do przetworzenia.",
+                                "Wstawianie dostaw + notatki",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();
+            }
+            catch (Exception ex)
+            {
+                try { tx.Rollback(); } catch { /* ignoruj */ }
+                MessageBox.Show("Błąd podczas wstawiania: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

@@ -1151,7 +1151,7 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
         public void UzupelnijComboBoxHodowcami(ComboBox comboBox)
         {
             string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY where halt = '0'";
-
+            
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 SqlCommand command = new SqlCommand(query, connection);
@@ -1199,6 +1199,39 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
                 reader.Close();
             }
         }
+
+        public void UzupelnijComboBoxHodowcamiSymfonia(ComboBox comboBox)
+        {
+            const string query = @"
+        SELECT Shortcut, ID 
+        FROM [HANDEL].[SSCommon].[STContractors] 
+        ORDER BY Shortcut ASC;";
+
+            using (var connection = new SqlConnection(connectionString2))
+            using (var command = new SqlCommand(query, connection))
+            {
+                connection.Open();
+                using (var reader = command.ExecuteReader())
+                {
+                    var dostawcy = new List<KeyValuePair<string, string>>();
+                    while (reader.Read())
+                    {
+                        string id = reader["ID"].ToString().Trim();
+                        string name = reader["Shortcut"].ToString().Trim();
+                        dostawcy.Add(new KeyValuePair<string, string>(id, name));
+                    }
+
+                    comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+                    comboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+                    comboBox.AutoCompleteSource = AutoCompleteSource.ListItems;
+
+                    comboBox.DataSource = dostawcy;
+                    comboBox.DisplayMember = "Value"; // wyświetlana nazwa
+                    comboBox.ValueMember = "Key";   // ID
+                }
+            }
+        }
+
 
 
 

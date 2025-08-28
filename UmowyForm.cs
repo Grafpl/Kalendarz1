@@ -1,13 +1,14 @@
 ﻿using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -16,19 +17,24 @@ namespace Kalendarz1
     {
         private readonly string _connString =
             "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private string connectionString2 =
+            "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         // Parametry wejściowe (opcjonalne)
         private readonly string? _initialLp;
         private readonly string? _initialIdLibra;
         public string UserID { get; set; }
+
         private DataTable _hodowcyTable;
         private readonly BindingSource _hodowcyBS = new BindingSource();
+
         private DataTable _kontrahenciTable;
         private readonly BindingSource _kontrahenciBS = new BindingSource();
+
         private readonly Timer _filterTimer = new Timer { Interval = 250 };
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
+
         public UmowyForm() : this(null, null) { }
 
         public UmowyForm(string? initialLp, string? initialIdLibra)
@@ -37,11 +43,15 @@ namespace Kalendarz1
             _initialIdLibra = initialIdLibra;
 
             InitializeComponent();
+
+            // listy wyboru
             zapytaniasql.UzupelnijComboBoxHodowcami3(comboBoxDostawca);
+            UzupelnijComboDostawcy(comboBoxDostawcaS);
+
             // Zdarzenia
             Load += UmowyForm_Load;
 
-            dtpData.ValueChanged += DtpData_ValueChanged; // przelicza datę podpisania
+            dtpData.ValueChanged += DtpData_ValueChanged;
 
             ComboBox1.SelectedIndexChanged += ComboBox1_SelectedIndexChanged;
             Dostawca1.TextChanged += Dostawca_TextChanged;
@@ -49,8 +59,8 @@ namespace Kalendarz1
             dataGridViewKontrahenci.DataBindingComplete += DataGridViewKontrahenci_DataBindingComplete;
             dataGridViewKontrahenci.RowHeadersVisible = false;
 
-
             CommandButton_Update.Click += CommandButton_Update_Click;
+
             // Debounce filtrowania
             _filterTimer.Tick += (s, e) =>
             {
@@ -62,31 +72,34 @@ namespace Kalendarz1
                 _filterTimer.Stop();
                 _filterTimer.Start();
             };
+
+            comboBoxDostawcaS.SelectionChangeCommitted += comboBoxDostawcaS_SelectionChangeCommitted;
+            comboBoxDostawca.SelectedIndexChanged += comboBoxDostawca_SelectedIndexChanged;
+
+            buttonZapisz.Click += buttonZapisz_Click;
         }
 
         #region Load / init
+
         private void DataGridViewKontrahenci_DataBindingComplete(object? sender, DataGridViewBindingCompleteEventArgs e)
         {
             var g = dataGridViewKontrahenci;
             if (g.Columns.Count == 0) return;
 
-            // Najpierw: wszystkie kolumny dopasuj do zawartości
             foreach (DataGridViewColumn c in g.Columns)
             {
                 c.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
                 c.MinimumWidth = 60;
             }
 
-            // Potem: Kontrahent ma wypełniać resztę miejsca
             var colKontr = g.Columns["Kontrahent"];
             if (colKontr != null)
             {
                 colKontr.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                colKontr.FillWeight = 300;   // większa waga = więcej miejsca
-                colKontr.MinimumWidth = 250; // sensowne minimum
+                colKontr.FillWeight = 300;
+                colKontr.MinimumWidth = 250;
             }
 
-            // (opcjonalnie) format daty
             if (g.Columns.Contains("DataOstatniegoDokumentu"))
                 g.Columns["DataOstatniegoDokumentu"].DefaultCellStyle.Format = "yyyy-MM-dd";
         }
@@ -95,20 +108,25 @@ namespace Kalendarz1
         {
             try
             {
-                // Załaduj Lp do ComboBox1
+                // 1) Załaduj LP do ComboBox1
                 ComboBox1.Items.Clear();
                 using (var conn = new SqlConnection(_connString))
                 using (var cmd = new SqlCommand("SELECT DISTINCT Lp FROM dbo.HarmonogramDostaw ORDER BY Lp", conn))
                 {
-                    conn.Open();
-                    using (var rd = cmd.ExecuteReader())
+                    await conn.OpenAsync();
+                    using (var rd = await cmd.ExecuteReaderAsync())
                     {
-                        while (rd.Read())
+                        while (await rd.ReadAsync())
                             ComboBox1.Items.Add(rd["Lp"]?.ToString());
                     }
                 }
+                // jeżeli nie znaleziono IdSymf dla aktualnego dostawcy
+                if (string.IsNullOrWhiteSpace(IDLibraS.Text))
+                {
+                    ClearSymfoniaFields();
+                }
 
-                // Słowniki (jak w VBA UserForm_Initialize)
+                // 2) Słowniki (listy wyboru)
                 AddComboValue(typCeny, "Wolnorynkowa");
                 AddComboValue(typCeny, "Rolnicza");
                 AddComboValue(typCeny, "Ministerialna");
@@ -123,35 +141,43 @@ namespace Kalendarz1
                 AddComboValue(KonfPadl, "Sprzedającego");
                 AddComboValue(KonfPadl, "Odbiorcę");
 
-                // Jeśli przyszły parametry z zewnątrz – zastosuj
+                // 3) Parametry startowe
                 if (!string.IsNullOrWhiteSpace(_initialLp))
                 {
-                    // wybierz LP (jeśli istnieje na liście)
                     var idx = -1;
                     for (int i = 0; i < ComboBox1.Items.Count; i++)
                     {
                         if (string.Equals(ComboBox1.Items[i]?.ToString(), _initialLp, StringComparison.OrdinalIgnoreCase))
-                        {
-                            idx = i; break;
-                        }
+                        { idx = i; break; }
                     }
                     if (idx >= 0) ComboBox1.SelectedIndex = idx;
                 }
 
                 if (!string.IsNullOrWhiteSpace(_initialIdLibra))
                 {
-                    // Załaduj dostawcę po ID (nie po nazwie)
                     LoadSupplierById(_initialIdLibra!);
                 }
 
-                // Pierwsze przeliczenie daty podpisania na podstawie dtpData
+                // 4) Przelicz datę podpisania od razu
                 DtpData_ValueChanged(dtpData, EventArgs.Empty);
 
-                WczytajKontrahentowAsync();
-                WczytajHodowcowAsync();
-
-                // Opcjonalnie: od razu zastosuj pusty filtr (czyści ewentualny stary)
+                // 5) Jednorazowe załadowanie tabel
+                await WczytajKontrahentowAsync();
+                await WczytajHodowcowAsync();
                 ApplyFilter(string.Empty);
+
+                // 6) AUTO-POWIĄZANIE: jeżeli w LibraNet.Dostawcy dla bieżącego ID jest IdSymf -> ustaw combobox i wczytaj z Symfonii
+                if (!string.IsNullOrWhiteSpace(IDLibra.Text))
+                {
+                    var idSymf = PobierzIdSymfDlaLibraPoId(IDLibra.Text);
+                    if (!string.IsNullOrWhiteSpace(idSymf))
+                    {
+                        // Ustaw wskazaną pozycję w comboboxie Symfonii
+                        comboBoxDostawcaS.SelectedValue = idSymf;
+                        // Ręcznie wczytaj pólka (SelectionChangeCommitted nie odpala się przy zmianie programowej)
+                        WczytajKontrahentaSymfoniaDoFormularza(idSymf);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -174,7 +200,6 @@ namespace Kalendarz1
             var selectedDate = dtpData.Value;
             var adjusted = selectedDate.AddDays(-2);
 
-            // Niedziela -> piątek (–2), Sobota -> piątek (–1)
             if (adjusted.DayOfWeek == DayOfWeek.Sunday)
                 adjusted = adjusted.AddDays(-2);
             else if (adjusted.DayOfWeek == DayOfWeek.Saturday)
@@ -190,7 +215,6 @@ namespace Kalendarz1
         private void ComboBox1_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (ComboBox1.SelectedItem == null) return;
-
             var lp = ComboBox1.SelectedItem.ToString();
 
             const string sql = @"SELECT TOP(1) * FROM dbo.HarmonogramDostaw WHERE Lp = @lp;";
@@ -207,7 +231,6 @@ namespace Kalendarz1
 
                         SetText(Dostawca1, rd, "Dostawca");
 
-                        // DataOdbioru -> dtpData
                         var v = rd["DataOdbioru"];
                         if (v != DBNull.Value && DateTime.TryParse(v.ToString(), out var dt))
                             dtpData.Value = dt;
@@ -220,7 +243,6 @@ namespace Kalendarz1
                     }
                 }
 
-                // Po zmianie daty odbioru – przelicz podpisanie
                 DtpData_ValueChanged(dtpData, EventArgs.Empty);
             }
             catch (Exception ex)
@@ -244,7 +266,7 @@ namespace Kalendarz1
 
         #endregion
 
-        #region Dostawca -> pobierz szczegóły z dbo.Dostawcy
+        #region Dostawca -> pobierz szczegóły z dbo.Dostawcy (Libra)
 
         private void Dostawca_TextChanged(object? sender, EventArgs e)
         {
@@ -295,7 +317,6 @@ namespace Kalendarz1
                             return;
                         }
 
-                        // Ustaw także nazwę do TextBoxa 'Dostawca' dla spójności z resztą logiki:
                         var nameObj = rd["Name"];
                         if (nameObj != DBNull.Value) Dostawca1.Text = nameObj.ToString();
 
@@ -337,7 +358,6 @@ namespace Kalendarz1
                 IDLibra, Address1, Address2, NIP, REGON, PESEL, Phone1, Phone2,
                 Info1, Info2, Email, NrGosp, IRZPlus, PostalCode, Address, City
             };
-
             foreach (var tb in tbs)
                 tb.Text = string.Empty;
         }
@@ -348,7 +368,6 @@ namespace Kalendarz1
 
         private void CommandButton_Update_Click(object? sender, EventArgs e)
         {
-            // 1) Walidacja wyboru LP
             if (ComboBox1.SelectedItem == null)
             {
                 MessageBox.Show("Wybierz Lp.");
@@ -356,14 +375,12 @@ namespace Kalendarz1
             }
             var selectedLp = ComboBox1.SelectedItem.ToString();
 
-            // 2) Parsowanie UserID -> int (wymagane przez kolumnę KtoUtw)
             if (!int.TryParse(UserID, out var userIdInt))
             {
                 MessageBox.Show("UserID musi być liczbą całkowitą (potrzebne do zapisania KtoUtw).");
                 return;
             }
 
-            // 3) UPDATE: ustaw Utworzone=1 + KtoUtw/KiedyUtw (bez nadpisywania, jeżeli już były)
             const string updateSql = @"
 UPDATE dbo.HarmonogramDostaw
 SET
@@ -389,7 +406,6 @@ WHERE Lp = @lp;";
                 return;
             }
 
-            // 4) Word: wygeneruj dokument
             try
             {
                 GenerateWordDocx();
@@ -400,9 +416,9 @@ WHERE Lp = @lp;";
                 return;
             }
 
-            // 5) Zamknij okno
             Close();
         }
+
         private async Task WczytajHodowcowAsync()
         {
             string sql = @"
@@ -434,7 +450,7 @@ SELECT
 
             try
             {
-                using var conn = new SqlConnection(_connString); // wskazuje na LibraNet
+                using var conn = new SqlConnection(_connString);
                 using var cmd = new SqlCommand(sql, conn);
                 await conn.OpenAsync();
 
@@ -453,13 +469,11 @@ SELECT
             }
         }
 
-        #region Kontrahenci – ostatnie dokumenty
+        #region Kontrahenci – ostatnie dokumenty (Handel)
 
-        // Pole prywatne do przechowania wszystkich danych
-        // --- ŁADOWANIE DANYCH (raz, do pamięci) ---
         private async Task WczytajKontrahentowAsync()
         {
-            string sql = @"
+            const string sql = @"
 SELECT
     COALESCE(C.Name,'') AS Kontrahent,
     CASE 
@@ -469,8 +483,7 @@ SELECT
     END AS TypKontrahenta,
     LastDocs.data AS DataOstatniegoDokumentu,
     LastDocs.DK_kod AS OstatniKodDokumentu
-FROM 
-    [HANDEL].[SSCommon].[STContractors] C
+FROM [HANDEL].[SSCommon].[STContractors] C
 INNER JOIN (
     SELECT 
         DK.khid,
@@ -478,18 +491,12 @@ INNER JOIN (
         DP.data,
         DK.kod AS DK_kod,
         ROW_NUMBER() OVER (PARTITION BY DK.khid ORDER BY DP.data DESC) AS rn
-    FROM 
-        [HANDEL].[HM].[DP] DP
-    INNER JOIN [HANDEL].[HM].[TW] TW 
-        ON DP.idtw = TW.id
-    INNER JOIN [HANDEL].[HM].[DK] DK 
-        ON DP.super = DK.id
-    WHERE 
-        DP.data >= '2023-01-01'
-        AND TW.kod LIKE '%Kurczak żywy%'
-) LastDocs 
-    ON LastDocs.khid = C.id 
-   AND LastDocs.rn = 1
+    FROM [HANDEL].[HM].[DP] DP
+    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.id
+    INNER JOIN [HANDEL].[HM].[DK] DK ON DP.super = DK.id
+    WHERE DP.data >= '2023-01-01'
+      AND TW.kod LIKE '%Kurczak żywy%'
+) LastDocs ON LastDocs.khid = C.id AND LastDocs.rn = 1
 ORDER BY C.Shortcut;";
 
             try
@@ -499,22 +506,12 @@ ORDER BY C.Shortcut;";
                 await conn.OpenAsync();
 
                 using var rdr = await cmd.ExecuteReaderAsync();
-                var dt = new DataTable
-                {
-                    // Bez rozróżnienia wielkości liter przy filtrowaniu
-                    CaseSensitive = false
-                };
+                var dt = new DataTable { CaseSensitive = false };
                 dt.Load(rdr);
 
                 _kontrahenciTable = dt;
-
-                // Podpinamy jako DataView przez BindingSource (wspiera .Filter)
                 _kontrahenciBS.DataSource = _kontrahenciTable.DefaultView;
                 dataGridViewKontrahenci.DataSource = _kontrahenciBS;
-                await WczytajKontrahentowAsync();
-                await WczytajHodowcowAsync();        // <— DODAJ TO
-                ApplyFilter(string.Empty);
-
             }
             catch (Exception ex)
             {
@@ -527,25 +524,20 @@ ORDER BY C.Shortcut;";
         {
             string pattern = EscapeLikeValue((rawText ?? string.Empty).Trim());
 
-            // Kontrahenci
-            if (_kontrahenciBS.DataSource is DataView dv1)
+            if (_kontrahenciBS.DataSource is DataView)
                 _kontrahenciBS.Filter = string.IsNullOrEmpty(pattern)
                     ? string.Empty
                     : $"Convert([Kontrahent],'System.String') LIKE '%{pattern}%'";
 
-            // Hodowcy (Dostawca)
-            if (_hodowcyBS.DataSource is DataView dv2)
+            if (_hodowcyBS.DataSource is DataView)
                 _hodowcyBS.Filter = string.IsNullOrEmpty(pattern)
                     ? string.Empty
                     : $"Convert([Dostawca],'System.String') LIKE '%{pattern}%'";
         }
 
-
-        // Escapowanie znaków specjalnych dla LIKE w RowFilter
         private static string EscapeLikeValue(string value)
         {
             if (string.IsNullOrEmpty(value)) return string.Empty;
-            // Ucieczka nawiasu [, %, _ oraz pojedynczego apostrofu
             return value
                 .Replace("[", "[[]")
                 .Replace("%", "[%]")
@@ -554,11 +546,13 @@ ORDER BY C.Shortcut;";
         }
 
         #endregion
+
+        #region Word generator
+
         private void GenerateWordDocx()
         {
-            // Ścieżki
             var root = @"\\192.168.0.170\Install\UmowyZakupu";
-            var templatePath = Path.Combine(root, "UmowaZakupu.docx"); // MUSI być .docx
+            var templatePath = Path.Combine(root, "UmowaZakupu.docx");
             if (!File.Exists(templatePath))
                 throw new FileNotFoundException("Nie znaleziono szablonu Word: " + templatePath);
 
@@ -567,10 +561,8 @@ ORDER BY C.Shortcut;";
             string baseFileName = $"Umowa Zakupu {Dostawca1.Text} {dt.Day}-{dt.Month}-{dt.Year}";
             string docxPath = Path.Combine(root, baseFileName + ".docx");
 
-            // 1) Skopiuj szablon
             File.Copy(templatePath, docxPath, overwrite: true);
 
-            // 2) Mapowanie znaczników -> wartości (daty z DTP)
             var repl = new Dictionary<string, string?>
             {
                 ["[NAZWA]"] = Dostawca.Text,
@@ -587,10 +579,7 @@ ORDER BY C.Shortcut;";
                 ["[Obciążenie]"] = KonfPadl.Text,
                 ["[Ubytek]"] = BuildUbytekText(Ubytek.Text),
                 ["[Cena]"] = BuildCenaText(typCeny.Text, Cena.Text),
-
-                // Pasza: jeśli „Tak” → dopiska, jeśli „Nie” albo puste → pusty string (znacznik znika)
                 ["[PaszaPisklak]"] = BuildPaszaText(PaszaPisklak.Text),
-
                 ["[Odeslanie]"] = Vatowiec.Checked
                     ? "Brak odesłania podpisanej faktury VAT spowoduje wstrzymanie płatności"
                     : "Brak odesłania podpisanej faktury VAT RR spowoduje wstrzymanie płatności",
@@ -599,10 +588,7 @@ ORDER BY C.Shortcut;";
                     : "Sprzedawca oświadcza, że jest rolnikiem ryczałtowym zwolnionym od podatku od towaru i usług na podstawie art. 43 ust. 1 pkt. 3 ustawy o podatku od towaru i usług i nie prowadzi działalności gospodarczej."
             };
 
-            // 3) Podmień znaczniki w kopii pliku (wersja odporna na rozbijanie runów)
             ReplacePlaceholdersInDocx_ParagraphWise(docxPath, repl);
-
-            // 4) Otwórz utworzony plik DOCX
             System.Diagnostics.Process.Start("explorer.exe", $"\"{docxPath}\"");
         }
 
@@ -627,12 +613,10 @@ ORDER BY C.Shortcut;";
 
                         if (!string.Equals(original, replaced, StringComparison.Ordinal))
                         {
-                            // Zachowaj formatowanie pierwszego runa w akapicie
                             var firstRunProps = p.Elements<Run>()
                                 .FirstOrDefault()?.RunProperties?
                                 .CloneNode(true) as RunProperties;
 
-                            // wyczyść runy i wstaw nowy z odziedziczonym formatowaniem
                             p.RemoveAllChildren<Run>();
 
                             var newRun = new Run(new Text(replaced)
@@ -660,9 +644,10 @@ ORDER BY C.Shortcut;";
                 doc.MainDocumentPart.Document.Save();
             }
         }
+
         #endregion
 
-        #region Teksty pomocnicze i OpenXML replace
+        #region Teksty pomocnicze
 
         private static string BuildUbytekText(string? ubytekText)
         {
@@ -670,41 +655,32 @@ ORDER BY C.Shortcut;";
                 return u > 0 ? $"Pomniejszona o {u}% ubytków transportowych" : "";
             return "";
         }
+
         private static string BuildPaszaText(string? pasza)
         {
             return string.Equals(pasza?.Trim(), "Tak", StringComparison.OrdinalIgnoreCase)
                     ? " + 0.03 zł/kg dodatku"
-                    : string.Empty; // „Nie” lub puste → usuń znacznik
+                    : string.Empty;
         }
+
         private static string BuildCenaText(string? typCeny, string? cenaVal)
         {
             if (string.IsNullOrWhiteSpace(typCeny))
                 return "";
 
-            // Usuwamy polskie znaki i bierzemy 3 pierwsze litery (uppercase)
             string normalized = RemovePolishChars(typCeny.Trim()).ToUpperInvariant();
             string prefix = normalized.Length >= 3 ? normalized.Substring(0, 3) : normalized;
 
             switch (prefix)
             {
-                case "WOL": // Wolnorynkowa
-                    return $"to {cenaVal} zł/kg";
-
-                case "ROL": // Rolnicza
-                    return "jest ustalana na podstawie ceny rolniczej, ogłaszanej na stronie cenyrolnicze.pl";
-
-                case "MIN": // Ministerialna
-                    return "jest ustalana na podstawie ceny ministerialnej, ogłaszanej ze strony ministerstwa";
-
-                case "LAC": // Łączona / Lączona
-                    return "jest ustalana na podstawie ceny łączonej, czyli połowa ilorazu ceny rolniczej i ceny ministerialnej";
-
-                default:
-                    return "";
+                case "WOL": return $"to {cenaVal} zł/kg";
+                case "ROL": return "jest ustalana na podstawie ceny rolniczej, ogłaszanej na stronie cenyrolnicze.pl";
+                case "MIN": return "jest ustalana na podstawie ceny ministerialnej, ogłaszanej ze strony ministerstwa";
+                case "LAC": return "jest ustalana na podstawie ceny łączonej, czyli połowa ilorazu ceny rolniczej i ceny ministerialnej";
+                default: return "";
             }
         }
 
-        // Pomocnicza metoda do usuwania polskich znaków
         private static string RemovePolishChars(string text)
         {
             return text
@@ -721,21 +697,341 @@ ORDER BY C.Shortcut;";
 
         #endregion
 
-        private void CommandButton_Update_Click_1(object sender, EventArgs e)
-        {
-
-        }
-
-        private void UmowyForm_Load_1(object sender, EventArgs e)
-        {
-
-        }
+        #region Handlery GUI
 
         private void comboBoxDostawca_SelectedIndexChanged(object sender, EventArgs e)
         {
-            Dostawca1.Text = comboBoxDostawca.Text; // też zwróci Name
-            Dostawca.Text = comboBoxDostawca.Text; // też zwróci Name
+            // dotychczasowe mapowanie nazwy
+            Dostawca1.Text = comboBoxDostawca.Text;
+            Dostawca.Text = comboBoxDostawca.Text;
+
+            // spróbuj pobrać IdSymf
+            string? idSymf = null;
+
+            if (!string.IsNullOrWhiteSpace(IDLibra.Text))
+                idSymf = PobierzIdSymfDlaLibraPoId(IDLibra.Text);
+
+            if (string.IsNullOrWhiteSpace(idSymf) && !string.IsNullOrWhiteSpace(Dostawca1.Text))
+                idSymf = PobierzIdSymfDlaLibraPoNazwie(Dostawca1.Text);
+
+            // jeśli jest powiązanie – ustaw wybór w Symfonii i doładuj textboxy
+            if (!string.IsNullOrWhiteSpace(idSymf))
+            {
+                comboBoxDostawcaS.SelectedValue = idSymf;              // ustawia konkretny kontrahent w comboboxie
+                WczytajKontrahentaSymfoniaDoFormularza(idSymf);       // wczytuje NIP/adres/itd.
+            }
+            // else: nic nie robimy; możesz tu wyczyścić pola z prawej, jeśli tak wolisz
         }
 
+
+        private void UzupelnijComboDostawcy(ComboBox comboBox)
+        {
+            const string sql = "SELECT Id, Shortcut FROM [HANDEL].[SSCommon].[STContractors] ORDER BY Shortcut";
+
+            using (var conn = new SqlConnection(connectionString2))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    var lista = new List<KeyValuePair<string, string>>();
+                    while (r.Read())
+                    {
+                        lista.Add(new KeyValuePair<string, string>(
+                            r["Id"].ToString(),
+                            r["Shortcut"].ToString()
+                        ));
+                    }
+                    comboBox.DataSource = lista;
+                    comboBox.DisplayMember = "Value";
+                    comboBox.ValueMember = "Key";
+                }
+            }
+        }
+
+        private void comboBoxDostawcaS_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            string id = comboBoxDostawcaS.SelectedValue?.ToString();
+            if (string.IsNullOrEmpty(id))
+            {
+                ClearSymfoniaFields();
+                return;
+            }
+
+            const string sql = @"
+SELECT 
+    c.Shortcut AS Kontrahent,
+    c.NIP,
+    c.ID AS IDS,
+    poa.Street AS Ulica,
+    poa.HouseNo AS numer,
+    poa.Postcode AS kod,
+    c.regon As REGON,
+    c.PESEL AS PESEL
+FROM [HANDEL].[SSCommon].[STContractors] c
+LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] poa
+       ON poa.ContactGuid = c.ContactGuid
+      AND poa.AddressName = N'adres domyślny'
+WHERE c.Id = @Id";
+
+            using (var conn = new SqlConnection(connectionString2))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@Id", id);
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (r.Read())
+                    {
+                        IDLibraS.Text = r["IDS"] == DBNull.Value ? "" : r["IDS"].ToString();
+                        DostawcaS.Text = r["Kontrahent"] == DBNull.Value ? "" : r["Kontrahent"].ToString();
+                        NIPS.Text = r["NIP"] == DBNull.Value ? "" : r["NIP"].ToString();
+                        REGONS.Text = r["REGON"] == DBNull.Value ? "" : r["REGON"].ToString();
+                        PESELS.Text = r["PESEL"] == DBNull.Value ? "" : r["PESEL"].ToString();
+                        Address1S.Text = r["Ulica"] == DBNull.Value ? "" : r["Ulica"].ToString();
+                        numer.Text = r["numer"] == DBNull.Value ? "" : r["numer"].ToString();
+                        Address2S.Text = r["kod"] == DBNull.Value ? "" : r["kod"].ToString();
+                    }
+                    else
+                    {
+                        ClearSymfoniaFields();
+                    }
+                }
+            }
+        }
+
+
+        private void WczytajKontrahentaSymfoniaDoFormularza(string idSymf)
+        {
+            const string sql = @"
+SELECT 
+    c.Shortcut AS Kontrahent,
+    c.NIP,
+    c.ID AS IDS,
+    poa.Street AS Ulica,
+    poa.HouseNo AS numer,
+    poa.Postcode AS kod,
+    c.regon As REGON,
+    c.PESEL AS PESEL
+FROM [HANDEL].[SSCommon].[STContractors] c
+LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] poa
+       ON poa.ContactGuid = c.ContactGuid
+      AND poa.AddressName = N'adres domyślny'
+WHERE c.Id = @Id";
+
+            using (var conn = new SqlConnection(connectionString2))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.VarChar, 50).Value = idSymf;
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (r.Read())
+                    {
+                        IDLibraS.Text = r["IDS"] == DBNull.Value ? "" : r["IDS"].ToString();
+                        DostawcaS.Text = r["Kontrahent"] == DBNull.Value ? "" : r["Kontrahent"].ToString();
+                        NIPS.Text = r["NIP"] == DBNull.Value ? "" : r["NIP"].ToString();
+                        REGONS.Text = r["REGON"] == DBNull.Value ? "" : r["REGON"].ToString();
+                        PESELS.Text = r["PESEL"] == DBNull.Value ? "" : r["PESEL"].ToString();
+                        Address1S.Text = r["Ulica"] == DBNull.Value ? "" : r["Ulica"].ToString();
+                        numer.Text = r["numer"] == DBNull.Value ? "" : r["numer"].ToString();
+                        Address2S.Text = r["kod"] == DBNull.Value ? "" : r["kod"].ToString();
+                    }
+                    else
+                    {
+                        IDLibraS.Text = DostawcaS.Text = NIPS.Text = REGONS.Text = PESELS.Text =
+                        Address1S.Text = numer.Text = Address2S.Text = "";
+                    }
+                }
+            }
+        }
+
+        private string? PobierzIdSymfDlaLibraPoId(string idLibra)
+        {
+            const string sql = @"SELECT IdSymf FROM [LibraNet].[dbo].[Dostawcy] WHERE ID = @ID;";
+
+            using (var conn = new SqlConnection(_connString))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add("@ID", SqlDbType.VarChar, 50).Value = idLibra.Trim();
+                conn.Open();
+                var val = cmd.ExecuteScalar();
+                if (val == null || val == DBNull.Value) return null;
+                return Convert.ToInt32(val).ToString(); // combobox trzyma string
+            }
+        }
+
+        private void buttonZapisz_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(IDLibra.Text) || string.IsNullOrWhiteSpace(IDLibraS.Text))
+            {
+                MessageBox.Show("Brak wartości w polach IDLibra lub IDLibraS.");
+                return;
+            }
+
+            if (!int.TryParse(IDLibraS.Text, out int idSymf))
+            {
+                MessageBox.Show("Pole 'Id Symfonia' musi być liczbą całkowitą.");
+                return;
+            }
+
+            const string sql = @"
+UPDATE [LibraNet].[dbo].[Dostawcy]
+SET IdSymf = @IdSymf
+WHERE ID = @Id;";
+
+            try
+            {
+                using (var conn = new SqlConnection(_connString))
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.Add("@IdSymf", SqlDbType.Int).Value = idSymf;
+                    // ID w Twojej bazie jest varchar (np. '0-1')
+                    cmd.Parameters.Add("@Id", SqlDbType.VarChar, 50).Value = IDLibra.Text.Trim();
+
+                    conn.Open();
+                    int rows = cmd.ExecuteNonQuery();
+
+                    if (rows > 1)
+                    {
+                        string komunikat =
+                            $"Powiązano dostawcę z Libry: \"{Dostawca1.Text}\" (ID: {IDLibra.Text})\n" +
+                            $"z kontrahentem z Symfonii: \"{DostawcaS.Text}\" (ID: {IDLibraS.Text}).";
+
+                        MessageBox.Show(komunikat, "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Nie znaleziono rekordu o podanym ID.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd zapisu: " + ex.Message);
+            }
+        }
+        private void ClearSymfoniaFields()
+        {
+            comboBoxDostawcaS.SelectedIndex = -1; // odznacza combobox
+            IDLibraS.Text = "";
+            DostawcaS.Text = "";
+            NIPS.Text = "";
+            REGONS.Text = "";
+            PESELS.Text = "";
+            Address1S.Text = "";
+            numer.Text = "";
+            Address2S.Text = "";
+        }
+        private string? PobierzIdSymfDlaLibraPoNazwie(string nazwa)
+        {
+            const string sql = @"SELECT TOP(1) IdSymf FROM [LibraNet].[dbo].[Dostawcy] WHERE Name = @Name;";
+            using (var conn = new SqlConnection(_connString))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add("@Name", SqlDbType.NVarChar, 200).Value = nazwa?.Trim() ?? "";
+                conn.Open();
+                var val = cmd.ExecuteScalar();
+                if (val == null || val == DBNull.Value) return null;
+                return Convert.ToInt32(val).ToString(); // combobox trzyma string
+            }
+        }
+
+        #endregion
+        // helper: gdy pusto → DBNull
+        private static object DbNullIfEmpty(string? s)
+            => string.IsNullOrWhiteSpace(s) ? DBNull.Value : s.Trim();
+
+        // helper: tylko cyfry (do NIP/REGON/PESEL jeśli chcesz trzymać „czyste”)
+        private static string Digits(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return Regex.Replace(s, "[^0-9]", "");
+        }
+
+        private void buttonZapiszDaneLibra_Click(object sender, EventArgs e)
+        {
+            // klucz rekordu (w Twojej bazie ID jest VARCHAR, np. '0-1')
+            var idLibra = IDLibra.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(idLibra))
+            {
+                MessageBox.Show("Brak wartości w polu Id Libra.");
+                return;
+            }
+
+            // Przygotuj wartości — zostawiłem „oczyszczanie” cyfrowe dla NIP/REGON/PESEL
+            var address1 = Address1.Text;
+            var address2 = Address2.Text;
+            var nip = Digits(NIP.Text);
+            var pesel = Digits(PESEL.Text);
+            var regon = Digits(REGON.Text);
+            var phone1 = Phone1.Text;
+            var phone2 = Phone2.Text;
+            var email = Email.Text;
+            var animNo = NrGosp.Text;     // Nr Gospodarstwa (AnimNo)
+            var irzPlus = IRZPlus.Text;
+            var postalCode = PostalCode.Text; // kod pocztowy kurnika (u Ciebie)
+            var address = Address.Text;    // adres kurnika
+            var city = City.Text;
+            var info1 = Info1.Text;
+            var info2 = Info2.Text;
+
+            const string sql = @"
+UPDATE [LibraNet].[dbo].[Dostawcy]
+SET
+    Address1   = @Address1,
+    Address2   = @Address2,
+    NIP        = @NIP,
+    PESEL      = @PESEL,
+    REGON      = @REGON,
+    Phone1     = @Phone1,
+    Phone2     = @Phone2,
+    Email      = @Email,
+    AnimNo     = @AnimNo,
+    IRZPlus    = @IRZPlus,
+    PostalCode = @PostalCode,
+    [Address]  = @Address,
+    City       = @City,
+    Info1      = @Info1,
+    Info2      = @Info2
+WHERE ID = @ID;";
+
+            try
+            {
+                using (var conn = new SqlConnection(_connString)) // <-- connection do LibraNet
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    // Parametry NVARCHAR – dobierz długości do swoich kolumn (tu bezpieczne „górki”)
+                    cmd.Parameters.Add("@Address1", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(address1);
+                    cmd.Parameters.Add("@Address2", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(address2);
+                    cmd.Parameters.Add("@NIP", SqlDbType.NVarChar, 20).Value = DbNullIfEmpty(nip);
+                    cmd.Parameters.Add("@PESEL", SqlDbType.NVarChar, 20).Value = DbNullIfEmpty(pesel);
+                    cmd.Parameters.Add("@REGON", SqlDbType.NVarChar, 20).Value = DbNullIfEmpty(regon);
+                    cmd.Parameters.Add("@Phone1", SqlDbType.NVarChar, 50).Value = DbNullIfEmpty(phone1);
+                    cmd.Parameters.Add("@Phone2", SqlDbType.NVarChar, 50).Value = DbNullIfEmpty(phone2);
+                    cmd.Parameters.Add("@Email", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(email);
+                    cmd.Parameters.Add("@AnimNo", SqlDbType.NVarChar, 50).Value = DbNullIfEmpty(animNo);
+                    cmd.Parameters.Add("@IRZPlus", SqlDbType.NVarChar, 50).Value = DbNullIfEmpty(irzPlus);
+                    cmd.Parameters.Add("@PostalCode", SqlDbType.NVarChar, 20).Value = DbNullIfEmpty(postalCode);
+                    cmd.Parameters.Add("@Address", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(address);
+                    cmd.Parameters.Add("@City", SqlDbType.NVarChar, 100).Value = DbNullIfEmpty(city);
+                    cmd.Parameters.Add("@Info1", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(info1);
+                    cmd.Parameters.Add("@Info2", SqlDbType.NVarChar, 200).Value = DbNullIfEmpty(info2);
+
+                    // klucz (VARCHAR!)
+                    cmd.Parameters.Add("@ID", SqlDbType.VarChar, 50).Value = idLibra;
+
+                    conn.Open();
+                    int rows = cmd.ExecuteNonQuery();
+
+                    MessageBox.Show(rows > 0 ? "Zaktualizowano dane dostawcy." : "Nie znaleziono rekordu o podanym ID.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd aktualizacji: " + ex.Message);
+            }
+        }
     }
 }
+#endregion

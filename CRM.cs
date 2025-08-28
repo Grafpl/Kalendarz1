@@ -33,11 +33,17 @@ namespace Kalendarz1
             // Inicjalizacja filtra powiatu
             comboBoxPowiatFilter.Items.Add("Wszystkie powiaty");
             comboBoxPowiatFilter.SelectedIndex = 0;
+            comboBoxPKD.Items.Add("Wszystkie Rodzaje");
+            comboBoxPKD.SelectedIndex = 0;
+            comboBoxWoj.Items.Add("Wszystkie Woj.");
+            comboBoxWoj.SelectedIndex = 0;
 
             // Podpięcie ZDARZEŃ do kontrolek
             // Oba ComboBoxy wskazują na TĘ SAMĄ metodę filtrującą
             this.comboBoxStatusFilter.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
             this.comboBoxPowiatFilter.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
+            this.comboBoxPKD.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
+            this.comboBoxWoj.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
 
             // Pozostałe zdarzenia DataGridView
             this.dataGridViewOdbiorcy.CurrentCellDirtyStateChanged += new System.EventHandler(this.dataGridViewOdbiorcy_CurrentCellDirtyStateChanged);
@@ -65,6 +71,53 @@ namespace Kalendarz1
             comboBoxPowiatFilter.Items.Add("Wszystkie powiaty");
             comboBoxPowiatFilter.Items.AddRange(powiaty);
             comboBoxPowiatFilter.SelectedIndex = 0; // Ustawiamy domyślną wartość
+        }
+        private void WypelnijFiltrPKD()
+        {
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+
+            var grupy = dt.AsEnumerable()
+                .Where(row => !string.IsNullOrWhiteSpace(row.Field<string>("PKD_Opis")))
+                .GroupBy(row => row.Field<string>("PKD_Opis"))
+                .Select(g => new
+                {
+                    Opis = g.Key,
+                    Liczba = g.Count()
+                })
+                .OrderByDescending(g => g.Liczba)
+                .ToList();
+
+            comboBoxPKD.Items.Clear();
+            comboBoxPKD.Items.Add("Wszystkie Rodzaje");
+
+            foreach (var pkd in grupy)
+            {
+                comboBoxPKD.Items.Add($"{pkd.Opis}");
+            }
+
+            comboBoxPKD.SelectedIndex = 0;
+        }
+
+
+        private void WypelnijFiltrWoj()
+        {
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+
+            // Używamy LINQ do wybrania unikalnych, niepustych wartości z kolumny "Powiat"
+            var PKD = dt.AsEnumerable()
+                            .Select(row => row.Field<string>("Wojewodztwo"))
+                            .Where(p => !string.IsNullOrEmpty(p))
+                            .Distinct()
+                            .OrderBy(p => p)
+                            .ToArray();
+
+            // Czyścimy stare wartości (oprócz "Wszystkie powiaty") i dodajemy nowe
+            comboBoxWoj.Items.Clear();
+            comboBoxWoj.Items.Add("Wszystkie Rodzaje");
+            comboBoxWoj.Items.AddRange(PKD);
+            comboBoxWoj.SelectedIndex = 0; // Ustawiamy domyślną wartość
         }
         // NOWA METODA DO FILTROWANIA
         private void comboBoxStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
@@ -95,38 +148,129 @@ namespace Kalendarz1
         {
             dataGridViewOdbiorcy.AutoGenerateColumns = false;
             dataGridViewOdbiorcy.Columns.Clear();
+            dataGridViewOdbiorcy.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dataGridViewOdbiorcy.RowTemplate.Height = 45; // Dwie linijki
+            dataGridViewOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            dataGridViewOdbiorcy.AllowUserToResizeColumns = false;
 
-            // ... (inne kolumny bez zmian) ...
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID", DataPropertyName = "ID", HeaderText = "ID", Visible = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Nazwa", DataPropertyName = "Nazwa", HeaderText = "Nazwa", Width = 200, ReadOnly = true });
 
+
+            // ID – ukryte lub wąskie
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ID",
+                DataPropertyName = "ID",
+                HeaderText = "ID",
+                Width = 70,
+                ReadOnly = true
+            });
+
+            // Nazwa – może być długa
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Nazwa",
+                DataPropertyName = "Nazwa",
+                HeaderText = "Nazwa",
+                Width = 280,
+                ReadOnly = true,
+                DefaultCellStyle = { WrapMode = DataGridViewTriState.True }
+            });
+
+            // Status – combo box
             var statusColumn = new DataGridViewComboBoxColumn
             {
-                // POPRAWKA JEST TUTAJ
-                Name = "StatusColumn", // Używamy nowej, spójnej nazwy
+                Name = "StatusColumn",
                 DataPropertyName = "Status",
                 HeaderText = "Status",
                 FlatStyle = FlatStyle.Flat,
-                Width = 150
+                Width = 120
             };
             statusColumn.Items.AddRange("Nowy", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt", "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)");
             dataGridViewOdbiorcy.Columns.Add(statusColumn);
 
-            // ... (reszta kolumn bez zmian) ...
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "KodPocztowy", DataPropertyName = "KodPocztowy", HeaderText = "Kod Pocztowy", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "MIASTO", DataPropertyName = "MIASTO", HeaderText = "Miasto", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ulica", DataPropertyName = "Ulica", HeaderText = "Ulica", Width = 150, ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefon_K", DataPropertyName = "Telefon_K", HeaderText = "Telefon", Width = 100, ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wojewodztwo", DataPropertyName = "Wojewodztwo", HeaderText = "Województwo", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Powiat", DataPropertyName = "Powiat", HeaderText = "Powiat", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Prio", DataPropertyName = "Prio", HeaderText = "Prio", ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataOstatniejNotatki", DataPropertyName = "DataOstatniejNotatki", HeaderText = "Ost. Notatka", Width = 120, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "KodPocztowy",
+                DataPropertyName = "KodPocztowy",
+                HeaderText = "Kod",
+                Width = 60,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "MIASTO",
+                DataPropertyName = "MIASTO",
+                HeaderText = "Miasto",
+                Width = 80,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Ulica",
+                DataPropertyName = "Ulica",
+                HeaderText = "Ulica",
+                Width = 80,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Telefon_K",
+                DataPropertyName = "Telefon_K",
+                HeaderText = "Telefon",
+                Width = 90,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Wojewodztwo",
+                DataPropertyName = "Wojewodztwo",
+                HeaderText = "Województwo",
+                Width = 120,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Powiat",
+                DataPropertyName = "Powiat",
+                HeaderText = "Powiat",
+                Width = 120,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "PKD_Opis",
+                DataPropertyName = "PKD_Opis",
+                HeaderText = "PKD",
+                Width = 200,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DataOstatniejNotatki",
+                DataPropertyName = "DataOstatniejNotatki",
+                HeaderText = "Ost. Notatka",
+                Width = 100,
+                ReadOnly = true
+            });
+
+            // Styl ogólny (czcionka itd. możesz dostosować)
+            dataGridViewOdbiorcy.DefaultCellStyle.Font = new Font("Segoe UI", 10);
         }
+
         private readonly Dictionary<string, List<string>> mapaWojewodztw = new Dictionary<string, List<string>>
 {
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
     { "9998", new List<string> { "Wielkopolskie" } },
     { "98122", new List<string> { "Opolskie" } },
+    { "23231", new List<string> { "Mazowieckie" } },
+    { "23233", new List<string> { "Mazowieckie" } },
     { "871231", new List<string> { "Śląskie" } },
     { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } }
 };
@@ -156,13 +300,13 @@ namespace Kalendarz1
             O.Telefon_K, 
             O.Wojewodztwo, 
             O.Powiat, 
-            O.Prio, 
+            O.PKD_Opis, 
             MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
         FROM OdbiorcyCRM O 
         LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
         GROUP BY 
             O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.Prio 
+            O.Wojewodztwo, O.Powiat, O.PKD_opis 
         ORDER BY O.Nazwa";
                     cmd = new SqlCommand(query, conn);
                 }
@@ -184,14 +328,14 @@ namespace Kalendarz1
             O.Telefon_K, 
             O.Wojewodztwo, 
             O.Powiat, 
-            O.Prio, 
+            O.PKD_Opis, 
             MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
         FROM OdbiorcyCRM O 
         LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
         WHERE {whereClause} 
         GROUP BY 
             O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.Prio
+            O.Wojewodztwo, O.Powiat, O.PKD_opis
         ORDER BY O.Nazwa";
 
                     cmd = new SqlCommand(query, conn);
@@ -215,6 +359,8 @@ namespace Kalendarz1
             isDataLoading = false;
             dataGridViewOdbiorcy.Refresh();
             WypelnijFiltrPowiatow();
+            WypelnijFiltrPKD();
+            WypelnijFiltrWoj();
         }
 
         private void ZastosujFiltry(object sender, EventArgs e)
@@ -237,6 +383,21 @@ namespace Kalendarz1
             {
                 string wybranyPowiat = comboBoxPowiatFilter.SelectedItem.ToString();
                 filtry.Add($"Powiat = '{wybranyPowiat}'");
+            }
+
+            // Sprawdzamy filtr powiatu
+            if (comboBoxPKD.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie powiaty"
+            {
+                string wybranyPKD = comboBoxPKD.SelectedItem.ToString();
+                filtry.Add($"PKD_Opis = '{wybranyPKD}'");
+            }
+
+
+            // Sprawdzamy filtr powiatu
+            if (comboBoxWoj.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie powiaty"
+            {
+                string wybranyWoj = comboBoxWoj.SelectedItem.ToString();
+                filtry.Add($"Wojewodztwo = '{wybranyWoj}'");
             }
 
             // Łączymy wszystkie aktywne filtry za pomocą operatora AND
@@ -331,7 +492,7 @@ namespace Kalendarz1
             Color kolorWiersza;
             switch (status)
             {
-                case "Nowy": kolorWiersza = Color.WhiteSmoke; break;
+                case "Nowy": kolorWiersza = Color.White; break;
                 case "Próba kontaktu": kolorWiersza = Color.LightSkyBlue; break;
                 case "Nawiązano kontakt": kolorWiersza = Color.CornflowerBlue; break;
                 case "Zgoda na dalszy kontakt": kolorWiersza = Color.LightGreen; break;
@@ -423,7 +584,15 @@ SELECT
     COUNT(CASE WHEN Status = 'Do wysłania oferta' THEN 1 END) AS [Do wysłania],
     COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) AS [Nie zainteresowany],
     COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) AS [Usunąć],
-    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Błędny]
+    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Błędny],
+    -- Kolumna Aktywność (bez Nowy)
+    COUNT(CASE WHEN Status = 'Próba kontaktu' THEN 1 END) +
+    COUNT(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 END) +
+    COUNT(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 END) +
+    COUNT(CASE WHEN Status = 'Do wysłania oferta' THEN 1 END) +
+    COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) +
+    COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) +
+    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Suma]
 FROM WojHandlowcy
 GROUP BY NazwaHandlowca
 ORDER BY NazwaHandlowca";
@@ -436,6 +605,16 @@ ORDER BY NazwaHandlowca";
                 dataGridViewRanking.DataSource = dt;
             }
         }
+        private void DataGridViewRanking_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dataGridViewRanking.Columns[e.ColumnIndex].Name == "Suma" && e.Value != null)
+            {
+                e.CellStyle.Font = new Font(dataGridViewRanking.Font, FontStyle.Bold);
+                e.CellStyle.ForeColor = Color.Black;
+            }
+        }
+
+
 
         private void CRM_Load(object sender, EventArgs e)
         {
@@ -452,6 +631,81 @@ ORDER BY NazwaHandlowca";
             KonfigurujDataGridView();
             WczytajOdbiorcow();
             WczytajRankingHandlowcow();
+        }
+
+        private void comboBoxPowiatFilter_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (dataGridViewOdbiorcy.CurrentRow != null)
+            {
+                string nazwaFirmy = dataGridViewOdbiorcy.CurrentRow.Cells["Nazwa"].Value?.ToString();
+
+                if (!string.IsNullOrWhiteSpace(nazwaFirmy))
+                {
+                    string query = Uri.EscapeDataString(nazwaFirmy);
+                    string url = $"https://www.google.com/search?q={query}";
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show("Brak nazwy firmy w zaznaczonym wierszu.");
+                }
+            }
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            if (dataGridViewOdbiorcy.CurrentRow != null)
+            {
+                // Dane adresowe odbiorcy
+                string ulica = dataGridViewOdbiorcy.CurrentRow.Cells["Ulica"].Value?.ToString() ?? "";
+                string miasto = dataGridViewOdbiorcy.CurrentRow.Cells["MIASTO"].Value?.ToString() ?? "";
+                string kodPocztowy = dataGridViewOdbiorcy.CurrentRow.Cells["KodPocztowy"].Value?.ToString() ?? "";
+
+                // Adres docelowy
+                string adresOdbiorcy = $"{ulica}, {kodPocztowy} {miasto}";
+                string adresStartowy = "Koziołki 40, 95-061 Dmosin";
+
+                if (!string.IsNullOrWhiteSpace(adresOdbiorcy))
+                {
+                    string url = $"https://www.google.com/maps/dir/{Uri.EscapeDataString(adresStartowy)}/{Uri.EscapeDataString(adresOdbiorcy)}";
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show("Nie można utworzyć adresu odbiorcy – brak danych.");
+                }
+            }
+        }
+
+        private void textBoxSzukaj_TextChanged(object sender, EventArgs e)
+        {
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+
+            string szukanyTekst = textBoxSzukaj.Text.Trim().Replace("'", "''"); // zabezpieczenie apostrofów
+
+            if (string.IsNullOrEmpty(szukanyTekst))
+            {
+                dt.DefaultView.RowFilter = ""; // pokaż wszystko
+            }
+            else
+            {
+                // Filtruje tylko po kolumnie "Nazwa", ignorując wielkość liter
+                dt.DefaultView.RowFilter = $"Nazwa LIKE '%{szukanyTekst}%'";
+            }
         }
     }
 }
