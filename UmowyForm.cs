@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Globalization;
+
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -576,9 +578,10 @@ ORDER BY C.Shortcut;";
                 ["[SZTUKI]"] = sztuki.Text,
                 ["[DataOdbioru]"] = dtpData.Value.ToString("yyyy-MM-dd"),
                 ["[CzyjaWaga]"] = CzyjaWaga.Text,
+                ["[Dodatek]"] = dodatek.Text,
                 ["[Obciążenie]"] = KonfPadl.Text,
                 ["[Ubytek]"] = BuildUbytekText(Ubytek.Text),
-                ["[Cena]"] = BuildCenaText(typCeny.Text, Cena.Text),
+                ["[Cena]"] = BuildCenaText(typCeny.Text, Cena.Text, dodatek.Text),
                 ["[PaszaPisklak]"] = BuildPaszaText(PaszaPisklak.Text),
                 ["[Odeslanie]"] = Vatowiec.Checked
                     ? "Brak odesłania podpisanej faktury VAT spowoduje wstrzymanie płatności"
@@ -659,27 +662,47 @@ ORDER BY C.Shortcut;";
         private static string BuildPaszaText(string? pasza)
         {
             return string.Equals(pasza?.Trim(), "Tak", StringComparison.OrdinalIgnoreCase)
-                    ? " + 0.03 zł/kg dodatku"
+                    ? " + 0.03 zł/kg dodatku paszowego"
                     : string.Empty;
         }
 
-        private static string BuildCenaText(string? typCeny, string? cenaVal)
+        private static string BuildCenaText(string? typCeny, string? cenaVal, string? dodatekVal)
         {
             if (string.IsNullOrWhiteSpace(typCeny))
-                return "";
+                return string.Empty;
 
             string normalized = RemovePolishChars(typCeny.Trim()).ToUpperInvariant();
             string prefix = normalized.Length >= 3 ? normalized.Substring(0, 3) : normalized;
 
+            // przygotuj sufiks dodatku, tylko jeśli coś wpisano i > 0
+            string dodatekSuffix = string.Empty;
+            if (TryParseDecimalFlexible(dodatekVal, out var dodatek) && dodatek > 0)
+                dodatekSuffix = " + " + FormatZl(dodatek) + " dodatku uznaniowego";
+
             switch (prefix)
             {
-                case "WOL": return $"to {cenaVal} zł/kg";
-                case "ROL": return "jest ustalana na podstawie ceny rolniczej, ogłaszanej na stronie cenyrolnicze.pl";
-                case "MIN": return "jest ustalana na podstawie ceny ministerialnej, ogłaszanej ze strony ministerstwa";
-                case "LAC": return "jest ustalana na podstawie ceny łączonej, czyli połowa ilorazu ceny rolniczej i ceny ministerialnej";
-                default: return "";
+                case "WOL":
+                    // WOLNA cena: masz już kwotę w polu "Cena"
+                    // Jeżeli chcesz także tu doliczać dodatek – dopisz "+ dodatekSuffix"
+                    return $"to {cenaVal} zł/kg";
+
+                case "ROL":
+                    return "jest ustalana na podstawie ceny rolniczej, ogłaszanej na stronie cenyrolnicze.pl"
+                           + dodatekSuffix;
+
+                case "MIN":
+                    return "jest ustalana na podstawie ceny ministerialnej, ogłaszanej ze strony ministerstwa"
+                           + dodatekSuffix;
+
+                case "LAC":
+                    return "jest ustalana na podstawie ceny łączonej, czyli połowa ilorazu ceny rolniczej i ceny ministerialnej"
+                           + dodatekSuffix;
+
+                default:
+                    return string.Empty;
             }
         }
+
 
         private static string RemovePolishChars(string text)
         {
@@ -694,6 +717,21 @@ ORDER BY C.Shortcut;";
                 .Replace("ż", "z").Replace("Ż", "Z")
                 .Replace("ź", "z").Replace("Ź", "Z");
         }
+        private static bool TryParseDecimalFlexible(string? input, out decimal value)
+        {
+            // akceptuj przecinek lub kropkę
+            var styles = NumberStyles.Number;
+            return decimal.TryParse(input, styles, new CultureInfo("pl-PL"), out value)
+                || decimal.TryParse(input, styles, CultureInfo.InvariantCulture, out value);
+        }
+
+        private static string FormatZl(decimal kwota)
+        {
+            // bez wymuszonego formatu walutowego, tylko liczba + " zł"
+            // 2 miejsca, separator wg PL
+            return kwota.ToString("#,0.##", new CultureInfo("pl-PL")) + " zł";
+        }
+
 
         #endregion
 
@@ -1031,6 +1069,11 @@ WHERE ID = @ID;";
             {
                 MessageBox.Show("Błąd aktualizacji: " + ex.Message);
             }
+        }
+
+        private void CommandButton_Update_Click_1(object sender, EventArgs e)
+        {
+
         }
     }
 }

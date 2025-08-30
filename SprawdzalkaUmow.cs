@@ -47,9 +47,14 @@ namespace Kalendarz1
             dgv.EditMode = DataGridViewEditMode.EditOnEnter;
         }
 
-        private void LoadDataGridKalendarz()
+        private void LoadDataGridKalendarz(bool preserveState = true)
         {
-            string query = @"
+            // (1) Opcjonalnie zapamiętaj stan przewinięcia/selekt
+            (int firstRow, int? currentId, string? currentColName) state = default;
+            if (preserveState)
+                state = CaptureGridState();
+
+            const string query = @"
 SELECT 
     [LP] AS ID,
     [DataOdbioru],
@@ -76,67 +81,83 @@ ORDER BY DataOdbioru DESC;";
                 var table = new DataTable();
                 adapter.Fill(table);
 
+                // (2) Przygotowanie DataGridView
+                dataGridViewKalendarz.SuspendLayout();
                 dataGridViewKalendarz.AutoGenerateColumns = false;
-                dataGridViewKalendarz.Columns.Clear();
 
-                // ID (ukryte)
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
+                // Kolumny tworzymy TYLKO raz – jeśli jeszcze nie istnieją
+                if (dataGridViewKalendarz.Columns.Count == 0)
                 {
-                    DataPropertyName = "ID",
-                    Name = "ID",
-                    Visible = false
-                });
+                    // ID (ukryte)
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                        DataPropertyName = "ID",
+                        Name = "ID",
+                        Visible = false
+                    });
 
-                // podstawowe
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                    DataPropertyName = "DataOdbioru",
-                    Name = "DataOdbioru",
-                    HeaderText = "Data"
-                });
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                    DataPropertyName = "Dostawca",
-                    Name = "Dostawca",
-                    HeaderText = "Dostawca"
-                });
+                    // podstawowe
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                        DataPropertyName = "DataOdbioru",
+                        Name = "DataOdbioru",
+                        HeaderText = "Data",
+                        DefaultCellStyle = { Format = "yyyy-MM-dd" }
+                    });
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                        DataPropertyName = "Dostawca",
+                        Name = "Dostawca",
+                        HeaderText = "Dostawca"
+                    });
 
-                // checkboxy
-                dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Utworzone", "Utworzone"));
-                dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Wysłane", "Wysłane"));
-                dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Otrzymane", "Otrzymane"));
-                dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Posrednik", "Pośrednik"));
+                    // checkboxy
+                    dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Utworzone", "Utworzone"));
+                    dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Wysłane", "Wysłane"));
+                    dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Otrzymane", "Otrzymane"));
+                    dataGridViewKalendarz.Columns.Add(MakeCheckColumn("Posrednik", "Pośrednik"));
 
-                // reszta
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Auta", Name = "Auta", HeaderText = "Aut" });
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztukiDek", Name = "SztukiDek", HeaderText = "Sztuki" });
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "WagaDek", Name = "WagaDek", HeaderText = "Waga" });
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztSzuflada", Name = "SztSzuflada", HeaderText = "sztPoj" });
+                    // reszta
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "Auta", Name = "Auta", HeaderText = "Aut" });
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztukiDek", Name = "SztukiDek", HeaderText = "Sztuki" });
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "WagaDek", Name = "WagaDek", HeaderText = "Waga" });
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SztSzuflada", Name = "SztSzuflada", HeaderText = "sztPoj" });
 
-                // kto/kiedy
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "KtoUtw" });
-                var cKiedyUtw = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyUtw", Name = "KiedyUtw", HeaderText = "KiedyUtw" };
-                cKiedyUtw.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                dataGridViewKalendarz.Columns.Add(cKiedyUtw);
+                    // kto/kiedy
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoUtw", Name = "KtoUtw", HeaderText = "KtoUtw" });
+                    var cKiedyUtw = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyUtw", Name = "KiedyUtw", HeaderText = "KiedyUtw" };
+                    cKiedyUtw.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                    dataGridViewKalendarz.Columns.Add(cKiedyUtw);
 
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "KtoWysl" });
-                var cKiedyWysl = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyWysl", Name = "KiedyWysl", HeaderText = "KiedyWysl" };
-                cKiedyWysl.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                dataGridViewKalendarz.Columns.Add(cKiedyWysl);
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoWysl", Name = "KtoWysl", HeaderText = "KtoWysl" });
+                    var cKiedyWysl = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyWysl", Name = "KiedyWysl", HeaderText = "KiedyWysl" };
+                    cKiedyWysl.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                    dataGridViewKalendarz.Columns.Add(cKiedyWysl);
 
-                dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "KtoOtrzym" });
-                var cKiedyOtrzm = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyOtrzm", Name = "KiedyOtrzm", HeaderText = "KiedyOtrzm" };
-                cKiedyOtrzm.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                dataGridViewKalendarz.Columns.Add(cKiedyOtrzm);
+                    dataGridViewKalendarz.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "KtoOtrzym", Name = "KtoOtrzym", HeaderText = "KtoOtrzym" });
+                    var cKiedyOtrzm = new DataGridViewTextBoxColumn { DataPropertyName = "KiedyOtrzm", Name = "KiedyOtrzm", HeaderText = "KiedyOtrzm" };
+                    cKiedyOtrzm.DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                    dataGridViewKalendarz.Columns.Add(cKiedyOtrzm);
 
-                // filtr
+                    // Drobne dopasowania
+                    if (dataGridViewKalendarz.Columns.Contains("DataOdbioru"))
+                        dataGridViewKalendarz.Columns["DataOdbioru"].Width = 120;
+                    if (dataGridViewKalendarz.Columns.Contains("Dostawca"))
+                        dataGridViewKalendarz.Columns["Dostawca"].Width = 110;
+                }
+
+                // (3) Podstaw dane (DataView) – a filtr ustawimy zaraz niżej
                 var dv = table.DefaultView;
-                dv.RowFilter = nieUzupelnione.Checked
-                    ? "[Utworzone] = false OR [Wysłane] = false OR [Otrzymane] = false"
-                    : string.Empty;
-
                 dataGridViewKalendarz.DataSource = dv;
+
+                // (4) Reaplikuj łączony filtr (fraza + nieuzupełnione)
+                ApplyCombinedFilter();
+                dataGridViewKalendarz.ResumeLayout();
             }
+
+            // (5) Opcjonalnie przywróć stan przewinięcia/selekt
+            if (preserveState)
+                RestoreGridState(state);
         }
 
         private void ApplyKalendarzFilter()
@@ -285,7 +306,7 @@ ORDER BY p.[CustomerID], p.[CreateData] DESC;";
 
             int id = Convert.ToInt32(row.Cells["ID"].Value);
 
-            // wartość po kliknięciu
+            // wartość po kliknięciu (po commit'cie EditedFormattedValue jest docelową)
             bool newValue = Convert.ToBoolean(((DataGridViewCheckBoxCell)row.Cells[col.Name]).EditedFormattedValue);
 
             string msg = newValue
@@ -300,22 +321,139 @@ ORDER BY p.[CustomerID], p.[CreateData] DESC;";
                 return;
             }
 
+            // mapowanie pól kto/kiedy
+            string ktoCol = null, kiedyCol = null;
+            switch (col.Name)
+            {
+                case "Utworzone": ktoCol = "KtoUtw"; kiedyCol = "KiedyUtw"; break;
+                case "Wysłane": ktoCol = "KtoWysl"; kiedyCol = "KiedyWysl"; break;
+                case "Otrzymane": ktoCol = "KtoOtrzym"; kiedyCol = "KiedyOtrzm"; break;
+                case "Posrednik": /* brak pary kto/kiedy */                    break;
+            }
+
             try
             {
-                // zapis do DB + odświeżenie siatki (metoda sama robi reload)
-                UpdateKalendarzFlag(id, col.Name, newValue);
+                // 1) Zapis do bazy (bez reloadu)
+                UpdateKalendarzFlag_NoReload(id, col.Name, newValue);
 
-                // UWAGA: po reloadzie nie dotykamy już 'row'!
+                // 2) Aktualizacja modelu danych podpiętego do siatki (DataRowView),
+                //    aby RowFilter i UI od razu odzwierciedliły zmianę
+                if (row.DataBoundItem is DataRowView drv)
+                {
+                    drv.BeginEdit();
+                    drv.Row[col.Name] = newValue;
+
+                    if (ktoCol != null)
+                    {
+                        int uid;
+                        object ktoVal = (newValue && int.TryParse(UserID, out uid)) ? (object)uid : DBNull.Value;
+                        object kiedyVal = newValue ? (object)DateTime.Now : DBNull.Value;
+
+                        drv.Row[ktoCol] = ktoVal;
+                        drv.Row[kiedyCol] = kiedyVal;
+                    }
+                    drv.EndEdit();
+                }
+                else
+                {
+                    // fallback – ustaw przynajmniej wartości w komórkach UI
+                    row.Cells[col.Name].Value = newValue;
+                    if (ktoCol != null && int.TryParse(UserID, out var uid2))
+                    {
+                        row.Cells[ktoCol].Value = newValue ? (object)uid2 : DBNull.Value;
+                        row.Cells[kiedyCol].Value = newValue ? (object)DateTime.Now : DBNull.Value;
+                    }
+                }
+
+                // 3) Przemaluj wiersz (kolorowanie w RowPrePaint)
+                grid.InvalidateRow(e.RowIndex);
+
+                // 4) JEŚLI filtr "nieuzupełnione" jest włączony i po zmianie wiersz przestaje spełniać warunek,
+                //    DataView może go odfiltrować. Nie robi to przewinięcia na górę, ale dla pewności:
+                //    zachowaj fokus na siatce, jeśli bieżąca komórka wyleci z widoku.
+                if (grid.CurrentCell == null && grid.RowCount > 0)
+                {
+                    int r = Math.Min(e.RowIndex, grid.RowCount - 1);
+                    int c = Math.Min(e.ColumnIndex, grid.ColumnCount - 1);
+                    try { grid.CurrentCell = grid.Rows[r].Cells[c]; } catch { /* ignoruj */ }
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Błąd aktualizacji: " + ex.Message, "Błąd",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                // przy błędzie najlepiej też przeładować, by stan w UI był spójny
-                LoadDataGridKalendarz();
+                // cofka w UI przy błędzie
+                row.Cells[col.Name].Value = !newValue;
             }
         }
+
+        private string BuildRowFilter()
+        {
+            string filterText = textBoxSearch.Text.Trim().Replace("'", "''");
+            string baseFilter = string.IsNullOrEmpty(filterText)
+                ? string.Empty
+                : $"Dostawca LIKE '%{filterText}%' OR CONVERT(DataOdbioru, 'System.String') LIKE '%{filterText}%'";
+
+            string nieUz = "[Utworzone] = false OR [Wysłane] = false OR [Otrzymane] = false";
+
+            if (string.IsNullOrEmpty(baseFilter))
+                return nieUzupelnione.Checked ? nieUz : string.Empty;
+
+            return nieUzupelnione.Checked ? $"({baseFilter}) AND ({nieUz})" : baseFilter;
+        }
+
+        private void ApplyCombinedFilter()
+        {
+            if (dataGridViewKalendarz.DataSource is DataView dv)
+                dv.RowFilter = BuildRowFilter();
+        }
+
+        private void UpdateKalendarzFlag_NoReload(int id, string columnName, bool value)
+{
+    string[] allowed = { "Utworzone", "Wysłane", "Otrzymane", "Posrednik" };
+    if (Array.IndexOf(allowed, columnName) < 0)
+        throw new InvalidOperationException("Nieobsługiwana kolumna: " + columnName);
+
+    string? ktoCol = null, kiedyCol = null;
+    switch (columnName)
+    {
+        case "Utworzone": ktoCol = "KtoUtw"; kiedyCol = "KiedyUtw"; break;
+        case "Wysłane":   ktoCol = "KtoWysl"; kiedyCol = "KiedyWysl"; break;
+        case "Otrzymane": ktoCol = "KtoOtrzym"; kiedyCol = "KiedyOtrzm"; break;
+    }
+
+    int userIdInt = 0;
+    if (value && ktoCol != null && !int.TryParse(UserID, out userIdInt))
+        throw new InvalidOperationException("UserID musi być liczbą.");
+
+    string sql =
+        ktoCol == null
+        ? $@"
+UPDATE dbo.HarmonogramDostaw
+SET [{columnName}] = @val
+WHERE [LP] = @id;"
+        : $@"
+UPDATE dbo.HarmonogramDostaw
+SET [{columnName}] = @val,
+    [{ktoCol}]   = CASE WHEN @val = 1 THEN @kto ELSE NULL END,
+    [{kiedyCol}] = CASE WHEN @val = 1 THEN GETDATE() ELSE NULL END
+WHERE [LP] = @id;";
+
+    using (var conn = new SqlConnection(connectionString))
+    using (var cmd = new SqlCommand(sql, conn))
+    {
+        cmd.Parameters.AddWithValue("@val", value);
+        cmd.Parameters.AddWithValue("@id", id);
+        if (ktoCol != null) cmd.Parameters.AddWithValue("@kto", (object)userIdInt);
+
+        conn.Open();
+        int affected = cmd.ExecuteNonQuery();
+        if (affected != 1)
+            throw new Exception($"Zaktualizowano {affected} wierszy (oczekiwano 1).");
+    }
+}
+
 
         private void UpdateKalendarzFlag(int id, string columnName, bool value)
         {
@@ -402,6 +540,72 @@ WHERE [LP] = @id;";
         private void nieUzupelnione_CheckedChanged(object sender, EventArgs e)
         {
             ApplyKalendarzFilter();
+            ApplyCombinedFilter();
+        }
+        private (int firstRow, int? currentId, string? currentColName) CaptureGridState()
+        {
+            int first = -1;
+            int? id = null;
+            string? colName = null;
+
+            if (dataGridViewKalendarz.RowCount > 0)
+                first = dataGridViewKalendarz.FirstDisplayedScrollingRowIndex;
+
+            if (dataGridViewKalendarz.CurrentRow != null && dataGridViewKalendarz.Columns.Contains("ID"))
+                id = dataGridViewKalendarz.CurrentRow.Cells["ID"].Value as int?
+                     ?? (int?)Convert.ToInt32(dataGridViewKalendarz.CurrentRow.Cells["ID"].Value);
+
+            if (dataGridViewKalendarz.CurrentCell != null)
+                colName = dataGridViewKalendarz.Columns[dataGridViewKalendarz.CurrentCell.ColumnIndex].Name;
+
+            return (first, id, colName);
+        }
+
+        private void RestoreGridState((int firstRow, int? currentId, string? currentColName) state)
+        {
+            // 1) Przywróć przewinięcie
+            if (state.firstRow >= 0 && state.firstRow < dataGridViewKalendarz.RowCount)
+            {
+                try { dataGridViewKalendarz.FirstDisplayedScrollingRowIndex = state.firstRow; }
+                catch { /* ignoruj, jeśli siatka ma mniej wierszy */ }
+            }
+
+            // 2) Spróbuj wrócić do tego samego wiersza po ID
+            if (state.currentId.HasValue && dataGridViewKalendarz.Columns.Contains("ID"))
+            {
+                int targetIndex = -1;
+                foreach (DataGridViewRow r in dataGridViewKalendarz.Rows)
+                {
+                    if (r.Cells["ID"].Value != null &&
+                        Convert.ToInt32(r.Cells["ID"].Value) == state.currentId.Value)
+                    {
+                        targetIndex = r.Index;
+                        break;
+                    }
+                }
+
+                if (targetIndex >= 0)
+                {
+                    int colIndex = 0;
+                    if (!string.IsNullOrEmpty(state.currentColName) && dataGridViewKalendarz.Columns.Contains(state.currentColName))
+                        colIndex = dataGridViewKalendarz.Columns[state.currentColName].Index;
+
+                    try
+                    {
+                        dataGridViewKalendarz.CurrentCell = dataGridViewKalendarz.Rows[targetIndex].Cells[colIndex];
+                        dataGridViewKalendarz.FirstDisplayedScrollingRowIndex =
+                            Math.Max(0, Math.Min(dataGridViewKalendarz.FirstDisplayedScrollingRowIndex, targetIndex));
+                    }
+                    catch { /* bez paniki jeśli poza zakresem */ }
+                }
+            }
+        }
+
+
+        private void textBoxSearch_TextChanged(object sender, EventArgs e)
+        {
+            ApplyCombinedFilter();
+        
         }
     }
 }

@@ -129,6 +129,8 @@ namespace Kalendarz1
             pictureBox7 = new PictureBox();
             pictureBox10 = new PictureBox();
             pictureBox11 = new PictureBox();
+            dodatek = new TextBox();
+            label32 = new Label();
             ((System.ComponentModel.ISupportInitialize)dataGridViewKontrahenci).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewHodowcy).BeginInit();
             groupBox1.SuspendLayout();
@@ -148,6 +150,7 @@ namespace Kalendarz1
             CommandButton_Update.TabIndex = 6;
             CommandButton_Update.Text = "Utwórz umowę (Word/PDF)";
             CommandButton_Update.UseVisualStyleBackColor = true;
+            CommandButton_Update.Click += CommandButton_Update_Click_1;
             // 
             // Vatowiec
             // 
@@ -268,7 +271,7 @@ namespace Kalendarz1
             // 
             // Cena
             // 
-            Cena.Location = new System.Drawing.Point(140, 289);
+            Cena.Location = new System.Drawing.Point(72, 289);
             Cena.Name = "Cena";
             Cena.Size = new System.Drawing.Size(100, 23);
             Cena.TabIndex = 22;
@@ -558,9 +561,9 @@ namespace Kalendarz1
             // label7
             // 
             label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(13, 289);
+            label7.Location = new System.Drawing.Point(7, 289);
             label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(121, 23);
+            label7.Size = new System.Drawing.Size(59, 23);
             label7.TabIndex = 116;
             label7.Text = "Cena";
             label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1195,6 +1198,8 @@ namespace Kalendarz1
             // 
             // groupBox2
             // 
+            groupBox2.Controls.Add(label32);
+            groupBox2.Controls.Add(dodatek);
             groupBox2.Controls.Add(pictureBox4);
             groupBox2.Controls.Add(pictureBox7);
             groupBox2.Controls.Add(pictureBox10);
@@ -1234,7 +1239,7 @@ namespace Kalendarz1
             // pictureBox4
             // 
             pictureBox4.Image = (System.Drawing.Image)resources.GetObject("pictureBox4.Image");
-            pictureBox4.Location = new System.Drawing.Point(246, 279);
+            pictureBox4.Location = new System.Drawing.Point(267, 279);
             pictureBox4.Name = "pictureBox4";
             pictureBox4.Size = new System.Drawing.Size(76, 33);
             pictureBox4.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1270,6 +1275,23 @@ namespace Kalendarz1
             pictureBox11.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox11.TabIndex = 128;
             pictureBox11.TabStop = false;
+            // 
+            // dodatek
+            // 
+            dodatek.Location = new System.Drawing.Point(178, 289);
+            dodatek.Name = "dodatek";
+            dodatek.Size = new System.Drawing.Size(64, 23);
+            dodatek.TabIndex = 132;
+            // 
+            // label32
+            // 
+            label32.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label32.Location = new System.Drawing.Point(178, 263);
+            label32.Name = "label32";
+            label32.Size = new System.Drawing.Size(59, 23);
+            label32.TabIndex = 133;
+            label32.Text = "Dodatek";
+            label32.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // UmowyForm
             // 
@@ -1413,5 +1435,7 @@ namespace Kalendarz1
         private PictureBox pictureBox10;
         private PictureBox pictureBox7;
         private PictureBox pictureBox4;
+        private Label label32;
+        private TextBox dodatek;
     }
 }

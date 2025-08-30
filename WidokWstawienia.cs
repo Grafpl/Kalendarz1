@@ -90,9 +90,16 @@ namespace Kalendarz1
         {
             using (var cnn = new SqlConnection(connectionString))
             using (var da = new SqlDataAdapter(
-                "SELECT LP, CAST(DataWstawienia AS date) AS Data, Dostawca, IloscWstawienia AS Ilosc " +
-                "FROM dbo.v_WstawieniaDoKontaktu " +
-                "ORDER BY Data Desc, Dostawca", cnn))
+                @"SELECT 
+              v.LP,
+              CAST(v.DataWstawienia AS date) AS Data,
+              v.Dostawca,
+              v.IloscWstawienia AS Ilosc,
+              d.Phone1 AS Telefon
+          FROM dbo.v_WstawieniaDoKontaktu AS v
+          LEFT JOIN [LibraNet].[dbo].[Dostawcy] AS d
+                 ON d.ShortName = v.Dostawca
+          ORDER BY Data DESC, Dostawca", cnn))
             {
                 var dt = new DataTable();
                 da.Fill(dt);
@@ -102,8 +109,10 @@ namespace Kalendarz1
                 if (dataGridView3.Columns.Contains("Data")) dataGridView3.Columns["Data"].Width = 90;
                 if (dataGridView3.Columns.Contains("Dostawca")) dataGridView3.Columns["Dostawca"].Width = 160;
                 if (dataGridView3.Columns.Contains("Ilosc")) dataGridView3.Columns["Ilosc"].Width = 70;
+                if (dataGridView3.Columns.Contains("Telefon")) dataGridView3.Columns["Telefon"].Width = 110; // np.
             }
         }
+
 
         // ====== HISTORIA (Twoja istniejąca siatka: datagridWpisy) ======
         private void LoadHistoryAll()

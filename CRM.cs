@@ -268,7 +268,7 @@ namespace Kalendarz1
 {
     { "9991", new List<string> { "Kujawsko-Pomorskie" } },
     { "9998", new List<string> { "Wielkopolskie" } },
-    { "98122", new List<string> { "Opolskie" } },
+    { "98122", new List<string> { "Opolskie", "" } },
     { "23231", new List<string> { "Mazowieckie" } },
     { "23233", new List<string> { "Mazowieckie" } },
     { "871231", new List<string> { "Śląskie" } },

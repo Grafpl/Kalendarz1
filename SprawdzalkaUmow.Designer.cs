@@ -32,6 +32,8 @@
             dataGridViewPartie = new System.Windows.Forms.DataGridView();
             CommandButton_Insert = new System.Windows.Forms.Button();
             nieUzupelnione = new System.Windows.Forms.CheckBox();
+            label18 = new System.Windows.Forms.Label();
+            textBoxSearch = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).BeginInit();
             SuspendLayout();
@@ -49,7 +51,7 @@
             // dataGridViewPartie
             // 
             dataGridViewPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPartie.Location = new System.Drawing.Point(868, 12);
+            dataGridViewPartie.Location = new System.Drawing.Point(1161, 45);
             dataGridViewPartie.Name = "dataGridViewPartie";
             dataGridViewPartie.RowHeadersVisible = false;
             dataGridViewPartie.RowTemplate.Height = 25;
@@ -70,7 +72,7 @@
             // nieUzupelnione
             // 
             nieUzupelnione.AutoSize = true;
-            nieUzupelnione.Location = new System.Drawing.Point(134, 52);
+            nieUzupelnione.Location = new System.Drawing.Point(503, 56);
             nieUzupelnione.Name = "nieUzupelnione";
             nieUzupelnione.Size = new System.Drawing.Size(112, 19);
             nieUzupelnione.TabIndex = 155;
@@ -78,11 +80,30 @@
             nieUzupelnione.UseVisualStyleBackColor = true;
             nieUzupelnione.CheckedChanged += nieUzupelnione_CheckedChanged;
             // 
+            // label18
+            // 
+            label18.Location = new System.Drawing.Point(134, 17);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(100, 25);
+            label18.TabIndex = 157;
+            label18.Text = "Szukaj";
+            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // textBoxSearch
+            // 
+            textBoxSearch.Location = new System.Drawing.Point(134, 45);
+            textBoxSearch.Name = "textBoxSearch";
+            textBoxSearch.Size = new System.Drawing.Size(100, 23);
+            textBoxSearch.TabIndex = 156;
+            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
+            // 
             // SprawdzalkaUmow
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(1594, 850);
+            Controls.Add(label18);
+            Controls.Add(textBoxSearch);
             Controls.Add(nieUzupelnione);
             Controls.Add(CommandButton_Insert);
             Controls.Add(dataGridViewPartie);
@@ -103,5 +124,7 @@
         private System.Windows.Forms.DataGridView dataGridViewPartie;
         private System.Windows.Forms.Button CommandButton_Insert;
         private System.Windows.Forms.CheckBox nieUzupelnione;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.TextBox textBoxSearch;
     }
 }
