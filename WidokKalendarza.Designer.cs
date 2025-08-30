@@ -103,6 +103,7 @@ namespace Kalendarz1
             KGwSkrzynce = new TextBox();
             Uwagi = new TextBox();
             tablicaHodowca = new GroupBox();
+            buttonModHodowca = new Button();
             updateInfoBotton = new Button();
             button8 = new Button();
             button7 = new Button();
@@ -245,10 +246,9 @@ namespace Kalendarz1
             dataGridViewOstatnieNotatki = new DataGridView();
             contextMenuStrip1 = new ContextMenuStrip(components);
             Dubluj = new ToolStripMenuItem();
-            Anuluj = new ToolStripMenuItem();
+            Dodaj = new ToolStripMenuItem();
             Usuń = new ToolStripMenuItem();
             pictureBox3 = new PictureBox();
-            buttonModHodowca = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
@@ -1097,6 +1097,16 @@ namespace Kalendarz1
             tablicaHodowca.TabIndex = 71;
             tablicaHodowca.TabStop = false;
             tablicaHodowca.Text = "Dane Hodowcy";
+            // 
+            // buttonModHodowca
+            // 
+            buttonModHodowca.Location = new System.Drawing.Point(513, 13);
+            buttonModHodowca.Name = "buttonModHodowca";
+            buttonModHodowca.Size = new System.Drawing.Size(145, 26);
+            buttonModHodowca.TabIndex = 147;
+            buttonModHodowca.Text = "Modyfikuj";
+            buttonModHodowca.UseVisualStyleBackColor = true;
+            buttonModHodowca.Click += buttonModHodowca_Click;
             // 
             // updateInfoBotton
             // 
@@ -2601,29 +2611,30 @@ namespace Kalendarz1
             // 
             // contextMenuStrip1
             // 
-            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { Dubluj, Anuluj, Usuń });
+            contextMenuStrip1.Items.AddRange(new ToolStripItem[] { Dubluj, Dodaj, Usuń });
             contextMenuStrip1.Name = "contextMenuStrip1";
-            contextMenuStrip1.Size = new System.Drawing.Size(181, 70);
+            contextMenuStrip1.Size = new System.Drawing.Size(181, 92);
+            contextMenuStrip1.Opening += contextMenuStrip1_Opening;
             // 
             // Dubluj
             // 
             Dubluj.Name = "Dubluj";
             Dubluj.Size = new System.Drawing.Size(180, 22);
-            Dubluj.Text = "toolStripMenuItem1";
+            Dubluj.Text = "Zduplikuj";
             Dubluj.Click += Dubluj_Click;
             // 
-            // Anuluj
+            // Dodaj
             // 
-            Anuluj.Name = "Anuluj";
-            Anuluj.Size = new System.Drawing.Size(180, 22);
-            Anuluj.Text = "toolStripMenuItem2";
-            Anuluj.Click += Anuluj_Click;
+            Dodaj.Name = "Dodaj";
+            Dodaj.Size = new System.Drawing.Size(180, 22);
+            Dodaj.Text = "Dodaj";
+            Dodaj.Click += Anuluj_Click;
             // 
             // Usuń
             // 
             Usuń.Name = "Usuń";
             Usuń.Size = new System.Drawing.Size(180, 22);
-            Usuń.Text = "toolStripMenuItem3";
+            Usuń.Text = "Usuń";
             Usuń.Click += Usuń_Click;
             // 
             // pictureBox3
@@ -2636,16 +2647,6 @@ namespace Kalendarz1
             pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox3.TabIndex = 135;
             pictureBox3.TabStop = false;
-            // 
-            // buttonModHodowca
-            // 
-            buttonModHodowca.Location = new System.Drawing.Point(513, 13);
-            buttonModHodowca.Name = "buttonModHodowca";
-            buttonModHodowca.Size = new System.Drawing.Size(145, 26);
-            buttonModHodowca.TabIndex = 147;
-            buttonModHodowca.Text = "Modyfikuj";
-            buttonModHodowca.UseVisualStyleBackColor = true;
-            buttonModHodowca.Click += buttonModHodowca_Click;
             // 
             // WidokKalendarza
             // 
@@ -2972,7 +2973,7 @@ namespace Kalendarz1
         private DataGridView dataGridViewOstatnieNotatki;
         private ContextMenuStrip contextMenuStrip1;
         private ToolStripMenuItem Dubluj;
-        private ToolStripMenuItem Anuluj;
+        private ToolStripMenuItem Dodaj;
         private ToolStripMenuItem Usuń;
         private Button buttonModWstawienie;
         private PictureBox pictureBox3;

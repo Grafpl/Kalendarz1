@@ -2663,18 +2663,54 @@ namespace Kalendarz1
 
         private void Anuluj_Click(object sender, EventArgs e)
         {
-            if (selectedRowIndex >= 0)
-            {
-                // np. zaznacz status w kolumnie jako "anulowany"
-                dataGridView1.Rows[selectedRowIndex].Cells["Status"].Value = "Anulowany";
-            }
+            int intValue = string.IsNullOrEmpty(lpDostawa) ? 0 : int.Parse(lpDostawa);
+            DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<DateTime>(intValue, "[LibraNet].[dbo].[HarmonogramDostaw]", "DataOdbioru");
+
+            Dostawa dostawa = new Dostawa("", dzienUbojowy);
+            dostawa.UserID = App.UserID;
+
+            // Subscribe to the FormClosed event
+            dostawa.FormClosed += (s, args) => MyCalendar_DateChanged_1(sender, null);
+
+            // Wyświetlanie formy Dostawa
+            dostawa.Show();
         }
 
         private void Usuń_Click(object sender, EventArgs e)
         {
-            if (selectedRowIndex >= 0)
+            // Poproś użytkownika o potwierdzenie usunięcia
+            var response = MessageBox.Show("Czy na pewno chcesz usunąć ten wiersz? Nie lepiej anulować?", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+            if (response != DialogResult.Yes)
+                return;
+
+            // Utwórz połączenie z bazą danych
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
             {
-                dataGridView1.Rows.RemoveAt(selectedRowIndex);
+                try
+                {
+                    cnn.Open();
+
+                    // Utwórz zapytanie SQL do usunięcia wiersza
+                    string strSQL = "DELETE FROM dbo.HarmonogramDostaw WHERE Lp = @selectedLP;";
+
+                    // Wykonaj zapytanie SQL
+                    using (SqlCommand cmd = new SqlCommand(strSQL, cnn))
+                    {
+                        cmd.Parameters.AddWithValue("@selectedLP", lpDostawa);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Komunikat potwierdzający
+                    MessageBox.Show("Wiersz został usunięty z bazy danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                MyCalendar_DateChanged_1(sender, null);
+                DodajAktywnosc(4);
             }
         }
 
@@ -2789,6 +2825,10 @@ namespace Kalendarz1
                 f.ShowDialog(this);
         }
 
+        private void contextMenuStrip1_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+
+        }
     }
 }
 

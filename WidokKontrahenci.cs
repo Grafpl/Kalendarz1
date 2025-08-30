@@ -39,6 +39,7 @@ namespace Kalendarz1
         public WidokKontrahenci()
         {
             InitializeComponent();
+            BuildDetailsPanel();
 
             // wygląd
             this.Font = new Font("Segoe UI", 9.5f);
@@ -87,6 +88,55 @@ namespace Kalendarz1
 
             // „Modyfikuj” → otwórz HodowcaForm (akceptacja wniosku)
             btnEdit.Click += (_, __) => OpenAkceptacjaWniosku();
+        }
+
+        private void BuildDetailsPanel()
+        {
+            var panelDet = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 12,
+                Padding = new Padding(10),
+                AutoScroll = true
+            };
+
+            panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
+            int r = 0;
+
+            // funkcje pomocnicze
+            Label L(string t) => new Label { Text = t, AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 6, 0, 0) };
+            TextBox T(TextBox txt) { txt.ReadOnly = true; txt.Anchor = AnchorStyles.Left | AnchorStyles.Right; return txt; }
+
+            // Lewa kolumna
+            panelDet.Controls.Add(L("ID"), 0, r); panelDet.Controls.Add(T(txtDetId), 1, r);
+            panelDet.Controls.Add(L("Nazwa"), 0, ++r); panelDet.Controls.Add(T(txtDetName), 1, r);
+            panelDet.Controls.Add(L("Skrót"), 0, ++r); panelDet.Controls.Add(T(txtDetShort), 1, r);
+            panelDet.Controls.Add(L("Miasto"), 0, ++r); panelDet.Controls.Add(T(txtDetCity), 1, r);
+            panelDet.Controls.Add(L("Adres"), 0, ++r); panelDet.Controls.Add(T(txtDetAddress), 1, r);
+            panelDet.Controls.Add(L("Kod"), 0, ++r); panelDet.Controls.Add(T(txtDetPostal), 1, r);
+            panelDet.Controls.Add(L("Telefon"), 0, ++r); panelDet.Controls.Add(T(txtDetPhone), 1, r);
+            panelDet.Controls.Add(L("Email"), 0, ++r); panelDet.Controls.Add(T(txtDetEmail), 1, r);
+            panelDet.Controls.Add(L("Halt"), 0, ++r); chkDetHalt.Anchor = AnchorStyles.Left; chkDetHalt.Enabled = false; panelDet.Controls.Add(chkDetHalt, 1, r);
+
+            // Prawa kolumna
+            r = 0;
+            panelDet.Controls.Add(L("NIP"), 2, r); panelDet.Controls.Add(T(txtDetNip), 3, r);
+            panelDet.Controls.Add(L("REGON"), 2, ++r); panelDet.Controls.Add(T(txtDetRegon), 3, r);
+            panelDet.Controls.Add(L("PESEL"), 2, ++r); panelDet.Controls.Add(T(txtDetPesel), 3, r);
+            panelDet.Controls.Add(L("Typ Ceny"), 2, ++r); panelDet.Controls.Add(T(txtDetTypCeny), 3, r);
+            panelDet.Controls.Add(L("KM"), 2, ++r); panelDet.Controls.Add(T(txtDetKm), 3, r);
+            panelDet.Controls.Add(L("Dodatek"), 2, ++r); panelDet.Controls.Add(T(txtDetDodatek), 3, r);
+            panelDet.Controls.Add(L("Ubytek"), 2, ++r); panelDet.Controls.Add(T(txtDetUbytek), 3, r);
+            panelDet.Controls.Add(L("Ost. dostawa"), 2, ++r); panelDet.Controls.Add(T(txtDetOstatnie), 3, r);
+
+            // Dodaj do zakładki
+            tabDetails.Controls.Clear();
+            tabDetails.Controls.Add(panelDet);
         }
 
         // =========================
@@ -149,7 +199,33 @@ SELECT
     D.[Phone2],
     D.[Phone3],
     D.[Nip],
-    D.[Pesel]
+    D.[Pesel],
+
+    -- ===== Bloki budowane po stronie SQL =====
+    -- Adres: ""Kod Miasto"" + nowa linia + ""Adres"" (tylko jeśli adres niepusty)
+    LTRIM(RTRIM(ISNULL(D.PostalCode,'') + ' ' + ISNULL(D.City,'')))
+        + CASE WHEN ISNULL(D.Address,'') <> '' THEN CHAR(13)+CHAR(10)+D.Address ELSE '' END AS AddrBlock,
+
+    -- Telefony w osobnych liniach (pomijamy puste)
+    LTRIM(RTRIM(
+        ISNULL(D.Phone1,'')
+        + CASE WHEN D.Phone2 IS NOT NULL AND D.Phone2<>'' THEN CHAR(13)+CHAR(10)+D.Phone2 ELSE '' END
+        + CASE WHEN D.Phone3 IS NOT NULL AND D.Phone3<>'' THEN CHAR(13)+CHAR(10)+D.Phone3 ELSE '' END
+    )) AS PhoneBlock,
+
+    -- Typ ceny + dodatek (4 miejsca po przecinku, '-' gdy NULL)
+    ISNULL(PT.Name,'') + CHAR(13)+CHAR(10) + 'Dodatek: '
+        + CASE WHEN D.Addition IS NULL THEN '-'
+               ELSE CONVERT(varchar(32), CAST(D.Addition AS decimal(18,4))) END AS TypeAddBlock,
+
+    -- NIP / PESEL z etykietami, każdy w nowej linii gdy oba istnieją
+    LTRIM(RTRIM(
+        CASE WHEN ISNULL(D.Nip,'') <> '' THEN 'NIP: ' + D.Nip ELSE '' END
+        + CASE WHEN ISNULL(D.Pesel,'') <> ''
+               THEN CASE WHEN ISNULL(D.Nip,'') <> '' THEN CHAR(13)+CHAR(10) ELSE '' END + 'PESEL: ' + D.Pesel
+               ELSE '' END
+    )) AS NipPeselBlock
+
 FROM 
     [LibraNet].[dbo].[Dostawcy] D
     LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID
@@ -182,10 +258,7 @@ SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;
             _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 &&
                         Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
 
-            // kolumny połączone (na siatkę)
-            EnsureDerivedColumns();
-            FillDerivedColumns();
-
+            // kolumny złączone przychodzą już z SQL (AddrBlock/PhoneBlock/TypeAddBlock/NipPeselBlock)
             lblPage.Text = $"Strona: {_pageIndex + 1}";
             lblCount.Text = $"Rekordy: {_suppliersTable.DefaultView.Count}";
             btnPrev.Enabled = _pageIndex > 0;
@@ -200,62 +273,26 @@ SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;
             _pageIndex = 0;
             await LoadSuppliersPageAsync();
         }
+
         private async Task PrevPageAsync()
         {
             if (_pageIndex <= 0) return;
             _pageIndex--;
             await LoadSuppliersPageAsync();
         }
+
         private async Task NextPageAsync()
         {
             if (!_hasMore) return;
             _pageIndex++;
             await LoadSuppliersPageAsync();
         }
+
         private async Task ReloadPagePreservingSearchAsync()
         {
             string currentSearch = txtSearch.Text;
             await LoadSuppliersPageAsync();
             txtSearch.Text = currentSearch;
-        }
-
-        // kolumny wyliczane (stringi z \n)
-        private void EnsureDerivedColumns()
-        {
-            void add(string name)
-            {
-                if (!_suppliersTable.Columns.Contains(name))
-                    _suppliersTable.Columns.Add(name, typeof(string));
-            }
-            add("AddrBlock");      // "Kod Miasto\nAdres"
-            add("PhoneBlock");     // "Tel1\nTel2\nTel3"
-            add("TypeAddBlock");   // "Typ ceny\nDodatek: X"
-            add("NipPeselBlock");  // "NIP\nPESEL"
-        }
-
-        private void FillDerivedColumns()
-        {
-            foreach (DataRow r in _suppliersTable.Rows)
-            {
-                string kod = SafeGet<string>(r, "PostalCode");
-                string msc = SafeGet<string>(r, "City");
-                string adr = SafeGet<string>(r, "Address");
-                r["AddrBlock"] = $"{(string.IsNullOrWhiteSpace(kod) ? "" : kod + " ")}{msc}".Trim() +
-                                 (string.IsNullOrWhiteSpace(adr) ? "" : "\n" + adr);
-
-                var phones = new[] { SafeGet<string>(r, "Phone1"), SafeGet<string>(r, "Phone2"), SafeGet<string>(r, "Phone3") }
-                             .Where(s => !string.IsNullOrWhiteSpace(s));
-                r["PhoneBlock"] = string.Join("\n", phones);
-
-                string typ = SafeGet<string>(r, "PriceTypeName");
-                var dod = SafeGet<decimal?>(r, "Dodatek");
-                string dodTxt = dod.HasValue ? dod.Value.ToString("0.0000") : "-";
-                r["TypeAddBlock"] = $"{typ}\nDodatek: {dodTxt}";
-
-                string nip = SafeGet<string>(r, "Nip");
-                string pes = SafeGet<string>(r, "Pesel");
-                r["NipPeselBlock"] = string.Join("\n", new[] { nip, pes }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            }
         }
 
         private void ApplyClientSearchFilter()
@@ -356,9 +393,10 @@ SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;
 
                 await UpdateDatabaseValueAsync(id, dbColumn, newVal);
 
-                // przelicz łączone kolumny po zmianach
-                FillDerivedColumns();
-                dgvSuppliers.InvalidateRow(e.RowIndex);
+                // po zapisie nie przeliczamy już bloków po stronie C# (robi to SQL)
+                // jeśli chcesz natychmiast odświeżyć bloki (np. po zmianie Name),
+                // możesz dociągnąć bieżącą stronę:
+                // await LoadSuppliersPageAsync();
             }
             catch { /* ignoruj wyścigi / nic krytycznego */ }
         }
