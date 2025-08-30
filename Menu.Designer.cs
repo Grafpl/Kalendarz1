@@ -62,6 +62,7 @@
             label14 = new System.Windows.Forms.Label();
             label15 = new System.Windows.Forms.Label();
             label16 = new System.Windows.Forms.Label();
+            buttonAkceptacja = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -434,11 +435,26 @@
             label16.Text = "Dokumenty sprzedaży";
             label16.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // buttonAkceptacja
+            // 
+            buttonAkceptacja.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonAkceptacja.BackgroundImage");
+            buttonAkceptacja.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            buttonAkceptacja.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonAkceptacja.ForeColor = System.Drawing.Color.Black;
+            buttonAkceptacja.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
+            buttonAkceptacja.Location = new System.Drawing.Point(832, 20);
+            buttonAkceptacja.Name = "buttonAkceptacja";
+            buttonAkceptacja.Size = new System.Drawing.Size(85, 66);
+            buttonAkceptacja.TabIndex = 53;
+            buttonAkceptacja.UseVisualStyleBackColor = true;
+            buttonAkceptacja.Click += buttonAkceptacja_Click;
+            // 
             // MENU
             // 
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1084, 1054);
+            Controls.Add(buttonAkceptacja);
             Controls.Add(label12);
             Controls.Add(label14);
             Controls.Add(label15);
@@ -516,5 +532,6 @@
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.Button buttonAkceptacja;
     }
 }

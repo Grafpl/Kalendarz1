@@ -248,6 +248,7 @@ namespace Kalendarz1
             Anuluj = new ToolStripMenuItem();
             Usuń = new ToolStripMenuItem();
             pictureBox3 = new PictureBox();
+            buttonModHodowca = new Button();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
@@ -1065,6 +1066,7 @@ namespace Kalendarz1
             // tablicaHodowca
             // 
             tablicaHodowca.BackColor = System.Drawing.SystemColors.ActiveCaption;
+            tablicaHodowca.Controls.Add(buttonModHodowca);
             tablicaHodowca.Controls.Add(updateInfoBotton);
             tablicaHodowca.Controls.Add(button8);
             tablicaHodowca.Controls.Add(button7);
@@ -1098,9 +1100,9 @@ namespace Kalendarz1
             // 
             // updateInfoBotton
             // 
-            updateInfoBotton.Location = new System.Drawing.Point(513, 10);
+            updateInfoBotton.Location = new System.Drawing.Point(513, 43);
             updateInfoBotton.Name = "updateInfoBotton";
-            updateInfoBotton.Size = new System.Drawing.Size(145, 71);
+            updateInfoBotton.Size = new System.Drawing.Size(145, 38);
             updateInfoBotton.TabIndex = 146;
             updateInfoBotton.Text = "Zaaktualizuj dane hodowcy";
             updateInfoBotton.UseVisualStyleBackColor = true;
@@ -2635,6 +2637,16 @@ namespace Kalendarz1
             pictureBox3.TabIndex = 135;
             pictureBox3.TabStop = false;
             // 
+            // buttonModHodowca
+            // 
+            buttonModHodowca.Location = new System.Drawing.Point(513, 13);
+            buttonModHodowca.Name = "buttonModHodowca";
+            buttonModHodowca.Size = new System.Drawing.Size(145, 26);
+            buttonModHodowca.TabIndex = 147;
+            buttonModHodowca.Text = "Modyfikuj";
+            buttonModHodowca.UseVisualStyleBackColor = true;
+            buttonModHodowca.Click += buttonModHodowca_Click;
+            // 
             // WidokKalendarza
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -2964,5 +2976,6 @@ namespace Kalendarz1
         private ToolStripMenuItem Usuń;
         private Button buttonModWstawienie;
         private PictureBox pictureBox3;
+        private Button buttonModHodowca;
     }
 }

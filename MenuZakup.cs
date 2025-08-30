@@ -78,5 +78,19 @@ namespace Kalendarz1
             widokZamowieniaPodsumowanie.UserID = App.UserID;
             widokZamowieniaPodsumowanie.Show();
         }
+
+        private void buttonAkceptacja_Click(object sender, EventArgs e)
+        {
+            var connString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+            string appUser = string.IsNullOrWhiteSpace(App.UserID)
+                ? Environment.UserName
+                : App.UserID;
+
+            using (var f = new AdminChangeRequestsForm(connString, appUser))
+            {
+                f.ShowDialog(this);
+            }
+        }
     }
 }

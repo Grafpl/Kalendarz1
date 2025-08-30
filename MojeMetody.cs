@@ -797,26 +797,172 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
             }
             return userId;
         }
+
+        // ---- Wyszukanie ID po nazwie (ID to VARCHAR(10)) ----
         public string ZnajdzIdHodowcyString(string name)
         {
-            string userId = null; // Jeśli nie znajdziemy użytkownika, zwrócimy null
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.Dostawcy WHERE Name = @Name" +
-                    "", conn))
-                {
-                    cmd.Parameters.AddWithValue("@Name", name);
+            if (string.IsNullOrWhiteSpace(name)) return null;
 
-                    object result = cmd.ExecuteScalar();
-                    if (result != null)
-                    {
-                        userId = result.ToString();
-                    }
+            using var conn = new SqlConnection(connectionString);
+            using var cmd = new SqlCommand("SELECT TOP(1) ID FROM dbo.Dostawcy WHERE [Name] = @Name;", conn);
+            cmd.Parameters.Add("@Name", SqlDbType.VarChar, 80).Value = name.Trim();
+
+            conn.Open();
+            var obj = cmd.ExecuteScalar();
+            return obj == null || obj == DBNull.Value ? null : obj.ToString();
+        }
+
+        // ---- KONTEKST SESJI (kto, powód) ----
+        public void UstawKontekstSesji(SqlConnection conn, string user, string reason)
+        {
+            using var cmd = new SqlCommand(
+                "EXEC sp_set_session_context @k1,@v1; EXEC sp_set_session_context @k2,@v2;", conn);
+            cmd.Parameters.AddWithValue("@k1", "AppUserID");
+            cmd.Parameters.AddWithValue("@v1", user ?? Environment.UserName);
+            cmd.Parameters.AddWithValue("@k2", "ChangeReason");
+            cmd.Parameters.AddWithValue("@v2", reason ?? "");
+            cmd.ExecuteNonQuery();
+        }
+
+        // ---- Update danych kontaktowych (operacyjne) ----
+        public void UpdateDaneKontaktowe(
+            string id, string tel1, string tel2, string tel3,
+            string info1, string info2, string info3,
+            string email, string typ1, string typ2,
+            string appUser, string reason)
+        {
+            using var conn = new SqlConnection(connectionString);
+            conn.Open();
+            UstawKontekstSesji(conn, appUser, reason);
+
+            var sql = @"
+UPDATE dbo.Dostawcy SET
+    Phone1=@Phone1, Phone2=@Phone2, Phone3=@Phone3,
+    Info1=@Info1,   Info2=@Info2,   Info3=@Info3,
+    Email=@Email,   TypOsobowosci=@Typ1, TypOsobowosci2=@Typ2
+WHERE ID=@ID;";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.Add("@ID", SqlDbType.VarChar, 10).Value = id;
+            cmd.Parameters.Add("@Phone1", SqlDbType.VarChar, 20).Value = (object)tel1 ?? DBNull.Value;
+            cmd.Parameters.Add("@Phone2", SqlDbType.VarChar, 20).Value = (object)tel2 ?? DBNull.Value;
+            cmd.Parameters.Add("@Phone3", SqlDbType.VarChar, 20).Value = (object)tel3 ?? DBNull.Value;
+            cmd.Parameters.Add("@Info1", SqlDbType.VarChar, 40).Value = (object)info1 ?? DBNull.Value;
+            cmd.Parameters.Add("@Info2", SqlDbType.VarChar, 40).Value = (object)info2 ?? DBNull.Value;
+            cmd.Parameters.Add("@Info3", SqlDbType.VarChar, 40).Value = (object)info3 ?? DBNull.Value;
+            cmd.Parameters.Add("@Email", SqlDbType.VarChar, 128).Value = (object)email ?? DBNull.Value;
+            cmd.Parameters.Add("@Typ1", SqlDbType.VarChar, 128).Value = (object)typ1 ?? DBNull.Value;
+            cmd.Parameters.Add("@Typ2", SqlDbType.VarChar, 128).Value = (object)typ2 ?? DBNull.Value;
+
+            cmd.ExecuteNonQuery();
+        }
+
+        // Wygodny wrapper na kontrolkach (jak w Twoim kodzie)
+        public void UpdateDaneKontaktowe(
+            string id,
+            TextBox tel1, TextBox tel2, TextBox tel3,
+            TextBox info1, TextBox info2, TextBox info3,
+            TextBox email, ComboBox comboTyp1, ComboBox comboTyp2,
+            string appUser, string reason)
+        {
+            UpdateDaneKontaktowe(
+                id,
+                tel1?.Text, tel2?.Text, tel3?.Text,
+                info1?.Text, info2?.Text, info3?.Text,
+                email?.Text,
+                comboTyp1?.SelectedItem?.ToString(),
+                comboTyp2?.SelectedItem?.ToString(),
+                appUser, reason);
+        }
+
+        // ---- Update adresu z kalendarza: aktualizuje Distance, a zmiany fakturowe składa jako wnioski ----
+        public void UpdateDaneAdresoweDostawcy(string id, TextBox ulica, TextBox kod, TextBox miasto, TextBox km)
+        {
+            string appUser = Environment.UserName;
+            string reason = "Kalendarz: zmiana danych adresowych (Distance + wniosek na Address/PostalCode/City)";
+
+            using var conn = new SqlConnection(connectionString);
+            conn.Open();
+            UstawKontekstSesji(conn, appUser, reason);
+
+            // 1) Odczytaj stare wartości
+            string oldAddress = null, oldPostal = null, oldCity = null;
+            using (var get = new SqlCommand("SELECT [Address], PostalCode, City FROM dbo.Dostawcy WHERE ID=@ID;", conn))
+            {
+                get.Parameters.Add("@ID", SqlDbType.VarChar, 10).Value = id;
+                using var rd = get.ExecuteReader();
+                if (rd.Read())
+                {
+                    oldAddress = rd["Address"] as string;
+                    oldPostal = rd["PostalCode"] as string;
+                    oldCity = rd["City"] as string;
                 }
             }
-            return userId;
+
+            // 2) Distance aktualizujemy od razu (operacyjne)
+            int? distance = null;
+            if (int.TryParse(km?.Text?.Trim(), out var d)) distance = d;
+
+            using (var upd = new SqlCommand("UPDATE dbo.Dostawcy SET Distance=@Distance WHERE ID=@ID;", conn))
+            {
+                upd.Parameters.Add("@ID", SqlDbType.VarChar, 10).Value = id;
+                if (distance.HasValue)
+                    upd.Parameters.Add("@Distance", SqlDbType.Int).Value = distance.Value;
+                else
+                    upd.Parameters.Add("@Distance", SqlDbType.Int).Value = DBNull.Value;
+                upd.ExecuteNonQuery();
+            }
+
+            // 3) Jeżeli zmienia się Address / PostalCode / City → złóż wnioski
+            EnsureChangeRequestTable(conn);
+
+            void InsertCr(string field, string oldVal, string newVal)
+            {
+                if (string.Equals((oldVal ?? "").Trim(), (newVal ?? "").Trim(), StringComparison.Ordinal))
+                    return;
+
+                using var cr = new SqlCommand(@"
+INSERT INTO dbo.DostawcyChangeRequest
+(DostawcaID, Field, OldValue, ProposedNewValue, Reason, RequestedBy, RequestedAtUTC, EffectiveFrom, Status)
+VALUES (@ID, @Field, @Old, @New, @Reason, @Who, SYSUTCDATETIME(), DATEADD(day,1,CAST(GETUTCDATE() AS date)), 'Proposed');", conn);
+
+                cr.Parameters.Add("@ID", SqlDbType.VarChar, 10).Value = id;
+                cr.Parameters.Add("@Field", SqlDbType.NVarChar, 128).Value = field;
+                cr.Parameters.Add("@Old", SqlDbType.NVarChar, 4000).Value = (object)oldVal ?? DBNull.Value;
+                cr.Parameters.Add("@New", SqlDbType.NVarChar, 4000).Value = (object)newVal ?? DBNull.Value;
+                cr.Parameters.Add("@Reason", SqlDbType.NVarChar, 4000).Value = reason;
+                cr.Parameters.Add("@Who", SqlDbType.NVarChar, 128).Value = appUser;
+                cr.ExecuteNonQuery();
+            }
+
+            InsertCr("Address", oldAddress, ulica?.Text);
+            InsertCr("PostalCode", oldPostal, kod?.Text);
+            InsertCr("City", oldCity, miasto?.Text);
         }
+
+        private void EnsureChangeRequestTable(SqlConnection conn)
+        {
+            const string sql = @"
+IF OBJECT_ID('dbo.DostawcyChangeRequest','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.DostawcyChangeRequest
+    (
+        CRID            bigint IDENTITY(1,1) PRIMARY KEY,
+        DostawcaID      varchar(10)    NOT NULL,
+        Field           nvarchar(128)  NOT NULL,
+        OldValue        nvarchar(4000) NULL,
+        ProposedNewValue nvarchar(4000) NOT NULL,
+        Reason          nvarchar(4000) NULL,
+        RequestedBy     nvarchar(128)  NOT NULL,
+        RequestedAtUTC  datetime2(3)   NOT NULL DEFAULT SYSUTCDATETIME(),
+        EffectiveFrom   date           NOT NULL,
+        Status          varchar(16)    NOT NULL DEFAULT 'Proposed'
+    );
+END";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.ExecuteNonQuery();
+        }
+ 
         public string PobierzInformacjeZBazyDanychHodowcowString(string id, string kolumna)
         {
             string wartosc = null;
@@ -1425,59 +1571,7 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
             }
         }
 
-        public void UpdateDaneAdresoweDostawcy(string idHodowcy, TextBox Ulica, TextBox KodPocztowy, TextBox Miejscowosc, TextBox Dystans)
-        {
-            try
-            {
-                // Sprawdź, czy idHodowcy nie jest puste
-                if (!string.IsNullOrEmpty(idHodowcy))
-                {
-                    // Utworzenie połączenia z bazą danych
-                    using (SqlConnection cnn = new SqlConnection(connectionString))
-                    {
-                        cnn.Open();
-
-                        // Utworzenie zapytania SQL do aktualizacji danych
-                        string strSQL = @"UPDATE dbo.Dostawcy
-                                  SET Address = @Ulica,
-                                      PostalCode = @KodPocztowy,
-                                      City = @Miejscowosc,
-                                      Distance = @Dystans
-                                  WHERE ID = @ID AND halt = '0';";
-
-                        using (SqlCommand command = new SqlCommand(strSQL, cnn))
-                        {
-                            // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
-                            command.Parameters.AddWithValue("@ID", idHodowcy);
-                            command.Parameters.AddWithValue("@Ulica", string.IsNullOrEmpty(Ulica.Text) ? (object)DBNull.Value : Ulica.Text);
-                            command.Parameters.AddWithValue("@KodPocztowy", string.IsNullOrEmpty(KodPocztowy.Text) ? (object)DBNull.Value : KodPocztowy.Text);
-                            command.Parameters.AddWithValue("@Miejscowosc", string.IsNullOrEmpty(Miejscowosc.Text) ? (object)DBNull.Value : Miejscowosc.Text);
-                            command.Parameters.AddWithValue("@Dystans", string.IsNullOrEmpty(Dystans.Text) ? (object)DBNull.Value : int.Parse(Dystans.Text));
-
-                            // Wykonanie zapytania SQL
-                            int rowsAffected = command.ExecuteNonQuery();
-
-                            if (rowsAffected > 0)
-                            {
-
-                            }
-                            else
-                            {
-                                MessageBox.Show("Nie udało się zaktualizować danych adresowych dostawcy.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Proszę podać poprawne ID dostawcy.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Wystąpił błąd: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+       
 
         public void UpdateDaneKontaktowe(string idHodowcy, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3, TextBox Email, ComboBox typOsobowosci, ComboBox typOsobowosci2)
         {

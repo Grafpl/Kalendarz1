@@ -60,7 +60,7 @@
             dataGridViewOdbiorcy.Name = "dataGridViewOdbiorcy";
             dataGridViewOdbiorcy.RowTemplate.Height = 25;
             dataGridViewOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1410, 794);
+            dataGridViewOdbiorcy.Size = new System.Drawing.Size(1410, 518);
             dataGridViewOdbiorcy.TabIndex = 2;
             dataGridViewOdbiorcy.CellEnter += dataGridViewOdbiorcy_CellEnter;
             dataGridViewOdbiorcy.CellValueChanged += dataGridViewOdbiorcy_CellValueChanged;
@@ -238,7 +238,7 @@
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1432, 1051);
+            ClientSize = new System.Drawing.Size(1432, 780);
             Controls.Add(label6);
             Controls.Add(textBoxSzukaj);
             Controls.Add(button3);
