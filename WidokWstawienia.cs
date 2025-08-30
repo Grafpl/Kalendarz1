@@ -29,6 +29,14 @@ namespace Kalendarz1
             dataGridView2.RowHeadersVisible = false;
             dataGridView3.RowHeadersVisible = false;
             dataGridView4.RowHeadersVisible = false;
+            dataGridView1.AllowUserToAddRows = false;
+            dataGridView2.AllowUserToAddRows = false;
+            dataGridView3.AllowUserToAddRows = false;
+            dataGridView4.AllowUserToAddRows = false;
+            dataGridView1.ReadOnly = true;
+            dataGridView2.ReadOnly = true;
+            dataGridView3.ReadOnly = true;
+            dataGridView4.ReadOnly = true;
 
             this.StartPosition = FormStartPosition.CenterScreen;
 

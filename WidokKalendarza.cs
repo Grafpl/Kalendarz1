@@ -584,6 +584,9 @@ namespace Kalendarz1
                             dataGridView1.RowHeadersVisible = false;
                             dataGridView1.Rows.Clear();
                             dataGridView1.Columns.Clear();
+                            dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                            dataGridView1.AllowUserToAddRows = false;
+                            dataGridView1.ReadOnly = true;
 
                             dataGridView1.Columns.Add("LP", "LP");
                             dataGridView1.Columns.Add("DataOdbioruKolumna", "Data");
@@ -2759,6 +2762,33 @@ namespace Kalendarz1
         {
             //DodajAktywnosc(2);
         }
+
+        private void buttonModHodowca_Click(object sender, EventArgs e)
+        {
+            // 1) Pobierz nazwę z ComboBoxa/TextBoxa
+            string nazwa = Dostawca.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(nazwa))
+            {
+                MessageBox.Show("Wybierz hodowcę z listy lub wpisz jego nazwę.");
+                return;
+            }
+
+            // 2) Znajdź ID (ID w bazie to VARCHAR → traktujemy jako string)
+            string idHodowca = zapytaniasql.ZnajdzIdHodowcyString(nazwa);
+            if (string.IsNullOrWhiteSpace(idHodowca))
+            {
+                MessageBox.Show("Nie znaleziono hodowcy o tej nazwie.");
+                return;
+            }
+
+            // 3) Ustal kto wykonuje operację: preferuj UserID, a jak puste – weź nazwę z systemu
+            string appUser = string.IsNullOrWhiteSpace(this.UserID) ? Environment.UserName : this.UserID;
+
+            // 4) Otwórz formularz kartoteki z ID hodowcy i UserID
+            using (var f = new HodowcaForm(idHodowca, appUser))
+                f.ShowDialog(this);
+        }
+
     }
 }
 
