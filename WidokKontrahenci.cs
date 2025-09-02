@@ -22,6 +22,10 @@ namespace Kalendarz1
         private readonly BindingSource _deliveriesBS = new();
         private readonly DataTable _suppliersTable = new();
         private readonly DataTable _deliveriesTable = new();
+        private readonly BindingSource _missingBS = new();
+        private DataTable _missingTable = new();
+        private Panel _missingPanel;
+        private DataGridView dgvMissing = new();
         private List<KeyValuePair<int, string>> _priceTypeList = new();
         private Font _strikeFont;
         public string UserID { get; set; }
@@ -48,12 +52,15 @@ namespace Kalendarz1
                     dgvDeliveries.DataSource = _deliveriesBS;
                     await LoadPriceTypesAsync();
                     await LoadSuppliersPageAsync();
+                    await LoadMissingAsync();
+
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Błąd inicjalizacji: " + ex.Message, "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
+            BuildMissingPanel();
 
             dgvSuppliers.SelectionChanged += async (_, __) => await LoadSelectedSupplierDetailsAsync();
             dgvSuppliers.CellFormatting += dgvSuppliers_CellFormatting;
@@ -67,9 +74,143 @@ namespace Kalendarz1
             btnNext.Click += async (_, __) => await NextPageAsync();
             btnDuplicates.Click += (_, __) => SprawdzDuplikaty();
             btnExportCsv.Click += (_, __) => ExportSuppliersToCsv();
-            btnAdd.Click += async (_, __) => await AddNewSupplierInlineAsync();
             btnEdit.Click += (_, __) => OpenAkceptacjaWniosku();
+            btnAdd.Click += async (_, __) => await OpenNewSupplierFormAsync();
+
         }
+        private void BuildMissingPanel()
+        {
+            _missingPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 220,
+                Padding = new Padding(8),
+                BackColor = Color.White
+            };
+
+            var header = new Label
+            {
+                Text = "Braki w danych dostawców (uzupełnij i zniknie z listy)",
+                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI Semibold", 9.5f),
+                ForeColor = Color.FromArgb(60, 60, 60),
+                Padding = new Padding(0, 0, 0, 6)
+            };
+
+            dgvMissing.Dock = DockStyle.Fill;
+            dgvMissing.ReadOnly = true;
+            dgvMissing.AllowUserToAddRows = false;
+            dgvMissing.AllowUserToDeleteRows = false;
+            dgvMissing.RowHeadersVisible = false;
+            dgvMissing.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvMissing.AutoGenerateColumns = false;
+            dgvMissing.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvMissing.RowTemplate.Height = 36;
+            dgvMissing.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+
+            // Kolumny
+            dgvMissing.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ID",
+                HeaderText = "ID",
+                DataPropertyName = "ID",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells
+            });
+            dgvMissing.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Name",
+                HeaderText = "Nazwa",
+                DataPropertyName = "Name",
+                FillWeight = 140
+            });
+            dgvMissing.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Missing",
+                HeaderText = "Brakuje",
+                DataPropertyName = "Missing",
+                FillWeight = 160
+            });
+
+            dgvMissing.DataSource = _missingBS;
+
+            // podwójne kliknięcie — skocz do rekordu w głównej siatce
+            dgvMissing.CellDoubleClick += (_, e) =>
+            {
+                if (e.RowIndex < 0) return;
+                if (dgvMissing.Rows[e.RowIndex].DataBoundItem is DataRowView rv)
+                {
+                    var id = rv.Row["ID"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(id))
+                        SelectSupplierById(id);
+                }
+            };
+
+            _missingPanel.Controls.Add(dgvMissing);
+            _missingPanel.Controls.Add(header);
+            Controls.Add(_missingPanel);
+        }
+
+        private async Task LoadMissingAsync()
+        {
+            const string q = @"
+SELECT
+    D.ID,
+    D.Name,
+    LTRIM(STUFF(
+        (CASE WHEN NULLIF(LTRIM(RTRIM(D.City       )),'') IS NULL THEN ', Miasto'     ELSE '' END) +
+        (CASE WHEN NULLIF(LTRIM(RTRIM(D.PostalCode )),'') IS NULL THEN ', Kod'        ELSE '' END) +
+        (CASE WHEN NULLIF(LTRIM(RTRIM(D.Address    )),'') IS NULL THEN ', Adres'      ELSE '' END) +
+        (CASE WHEN (NULLIF(LTRIM(RTRIM(D.Phone1)),'') IS NULL
+                AND NULLIF(LTRIM(RTRIM(D.Phone2)),'') IS NULL
+                AND NULLIF(LTRIM(RTRIM(D.Phone3)),'') IS NULL)
+              THEN ', Telefon' ELSE '' END) +
+        (CASE WHEN (NULLIF(LTRIM(RTRIM(D.Nip  )),'') IS NULL
+                AND NULLIF(LTRIM(RTRIM(D.Pesel)),'') IS NULL)
+              THEN ', NIP/PESEL' ELSE '' END) +
+        (CASE WHEN NULLIF(LTRIM(RTRIM(D.Email)),'') IS NULL THEN ', Email' ELSE '' END) +
+        (CASE WHEN D.PriceTypeID IS NULL THEN ', Typ ceny' ELSE '' END)
+    ,1,2,'')) AS Missing
+FROM LibraNet.dbo.Dostawcy D
+WHERE
+    -- co najmniej jedno pole puste:
+    (NULLIF(LTRIM(RTRIM(D.City       )),'') IS NULL
+     OR NULLIF(LTRIM(RTRIM(D.PostalCode )),'') IS NULL
+     OR NULLIF(LTRIM(RTRIM(D.Address    )),'') IS NULL
+     OR (NULLIF(LTRIM(RTRIM(D.Phone1)),'') IS NULL
+         AND NULLIF(LTRIM(RTRIM(D.Phone2)),'') IS NULL
+         AND NULLIF(LTRIM(RTRIM(D.Phone3)),'') IS NULL)
+     OR (NULLIF(LTRIM(RTRIM(D.Nip  )),'') IS NULL
+         AND NULLIF(LTRIM(RTRIM(D.Pesel)),'') IS NULL)
+     OR NULLIF(LTRIM(RTRIM(D.Email)),'') IS NULL
+     OR D.PriceTypeID IS NULL)
+ORDER BY D.ID DESC;";
+
+            using var con = new SqlConnection(connectionString);
+            using var cmd = new SqlCommand(q, con);
+            await con.OpenAsync();
+
+            using var da = new SqlDataAdapter(cmd);
+            var dt = new DataTable();
+            await Task.Run(() => da.Fill(dt));
+            _missingTable = dt;
+            _missingBS.DataSource = _missingTable;
+        }
+
+        private void SelectSupplierById(string id)
+        {
+            for (int i = 0; i < dgvSuppliers.Rows.Count; i++)
+            {
+                var row = dgvSuppliers.Rows[i];
+                if (row.DataBoundItem is DataRowView rv && string.Equals(rv.Row["ID"]?.ToString(), id, StringComparison.OrdinalIgnoreCase))
+                {
+                    dgvSuppliers.ClearSelection();
+                    row.Selected = true;
+                    dgvSuppliers.FirstDisplayedScrollingRowIndex = i;
+                    break;
+                }
+            }
+        }
+
 
         private void BuildDetailsPanel()
         {
@@ -123,74 +264,97 @@ namespace Kalendarz1
 
         // Plik: WidokKontrahenci.cs
         private async Task LoadSuppliersPageAsync()
-{
-    // Używamy Twojego oryginalnego, pełnego zapytania - ono było poprawne
-    var sbWhere = new StringBuilder(" WHERE 1=1 ");
-    var priceTypeFilter = cmbPriceTypeFilter.SelectedItem as KeyValuePair<int?, string>?;
-    if (priceTypeFilter.HasValue && priceTypeFilter.Value.Key.HasValue)
-        sbWhere.Append(" AND D.PriceTypeID = @PriceTypeID ");
-    var status = cmbStatusFilter.Text;
-    if (status == "Aktywni")
-        sbWhere.Append(" AND ISNULL(D.Halt,0) = 0 ");
-    else if (status == "Wstrzymani")
-        sbWhere.Append(" AND ISNULL(D.Halt,0) = 1 ");
-    string searchText = (txtSearch.Text ?? string.Empty).Trim();
-    bool hasSearch = searchText.Length >= 2;
-    if (hasSearch)
-        sbWhere.Append(" AND (D.Name LIKE @Search OR D.ShortName LIKE @Search OR D.City LIKE @Search OR D.Nip LIKE @Search OR D.Pesel LIKE @Search OR D.Phone1 LIKE @Search OR D.Phone2 LIKE @Search OR D.Phone3 LIKE @Search) ");
-
-    int offset = _pageIndex * _pageSize;
-    string query = $@"
-        SELECT D.[ID], D.[ShortName], D.[Name], D.[Address], D.[PostalCode], D.[Halt], D.[City], D.[Distance] AS KM, D.[PriceTypeID], PT.[Name] AS PriceTypeName, D.[Addition] AS Dodatek, D.[Loss] AS Ubytek, D.[Phone1], D.[Phone2], D.[Phone3], D.[Nip], D.[Pesel],
-        LTRIM(RTRIM(ISNULL(D.PostalCode,'') + ' ' + ISNULL(D.City,''))) + CASE WHEN ISNULL(D.Address,'') <> '' THEN CHAR(13)+CHAR(10)+D.Address ELSE '' END AS AddrBlock,
-        LTRIM(RTRIM(ISNULL(D.Phone1,'') + CASE WHEN D.Phone2 IS NOT NULL AND D.Phone2<>'' THEN CHAR(13)+CHAR(10)+D.Phone2 ELSE '' END + CASE WHEN D.Phone3 IS NOT NULL AND D.Phone3<>'' THEN CHAR(13)+CHAR(10)+D.Phone3 ELSE '' END)) AS PhoneBlock,
-        ISNULL(PT.Name,'') + CHAR(13)+CHAR(10) + 'Dodatek: ' + CASE WHEN D.Addition IS NULL THEN '-' ELSE CONVERT(varchar(32), CAST(D.Addition AS decimal(18,4))) END AS TypeAddBlock,
-        LTRIM(RTRIM(CASE WHEN ISNULL(D.Nip,'') <> '' THEN 'NIP: ' + D.Nip ELSE '' END + CASE WHEN ISNULL(D.Pesel,'') <> '' THEN CASE WHEN ISNULL(D.Nip,'') <> '' THEN CHAR(13)+CHAR(10) ELSE '' END + 'PESEL: ' + D.Pesel ELSE '' END)) AS NipPeselBlock
-        FROM [LibraNet].[dbo].[Dostawcy] D LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID {sbWhere}
-        ORDER BY D.ID DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
-        WITH _x AS (SELECT COUNT(1) AS Cnt FROM [LibraNet].[dbo].[Dostawcy] D LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID {sbWhere})
-        SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;";
-
-    // KLUCZOWA ZMIANA: Tworzymy nową, tymczasową tabelę, tak jak w teście
-    var newSuppliersTable = new DataTable();
-    var ds = new DataSet();
-
-    using (var con = new SqlConnection(connectionString))
-    {
-        using (var cmd = new SqlCommand(query, con))
         {
+            // Używamy Twojego oryginalnego, pełnego zapytania - ono było poprawne
+            var sbWhere = new StringBuilder(" WHERE 1=1 ");
+            var priceTypeFilter = cmbPriceTypeFilter.SelectedItem as KeyValuePair<int?, string>?;
             if (priceTypeFilter.HasValue && priceTypeFilter.Value.Key.HasValue)
-                cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeFilter.Value.Key.Value);
-            cmd.Parameters.AddWithValue("@Offset", offset);
-            cmd.Parameters.AddWithValue("@PageSize", _pageSize);
-            if (hasSearch) cmd.Parameters.AddWithValue("@Search", "%" + searchText + "%");
-            
-            using (var da = new SqlDataAdapter(cmd))
+                sbWhere.Append(" AND D.PriceTypeID = @PriceTypeID ");
+            var status = cmbStatusFilter.Text;
+            if (status == "Aktywni")
+                sbWhere.Append(" AND ISNULL(D.Halt,0) = 0 ");
+            else if (status == "Wstrzymani")
+                sbWhere.Append(" AND ISNULL(D.Halt,0) = 1 ");
+            string searchText = (txtSearch.Text ?? string.Empty).Trim();
+            bool hasSearch = searchText.Length >= 2;
+            if (hasSearch)
+                sbWhere.Append(" AND (D.Name LIKE @Search OR D.ShortName LIKE @Search OR D.City LIKE @Search OR D.Nip LIKE @Search OR D.Pesel LIKE @Search OR D.Phone1 LIKE @Search OR D.Phone2 LIKE @Search OR D.Phone3 LIKE @Search) ");
+
+            int offset = _pageIndex * _pageSize;
+            string query = $@"
+    SELECT 
+      D.[ID], D.[ShortName], D.[Name], D.[Address], D.[PostalCode], D.[Halt],
+      D.[City], D.[Distance] AS KM, D.[PriceTypeID], PT.[Name] AS PriceTypeName,
+      D.[Addition] AS Dodatek, D.[Loss] AS Ubytek,
+      D.[Phone1], D.[Phone2], D.[Phone3], D.[Nip], D.[Pesel],
+      (SELECT MAX(CreateData) 
+         FROM [LibraNet].[dbo].[PartiaDostawca] PD 
+        WHERE PD.CustomerID = D.ID) AS OstatnieZdanie,
+      LTRIM(RTRIM(ISNULL(D.PostalCode,'') + ' ' + ISNULL(D.City,''))) 
+        + CASE WHEN ISNULL(D.Address,'') <> '' THEN CHAR(13)+CHAR(10)+D.Address ELSE '' END AS AddrBlock,
+      LTRIM(RTRIM(ISNULL(D.Phone1,'') 
+        + CASE WHEN D.Phone2 IS NOT NULL AND D.Phone2<>'' THEN CHAR(13)+CHAR(10)+D.Phone2 ELSE '' END 
+        + CASE WHEN D.Phone3 IS NOT NULL AND D.Phone3<>'' THEN CHAR(13)+CHAR(10)+D.Phone3 ELSE '' END)) AS PhoneBlock,
+      ISNULL(PT.Name,'') + CHAR(13)+CHAR(10) + 'Dodatek: ' 
+        + CASE WHEN D.Addition IS NULL THEN '-' ELSE CONVERT(varchar(32), CAST(D.Addition AS decimal(18,4))) END AS TypeAddBlock,
+      LTRIM(RTRIM(CASE WHEN ISNULL(D.Nip,'') <> '' THEN 'NIP: ' + D.Nip ELSE '' END 
+        + CASE WHEN ISNULL(D.Pesel,'') <> '' THEN CASE WHEN ISNULL(D.Nip,'') <> '' THEN CHAR(13)+CHAR(10) ELSE '' END + 'PESEL: ' + D.Pesel ELSE '' END)) AS NipPeselBlock
+    FROM [LibraNet].[dbo].[Dostawcy] D 
+    LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID
+    {sbWhere}
+    ORDER BY D.ID DESC 
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+
+    WITH _x AS (
+      SELECT COUNT(1) AS Cnt 
+      FROM [LibraNet].[dbo].[Dostawcy] D 
+      LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID 
+      {sbWhere}
+    )
+    SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;";
+
+
+
+            // KLUCZOWA ZMIANA: Tworzymy nową, tymczasową tabelę, tak jak w teście
+            var newSuppliersTable = new DataTable();
+            var ds = new DataSet();
+
+            using (var con = new SqlConnection(connectionString))
             {
-                await Task.Run(() => da.Fill(ds));
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    if (priceTypeFilter.HasValue && priceTypeFilter.Value.Key.HasValue)
+                        cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeFilter.Value.Key.Value);
+                    cmd.Parameters.AddWithValue("@Offset", offset);
+                    cmd.Parameters.AddWithValue("@PageSize", _pageSize);
+                    if (hasSearch) cmd.Parameters.AddWithValue("@Search", "%" + searchText + "%");
+
+                    using (var da = new SqlDataAdapter(cmd))
+                    {
+                        await Task.Run(() => da.Fill(ds));
+                    }
+                }
             }
+
+            if (ds.Tables.Count > 0)
+            {
+                newSuppliersTable = ds.Tables[0];
+            }
+
+            // NAJWAŻNIEJSZY MOMENT: Podmieniamy całe źródło danych w BindingSource na nową tabelę
+            // To jest operacja, która zmusiła siatkę do poprawnego odświeżenia się
+            _suppliersBS.DataSource = newSuppliersTable;
+
+            // Aktualizujemy paginację i liczniki
+            _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 && Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
+            lblPage.Text = $"Strona: {_pageIndex + 1}";
+            lblCount.Text = $"Rekordy: {newSuppliersTable.Rows.Count}";
+            btnPrev.Enabled = _pageIndex > 0;
+            btnNext.Enabled = _hasMore;
+
+            // Na wszelki wypadek, dodatkowo odświeżamy widok
+            dgvSuppliers.Refresh();
         }
-    }
-
-    if (ds.Tables.Count > 0)
-    {
-        newSuppliersTable = ds.Tables[0];
-    }
-
-    // NAJWAŻNIEJSZY MOMENT: Podmieniamy całe źródło danych w BindingSource na nową tabelę
-    // To jest operacja, która zmusiła siatkę do poprawnego odświeżenia się
-    _suppliersBS.DataSource = newSuppliersTable;
-
-    // Aktualizujemy paginację i liczniki
-    _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 && Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
-    lblPage.Text = $"Strona: {_pageIndex + 1}";
-    lblCount.Text = $"Rekordy: {newSuppliersTable.Rows.Count}";
-    btnPrev.Enabled = _pageIndex > 0;
-    btnNext.Enabled = _hasMore;
-    
-    // Na wszelki wypadek, dodatkowo odświeżamy widok
-    dgvSuppliers.Refresh();
-}
 
         private async Task ReloadFirstPageAsync() { _pageIndex = 0; await LoadSuppliersPageAsync(); }
         private async Task PrevPageAsync() { if (_pageIndex > 0) { _pageIndex--; await LoadSuppliersPageAsync(); } }
@@ -221,6 +385,10 @@ namespace Kalendarz1
             txtDetDodatek.Text = SafeGet<decimal?>(r, "Dodatek")?.ToString("0.0000") ?? "";
             txtDetUbytek.Text = SafeGet<decimal?>(r, "Ubytek")?.ToString("0.0000") ?? "";
             chkDetHalt.Checked = SafeGet<decimal?>(r, "Halt") == 1;
+            var dt = SafeGet<DateTime?>(r, "OstatnieZdanie");
+            txtDetOstatnie.Text = dt?.ToString("yyyy-MM-dd") ?? "";
+
+
         }
 
         private async void dgvSuppliers_CellEndEdit(object sender, DataGridViewCellEventArgs e)
@@ -385,26 +553,92 @@ namespace Kalendarz1
             dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
             dgvSuppliers.AlternatingRowsDefaultCellStyle.ForeColor = SystemColors.ControlText;
         }
+        private async Task OpenNewSupplierFormAsync()
+        {
+            using var f = new NewHodowcaForm(connectionString, this.UserID ?? Environment.UserName);
+            if (f.ShowDialog(this) == DialogResult.OK)
+            {
+                _pageIndex = 0;
+                await LoadSuppliersPageAsync();
+
+                // Spróbuj zaznaczyć nowo dodanego
+                if (!string.IsNullOrWhiteSpace(f.CreatedSupplierId) && dgvSuppliers.DataSource is BindingSource bs && bs.List is System.ComponentModel.IListSource src)
+                {
+                    for (int i = 0; i < dgvSuppliers.Rows.Count; i++)
+                    {
+                        var row = dgvSuppliers.Rows[i];
+                        if (row.DataBoundItem is DataRowView rv)
+                        {
+                            var id = rv.Row["ID"]?.ToString();
+                            if (id == f.CreatedSupplierId)
+                            {
+                                dgvSuppliers.ClearSelection();
+                                row.Selected = true;
+                                dgvSuppliers.FirstDisplayedScrollingRowIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         private void BuildSuppliersColumns()
         {
             dgvSuppliers.Columns.Clear();
+
             DataGridViewTextBoxColumn Txt(string name, string header, string dataProp, float fillWeight, bool wrap = true)
             {
-                var c = new DataGridViewTextBoxColumn { Name = name, HeaderText = header, DataPropertyName = dataProp, SortMode = DataGridViewColumnSortMode.Automatic, AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = fillWeight };
+                var c = new DataGridViewTextBoxColumn
+                {
+                    Name = name,
+                    HeaderText = header,
+                    DataPropertyName = dataProp,
+                    SortMode = DataGridViewColumnSortMode.Automatic,
+                    AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                    FillWeight = fillWeight
+                };
                 if (wrap) c.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
                 return c;
             }
+
             var colId = Txt("ID", "ID", "ID", 50, false);
             var colName = Txt("Name", "Nazwa", "Name", 120, true);
             var colShort = Txt("ShortName", "Skrót", "ShortName", 80, true);
             var colAddrBlock = Txt("AddrBlock", "Adres", "AddrBlock", 140, true);
+            var colLast = new DataGridViewTextBoxColumn
+            {
+                Name = "OstatnieZdanie",
+                HeaderText = "Ost. dostawa",
+                DataPropertyName = "OstatnieZdanie",
+                SortMode = DataGridViewColumnSortMode.Automatic,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
             var colPhoneBlk = Txt("PhoneBlock", "Telefon", "PhoneBlock", 90, true);
             var colTypeAdd = Txt("TypeAddBlock", "Typ + Dodatek", "TypeAddBlock", 90, true);
             var colLoss = Txt("Ubytek", "Ubytek", "Ubytek", 60, false);
             var colNipPesel = Txt("NipPeselBlock", "NIP / PESEL", "NipPeselBlock", 90, true);
-            var colHalt = new DataGridViewCheckBoxColumn { Name = "Halt", HeaderText = "Wstrzymany", DataPropertyName = "Halt", ThreeState = false, TrueValue = 1, FalseValue = 0, AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells };
-            dgvSuppliers.Columns.AddRange(new DataGridViewColumn[] { colId, colName, colShort, colAddrBlock, colPhoneBlk, colTypeAdd, colLoss, colNipPesel, colHalt });
+            var colHalt = new DataGridViewCheckBoxColumn
+            {
+                Name = "Halt",
+                HeaderText = "Wstrzymany",
+                DataPropertyName = "Halt",
+                ThreeState = false,
+                TrueValue = 1,
+                FalseValue = 0,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            };
+
+            // Dodajemy od razu w docelowej kolejności:
+            dgvSuppliers.Columns.AddRange(new DataGridViewColumn[]
+            {
+        colId, colName, colShort, colAddrBlock, colLast, colPhoneBlk, colTypeAdd, colLoss, colNipPesel, colHalt
+            });
+        }
+
+        private void btnAdd_Click(object sender, EventArgs e)
+        {
+
         }
     }
 

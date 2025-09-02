@@ -15,9 +15,7 @@
         private System.Windows.Forms.ToolStripComboBox cmbStatusFilter;
         private System.Windows.Forms.ToolStripButton btnRefresh;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
-        private System.Windows.Forms.ToolStripButton btnPrev;
         private System.Windows.Forms.ToolStripLabel lblPage;
-        private System.Windows.Forms.ToolStripButton btnNext;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.ToolStripButton btnDuplicates;
         private System.Windows.Forms.ToolStripButton btnExportCsv;
@@ -56,9 +54,7 @@
             cmbStatusFilter = new System.Windows.Forms.ToolStripComboBox();
             btnRefresh = new System.Windows.Forms.ToolStripButton();
             toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            btnPrev = new System.Windows.Forms.ToolStripButton();
             lblPage = new System.Windows.Forms.ToolStripLabel();
-            btnNext = new System.Windows.Forms.ToolStripButton();
             toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             btnDuplicates = new System.Windows.Forms.ToolStripButton();
             btnExportCsv = new System.Windows.Forms.ToolStripButton();
@@ -68,6 +64,7 @@
             statusStrip = new System.Windows.Forms.StatusStrip();
             lblCount = new System.Windows.Forms.ToolStripStatusLabel();
             split = new System.Windows.Forms.SplitContainer();
+            dgvSuppliers = new System.Windows.Forms.DataGridView();
             tabsRight = new System.Windows.Forms.TabControl();
             tabDetails = new System.Windows.Forms.TabPage();
             tabDeliveries = new System.Windows.Forms.TabPage();
@@ -90,17 +87,18 @@
             txtDetUbytek = new System.Windows.Forms.TextBox();
             txtDetOstatnie = new System.Windows.Forms.TextBox();
             chkDetHalt = new System.Windows.Forms.CheckBox();
-            dgvSuppliers = new System.Windows.Forms.DataGridView();
+            btnPrev = new System.Windows.Forms.ToolStripButton();
+            btnNext = new System.Windows.Forms.ToolStripButton();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)split).BeginInit();
             split.Panel1.SuspendLayout();
             split.Panel2.SuspendLayout();
             split.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).BeginInit();
             tabsRight.SuspendLayout();
             tabDeliveries.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvDeliveries).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).BeginInit();
             SuspendLayout();
             // 
             // toolStrip
@@ -146,20 +144,10 @@
             toolStripSeparator2.Name = "toolStripSeparator2";
             toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
             // 
-            // btnPrev
-            // 
-            btnPrev.Name = "btnPrev";
-            btnPrev.Size = new System.Drawing.Size(23, 22);
-            // 
             // lblPage
             // 
             lblPage.Name = "lblPage";
             lblPage.Size = new System.Drawing.Size(0, 22);
-            // 
-            // btnNext
-            // 
-            btnNext.Name = "btnNext";
-            btnNext.Size = new System.Drawing.Size(23, 22);
             // 
             // toolStripSeparator3
             // 
@@ -185,6 +173,7 @@
             // 
             btnAdd.Name = "btnAdd";
             btnAdd.Size = new System.Drawing.Size(23, 22);
+            btnAdd.Click += btnAdd_Click;
             // 
             // btnEdit
             // 
@@ -220,6 +209,14 @@
             split.Size = new System.Drawing.Size(1084, 614);
             split.SplitterDistance = 874;
             split.TabIndex = 0;
+            // 
+            // dgvSuppliers
+            // 
+            dgvSuppliers.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvSuppliers.Location = new System.Drawing.Point(0, 0);
+            dgvSuppliers.Name = "dgvSuppliers";
+            dgvSuppliers.Size = new System.Drawing.Size(874, 614);
+            dgvSuppliers.TabIndex = 0;
             // 
             // tabsRight
             // 
@@ -386,13 +383,15 @@
             chkDetHalt.Size = new System.Drawing.Size(104, 24);
             chkDetHalt.TabIndex = 0;
             // 
-            // dgvSuppliers
+            // btnPrev
             // 
-            dgvSuppliers.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvSuppliers.Location = new System.Drawing.Point(0, 0);
-            dgvSuppliers.Name = "dgvSuppliers";
-            dgvSuppliers.Size = new System.Drawing.Size(874, 614);
-            dgvSuppliers.TabIndex = 0;
+            btnPrev.Name = "btnPrev";
+            btnPrev.Size = new System.Drawing.Size(23, 22);
+            // 
+            // btnNext
+            // 
+            btnNext.Name = "btnNext";
+            btnNext.Size = new System.Drawing.Size(23, 22);
             // 
             // WidokKontrahenci
             // 
@@ -413,10 +412,10 @@
             split.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)split).EndInit();
             split.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).EndInit();
             tabsRight.ResumeLayout(false);
             tabDeliveries.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dgvDeliveries).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -424,5 +423,7 @@
         #endregion
 
         private System.Windows.Forms.DataGridView dgvSuppliers;
+        private System.Windows.Forms.ToolStripButton btnPrev;
+        private System.Windows.Forms.ToolStripButton btnNext;
     }
 }
