@@ -5,7 +5,6 @@
         private System.ComponentModel.IContainer components = null;
 
         private System.Windows.Forms.SplitContainer split;
-        private System.Windows.Forms.DataGridView dgvSuppliers;
         private System.Windows.Forms.DataGridView dgvDeliveries;
 
         private System.Windows.Forms.ToolStrip toolStrip;
@@ -69,7 +68,6 @@
             statusStrip = new System.Windows.Forms.StatusStrip();
             lblCount = new System.Windows.Forms.ToolStripStatusLabel();
             split = new System.Windows.Forms.SplitContainer();
-            dgvSuppliers = new System.Windows.Forms.DataGridView();
             tabsRight = new System.Windows.Forms.TabControl();
             tabDetails = new System.Windows.Forms.TabPage();
             tabDeliveries = new System.Windows.Forms.TabPage();
@@ -92,16 +90,17 @@
             txtDetUbytek = new System.Windows.Forms.TextBox();
             txtDetOstatnie = new System.Windows.Forms.TextBox();
             chkDetHalt = new System.Windows.Forms.CheckBox();
+            dgvSuppliers = new System.Windows.Forms.DataGridView();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)split).BeginInit();
             split.Panel1.SuspendLayout();
             split.Panel2.SuspendLayout();
             split.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).BeginInit();
             tabsRight.SuspendLayout();
             tabDeliveries.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvDeliveries).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).BeginInit();
             SuspendLayout();
             // 
             // toolStrip
@@ -221,14 +220,6 @@
             split.Size = new System.Drawing.Size(1084, 614);
             split.SplitterDistance = 874;
             split.TabIndex = 0;
-            // 
-            // dgvSuppliers
-            // 
-            dgvSuppliers.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvSuppliers.Location = new System.Drawing.Point(0, 0);
-            dgvSuppliers.Name = "dgvSuppliers";
-            dgvSuppliers.Size = new System.Drawing.Size(874, 614);
-            dgvSuppliers.TabIndex = 0;
             // 
             // tabsRight
             // 
@@ -395,6 +386,14 @@
             chkDetHalt.Size = new System.Drawing.Size(104, 24);
             chkDetHalt.TabIndex = 0;
             // 
+            // dgvSuppliers
+            // 
+            dgvSuppliers.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvSuppliers.Location = new System.Drawing.Point(0, 0);
+            dgvSuppliers.Name = "dgvSuppliers";
+            dgvSuppliers.Size = new System.Drawing.Size(874, 614);
+            dgvSuppliers.TabIndex = 0;
+            // 
             // WidokKontrahenci
             // 
             ClientSize = new System.Drawing.Size(1084, 661);
@@ -414,13 +413,16 @@
             split.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)split).EndInit();
             split.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).EndInit();
             tabsRight.ResumeLayout(false);
             tabDeliveries.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dgvDeliveries).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgvSuppliers).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
+
         #endregion
+
+        private System.Windows.Forms.DataGridView dgvSuppliers;
     }
 }

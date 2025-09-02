@@ -55,7 +55,7 @@ namespace Kalendarz1
                             MENU menuWindow = new MENU();
                             menuWindow.Show();
                         }
-                        else if (username == "2121" || username == "1122")
+                        else if (username == "2121" || username == "1122" || username == "2322" )
                         {
                             MenuZakup menuZakup = new MenuZakup();
                             menuZakup.Show();
