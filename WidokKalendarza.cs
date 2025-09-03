@@ -12,7 +12,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
-
+using System.Diagnostics;
+using System.IO;
+using System.Configuration;
 
 namespace Kalendarz1
 {
@@ -26,6 +28,7 @@ namespace Kalendarz1
         private Timer timer;
         private Timer timer2;
         public string UserID { get; set; }
+
         private MojeObliczenia obliczenia = new MojeObliczenia();
         private NazwaZiD nazwaZiD = new NazwaZiD();
         private CenoweMetody CenoweMetody = new CenoweMetody();
@@ -46,7 +49,16 @@ namespace Kalendarz1
             MyCalendar_DateChanged_1(this, new DateRangeEventArgs(DateTime.Today, DateTime.Today));
             checkBoxDoWykupienia.Checked = true;
             checkBox1.Checked = true; //Paleciak
-
+            dataGridViewNotatki.RowHeadersVisible = false;
+            dataGridViewNotatki.ColumnHeadersVisible = false; // jak w Twoim kodzie
+            dataGridView1.AllowUserToAddRows = false;
+            DataGridWstawienia.AllowUserToAddRows = false;
+            dataGridPartie.AllowUserToAddRows = false;
+            dataGridViewOstatnieNotatki.AllowUserToAddRows = false;
+            dataGridView1.ReadOnly = true;
+            DataGridWstawienia.ReadOnly = true;
+            dataGridPartie.ReadOnly = true;
+            dataGridViewOstatnieNotatki.ReadOnly = true;
 
             // Inicjalizacja timera
             timer = new Timer();
@@ -59,6 +71,7 @@ namespace Kalendarz1
             timer2.Interval = 1800000; // Interwał 30 minut (1 800 000 ms)
             timer2.Tick += Timer2_Tick; // Przypisanie zdarzenia
             timer2.Start(); // Rozpoczęcie pracy timera
+
 
         }
         // Metoda wywoływana podczas ładowania formularza
@@ -108,113 +121,129 @@ namespace Kalendarz1
         }
         private void BiezacePartie()
         {
-            // Utwórz połączenie z bazą danych SQL Server
             using (SqlConnection cnn = new SqlConnection(connectionPermission))
             {
                 cnn.Open();
 
-                string strSQL = @"
-                                SELECT 
-                                    k.CreateData AS Data, 
-                                    RIGHT(CONVERT(VARCHAR(10), k.P1), 3) AS Partia, 
-                                    Partia.CustomerName AS Dostawca, 
-                                    AVG(k.QntInCont) AS Srednia, 
-                                    CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2)) AS SredniaDokładna,
-                                    CONVERT(decimal(18, 2), 15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) AS SredniaTuszka,
-                                    CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
-                                    hd.WagaDek AS WagaDek,
-                                    CONVERT(decimal(18, 2), ((15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) - hd.WagaDek) AS roznica
-                                FROM [LibraNet].[dbo].[In0E] K
-                                JOIN [LibraNet].[dbo].[PartiaDostawca] Partia ON K.P1 = Partia.Partia
-                                LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND Partia.CustomerName = hd.Dostawca
-                                WHERE ArticleID = 40 
-                                    AND k.QntInCont > 4
-                                    AND CONVERT(date, k.CreateData) = CONVERT(date, GETDATE()) -- Dzisiejsza data
-                                GROUP BY k.CreateData, k.P1, Partia.CustomerName, hd.WagaDek
-                                ORDER BY k.P1 DESC, k.CreateData DESC;
-                            ";
+                string strSQL = @" WITH Partie AS ( SELECT k.CreateData AS Data, CAST(k.P1 AS nvarchar(50)) AS PartiaFull, RIGHT(CONVERT(varchar(10), k.P1), 2) AS PartiaShort, pd.CustomerName AS Dostawca, AVG(k.QntInCont) AS Srednia, CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy, hd.WagaDek AS WagaDek FROM [LibraNet].[dbo].[In0E] k JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON k.P1 = pd.Partia LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND pd.CustomerName = hd.Dostawca WHERE k.ArticleID = 40 AND k.QntInCont > 4 AND CONVERT(date, k.CreateData) = CONVERT(date, GETDATE()) GROUP BY k.CreateData, k.P1, pd.CustomerName, hd.WagaDek ) SELECT p.Data, p.PartiaFull, p.PartiaShort AS Partia, p.Dostawca, p.Srednia, p.SredniaZywy, p.WagaDek, CONVERT(decimal(18,2), p.SredniaZywy - p.WagaDek) AS Roznica, w.Skrzydla_Ocena, w.Nogi_Ocena, w.Oparzenia_Ocena, pod.KlasaB_Proc, pod.Przekarmienie_Kg FROM Partie p LEFT JOIN dbo.vw_QC_TempSummary t ON t.PartiaId = p.PartiaFull LEFT JOIN dbo.QC_WadySkale w ON w.PartiaId = p.PartiaFull LEFT JOIN dbo.QC_Podsum pod ON pod.PartiaId = p.PartiaFull ORDER BY p.PartiaFull DESC, p.Data DESC; ";
 
                 using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
+                using (SqlDataReader reader = command2.ExecuteReader())
                 {
-                    using (SqlDataReader reader = command2.ExecuteReader())
+                    try
                     {
-                        try
+                        dataGridPartie.Rows.Clear();
+                        dataGridPartie.Columns.Clear();
+                        dataGridPartie.RowHeadersVisible = false;
+                        dataGridPartie.ColumnHeadersVisible = true;
+                        dataGridPartie.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+                        // Standardowe kolumny:
+                        dataGridPartie.Columns.Add("DataKolumna2", "Data");
+                        dataGridPartie.Columns.Add("PartiaKolumna", "Nr.");
+                        dataGridPartie.Columns.Add("DostawcaKolumna2", "Dostawca");
+
+                        dataGridPartie.Columns.Add("SredniaKolumna", "Średnia");
+                        dataGridPartie.Columns.Add("SredniaZywyKolumna", "Żywiec");
+                        dataGridPartie.Columns.Add("WagaDekKolumna", "WagaDek");
+                        dataGridPartie.Columns.Add("RoznicaKolumna", "Różnica");
+
+                        dataGridPartie.Columns.Add("SkrzydlaKol", "Skrzydła");
+                        dataGridPartie.Columns.Add("NogiKol", "Nogi");
+                        dataGridPartie.Columns.Add("OparzeniaKol", "Oparzenia");
+
+                        dataGridPartie.Columns.Add("KlasaBKol", "Klasa B");
+                        dataGridPartie.Columns.Add("PrzekKol", "Przekarm.");
+
+                        // NOWA kolumna-link do folderu zdjęć:
+                        var linkCol = new DataGridViewLinkColumn
                         {
-                            // Przygotowanie DataGridWstawienia
-                            dataGridPartie.Rows.Clear();
-                            dataGridViewNotatki.Rows.Clear();
-                            dataGridViewNotatki.RowHeadersVisible = false;
-                            dataGridViewNotatki.ColumnHeadersVisible = false;
-                            dataGridViewNotatki.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-                            dataGridViewNotatki.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-                            dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-                            dataGridPartie.Columns.Clear();
-                            dataGridPartie.RowHeadersVisible = false;
-                            // Dodaj kolumny do DataGridWstawienia
-                            dataGridPartie.Columns.Add("DataKolumna2", "Data");
-                            dataGridPartie.Columns.Add("PartiaKolumna", "Partia");
-                            dataGridPartie.Columns.Add("DostawcaKolumna2", "Dostawca");
-                            dataGridPartie.Columns.Add("WagaDek2Kolumna", "Waga");
-                            dataGridPartie.Columns.Add("SredniaDokładnaKolumna", "Srednia");
-                            dataGridPartie.Columns.Add("SredniaTuszkaKolumna", "Tuszka");
-                            dataGridPartie.Columns.Add("SredniaZywyKolumna", "Waga zywiec");
-                            dataGridPartie.Columns.Add("WagaDekKolumna", "WagaDek");
-                            dataGridPartie.Columns.Add("roznicaKolumna", "roznica");
+                            Name = "ZdjeciaKol",
+                            HeaderText = "Zdjęcia",
+                            TrackVisitedState = false,
+                            UseColumnTextForLinkValue = false,
+                            LinkBehavior = LinkBehavior.HoverUnderline
+                        };
+                        dataGridPartie.Columns.Add(linkCol);
 
-                            dataGridPartie.Columns["DataKolumna2"].Visible = false;
-                            dataGridPartie.Columns["SredniaTuszkaKolumna"].Visible = false;
+                        dataGridPartie.Columns["DataKolumna2"].Visible = false;
+                        dataGridPartie.Columns["WagaDekKolumna"].Visible = false;
 
-                            dataGridPartie.Columns["PartiaKolumna"].Width = 30;
-                            dataGridPartie.Columns["DostawcaKolumna2"].Width = 95;
-                            dataGridPartie.Columns["WagaDek2Kolumna"].Width = 50;
-                            dataGridPartie.Columns["SredniaDokładnaKolumna"].Width = 60;
-                            dataGridPartie.Columns["SredniaTuszkaKolumna"].Width = 50;
-                            dataGridPartie.Columns["SredniaZywyKolumna"].Width = 50;
-                            dataGridPartie.Columns["WagaDekKolumna"].Width = 50;
-                            dataGridPartie.Columns["roznicaKolumna"].Width = 50;
+                        dataGridPartie.Columns["PartiaKolumna"].Width = 36;
+                        dataGridPartie.Columns["DostawcaKolumna2"].Width = 100;
+                        dataGridPartie.Columns["SredniaKolumna"].Width = 60;
+                        dataGridPartie.Columns["SredniaZywyKolumna"].Width = 60;
+                        dataGridPartie.Columns["RoznicaKolumna"].Width = 60;
 
-                            dataGridPartie.ColumnHeadersVisible = false;
+                        string photosRoot = ConfigurationManager.AppSettings["PhotosRoot"]
+                                            ?? @"\\192.168.0.170\Install\QC_Foto";
 
+                        // Formatery
+                        string FPoj(object v) => v == DBNull.Value ? "" : $"{Convert.ToDecimal(v):0.00} poj";
+                        string FKg(object v) => v == DBNull.Value ? "" : $"{Convert.ToDecimal(v):0.00} kg";
+                        string FProc(object v) => v == DBNull.Value ? "" : $"{Convert.ToDecimal(v):0.##} %";
+                        string FPkt(object v) => v == DBNull.Value ? "" : $"{Convert.ToInt32(v)} pkt";
 
-                            while (reader.Read())
+                        while (reader.Read())
+                        {
+                            var row = new DataGridViewRow();
+                            row.CreateCells(dataGridPartie);
+
+                            row.Cells[dataGridPartie.Columns["DataKolumna2"].Index].Value = reader["Data"];
+                            row.Cells[dataGridPartie.Columns["PartiaKolumna"].Index].Value = reader["Partia"];
+                            row.Cells[dataGridPartie.Columns["DostawcaKolumna2"].Index].Value = reader["Dostawca"];
+
+                            row.Cells[dataGridPartie.Columns["SredniaKolumna"].Index].Value = FPoj(reader["Srednia"]);
+                            row.Cells[dataGridPartie.Columns["SredniaZywyKolumna"].Index].Value = FKg(reader["SredniaZywy"]);
+                            row.Cells[dataGridPartie.Columns["WagaDekKolumna"].Index].Value = FKg(reader["WagaDek"]);
+                            row.Cells[dataGridPartie.Columns["RoznicaKolumna"].Index].Value = FKg(reader["Roznica"]);
+
+                            row.Cells[dataGridPartie.Columns["SkrzydlaKol"].Index].Value = FPkt(reader["Skrzydla_Ocena"]);
+                            row.Cells[dataGridPartie.Columns["NogiKol"].Index].Value = FPkt(reader["Nogi_Ocena"]);
+                            row.Cells[dataGridPartie.Columns["OparzeniaKol"].Index].Value = FPkt(reader["Oparzenia_Ocena"]);
+
+                            row.Cells[dataGridPartie.Columns["KlasaBKol"].Index].Value = FProc(reader["KlasaB_Proc"]);
+                            row.Cells[dataGridPartie.Columns["PrzekKol"].Index].Value = FKg(reader["Przekarmienie_Kg"]);
+
+                            // Link do zdjęć:
+                            int photoCount = reader["PhotoCount"] == DBNull.Value ? 0 : Convert.ToInt32(reader["PhotoCount"]);
+                            string folderRel = reader["FolderRel"] == DBNull.Value ? null : Convert.ToString(reader["FolderRel"]);
+
+                            var linkCell = row.Cells[dataGridPartie.Columns["ZdjeciaKol"].Index] as DataGridViewLinkCell;
+
+                            if (photoCount > 0 && !string.IsNullOrWhiteSpace(folderRel))
                             {
-                                // Dodaj nowy wiersz do DataGridWstawienia
-                                DataGridViewRow newRow = new DataGridViewRow();
-                                newRow.CreateCells(dataGridPartie);
-                                newRow.Cells[0].Value = reader["Data"];
-                                newRow.Cells[1].Value = reader["Partia"];
-                                newRow.Cells[2].Value = reader["Dostawca"];
-                                newRow.Cells[3].Value = reader["Srednia"] + " poj";
-                                newRow.Cells[4].Value = reader["SredniaDokładna"] + " poj";
-                                newRow.Cells[5].Value = reader["SredniaTuszka"] + " kg";
-                                newRow.Cells[6].Value = reader["SredniaZywy"] + " kg";
-                                newRow.Cells[7].Value = reader["roznica"] + " kg";
-
-
-                                // Dodaj nowy wiersz do kontrolki DataGridWstawienia
-                                dataGridPartie.Rows.Add(newRow);
-                                foreach (DataGridViewRow row in dataGridPartie.Rows)
-                                {
-                                    row.Height = 20; // Ustawienie wysokości każdego wiersza na 50 pikseli
-                                }
-                                // Ustaw czcionkę dla nowo dodanego wiersza
-                                foreach (DataGridViewCell cell in newRow.Cells)
-                                {
-                                    cell.Style.Font = new Font("Arial", 8); // Ustawienie czcionki Arial o rozmiarze 33 punktów
-                                }
+                                string fullPath = Path.Combine(photosRoot, folderRel);
+                                linkCell.Value = $"Zdjęcia ({photoCount})";
+                                linkCell.Tag = fullPath; // zapamiętujemy ścieżkę
+                                linkCell.LinkColor = Color.RoyalBlue;
+                                linkCell.ActiveLinkColor = Color.OrangeRed;
+                                linkCell.VisitedLinkColor = Color.Purple;
+                            }
+                            else
+                            {
+                                // brak zdjęć – nic nie pokazujemy
+                                linkCell.Value = "";
+                                linkCell.Tag = null;
+                                linkCell.LinkColor = Color.Gray;
                             }
 
+                            foreach (DataGridViewCell c in row.Cells)
+                                c.Style.Font = new Font("Arial", 8);
 
+                            dataGridPartie.Rows.Add(row);
                         }
-                        catch (Exception ex)
-                        {
-                            //MessageBox.Show("Błąd odczytu danych: " + ex.Message);
-                        }
+
+                        foreach (DataGridViewRow r in dataGridPartie.Rows)
+                            r.Height = 20;
+                    }
+                    catch
+                    {
+                        // log/telemetria jeśli potrzeba
                     }
                 }
             }
         }
-
 
         private void WidokKalendarza_Load(object sender, EventArgs e)
         {
@@ -1635,7 +1664,34 @@ namespace Kalendarz1
 
         private void dataGridPartie_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
+            if (e.RowIndex < 0) return;
 
+            var grid = (DataGridView)sender;
+            var col = grid.Columns[e.ColumnIndex];
+
+            if (col.Name != "ZdjeciaKol") return;
+
+            var cell = grid.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewLinkCell;
+            var path = cell?.Tag as string;
+
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            try
+            {
+                if (!Directory.Exists(path))
+                {
+                    MessageBox.Show($"Folder nie istnieje:\n{path}", "Zdjęcia", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Otwórz w Eksploratorze Windows
+                Process.Start("explorer.exe", path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie mogę otworzyć folderu:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
         private void WidokKalendarza_Load_1(object sender, EventArgs e)
         {
