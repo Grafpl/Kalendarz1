@@ -125,7 +125,58 @@ namespace Kalendarz1
             {
                 cnn.Open();
 
-                string strSQL = @" WITH Partie AS ( SELECT k.CreateData AS Data, CAST(k.P1 AS nvarchar(50)) AS PartiaFull, RIGHT(CONVERT(varchar(10), k.P1), 2) AS PartiaShort, pd.CustomerName AS Dostawca, AVG(k.QntInCont) AS Srednia, CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy, hd.WagaDek AS WagaDek FROM [LibraNet].[dbo].[In0E] k JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON k.P1 = pd.Partia LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd ON k.CreateData = hd.DataOdbioru AND pd.CustomerName = hd.Dostawca WHERE k.ArticleID = 40 AND k.QntInCont > 4 AND CONVERT(date, k.CreateData) = CONVERT(date, GETDATE()) GROUP BY k.CreateData, k.P1, pd.CustomerName, hd.WagaDek ) SELECT p.Data, p.PartiaFull, p.PartiaShort AS Partia, p.Dostawca, p.Srednia, p.SredniaZywy, p.WagaDek, CONVERT(decimal(18,2), p.SredniaZywy - p.WagaDek) AS Roznica, w.Skrzydla_Ocena, w.Nogi_Ocena, w.Oparzenia_Ocena, pod.KlasaB_Proc, pod.Przekarmienie_Kg FROM Partie p LEFT JOIN dbo.vw_QC_TempSummary t ON t.PartiaId = p.PartiaFull LEFT JOIN dbo.QC_WadySkale w ON w.PartiaId = p.PartiaFull LEFT JOIN dbo.QC_Podsum pod ON pod.PartiaId = p.PartiaFull ORDER BY p.PartiaFull DESC, p.Data DESC; ";
+                string strSQL = @" WITH Partie AS (
+    SELECT 
+        k.CreateData AS Data, 
+        CAST(k.P1 AS nvarchar(50)) AS PartiaFull,
+        RIGHT(CONVERT(varchar(10), k.P1), 2) AS PartiaShort,
+        pd.CustomerName AS Dostawca, 
+        AVG(k.QntInCont) AS Srednia, 
+        CONVERT(decimal(18, 2), (15.0 / CAST(AVG(CAST(k.QntInCont AS decimal(18, 2))) AS decimal(18, 2))) * 1.22) AS SredniaZywy,
+        hd.WagaDek AS WagaDek
+    FROM [LibraNet].[dbo].[In0E] k
+    JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON k.P1 = pd.Partia
+    LEFT JOIN [LibraNet].[dbo].[HarmonogramDostaw] hd 
+           ON k.CreateData = hd.DataOdbioru AND pd.CustomerName = hd.Dostawca
+    WHERE k.ArticleID = 40 
+      AND k.QntInCont > 4
+      AND CONVERT(date, k.CreateData) = CONVERT(date, GETDATE())
+    GROUP BY k.CreateData, k.P1, pd.CustomerName, hd.WagaDek
+)
+SELECT 
+    p.Data,
+    p.PartiaFull,
+    p.PartiaShort AS Partia,
+    p.Dostawca,
+    p.Srednia,
+    p.SredniaZywy,
+    p.WagaDek,
+    CONVERT(decimal(18,2), p.SredniaZywy - p.WagaDek) AS Roznica,
+
+    w.Skrzydla_Ocena,
+    w.Nogi_Ocena,
+    w.Oparzenia_Ocena,
+
+    pod.KlasaB_Proc,
+    pod.Przekarmienie_Kg,
+
+    z.PhotoCount,
+    z.FolderRel
+FROM Partie p
+LEFT JOIN dbo.vw_QC_TempSummary t ON t.PartiaId = p.PartiaFull
+LEFT JOIN dbo.QC_WadySkale   w ON w.PartiaId = p.PartiaFull
+LEFT JOIN dbo.QC_Podsum      pod ON pod.PartiaId = p.PartiaFull
+OUTER APPLY (
+    SELECT 
+        PhotoCount = COUNT(*),
+        FolderRel  = MAX(
+            LEFT(SciezkaPliku, LEN(SciezkaPliku) - CHARINDEX('\', REVERSE(SciezkaPliku)))
+        )
+    FROM dbo.QC_Zdjecia z
+    WHERE z.PartiaId = p.PartiaFull
+) z
+ORDER BY p.PartiaFull DESC, p.Data DESC;
+";
 
                 using (SqlCommand command2 = new SqlCommand(strSQL, cnn))
                 using (SqlDataReader reader = command2.ExecuteReader())
@@ -136,7 +187,7 @@ namespace Kalendarz1
                         dataGridPartie.Columns.Clear();
                         dataGridPartie.RowHeadersVisible = false;
                         dataGridPartie.ColumnHeadersVisible = true;
-                        dataGridPartie.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+                        dataGridPartie.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
                         // Standardowe kolumny:
                         dataGridPartie.Columns.Add("DataKolumna2", "Data");
@@ -168,12 +219,15 @@ namespace Kalendarz1
 
                         dataGridPartie.Columns["DataKolumna2"].Visible = false;
                         dataGridPartie.Columns["WagaDekKolumna"].Visible = false;
-
+                        /*
                         dataGridPartie.Columns["PartiaKolumna"].Width = 36;
                         dataGridPartie.Columns["DostawcaKolumna2"].Width = 100;
                         dataGridPartie.Columns["SredniaKolumna"].Width = 60;
                         dataGridPartie.Columns["SredniaZywyKolumna"].Width = 60;
                         dataGridPartie.Columns["RoznicaKolumna"].Width = 60;
+                        */
+                        dataGridPartie.Columns["DostawcaKolumna2"].FillWeight = 200; // Zajmie 2x więcej miejsca niż kolumna z wagą 100
+
 
                         string photosRoot = ConfigurationManager.AppSettings["PhotosRoot"]
                                             ?? @"\\192.168.0.170\Install\QC_Foto";
@@ -196,7 +250,8 @@ namespace Kalendarz1
                             row.Cells[dataGridPartie.Columns["SredniaKolumna"].Index].Value = FPoj(reader["Srednia"]);
                             row.Cells[dataGridPartie.Columns["SredniaZywyKolumna"].Index].Value = FKg(reader["SredniaZywy"]);
                             row.Cells[dataGridPartie.Columns["WagaDekKolumna"].Index].Value = FKg(reader["WagaDek"]);
-                            row.Cells[dataGridPartie.Columns["RoznicaKolumna"].Index].Value = FKg(reader["Roznica"]);
+                            // Nowa wersja
+                            row.Cells[dataGridPartie.Columns["RoznicaKolumna"].Index].Value = reader["Roznica"];
 
                             row.Cells[dataGridPartie.Columns["SkrzydlaKol"].Index].Value = FPkt(reader["Skrzydla_Ocena"]);
                             row.Cells[dataGridPartie.Columns["NogiKol"].Index].Value = FPkt(reader["Nogi_Ocena"]);
@@ -213,12 +268,24 @@ namespace Kalendarz1
 
                             if (photoCount > 0 && !string.IsNullOrWhiteSpace(folderRel))
                             {
+                                // Zbuduj pełną ścieżkę i upewnij się, że separatorem są backslashe
+                                folderRel = folderRel.Replace('/', '\\');
                                 string fullPath = Path.Combine(photosRoot, folderRel);
-                                linkCell.Value = $"Zdjęcia ({photoCount})";
-                                linkCell.Tag = fullPath; // zapamiętujemy ścieżkę
-                                linkCell.LinkColor = Color.RoyalBlue;
-                                linkCell.ActiveLinkColor = Color.OrangeRed;
-                                linkCell.VisitedLinkColor = Color.Purple;
+
+                                if (Directory.Exists(fullPath))          // <- pokazuj tylko jeśli folder faktycznie jest
+                                {
+                                    linkCell.Value = $"Zdjęcia ({photoCount})";
+                                    linkCell.Tag = fullPath;
+                                    linkCell.LinkColor = Color.RoyalBlue;
+                                    linkCell.ActiveLinkColor = Color.OrangeRed;
+                                    linkCell.VisitedLinkColor = Color.Purple;
+                                }
+                                else
+                                {
+                                    linkCell.Value = "";
+                                    linkCell.Tag = null;
+                                    linkCell.LinkColor = Color.Gray;
+                                }
                             }
                             else
                             {
@@ -227,6 +294,7 @@ namespace Kalendarz1
                                 linkCell.Tag = null;
                                 linkCell.LinkColor = Color.Gray;
                             }
+
 
                             foreach (DataGridViewCell c in row.Cells)
                                 c.Style.Font = new Font("Arial", 8);
@@ -240,6 +308,44 @@ namespace Kalendarz1
                     catch
                     {
                         // log/telemetria jeśli potrzeba
+                    }
+                }
+            }
+        }
+        private void dataGridPartie_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            // Sprawdzamy, czy formatujemy komórkę w interesującej nas kolumnie ("Różnica")
+            if (dataGridPartie.Columns[e.ColumnIndex].Name == "RoznicaKolumna")
+            {
+                // Upewniamy się, że wartość w komórce nie jest pusta ani nie jest to DBNull
+                if (e.Value != null && e.Value != DBNull.Value)
+                {
+                    // Próbujemy przekonwertować wartość komórki na typ decimal
+                    if (decimal.TryParse(e.Value.ToString(), out decimal roznicaValue))
+                    {
+                        // Najpierw resetujemy style, aby usunąć formatowanie z poprzednich wierszy
+                        e.CellStyle.BackColor = dataGridPartie.DefaultCellStyle.BackColor;
+                        e.CellStyle.ForeColor = dataGridPartie.DefaultCellStyle.ForeColor;
+
+                        // Używamy Math.Abs() do sprawdzenia wartości bezwzględnej
+                        decimal absRoznica = Math.Abs(roznicaValue);
+
+                        // Sprawdzamy najostrzejszy warunek jako pierwszy
+                        if (absRoznica > 0.25m) // 'm' oznacza, że to literał typu decimal
+                        {
+                            e.CellStyle.BackColor = Color.Red;
+                            e.CellStyle.ForeColor = Color.White;
+                        }
+                        // Jeśli powyższy nie jest spełniony, sprawdzamy łagodniejszy warunek
+                        else if (absRoznica > 0.15m)
+                        {
+                            e.CellStyle.BackColor = Color.Yellow;
+                            e.CellStyle.ForeColor = Color.Black;
+                        }
+
+                        // Na koniec formatujemy wartość liczbową, dodając jednostkę "kg"
+                        e.Value = $"{roznicaValue:0.00} kg";
+                        e.FormattingApplied = true; // Informujemy kontrolkę, że formatowanie zostało już wykonane
                     }
                 }
             }
@@ -352,13 +458,11 @@ namespace Kalendarz1
                         dataGridViewNotatki.DataSource = dt;
 
                         // 🔒 WYŁĄCZ auto-rozszerzanie kolumn
-                        dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-
-                        dataGridViewNotatki.Columns["Data"].Width = 70;
+                        dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                         dataGridViewNotatki.Columns["Data"].DefaultCellStyle.Format = "dd.MM HH:mm";
-                        dataGridViewNotatki.Columns["Kto dodał"].Width = 50;
                         dataGridViewNotatki.Columns["Kto dodał"].DefaultCellStyle.WrapMode = DataGridViewTriState.False;
-                        dataGridViewNotatki.Columns["Treść"].Width = 270;
+                        dataGridViewNotatki.Columns["Treść"].FillWeight = 300; // Zajmie 2x więcej miejsca niż kolumna z wagą 100
+
 
                         // Zawijanie tekstu i dynamiczna wysokość wierszy
                         dataGridViewNotatki.Columns["Treść"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
@@ -652,6 +756,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["DataOdbioruKolumna"].Visible = false;
                             dataGridView1.Columns["bufor"].Visible = false;
                             dataGridView1.Columns["procentUbytek"].Visible = false;
+                            dataGridView1.Columns["Osobowosc"].Visible = false;
 
                             // Ustawienie szerokości kolumn
                             dataGridView1.Columns["LP"].Width = 50;
@@ -667,6 +772,7 @@ namespace Kalendarz1
                             dataGridView1.Columns["KmKolumna"].Width = 50;
                             dataGridView1.Columns["procentUbytek"].Width = 43;
                             dataGridView1.Columns["Osobowosc"].Width = 130;
+                            dataGridView1.Columns["UwagaKolumna"].Width = 260;
 
 
                             DataGridViewCheckBoxColumn confirmColumn = new DataGridViewCheckBoxColumn();
@@ -1665,27 +1771,14 @@ namespace Kalendarz1
         private void dataGridPartie_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
+            if (dataGridPartie.Columns[e.ColumnIndex].Name != "ZdjeciaKol") return;
 
-            var grid = (DataGridView)sender;
-            var col = grid.Columns[e.ColumnIndex];
-
-            if (col.Name != "ZdjeciaKol") return;
-
-            var cell = grid.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewLinkCell;
+            var cell = dataGridPartie.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewLinkCell;
             var path = cell?.Tag as string;
-
-            if (string.IsNullOrWhiteSpace(path))
-                return;
+            if (string.IsNullOrWhiteSpace(path)) return;
 
             try
             {
-                if (!Directory.Exists(path))
-                {
-                    MessageBox.Show($"Folder nie istnieje:\n{path}", "Zdjęcia", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Otwórz w Eksploratorze Windows
                 Process.Start("explorer.exe", path);
             }
             catch (Exception ex)

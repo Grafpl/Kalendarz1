@@ -930,7 +930,7 @@ WHERE ID = @Id;";
                     conn.Open();
                     int rows = cmd.ExecuteNonQuery();
 
-                    if (rows > 1)
+                    if (rows > 0)
                     {
                         string komunikat =
                             $"Powiązano dostawcę z Libry: \"{Dostawca1.Text}\" (ID: {IDLibra.Text})\n" +
