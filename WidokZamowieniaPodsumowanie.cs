@@ -1,375 +1,409 @@
-﻿using System;
-using System.Data;
-using System.Data.SqlClient;
-using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
+﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Data.SqlClient;
 using static Kalendarz1.CenoweMetody;
-using System.Windows.Controls;
 
 namespace Kalendarz1
 {
     public partial class WidokZamowieniaPodsumowanie : Form
     {
-        private string connectionString1 = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
-        private RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
-        private NazwaZiD nazwaZiD = new NazwaZiD();
-        private DataService dataService = new DataService();
+        // ====== Połączenia ======
+        private readonly string connectionString1 = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string connectionString2 = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+        // ====== Serwisy/proxy z Twojego projektu ======
+        private readonly RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
+        private readonly NazwaZiD nazwaZiD = new NazwaZiD();
+        private readonly DataService dataService = new DataService();
+
+        // ====== Daty tygodnia ======
         private DateTime startOfWeek;
         private DateTime poniedzialek;
         private DateTime wtorek;
         private DateTime sroda;
         private DateTime czwartek;
         private DateTime piatek;
-        private decimal totalIloscZamowiona; // Suma dla wszystkich dni tygodnia
-        private Dictionary<string, decimal> dzienneSumaIloscZamowiona = new Dictionary<string, decimal>();
-        public string UserID { get; set; }
-        private int? aktualneIdZamowienia; // Zmienna klasy do przechowywania Id Zamówieniavar idZamowieniaValue = null;
+
+        // ====== Agregacje ======
+        private decimal totalIloscZamowiona = 0m;
+        private readonly Dictionary<string, decimal> dzienneSumaIloscZamowiona = new();
+
+        // ====== Stan UI/otwarcia ======
+        public string UserID { get; set; } = string.Empty;
+        private int? aktualneIdZamowienia; // Id ostatnio klikniętego zamówienia
+
+        // ====== Cache kodów towarów (ID -> Kod) ======
+        private readonly Dictionary<int, string> _twKodCache = new();
 
         public WidokZamowieniaPodsumowanie()
         {
             InitializeComponent();
-            this.WindowState = FormWindowState.Maximized;
+            WindowState = FormWindowState.Maximized;
+
+            // Towary (combo + cache)
             ZaladujTowary();
+
+            // Twoja metoda – pokazuje pojemności tuszek itp.
             nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
 
-            // Podłączanie wspólnej metody obsługi do wszystkich DataGridView
+            // Uniwersalny click do wszystkich dziennych gridów
             dataGridViewPoniedzialek.CellClick += UniwersalnyCellClick;
             dataGridViewWtorek.CellClick += UniwersalnyCellClick;
             dataGridViewSroda.CellClick += UniwersalnyCellClick;
             dataGridViewCzwartek.CellClick += UniwersalnyCellClick;
             dataGridViewPiatek.CellClick += UniwersalnyCellClick;
 
+            // Reaguj na zmianę towaru
+            comboBoxTowar.SelectedIndexChanged += comboBoxTowar_SelectedIndexChanged;
         }
 
-        private void comboBoxTowar_SelectedIndexChanged(object sender, EventArgs e)
+        // ====== Zdarzenia wysokiego poziomu ======
+        private void comboBoxTowar_SelectedIndexChanged(object? sender, EventArgs e)
         {
             OdswiezPodsumowanie();
         }
 
-        private DataTable CreateDataTable(string[] columnNames)
+        private void myCalendar_DateChanged(object? sender, DateRangeEventArgs e)
         {
-            DataTable table = new DataTable();
-            foreach (var columnName in columnNames)
+            OdswiezPodsumowanie();
+        }
+
+        private void buttonOdswiez_Click(object? sender, EventArgs e)
+        {
+            OdswiezPodsumowanie();
+            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
+        }
+
+        private void CommandButton_Update_Click(object? sender, EventArgs e)
+        {
+            // NOWE zamówienie
+            var widokZamowienia = new WidokZamowienia(App.UserID, null);
+            widokZamowienia.Show();
+        }
+
+        private void buttonModyfikuj_Click(object? sender, EventArgs e)
+        {
+            if (aktualneIdZamowienia is null)
             {
-                table.Columns.Add(columnName);
+                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, aby wybrać Id.", "Brak wyboru",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
+
+            var widokZamowienia = new WidokZamowienia(App.UserID, aktualneIdZamowienia);
+            widokZamowienia.ShowDialog();
+        }
+
+        // ====== Rdzeń odświeżania ======
+        private void OdswiezPodsumowanie()
+        {
+            try
+            {
+                if (comboBoxTowar.SelectedValue == null || comboBoxTowar.SelectedValue is DataRowView)
+                {
+                    MessageBox.Show("Wybierz towar z listy.", "Brak towaru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
+
+                // Data z kalendarza i tygodnie (pon-pt)
+                DateTime selectedDate = myCalendar.SelectionStart.Date;
+                // Poniedziałek (ISO): DayOfWeek.Monday = 1, Sunday=0
+                int delta = ((int)selectedDate.DayOfWeek + 6) % 7; // ile dni od poniedziałku
+                startOfWeek = selectedDate.AddDays(-delta);
+
+                poniedzialek = startOfWeek;
+                wtorek = startOfWeek.AddDays(1);
+                sroda = startOfWeek.AddDays(2);
+                czwartek = startOfWeek.AddDays(3);
+                piatek = startOfWeek.AddDays(4);
+
+                // Zamówienia (pon..pt)
+                WyswietlPodsumowanie(selectedTowarId, startOfWeek, piatek);
+
+                // Przewidywalne kg (pojemność/przychód vs zamówione) – każdy dzień
+                PokazPrzewidywalneKilogramy(dataGridViewPoniedzialekSuma, poniedzialek, "Poniedziałek");
+                PokazPrzewidywalneKilogramy(dataGridViewWtorekSuma, wtorek, "Wtorek");
+                PokazPrzewidywalneKilogramy(dataGridViewSrodaSuma, sroda, "Środa");
+                PokazPrzewidywalneKilogramy(dataGridViewCzwartekSuma, czwartek, "Czwartek");
+                PokazPrzewidywalneKilogramy(dataGridViewPiatekSuma, piatek, "Piątek");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ====== Agregacja tygodnia ======
+        private static DataTable CreateDataTable(string[] columnNames)
+        {
+            var table = new DataTable();
+            foreach (var name in columnNames) table.Columns.Add(name);
             return table;
         }
 
         private void WyswietlPodsumowanie(int towarId, DateTime startOfWeek, DateTime endOfWeek)
         {
-            totalIloscZamowiona = 0;
+            totalIloscZamowiona = 0m;
             dzienneSumaIloscZamowiona.Clear();
 
-            using (SqlConnection connection = new SqlConnection(connectionString1)) // zamówienia
+            // 1) Pobierz zamówienia z LibraNet (bez cross-server JOIN – filtrujemy po KodTowaru=ID towaru)
+            DataTable dataTable = new();
+            using (var connection = new SqlConnection(connectionString1))
+            using (var command = new SqlCommand(@"
+                SELECT 
+                    zm.Id,
+                    zm.DataZamowienia, 
+                    zm.KlientId, 
+                    SUM(zmt.Ilosc) AS IloscZamowiona
+                FROM [LibraNet].[dbo].[ZamowieniaMieso] zm
+                JOIN [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                WHERE 
+                    zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
+                    AND zmt.KodTowaru = @TowarId
+                GROUP BY zm.Id, zm.DataZamowienia, zm.KlientId
+                ORDER BY zm.DataZamowienia;", connection))
             {
-                string query = @"
-        SELECT 
-            zm.Id,
-            zm.DataZamowienia, 
-            zm.KlientId, 
-            tw.Kod AS KodTowaru, 
-            SUM(zmt.Ilosc) AS IloscZamowiona
-        FROM 
-            [LibraNet].[dbo].[ZamowieniaMieso] zm
-        JOIN 
-            [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-        JOIN 
-            [RemoteServer].[HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.ID
-        WHERE 
-            zm.DataZamowienia BETWEEN @StartOfWeek AND @EndOfWeek
-            AND tw.ID = @TowarId
-        GROUP BY 
-            zm.Id, zm.DataZamowienia, zm.KlientId, tw.Kod
-        ORDER BY 
-            zm.DataZamowienia;";
-
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@StartOfWeek", startOfWeek);
-                command.Parameters.AddWithValue("@EndOfWeek", endOfWeek);
+                command.Parameters.AddWithValue("@StartOfWeek", startOfWeek.Date);
+                command.Parameters.AddWithValue("@EndOfWeek", endOfWeek.Date);
                 command.Parameters.AddWithValue("@TowarId", towarId);
 
-                SqlDataAdapter adapter = new SqlDataAdapter(command);
-                DataTable dataTable = new DataTable();
+                using var adapter = new SqlDataAdapter(command);
                 adapter.Fill(dataTable);
-
-                // Tworzenie DataTable dla każdego dnia
-                DataTable dtPon = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
-                DataTable dtWto = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
-                DataTable dtSro = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
-                DataTable dtCzw = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
-                DataTable dtPia = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
-
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    DateTime dataZamowienia = Convert.ToDateTime(row["DataZamowienia"]);
-                    string klientId = row["KlientId"].ToString();
-                    string idZamowienia = row["Id"].ToString();
-                    decimal iloscZamowiona = Convert.ToDecimal(row["IloscZamowiona"]);
-                    totalIloscZamowiona += iloscZamowiona;
-
-                    var daneOdbiorcy = dataService.PobierzDaneOdbiorcy(klientId);
-                    string nazwaOdbiorcy = daneOdbiorcy[RozwijanieComboBox.DaneKontrahenta.Kod];
-
-                    decimal faktycznaIlosc = 0;
-                    using (SqlConnection connReal = new SqlConnection(connectionString2))
-                    {
-                        string realQuery = @"
-                SELECT SUM(ABS(MZ.ilosc)) AS RIlosc
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-                WHERE MG.data = @Data
-                  AND MG.aktywny = 1
-                  AND MG.khid = @KlientId
-                  AND MG.seria IN ('sWZ', 'sWZ-W')
-                  AND MZ.idtw = @TowarId";
-
-                        SqlCommand realCmd = new SqlCommand(realQuery, connReal);
-                        realCmd.Parameters.AddWithValue("@Data", dataZamowienia);
-                        realCmd.Parameters.AddWithValue("@KlientId", klientId);
-                        realCmd.Parameters.AddWithValue("@TowarId", towarId);
-
-                        connReal.Open();
-                        var realResult = realCmd.ExecuteScalar();
-                        if (realResult != null && realResult != DBNull.Value)
-                            faktycznaIlosc = Convert.ToDecimal(realResult);
-                    }
-
-                    int dayOffset = (dataZamowienia - startOfWeek).Days;
-                    switch (dayOffset)
-                    {
-                        case 0:
-                            dtPon.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
-                            AddToDailySum("Poniedziałek", iloscZamowiona);
-                            break;
-                        case 1:
-                            dtWto.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
-                            AddToDailySum("Wtorek", iloscZamowiona);
-                            break;
-                        case 2:
-                            dtSro.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
-                            AddToDailySum("Środa", iloscZamowiona);
-                            break;
-                        case 3:
-                            dtCzw.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
-                            AddToDailySum("Czwartek", iloscZamowiona);
-                            break;
-                        case 4:
-                            dtPia.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc);
-                            AddToDailySum("Piątek", iloscZamowiona);
-                            break;
-                    }
-                }
-
-                // 🔁 DODATKOWO: dodaj klientów z RIlosc > 0, ale bez zamówienia
-                using (SqlConnection connExtra = new SqlConnection(connectionString2))
-                {
-                    string extraQuery = @"
-                SELECT 
-                    MG.data,
-                    MG.khid,
-                    SUM(ABS(MZ.ilosc)) AS RIlosc
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-                WHERE 
-                    MG.data BETWEEN @StartOfWeek AND @EndOfWeek
-                    AND MG.seria IN ('sWZ', 'sWZ-W')
-                    AND MG.aktywny = 1
-                    AND MZ.idtw = @TowarId
-                GROUP BY MG.data, MG.khid";
-
-                    SqlCommand extraCmd = new SqlCommand(extraQuery, connExtra);
-                    extraCmd.Parameters.AddWithValue("@StartOfWeek", startOfWeek);
-                    extraCmd.Parameters.AddWithValue("@EndOfWeek", endOfWeek);
-                    extraCmd.Parameters.AddWithValue("@TowarId", towarId);
-
-                    SqlDataAdapter extraAdapter = new SqlDataAdapter(extraCmd);
-                    DataTable odbiorcyBezZamowienia = new DataTable();
-                    extraAdapter.Fill(odbiorcyBezZamowienia);
-
-                    foreach (DataRow odb in odbiorcyBezZamowienia.Rows)
-                    {
-                        DateTime data = Convert.ToDateTime(odb["data"]);
-                        string khid = odb["khid"].ToString();
-                        decimal rilosc = Convert.ToDecimal(odb["RIlosc"]);
-
-                        bool alreadyExists = dataTable.AsEnumerable().Any(r =>
-                            Convert.ToDateTime(r["DataZamowienia"]).Date == data.Date &&
-                            r["KlientId"].ToString() == khid);
-
-                        if (!alreadyExists)
-                        {
-                            var odbiorca = dataService.PobierzDaneOdbiorcy(khid);
-                            if (!odbiorca.ContainsKey(RozwijanieComboBox.DaneKontrahenta.Kod))
-                            {
-                                
-                                continue;
-                            }
-                            string nazwa = odbiorca[RozwijanieComboBox.DaneKontrahenta.Kod];
-
-                            int dzienOffset = (data - startOfWeek).Days;
-
-                            switch (dzienOffset)
-                            {
-                                case 0: dtPon.Rows.Add("—", nazwa, 0m, rilosc); break;
-                                case 1: dtWto.Rows.Add("—", nazwa, 0m, rilosc); break;
-                                case 2: dtSro.Rows.Add("—", nazwa, 0m, rilosc); break;
-                                case 3: dtCzw.Rows.Add("—", nazwa, 0m, rilosc); break;
-                                case 4: dtPia.Rows.Add("—", nazwa, 0m, rilosc); break;
-                            }
-                        }
-                    }
-                }
-
-                // Wyświetl w siatkach
-                ConfigureDataGridView(dataGridViewPoniedzialek, dtPon);
-                ConfigureDataGridView(dataGridViewWtorek, dtWto);
-                ConfigureDataGridView(dataGridViewSroda, dtSro);
-                ConfigureDataGridView(dataGridViewCzwartek, dtCzw);
-                ConfigureDataGridView(dataGridViewPiatek, dtPia);
             }
 
+            // 2) Przygotuj per-dzień kontenery
+            var dtPon = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+            var dtWto = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+            var dtSro = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+            var dtCzw = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+            var dtPia = CreateDataTable(new[] { "IdZamowienia", "Klient", "Ilosc", "RIlosc" });
+
+            // 3) Iteruj po zamówieniach i dociągnij "faktyczne" z Handlu (sWZ/sWZ-W)
+            foreach (DataRow row in dataTable.Rows)
+            {
+                var dataZamowienia = Convert.ToDateTime(row["DataZamowienia"]).Date;
+                var klientId = row["KlientId"]?.ToString() ?? "";
+                var idZamowienia = row["Id"]?.ToString() ?? "";
+                var iloscZamowiona = row["IloscZamowiona"] == DBNull.Value ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
+
+                totalIloscZamowiona += iloscZamowiona;
+
+                // Nazwa klienta (z Twojej usługi)
+                var daneOdbiorcy = dataService.PobierzDaneOdbiorcy(klientId);
+                daneOdbiorcy.TryGetValue(RozwijanieComboBox.DaneKontrahenta.Kod, out var nazwaOdbiorcy);
+                nazwaOdbiorcy ??= klientId;
+
+                // Faktyczna ilość (WZ) dla dnia/klienta/towaru
+                decimal faktycznaIlosc = 0m;
+                using (var connReal = new SqlConnection(connectionString2))
+                using (var realCmd = new SqlCommand(@"
+                    SELECT SUM(ABS(MZ.ilosc)) AS RIlosc
+                    FROM [HANDEL].[HM].[MZ] MZ
+                    JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                    WHERE MG.data = @Data
+                      AND MG.aktywny = 1
+                      AND MG.khid = @KlientId
+                      AND MG.seria IN ('sWZ', 'sWZ-W')
+                      AND MZ.idtw = @TowarId", connReal))
+                {
+                    realCmd.Parameters.AddWithValue("@Data", dataZamowienia);
+                    realCmd.Parameters.AddWithValue("@KlientId", klientId);
+                    realCmd.Parameters.AddWithValue("@TowarId", towarId);
+
+                    connReal.Open();
+                    var realResult = realCmd.ExecuteScalar();
+                    if (realResult != null && realResult != DBNull.Value)
+                        faktycznaIlosc = Convert.ToDecimal(realResult);
+                }
+
+                int dayOffset = (int)(dataZamowienia.Subtract(startOfWeek.Date).TotalDays);
+                switch (dayOffset)
+                {
+                    case 0: dtPon.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc); AddToDailySum("Poniedziałek", iloscZamowiona); break;
+                    case 1: dtWto.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc); AddToDailySum("Wtorek", iloscZamowiona); break;
+                    case 2: dtSro.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc); AddToDailySum("Środa", iloscZamowiona); break;
+                    case 3: dtCzw.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc); AddToDailySum("Czwartek", iloscZamowiona); break;
+                    case 4: dtPia.Rows.Add(idZamowienia, nazwaOdbiorcy, iloscZamowiona, faktycznaIlosc); AddToDailySum("Piątek", iloscZamowiona); break;
+                }
+            }
+
+            // 4) Dodaj klientów, którzy mają RIlosc>0 bez zamówienia w danym dniu
+            using (var connExtra = new SqlConnection(connectionString2))
+            using (var extraCmd = new SqlCommand(@"
+                SELECT MG.data, MG.khid, SUM(ABS(MZ.ilosc)) AS RIlosc
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                WHERE MG.data BETWEEN @StartOfWeek AND @EndOfWeek
+                  AND MG.seria IN ('sWZ', 'sWZ-W')
+                  AND MG.aktywny = 1
+                  AND MZ.idtw = @TowarId
+                GROUP BY MG.data, MG.khid;", connExtra))
+            {
+                extraCmd.Parameters.AddWithValue("@StartOfWeek", startOfWeek.Date);
+                extraCmd.Parameters.AddWithValue("@EndOfWeek", endOfWeek.Date);
+                extraCmd.Parameters.AddWithValue("@TowarId", towarId);
+
+                var odbiorcyBezZamowienia = new DataTable();
+                using var extraAdapter = new SqlDataAdapter(extraCmd);
+                extraAdapter.Fill(odbiorcyBezZamowienia);
+
+                foreach (DataRow odb in odbiorcyBezZamowienia.Rows)
+                {
+                    DateTime data = Convert.ToDateTime(odb["data"]).Date;
+                    string khid = odb["khid"]?.ToString() ?? "";
+                    decimal rilosc = odb["RIlosc"] == DBNull.Value ? 0m : Convert.ToDecimal(odb["RIlosc"]);
+
+                    bool alreadyExists = dataTable.AsEnumerable().Any(r =>
+                        Convert.ToDateTime(r["DataZamowienia"]).Date == data &&
+                        string.Equals(r["KlientId"]?.ToString(), khid, StringComparison.Ordinal));
+
+                    if (alreadyExists) continue;
+
+                    var odbiorca = dataService.PobierzDaneOdbiorcy(khid);
+                    odbiorca.TryGetValue(RozwijanieComboBox.DaneKontrahenta.Kod, out var nazwa);
+                    nazwa ??= khid;
+
+                    int dzienOffset = (int)(data.Subtract(startOfWeek.Date).TotalDays);
+                    switch (dzienOffset)
+                    {
+                        case 0: dtPon.Rows.Add("—", nazwa, 0m, rilosc); break;
+                        case 1: dtWto.Rows.Add("—", nazwa, 0m, rilosc); break;
+                        case 2: dtSro.Rows.Add("—", nazwa, 0m, rilosc); break;
+                        case 3: dtCzw.Rows.Add("—", nazwa, 0m, rilosc); break;
+                        case 4: dtPia.Rows.Add("—", nazwa, 0m, rilosc); break;
+                    }
+                }
+            }
+
+            // 5) Podłącz do widoków i sformatuj
+            ConfigureDataGridView(dataGridViewPoniedzialek, dtPon);
+            ConfigureDataGridView(dataGridViewWtorek, dtWto);
+            ConfigureDataGridView(dataGridViewSroda, dtSro);
+            ConfigureDataGridView(dataGridViewCzwartek, dtCzw);
+            ConfigureDataGridView(dataGridViewPiatek, dtPia);
+
+            // (opcjonalnie) log do konsoli
             Console.WriteLine($"Suma całkowita: {totalIloscZamowiona}");
             foreach (var dzien in dzienneSumaIloscZamowiona)
                 Console.WriteLine($"{dzien.Key}: {dzien.Value}");
         }
 
-
         private void AddToDailySum(string day, decimal amount)
         {
             if (!dzienneSumaIloscZamowiona.ContainsKey(day))
-            {
-                dzienneSumaIloscZamowiona[day] = 0;
-            }
+                dzienneSumaIloscZamowiona[day] = 0m;
             dzienneSumaIloscZamowiona[day] += amount;
         }
-
 
         private void ConfigureDataGridView(DataGridView gridView, DataTable dataSource)
         {
             gridView.DataSource = dataSource;
 
-            // Ukrycie kolumny "IdZamowienia"
+            // Kolumny
             if (gridView.Columns.Contains("IdZamowienia"))
-            {
                 gridView.Columns["IdZamowienia"].Visible = false;
-            }
-
-            // Szerokość kolumny "Klient"
             if (gridView.Columns.Contains("Klient"))
-            {
-                gridView.Columns["Klient"].Width = 90;
-            }
+                gridView.Columns["Klient"].Width = 180;
 
-            // Wyłączanie wiersza nagłówka po lewej stronie
+            // Wygląd
             gridView.RowHeadersVisible = false;
-
-            // Ustawienie wysokości wierszy
             gridView.RowTemplate.Height = 22;
-
-            // Dopasowanie szerokości kolumn do dostępnej przestrzeni
             gridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-
-            // Wyłączenie możliwości zmiany rozmiaru wierszy przez użytkownika
             gridView.AllowUserToResizeRows = false;
-
-            // Wyrównanie tekstu w kolumnach
             gridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            // Formatowanie wartości i kolorowanie
-            gridView.CellFormatting += (sender, e) =>
-            {
-                if (e.Value != null)
-                {
-                    string columnName = gridView.Columns[e.ColumnIndex].Name;
+            // Usuń stare subskrypcje, żeby nie dublować (przy częstym odświeżaniu)
+            gridView.CellFormatting -= GridView_CellFormatting_Amounts;
+            gridView.CellFormatting += GridView_CellFormatting_Amounts;
 
-                    if (columnName == "Ilosc" || columnName == "RIlosc")
-                    {
-                        if (decimal.TryParse(e.Value.ToString(), out decimal value))
-                        {
-                            e.Value = $"{value:N0} kg";
-                            e.FormattingApplied = true;
-                        }
-                    }
-
-                    // Kolorowanie tylko dla RIlosc
-                    if (columnName == "RIlosc")
-                    {
-                        var row = gridView.Rows[e.RowIndex];
-                        if (gridView.Columns.Contains("Ilosc") && row.Cells["Ilosc"].Value != null && row.Cells["RIlosc"].Value != null)
-                        {
-                            if (decimal.TryParse(row.Cells["Ilosc"].Value.ToString(), out decimal ilosc) &&
-                                decimal.TryParse(row.Cells["RIlosc"].Value.ToString(), out decimal rilosc))
-                            {
-                                if (rilosc >= ilosc)
-                                {
-                                    row.Cells["RIlosc"].Style.ForeColor = Color.Green;
-                                }
-                                else if (rilosc > 0 && rilosc < ilosc)
-                                {
-                                    row.Cells["RIlosc"].Style.ForeColor = Color.Red;
-                                    row.Cells["RIlosc"].Style.Font = new Font(gridView.Font, FontStyle.Bold);
-                                }
-                                else
-                                {
-                                    row.Cells["RIlosc"].Style.ForeColor = Color.Black;
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-
-
-
-            // Koloryzowanie wierszy naprzemiennie
-            gridView.AlternatingRowsDefaultCellStyle.BackColor = Color.LightGray; // Kolor dla naprzemiennych wierszy
-            gridView.DefaultCellStyle.BackColor = Color.White; // Kolor dla pozostałych wierszy
-
-            // Ustawienie domyślnego koloru tekstu
+            gridView.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+            gridView.DefaultCellStyle.BackColor = Color.White;
             gridView.DefaultCellStyle.ForeColor = Color.Black;
 
-            // Wyczyść zaznaczenie domyślne
             gridView.ClearSelection();
         }
 
+        private void GridView_CellFormatting_Amounts(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (sender is not DataGridView gridView || e.Value is null) return;
+
+            string columnName = gridView.Columns[e.ColumnIndex].Name;
+
+            if (columnName is "Ilosc" or "RIlosc")
+            {
+                if (decimal.TryParse(e.Value.ToString(), out decimal value))
+                {
+                    e.Value = $"{value:N0} kg";
+                    e.FormattingApplied = true;
+                }
+            }
+
+            if (columnName == "RIlosc")
+            {
+                var row = gridView.Rows[e.RowIndex];
+                if (gridView.Columns.Contains("Ilosc") &&
+                    row.Cells["Ilosc"].Value != null &&
+                    row.Cells["RIlosc"].Value != null &&
+                    decimal.TryParse(row.Cells["Ilosc"].Value.ToString(), out decimal ilosc) &&
+                    decimal.TryParse(row.Cells["RIlosc"].Value.ToString(), out decimal rilosc))
+                {
+                    if (rilosc >= ilosc)
+                    {
+                        row.Cells["RIlosc"].Style.ForeColor = Color.Green;
+                        row.Cells["RIlosc"].Style.Font = gridView.Font;
+                    }
+                    else if (rilosc > 0 && rilosc < ilosc)
+                    {
+                        row.Cells["RIlosc"].Style.ForeColor = Color.Red;
+                        row.Cells["RIlosc"].Style.Font = new Font(gridView.Font, FontStyle.Bold);
+                    }
+                    else
+                    {
+                        row.Cells["RIlosc"].Style.ForeColor = Color.Black;
+                        row.Cells["RIlosc"].Style.Font = gridView.Font;
+                    }
+                }
+            }
+        }
 
         private void ZaladujTowary()
         {
-            using (SqlConnection connection = new SqlConnection(connectionString2))
+            using var connection = new SqlConnection(connectionString2);
+            using var adapter = new SqlDataAdapter(
+                "SELECT [ID], [kod] FROM [HANDEL].[HM].[TW] WHERE katalog = '67095' ORDER BY kod ASC", connection);
+            var towary = new DataTable();
+            adapter.Fill(towary);
+
+            if (towary.Rows.Count == 0)
             {
-                string query = "SELECT [ID], [kod] FROM [HANDEL].[HM].[TW] WHERE katalog = '67095' ORDER BY Kod ASC";
-                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
-                DataTable towary = new DataTable();
-                adapter.Fill(towary);
-
-                if (towary.Rows.Count == 0)
-                {
-                    MessageBox.Show("Brak danych w tabeli TW.", "Błąd");
-                    return;
-                }
-
-                comboBoxTowar.DisplayMember = "kod"; // Wyświetlany tekst
-                comboBoxTowar.ValueMember = "ID";    // Ukryte ID
-                comboBoxTowar.DataSource = towary;   // Źródło danych na końcu
+                MessageBox.Show("Brak danych w [HM].[TW].", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
 
+            comboBoxTowar.DisplayMember = "kod";
+            comboBoxTowar.ValueMember = "ID";
+            comboBoxTowar.DataSource = towary;
+
+            // Cache ID->Kod (dla szczegółów zamówienia)
+            _twKodCache.Clear();
+            foreach (DataRow r in towary.Rows)
+            {
+                int id = Convert.ToInt32(r["ID"]);
+                string kod = r["kod"]?.ToString() ?? id.ToString();
+                _twKodCache[id] = kod;
+            }
         }
 
-
-        private void PokazPrzewidywalneKilogramy(DataGridView datagrid, DateTime dzien, string zamowienie)
+        private void PokazPrzewidywalneKilogramy(DataGridView datagrid, DateTime dzien, string nazwaDnia)
         {
-            DataTable finalTable = new DataTable();
+            var finalTable = new DataTable();
             finalTable.Columns.Add("Kategoria", typeof(string));
             finalTable.Columns.Add("Przewidywalny", typeof(string));
             finalTable.Columns.Add("Faktyczny", typeof(string));
@@ -377,21 +411,18 @@ namespace Kalendarz1
             double sumTonazTuszkiA = 0;
             double sumTonazTuszkiB = 0;
 
-            // Przewidywany przychód z Harmonogramu
-            using (SqlConnection connection = new SqlConnection(connectionString1))
+            // 1) Harmonogram (LibraNet) – przewidywany przychód
+            using (var connection = new SqlConnection(connectionString1))
+            using (var command = new SqlCommand(@"
+                SELECT LP, Auta, Dostawca, WagaDek, SztukiDek 
+                FROM dbo.HarmonogramDostaw 
+                WHERE DataOdbioru = @StartDate 
+                  AND Bufor = 'Potwierdzony' 
+                ORDER BY WagaDek DESC", connection))
             {
-                string query = @"
-            SELECT LP, Auta, Dostawca, WagaDek, SztukiDek 
-            FROM dbo.HarmonogramDostaw 
-            WHERE DataOdbioru = @StartDate 
-              AND Bufor = 'Potwierdzony' 
-            ORDER BY WagaDek DESC";
-
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@StartDate", dzien);
-
-                SqlDataAdapter adapter = new SqlDataAdapter(command);
-                DataTable table = new DataTable();
+                command.Parameters.AddWithValue("@StartDate", dzien.Date);
+                using var adapter = new SqlDataAdapter(command);
+                var table = new DataTable();
                 adapter.Fill(table);
 
                 foreach (DataRow row in table.Rows)
@@ -401,7 +432,7 @@ namespace Kalendarz1
 
                     double sredniaTuszka = wagaDek * 0.78;
                     double tonazTuszka = sredniaTuszka * sztukiDek;
-                    double tonazA = tonazTuszka * 0.85;
+                    double tonazA = tonazTuszka * 0.85; // przykład podziału
                     double tonazB = tonazTuszka * 0.15;
 
                     sumTonazTuszkiA += tonazA;
@@ -409,280 +440,181 @@ namespace Kalendarz1
                 }
             }
 
-            // Wylicz przychód przewidywalny
-            double wynikPrzychodu = 0;
+            // 2) Przypisanie po towarze
+            double wynikPrzychodu;
             int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
-
-            if (selectedTowarId == 66443)
+            if (selectedTowarId == 66443) // przykład: tuszka A
                 wynikPrzychodu = sumTonazTuszkiA;
             else
                 wynikPrzychodu = dataService.WydajnoscElement(sumTonazTuszkiB, selectedTowarId);
 
-            // Zamówienie przewidywane
-            double przewidywalny = dzienneSumaIloscZamowiona.ContainsKey(zamowienie)
-                ? (double)dzienneSumaIloscZamowiona[zamowienie]
+            // 3) Zamówione przewidywalnie (z agregacji dziennej)
+            double przewidywalny = dzienneSumaIloscZamowiona.TryGetValue(nazwaDnia, out var agg)
+                ? (double)agg
                 : 0.0;
 
-            // Faktyczny przychód z dokumentów sPWU
+            // 4) Faktyczny przychód (sPWU)
             double faktycznyPrzychod = 0.0;
-
-            using (SqlConnection conn = new SqlConnection(connectionString2))
+            using (var conn = new SqlConnection(connectionString2))
+            using (var cmd = new SqlCommand(@"
+                SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                WHERE MG.seria = 'sPWU'
+                  AND MG.aktywny = 1
+                  AND MG.data = @dzien
+                  AND MZ.idtw = @idtw", conn))
             {
-                string sql = @"
-            SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
-            FROM [HANDEL].[HM].[MZ] MZ
-            JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-            WHERE 
-                MG.seria = 'sPWU'
-                AND MG.aktywny = 1
-                AND MG.data = @dzien
-                AND MZ.idtw = @idtw";
-
-                SqlCommand cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@dzien", dzien);
+                cmd.Parameters.AddWithValue("@dzien", dzien.Date);
                 cmd.Parameters.AddWithValue("@idtw", selectedTowarId);
-
                 conn.Open();
-                object result = cmd.ExecuteScalar();
+                var result = cmd.ExecuteScalar();
                 if (result != null && result != DBNull.Value)
-                {
                     faktycznyPrzychod = Convert.ToDouble(result);
-                }
             }
 
-            // Faktyczne zamówienie z dokumentów sWZ + sWZ-W
+            // 5) Faktycznie wydane (sWZ + sWZ-W)
             double faktyczneZamowienie = 0.0;
-
-            using (SqlConnection conn = new SqlConnection(connectionString2))
+            using (var conn = new SqlConnection(connectionString2))
+            using (var cmd = new SqlCommand(@"
+                SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                WHERE MG.seria IN ('sWZ', 'sWZ-W')
+                  AND MG.aktywny = 1
+                  AND MG.data = @dzien
+                  AND MZ.idtw = @idtw", conn))
             {
-                string sql = @"
-            SELECT SUM(ABS(MZ.ilosc)) AS SumaIlosc
-            FROM [HANDEL].[HM].[MZ] MZ
-            JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-            WHERE 
-                MG.seria IN ('sWZ', 'sWZ-W')
-                AND MG.aktywny = 1
-                AND MG.data = @dzien
-                AND MZ.idtw = @idtw";
-
-                SqlCommand cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@dzien", dzien);
+                cmd.Parameters.AddWithValue("@dzien", dzien.Date);
                 cmd.Parameters.AddWithValue("@idtw", selectedTowarId);
-
                 conn.Open();
-                object result = cmd.ExecuteScalar();
+                var result = cmd.ExecuteScalar();
                 if (result != null && result != DBNull.Value)
-                {
                     faktyczneZamowienie = Convert.ToDouble(result);
-                }
             }
 
-            // Wiersz 1: Przychód
-            DataRow przychod = finalTable.NewRow();
-            przychod["Kategoria"] = "Przychód";
-            przychod["Przewidywalny"] = $"{wynikPrzychodu:N0} kg";
-            przychod["Faktyczny"] = $"{faktycznyPrzychod:N0} kg";
-            finalTable.Rows.Add(przychod);
+            // 6) Tabela przeglądowa
+            var r1 = finalTable.NewRow();
+            r1["Kategoria"] = "Przychód";
+            r1["Przewidywalny"] = $"{wynikPrzychodu:N0} kg";
+            r1["Faktyczny"] = $"{faktycznyPrzychod:N0} kg";
+            finalTable.Rows.Add(r1);
 
-            // Wiersz 2: Zamówione
-            DataRow zamowienia = finalTable.NewRow();
-            zamowienia["Kategoria"] = "Zamówione";
-            zamowienia["Przewidywalny"] = $"{przewidywalny:N0} kg";
-            zamowienia["Faktyczny"] = $"{faktyczneZamowienie:N0} kg";
-            finalTable.Rows.Add(zamowienia);
+            var r2 = finalTable.NewRow();
+            r2["Kategoria"] = "Zamówione";
+            r2["Przewidywalny"] = $"{przewidywalny:N0} kg";
+            r2["Faktyczny"] = $"{faktyczneZamowienie:N0} kg";
+            finalTable.Rows.Add(r2);
 
-            // Wiersz 3: Pozostało
-            DataRow pozostalo = finalTable.NewRow();
-            pozostalo["Kategoria"] = "Pozostało";
+            var r3 = finalTable.NewRow();
+            r3["Kategoria"] = "Pozostało";
             double pozostaloKg = wynikPrzychodu - przewidywalny;
-            pozostalo["Przewidywalny"] = $"{pozostaloKg:N0} kg";
             double faktycznieKg = faktycznyPrzychod - faktyczneZamowienie;
-            pozostalo["Faktyczny"] = $"{faktycznieKg:N0} kg";
-            finalTable.Rows.Add(pozostalo);
+            r3["Przewidywalny"] = $"{pozostaloKg:N0} kg";
+            r3["Faktyczny"] = $"{faktycznieKg:N0} kg";
+            finalTable.Rows.Add(r3);
 
-            // Wyświetlenie
             datagrid.DataSource = finalTable;
-            datagrid.Columns["Kategoria"].HeaderText = "Kategoria";
-            datagrid.Columns["Przewidywalny"].HeaderText = "Przewidywalny";
-            datagrid.Columns["Faktyczny"].HeaderText = "Faktyczny";
+            datagrid.RowHeadersVisible = false;
+            datagrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            datagrid.AllowUserToResizeRows = false;
+            datagrid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            // Formatowanie wiersza końcowego (opcjonalnie)
+            if (datagrid.Columns.Contains("Kategoria")) datagrid.Columns["Kategoria"].HeaderText = "Kategoria";
+            if (datagrid.Columns.Contains("Przewidywalny")) datagrid.Columns["Przewidywalny"].HeaderText = "Przewidywalny";
+            if (datagrid.Columns.Contains("Faktyczny")) datagrid.Columns["Faktyczny"].HeaderText = "Faktyczny";
+
             FormatSumRow(datagrid, 2);
         }
 
-
-
-
-        private void FormatSumRow(DataGridView gridView, int nrWiersz)
+        private static void FormatSumRow(DataGridView gridView, int nrWiersz)
         {
-            DataGridViewRow sumRow = gridView.Rows[nrWiersz];
+            if (nrWiersz < 0 || nrWiersz >= gridView.Rows.Count) return;
+            var sumRow = gridView.Rows[nrWiersz];
             sumRow.DefaultCellStyle.ForeColor = Color.Black;
             sumRow.DefaultCellStyle.Font = new Font(gridView.Font, FontStyle.Bold);
-            // Wyłączanie wiersza nagłówka po lewej stronie
             gridView.RowHeadersVisible = false;
             gridView.ClearSelection();
         }
 
-
-        private void CommandButton_Update_Click(object sender, EventArgs e)
+        // ====== Klik w wiersz dnia → szczegóły i Id ======
+        private void UniwersalnyCellClick(object? sender, DataGridViewCellEventArgs e)
         {
-            WidokZamowienia widokZamowienia = new WidokZamowienia();
-            widokZamowienia.UserID = App.UserID;
-            widokZamowienia.Show();
-        }
+            if (e.RowIndex < 0) return;
+            if (sender is not DataGridView gridView) return;
 
-
-        private void OdswiezPodsumowanie()
-        {
-            try
+            if (!gridView.Columns.Contains("IdZamowienia"))
             {
-                if (comboBoxTowar.SelectedValue == null || comboBoxTowar.SelectedValue is DataRowView)
-                {
-                    MessageBox.Show("SelectedValue jest niewłaściwego typu.", "Błąd");
-                    return;
-                }
-
-                int selectedTowarId = Convert.ToInt32(comboBoxTowar.SelectedValue);
-                Console.WriteLine($"Selected Towar ID: {selectedTowarId}");
-
-                DateTime selectedDate = myCalendar.SelectionStart;
-                Console.WriteLine($"Selected Date: {selectedDate}");
-
-                // Oblicz daty tygodnia
-                startOfWeek = selectedDate.AddDays(-(int)selectedDate.DayOfWeek + 1); // Poniedziałek
-                poniedzialek = startOfWeek;
-                wtorek = startOfWeek.AddDays(1);
-                sroda = startOfWeek.AddDays(2);
-                czwartek = startOfWeek.AddDays(3);
-                piatek = startOfWeek.AddDays(4);
-
-                // Wyświetl podsumowanie dla wybranego tygodnia
-                WyswietlPodsumowanie(selectedTowarId, startOfWeek, piatek);
-
-                // Wyświetl przewidywalne kilogramy dla każdego dnia tygodnia
-                PokazPrzewidywalneKilogramy(dataGridViewPoniedzialekSuma, poniedzialek, "Poniedziałek");
-                PokazPrzewidywalneKilogramy(dataGridViewWtorekSuma, wtorek, "Wtorek");
-                PokazPrzewidywalneKilogramy(dataGridViewSrodaSuma, sroda, "Środa");
-                PokazPrzewidywalneKilogramy(dataGridViewCzwartekSuma, czwartek, "Czwartek");
-                PokazPrzewidywalneKilogramy(dataGridViewPiatekSuma, piatek, "Piątek");
+                MessageBox.Show("Kolumna 'IdZamowienia' nie istnieje w tym widoku.", "Brak kolumny",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            catch (Exception ex)
+
+            var val = gridView.Rows[e.RowIndex].Cells["IdZamowienia"].Value;
+            if (val != null && int.TryParse(val.ToString(), out int idZamowienia))
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd");
+                aktualneIdZamowienia = idZamowienia;
+                WyswietlSzczegolyZamowienia(idZamowienia, dataGridViewSzczegoly);
             }
         }
-
-        private void UniwersalnyCellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            // Sprawdź, czy kliknięto na wiersz (pomijamy nagłówki kolumn)
-            if (e.RowIndex >= 0)
-            {
-                // Rzutuj sender na DataGridView
-                DataGridView gridView = sender as DataGridView;
-
-                // Sprawdź, czy kolumna "IdZamowienia" istnieje w danym DataGridView
-                if (gridView.Columns.Contains("IdZamowienia"))
-                {
-                    // Pobierz wartość z ukrytej kolumny "IdZamowienia"
-                    var idZamowieniaValue = gridView.Rows[e.RowIndex].Cells["IdZamowienia"].Value;
-
-                    if (idZamowieniaValue != null && int.TryParse(idZamowieniaValue.ToString(), out int idZamowienia))
-                    {
-                        // Zapisz Id Zamówienia w zmiennej klasy
-                        aktualneIdZamowienia = idZamowienia;
-
-                        // Wyświetlenie szczegółów zamówienia w innym DataGridView
-                        WyswietlSzczegolyZamowienia(idZamowienia, dataGridViewSzczegoly);
-
-                        // Opcjonalnie: Pokaż komunikat, że wartość została zapisana
-                       
-                    }
-                    else
-                    {
-                       
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Kolumna 'IdZamowienia' nie istnieje w tym DataGridView.");
-                }
-            }
-        }
-
 
         private void WyswietlSzczegolyZamowienia(int zamowienieId, DataGridView gridView)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString1)) // Połączenie do bazy danych
+            // Pobierz pozycje (bez cross-server JOIN)
+            var dt = new DataTable();
+            using (var connection = new SqlConnection(connectionString1))
+            using (var command = new SqlCommand(@"
+                SELECT zmt.KodTowaru, zmt.Ilosc, zmt.Cena
+                FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
+                WHERE zmt.ZamowienieId = @ZamowienieId", connection))
             {
-                string query = @"
-        SELECT 
-            tw.Kod AS NazwaTowaru, -- Wyświetlenie nazwy towaru
-            zmt.Ilosc, 
-            zmt.Cena
-        FROM 
-            [LibraNet].[dbo].[ZamowieniaMiesoTowar] zmt
-        JOIN 
-            [RemoteServer].[HANDEL].[HM].[TW] tw -- Dołączenie tabeli towarów z zdalnego serwera
-        ON 
-            zmt.KodTowaru = tw.ID
-        WHERE 
-            zmt.ZamowienieId = @ZamowienieId";
-
-                SqlCommand command = new SqlCommand(query, connection);
                 command.Parameters.AddWithValue("@ZamowienieId", zamowienieId);
-
-                SqlDataAdapter adapter = new SqlDataAdapter(command);
-                DataTable dataTable = new DataTable();
-                adapter.Fill(dataTable);
-
-                // Wypełnienie DataGridView
-                gridView.DataSource = dataTable;
-
-                // Formatowanie DataGridView
-                ConfigureSzczegolyGridView(gridView);
+                using var adapter = new SqlDataAdapter(command);
+                adapter.Fill(dt);
             }
+
+            // Dodaj kolumnę NazwaTowaru z cache ID->Kod
+            if (!dt.Columns.Contains("NazwaTowaru"))
+                dt.Columns.Add("NazwaTowaru", typeof(string));
+
+            foreach (DataRow r in dt.Rows)
+            {
+                int id = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
+                r["NazwaTowaru"] = _twKodCache.TryGetValue(id, out var kod) ? kod : id.ToString();
+            }
+
+            // Ułóż kolumny: Nazwa, Ilość, Cena
+            var outTable = new DataTable();
+            outTable.Columns.Add("NazwaTowaru", typeof(string));
+            outTable.Columns.Add("Ilosc", typeof(decimal));
+            outTable.Columns.Add("Cena", typeof(decimal));
+
+            foreach (DataRow r in dt.Rows)
+            {
+                var nr = outTable.NewRow();
+                nr["NazwaTowaru"] = r["NazwaTowaru"];
+                nr["Ilosc"] = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
+                nr["Cena"] = r["Cena"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Cena"]);
+                outTable.Rows.Add(nr);
+            }
+
+            gridView.DataSource = outTable;
+            ConfigureSzczegolyGridView(gridView);
         }
-        private void ConfigureSzczegolyGridView(DataGridView gridView)
+
+        private static void ConfigureSzczegolyGridView(DataGridView gridView)
         {
             gridView.RowHeadersVisible = false;
             gridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             gridView.AllowUserToResizeRows = false;
             gridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            // Formatowanie kolumn
             if (gridView.Columns.Contains("Ilosc"))
-            {
-                gridView.Columns["Ilosc"].DefaultCellStyle.Format = "N0"; // Separator tysięcy
-            }
+                gridView.Columns["Ilosc"].DefaultCellStyle.Format = "N0";
             if (gridView.Columns.Contains("Cena"))
-            {
-                gridView.Columns["Cena"].DefaultCellStyle.Format = "C2"; // Format waluty
-            }
-        }
-
-
-
-
-
-        // Wywołanie z przycisku
-        private void buttonOdswiez_Click(object sender, EventArgs e)
-        {
-            OdswiezPodsumowanie();
-            nazwaZiD.PokazPojTuszki(dataGridSumaPartie);
-        }
-
-        private void myCalendar_DateChanged(object sender, DateRangeEventArgs e)
-        {
-            OdswiezPodsumowanie();
-        }
-
-        private void buttonModyfikuj_Click(object sender, EventArgs e)
-        {
-
-                WidokZamowienia widokZamowienia = new WidokZamowienia(aktualneIdZamowienia);
-                widokZamowienia.UserID = App.UserID;
-                widokZamowienia.ShowDialog(); // Otwórz jako dialog
-
+                gridView.Columns["Cena"].DefaultCellStyle.Format = "N2";
+            if (gridView.Columns.Contains("NazwaTowaru"))
+                gridView.Columns["NazwaTowaru"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
         }
     }
 }

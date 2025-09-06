@@ -12,14 +12,10 @@
         private System.Windows.Forms.ToolStripTextBox txtSearch;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripComboBox cmbPriceTypeFilter;
-        private System.Windows.Forms.ToolStripComboBox cmbStatusFilter;
         private System.Windows.Forms.ToolStripButton btnRefresh;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripLabel lblPage;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
-        private System.Windows.Forms.ToolStripButton btnDuplicates;
-        private System.Windows.Forms.ToolStripButton btnExportCsv;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
         private System.Windows.Forms.ToolStripButton btnAdd;
         private System.Windows.Forms.ToolStripButton btnEdit;
 
@@ -51,14 +47,10 @@
             txtSearch = new System.Windows.Forms.ToolStripTextBox();
             toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             cmbPriceTypeFilter = new System.Windows.Forms.ToolStripComboBox();
-            cmbStatusFilter = new System.Windows.Forms.ToolStripComboBox();
             btnRefresh = new System.Windows.Forms.ToolStripButton();
             toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             lblPage = new System.Windows.Forms.ToolStripLabel();
             toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
-            btnDuplicates = new System.Windows.Forms.ToolStripButton();
-            btnExportCsv = new System.Windows.Forms.ToolStripButton();
-            toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             btnAdd = new System.Windows.Forms.ToolStripButton();
             btnEdit = new System.Windows.Forms.ToolStripButton();
             statusStrip = new System.Windows.Forms.StatusStrip();
@@ -87,8 +79,6 @@
             txtDetUbytek = new System.Windows.Forms.TextBox();
             txtDetOstatnie = new System.Windows.Forms.TextBox();
             chkDetHalt = new System.Windows.Forms.CheckBox();
-            btnPrev = new System.Windows.Forms.ToolStripButton();
-            btnNext = new System.Windows.Forms.ToolStripButton();
             toolStrip.SuspendLayout();
             statusStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)split).BeginInit();
@@ -103,7 +93,7 @@
             // 
             // toolStrip
             // 
-            toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { lblSearch, txtSearch, toolStripSeparator1, cmbPriceTypeFilter, cmbStatusFilter, btnRefresh, toolStripSeparator2, btnPrev, lblPage, btnNext, toolStripSeparator3, btnDuplicates, btnExportCsv, toolStripSeparator4, btnAdd, btnEdit });
+            toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { lblSearch, txtSearch, toolStripSeparator1, cmbPriceTypeFilter, btnRefresh, toolStripSeparator2, lblPage, toolStripSeparator3, btnAdd, btnEdit });
             toolStrip.Location = new System.Drawing.Point(0, 0);
             toolStrip.Name = "toolStrip";
             toolStrip.Size = new System.Drawing.Size(1084, 25);
@@ -129,15 +119,11 @@
             cmbPriceTypeFilter.Name = "cmbPriceTypeFilter";
             cmbPriceTypeFilter.Size = new System.Drawing.Size(121, 25);
             // 
-            // cmbStatusFilter
-            // 
-            cmbStatusFilter.Name = "cmbStatusFilter";
-            cmbStatusFilter.Size = new System.Drawing.Size(121, 25);
-            // 
             // btnRefresh
             // 
             btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new System.Drawing.Size(23, 22);
+            btnRefresh.Size = new System.Drawing.Size(55, 22);
+            btnRefresh.Text = "Odśwież";
             // 
             // toolStripSeparator2
             // 
@@ -154,31 +140,21 @@
             toolStripSeparator3.Name = "toolStripSeparator3";
             toolStripSeparator3.Size = new System.Drawing.Size(6, 25);
             // 
-            // btnDuplicates
-            // 
-            btnDuplicates.Name = "btnDuplicates";
-            btnDuplicates.Size = new System.Drawing.Size(23, 22);
-            // 
-            // btnExportCsv
-            // 
-            btnExportCsv.Name = "btnExportCsv";
-            btnExportCsv.Size = new System.Drawing.Size(23, 22);
-            // 
-            // toolStripSeparator4
-            // 
-            toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new System.Drawing.Size(6, 25);
-            // 
             // btnAdd
             // 
+            btnAdd.BackColor = System.Drawing.Color.FromArgb(192, 255, 192);
+            btnAdd.ImageTransparentColor = System.Drawing.Color.White;
             btnAdd.Name = "btnAdd";
-            btnAdd.Size = new System.Drawing.Size(23, 22);
+            btnAdd.Size = new System.Drawing.Size(42, 22);
+            btnAdd.Text = "Dodaj";
             btnAdd.Click += btnAdd_Click;
             // 
             // btnEdit
             // 
+            btnEdit.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
             btnEdit.Name = "btnEdit";
-            btnEdit.Size = new System.Drawing.Size(23, 22);
+            btnEdit.Size = new System.Drawing.Size(65, 22);
+            btnEdit.Text = "Modyfikuj";
             // 
             // statusStrip
             // 
@@ -383,16 +359,6 @@
             chkDetHalt.Size = new System.Drawing.Size(104, 24);
             chkDetHalt.TabIndex = 0;
             // 
-            // btnPrev
-            // 
-            btnPrev.Name = "btnPrev";
-            btnPrev.Size = new System.Drawing.Size(23, 22);
-            // 
-            // btnNext
-            // 
-            btnNext.Name = "btnNext";
-            btnNext.Size = new System.Drawing.Size(23, 22);
-            // 
             // WidokKontrahenci
             // 
             ClientSize = new System.Drawing.Size(1084, 661);
@@ -423,7 +389,5 @@
         #endregion
 
         private System.Windows.Forms.DataGridView dgvSuppliers;
-        private System.Windows.Forms.ToolStripButton btnPrev;
-        private System.Windows.Forms.ToolStripButton btnNext;
     }
 }

@@ -68,12 +68,7 @@ namespace Kalendarz1
             dgvSuppliers.DataError += (s, ev) => { ev.ThrowException = false; };
             txtSearch.TextChanged += async (_, __) => { _pageIndex = 0; await LoadSuppliersPageAsync(); };
             cmbPriceTypeFilter.SelectedIndexChanged += async (_, __) => await ReloadPagePreservingSearchAsync();
-            cmbStatusFilter.SelectedIndexChanged += async (_, __) => await ReloadPagePreservingSearchAsync();
             btnRefresh.Click += async (_, __) => await ReloadFirstPageAsync();
-            btnPrev.Click += async (_, __) => await PrevPageAsync();
-            btnNext.Click += async (_, __) => await NextPageAsync();
-            btnDuplicates.Click += (_, __) => SprawdzDuplikaty();
-            btnExportCsv.Click += (_, __) => ExportSuppliersToCsv();
             btnEdit.Click += (_, __) => OpenAkceptacjaWniosku();
             btnAdd.Click += async (_, __) => await OpenNewSupplierFormAsync();
 
@@ -270,11 +265,12 @@ ORDER BY D.ID DESC;";
             var priceTypeFilter = cmbPriceTypeFilter.SelectedItem as KeyValuePair<int?, string>?;
             if (priceTypeFilter.HasValue && priceTypeFilter.Value.Key.HasValue)
                 sbWhere.Append(" AND D.PriceTypeID = @PriceTypeID ");
-            var status = cmbStatusFilter.Text;
+            /*var status = cmbStatusFilter.Text;
             if (status == "Aktywni")
                 sbWhere.Append(" AND ISNULL(D.Halt,0) = 0 ");
             else if (status == "Wstrzymani")
                 sbWhere.Append(" AND ISNULL(D.Halt,0) = 1 ");
+            */
             string searchText = (txtSearch.Text ?? string.Empty).Trim();
             bool hasSearch = searchText.Length >= 2;
             if (hasSearch)
@@ -349,8 +345,6 @@ ORDER BY D.ID DESC;";
             _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 && Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
             lblPage.Text = $"Strona: {_pageIndex + 1}";
             lblCount.Text = $"Rekordy: {newSuppliersTable.Rows.Count}";
-            btnPrev.Enabled = _pageIndex > 0;
-            btnNext.Enabled = _hasMore;
 
             // Na wszelki wypadek, dodatkowo odświeżamy widok
             dgvSuppliers.Refresh();

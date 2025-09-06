@@ -1075,6 +1075,11 @@ WHERE ID = @ID;";
         {
 
         }
+
+        private void comboBoxDostawcaS_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }
 #endregion

@@ -1,4 +1,4 @@
-﻿ using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Primitives;
 using Microsoft.VisualBasic.ApplicationServices;
 using Newtonsoft.Json.Linq;
@@ -27,6 +27,15 @@ namespace Kalendarz1
         private double sumaSztuk; // pozostale wstawienia
         private Timer timer;
         private Timer timer2;
+
+        // === Ankieta: 14:30 codziennie ===
+        private System.Windows.Forms.Timer surveyTimer;
+        private bool surveyShownThisSession = false; // wyświetlono w tej sesji
+        private static readonly TimeSpan SURVEY_START = new TimeSpan(0, 0, 0); // 14:30
+        private static readonly TimeSpan SURVEY_END = new TimeSpan(23, 59, 0); // 15:00
+
+
+
         public string UserID { get; set; }
 
         private MojeObliczenia obliczenia = new MojeObliczenia();
@@ -37,6 +46,12 @@ namespace Kalendarz1
         public WidokKalendarza()
         {
             InitializeComponent();
+            // Harmonogram ankiety 14:30
+            SetupSurvey14h30();
+
+            // Dodatkowy „natychmiastowy” check przy starcie – gdyby aplikacja ruszyła już po 14:20
+            // this.BeginInvoke(new Action(CheckSurveyTimeAndRun));
+
             this.Load += WidokKalendarza_Load;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             SetupStatus(); FillComboBox(); PokazCeny();
@@ -71,7 +86,12 @@ namespace Kalendarz1
             timer2.Interval = 1800000; // Interwał 30 minut (1 800 000 ms)
             timer2.Tick += Timer2_Tick; // Przypisanie zdarzenia
             timer2.Start(); // Rozpoczęcie pracy timera
+                            // żeby nie pytało dwa razy tego samego dnia
 
+
+
+            // === Ankieta: uruchom harmonogram (14:00–15:00) ===
+            ConfigureSurveyTimer();
 
         }
         // Metoda wywoływana podczas ładowania formularza
@@ -361,6 +381,9 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             userTextbox.Text = name;
             //Mozliwosci prawego klikniecia na kalendarz
             dataGridView1.ContextMenuStrip = contextMenuStrip1;
+            // Jeśli aplikacja została uruchomiona między 14:30 a 15:00 → pokaż od razu
+            TryShowSurveyIfInWindow();
+
         }
         private void CheckBoxAnulowane_CheckedChanged(object sender, EventArgs e)
         {
@@ -1747,6 +1770,7 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             timer.Stop();
             // Zatrzymaj timer przy zamykaniu formularza
             timer2.Stop();
+            if (surveyTimer != null) surveyTimer.Stop();
         }
         private void buttonPokazTuszke_Click(object sender, EventArgs e)
         {
@@ -2734,6 +2758,586 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 }
             }
         }
+        /// <summary>
+        /// Ustawia lekki timer co 15s. O 14:30 (dokładnie, lub przy pierwszym ticku po 14:30)
+        /// pokaże okno JEDEN raz na obecną sesję. Jeśli uruchomisz program między 14:30–15:00,
+        /// okno pokaże się natychmiast (obsługuje to TryShowSurveyIfInWindow() z Load).
+        /// </summary>
+        private void SetupSurvey14h30()
+        {
+            if (surveyTimer == null)
+            {
+                surveyTimer = new System.Windows.Forms.Timer();
+                surveyTimer.Interval = 15_000; // 15 sekund – szybka reakcja koło 14:30, a wciąż lekko
+                surveyTimer.Tick += (s, e) => TryShowSurveyIfInWindow();
+            }
+            surveyTimer.Start();
+        }
+
+        /// <summary>
+        /// Jeżeli teraz jest w oknie 14:30–15:00 i w tej sesji jeszcze nie pokazano – pokaże i zapamięta.
+        /// Przy starcie programu (Load) dzięki temu okno wyskoczy od razu, jeżeli czas jest w oknie.
+        /// </summary>
+        private void TryShowSurveyIfInWindow()
+        {
+            if (!this.IsHandleCreated) return; // jeszcze nie ma uchwytu
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(TryShowSurveyIfInWindow));
+                return;
+            }
+
+            if (surveyShownThisSession) return; // w tej sesji już pokazano
+
+            var now = DateTime.Now.TimeOfDay;
+            if (now >= SURVEY_START && now < SURVEY_END)
+            {
+                surveyShownThisSession = true; // od teraz w tej sesji już nie powtarzamy
+                RunSurveyWorkflowOnce();
+            }
+        }
+
+        /// <summary>
+        /// Pobiera „najbliższy dzień od jutra wzwyż” z potwierdzonymi dostawami
+        /// i pokazuje okno oceny dla każdej (jeszcze nieocenionej przez tego użytkownika).
+        /// </summary>
+        private void RunSurveyWorkflowOnce()
+        {
+            try
+            {
+                var user = string.IsNullOrWhiteSpace(this.UserID) ? Environment.UserName : this.UserID;
+
+                var target = FindNextDeliveryDateWithConfirmed(DateTime.Today.AddDays(1), 30);
+                if (target == null) return;
+
+                var deliveries = GetConfirmedDeliveriesForDateExcludingAlreadyScored(target.Value, user);
+                if (deliveries.Count == 0) return;
+
+                // === NOWOŚĆ: jedno okno dla wszystkich dostaw ===
+                ShowBulkSurveyDialogAndSave(deliveries, user);
+            }
+            catch
+            {
+                // opcjonalnie log/MessageBox
+            }
+        }
+
+        /// <summary>
+        /// Znajdź najbliższą datę >= startDate z co najmniej jedną dostawą „Potwierdzony” (max lookAheadDays).
+        /// </summary>
+        private DateTime? FindNextDeliveryDateWithConfirmed(DateTime startDate, int lookAheadDays)
+        {
+            using (var cnn = new SqlConnection(connectionPermission))
+            {
+                cnn.Open();
+                for (int i = 0; i < lookAheadDays; i++)
+                {
+                    var d = startDate.Date.AddDays(i);
+                    using (var cmd = new SqlCommand(@"
+                SELECT TOP 1 1
+                FROM dbo.HarmonogramDostaw
+                WHERE Bufor = 'Potwierdzony'
+                  AND CAST(DataOdbioru AS date) = @D;", cnn))
+                    {
+                        cmd.Parameters.AddWithValue("@D", d);
+                        var hasAny = cmd.ExecuteScalar();
+                        if (hasAny != null) return d;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Listuje potwierdzone dostawy na wskazany dzień, pomijając już ocenione przez usera.
+        /// </summary>
+        private List<DeliverySurveyItem> GetConfirmedDeliveriesForDateExcludingAlreadyScored(DateTime day, string userId)
+        {
+            var list = new List<DeliverySurveyItem>();
+            using (var cnn = new SqlConnection(connectionPermission))
+            {
+                cnn.Open();
+                using (var cmd = new SqlCommand(@"
+            SELECT H.Lp, H.DataOdbioru, H.Dostawca, H.Auta, H.SztukiDek, H.WagaDek, H.TypCeny, H.Cena
+            FROM dbo.HarmonogramDostaw H
+            WHERE H.Bufor = 'Potwierdzony'
+              AND CAST(H.DataOdbioru AS date) = @D
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.DostawaFeedback F
+                  WHERE F.DostawaLp = H.Lp AND F.Kto = @Kto
+              )
+            ORDER BY H.WagaDek DESC, H.Auta DESC, H.Dostawca;", cnn))
+                {
+                    cmd.Parameters.AddWithValue("@D", day.Date);
+                    cmd.Parameters.AddWithValue("@Kto", userId);
+
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            list.Add(new DeliverySurveyItem
+                            {
+                                Lp = Convert.ToInt32(r["Lp"]),
+                                DataOdbioru = Convert.ToDateTime(r["DataOdbioru"]),
+                                Dostawca = r["Dostawca"]?.ToString(),
+                                Auta = r["Auta"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["Auta"]),
+                                SztukiDek = r["SztukiDek"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["SztukiDek"]),
+                                WagaDek = r["WagaDek"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["WagaDek"]),
+                                TypCeny = r["TypCeny"]?.ToString(),
+                                Cena = r["Cena"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["Cena"])
+                            });
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Okienko 1–5: Cena / Transport / Komunikacja + (opcjonalnie) Elastyczność + Notatka.
+        /// false → „Koniec” (przerwanie pętli), true → zapisano lub „Pomiń tę dostawę”.
+        /// </summary>
+        private bool ShowQuickSurveyDialogAndSave(DeliverySurveyItem d, string userId)
+        {
+            using (var f = new Form())
+            {
+                f.Text = "Ocena rozmowy z hodowcą";
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.FormBorderStyle = FormBorderStyle.FixedDialog;
+                f.MaximizeBox = false;
+                f.MinimizeBox = false;
+                f.TopMost = true;
+                f.Width = 560;
+                f.Height = 460;
+
+                var lblHead = new Label
+                {
+                    Left = 12,
+                    Top = 12,
+                    Width = 520,
+                    Text = $"Dzień: {d.DataOdbioru:yyyy-MM-dd ddd} | Dostawca: {d.Dostawca}"
+                };
+                var lblDet = new Label
+                {
+                    Left = 12,
+                    Top = 36,
+                    Width = 520,
+                    Text = $"Auta: {d.Auta?.ToString() ?? "-"} | Sztuki: {d.SztukiDek?.ToString("N0") ?? "-"} | Waga: {d.WagaDek?.ToString("0.00") ?? "-"} kg | {d.TypCeny ?? ""} {(d.Cena.HasValue ? $"{d.Cena:0.00} zł" : "")}"
+                };
+
+                var nudCena = MakeNud("Cena (jak się dogadaliście co do ceny?)", 70);
+                var nudTransport = MakeNud("Transport (ustalenia / jasność / akceptacja)", 120);
+                var nudKomunikacja = MakeNud("Komunikacja (kontakt, jasność, kultura)", 170);
+                var nudElastycznosc = MakeNud("Elastyczność (skłonność do kompromisu) – opcjonalnie", 220, required: false);
+
+                var lblNote = new Label { Left = 12, Top = 270, Width = 520, Text = "Notatka (opcjonalnie)" };
+                var txtNote = new TextBox { Left = 12, Top = 290, Width = 520, Height = 80, Multiline = true, ScrollBars = ScrollBars.Vertical };
+
+                var btnOk = new Button { Left = 12, Top = 380, Width = 120, Text = "Zapisz i dalej", DialogResult = DialogResult.OK };
+                var btnSkip = new Button { Left = 150, Top = 380, Width = 140, Text = "Pomiń tę dostawę" };
+                var btnCancel = new Button { Left = 310, Top = 380, Width = 120, Text = "Koniec", DialogResult = DialogResult.Cancel };
+
+                btnSkip.Click += (s, e) => { f.Tag = "skip"; f.Close(); };
+                f.AcceptButton = btnOk;
+                f.CancelButton = btnCancel;
+
+                f.Controls.AddRange(new Control[] { lblHead, lblDet,
+            nudCena.label, nudCena.nud,
+            nudTransport.label, nudTransport.nud,
+            nudKomunikacja.label, nudKomunikacja.nud,
+            nudElastycznosc.label, nudElastycznosc.nud,
+            lblNote, txtNote, btnOk, btnSkip, btnCancel });
+
+                var result = f.ShowDialog(this);
+                if (result == DialogResult.Cancel) return false; // przerwij serię (Koniec)
+                if (Equals(f.Tag, "skip")) return true;          // pomiń tylko tę dostawę
+
+                int ocCena = (int)nudCena.nud.Value;
+                int ocTrans = (int)nudTransport.nud.Value;
+                int ocKom = (int)nudKomunikacja.nud.Value;
+                int? ocElas = nudElastycznosc.nud.Value == 0 ? (int?)null : (int)nudElastycznosc.nud.Value;
+
+                SaveFeedbackToDb(d.Lp, d.DataOdbioru.Date, userId, ocCena, ocTrans, ocKom, ocElas, txtNote.Text?.Trim());
+                return true;
+            }
+
+            (Label label, NumericUpDown nud) MakeNud(string text, int top, bool required = true)
+            {
+                var lbl = new Label { Left = 12, Top = top, Width = 520, Text = text + (required ? " *" : "") };
+                var n = new NumericUpDown { Left = 12, Top = top + 18, Width = 80, Minimum = required ? 1 : 0, Maximum = 5, Value = required ? 3 : 0 };
+                return (lbl, n);
+            }
+        }
+
+        /// <summary>
+        /// Zapis do dbo.DostawaFeedback.
+        /// </summary>
+        private void SaveFeedbackToDb(int dostawaLp, DateTime dataDostawy, string userId,
+            int ocCena, int ocTransport, int ocKomunikacja, int? ocElastycznosc, string notatka)
+        {
+            using (var cnn = new SqlConnection(connectionPermission))
+            {
+                cnn.Open();
+                using (var cmd = new SqlCommand(@"
+            INSERT INTO dbo.DostawaFeedback
+            (DostawaLp, DataDostawy, Kto, OcenaCena, OcenaTransport, OcenaKomunikacja, OcenaElastycznosc, Notatka)
+            VALUES (@Lp, @DataDostawy, @Kto, @OcCena, @OcTrans, @OcKom, @OcElas, @Notatka);", cnn))
+                {
+                    cmd.Parameters.Add("@Lp", SqlDbType.Int).Value = dostawaLp;
+                    cmd.Parameters.Add("@DataDostawy", SqlDbType.Date).Value = dataDostawy;
+                    cmd.Parameters.Add("@Kto", SqlDbType.NVarChar, 64).Value = (object)userId ?? DBNull.Value;
+                    cmd.Parameters.Add("@OcCena", SqlDbType.TinyInt).Value = ocCena;
+                    cmd.Parameters.Add("@OcTrans", SqlDbType.TinyInt).Value = ocTransport;
+                    cmd.Parameters.Add("@OcKom", SqlDbType.TinyInt).Value = ocKomunikacja;
+                    cmd.Parameters.Add("@OcElas", SqlDbType.TinyInt).Value = (object?)ocElastycznosc ?? DBNull.Value;
+                    cmd.Parameters.Add("@Notatka", SqlDbType.NVarChar, 1000).Value = string.IsNullOrWhiteSpace(notatka) ? (object)DBNull.Value : notatka;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        /// <summary>
+        /// Jedno okno z listą „kart” dla wszystkich dostaw w danym dniu.
+        /// W każdej karcie są 4 grupy radio (1..5): Cena, Transport, Komunikacja (wymagane), Elastyczność (opcjonalnie) + Notatka.
+        /// „Zapisz wszystko” → waliduje wymagane i zapisuje każdą ocenę.
+        /// </summary>
+        private void ShowBulkSurveyDialogAndSave(List<DeliverySurveyItem> deliveries, string userId)
+        {
+            // --- przygotuj UI kontenerów ---
+            using (var f = new Form())
+            {
+                f.Text = $"Ocena rozmów z hodowcami – {deliveries[0].DataOdbioru:yyyy-MM-dd ddd}";
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.FormBorderStyle = FormBorderStyle.Sizable;
+                f.MinimizeBox = false;
+                f.MaximizeBox = true;
+                f.TopMost = true;
+                f.Width = 980;
+                f.Height = 680;
+                f.BackColor = Color.White;
+
+                // Nagłówek
+                var header = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 60,
+                    BackColor = Color.FromArgb(245, 247, 250)
+                };
+                var lblTitle = new Label
+                {
+                    Text = "Daj znać jak poszły rozmowy – ocena 1..5 (5 = najlepiej)",
+                    Left = 16,
+                    Top = 18,
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 12, FontStyle.Bold)
+                };
+                var lblSub = new Label
+                {
+                    Text = "Wymagane: Cena, Transport, Komunikacja. Elastyczność i Notatka – opcjonalnie.",
+                    Left = 16,
+                    Top = 36,
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                    ForeColor = Color.FromArgb(90, 104, 120)
+                };
+                header.Controls.Add(lblTitle);
+                header.Controls.Add(lblSub);
+
+                // Obszar przewijany z kartami
+                var scroll = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoScroll = true,
+                    BackColor = Color.White
+                };
+
+                // Układ kart – FlowLayoutPanel, „kafelki”
+                var flow = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoScroll = false,
+                    WrapContents = true,
+                    FlowDirection = FlowDirection.LeftToRight,
+                    Padding = new Padding(12),
+                };
+                scroll.Controls.Add(flow);
+
+                // Pasek akcji
+                var footer = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 60,
+                    BackColor = Color.FromArgb(245, 247, 250)
+                };
+                var btnSave = new Button
+                {
+                    Text = "Zapisz wszystko",
+                    Width = 160,
+                    Height = 36,
+                    Left = 16,
+                    Top = 12,
+                    BackColor = Color.FromArgb(52, 152, 219),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat
+                };
+                btnSave.FlatAppearance.BorderSize = 0;
+
+                var btnCancel = new Button
+                {
+                    Text = "Anuluj",
+                    Width = 120,
+                    Height = 36,
+                    Left = btnSave.Right + 12,
+                    Top = 12
+                };
+
+                footer.Controls.Add(btnSave);
+                footer.Controls.Add(btnCancel);
+
+                f.Controls.Add(scroll);
+                f.Controls.Add(footer);
+                f.Controls.Add(header);
+
+                // --- zbuduj „karty” dostawców ---
+                var uiRows = new List<SurveyUIRow>(); // zbierz referencje do elementów UI i danych
+                foreach (var d in deliveries)
+                {
+                    var row = CreateDeliveryCard(d);
+                    uiRows.Add(row);
+                    flow.Controls.Add(row.CardPanel);
+                }
+
+                // Walidacja + zapis
+                btnSave.Click += (s, e) =>
+                {
+                    // walidacja wymaganych
+                    var errors = new List<string>();
+                    foreach (var r in uiRows)
+                    {
+                        int? c = GetSelectedRating(r.CenaButtons);
+                        int? t = GetSelectedRating(r.TransportButtons);
+                        int? k = GetSelectedRating(r.KomunikacjaButtons);
+
+                        if (!c.HasValue || !t.HasValue || !k.HasValue)
+                        {
+                            errors.Add($"• {r.Item.Dostawca} ({r.Item.DataOdbioru:yyyy-MM-dd}) – uzupełnij Cenę/Transport/Komunikację");
+                        }
+                    }
+
+                    if (errors.Count > 0)
+                    {
+                        MessageBox.Show(
+                            "Uzupełnij obowiązkowe pola:\n\n" + string.Join("\n", errors),
+                            "Braki w ocenach",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    // zapis
+                    int saved = 0;
+                    foreach (var r in uiRows)
+                    {
+                        int ocCena = GetSelectedRating(r.CenaButtons).Value;
+                        int ocTrans = GetSelectedRating(r.TransportButtons).Value;
+                        int ocKom = GetSelectedRating(r.KomunikacjaButtons).Value;
+                        int? ocElas = GetSelectedRating(r.ElastycznoscButtons); // opcjonalne
+                        string note = r.Notatka.Text?.Trim();
+
+                        try
+                        {
+                            SaveFeedbackToDb(r.Item.Lp, r.Item.DataOdbioru.Date, userId, ocCena, ocTrans, ocKom, ocElas, note);
+                            saved++;
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Błąd zapisu dla {r.Item.Dostawca}: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+
+                    if (saved > 0)
+                    {
+                        MessageBox.Show($"Zapisano {saved} ocen.", "Gotowe", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    f.DialogResult = DialogResult.OK;
+                    f.Close();
+                };
+
+                btnCancel.Click += (s, e) =>
+                {
+                    f.DialogResult = DialogResult.Cancel;
+                    f.Close();
+                };
+
+                f.ShowDialog(this);
+            }
+
+            // === lokalne helpy ===
+
+            int? GetSelectedRating(RadioButton[] rb5)
+            {
+                if (rb5 == null) return null;
+                for (int i = 0; i < rb5.Length; i++)
+                    if (rb5[i].Checked) return i + 1; // 1..5
+                return null;
+            }
+        }
+
+
+
+        /// <summary>Model jednej dostawy do ankiety.</summary>
+        private sealed class DeliverySurveyItem
+        {
+            public int Lp { get; set; }
+            public DateTime DataOdbioru { get; set; }
+            public string Dostawca { get; set; }
+            public int? Auta { get; set; }
+            public int? SztukiDek { get; set; }
+            public decimal? WagaDek { get; set; }
+            public string TypCeny { get; set; }
+            public decimal? Cena { get; set; }
+        }
+        /// <summary>
+        /// Tworzy panel-kartę z danymi dostawy + 4 grupy ocen (radio 1..5) + notatka.
+        /// Zwraca zestaw kontrolek (SurveyUIRow) do późniejszego odczytu.
+        /// </summary>
+        private SurveyUIRow CreateDeliveryCard(DeliverySurveyItem d)
+        {
+            // Karta (panel) – jasne tło, lekka ramka
+            var card = new Panel
+            {
+                Width = 900,
+                Height = 220,
+                Margin = new Padding(8),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Pasek nagłówka w karcie
+            var header = new Panel
+            {
+                Left = 0,
+                Top = 0,
+                Width = card.Width - 2,
+                Height = 40,
+                BackColor = Color.FromArgb(250, 251, 253),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            var lblHeader = new Label
+            {
+                Left = 12,
+                Top = 10,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Text = $"{d.Dostawca}  •  {d.DataOdbioru:yyyy-MM-dd ddd}"
+            };
+            header.Controls.Add(lblHeader);
+
+            var lblMeta = new Label
+            {
+                Left = 12,
+                Top = 46,
+                Width = card.Width - 24,
+                Height = 20,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(90, 104, 120),
+                Text = $"Auta: {d.Auta?.ToString() ?? "-"}   |   Sztuki: {d.SztukiDek?.ToString("N0") ?? "-"}   |   Waga: {d.WagaDek?.ToString("0.00") ?? "-"} kg   |   {d.TypCeny ?? ""} {(d.Cena.HasValue ? $"{d.Cena:0.00} zł" : "")}"
+            };
+
+            // 4 grupy Radio 1..5
+            var grpCena = MakeRatingGroup("Cena *", 76, 12);
+            var grpTransport = MakeRatingGroup("Transport *", 76, 230);
+            var grpKomunikacja = MakeRatingGroup("Komunikacja *", 76, 448);
+            var grpElastycznosc = MakeRatingGroup("Elastyczność (opcj.)", 76, 666, required: false);
+
+            // domyślnie 3/5
+            grpCena.Buttons[2].Checked = true;
+            grpTransport.Buttons[2].Checked = true;
+            grpKomunikacja.Buttons[2].Checked = true;
+            // Elastyczność zostaw bez wyboru (opcjonalne)
+
+            // Notatka
+            var lblNote = new Label
+            {
+                Left = 12,
+                Top = 156,
+                AutoSize = true,
+                Text = "Notatka (opcjonalnie)",
+                Font = new Font("Segoe UI", 9)
+            };
+            var txtNote = new TextBox
+            {
+                Left = 12,
+                Top = 176,
+                Width = card.Width - 24,
+                Height = 32,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical
+            };
+
+            // Doklej do karty
+            card.Controls.Add(header);
+            card.Controls.Add(lblMeta);
+            card.Controls.Add(grpCena.Group);
+            card.Controls.Add(grpTransport.Group);
+            card.Controls.Add(grpKomunikacja.Group);
+            card.Controls.Add(grpElastycznosc.Group);
+            card.Controls.Add(lblNote);
+            card.Controls.Add(txtNote);
+
+            return new SurveyUIRow
+            {
+                Item = d,
+                CardPanel = card,
+                CenaButtons = grpCena.Buttons,
+                TransportButtons = grpTransport.Buttons,
+                KomunikacjaButtons = grpKomunikacja.Buttons,
+                ElastycznoscButtons = grpElastycznosc.Buttons,
+                Notatka = txtNote
+            };
+
+            // --- lokalny helper tworzący pojedynczą grupę 1..5 ---
+            (GroupBox Group, RadioButton[] Buttons) MakeRatingGroup(string title, int top, int left, bool required = true)
+            {
+                var g = new GroupBox
+                {
+                    Text = title,
+                    Left = left,
+                    Top = top,
+                    Width = 200,
+                    Height = 70,
+                    Font = new Font("Segoe UI", 9, FontStyle.Regular)
+                };
+                var btns = new RadioButton[5];
+                int x = 12;
+                for (int i = 0; i < 5; i++)
+                {
+                    btns[i] = new RadioButton
+                    {
+                        Text = (i + 1).ToString(),
+                        Left = x,
+                        Top = 30,
+                        AutoSize = true
+                    };
+                    g.Controls.Add(btns[i]);
+                    x += 32;
+                }
+                return (g, btns);
+            }
+        }
+
+        /// <summary>Referencje do kontrolek w „karcie” + dane dostawy.</summary>
+        private sealed class SurveyUIRow
+        {
+            public DeliverySurveyItem Item { get; set; }
+            public Panel CardPanel { get; set; }
+
+            public RadioButton[] CenaButtons { get; set; }
+            public RadioButton[] TransportButtons { get; set; }
+            public RadioButton[] KomunikacjaButtons { get; set; }
+            public RadioButton[] ElastycznoscButtons { get; set; }
+
+            public TextBox Notatka { get; set; }
+        }
 
         private void Dubluj_Click(object sender, EventArgs e)
         {
@@ -2978,8 +3582,124 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
         {
 
         }
+        /// <summary>
+        /// Ustaw timer tak, aby dziś o 14:20 (albo jutro, jeśli już po) wywołać ankietę.
+        /// Potem timer sam się przeprogramuje na kolejny dzień.
+        /// </summary>
+        /// <summary>
+        /// Konfiguracja prostego zegara: co minutę sprawdzamy, czy dziś przekroczyliśmy 14:20.
+        /// Jeśli tak, a jeszcze nie było promptu – odpalamy ankietę.
+        /// </summary>
+
+
+
+
+        // =============================================================
+        // ===============  ANKIETA: HARMONOGRAM 14:00–15:00  ==========
+        // =============================================================
+        private void ConfigureSurveyTimer()
+        {
+            try
+            {
+                // Zegar co minutę
+                surveyTimer = new Timer();
+                surveyTimer.Interval = 60_000; // 1 minuta
+                surveyTimer.Tick += SurveyTimer_Tick;
+                surveyTimer.Start();
+
+                // Natychmiastowy check w momencie startu aplikacji
+                TryShowSurveyNow();
+            }
+            catch { /* non-fatal */ }
+        }
+
+        private void SurveyTimer_Tick(object sender, EventArgs e)
+        {
+            TryShowSurveyNow();
+        }
+
+        /// <summary>
+        /// Jeśli jest między 14:00 a 15:00 i w tej sesji jeszcze nie pokazywano – pokaż ankietę.
+        /// </summary>
+        private void TryShowSurveyNow()
+        {
+            if (surveyShownThisSession) return;
+
+            var now = DateTime.Now.TimeOfDay;
+            if (now >= SURVEY_START && now < SURVEY_END)
+            {
+                try
+                {
+                    ShowAnkietaForDay(DateTime.Today);
+                }
+                finally
+                {
+                    surveyShownThisSession = true; // raz na uruchomienie programu
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pobiera potwierdzone dostawy z bieżącego dnia do ankiety.
+        /// </summary>
+        private List<AnkietaPotwierdzoneForm.DeliverySurveyItem> LoadSurveyDeliveriesForDay(DateTime day)
+        {
+            var list = new List<AnkietaPotwierdzoneForm.DeliverySurveyItem>();
+
+            using (SqlConnection cnn = new SqlConnection(connectionPermission))
+            {
+                cnn.Open();
+                string sql = @"
+SELECT Lp, DataOdbioru, Dostawca, SztukiDek, Auta, WagaDek, TypCeny, Cena
+FROM dbo.HarmonogramDostaw
+WHERE CAST(DataOdbioru AS date) = @d AND bufor = 'Potwierdzony'
+ORDER BY WagaDek DESC, Auta DESC, Dostawca ASC;";
+
+                using (SqlCommand cmd = new SqlCommand(sql, cnn))
+                {
+                    cmd.Parameters.AddWithValue("@d", day.Date);
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var it = new AnkietaPotwierdzoneForm.DeliverySurveyItem
+                            {
+                                Lp = r["Lp"] == DBNull.Value ? 0 : Convert.ToInt32(r["Lp"]),
+                                DataOdbioru = r["DataOdbioru"] == DBNull.Value ? day.Date : Convert.ToDateTime(r["DataOdbioru"]),
+                                Dostawca = r["Dostawca"] == DBNull.Value ? "" : Convert.ToString(r["Dostawca"]),
+                                SztukiDek = r["SztukiDek"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["SztukiDek"]),
+                                Auta = r["Auta"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["Auta"]),
+                                WagaDek = r["WagaDek"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["WagaDek"]),
+                                TypCeny = r["TypCeny"] == DBNull.Value ? null : Convert.ToString(r["TypCeny"]),
+                                Cena = r["Cena"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["Cena"])
+                            };
+                            list.Add(it);
+                        }
+                    }
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Buduje i pokazuje okno ankiety dla wskazanego dnia.
+        /// </summary>
+        private void ShowAnkietaForDay(DateTime day)
+        {
+            try
+            {
+                var deliveries = LoadSurveyDeliveriesForDay(day);
+                var uid = string.IsNullOrWhiteSpace(this.UserID) ? Environment.UserName : this.UserID;
+                var frm = new AnkietaPotwierdzoneForm(connectionPermission, uid, day, deliveries);
+                frm.Show(this);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Nie udało się otworzyć ankiety: " + ex.Message, "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }
 
 
-     
