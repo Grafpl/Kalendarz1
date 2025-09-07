@@ -308,6 +308,7 @@ namespace Kalendarz1
             btnPickOdbiorca.TabIndex = 3;
             btnPickOdbiorca.Text = "Wybierz...";
             btnPickOdbiorca.UseVisualStyleBackColor = true;
+            btnPickOdbiorca.Visible = false;
             // 
             // cbHandlowiecFilter
             // 
