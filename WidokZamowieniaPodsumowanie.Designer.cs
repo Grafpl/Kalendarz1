@@ -1,16 +1,10 @@
-﻿namespace Kalendarz1
+﻿#nullable disable
+namespace Kalendarz1
 {
     partial class WidokZamowieniaPodsumowanie
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,451 +16,528 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
-            dataGridViewPoniedzialek = new System.Windows.Forms.DataGridView();
-            dataGridViewWtorek = new System.Windows.Forms.DataGridView();
-            dataGridViewPiatek = new System.Windows.Forms.DataGridView();
-            dataGridViewSroda = new System.Windows.Forms.DataGridView();
-            dataGridViewCzwartek = new System.Windows.Forms.DataGridView();
-            label4 = new System.Windows.Forms.Label();
-            label1 = new System.Windows.Forms.Label();
+            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            panelNawigacja = new System.Windows.Forms.Panel();
+            lblZakresDat = new System.Windows.Forms.Label();
+            btnTydzienNext = new System.Windows.Forms.Button();
+            btnTydzienPrev = new System.Windows.Forms.Button();
+            btnNoweZamowienie = new System.Windows.Forms.Button();
+            btnModyfikuj = new System.Windows.Forms.Button();
+            btnOdswiez = new System.Windows.Forms.Button();
+            panelDni = new System.Windows.Forms.FlowLayoutPanel();
+            btnPon = new System.Windows.Forms.Button();
+            btnWt = new System.Windows.Forms.Button();
+            btnSr = new System.Windows.Forms.Button();
+            btnCzw = new System.Windows.Forms.Button();
+            btnPt = new System.Windows.Forms.Button();
+            btnSo = new System.Windows.Forms.Button();
+            btnNd = new System.Windows.Forms.Button();
+            panelGlowny = new System.Windows.Forms.TableLayoutPanel();
+            panelMaster = new System.Windows.Forms.Panel();
+            dgvZamowienia = new System.Windows.Forms.DataGridView();
+            panelFiltry = new System.Windows.Forms.Panel();
+            cbFiltrujHandlowca = new System.Windows.Forms.ComboBox();
+            txtFiltrujOdbiorce = new System.Windows.Forms.TextBox();
+            panelPodsumowanie = new System.Windows.Forms.Panel();
+            lblPodsumowanie = new System.Windows.Forms.Label();
+            panelDetail = new System.Windows.Forms.TableLayoutPanel();
+            dgvAgregacja = new System.Windows.Forms.DataGridView();
             label2 = new System.Windows.Forms.Label();
+            panelSzczegolyTop = new System.Windows.Forms.TableLayoutPanel();
+            panelNotatki = new System.Windows.Forms.Panel();
+            dgvSzczegoly = new System.Windows.Forms.DataGridView();
+            txtNotatki = new System.Windows.Forms.TextBox();
             label3 = new System.Windows.Forms.Label();
-            label5 = new System.Windows.Forms.Label();
-            weekNumberTextBox = new System.Windows.Forms.TextBox();
-            label21 = new System.Windows.Forms.Label();
-            button5 = new System.Windows.Forms.Button();
-            button1 = new System.Windows.Forms.Button();
-            myCalendar = new System.Windows.Forms.MonthCalendar();
-            dataGridViewSzczegoly = new System.Windows.Forms.DataGridView();
-            label6 = new System.Windows.Forms.Label();
-            comboBoxTowar = new System.Windows.Forms.ComboBox();
-            label7 = new System.Windows.Forms.Label();
-            cancelButton = new System.Windows.Forms.Button();
-            CommandButton_Update = new System.Windows.Forms.Button();
-            dataGridViewPoniedzialekSuma = new System.Windows.Forms.DataGridView();
-            dataGridViewWtorekSuma = new System.Windows.Forms.DataGridView();
-            dataGridViewSrodaSuma = new System.Windows.Forms.DataGridView();
-            dataGridViewCzwartekSuma = new System.Windows.Forms.DataGridView();
-            dataGridViewPiatekSuma = new System.Windows.Forms.DataGridView();
-            buttonOdswiez = new System.Windows.Forms.Button();
-            pictureBox1 = new System.Windows.Forms.PictureBox();
-            dataGridSumaPartie = new System.Windows.Forms.DataGridView();
-            label8 = new System.Windows.Forms.Label();
-            buttonModyfikuj = new System.Windows.Forms.Button();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialek).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWtorek).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSroda).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartek).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSzczegoly).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialekSuma).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWtorekSuma).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).BeginInit();
+            panelPrzychody = new System.Windows.Forms.Panel();
+            dgvPrzychody = new System.Windows.Forms.DataGridView();
+            label1 = new System.Windows.Forms.Label();
+            tableLayoutPanel1.SuspendLayout();
+            panelNawigacja.SuspendLayout();
+            panelDni.SuspendLayout();
+            panelGlowny.SuspendLayout();
+            panelMaster.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvZamowienia).BeginInit();
+            panelFiltry.SuspendLayout();
+            panelPodsumowanie.SuspendLayout();
+            panelDetail.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvAgregacja).BeginInit();
+            panelSzczegolyTop.SuspendLayout();
+            panelNotatki.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).BeginInit();
+            panelPrzychody.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvPrzychody).BeginInit();
             SuspendLayout();
             // 
-            // dataGridViewPoniedzialek
+            // tableLayoutPanel1
             // 
-            dataGridViewPoniedzialek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPoniedzialek.Location = new System.Drawing.Point(2, 448);
-            dataGridViewPoniedzialek.Name = "dataGridViewPoniedzialek";
-            dataGridViewPoniedzialek.RowTemplate.Height = 25;
-            dataGridViewPoniedzialek.Size = new System.Drawing.Size(294, 379);
-            dataGridViewPoniedzialek.TabIndex = 130;
+            tableLayoutPanel1.ColumnCount = 1;
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Controls.Add(panelNawigacja, 0, 0);
+            tableLayoutPanel1.Controls.Add(panelGlowny, 0, 1);
+            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 2;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(1264, 681);
+            tableLayoutPanel1.TabIndex = 0;
             // 
-            // dataGridViewWtorek
+            // panelNawigacja
             // 
-            dataGridViewWtorek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewWtorek.Location = new System.Drawing.Point(302, 448);
-            dataGridViewWtorek.Name = "dataGridViewWtorek";
-            dataGridViewWtorek.RowTemplate.Height = 25;
-            dataGridViewWtorek.Size = new System.Drawing.Size(294, 379);
-            dataGridViewWtorek.TabIndex = 131;
+            panelNawigacja.Controls.Add(lblZakresDat);
+            panelNawigacja.Controls.Add(btnTydzienNext);
+            panelNawigacja.Controls.Add(btnTydzienPrev);
+            panelNawigacja.Controls.Add(btnNoweZamowienie);
+            panelNawigacja.Controls.Add(btnModyfikuj);
+            panelNawigacja.Controls.Add(btnOdswiez);
+            panelNawigacja.Controls.Add(panelDni);
+            panelNawigacja.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelNawigacja.Location = new System.Drawing.Point(3, 3);
+            panelNawigacja.Name = "panelNawigacja";
+            panelNawigacja.Size = new System.Drawing.Size(1258, 64);
+            panelNawigacja.TabIndex = 0;
             // 
-            // dataGridViewPiatek
+            // lblZakresDat
             // 
-            dataGridViewPiatek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPiatek.Location = new System.Drawing.Point(1202, 448);
-            dataGridViewPiatek.Name = "dataGridViewPiatek";
-            dataGridViewPiatek.RowTemplate.Height = 25;
-            dataGridViewPiatek.Size = new System.Drawing.Size(294, 379);
-            dataGridViewPiatek.TabIndex = 132;
+            lblZakresDat.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblZakresDat.Location = new System.Drawing.Point(82, 9);
+            lblZakresDat.Name = "lblZakresDat";
+            lblZakresDat.Size = new System.Drawing.Size(200, 49);
+            lblZakresDat.TabIndex = 6;
+            lblZakresDat.Text = "dd.MM.yyyy - dd.MM.yyyy";
+            lblZakresDat.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // dataGridViewSroda
+            // btnTydzienNext
             // 
-            dataGridViewSroda.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSroda.Location = new System.Drawing.Point(602, 448);
-            dataGridViewSroda.Name = "dataGridViewSroda";
-            dataGridViewSroda.RowTemplate.Height = 25;
-            dataGridViewSroda.Size = new System.Drawing.Size(294, 379);
-            dataGridViewSroda.TabIndex = 132;
+            btnTydzienNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnTydzienNext.Location = new System.Drawing.Point(288, 12);
+            btnTydzienNext.Name = "btnTydzienNext";
+            btnTydzienNext.Size = new System.Drawing.Size(40, 40);
+            btnTydzienNext.TabIndex = 5;
+            btnTydzienNext.Text = ">";
+            btnTydzienNext.UseVisualStyleBackColor = true;
+            btnTydzienNext.Click += btnTydzienNext_Click;
             // 
-            // dataGridViewCzwartek
+            // btnTydzienPrev
             // 
-            dataGridViewCzwartek.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCzwartek.Location = new System.Drawing.Point(902, 448);
-            dataGridViewCzwartek.Name = "dataGridViewCzwartek";
-            dataGridViewCzwartek.RowTemplate.Height = 25;
-            dataGridViewCzwartek.Size = new System.Drawing.Size(294, 379);
-            dataGridViewCzwartek.TabIndex = 133;
+            btnTydzienPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnTydzienPrev.Location = new System.Drawing.Point(36, 12);
+            btnTydzienPrev.Name = "btnTydzienPrev";
+            btnTydzienPrev.Size = new System.Drawing.Size(40, 40);
+            btnTydzienPrev.TabIndex = 4;
+            btnTydzienPrev.Text = "<";
+            btnTydzienPrev.UseVisualStyleBackColor = true;
+            btnTydzienPrev.Click += btnTydzienPrev_Click;
             // 
-            // label4
+            // btnNoweZamowienie
             // 
-            label4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label4.Location = new System.Drawing.Point(2, 274);
-            label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(294, 25);
-            label4.TabIndex = 134;
-            label4.Text = "Poniedziałek";
-            label4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            btnNoweZamowienie.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnNoweZamowienie.BackColor = System.Drawing.Color.SeaGreen;
+            btnNoweZamowienie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnNoweZamowienie.ForeColor = System.Drawing.Color.White;
+            btnNoweZamowienie.Location = new System.Drawing.Point(904, 12);
+            btnNoweZamowienie.Name = "btnNoweZamowienie";
+            btnNoweZamowienie.Size = new System.Drawing.Size(110, 40);
+            btnNoweZamowienie.TabIndex = 3;
+            btnNoweZamowienie.Text = "Nowe";
+            btnNoweZamowienie.UseVisualStyleBackColor = false;
+            btnNoweZamowienie.Click += btnNoweZamowienie_Click;
             // 
-            // label1
+            // btnModyfikuj
             // 
-            label1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label1.Location = new System.Drawing.Point(302, 274);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(294, 25);
-            label1.TabIndex = 135;
-            label1.Text = "Wtorek";
-            label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            btnModyfikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnModyfikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnModyfikuj.Location = new System.Drawing.Point(1020, 12);
+            btnModyfikuj.Name = "btnModyfikuj";
+            btnModyfikuj.Size = new System.Drawing.Size(110, 40);
+            btnModyfikuj.TabIndex = 2;
+            btnModyfikuj.Text = "Modyfikuj";
+            btnModyfikuj.UseVisualStyleBackColor = true;
+            btnModyfikuj.Click += btnModyfikuj_Click;
+            // 
+            // btnOdswiez
+            // 
+            btnOdswiez.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnOdswiez.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnOdswiez.Location = new System.Drawing.Point(1136, 12);
+            btnOdswiez.Name = "btnOdswiez";
+            btnOdswiez.Size = new System.Drawing.Size(110, 40);
+            btnOdswiez.TabIndex = 1;
+            btnOdswiez.Text = "Odśwież";
+            btnOdswiez.UseVisualStyleBackColor = true;
+            btnOdswiez.Click += btnOdswiez_Click;
+            // 
+            // panelDni
+            // 
+            panelDni.Controls.Add(btnPon);
+            panelDni.Controls.Add(btnWt);
+            panelDni.Controls.Add(btnSr);
+            panelDni.Controls.Add(btnCzw);
+            panelDni.Controls.Add(btnPt);
+            panelDni.Controls.Add(btnSo);
+            panelDni.Controls.Add(btnNd);
+            panelDni.Location = new System.Drawing.Point(344, 6);
+            panelDni.Name = "panelDni";
+            panelDni.Size = new System.Drawing.Size(540, 52);
+            panelDni.TabIndex = 0;
+            // 
+            // btnPon
+            // 
+            btnPon.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnPon.Location = new System.Drawing.Point(3, 3);
+            btnPon.Name = "btnPon";
+            btnPon.Size = new System.Drawing.Size(70, 45);
+            btnPon.TabIndex = 0;
+            btnPon.Text = "Pon";
+            btnPon.UseVisualStyleBackColor = true;
+            // 
+            // btnWt
+            // 
+            btnWt.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnWt.Location = new System.Drawing.Point(79, 3);
+            btnWt.Name = "btnWt";
+            btnWt.Size = new System.Drawing.Size(70, 45);
+            btnWt.TabIndex = 1;
+            btnWt.Text = "Wt";
+            btnWt.UseVisualStyleBackColor = true;
+            // 
+            // btnSr
+            // 
+            btnSr.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnSr.Location = new System.Drawing.Point(155, 3);
+            btnSr.Name = "btnSr";
+            btnSr.Size = new System.Drawing.Size(70, 45);
+            btnSr.TabIndex = 2;
+            btnSr.Text = "Śr";
+            btnSr.UseVisualStyleBackColor = true;
+            // 
+            // btnCzw
+            // 
+            btnCzw.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnCzw.Location = new System.Drawing.Point(231, 3);
+            btnCzw.Name = "btnCzw";
+            btnCzw.Size = new System.Drawing.Size(70, 45);
+            btnCzw.TabIndex = 3;
+            btnCzw.Text = "Czw";
+            btnCzw.UseVisualStyleBackColor = true;
+            // 
+            // btnPt
+            // 
+            btnPt.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnPt.Location = new System.Drawing.Point(307, 3);
+            btnPt.Name = "btnPt";
+            btnPt.Size = new System.Drawing.Size(70, 45);
+            btnPt.TabIndex = 4;
+            btnPt.Text = "Pt";
+            btnPt.UseVisualStyleBackColor = true;
+            // 
+            // btnSo
+            // 
+            btnSo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnSo.Location = new System.Drawing.Point(383, 3);
+            btnSo.Name = "btnSo";
+            btnSo.Size = new System.Drawing.Size(70, 45);
+            btnSo.TabIndex = 5;
+            btnSo.Text = "So";
+            btnSo.UseVisualStyleBackColor = true;
+            // 
+            // btnNd
+            // 
+            btnNd.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnNd.Location = new System.Drawing.Point(459, 3);
+            btnNd.Name = "btnNd";
+            btnNd.Size = new System.Drawing.Size(70, 45);
+            btnNd.TabIndex = 6;
+            btnNd.Text = "Nd";
+            btnNd.UseVisualStyleBackColor = true;
+            // 
+            // panelGlowny
+            // 
+            panelGlowny.ColumnCount = 2;
+            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 55F));
+            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 45F));
+            panelGlowny.Controls.Add(panelMaster, 0, 0);
+            panelGlowny.Controls.Add(panelDetail, 1, 0);
+            panelGlowny.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelGlowny.Location = new System.Drawing.Point(3, 73);
+            panelGlowny.Name = "panelGlowny";
+            panelGlowny.RowCount = 1;
+            panelGlowny.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            panelGlowny.Size = new System.Drawing.Size(1258, 605);
+            panelGlowny.TabIndex = 1;
+            // 
+            // panelMaster
+            // 
+            panelMaster.Controls.Add(dgvZamowienia);
+            panelMaster.Controls.Add(panelFiltry);
+            panelMaster.Controls.Add(panelPodsumowanie);
+            panelMaster.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelMaster.Location = new System.Drawing.Point(3, 3);
+            panelMaster.Name = "panelMaster";
+            panelMaster.Size = new System.Drawing.Size(685, 599);
+            panelMaster.TabIndex = 0;
+            // 
+            // dgvZamowienia
+            // 
+            dgvZamowienia.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvZamowienia.Location = new System.Drawing.Point(0, 45);
+            dgvZamowienia.Name = "dgvZamowienia";
+            dgvZamowienia.Size = new System.Drawing.Size(685, 514);
+            dgvZamowienia.TabIndex = 1;
+            dgvZamowienia.SelectionChanged += dgvZamowienia_SelectionChanged;
+            // 
+            // panelFiltry
+            // 
+            panelFiltry.Controls.Add(cbFiltrujHandlowca);
+            panelFiltry.Controls.Add(txtFiltrujOdbiorce);
+            panelFiltry.Dock = System.Windows.Forms.DockStyle.Top;
+            panelFiltry.Location = new System.Drawing.Point(0, 0);
+            panelFiltry.Name = "panelFiltry";
+            panelFiltry.Padding = new System.Windows.Forms.Padding(5);
+            panelFiltry.Size = new System.Drawing.Size(685, 45);
+            panelFiltry.TabIndex = 2;
+            // 
+            // cbFiltrujHandlowca
+            // 
+            cbFiltrujHandlowca.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cbFiltrujHandlowca.FormattingEnabled = true;
+            cbFiltrujHandlowca.Location = new System.Drawing.Point(267, 11);
+            cbFiltrujHandlowca.Name = "cbFiltrujHandlowca";
+            cbFiltrujHandlowca.Size = new System.Drawing.Size(180, 23);
+            cbFiltrujHandlowca.TabIndex = 1;
+            cbFiltrujHandlowca.SelectedIndexChanged += Filtry_Changed;
+            // 
+            // txtFiltrujOdbiorce
+            // 
+            txtFiltrujOdbiorce.Location = new System.Drawing.Point(12, 11);
+            txtFiltrujOdbiorce.Name = "txtFiltrujOdbiorce";
+            txtFiltrujOdbiorce.PlaceholderText = "Filtruj po nazwie odbiorcy...";
+            txtFiltrujOdbiorce.Size = new System.Drawing.Size(249, 23);
+            txtFiltrujOdbiorce.TabIndex = 0;
+            txtFiltrujOdbiorce.TextChanged += Filtry_Changed;
+            // 
+            // panelPodsumowanie
+            // 
+            panelPodsumowanie.BackColor = System.Drawing.SystemColors.Control;
+            panelPodsumowanie.Controls.Add(lblPodsumowanie);
+            panelPodsumowanie.Dock = System.Windows.Forms.DockStyle.Bottom;
+            panelPodsumowanie.Location = new System.Drawing.Point(0, 559);
+            panelPodsumowanie.Name = "panelPodsumowanie";
+            panelPodsumowanie.Size = new System.Drawing.Size(685, 40);
+            panelPodsumowanie.TabIndex = 0;
+            // 
+            // lblPodsumowanie
+            // 
+            lblPodsumowanie.AutoSize = true;
+            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblPodsumowanie.Location = new System.Drawing.Point(12, 11);
+            lblPodsumowanie.Name = "lblPodsumowanie";
+            lblPodsumowanie.Size = new System.Drawing.Size(13, 17);
+            lblPodsumowanie.TabIndex = 0;
+            lblPodsumowanie.Text = "-";
+            // 
+            // panelDetail
+            // 
+            panelDetail.ColumnCount = 1;
+            panelDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            panelDetail.Controls.Add(dgvAgregacja, 0, 2);
+            panelDetail.Controls.Add(label2, 0, 1);
+            panelDetail.Controls.Add(panelSzczegolyTop, 0, 0);
+            panelDetail.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelDetail.Location = new System.Drawing.Point(694, 3);
+            panelDetail.Name = "panelDetail";
+            panelDetail.RowCount = 3;
+            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            panelDetail.Size = new System.Drawing.Size(561, 599);
+            panelDetail.TabIndex = 1;
+            // 
+            // dgvAgregacja
+            // 
+            dgvAgregacja.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvAgregacja.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvAgregacja.Location = new System.Drawing.Point(3, 317);
+            dgvAgregacja.Name = "dgvAgregacja";
+            dgvAgregacja.Size = new System.Drawing.Size(555, 279);
+            dgvAgregacja.TabIndex = 1;
             // 
             // label2
             // 
-            label2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label2.Location = new System.Drawing.Point(602, 274);
+            label2.AutoSize = true;
+            label2.Dock = System.Windows.Forms.DockStyle.Fill;
+            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label2.Location = new System.Drawing.Point(3, 284);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(294, 25);
-            label2.TabIndex = 136;
-            label2.Text = "Środa";
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label2.Size = new System.Drawing.Size(555, 30);
+            label2.TabIndex = 3;
+            label2.Text = "Podsumowanie produktów dla wybranego dnia";
+            label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // panelSzczegolyTop
+            // 
+            panelSzczegolyTop.ColumnCount = 2;
+            panelSzczegolyTop.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            panelSzczegolyTop.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            panelSzczegolyTop.Controls.Add(panelNotatki, 0, 0);
+            panelSzczegolyTop.Controls.Add(panelPrzychody, 1, 0);
+            panelSzczegolyTop.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelSzczegolyTop.Location = new System.Drawing.Point(3, 3);
+            panelSzczegolyTop.Name = "panelSzczegolyTop";
+            panelSzczegolyTop.RowCount = 1;
+            panelSzczegolyTop.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            panelSzczegolyTop.Size = new System.Drawing.Size(555, 278);
+            panelSzczegolyTop.TabIndex = 4;
+            // 
+            // panelNotatki
+            // 
+            panelNotatki.Controls.Add(dgvSzczegoly);
+            panelNotatki.Controls.Add(txtNotatki);
+            panelNotatki.Controls.Add(label3);
+            panelNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelNotatki.Location = new System.Drawing.Point(3, 3);
+            panelNotatki.Name = "panelNotatki";
+            panelNotatki.Size = new System.Drawing.Size(271, 272);
+            panelNotatki.TabIndex = 0;
+            // 
+            // dgvSzczegoly
+            // 
+            dgvSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvSzczegoly.Location = new System.Drawing.Point(0, 23);
+            dgvSzczegoly.Name = "dgvSzczegoly";
+            dgvSzczegoly.Size = new System.Drawing.Size(271, 149);
+            dgvSzczegoly.TabIndex = 2;
+            // 
+            // txtNotatki
+            // 
+            txtNotatki.Dock = System.Windows.Forms.DockStyle.Bottom;
+            txtNotatki.Location = new System.Drawing.Point(0, 172);
+            txtNotatki.Multiline = true;
+            txtNotatki.Name = "txtNotatki";
+            txtNotatki.ReadOnly = true;
+            txtNotatki.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            txtNotatki.Size = new System.Drawing.Size(271, 100);
+            txtNotatki.TabIndex = 1;
             // 
             // label3
             // 
-            label3.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label3.Location = new System.Drawing.Point(902, 274);
+            label3.AutoSize = true;
+            label3.Dock = System.Windows.Forms.DockStyle.Top;
+            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label3.Location = new System.Drawing.Point(0, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(294, 25);
-            label3.TabIndex = 137;
-            label3.Text = "Czwartek";
-            label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label3.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            label3.Size = new System.Drawing.Size(208, 23);
+            label3.TabIndex = 0;
+            label3.Text = "Szczegóły / Notatki zamówienia:";
             // 
-            // label5
+            // panelPrzychody
             // 
-            label5.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label5.Location = new System.Drawing.Point(1202, 274);
-            label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(294, 25);
-            label5.TabIndex = 138;
-            label5.Text = "Piątek";
-            label5.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            panelPrzychody.Controls.Add(dgvPrzychody);
+            panelPrzychody.Controls.Add(label1);
+            panelPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
+            panelPrzychody.Location = new System.Drawing.Point(280, 3);
+            panelPrzychody.Name = "panelPrzychody";
+            panelPrzychody.Size = new System.Drawing.Size(272, 272);
+            panelPrzychody.TabIndex = 1;
             // 
-            // weekNumberTextBox
+            // dgvPrzychody
             // 
-            weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            weekNumberTextBox.Location = new System.Drawing.Point(118, 197);
-            weekNumberTextBox.Multiline = true;
-            weekNumberTextBox.Name = "weekNumberTextBox";
-            weekNumberTextBox.Size = new System.Drawing.Size(50, 38);
-            weekNumberTextBox.TabIndex = 140;
-            weekNumberTextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            dgvPrzychody.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
+            dgvPrzychody.Location = new System.Drawing.Point(0, 23);
+            dgvPrzychody.Name = "dgvPrzychody";
+            dgvPrzychody.Size = new System.Drawing.Size(272, 249);
+            dgvPrzychody.TabIndex = 1;
             // 
-            // label21
+            // label1
             // 
-            label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label21.Location = new System.Drawing.Point(118, 177);
-            label21.Name = "label21";
-            label21.Size = new System.Drawing.Size(50, 20);
-            label21.TabIndex = 141;
-            label21.Text = "Tydzień";
-            label21.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // button5
-            // 
-            button5.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button5.Location = new System.Drawing.Point(143, 234);
-            button5.Name = "button5";
-            button5.Size = new System.Drawing.Size(36, 31);
-            button5.TabIndex = 143;
-            button5.Text = "-";
-            button5.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-            button5.UseVisualStyleBackColor = true;
-            // 
-            // button1
-            // 
-            button1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            button1.Location = new System.Drawing.Point(106, 234);
-            button1.Name = "button1";
-            button1.Size = new System.Drawing.Size(38, 31);
-            button1.TabIndex = 142;
-            button1.Text = "+";
-            button1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-            button1.UseVisualStyleBackColor = true;
-            // 
-            // myCalendar
-            // 
-            myCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            myCalendar.Location = new System.Drawing.Point(9, 11);
-            myCalendar.Margin = new System.Windows.Forms.Padding(2);
-            myCalendar.Name = "myCalendar";
-            myCalendar.TabIndex = 139;
-            myCalendar.DateChanged += myCalendar_DateChanged;
-            // 
-            // dataGridViewSzczegoly
-            // 
-            dataGridViewSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSzczegoly.Location = new System.Drawing.Point(1182, 33);
-            dataGridViewSzczegoly.Name = "dataGridViewSzczegoly";
-            dataGridViewSzczegoly.RowTemplate.Height = 25;
-            dataGridViewSzczegoly.Size = new System.Drawing.Size(304, 223);
-            dataGridViewSzczegoly.TabIndex = 144;
-            // 
-            // label6
-            // 
-            label6.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label6.Location = new System.Drawing.Point(1182, 3);
-            label6.Name = "label6";
-            label6.Size = new System.Drawing.Size(304, 25);
-            label6.TabIndex = 145;
-            label6.Text = "Podgląd innych zamówień od odbiorcy";
-            label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // comboBoxTowar
-            // 
-            comboBoxTowar.DropDownHeight = 300;
-            comboBoxTowar.DropDownWidth = 200;
-            comboBoxTowar.FormattingEnabled = true;
-            comboBoxTowar.IntegralHeight = false;
-            comboBoxTowar.ItemHeight = 15;
-            comboBoxTowar.Location = new System.Drawing.Point(448, 148);
-            comboBoxTowar.Name = "comboBoxTowar";
-            comboBoxTowar.Size = new System.Drawing.Size(176, 23);
-            comboBoxTowar.TabIndex = 146;
-            comboBoxTowar.SelectedIndexChanged += comboBoxTowar_SelectedIndexChanged;
-            // 
-            // label7
-            // 
-            label7.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label7.Location = new System.Drawing.Point(448, 120);
-            label7.Name = "label7";
-            label7.Size = new System.Drawing.Size(176, 25);
-            label7.TabIndex = 147;
-            label7.Text = "Podgląd towaru";
-            label7.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // cancelButton
-            // 
-            cancelButton.BackColor = System.Drawing.Color.IndianRed;
-            cancelButton.Location = new System.Drawing.Point(383, 42);
-            cancelButton.Name = "cancelButton";
-            cancelButton.Size = new System.Drawing.Size(57, 39);
-            cancelButton.TabIndex = 149;
-            cancelButton.Text = "Anuluj";
-            cancelButton.UseVisualStyleBackColor = false;
-            // 
-            // CommandButton_Update
-            // 
-            CommandButton_Update.BackColor = System.Drawing.Color.Chartreuse;
-            CommandButton_Update.Location = new System.Drawing.Point(283, 12);
-            CommandButton_Update.Name = "CommandButton_Update";
-            CommandButton_Update.Size = new System.Drawing.Size(94, 69);
-            CommandButton_Update.TabIndex = 148;
-            CommandButton_Update.Text = "Stwórz Zamówienie";
-            CommandButton_Update.UseVisualStyleBackColor = false;
-            CommandButton_Update.Click += CommandButton_Update_Click;
-            // 
-            // dataGridViewPoniedzialekSuma
-            // 
-            dataGridViewPoniedzialekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPoniedzialekSuma.Location = new System.Drawing.Point(2, 302);
-            dataGridViewPoniedzialekSuma.Name = "dataGridViewPoniedzialekSuma";
-            dataGridViewPoniedzialekSuma.RowTemplate.Height = 25;
-            dataGridViewPoniedzialekSuma.Size = new System.Drawing.Size(294, 140);
-            dataGridViewPoniedzialekSuma.TabIndex = 150;
-            // 
-            // dataGridViewWtorekSuma
-            // 
-            dataGridViewWtorekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewWtorekSuma.Location = new System.Drawing.Point(302, 302);
-            dataGridViewWtorekSuma.Name = "dataGridViewWtorekSuma";
-            dataGridViewWtorekSuma.RowTemplate.Height = 25;
-            dataGridViewWtorekSuma.Size = new System.Drawing.Size(294, 140);
-            dataGridViewWtorekSuma.TabIndex = 151;
-            // 
-            // dataGridViewSrodaSuma
-            // 
-            dataGridViewSrodaSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewSrodaSuma.Location = new System.Drawing.Point(602, 302);
-            dataGridViewSrodaSuma.Name = "dataGridViewSrodaSuma";
-            dataGridViewSrodaSuma.RowTemplate.Height = 25;
-            dataGridViewSrodaSuma.Size = new System.Drawing.Size(294, 140);
-            dataGridViewSrodaSuma.TabIndex = 152;
-            // 
-            // dataGridViewCzwartekSuma
-            // 
-            dataGridViewCzwartekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCzwartekSuma.Location = new System.Drawing.Point(902, 302);
-            dataGridViewCzwartekSuma.Name = "dataGridViewCzwartekSuma";
-            dataGridViewCzwartekSuma.RowTemplate.Height = 25;
-            dataGridViewCzwartekSuma.Size = new System.Drawing.Size(294, 140);
-            dataGridViewCzwartekSuma.TabIndex = 153;
-            // 
-            // dataGridViewPiatekSuma
-            // 
-            dataGridViewPiatekSuma.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPiatekSuma.Location = new System.Drawing.Point(1202, 302);
-            dataGridViewPiatekSuma.Name = "dataGridViewPiatekSuma";
-            dataGridViewPiatekSuma.RowTemplate.Height = 25;
-            dataGridViewPiatekSuma.Size = new System.Drawing.Size(294, 140);
-            dataGridViewPiatekSuma.TabIndex = 154;
-            // 
-            // buttonOdswiez
-            // 
-            buttonOdswiez.BackColor = System.Drawing.Color.WhiteSmoke;
-            buttonOdswiez.Location = new System.Drawing.Point(501, 177);
-            buttonOdswiez.Name = "buttonOdswiez";
-            buttonOdswiez.Size = new System.Drawing.Size(78, 39);
-            buttonOdswiez.TabIndex = 155;
-            buttonOdswiez.Text = "Odśwież";
-            buttonOdswiez.UseVisualStyleBackColor = false;
-            buttonOdswiez.Click += buttonOdswiez_Click;
-            // 
-            // pictureBox1
-            // 
-            pictureBox1.BackgroundImage = Properties.Resources.pm;
-            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            pictureBox1.Location = new System.Drawing.Point(446, 1);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(363, 80);
-            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            pictureBox1.TabIndex = 156;
-            pictureBox1.TabStop = false;
-            // 
-            // dataGridSumaPartie
-            // 
-            dataGridSumaPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridSumaPartie.Location = new System.Drawing.Point(283, 106);
-            dataGridSumaPartie.Name = "dataGridSumaPartie";
-            dataGridSumaPartie.RowTemplate.Height = 25;
-            dataGridSumaPartie.Size = new System.Drawing.Size(94, 176);
-            dataGridSumaPartie.TabIndex = 157;
-            // 
-            // label8
-            // 
-            label8.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            label8.Location = new System.Drawing.Point(283, 78);
-            label8.Name = "label8";
-            label8.Size = new System.Drawing.Size(94, 25);
-            label8.TabIndex = 158;
-            label8.Text = "Tuszka";
-            label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // buttonModyfikuj
-            // 
-            buttonModyfikuj.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
-            buttonModyfikuj.Location = new System.Drawing.Point(1082, 181);
-            buttonModyfikuj.Name = "buttonModyfikuj";
-            buttonModyfikuj.Size = new System.Drawing.Size(94, 69);
-            buttonModyfikuj.TabIndex = 159;
-            buttonModyfikuj.Text = "Modyfikuj zamówienie";
-            buttonModyfikuj.UseVisualStyleBackColor = false;
-            buttonModyfikuj.Click += buttonModyfikuj_Click;
+            label1.AutoSize = true;
+            label1.Dock = System.Windows.Forms.DockStyle.Top;
+            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label1.Location = new System.Drawing.Point(0, 0);
+            label1.Name = "label1";
+            label1.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            label1.Size = new System.Drawing.Size(122, 23);
+            label1.TabIndex = 0;
+            label1.Text = "Przychody towaru:";
             // 
             // WidokZamowieniaPodsumowanie
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1498, 839);
-            Controls.Add(buttonModyfikuj);
-            Controls.Add(label8);
-            Controls.Add(dataGridSumaPartie);
-            Controls.Add(pictureBox1);
-            Controls.Add(buttonOdswiez);
-            Controls.Add(dataGridViewPiatekSuma);
-            Controls.Add(dataGridViewCzwartekSuma);
-            Controls.Add(dataGridViewSrodaSuma);
-            Controls.Add(dataGridViewWtorekSuma);
-            Controls.Add(dataGridViewPoniedzialekSuma);
-            Controls.Add(cancelButton);
-            Controls.Add(CommandButton_Update);
-            Controls.Add(label7);
-            Controls.Add(comboBoxTowar);
-            Controls.Add(label6);
-            Controls.Add(dataGridViewSzczegoly);
-            Controls.Add(weekNumberTextBox);
-            Controls.Add(label21);
-            Controls.Add(button5);
-            Controls.Add(button1);
-            Controls.Add(myCalendar);
-            Controls.Add(label5);
-            Controls.Add(label3);
-            Controls.Add(label2);
-            Controls.Add(label1);
-            Controls.Add(label4);
-            Controls.Add(dataGridViewCzwartek);
-            Controls.Add(dataGridViewSroda);
-            Controls.Add(dataGridViewPiatek);
-            Controls.Add(dataGridViewWtorek);
-            Controls.Add(dataGridViewPoniedzialek);
+            ClientSize = new System.Drawing.Size(1264, 681);
+            Controls.Add(tableLayoutPanel1);
+            MinimumSize = new System.Drawing.Size(1280, 720);
             Name = "WidokZamowieniaPodsumowanie";
-            Text = "WidokZamowieniaPodsumowanie";
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialek).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWtorek).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPiatek).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSroda).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartek).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSzczegoly).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPoniedzialekSuma).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewWtorekSuma).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewSrodaSuma).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewCzwartekSuma).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPiatekSuma).EndInit();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridSumaPartie).EndInit();
+            Text = "Podsumowanie Tygodniowe Zamówień";
+            WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            tableLayoutPanel1.ResumeLayout(false);
+            panelNawigacja.ResumeLayout(false);
+            panelDni.ResumeLayout(false);
+            panelGlowny.ResumeLayout(false);
+            panelMaster.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dgvZamowienia).EndInit();
+            panelFiltry.ResumeLayout(false);
+            panelFiltry.PerformLayout();
+            panelPodsumowanie.ResumeLayout(false);
+            panelPodsumowanie.PerformLayout();
+            panelDetail.ResumeLayout(false);
+            panelDetail.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvAgregacja).EndInit();
+            panelSzczegolyTop.ResumeLayout(false);
+            panelNotatki.ResumeLayout(false);
+            panelNotatki.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).EndInit();
+            panelPrzychody.ResumeLayout(false);
+            panelPrzychody.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvPrzychody).EndInit();
             ResumeLayout(false);
-            PerformLayout();
+
         }
 
         #endregion
 
-        private System.Windows.Forms.DataGridView dataGridViewPoniedzialek;
-        private System.Windows.Forms.DataGridView dataGridViewWtorek;
-        private System.Windows.Forms.DataGridView dataGridViewPiatek;
-        private System.Windows.Forms.DataGridView dataGridViewSroda;
-        private System.Windows.Forms.DataGridView dataGridViewCzwartek;
-        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private System.Windows.Forms.Panel panelNawigacja;
+        private System.Windows.Forms.FlowLayoutPanel panelDni;
+        private System.Windows.Forms.Button btnPon;
+        private System.Windows.Forms.Button btnWt;
+        private System.Windows.Forms.Button btnSr;
+        private System.Windows.Forms.Button btnCzw;
+        private System.Windows.Forms.Button btnPt;
+        private System.Windows.Forms.Button btnOdswiez;
+        private System.Windows.Forms.Button btnNoweZamowienie;
+        private System.Windows.Forms.Button btnModyfikuj;
+        private System.Windows.Forms.TableLayoutPanel panelGlowny;
+        private System.Windows.Forms.Panel panelMaster;
+        private System.Windows.Forms.DataGridView dgvZamowienia;
+        private System.Windows.Forms.Panel panelPodsumowanie;
+        private System.Windows.Forms.Label lblPodsumowanie;
+        private System.Windows.Forms.TableLayoutPanel panelDetail;
+        private System.Windows.Forms.DataGridView dgvSzczegoly;
+        private System.Windows.Forms.DataGridView dgvAgregacja;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Panel panelFiltry;
+        private System.Windows.Forms.ComboBox cbFiltrujHandlowca;
+        private System.Windows.Forms.TextBox txtFiltrujOdbiorce;
+        private System.Windows.Forms.TableLayoutPanel panelSzczegolyTop;
+        private System.Windows.Forms.Panel panelNotatki;
+        private System.Windows.Forms.TextBox txtNotatki;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.TextBox weekNumberTextBox;
-        private System.Windows.Forms.Label label21;
-        private System.Windows.Forms.Button button5;
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.MonthCalendar myCalendar;
-        private System.Windows.Forms.DataGridView dataGridViewSzczegoly;
-        private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.ComboBox comboBoxTowar;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.Button CommandButton_Update;
-        private System.Windows.Forms.DataGridView dataGridViewPoniedzialekSuma;
-        private System.Windows.Forms.DataGridView dataGridViewWtorekSuma;
-        private System.Windows.Forms.DataGridView dataGridViewSrodaSuma;
-        private System.Windows.Forms.DataGridView dataGridViewCzwartekSuma;
-        private System.Windows.Forms.DataGridView dataGridViewPiatekSuma;
-        private System.Windows.Forms.Button buttonOdswiez;
-        private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.DataGridView dataGridSumaPartie;
-        private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Button buttonModyfikuj;
+        private System.Windows.Forms.Panel panelPrzychody;
+        private System.Windows.Forms.DataGridView dgvPrzychody;
+        private System.Windows.Forms.Button btnSo;
+        private System.Windows.Forms.Button btnNd;
+        private System.Windows.Forms.Button btnTydzienNext;
+        private System.Windows.Forms.Button btnTydzienPrev;
+        private System.Windows.Forms.Label lblZakresDat;
     }
 }
+
