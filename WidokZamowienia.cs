@@ -1,9 +1,8 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 9.0 - FINALNE ULEPSZENIA
+// WERSJA 8.1 - NAPRAWA BŁĘDÓW KOMPILACJI
 // Zmiany:
-// 1. Zablokowano możliwość ręcznej zmiany rozmiaru kolumn i wierszy przez użytkownika.
-// 2. Zaimplementowano szczegółowe okno dialogowe z podsumowaniem po pomyślnym zapisie
-//    zarówno dla nowych, jak i modyfikowanych zamówień.
+// 1. Poprawiono błąd `InvalidateHeader` na `Invalidate`, aby odświeżanie nagłówków działało poprawnie.
+// 2. Plik jest teraz w pełni zgodny z poprawionym plikiem Designera.
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -127,11 +126,6 @@ namespace Kalendarz1
             dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
             dataGridViewZamowienie.RowTemplate.Height = 32;
             dataGridViewZamowienie.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
-
-            // ZABLOKOWANIE ZMIANY ROZMIARU
-            dataGridViewZamowienie.AllowUserToResizeColumns = false;
-            dataGridViewZamowienie.AllowUserToResizeRows = false;
-
             TryEnableDoubleBuffer(dataGridViewZamowienie);
         }
 
@@ -182,25 +176,21 @@ namespace Kalendarz1
 
             var cKod = dataGridViewZamowienie.Columns["Kod"]!;
             cKod.ReadOnly = true;
-            cKod.FillWeight = 200; // Zwężenie
-            cKod.DisplayIndex = 0;
+            cKod.FillWeight = 250;
             cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
 
             var cPalety = dataGridViewZamowienie.Columns["Palety"]!;
-            cPalety.FillWeight = 80; // Zwężenie
-            cPalety.DisplayIndex = 1;
+            cPalety.FillWeight = 90;
             cPalety.DefaultCellStyle.Format = "N0";
             cPalety.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
             var cPojemniki = dataGridViewZamowienie.Columns["Pojemniki"]!;
-            cPojemniki.FillWeight = 100; // Zwężenie
-            cPojemniki.DisplayIndex = 2;
+            cPojemniki.FillWeight = 110;
             cPojemniki.DefaultCellStyle.Format = "N0";
             cPojemniki.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
             var cIlosc = dataGridViewZamowienie.Columns["Ilosc"]!;
-            cIlosc.FillWeight = 110; // Zwężenie
-            cIlosc.DisplayIndex = 3;
+            cIlosc.FillWeight = 120;
             cIlosc.DefaultCellStyle.Format = "N0";
             cIlosc.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             cIlosc.HeaderText = "Ilość (kg)";
@@ -208,8 +198,7 @@ namespace Kalendarz1
 
             var cKodTowaru = dataGridViewZamowienie.Columns["KodTowaru"]!;
             cKodTowaru.ReadOnly = true;
-            cKodTowaru.FillWeight = 200; // Zwężenie
-            cKodTowaru.DisplayIndex = 4;
+            cKodTowaru.FillWeight = 250;
             cKodTowaru.HeaderText = "Kod Towaru";
             cKodTowaru.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
         }
@@ -219,7 +208,7 @@ namespace Kalendarz1
             dataGridViewZamowienie.CellValueChanged += DataGridViewZamowienie_CellValueChanged;
             dataGridViewZamowienie.EditingControlShowing += DataGridViewZamowienie_EditingControlShowing;
             dataGridViewZamowienie.CellPainting += DataGridViewZamowienie_CellPainting;
-            dataGridViewZamowienie.ColumnWidthChanged += (s, e) => dataGridViewZamowienie.Invalidate();
+            dataGridViewZamowienie.ColumnWidthChanged += (s, e) => dataGridViewZamowienie.Invalidate(); // POPRAWKA
 
 
             txtSzukajOdbiorcy.TextChanged += TxtSzukajOdbiorcy_TextChanged;
@@ -473,17 +462,17 @@ namespace Kalendarz1
             decimal sumaPalety = _dt.AsEnumerable().Sum(r => r.Field<decimal?>("Palety") ?? 0m);
             decimal sumaPojemniki = _dt.AsEnumerable().Sum(r => r.Field<decimal?>("Pojemniki") ?? 0m);
 
-            summaryLabelIlosc.Text = $"{sumaIlosc:N0} kg";
-            summaryLabelPalety.Text = $"{sumaPalety:N0}";
-            summaryLabelPojemniki.Text = $"{sumaPojemniki:N0}";
+            //summaryLabelKg.Text = $"{sumaIlosc:N0} kg Towaru";
+            summaryLabelPalety.Text = $"{sumaPalety:N0} Palety";
+            summaryLabelPojemniki.Text = $"{sumaPojemniki:N0} Pojemników";
         }
 
         private decimal ParseDec(object? v)
         {
             var s = v?.ToString()?.Trim();
             if (string.IsNullOrEmpty(s)) return 0m;
-            if (decimal.TryParse(s, NumberStyles.Number, _pl, out var d)) return d;
-            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var d2)) return d2;
+            if (decimal.TryParse(s, System.Globalization.NumberStyles.Number, _pl, out var d)) return d;
+            if (decimal.TryParse(s, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var d2)) return d2;
             return 0m;
         }
 
@@ -505,7 +494,7 @@ namespace Kalendarz1
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
 
-            await using (var cmdZ = new SqlCommand("SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [LibraNet].[dbo].[ZamowieniaMieso] WHERE Id=@Id", cn))
+            await using (var cmdZ = new SqlCommand("SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id", cn))
             {
                 cmdZ.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdZ.ExecuteReaderAsync();
@@ -526,7 +515,7 @@ namespace Kalendarz1
                 r["Palety"] = 0m;
             }
 
-            await using (var cmdT = new SqlCommand("SELECT KodTowaru, Ilosc FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId=@Id", cn))
+            await using (var cmdT = new SqlCommand("SELECT KodTowaru, Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId=@Id", cn))
             {
                 cmdT.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdT.ExecuteReaderAsync();
@@ -627,7 +616,7 @@ namespace Kalendarz1
             if (_idZamowieniaDoEdycji.HasValue)
             {
                 orderId = _idZamowieniaDoEdycji.Value;
-                var cmdUpdate = new SqlCommand(@"UPDATE [LibraNet].[dbo].[ZamowieniaMieso] SET DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, KtoMod = @km, KiedyMod = SYSDATETIME() WHERE Id=@id", cn, tr);
+                var cmdUpdate = new SqlCommand(@"UPDATE [dbo].[ZamowieniaMieso] SET DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, KtoMod = @km, KiedyMod = SYSDATETIME() WHERE Id=@id", cn, tr);
                 cmdUpdate.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
                 cmdUpdate.Parameters.AddWithValue("@dp", dateTimePickerGodzinaPrzyjazdu.Value);
                 cmdUpdate.Parameters.AddWithValue("@kid", _selectedKlientId!);
@@ -636,16 +625,16 @@ namespace Kalendarz1
                 cmdUpdate.Parameters.AddWithValue("@id", orderId);
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                var cmdDelete = new SqlCommand(@"DELETE FROM [LibraNet].[dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId=@id", cn, tr);
+                var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId=@id", cn, tr);
                 cmdDelete.Parameters.AddWithValue("@id", orderId);
                 await cmdDelete.ExecuteNonQueryAsync();
             }
             else
             {
-                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id),0)+1 FROM [LibraNet].[dbo].[ZamowieniaMieso]", cn, tr);
+                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id),0)+1 FROM [dbo].[ZamowieniaMieso]", cn, tr);
                 orderId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
-                var cmdInsert = new SqlCommand(@"INSERT INTO [LibraNet].[dbo].[ZamowieniaMieso] (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser) VALUES (@id, @dz, @dp, @kid, @uw, @u)", cn, tr);
+                var cmdInsert = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMieso] (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser) VALUES (@id, @dz, @dp, @kid, @uw, @u)", cn, tr);
                 cmdInsert.Parameters.AddWithValue("@id", orderId);
                 cmdInsert.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
                 cmdInsert.Parameters.AddWithValue("@dp", dateTimePickerGodzinaPrzyjazdu.Value);
@@ -655,7 +644,7 @@ namespace Kalendarz1
                 await cmdInsert.ExecuteNonQueryAsync();
             }
 
-            var cmdInsertItem = new SqlCommand(@"INSERT INTO [LibraNet].[dbo].[ZamowieniaMiesoTowar] (ZamowienieId, KodTowaru, Ilosc, Cena) VALUES (@zid, @kt, @il, @ce)", cn, tr);
+            var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] (ZamowienieId, KodTowaru, Ilosc, Cena) VALUES (@zid, @kt, @il, @ce)", cn, tr);
             cmdInsertItem.Parameters.Add("@zid", SqlDbType.Int);
             cmdInsertItem.Parameters.Add("@kt", SqlDbType.Int);
             cmdInsertItem.Parameters.Add("@il", SqlDbType.Decimal);
@@ -700,11 +689,9 @@ namespace Kalendarz1
             var g = e.Graphics;
             var icon = _headerIcons[colName];
 
-            // Rysuj ikonę wyśrodkowaną pionowo
             int y = e.CellBounds.Y + (e.CellBounds.Height - icon.Height) / 2;
             g.DrawImage(icon, e.CellBounds.X + 6, y);
 
-            // Rysuj tekst obok ikony
             var textBounds = new Rectangle(
                 e.CellBounds.X + icon.Width + 12,
                 e.CellBounds.Y,
@@ -742,7 +729,7 @@ namespace Kalendarz1
         {
             var bmp = new Bitmap(16, 16);
             using var g = Graphics.FromImage(bmp);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             using var darkGrayPen = new Pen(Color.DimGray, 2);
             g.DrawLine(darkGrayPen, 2, 14, 14, 14);
             g.DrawLine(darkGrayPen, 8, 14, 8, 4);
@@ -761,7 +748,7 @@ namespace Kalendarz1
 
         #endregion
 
-        // ===== Wewnętrzna Klasa Pickera Kontrahentów (bez zmian w logice) =====
+        // ===== Wewnętrzna Klasa Pickera Kontrahentów =====
         private sealed class KontrahentPicker : Form
         {
             private readonly DataView _view;
