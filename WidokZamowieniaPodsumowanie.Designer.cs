@@ -36,6 +36,7 @@ namespace Kalendarz1
             btnPt = new System.Windows.Forms.Button();
             btnSo = new System.Windows.Forms.Button();
             btnNd = new System.Windows.Forms.Button();
+            btnDuplikuj = new System.Windows.Forms.Button();
             panelGlowny = new System.Windows.Forms.TableLayoutPanel();
             panelMaster = new System.Windows.Forms.Panel();
             dgvZamowienia = new System.Windows.Forms.DataGridView();
@@ -98,6 +99,7 @@ namespace Kalendarz1
             panelNawigacja.Controls.Add(btnModyfikuj);
             panelNawigacja.Controls.Add(btnOdswiez);
             panelNawigacja.Controls.Add(panelDni);
+            panelNawigacja.Controls.Add(btnDuplikuj);
             panelNawigacja.Dock = System.Windows.Forms.DockStyle.Fill;
             panelNawigacja.Location = new System.Drawing.Point(3, 3);
             panelNawigacja.Name = "panelNawigacja";
@@ -271,6 +273,20 @@ namespace Kalendarz1
             btnNd.TabIndex = 6;
             btnNd.Text = "Nd";
             btnNd.UseVisualStyleBackColor = true;
+            // 
+            // btnDuplikuj
+            // 
+            btnDuplikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnDuplikuj.BackColor = System.Drawing.Color.RoyalBlue;
+            btnDuplikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnDuplikuj.ForeColor = System.Drawing.Color.White;
+            btnDuplikuj.Location = new System.Drawing.Point(672, 12);
+            btnDuplikuj.Name = "btnDuplikuj";
+            btnDuplikuj.Size = new System.Drawing.Size(110, 40);
+            btnDuplikuj.TabIndex = 8;
+            btnDuplikuj.Text = "Duplikuj";
+            btnDuplikuj.UseVisualStyleBackColor = false;
+            btnDuplikuj.Click += btnDuplikuj_Click;
             // 
             // panelGlowny
             // 
@@ -568,5 +584,6 @@ namespace Kalendarz1
         private System.Windows.Forms.Label lblZakresDat;
         private System.Windows.Forms.Button btnAnuluj;
         private System.Windows.Forms.ComboBox cbFiltrujTowar;
+        private System.Windows.Forms.Button btnDuplikuj;
     }
 }

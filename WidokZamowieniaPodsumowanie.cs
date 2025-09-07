@@ -78,7 +78,7 @@ namespace Kalendarz1
         private static decimal SafeDecimal(IDataRecord r, int i)
         {
             if (r.IsDBNull(i)) return 0m;
-            return Convert.ToDecimal(r.GetValue(i)); // obsłuży double/float/int/decimal/string
+            return Convert.ToDecimal(r.GetValue(i)); // obsłuży double/float:int/decimal:string
         }
 
         private static object DbOrNull(DateTime? dt) => dt.HasValue ? dt.Value : DBNull.Value;
@@ -250,6 +250,38 @@ namespace Kalendarz1
             AktualizujPodsumowanieDnia();
         }
 
+        private void btnDuplikuj_Click(object? sender, EventArgs e)
+        {
+            if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
+            {
+                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem do duplikacji.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var widokZamowienia = new WidokZamowienia(UserID, id);
+            widokZamowienia.Text = "Duplikuj zamówienie";
+            widokZamowienia.Load += (s, ev) =>
+            {
+                try
+                {
+                    var dtp = widokZamowienia.Controls.Find("dateTimePickerSprzedaz", true).FirstOrDefault() as DateTimePicker;
+                    if (dtp != null)
+                    {
+                        var now = DateTime.Today;
+                        var next = now.AddDays(1);
+                        if (next.DayOfWeek == DayOfWeek.Saturday)
+                            next = next.AddDays(2); // na poniedziałek
+                        dtp.Value = next;
+                    }
+                }
+                catch { }
+            };
+            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            {
+                Task.Run(async () => await OdswiezWszystkieDaneAsync());
+            }
+        }
+
         #endregion
 
         #region Wczytywanie i przetwarzanie
@@ -267,7 +299,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}", "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}", "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -369,8 +401,9 @@ namespace Kalendarz1
                 _dtZamowienia.Columns.Add("Handlowiec", typeof(string));
                 _dtZamowienia.Columns.Add("IloscZamowiona", typeof(decimal));
                 _dtZamowienia.Columns.Add("IloscFaktyczna", typeof(decimal));
-                _dtZamowienia.Columns.Add("DataUtworzenia", typeof(DateTime));
-                _dtZamowienia.Columns["DataUtworzenia"].AllowDBNull = true; // jawnie
+                var colDataUtw = new DataColumn("DataUtworzenia", typeof(DateTime));
+                colDataUtw.AllowDBNull = true;
+                _dtZamowienia.Columns.Add(colDataUtw);
                 _dtZamowienia.Columns.Add("Utworzyl", typeof(string));
                 _dtZamowienia.Columns.Add("Status", typeof(string));
             }
@@ -410,7 +443,7 @@ namespace Kalendarz1
             {
                 await cnLibra.OpenAsync();
                 string sql = @"
-            SELECT zm.Id, zm.KlientId, SUM(zmt.Ilosc) AS Ilosc, zm.DataUtworzenia, zm.IdUser, zm.Status
+            SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, zm.DataUtworzenia, zm.IdUser, zm.Status
             FROM [dbo].[ZamowieniaMieso] zm
             JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
             WHERE zm.DataZamowienia = @Dzien " +
@@ -426,8 +459,11 @@ namespace Kalendarz1
                 da.Fill(temp);
             }
 
-            // Faktyczne wydania (WZ) per klient
-            var faktyczneWydania = await PobierzFaktyczneWydaniaAsync(dzien, selectedProductId);
+            // Faktyczne wydania (WZ) per klient i produkt
+            var wydaniaPerKhidIdtw = await PobierzWydaniaPerKhidIdtwAsync(dzien);
+
+            // Zbiór klientów z zamówień
+            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>().Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
 
             foreach (DataRow r in temp.Rows)
             {
@@ -435,7 +471,7 @@ namespace Kalendarz1
                 int id = r["Id"] == DBNull.Value ? 0 : Convert.ToInt32(r["Id"]);
                 int klientId = r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"]);
                 decimal ilosc = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
-                DateTime? dataUtw = r["DataUtworzenia"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
+                DateTime? dataUtw = (r["DataUtworzenia"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
 
@@ -443,7 +479,11 @@ namespace Kalendarz1
                     ? kh
                     : ($"Nieznany ({klientId})", "");
 
-                decimal wydane = faktyczneWydania.TryGetValue(klientId, out var w) ? w : 0m;
+                decimal wydane = 0m;
+                if (wydaniaPerKhidIdtw.TryGetValue(klientId, out var perIdtw))
+                {
+                    wydane = perIdtw.Values.Sum();
+                }
 
                 _dtZamowienia.Rows.Add(
                     id,
@@ -451,32 +491,64 @@ namespace Kalendarz1
                     handlowiec,
                     ilosc,
                     wydane,
-                    DbOrNull(dataUtw),
+                    dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value,
                     _userCache.TryGetValue(idUser, out var user) ? user : "Brak",
                     status
                 );
             }
 
+            // Dodaj wydania bez zamówień (Symfonia)
+            foreach (var kv in wydaniaPerKhidIdtw)
+            {
+                int khid = kv.Key;
+                if (klienciZamowien.Contains(khid)) continue; // już jest zamówienie
+                decimal wydane = kv.Value.Values.Sum();
+                var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh)
+                    ? kh
+                    : ($"Nieznany ({khid})", "");
+                _dtZamowienia.Rows.Add(
+                    0, // brak zamówienia
+                    nazwa,
+                    handlowiec,
+                    0m, // brak zamówienia
+                    wydane,
+                    DBNull.Value,
+                    "",
+                    "Wydanie bez zamówienia"
+                );
+            }
+
+            // Sortowanie: najpierw zamówienia, potem wydania bez zamówień
             _bsZamowienia.DataSource = _dtZamowienia;
             dgvZamowienia.DataSource = _bsZamowienia;
+            _bsZamowienia.Sort = "Status ASC, IloscZamowiona DESC";
             dgvZamowienia.ClearSelection();
 
+            // Ustawienia kolumn: szerokości, kolejność, nagłówki
             if (dgvZamowienia.Columns["Id"] != null) dgvZamowienia.Columns["Id"].Visible = false;
+            if (dgvZamowienia.Columns["Odbiorca"] != null)
+                dgvZamowienia.Columns["Odbiorca"].Width = 160;
+            if (dgvZamowienia.Columns["Handlowiec"] != null)
+                dgvZamowienia.Columns["Handlowiec"].Width = 120;
             if (dgvZamowienia.Columns["IloscZamowiona"] != null)
             {
                 dgvZamowienia.Columns["IloscZamowiona"].DefaultCellStyle.Format = "N0";
                 dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono (kg)";
+                dgvZamowienia.Columns["IloscZamowiona"].DisplayIndex = 3;
             }
             if (dgvZamowienia.Columns["IloscFaktyczna"] != null)
             {
                 dgvZamowienia.Columns["IloscFaktyczna"].DefaultCellStyle.Format = "N0";
                 dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano (kg)";
+                dgvZamowienia.Columns["IloscFaktyczna"].DisplayIndex = 4;
             }
             if (dgvZamowienia.Columns["DataUtworzenia"] != null)
             {
                 dgvZamowienia.Columns["DataUtworzenia"].HeaderText = "Utworzono";
                 dgvZamowienia.Columns["DataUtworzenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
             }
+            if (dgvZamowienia.Columns["Status"] != null)
+                dgvZamowienia.Columns["Status"].DisplayIndex = dgvZamowienia.Columns.Count - 1;
 
             ZastosujFiltry();
         }
@@ -488,7 +560,7 @@ namespace Kalendarz1
             string sqlWz = @"
         SELECT DK.khid, SUM(ABS(MZ.ilosc))
         FROM [HANDEL].[HM].[MZ] MZ
-        JOIN [HANDEL].[HM].[DK] DK ON MZ.super = DK.id
+        JOIN [HANDEL].[HM].[DK] ON MZ.super = DK.id
         WHERE DK.seria IN ('sWZ', 'sWZ-W') AND DK.data = @Dzien " +
                 (towarId.HasValue ? "AND MZ.idtw = @TowarId " : "") +
                 "GROUP BY DK.khid";
@@ -519,15 +591,15 @@ namespace Kalendarz1
             const string sql = @"
                 SELECT MG.khid, MZ.idtw, SUM(ABS(MZ.ilosc)) AS qty
                 FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien
+                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid IS NOT NULL
                 GROUP BY MG.khid, MZ.idtw";
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
             await using var rdr = await cmd.ExecuteReaderAsync();
             while (await rdr.ReadAsync())
             {
-                int khid = rdr.GetInt32(0);
+                int khid = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
                 int idtw = rdr.GetInt32(1);
                 decimal qty = ReadDecimal(rdr, 2);
                 if (!dict.TryGetValue(khid, out var perIdtw))
@@ -562,43 +634,89 @@ namespace Kalendarz1
         }
         private async Task WyswietlSzczegolyZamowieniaAsync(int zamowienieId)
         {
-            var dt = new DataTable();
+            // Pobierz dane zamówienia
+            var dtZam = new DataTable();
+            int klientId = 0;
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
                 const string sql = @"
-            SELECT 
-                zmt.KodTowaru,
-                zmt.Ilosc,
-                zm.Uwagi
+            SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId
             FROM [dbo].[ZamowieniaMiesoTowar] zmt
             INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId
             WHERE zmt.ZamowienieId = @Id";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamowienieId);
                 using var da = new SqlDataAdapter(cmd);
-                da.Fill(dt);
+                da.Fill(dtZam);
+                if (dtZam.Rows.Count > 0 && dtZam.Columns.Contains("KlientId"))
+                    klientId = dtZam.Rows[0]["KlientId"] is DBNull ? 0 : Convert.ToInt32(dtZam.Rows[0]["KlientId"]);
             }
 
-            if (!dt.Columns.Contains("Produkt"))
-                dt.Columns.Add("Produkt", typeof(string));
+            // Pobierz wydania z Symfonii dla tego klienta i dnia
+            var wydania = new Dictionary<int, decimal>();
+            if (klientId > 0)
+            {
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    const string sql = @"
+                SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid
+                GROUP BY MZ.idtw";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Dzien", _selectedDate.Date);
+                    cmd.Parameters.AddWithValue("@Khid", klientId);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int idtw = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
+                        decimal ilosc = SafeDecimal(rd, 1);
+                        wydania[idtw] = ilosc;
+                    }
+                }
+            }
 
-            string notatki = dt.Rows.Count > 0 ? (dt.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
+            // Przygotuj wynikową tabelę
+            var dt = new DataTable();
+            dt.Columns.Add("Produkt", typeof(string));
+            dt.Columns.Add("Zamówiono", typeof(decimal));
+            dt.Columns.Add("Wydano", typeof(decimal));
 
-            foreach (DataRow r in dt.Rows)
+            // Dodaj wszystkie towary z zamówienia
+            foreach (DataRow r in dtZam.Rows)
             {
                 int idTowaru = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
-                r["Produkt"] = _twKodCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
-                if (r.Table.Columns.Contains("Ilosc") && r["Ilosc"] != DBNull.Value)
-                    r["Ilosc"] = Convert.ToDecimal(r["Ilosc"]);
+                string produkt = _twKodCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
+                decimal zamowiono = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
+                decimal wydano = wydania.TryGetValue(idTowaru, out var w) ? w : 0m;
+                dt.Rows.Add(produkt, zamowiono, wydano);
+                wydania.Remove(idTowaru); // usuwamy, by potem dodać tylko te wydane bez zamówienia
             }
 
+            // Dodaj towary wydane bez zamówienia
+            foreach (var kv in wydania)
+            {
+                string produkt = _twKodCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
+                dt.Rows.Add(produkt, 0m, kv.Value);
+            }
+
+            // Notatki
+            string notatki = dtZam.Rows.Count > 0 ? (dtZam.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
             txtNotatki.Text = notatki;
             dgvSzczegoly.DataSource = dt;
 
-            if (dgvSzczegoly.Columns["KodTowaru"] != null) dgvSzczegoly.Columns["KodTowaru"].Visible = false;
-            if (dgvSzczegoly.Columns["Uwagi"] != null) dgvSzczegoly.Columns["Uwagi"].Visible = false;
-            if (dgvSzczegoly.Columns["Ilosc"] != null) dgvSzczegoly.Columns["Ilosc"].DefaultCellStyle.Format = "N0";
+            // Formatowanie
+            if (dgvSzczegoly.Columns["Zamówiono"] != null) {
+                dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
+                dgvSzczegoly.Columns["Zamówiono"].HeaderText = "Zamówiono (kg)";
+            }
+            if (dgvSzczegoly.Columns["Wydano"] != null) {
+                dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
+                dgvSzczegoly.Columns["Wydano"].HeaderText = "Wydano (kg)";
+            }
             if (dgvSzczegoly.Columns["Produkt"] != null) dgvSzczegoly.Columns["Produkt"].DisplayIndex = 0;
         }
 
@@ -619,9 +737,11 @@ namespace Kalendarz1
             // PROGNOZA / FAKT przychodu per produkt (PWU)
             var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
 
-            // SUMY ZAMÓWIEŃ per produkt z bieżącej listy zamówień
+            // SUMY ZAMÓWIEŃ per produkt z bieżącej listy zamówień (bez anulowanych)
             var sumaZamowien = new Dictionary<int, decimal>();
-            var zamowieniaIds = _dtZamowienia.AsEnumerable().Select(r => r.Field<int>("Id")).ToList();
+            var zamowieniaIds = _dtZamowienia.AsEnumerable()
+                .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
+                .Select(r => r.Field<int>("Id")).ToList();
             if (zamowieniaIds.Any())
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -656,19 +776,44 @@ namespace Kalendarz1
 
         private void AktualizujPodsumowanieDnia()
         {
-            int liczbaZamowien = (_bsZamowienia?.Count) ?? 0;
+            int liczbaZamowien = 0;
+            int liczbaWydanBezZamowien = 0;
+            int liczbaZamowienZRealnymWydaniem = 0;
             decimal sumaKg = 0;
+            var handlowiecStat = new Dictionary<string, (int zZam, int bezZam)>();
 
             if (_bsZamowienia.List is System.Collections.IEnumerable list)
             {
                 foreach (var item in list)
                 {
                     if (item is DataRowView drv)
-                        sumaKg += drv.Row.Field<decimal?>("IloscZamowiona") ?? 0m;
+                    {
+                        var status = drv.Row.Field<string>("Status") ?? "";
+                        var handlowiec = drv.Row.Field<string>("Handlowiec") ?? "";
+                        var iloscZam = drv.Row.Field<decimal?>("IloscZamowiona") ?? 0m;
+                        sumaKg += iloscZam;
+                        if (status == "Wydanie bez zamówienia")
+                        {
+                            liczbaWydanBezZamowien++;
+                            if (!handlowiecStat.ContainsKey(handlowiec)) handlowiecStat[handlowiec] = (0, 0);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1);
+                        }
+                        else if (status != "Anulowane")
+                        {
+                            liczbaZamowien++;
+                            if (drv.Row.Field<decimal?>("IloscFaktyczna") > 0)
+                                liczbaZamowienZRealnymWydaniem++;
+                            if (!handlowiecStat.ContainsKey(handlowiec)) handlowiecStat[handlowiec] = (0, 0);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam);
+                        }
+                    }
                 }
             }
-
-            lblPodsumowanie.Text = $"Liczba zamówień: {liczbaZamowien} | Łączna waga: {sumaKg:N0} kg";
+            int suma = liczbaZamowien + liczbaWydanBezZamowien;
+            double procZam = suma > 0 ? 100.0 * liczbaZamowien / suma : 0;
+            double procBez = suma > 0 ? 100.0 * liczbaWydanBezZamowien / suma : 0;
+            string perHandlowiec = string.Join(" | ", handlowiecStat.Select(h => $"{h.Key}: {h.Value.zZam} z zam., {h.Value.bezZam} bez zam."));
+            lblPodsumowanie.Text = $"Zamówień z wydaniami: {liczbaZamowien} | Wydania bez zamówień: {liczbaWydanBezZamowien} | % z zam.: {procZam:N1}% | % bez zam.: {procBez:N1}% | {perHandlowiec}";
         }
 
         private void WyczyscSzczegoly()
@@ -718,7 +863,7 @@ namespace Kalendarz1
             const string sql = @"
                 SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
                 FROM [HANDEL].[HM].[MZ] MZ 
-                JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
                 WHERE MG.seria IN ('sWZ', 'sWZ-W') AND MG.aktywny=1 AND MG.data = @Dzien 
                 GROUP BY MZ.idtw";
             await using var cmd = new SqlCommand(sql, cn);
@@ -799,7 +944,7 @@ namespace Kalendarz1
                 const string sql = @"
                     SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
                     FROM [HANDEL].[HM].[MZ] MZ 
-                    JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id 
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
                     WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Dzien 
                     GROUP BY MZ.idtw";
                 await using var cmd = new SqlCommand(sql, cn);
@@ -808,7 +953,6 @@ namespace Kalendarz1
                 while (await rdr.ReadAsync())
                     fakt[rdr.GetInt32(0)] = ReadDecimal(rdr, 1);
             }
-
             return (plan, fakt);
         }
 
@@ -822,23 +966,39 @@ namespace Kalendarz1
                 ? rowObj.Row["Status"]?.ToString()
                 : null;
 
-            var row = dgvZamowienia.Rows[e.RowIndex];
-            switch (status)
+            // Bezpieczne pobranie daty utworzenia (może być null)
+            DateTime? dataUtw = null;
+            if (rowObj.Row.Table.Columns.Contains("DataUtworzenia"))
             {
-                case "Anulowane":
-                    row.DefaultCellStyle.ForeColor = Color.Gray;
-                    row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Strikeout);
-                    break;
-                case "Zrealizowane":
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
-                    row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
-                    row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
-                    break;
-                default:
-                    row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
-                    row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : Color.FromArgb(248, 248, 248);
-                    row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
-                    break;
+                var val = rowObj.Row["DataUtworzenia"];
+                if (val != DBNull.Value && val != null)
+                    dataUtw = (DateTime)val;
+            }
+
+            var row = dgvZamowienia.Rows[e.RowIndex];
+            // Kolorowanie: zamówienia z wydaniami (standard), wydania bez zamówień (specjalny kolor)
+            if (status == "Wydanie bez zamówienia")
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 200); // jasny pomarańczowy
+                row.DefaultCellStyle.ForeColor = Color.Black;
+                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Italic);
+            }
+            else if (status == "Anulowane")
+            {
+                row.DefaultCellStyle.ForeColor = Color.Gray;
+                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Strikeout);
+            }
+            else if (status == "Zrealizowane")
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
+                row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
+                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
+            }
+            else
+            {
+                row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
+                row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : Color.FromArgb(248, 248, 248);
+                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
             }
         }
         // ===== Pomocnicza: odczyt ID z aktualnego wiersza dgvZamowienia =====
@@ -897,4 +1057,3 @@ namespace Kalendarz1
         #endregion
     }
 }
-  

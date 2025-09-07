@@ -83,14 +83,18 @@ namespace Kalendarz1
             BuildDataTableSchema();
             InitDefaults();
 
+            // Ustaw format daty z dniem tygodnia
+            dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
+            dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
+
             try
             {
-                await LoadInitialDataInBackground();
+                _ = LoadInitialDataInBackground();
                 WireUpUIEvents();
 
                 if (_idZamowieniaDoEdycji.HasValue)
                 {
-                    await LoadZamowienieAsync(_idZamowieniaDoEdycji.Value);
+                    _ = LoadZamowienieAsync(_idZamowieniaDoEdycji.Value);
                     lblTytul.Text = "Edycja zamówienia";
                     btnZapisz.Text = "Zapisz zmiany (Ctrl+S)";
                 }
