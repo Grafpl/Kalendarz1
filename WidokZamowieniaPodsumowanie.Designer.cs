@@ -36,7 +36,6 @@ namespace Kalendarz1
             btnPt = new System.Windows.Forms.Button();
             btnSo = new System.Windows.Forms.Button();
             btnNd = new System.Windows.Forms.Button();
-            dgvPojTuszki = new System.Windows.Forms.DataGridView();
             btnDuplikuj = new System.Windows.Forms.Button();
             btnUsun = new System.Windows.Forms.Button();
             panelGlowny = new System.Windows.Forms.TableLayoutPanel();
@@ -74,7 +73,6 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).BeginInit();
             panelPrzychody.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvPrzychody).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dgvPojTuszki).BeginInit();
             SuspendLayout();
             // 
             // tableLayoutPanel1
@@ -203,7 +201,6 @@ namespace Kalendarz1
             panelDni.Controls.Add(btnPt);
             panelDni.Controls.Add(btnSo);
             panelDni.Controls.Add(btnNd);
-            panelDni.Controls.Add(dgvPojTuszki);
             panelDni.Location = new System.Drawing.Point(344, 6);
             panelDni.Name = "panelDni";
             panelDni.Size = new System.Drawing.Size(670, 52);
@@ -279,23 +276,6 @@ namespace Kalendarz1
             btnNd.Text = "Nd";
             btnNd.UseVisualStyleBackColor = true;
             // 
-            // dgvPojTuszki
-            // 
-            dgvPojTuszki.AllowUserToAddRows = false;
-            dgvPojTuszki.AllowUserToDeleteRows = false;
-            dgvPojTuszki.AllowUserToResizeRows = false;
-            dgvPojTuszki.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvPojTuszki.ColumnHeadersVisible = false;
-            dgvPojTuszki.Font = new System.Drawing.Font("Arial", 7F);
-            dgvPojTuszki.Location = new System.Drawing.Point(535, 3);
-            dgvPojTuszki.Name = "dgvPojTuszki";
-            dgvPojTuszki.ReadOnly = true;
-            dgvPojTuszki.RowHeadersVisible = false;
-            dgvPojTuszki.RowTemplate.Height = 17;
-            dgvPojTuszki.ScrollBars = System.Windows.Forms.ScrollBars.None;
-            dgvPojTuszki.Size = new System.Drawing.Size(125, 45);
-            dgvPojTuszki.TabIndex = 7;
-            // 
             // btnDuplikuj
             // 
             btnDuplikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
@@ -328,8 +308,8 @@ namespace Kalendarz1
             // panelGlowny
             // 
             panelGlowny.ColumnCount = 2;
-            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 55F));
-            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 45F));
+            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 70F));
+            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 30F));
             panelGlowny.Controls.Add(panelMaster, 0, 0);
             panelGlowny.Controls.Add(panelDetail, 1, 0);
             panelGlowny.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -348,7 +328,7 @@ namespace Kalendarz1
             panelMaster.Dock = System.Windows.Forms.DockStyle.Fill;
             panelMaster.Location = new System.Drawing.Point(3, 3);
             panelMaster.Name = "panelMaster";
-            panelMaster.Size = new System.Drawing.Size(685, 599);
+            panelMaster.Size = new System.Drawing.Size(874, 599);
             panelMaster.TabIndex = 0;
             // 
             // dgvZamowienia
@@ -357,7 +337,7 @@ namespace Kalendarz1
             dgvZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
             dgvZamowienia.Location = new System.Drawing.Point(0, 45);
             dgvZamowienia.Name = "dgvZamowienia";
-            dgvZamowienia.Size = new System.Drawing.Size(685, 514);
+            dgvZamowienia.Size = new System.Drawing.Size(874, 514);
             dgvZamowienia.TabIndex = 1;
             dgvZamowienia.CellClick += dgvZamowienia_CellClick;
             dgvZamowienia.RowPrePaint += dgvZamowienia_RowPrePaint;
@@ -372,7 +352,7 @@ namespace Kalendarz1
             panelFiltry.Location = new System.Drawing.Point(0, 0);
             panelFiltry.Name = "panelFiltry";
             panelFiltry.Padding = new System.Windows.Forms.Padding(5);
-            panelFiltry.Size = new System.Drawing.Size(685, 45);
+            panelFiltry.Size = new System.Drawing.Size(874, 45);
             panelFiltry.TabIndex = 2;
             // 
             // cbFiltrujTowar
@@ -408,19 +388,18 @@ namespace Kalendarz1
             panelPodsumowanie.Dock = System.Windows.Forms.DockStyle.Bottom;
             panelPodsumowanie.Location = new System.Drawing.Point(0, 559);
             panelPodsumowanie.Name = "panelPodsumowanie";
-            panelPodsumowanie.Size = new System.Drawing.Size(685, 40);
+            panelPodsumowanie.Size = new System.Drawing.Size(874, 40);
             panelPodsumowanie.TabIndex = 0;
             // 
             // lblPodsumowanie
             // 
             lblPodsumowanie.AutoEllipsis = true;
-            lblPodsumowanie.AutoSize = false;
             lblPodsumowanie.Dock = System.Windows.Forms.DockStyle.Fill;
             lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             lblPodsumowanie.Location = new System.Drawing.Point(0, 0);
             lblPodsumowanie.Name = "lblPodsumowanie";
             lblPodsumowanie.Padding = new System.Windows.Forms.Padding(12, 0, 0, 0);
-            lblPodsumowanie.Size = new System.Drawing.Size(685, 40);
+            lblPodsumowanie.Size = new System.Drawing.Size(874, 40);
             lblPodsumowanie.TabIndex = 0;
             lblPodsumowanie.Text = "-";
             lblPodsumowanie.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -433,13 +412,13 @@ namespace Kalendarz1
             panelDetail.Controls.Add(label2, 0, 1);
             panelDetail.Controls.Add(panelSzczegolyTop, 0, 0);
             panelDetail.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelDetail.Location = new System.Drawing.Point(694, 3);
+            panelDetail.Location = new System.Drawing.Point(883, 3);
             panelDetail.Name = "panelDetail";
             panelDetail.RowCount = 3;
             panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 40F));
             panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
             panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 60F));
-            panelDetail.Size = new System.Drawing.Size(561, 599);
+            panelDetail.Size = new System.Drawing.Size(372, 599);
             panelDetail.TabIndex = 1;
             // 
             // dgvAgregacja
@@ -448,7 +427,7 @@ namespace Kalendarz1
             dgvAgregacja.Dock = System.Windows.Forms.DockStyle.Fill;
             dgvAgregacja.Location = new System.Drawing.Point(3, 260);
             dgvAgregacja.Name = "dgvAgregacja";
-            dgvAgregacja.Size = new System.Drawing.Size(555, 336);
+            dgvAgregacja.Size = new System.Drawing.Size(366, 336);
             dgvAgregacja.TabIndex = 1;
             // 
             // label2
@@ -458,7 +437,7 @@ namespace Kalendarz1
             label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             label2.Location = new System.Drawing.Point(3, 227);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(555, 30);
+            label2.Size = new System.Drawing.Size(366, 30);
             label2.TabIndex = 3;
             label2.Text = "Podsumowanie produktów dla wybranego dnia";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -475,7 +454,7 @@ namespace Kalendarz1
             panelSzczegolyTop.Name = "panelSzczegolyTop";
             panelSzczegolyTop.RowCount = 1;
             panelSzczegolyTop.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            panelSzczegolyTop.Size = new System.Drawing.Size(555, 221);
+            panelSzczegolyTop.Size = new System.Drawing.Size(366, 221);
             panelSzczegolyTop.TabIndex = 4;
             // 
             // panelNotatki
@@ -486,7 +465,7 @@ namespace Kalendarz1
             panelNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
             panelNotatki.Location = new System.Drawing.Point(3, 3);
             panelNotatki.Name = "panelNotatki";
-            panelNotatki.Size = new System.Drawing.Size(271, 215);
+            panelNotatki.Size = new System.Drawing.Size(177, 215);
             panelNotatki.TabIndex = 0;
             // 
             // dgvSzczegoly
@@ -495,7 +474,7 @@ namespace Kalendarz1
             dgvSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
             dgvSzczegoly.Location = new System.Drawing.Point(0, 23);
             dgvSzczegoly.Name = "dgvSzczegoly";
-            dgvSzczegoly.Size = new System.Drawing.Size(271, 92);
+            dgvSzczegoly.Size = new System.Drawing.Size(177, 92);
             dgvSzczegoly.TabIndex = 2;
             // 
             // txtNotatki
@@ -506,7 +485,7 @@ namespace Kalendarz1
             txtNotatki.Name = "txtNotatki";
             txtNotatki.ReadOnly = true;
             txtNotatki.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            txtNotatki.Size = new System.Drawing.Size(271, 100);
+            txtNotatki.Size = new System.Drawing.Size(177, 100);
             txtNotatki.TabIndex = 1;
             // 
             // label3
@@ -526,9 +505,9 @@ namespace Kalendarz1
             panelPrzychody.Controls.Add(dgvPrzychody);
             panelPrzychody.Controls.Add(label1);
             panelPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelPrzychody.Location = new System.Drawing.Point(280, 3);
+            panelPrzychody.Location = new System.Drawing.Point(186, 3);
             panelPrzychody.Name = "panelPrzychody";
-            panelPrzychody.Size = new System.Drawing.Size(272, 215);
+            panelPrzychody.Size = new System.Drawing.Size(177, 215);
             panelPrzychody.TabIndex = 1;
             // 
             // dgvPrzychody
@@ -537,7 +516,7 @@ namespace Kalendarz1
             dgvPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
             dgvPrzychody.Location = new System.Drawing.Point(0, 23);
             dgvPrzychody.Name = "dgvPrzychody";
-            dgvPrzychody.Size = new System.Drawing.Size(272, 192);
+            dgvPrzychody.Size = new System.Drawing.Size(177, 192);
             dgvPrzychody.TabIndex = 1;
             // 
             // label1
@@ -581,7 +560,6 @@ namespace Kalendarz1
             panelPrzychody.ResumeLayout(false);
             panelPrzychody.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgvPrzychody).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dgvPojTuszki).EndInit();
             ResumeLayout(false);
 
         }

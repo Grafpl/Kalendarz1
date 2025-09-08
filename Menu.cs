@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
-
+using Kalendarz1.Transport; // dodane dla nowych formularzy transportu
 
 namespace Kalendarz1
 {
@@ -125,6 +125,14 @@ namespace Kalendarz1
             var panel = new WidokPanelProdukcja();
             panel.UserID = App.UserID;
             panel.Show();
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            // Nowy panel transportu oparty o tabele T* (TDriver, TVehicle, TTrip, TTripLoad)
+            var connString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            var frm = new TransportMainForm(connString, App.UserID);
+            frm.Show();
         }
     }
 }

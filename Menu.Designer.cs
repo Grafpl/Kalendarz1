@@ -64,6 +64,7 @@
             label16 = new System.Windows.Forms.Label();
             buttonAkceptacja = new System.Windows.Forms.Button();
             button5 = new System.Windows.Forms.Button();
+            button6 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -464,11 +465,26 @@
             button5.UseVisualStyleBackColor = true;
             button5.Click += button5_Click;
             // 
+            // button6
+            // 
+            button6.BackgroundImage = (System.Drawing.Image)resources.GetObject("button6.BackgroundImage");
+            button6.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button6.ForeColor = System.Drawing.Color.Black;
+            button6.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
+            button6.Location = new System.Drawing.Point(175, 20);
+            button6.Name = "button6";
+            button6.Size = new System.Drawing.Size(85, 66);
+            button6.TabIndex = 55;
+            button6.UseVisualStyleBackColor = true;
+            button6.Click += button6_Click;
+            // 
             // MENU
             // 
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1084, 1054);
+            Controls.Add(button6);
             Controls.Add(button5);
             Controls.Add(buttonAkceptacja);
             Controls.Add(label12);
@@ -550,5 +566,6 @@
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.Button buttonAkceptacja;
         private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.Button button6;
     }
 }

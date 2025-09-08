@@ -299,11 +299,15 @@ namespace Kalendarz1
 
         public void PokazPojTuszki(DataGridView dataGrid)
         {
+            if (dataGrid == null)
+            {
+                MessageBox.Show("DataGridView nie został przekazany do metody PokazPojTuszki.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
             // Utwórz połączenie z bazą danych SQL Server
             using (SqlConnection cnn = new SqlConnection(connectionString))
             {
                 cnn.Open();
-
                 string strSQL = @"
         SELECT 
     k.CreateData AS Data, 
@@ -2150,8 +2154,8 @@ END";
                     SELECT
                        ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
                     FROM [HANDEL].[HM].[DP] DP 
-                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-                    INNER JOIN [HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
+                    INNER JOIN [HANDEL].[HM].[TW] ON DP.[idtw] = TW.[id] 
+                    INNER JOIN [HANDEL].[HM].[DK] ON DP.[super] = DK.[id] 
                     WHERE DP.[data] >= CAST(GETDATE() AS DATE)
                       AND DP.[data] < DATEADD(DAY, 1, CAST(GETDATE() AS DATE)) 
                       AND DP.[kod] = 'Kurczak A' 

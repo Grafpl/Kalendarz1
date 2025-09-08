@@ -54,20 +54,43 @@ namespace Kalendarz1
             Load += WidokZamowieniaPodsumowanie_Load;
             btnUsun.Visible = false;
 
+            // Naprawa: sprawdzenie czy dgvPojTuszki istnieje przed wywołaniem
+            if (dgvPojTuszki != null)
+            {
+                nazwaZiD.PokazPojTuszki(dgvPojTuszki);
+            }
         }
 
         private async void WidokZamowieniaPodsumowanie_Load(object? sender, EventArgs e)
         {
             _selectedDate = DateTime.Today;
             UstawPrzyciskiDniTygodnia();
+
+            // Dynamiczne utworzenie brakującego DataGridView (mini grid) jeśli nie został wygenerowany przez Designera
+            if (dgvPojTuszki == null)
+            {
+                dgvPojTuszki = new DataGridView();
+                dgvPojTuszki.Name = "dgvPojTuszki";
+                dgvPojTuszki.Height = 110;          // kompaktowy
+                dgvPojTuszki.Dock = DockStyle.Bottom; // pod główną tabelą przychodów
+                dgvPojTuszki.ReadOnly = true;
+                dgvPojTuszki.AllowUserToAddRows = false;
+                dgvPojTuszki.AllowUserToDeleteRows = false;
+                dgvPojTuszki.RowHeadersVisible = false;
+                // Umieszczamy w panelu przychodów (jest zawsze dostępny)
+                panelPrzychody.Controls.Add(dgvPojTuszki);
+                panelPrzychody.Controls.SetChildIndex(dgvPojTuszki, 0); // na dół stosu dokowania
+            }
+
             SzybkiGrid(dgvZamowienia);
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
             SzybkiGrid(dgvPrzychody);
-            SzybkiGrid(dgvPojTuszki); // mini grid
+            SzybkiGrid(dgvPojTuszki); // mini grid (teraz na pewno istnieje)
 
             btnUsun.Visible = (UserID == "11111");
-            nazwaZiD.PokazPojTuszki(dgvPojTuszki); // wywołanie metody
+            // Załaduj dane do mini grida
+            nazwaZiD.PokazPojTuszki(dgvPojTuszki);
 
             await ZaladujDanePoczatkoweAsync();
             await OdswiezWszystkieDaneAsync();
@@ -124,6 +147,7 @@ namespace Kalendarz1
 
         private void SzybkiGrid(DataGridView dgv)
         {
+            if (dgv == null) return; // zabezpieczenie przed NullReferenceException
             dgv.AllowUserToAddRows = false;
             dgv.AllowUserToDeleteRows = false;
             dgv.AllowUserToResizeRows = false;
