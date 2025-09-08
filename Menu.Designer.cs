@@ -63,6 +63,7 @@
             label15 = new System.Windows.Forms.Label();
             label16 = new System.Windows.Forms.Label();
             buttonAkceptacja = new System.Windows.Forms.Button();
+            button5 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -442,18 +443,33 @@
             buttonAkceptacja.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
             buttonAkceptacja.ForeColor = System.Drawing.Color.Black;
             buttonAkceptacja.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
-            buttonAkceptacja.Location = new System.Drawing.Point(832, 20);
+            buttonAkceptacja.Location = new System.Drawing.Point(851, 20);
             buttonAkceptacja.Name = "buttonAkceptacja";
             buttonAkceptacja.Size = new System.Drawing.Size(85, 66);
             buttonAkceptacja.TabIndex = 53;
             buttonAkceptacja.UseVisualStyleBackColor = true;
             buttonAkceptacja.Click += buttonAkceptacja_Click;
             // 
+            // button5
+            // 
+            button5.BackgroundImage = (System.Drawing.Image)resources.GetObject("button5.BackgroundImage");
+            button5.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button5.ForeColor = System.Drawing.Color.Black;
+            button5.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
+            button5.Location = new System.Drawing.Point(942, 20);
+            button5.Name = "button5";
+            button5.Size = new System.Drawing.Size(85, 66);
+            button5.TabIndex = 54;
+            button5.UseVisualStyleBackColor = true;
+            button5.Click += button5_Click;
+            // 
             // MENU
             // 
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1084, 1054);
+            Controls.Add(button5);
             Controls.Add(buttonAkceptacja);
             Controls.Add(label12);
             Controls.Add(label14);
@@ -533,5 +549,6 @@
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.Button buttonAkceptacja;
+        private System.Windows.Forms.Button button5;
     }
 }

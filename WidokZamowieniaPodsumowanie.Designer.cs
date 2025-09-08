@@ -36,7 +36,9 @@ namespace Kalendarz1
             btnPt = new System.Windows.Forms.Button();
             btnSo = new System.Windows.Forms.Button();
             btnNd = new System.Windows.Forms.Button();
+            dgvPojTuszki = new System.Windows.Forms.DataGridView();
             btnDuplikuj = new System.Windows.Forms.Button();
+            btnUsun = new System.Windows.Forms.Button();
             panelGlowny = new System.Windows.Forms.TableLayoutPanel();
             panelMaster = new System.Windows.Forms.Panel();
             dgvZamowienia = new System.Windows.Forms.DataGridView();
@@ -72,6 +74,7 @@ namespace Kalendarz1
             ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).BeginInit();
             panelPrzychody.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvPrzychody).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dgvPojTuszki).BeginInit();
             SuspendLayout();
             // 
             // tableLayoutPanel1
@@ -100,6 +103,7 @@ namespace Kalendarz1
             panelNawigacja.Controls.Add(btnOdswiez);
             panelNawigacja.Controls.Add(panelDni);
             panelNawigacja.Controls.Add(btnDuplikuj);
+            panelNawigacja.Controls.Add(btnUsun);
             panelNawigacja.Dock = System.Windows.Forms.DockStyle.Fill;
             panelNawigacja.Location = new System.Drawing.Point(3, 3);
             panelNawigacja.Name = "panelNawigacja";
@@ -199,9 +203,10 @@ namespace Kalendarz1
             panelDni.Controls.Add(btnPt);
             panelDni.Controls.Add(btnSo);
             panelDni.Controls.Add(btnNd);
+            panelDni.Controls.Add(dgvPojTuszki);
             panelDni.Location = new System.Drawing.Point(344, 6);
             panelDni.Name = "panelDni";
-            panelDni.Size = new System.Drawing.Size(540, 52);
+            panelDni.Size = new System.Drawing.Size(670, 52);
             panelDni.TabIndex = 0;
             // 
             // btnPon
@@ -274,6 +279,23 @@ namespace Kalendarz1
             btnNd.Text = "Nd";
             btnNd.UseVisualStyleBackColor = true;
             // 
+            // dgvPojTuszki
+            // 
+            dgvPojTuszki.AllowUserToAddRows = false;
+            dgvPojTuszki.AllowUserToDeleteRows = false;
+            dgvPojTuszki.AllowUserToResizeRows = false;
+            dgvPojTuszki.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvPojTuszki.ColumnHeadersVisible = false;
+            dgvPojTuszki.Font = new System.Drawing.Font("Arial", 7F);
+            dgvPojTuszki.Location = new System.Drawing.Point(535, 3);
+            dgvPojTuszki.Name = "dgvPojTuszki";
+            dgvPojTuszki.ReadOnly = true;
+            dgvPojTuszki.RowHeadersVisible = false;
+            dgvPojTuszki.RowTemplate.Height = 17;
+            dgvPojTuszki.ScrollBars = System.Windows.Forms.ScrollBars.None;
+            dgvPojTuszki.Size = new System.Drawing.Size(125, 45);
+            dgvPojTuszki.TabIndex = 7;
+            // 
             // btnDuplikuj
             // 
             btnDuplikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
@@ -287,6 +309,21 @@ namespace Kalendarz1
             btnDuplikuj.Text = "Duplikuj";
             btnDuplikuj.UseVisualStyleBackColor = false;
             btnDuplikuj.Click += btnDuplikuj_Click;
+            // 
+            // btnUsun
+            // 
+            btnUsun.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnUsun.BackColor = System.Drawing.Color.Black;
+            btnUsun.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnUsun.ForeColor = System.Drawing.Color.White;
+            btnUsun.Location = new System.Drawing.Point(560, 12);
+            btnUsun.Name = "btnUsun";
+            btnUsun.Size = new System.Drawing.Size(110, 40);
+            btnUsun.TabIndex = 9;
+            btnUsun.Text = "Usuń";
+            btnUsun.UseVisualStyleBackColor = false;
+            btnUsun.Visible = false;
+            btnUsun.Click += btnUsun_Click;
             // 
             // panelGlowny
             // 
@@ -376,13 +413,17 @@ namespace Kalendarz1
             // 
             // lblPodsumowanie
             // 
-            lblPodsumowanie.AutoSize = true;
-            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            lblPodsumowanie.Location = new System.Drawing.Point(12, 11);
+            lblPodsumowanie.AutoEllipsis = true;
+            lblPodsumowanie.AutoSize = false;
+            lblPodsumowanie.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPodsumowanie.Location = new System.Drawing.Point(0, 0);
             lblPodsumowanie.Name = "lblPodsumowanie";
-            lblPodsumowanie.Size = new System.Drawing.Size(13, 17);
+            lblPodsumowanie.Padding = new System.Windows.Forms.Padding(12, 0, 0, 0);
+            lblPodsumowanie.Size = new System.Drawing.Size(685, 40);
             lblPodsumowanie.TabIndex = 0;
             lblPodsumowanie.Text = "-";
+            lblPodsumowanie.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // panelDetail
             // 
@@ -530,7 +571,6 @@ namespace Kalendarz1
             panelFiltry.ResumeLayout(false);
             panelFiltry.PerformLayout();
             panelPodsumowanie.ResumeLayout(false);
-            panelPodsumowanie.PerformLayout();
             panelDetail.ResumeLayout(false);
             panelDetail.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgvAgregacja).EndInit();
@@ -541,6 +581,7 @@ namespace Kalendarz1
             panelPrzychody.ResumeLayout(false);
             panelPrzychody.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgvPrzychody).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgvPojTuszki).EndInit();
             ResumeLayout(false);
 
         }
@@ -585,5 +626,7 @@ namespace Kalendarz1
         private System.Windows.Forms.Button btnAnuluj;
         private System.Windows.Forms.ComboBox cbFiltrujTowar;
         private System.Windows.Forms.Button btnDuplikuj;
+        private System.Windows.Forms.Button btnUsun;
+        private System.Windows.Forms.DataGridView dgvPojTuszki;
     }
 }

@@ -114,10 +114,17 @@ namespace Kalendarz1
                 ? Environment.UserName
                 : App.UserID;
 
-            using ( var f = new AdminChangeRequestsForm(connString, appUser))
+            using (var f = new AdminChangeRequestsForm(connString, appUser))
             {
                 f.ShowDialog(this);
             }
         }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            var panel = new WidokPanelProdukcja();
+            panel.UserID = App.UserID;
+            panel.Show();
+        }
     }
-    }
+}

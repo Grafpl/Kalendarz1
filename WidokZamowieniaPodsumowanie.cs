@@ -14,6 +14,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Reflection;
 
 namespace Kalendarz1
 {
@@ -45,10 +46,14 @@ namespace Kalendarz1
             // {"Filet", 0.32m}, {"Ćwiartka", 0.22m}, {"Skrzydło", 0.09m}, ...
         };
 
+        private NazwaZiD nazwaZiD = new NazwaZiD();
+
         public WidokZamowieniaPodsumowanie()
         {
             InitializeComponent();
             Load += WidokZamowieniaPodsumowanie_Load;
+            btnUsun.Visible = false;
+
         }
 
         private async void WidokZamowieniaPodsumowanie_Load(object? sender, EventArgs e)
@@ -59,6 +64,10 @@ namespace Kalendarz1
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
             SzybkiGrid(dgvPrzychody);
+            SzybkiGrid(dgvPojTuszki); // mini grid
+
+            btnUsun.Visible = (UserID == "11111");
+            nazwaZiD.PokazPojTuszki(dgvPojTuszki); // wywołanie metody
 
             await ZaladujDanePoczatkoweAsync();
             await OdswiezWszystkieDaneAsync();
@@ -439,24 +448,28 @@ namespace Kalendarz1
 
             // wczytaj zamówienia (sumy)
             var temp = new DataTable();
-            await using (var cnLibra = new SqlConnection(_connLibra))
+            if (_twKatalogCache.Keys.Any())
             {
-                await cnLibra.OpenAsync();
-                string sql = @"
-            SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, zm.DataUtworzenia, zm.IdUser, zm.Status
-            FROM [dbo].[ZamowieniaMieso] zm
-            JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-            WHERE zm.DataZamowienia = @Dzien " +
-                    (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
-                    @"GROUP BY zm.Id, zm.KlientId, zm.DataUtworzenia, zm.IdUser, zm.Status
-              ORDER BY zm.Id";
+                await using (var cnLibra = new SqlConnection(_connLibra))
+                {
+                    await cnLibra.OpenAsync();
+                    var idwList = string.Join(",", _twKatalogCache.Keys);
+                    string sql = $@"
+                SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, zm.DataUtworzenia, zm.IdUser, zm.Status
+                FROM [dbo].[ZamowieniaMieso] zm
+                JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                WHERE zm.DataZamowienia = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
+                        (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
+                        @"GROUP BY zm.Id, zm.KlientId, zm.DataUtworzenia, zm.IdUser, zm.Status
+                  ORDER BY zm.Id";
 
-                await using var cmd = new SqlCommand(sql, cnLibra);
-                cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
-                if (selectedProductId.HasValue)
-                    cmd.Parameters.AddWithValue("@TowarId", selectedProductId.Value);
-                using var da = new SqlDataAdapter(cmd);
-                da.Fill(temp);
+                    await using var cmd = new SqlCommand(sql, cnLibra);
+                    cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
+                    if (selectedProductId.HasValue)
+                        cmd.Parameters.AddWithValue("@TowarId", selectedProductId.Value);
+                    using var da = new SqlDataAdapter(cmd);
+                    da.Fill(temp);
+                }
             }
 
             // Faktyczne wydania (WZ) per klient i produkt
@@ -498,6 +511,7 @@ namespace Kalendarz1
             }
 
             // Dodaj wydania bez zamówień (Symfonia)
+            var wydaniaBezZamowien = new List<DataRow>();
             foreach (var kv in wydaniaPerKhidIdtw)
             {
                 int khid = kv.Key;
@@ -506,17 +520,20 @@ namespace Kalendarz1
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh)
                     ? kh
                     : ($"Nieznany ({khid})", "");
-                _dtZamowienia.Rows.Add(
-                    0, // brak zamówienia
-                    nazwa,
-                    handlowiec,
-                    0m, // brak zamówienia
-                    wydane,
-                    DBNull.Value,
-                    "",
-                    "Wydanie bez zamówienia"
-                );
+                var row = _dtZamowienia.NewRow();
+                row["Id"] = 0;
+                row["Odbiorca"] = nazwa;
+                row["Handlowiec"] = handlowiec;
+                row["IloscZamowiona"] = 0m;
+                row["IloscFaktyczna"] = wydane;
+                row["DataUtworzenia"] = DBNull.Value;
+                row["Utworzyl"] = "";
+                row["Status"] = "Wydanie bez zamówienia";
+                wydaniaBezZamowien.Add(row);
             }
+            // Sortuj wydania bez zamówień malejąco po IloscFaktyczna
+            foreach (var row in wydaniaBezZamowien.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
+                _dtZamowienia.Rows.Add(row.ItemArray);
 
             // Sortowanie: najpierw zamówienia, potem wydania bez zamówień
             _bsZamowienia.DataSource = _dtZamowienia;
@@ -586,13 +603,17 @@ namespace Kalendarz1
         private async Task<Dictionary<int, Dictionary<int, decimal>>> PobierzWydaniaPerKhidIdtwAsync(DateTime dzien)
         {
             var dict = new Dictionary<int, Dictionary<int, decimal>>();
+            if (!_twKatalogCache.Keys.Any()) return dict;
+
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
-            const string sql = @"
+            var idwList = string.Join(",", _twKatalogCache.Keys);
+            string sql = $@"
                 SELECT MG.khid, MZ.idtw, SUM(ABS(MZ.ilosc)) AS qty
                 FROM [HANDEL].[HM].[MZ] MZ
                 JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
                 WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid IS NOT NULL
+                AND MZ.idtw IN ({idwList})
                 GROUP BY MG.khid, MZ.idtw";
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
@@ -615,6 +636,43 @@ namespace Kalendarz1
 
         private async void dgvZamowienia_SelectionChanged(object? sender, EventArgs e)
         {
+            if (dgvZamowienia.CurrentRow != null && dgvZamowienia.CurrentRow.Index >= 0)
+            {
+                await HandleGridSelection(dgvZamowienia.CurrentRow.Index);
+            }
+            else
+            {
+                WyczyscSzczegoly();
+            }
+        }
+        private async void dgvZamowienia_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                await HandleGridSelection(e.RowIndex);
+            }
+        }
+
+        private async Task HandleGridSelection(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= dgvZamowienia.Rows.Count)
+            {
+                WyczyscSzczegoly();
+                return;
+            }
+
+            var row = dgvZamowienia.Rows[rowIndex];
+            if (row.DataBoundItem is DataRowView drv)
+            {
+                var status = drv.Row.Field<string>("Status") ?? "";
+                if (status == "Wydanie bez zamówienia")
+                {
+                    var odbiorca = drv.Row.Field<string>("Odbiorca") ?? "";
+                    await WyswietlSzczegolyWydaniaBezZamowieniaAsync(odbiorca, _selectedDate);
+                    return;
+                }
+            }
+
             if (TrySetAktualneIdZamowieniaFromGrid(out var id))
             {
                 await WyswietlSzczegolyZamowieniaAsync(id);
@@ -624,14 +682,59 @@ namespace Kalendarz1
                 WyczyscSzczegoly();
             }
         }
-        private async void dgvZamowienia_CellClick(object? sender, DataGridViewCellEventArgs e)
+        // Dodaj metodę do wyświetlania szczegółów wydania bez zamówienia
+        private async Task WyswietlSzczegolyWydaniaBezZamowieniaAsync(string odbiorca, DateTime dzien)
         {
-            if (e.RowIndex < 0) return;
-            if (TrySetAktualneIdZamowieniaFromGrid(out var id))
+            // Pobierz wydania z Symfonii dla tego odbiorcy i dnia
+            var dt = new DataTable();
+            dt.Columns.Add("Produkt", typeof(string));
+            dt.Columns.Add("Wydano", typeof(decimal));
+
+            var khId = 0;
+            await using (var cn = new SqlConnection(_connHandel))
             {
-                await WyswietlSzczegolyZamowieniaAsync(id);
+                await cn.OpenAsync();
+                var cmdKh = new SqlCommand("SELECT Id FROM [HANDEL].[SSCommon].[STContractors] WHERE Shortcut = @Odbiorca", cn);
+                cmdKh.Parameters.AddWithValue("@Odbiorca", odbiorca);
+                var result = await cmdKh.ExecuteScalarAsync();
+                if (result != null) khId = Convert.ToInt32(result);
             }
+
+            if (khId > 0)
+            {
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    const string sql = @"
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                        FROM [HANDEL].[HM].[MZ] MZ 
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+                        JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') 
+                          AND MG.aktywny = 1 
+                          AND MG.data = @Dzien 
+                          AND MG.khid = @Khid
+                          AND TW.katalog = 67095
+                        GROUP BY MZ.idtw";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
+                    cmd.Parameters.AddWithValue("@Khid", khId);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int idtw = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
+                        decimal ilosc = SafeDecimal(rd, 1);
+                        string produkt = _twKatalogCache.TryGetValue(idtw, out var kod) ? kod : $"Nieznany ({idtw})";
+                        dt.Rows.Add(produkt, ilosc);
+                    }
+                }
+            }
+            txtNotatki.Text = "Wydanie bez zamówienia (tylko towary z katalogu 67095)";
+            dgvSzczegoly.DataSource = dt;
+            if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
         }
+
+
         private async Task WyswietlSzczegolyZamowieniaAsync(int zamowienieId)
         {
             // Pobierz dane zamówienia
@@ -689,17 +792,20 @@ namespace Kalendarz1
             foreach (DataRow r in dtZam.Rows)
             {
                 int idTowaru = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
-                string produkt = _twKodCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
+                if (!_twKatalogCache.ContainsKey(idTowaru)) continue; // Pomiń towary spoza katalogu
+
+                string produkt = _twKatalogCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
                 decimal zamowiono = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
                 decimal wydano = wydania.TryGetValue(idTowaru, out var w) ? w : 0m;
                 dt.Rows.Add(produkt, zamowiono, wydano);
                 wydania.Remove(idTowaru); // usuwamy, by potem dodać tylko te wydane bez zamówienia
             }
 
-            // Dodaj towary wydane bez zamówienia
+            // Dodaj towary wydane bez zamówienia (ale z katalogu 67095)
             foreach (var kv in wydania)
             {
-                string produkt = _twKodCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
+                if (!_twKatalogCache.ContainsKey(kv.Key)) continue; // Pomiń towary spoza katalogu
+                string produkt = _twKatalogCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
                 dt.Rows.Add(produkt, 0m, kv.Value);
             }
 
@@ -778,9 +884,9 @@ namespace Kalendarz1
         {
             int liczbaZamowien = 0;
             int liczbaWydanBezZamowien = 0;
-            int liczbaZamowienZRealnymWydaniem = 0;
-            decimal sumaKg = 0;
-            var handlowiecStat = new Dictionary<string, (int zZam, int bezZam)>();
+            decimal sumaKgZamowiono = 0;
+            decimal sumaKgWydano = 0;
+            var handlowiecStat = new Dictionary<string, (int zZam, int bezZam, decimal kgZam, decimal kgWyd)>();
 
             if (_bsZamowienia.List is System.Collections.IEnumerable list)
             {
@@ -789,31 +895,32 @@ namespace Kalendarz1
                     if (item is DataRowView drv)
                     {
                         var status = drv.Row.Field<string>("Status") ?? "";
-                        var handlowiec = drv.Row.Field<string>("Handlowiec") ?? "";
+                        var handlowiec = drv.Row.Field<string>("Handlowiec") ?? "BRAK";
                         var iloscZam = drv.Row.Field<decimal?>("IloscZamowiona") ?? 0m;
-                        sumaKg += iloscZam;
+                        var iloscWyd = drv.Row.Field<decimal?>("IloscFaktyczna") ?? 0m;
+
+                        if (!handlowiecStat.ContainsKey(handlowiec))
+                            handlowiecStat[handlowiec] = (0, 0, 0, 0);
+
                         if (status == "Wydanie bez zamówienia")
                         {
                             liczbaWydanBezZamowien++;
-                            if (!handlowiecStat.ContainsKey(handlowiec)) handlowiecStat[handlowiec] = (0, 0);
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1);
+                            sumaKgWydano += iloscWyd;
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1, handlowiecStat[handlowiec].kgZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
                         else if (status != "Anulowane")
                         {
                             liczbaZamowien++;
-                            if (drv.Row.Field<decimal?>("IloscFaktyczna") > 0)
-                                liczbaZamowienZRealnymWydaniem++;
-                            if (!handlowiecStat.ContainsKey(handlowiec)) handlowiecStat[handlowiec] = (0, 0);
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam);
+                            sumaKgZamowiono += iloscZam;
+                            sumaKgWydano += iloscWyd;
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam, handlowiecStat[handlowiec].kgZam + iloscZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
                     }
                 }
             }
             int suma = liczbaZamowien + liczbaWydanBezZamowien;
-            double procZam = suma > 0 ? 100.0 * liczbaZamowien / suma : 0;
-            double procBez = suma > 0 ? 100.0 * liczbaWydanBezZamowien / suma : 0;
-            string perHandlowiec = string.Join(" | ", handlowiecStat.Select(h => $"{h.Key}: {h.Value.zZam} z zam., {h.Value.bezZam} bez zam."));
-            lblPodsumowanie.Text = $"Zamówień z wydaniami: {liczbaZamowien} | Wydania bez zamówień: {liczbaWydanBezZamowien} | % z zam.: {procZam:N1}% | % bez zam.: {procBez:N1}% | {perHandlowiec}";
+            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key).Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
+            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | {perHandlowiec}";
         }
 
         private void WyczyscSzczegoly()
@@ -987,6 +1094,7 @@ namespace Kalendarz1
             {
                 row.DefaultCellStyle.ForeColor = Color.Gray;
                 row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Strikeout);
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230); // czerwona poświata
             }
             else if (status == "Zrealizowane")
             {
@@ -1055,5 +1163,41 @@ namespace Kalendarz1
             _dtZamowienia.DefaultView.RowFilter = string.Join(" AND ", warunki);
         }
         #endregion
+
+        // Metoda do obsługi usuwania zamówienia (wiersza)
+        private async void btnUsun_Click(object? sender, EventArgs e)
+        {
+            if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
+            {
+                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    using (var cmd = new SqlCommand("DELETE FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @Id", cn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    using (var cmd = new SqlCommand("DELETE FROM dbo.ZamowieniaMieso WHERE Id = @Id", cn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await OdswiezWszystkieDaneAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
     }
 }
