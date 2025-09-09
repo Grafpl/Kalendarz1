@@ -33,12 +33,13 @@ IF OBJECT_ID('dbo.TVehicle') IS NULL BEGIN
     CREATE TABLE dbo.TVehicle(VehicleID INT IDENTITY PRIMARY KEY, Registration NVARCHAR(20) NOT NULL UNIQUE, Kind INT NOT NULL DEFAULT 3, Brand NVARCHAR(50) NULL, Model NVARCHAR(50) NULL, CapacityKg DECIMAL(10,2) NOT NULL DEFAULT 0, PalletSlotsH1 INT NOT NULL DEFAULT 0, E2Factor DECIMAL(6,4) NOT NULL DEFAULT 0.10, Active BIT NOT NULL DEFAULT 1, CreatedAtUTC DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(), ModifiedAtUTC DATETIME2 NULL);
 END;
 IF OBJECT_ID('dbo.TTrip') IS NULL BEGIN
-    CREATE TABLE dbo.TTrip(TripID BIGINT IDENTITY PRIMARY KEY, TripDate DATE NOT NULL, DriverID INT NOT NULL REFERENCES dbo.TDriver(DriverID), VehicleID INT NOT NULL REFERENCES dbo.TVehicle(VehicleID), TrailerVehicleID INT NULL REFERENCES dbo.TVehicle(VehicleID), RouteName NVARCHAR(120) NULL, PlannedDeparture TIME NULL, PlannedReturn TIME NULL, Status NVARCHAR(20) NOT NULL DEFAULT 'Planned', Notes NVARCHAR(MAX) NULL, CreatedAtUTC DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(), CreatedBy NVARCHAR(64) NULL, ModifiedAtUTC DATETIME2 NULL, ModifiedBy NVARCHAR(64) NULL);
+    CREATE TABLE dbo.TTrip(TripID BIGINT IDENTITY PRIMARY KEY, TripDate DATE NOT NULL, DriverID INT NOT NULL REFERENCES dbo.TDriver(DriverID), VehicleID INT NOT NULL REFERENCES dbo.TVehicle(VehicleID), TrailerVehicleID INT NULL REFERENCES dbo.TVehicle(VehicleID), RouteName NVARCHAR(120) NULL, PlannedDeparture TIME NULL, PlannedReturn TIME NULL, PlannedDepartureDT DATETIME2 NULL, Status NVARCHAR(20) NOT NULL DEFAULT 'Planned', Notes NVARCHAR(MAX) NULL, CreatedAtUTC DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(), CreatedBy NVARCHAR(64) NULL, ModifiedAtUTC DATETIME2 NULL, ModifiedBy NVARCHAR(64) NULL);
 END;
 IF OBJECT_ID('dbo.TTripLoad') IS NULL BEGIN
     CREATE TABLE dbo.TTripLoad(TripLoadID BIGINT IDENTITY PRIMARY KEY, TripID BIGINT NOT NULL REFERENCES dbo.TTrip(TripID) ON DELETE CASCADE, SequenceNo INT NOT NULL, CustomerCode NVARCHAR(50) NULL, MeatKg DECIMAL(10,2) NOT NULL DEFAULT 0, CarcassCount INT NOT NULL DEFAULT 0, PalletsH1 INT NOT NULL DEFAULT 0, ContainersE2 INT NOT NULL DEFAULT 0, Comment NVARCHAR(255) NULL, CreatedAtUTC DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME());
 END;";
         await using (var cmd = new SqlCommand(sql, cn)) { await cmd.ExecuteNonQueryAsync(); }
+        await using (var cmdAlt = new SqlCommand("IF COL_LENGTH('dbo.TTrip','PlannedDepartureDT') IS NULL ALTER TABLE dbo.TTrip ADD PlannedDepartureDT DATETIME2 NULL;", cn)) { await cmdAlt.ExecuteNonQueryAsync(); }
         await EnsureTripLoadOrderColumnAsync(cn);
     }
 
@@ -151,7 +152,7 @@ END;";
     {
         var dt = new DataTable();
         await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
-        string sql = @"SELECT t.TripID, t.TripDate, t.DriverID, t.VehicleID, t.TrailerVehicleID, t.RouteName, t.PlannedDeparture, t.Status,
+        string sql = @"SELECT t.TripID, t.TripDate, t.DriverID, t.VehicleID, t.TrailerVehicleID, t.RouteName, t.PlannedDeparture, t.PlannedDepartureDT, t.Status,
                               d.FirstName + ' ' + d.LastName AS DriverName, v.Registration, vt.Registration AS TrailerRegistration,
                               CAST(f.MassFillPct AS DECIMAL(9,4)) AS MassFillPct,
                               CAST(f.SpaceFillPct AS DECIMAL(9,4)) AS SpaceFillPct,
@@ -162,35 +163,39 @@ END;";
                        LEFT JOIN dbo.TVehicle vt ON t.TrailerVehicleID = vt.VehicleID
                        LEFT JOIN dbo.vTTripFill f ON t.TripID = f.TripID
                        WHERE t.TripDate=@d
-                       ORDER BY t.PlannedDeparture, t.TripID";
+                       ORDER BY t.PlannedDepartureDT, t.PlannedDeparture, t.TripID";
         await using var cmd = new SqlCommand(sql, cn); cmd.Parameters.AddWithValue("@d", date.Date);
         using var da = new SqlDataAdapter(cmd); da.Fill(dt); return dt;
     }
 
-    public async Task<long> AddTripAsync(DateTime date, int driverId, int vehicleId, string? route, TimeSpan? dep, string user, int? trailerVehicleId = null)
+    public async Task<long> AddTripAsync(DateTime date, int driverId, int vehicleId, string? route, TimeSpan? dep, string user, DateTime? plannedDepartureDt = null, int? trailerVehicleId = null)
     {
         await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
-        await using var cmd = new SqlCommand(@"INSERT INTO dbo.TTrip(TripDate,DriverID,VehicleID,TrailerVehicleID,RouteName,PlannedDeparture,CreatedBy) VALUES(@dt,@dr,@veh,@tr,@r,@pd,@u); SELECT SCOPE_IDENTITY();", cn);
+        await using (var ensure = new SqlCommand("IF COL_LENGTH('dbo.TTrip','PlannedDepartureDT') IS NULL ALTER TABLE dbo.TTrip ADD PlannedDepartureDT DATETIME2 NULL;", cn)) { await ensure.ExecuteNonQueryAsync(); }
+        await using var cmd = new SqlCommand(@"INSERT INTO dbo.TTrip(TripDate,DriverID,VehicleID,TrailerVehicleID,RouteName,PlannedDeparture,PlannedDepartureDT,CreatedBy) VALUES(@dt,@dr,@veh,@tr,@r,@pd,@pddt,@u); SELECT SCOPE_IDENTITY();", cn);
         cmd.Parameters.AddWithValue("@dt", date.Date);
         cmd.Parameters.AddWithValue("@dr", driverId);
         cmd.Parameters.AddWithValue("@veh", vehicleId);
         cmd.Parameters.AddWithValue("@tr", (object?)trailerVehicleId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@r", (object?)route ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@pd", (object?)dep ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@pddt", (object?)plannedDepartureDt ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@u", (object?)user ?? DBNull.Value);
         var obj = await cmd.ExecuteScalarAsync(); long id=0; long.TryParse(obj?.ToString(), out id); return id;
     }
 
-    public async Task UpdateTripHeaderAsync(long tripId, int driverId, int vehicleId, int? trailerVehicleId, string? route, TimeSpan? plannedDeparture, string status, string user, string? notes)
+    public async Task UpdateTripHeaderAsync(long tripId, int driverId, int vehicleId, int? trailerVehicleId, string? route, TimeSpan? plannedDeparture, string status, string user, string? notes, DateTime? plannedDepartureDt)
     {
         await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
-        string sql = @"UPDATE dbo.TTrip SET DriverID=@d, VehicleID=@v, TrailerVehicleID=@tr, RouteName=@r, PlannedDeparture=@pd, Status=@s, Notes=@n, ModifiedAtUTC=SYSUTCDATETIME(), ModifiedBy=@u WHERE TripID=@id";
+        await using (var ensure = new SqlCommand("IF COL_LENGTH('dbo.TTrip','PlannedDepartureDT') IS NULL ALTER TABLE dbo.TTrip ADD PlannedDepartureDT DATETIME2 NULL;", cn)) { await ensure.ExecuteNonQueryAsync(); }
+        string sql = @"UPDATE dbo.TTrip SET DriverID=@d, VehicleID=@v, TrailerVehicleID=@tr, RouteName=@r, PlannedDeparture=@pd, PlannedDepartureDT=@pddt, Status=@s, Notes=@n, ModifiedAtUTC=SYSUTCDATETIME(), ModifiedBy=@u WHERE TripID=@id";
         await using var cmd = new SqlCommand(sql, cn);
         cmd.Parameters.AddWithValue("@d", driverId);
         cmd.Parameters.AddWithValue("@v", vehicleId);
         cmd.Parameters.AddWithValue("@tr", (object?)trailerVehicleId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@r", (object?)route ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@pd", (object?)plannedDeparture ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@pddt", (object?)plannedDepartureDt ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@s", status);
         cmd.Parameters.AddWithValue("@n", (object?)notes ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@u", user);
@@ -219,11 +224,20 @@ END;";
     // ================== Loads ==================
     public async Task<DataTable> GetTripLoadsAsync(long tripId)
     {
-        var dt = new DataTable(); await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
+        var dt = new DataTable(); 
+        await using var cn = new SqlConnection(_conn); 
+        await cn.OpenAsync();
         await EnsureTripLoadOrderColumnAsync(cn);
-        string sql = "SELECT TripLoadID, TripID, SequenceNo, CustomerCode, MeatKg, CarcassCount, PalletsH1, ContainersE2, Comment, OrderID FROM dbo.TTripLoad WHERE TripID=@id ORDER BY SequenceNo, TripLoadID";
-        await using var cmd = new SqlCommand(sql, cn); cmd.Parameters.AddWithValue("@id", tripId);
-        using var da = new SqlDataAdapter(cmd); da.Fill(dt); return dt;
+        // Removed join to [HANDEL].[SSCommon].[STContractors] and ClientName column
+        string sql = @"SELECT l.TripLoadID, l.TripID, l.SequenceNo, l.CustomerCode, l.MeatKg, l.CarcassCount, l.PalletsH1, l.ContainersE2, l.Comment, l.OrderID
+                    FROM dbo.TTripLoad l
+                    WHERE l.TripID=@id
+                    ORDER BY l.SequenceNo, l.TripLoadID";
+        await using var cmd = new SqlCommand(sql, cn); 
+        cmd.Parameters.AddWithValue("@id", tripId);
+        using var da = new SqlDataAdapter(cmd); 
+        da.Fill(dt); 
+        return dt;
     }
 
     public async Task<long> AddTripLoadAsync(long tripId, string? customer, decimal meatKg, int carcass, int pallets, int e2, string? comment)
@@ -307,7 +321,10 @@ END;";
         var dt = new DataTable();
         await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
         await EnsureTripLoadOrderColumnAsync(cn);
-        var sql = @"SELECT z.Id AS OrderID, z.KlientId, CAST(ISNULL(SUM(zmt.Ilosc),0) AS DECIMAL(12,2)) AS TotalKg, ISNULL(z.Status,'Nowe') AS Status, LEFT(ISNULL(z.Uwagi,''),200) AS Uwagi
+        var sql = @"SELECT z.Id AS OrderID, z.KlientId,
+                           CAST(ISNULL(SUM(zmt.Ilosc),0) AS DECIMAL(12,2)) AS TotalKg,
+                           ISNULL(z.Status,'Nowe') AS Status,
+                           LEFT(ISNULL(z.Uwagi,''),200) AS Uwagi
                     FROM dbo.ZamowieniaMieso z
                     JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id = zmt.ZamowienieId
                     WHERE z.DataZamowienia=@d AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')
@@ -327,6 +344,71 @@ END;";
             r["PalletsEst"] = pal;
         }
         return dt;
+    }
+
+    // ================== Clients ==================
+    public async Task<Dictionary<int,string>> GetClientNamesAsync(IEnumerable<int> ids)
+    {
+        var result = new Dictionary<int,string>();
+        var idList = ids.Distinct().Where(i => i > 0).ToList();
+        if (idList.Count == 0) return result;
+        await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
+
+        // 1. Try STContractors (cross-database and local) accumulating results
+        string[] contractorTables = { "[HANDEL].[SSCommon].[STContractors]", "[SSCommon].[STContractors]" };
+        foreach (var tbl in contractorTables)
+        {
+            var remaining = idList.Where(i => !result.ContainsKey(i)).ToList();
+            if (remaining.Count == 0) break;
+            try
+            {
+                var inParams = string.Join(",", remaining.Select((_, i) => "@p" + i));
+                var sql = $"SELECT Id, Name, Shortcut FROM {tbl} WHERE Id IN ({inParams})";
+                await using var cmd = new SqlCommand(sql, cn);
+                for (int i = 0; i < remaining.Count; i++) cmd.Parameters.AddWithValue("@p" + i, remaining[i]);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    if (rd.IsDBNull(0)) continue; int id = rd.GetInt32(0);
+                    string name = rd.IsDBNull(1) ? string.Empty : rd.GetString(1);
+                    if (string.IsNullOrWhiteSpace(name) && !rd.IsDBNull(2)) name = rd.GetString(2);
+                    if (!string.IsNullOrWhiteSpace(name) && !result.ContainsKey(id)) result.Add(id, name);
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        // 2. Fallback Kontrahenci (dynamic column detection) for any still missing
+        var stillMissing = idList.Where(i => !result.ContainsKey(i)).ToList();
+        if (stillMissing.Count > 0)
+        {
+            try
+            {
+                var schemaDt = new DataTable();
+                using (var daSchema = new SqlDataAdapter("SELECT TOP 0 * FROM dbo.Kontrahenci", cn)) daSchema.Fill(schemaDt);
+                string[] possibleId = { "KhId", "KhID", "KlientId", "ClientId", "Id", "ID" };
+                string[] possibleName = { "Nazwa", "Name", "FullName" };
+                string? idCol = schemaDt.Columns.Cast<DataColumn>().Select(c => c.ColumnName).FirstOrDefault(c => possibleId.Any(p => p.Equals(c, StringComparison.OrdinalIgnoreCase)));
+                string? nameCol = schemaDt.Columns.Cast<DataColumn>().Select(c => c.ColumnName).FirstOrDefault(c => possibleName.Any(p => p.Equals(c, StringComparison.OrdinalIgnoreCase)));
+                if (idCol != null && nameCol != null)
+                {
+                    var inParams = string.Join(",", stillMissing.Select((_, i) => "@k" + i));
+                    var sql = $"SELECT {idCol}, {nameCol} FROM dbo.Kontrahenci WHERE {idCol} IN ({inParams})";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    for (int i = 0; i < stillMissing.Count; i++) cmd.Parameters.AddWithValue("@k" + i, stillMissing[i]);
+                    await using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int id = 0; try { id = Convert.ToInt32(rd.GetValue(0)); } catch { continue; }
+                        string name = rd.IsDBNull(1) ? string.Empty : rd.GetValue(1)?.ToString() ?? string.Empty;
+                        if (!string.IsNullOrWhiteSpace(name) && !result.ContainsKey(id)) result.Add(id, name);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        return result;
     }
 
     public async Task<DataTable> GetDriversAsync()
@@ -359,7 +441,7 @@ END;";
         if (!int.TryParse(kind, out var k)) k = 3;
         var src = await GetVehicles2Async(k, includeInactive: false);
         var dt = new DataTable();
-        dt.Columns.Add("ID", typeof(string)); // registration as ID
+        dt.Columns.Add("ID", typeof(string));
         dt.Columns.Add("Brand", typeof(string));
         dt.Columns.Add("Model", typeof(string));
         dt.Columns.Add("Capacity", typeof(decimal));
@@ -379,7 +461,6 @@ END;";
 
     public async Task UpdateVehicleAsync(string registration, string? brand, string? model, decimal? capacityKg)
     {
-        // find vehicleId by registration
         await using var cn = new SqlConnection(_conn); await cn.OpenAsync();
         int vehicleId = 0; decimal? e2Factor = null; int? slots = null; int kind = 3;
         await using (var cmd = new SqlCommand("SELECT VehicleID, Kind, PalletSlotsH1, E2Factor FROM dbo.TVehicle WHERE Registration=@r", cn))
