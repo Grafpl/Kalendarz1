@@ -233,22 +233,12 @@ namespace Kalendarz1.Transport
             { if (g.Columns[name] != null) { var c = g.Columns[name]; c.HeaderText = header; if (width > 0) { c.AutoSizeMode = DataGridViewAutoSizeColumnMode.None; c.Width = width; } if (format != null) c.DefaultCellStyle.Format = format; } }
 
             // Orders: poka¿ nazwê klienta jeœli dostêpna, ukryj kolumny ID
-            string[] idCols = { "KlientId", "ClientId", "CustomerId" };
-            bool hasClientName = _gridOrders.Columns.Contains("ClientName");
-            if (hasClientName)
-            {
-                foreach (var col in idCols)
-                    if (_gridOrders.Columns.Contains(col)) _gridOrders.Columns[col].Visible = false;
-            }
+            string[] idCols = { "KlientId", "ClientId", "CustomerId", "CustomerCode" };
+            foreach (var col in idCols)
+                if (_gridOrders.Columns.Contains(col)) _gridOrders.Columns[col].Visible = false;
+            
             H(_gridOrders, "OrderID", "Zam.", 60);
-            if (hasClientName) H(_gridOrders, "ClientName", "Klient", 260); else
-            {
-                // fallback – pierwsza istniej¹ca kolumna ID jako Klient
-                foreach (var col in idCols)
-                {
-                    if (_gridOrders.Columns.Contains(col)) { H(_gridOrders, col, "Klient", 120); break; }
-                }
-            }
+            H(_gridOrders, "ClientName", "Klient", 300);
             H(_gridOrders, "Notes", "Uwagi", 240);
             H(_gridOrders, "Kg", "Kg", 120, "N0");
             H(_gridOrders, "Status", "Status", 80);
@@ -258,21 +248,16 @@ namespace Kalendarz1.Transport
             // Loads
             H(_gridLoads, "TripLoadID", "ID", 50);
             H(_gridLoads, "SequenceNo", "Lp.", 40);
-            if (_gridLoads.Columns.Contains("ClientName"))
-            {
-                H(_gridLoads, "ClientName", "Klient", 240);
-                if (_gridLoads.Columns.Contains("CustomerCode"))
-                    _gridLoads.Columns["CustomerCode"].Visible = false;
-            }
-            else
-            {
-                H(_gridLoads, "CustomerCode", "Klient", 240);
-            }
+            H(_gridLoads, "Klient", "Klient", 300);
             H(_gridLoads, "MeatKg", "Kg", 120, "N0");
             H(_gridLoads, "CarcassCount", "Tusze", 60);
             H(_gridLoads, "PalletsH1", "Palety", 70);
             H(_gridLoads, "ContainersE2", "E2", 60);
             H(_gridLoads, "Comment", "Uwagi", 260);
+
+            // Ukryj kolumnê CustomerCode w obu gridach
+            if (_gridLoads.Columns.Contains("CustomerCode"))
+                _gridLoads.Columns["CustomerCode"].Visible = false;
         }
 
         private async Task LoadAvailableOrdersAsync()
@@ -314,7 +299,8 @@ namespace Kalendarz1.Transport
             dt.Columns.Add("TripID", typeof(long));
             dt.Columns.Add("SequenceNo", typeof(int));
             dt.Columns.Add("CustomerCode", typeof(string));
-            dt.Columns.Add("ClientName", typeof(string)); // dodaj kolumnê na nazwê klienta
+            // U¿ywamy tylko jednej kolumny dla nazwy klienta
+            dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("MeatKg", typeof(decimal));
             dt.Columns.Add("CarcassCount", typeof(int));
             dt.Columns.Add("PalletsH1", typeof(int));
@@ -344,10 +330,12 @@ namespace Kalendarz1.Transport
         private async Task LoadLoadsAsync(long tripId)
         {
             var dt = await _repo.GetTripLoadsAsync(tripId);
-            // Dodaj kolumnê ClientName jeœli nie istnieje
-            if (!dt.Columns.Contains("ClientName"))
-                dt.Columns.Add("ClientName", typeof(string));
-            // Uzupe³nij ClientName na podstawie cache lub pobierz brakuj¹ce
+            
+            // Upewnij siê, ¿e mamy kolumnê Klient
+            if (!dt.Columns.Contains("Klient"))
+                dt.Columns.Add("Klient", typeof(string));
+                
+            // Uzupe³nij Klient na podstawie cache lub pobierz brakuj¹ce
             var missing = new HashSet<int>();
             foreach (DataRow r in dt.Rows)
             {
@@ -356,38 +344,55 @@ namespace Kalendarz1.Transport
                 if (string.IsNullOrWhiteSpace(val)) continue;
                 if (int.TryParse(val, out int id))
                 {
-                    // Pobierz shortname (skrót) zamiast pe³nej nazwy
                     if (!_clientNamesCache.TryGetValue(id, out var shortname))
                         missing.Add(id);
                     else
-                        r["ClientName"] = shortname;
+                        r["Klient"] = shortname;
                 }
                 else
                 {
-                    // Jeœli CustomerCode nie jest liczb¹, ustaw ClientName na CustomerCode (Shortcut)
-                    r["ClientName"] = val;
+                    // Jeœli CustomerCode nie jest liczb¹, u¿yj go jako nazwy klienta
+                    r["Klient"] = val;
                 }
             }
+            
             if (missing.Count > 0)
             {
                 try
                 {
-                    // Pobierz shortname zamiast pe³nej nazwy
-                    var fetched = await _repo.GetClientNamesAsync(missing); // zak³adamy, ¿e GetClientNamesAsync zwraca shortname
+                    var fetched = await _repo.GetClientNamesAsync(missing);
                     foreach (var kv in fetched)
-                        _clientNamesCache[kv.Key] = kv.Value;
-                    foreach (DataRow r in dt.Rows)
                     {
-                        if (r.RowState == DataRowState.Deleted) continue;
-                        var val = r["CustomerCode"]?.ToString();
-                        if (string.IsNullOrWhiteSpace(val)) continue;
-                        if (int.TryParse(val, out int id) && _clientNamesCache.TryGetValue(id, out var shortname))
-                            r["ClientName"] = shortname;
+                        _clientNamesCache[kv.Key] = kv.Value;
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (r.RowState == DataRowState.Deleted) continue;
+                            var val = r["CustomerCode"]?.ToString();
+                            if (string.IsNullOrWhiteSpace(val)) continue;
+                            if (int.TryParse(val, out int id) && id == kv.Key)
+                                r["Klient"] = kv.Value;
+                        }
                     }
                 }
                 catch { }
             }
-            _bsLoads.DataSource = dt; _gridLoads.DataSource = _bsLoads;
+
+            // Ukryj kolumnê CustomerCode
+            if (dt.Columns.Contains("CustomerCode"))
+                dt.Columns["CustomerCode"].ExtendedProperties["Hide"] = true;
+
+            _bsLoads.DataSource = dt;
+            _gridLoads.DataSource = _bsLoads;
+            
+            // Zastosuj ustawienia kolumn
+            if (_gridLoads.Columns.Contains("CustomerCode"))
+                _gridLoads.Columns["CustomerCode"].Visible = false;
+            if (_gridLoads.Columns.Contains("Klient"))
+            {
+                _gridLoads.Columns["Klient"].Width = 300;
+                _gridLoads.Columns["Klient"].HeaderText = "Klient";
+            }
+
             await EnsureClientNamesForLoadsAsync();
             _gridLoads.Invalidate();
         }

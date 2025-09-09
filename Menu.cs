@@ -6,10 +6,12 @@ namespace Kalendarz1
 {
     public partial class MENU : Form
     {
+
         public MENU()
         {
             InitializeComponent();
             this.StartPosition = FormStartPosition.CenterScreen;
+
         }
         private void kalendarzButton_Click(object sender, EventArgs e)
         {
@@ -131,7 +133,8 @@ namespace Kalendarz1
         {
             // Nowy panel transportu oparty o tabele T* (TDriver, TVehicle, TTrip, TTripLoad)
             var connString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-            var frm = new TransportMainForm(connString, App.UserID);
+            var connStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+            var frm = new TransportMainForm(connString, connStringSymfonia, App.UserID);
             frm.Show();
         }
     }

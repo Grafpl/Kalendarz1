@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Data.SqlClient;  // Added SQL namespace
 
 namespace Kalendarz1.Transport
 {
@@ -26,10 +27,10 @@ namespace Kalendarz1.Transport
         private ToolStripStatusLabel _statusInfo = new();
         private ToolTip _tt = new();
 
-        public TransportMainForm(string connectionString, string? userId = null)
+        public TransportMainForm(string connectionString, string connectionStringSymf, string? userId = null)
         {
             _conn = connectionString;
-            _repo = new TransportRepository(_conn);
+            _repo = new TransportRepository(_conn, connectionStringSymf);
             _user = string.IsNullOrWhiteSpace(userId) ? Environment.UserName : userId!;
             Text = "Transport – Kursy";
             WindowState = FormWindowState.Maximized;
@@ -38,10 +39,33 @@ namespace Kalendarz1.Transport
             TransportUi.ApplyTheme(this);
             Load += async (_, __) => {
                 _statusInfo.Text = "Trwa inicjalizacja...";
-                await _repo.EnsureNewTransportTablesAsync();
+                await InitializeDatabaseAsync();
                 await LoadTripsAsync();
                 _statusInfo.Text = "Gotowe. U¿yj przycisków powy¿ej aby zarz¹dzaæ kursami.";
             };
+        }
+
+        private async Task InitializeDatabaseAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_conn);
+                await cn.OpenAsync();
+                
+                // Ensure required tables exist
+                var sql = @"
+                    IF OBJECT_ID('dbo.TDriver') IS NULL CREATE TABLE dbo.TDriver(DriverID INT IDENTITY PRIMARY KEY, FirstName NVARCHAR(50) NOT NULL, LastName NVARCHAR(80) NOT NULL, Phone NVARCHAR(30) NULL, Active BIT NOT NULL DEFAULT 1);
+                    IF OBJECT_ID('dbo.TVehicle') IS NULL CREATE TABLE dbo.TVehicle(VehicleID INT IDENTITY PRIMARY KEY, Registration NVARCHAR(20) NOT NULL UNIQUE, Kind INT NOT NULL DEFAULT 3);
+                    IF OBJECT_ID('dbo.TTrip') IS NULL CREATE TABLE dbo.TTrip(TripID BIGINT IDENTITY PRIMARY KEY, TripDate DATE NOT NULL);
+                    IF OBJECT_ID('dbo.TTripLoad') IS NULL CREATE TABLE dbo.TTripLoad(TripLoadID BIGINT IDENTITY PRIMARY KEY, TripID BIGINT NOT NULL);";
+                
+                await using var cmd = new SqlCommand(sql, cn);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"B³¹d inicjalizacji bazy danych: {ex.Message}", "B³¹d", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BuildUi()
@@ -154,8 +178,8 @@ namespace Kalendarz1.Transport
             ShowDate("TripDate", "Data", 110);
             if (_grid.Columns["WyjazdTxt"] != null) Show("WyjazdTxt", "Wyjazd", 90); else Show("PlannedDeparture", "Wyjazd", 90);
             Show("DriverName", "Kierowca", 160);
-            Show("Registration", "Pojazd", 120);
-            Show("RouteName", "Trasa", 160);
+            Show("VehicleReg", "Pojazd", 120);
+            Show("RouteName", "Trasa", 240); // Zwiêkszono szerokoœæ dla d³u¿szych tras
             Show("Status", "Status", 110);
             Show("MassFillPct", "% Masa", 90, format: "N1");
             Show("SpaceFillPct", "% Przestrzeñ", 110, format: "N1");
@@ -199,11 +223,19 @@ namespace Kalendarz1.Transport
 
         private async Task DeleteTripAsync()
         {
-            var id = SelectedTripId; if (id == null) return;
-            if (MessageBox.Show("Usun¹æ wybrany kurs?", "PotwierdŸ", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            var id = SelectedTripId; 
+            if (id == null) return;
+
+            if (MessageBox.Show("Usun¹æ wybrany kurs?", "PotwierdŸ", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) 
+                return;
+
             try
             {
-                await _repo.DeleteTripAsync(id.Value);
+                await using var cn = new SqlConnection(_conn);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("DELETE FROM dbo.TTrip WHERE TripID=@id", cn);
+                cmd.Parameters.AddWithValue("@id", id.Value);
+                await cmd.ExecuteNonQueryAsync();
                 await LoadTripsAsync();
             }
             catch (Exception ex)

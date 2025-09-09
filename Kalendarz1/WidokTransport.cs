@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
+using Kalendarz1.Transport;
 
 namespace Kalendarz1
 {
@@ -14,10 +15,12 @@ namespace Kalendarz1
     public partial class WidokTransport : Form
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string _connSymf = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly BindingSource _bsTrips = new();
         private readonly BindingSource _bsTripOrders = new();
         private readonly BindingSource _bsFreeOrders = new();
         private DateTime _date = DateTime.Today;
+        private readonly TransportRepository _repo;
 
         private DataGridView dgvTrips = new();
         private DataGridView dgvTripOrders = new();
@@ -32,13 +35,12 @@ namespace Kalendarz1
         private ComboBox cbStatus = new();
         private Button btnManageDrivers = new();
         private Button btnManageVehicles = new();
-        private TransportRepository _repo;
 
         public string UserID { get; set; } = Environment.UserName;
 
         public WidokTransport()
         {
-            _repo = new TransportRepository(_connLibra);
+            _repo = new TransportRepository(_connLibra, _connSymf);
             BuildUi();
             Load += async (_, __) => await RefreshAllAsync();
         }
