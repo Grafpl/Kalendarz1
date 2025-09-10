@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -350,37 +351,167 @@ namespace Kalendarz1.TransportPlanner
     {
         private readonly ITransportRepository _repo;
         private readonly BindingSource _bs = new();
-        private readonly CheckBox _chkActive = new() { Text = "Tylko aktywni", Dock = DockStyle.Top, Checked = true };
-        private readonly DataGridView _grid = new() { Dock = DockStyle.Fill, AutoGenerateColumns = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect };
-        private readonly Button _btnAdd = new() { Text = "Dodaj" };
-        private readonly Button _btnEdit = new() { Text = "Edytuj" };
-        private readonly Button _btnToggle = new() { Text = "Aktywuj/Dezaktywuj" };
-        private readonly Button _btnClose = new() { Text = "Zamknij" };
-        private readonly TextBox _tbSearch = new() { PlaceholderText = "Szukaj kierowcy", Dock = DockStyle.Top };
+        private readonly CheckBox _chkActive;
+        private readonly DataGridView _grid;
+        private readonly Button _btnAdd;
+        private readonly Button _btnEdit;
+        private readonly Button _btnToggle;
+        private readonly Button _btnClose;
+        private readonly TextBox _tbSearch;
         private List<DriverDto> _all = new();
 
         public DriversForm(ITransportRepository repo)
         {
-            _repo = repo; Text = "Kierowcy"; Width = 640; Height = 420; StartPosition = FormStartPosition.CenterParent;
-            Build();
-            Load += async (_, __) => await LoadDataAsync();
-        }
+            _repo = repo;
+            Text = "Kartoteka kierowców";
+            Width = 800;
+            Height = 500;
+            StartPosition = FormStartPosition.CenterParent;
+            
+            // Panel górny z kontrolkami
+            var topPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 90,
+                Padding = new Padding(10),
+                ColumnCount = 2,
+                RowCount = 2
+            };
+            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
 
-        private void Build()
-        {
-            var panelButtons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, FlowDirection = FlowDirection.RightToLeft };
-            panelButtons.Controls.AddRange(new Control[] { _btnClose, _btnToggle, _btnEdit, _btnAdd });
-            _btnClose.Click += (_, __) => Close();
-            _btnAdd.Click += async (_, __) => { if (DriverEditDialog.ShowDialog(this, null, out var dto)) { await _repo.AddDriverAsync(dto); await LoadDataAsync(); } };
-            _btnEdit.Click += async (_, __) => { var d = Current(); if (d == null) return; if (DriverEditDialog.ShowDialog(this, d, out var edited)) { edited.DriverID = d.DriverID; await _repo.UpdateDriverAsync(edited); await LoadDataAsync(); } };
-            _btnToggle.Click += async (_, __) => { var d = Current(); if (d == null) return; await _repo.ToggleDriverActiveAsync(d.DriverID, !d.Active); await LoadDataAsync(); };
+            // Pierwsza kolumna - filtrowanie
+            var filterGroup = new GroupBox { Text = "Filtrowanie", Dock = DockStyle.Fill };
+            var filterLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+            
+            _chkActive = new CheckBox { 
+                Text = "Poka¿ tylko aktywnych kierowców",
+                Checked = true,
+                AutoSize = true
+            };
+            
+            filterLayout.Controls.Add(_chkActive);
+            filterGroup.Controls.Add(filterLayout);
+            topPanel.Controls.Add(filterGroup, 0, 0);
+
+            // Druga kolumna - wyszukiwanie
+            var searchGroup = new GroupBox { Text = "Wyszukiwanie", Dock = DockStyle.Fill };
+            _tbSearch = new TextBox { 
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Wpisz imiê, nazwisko lub numer telefonu...",
+                Margin = new Padding(5)
+            };
+            searchGroup.Controls.Add(_tbSearch);
+            topPanel.Controls.Add(searchGroup, 1, 0);
+
+            // Panel przycisków
+            var buttonPanel = new FlowLayoutPanel { 
+                Dock = DockStyle.Bottom,
+                Height = 40,
+                Padding = new Padding(10, 0, 10, 10),
+                FlowDirection = FlowDirection.RightToLeft
+            };
+
+            _btnClose = new Button { Text = "Zamknij", Width = 80 };
+            _btnToggle = new Button { Text = "Aktywuj/Dezaktywuj", Width = 130 };
+            _btnEdit = new Button { Text = "Edytuj", Width = 80 };
+            _btnAdd = new Button { Text = "Dodaj nowego", Width = 100 };
+
+            buttonPanel.Controls.AddRange(new Control[] { _btnClose, _btnToggle, _btnEdit, _btnAdd });
+
+            // Grid
+            _grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoGenerateColumns = false,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                BackgroundColor = SystemColors.Window,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            };
+
+            _grid.Columns.AddRange(new DataGridViewColumn[] {
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(DriverDto.FullName),
+                    HeaderText = "Imiê i nazwisko",
+                    Width = 250
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(DriverDto.Phone),
+                    HeaderText = "Telefon",
+                    Width = 120
+                },
+                new DataGridViewCheckBoxColumn { 
+                    DataPropertyName = nameof(DriverDto.Active),
+                    HeaderText = "Aktywny",
+                    Width = 70
+                }
+            });
+
+            // Dodanie kontrolek do formularza
+            Controls.AddRange(new Control[] { _grid, buttonPanel, topPanel });
+
+            // Podpiêcie zdarzeñ
+            Load += async (_, __) => await LoadDataAsync();
             _chkActive.CheckedChanged += async (_, __) => await LoadDataAsync();
             _tbSearch.TextChanged += (_, __) => ApplyDriverFilter();
-            _grid.DataSource = _bs;
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(DriverDto.FullName), HeaderText = "Imiê i nazwisko" });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(DriverDto.Phone), HeaderText = "Telefon" });
-            _grid.Columns.Add(new DataGridViewCheckBoxColumn { DataPropertyName = nameof(DriverDto.Active), HeaderText = "Aktywny", Width = 60 });
-            Controls.AddRange(new Control[] { _grid, _tbSearch, _chkActive, panelButtons });
+            _btnClose.Click += (_, __) => Close();
+            
+            _btnAdd.Click += async (_, __) => {
+                if (DriverEditDialog.ShowDialog(this, null, out var dto))
+                {
+                    try
+                    {
+                        Cursor = Cursors.WaitCursor;
+                        await _repo.AddDriverAsync(dto);
+                        await LoadDataAsync();
+                    }
+                    finally
+                    {
+                        Cursor = Cursors.Default;
+                    }
+                }
+            };
+
+            _btnEdit.Click += async (_, __) => {
+                var d = Current();
+                if (d == null) return;
+                if (DriverEditDialog.ShowDialog(this, d, out var edited))
+                {
+                    try
+                    {
+                        Cursor = Cursors.WaitCursor;
+                        edited.DriverID = d.DriverID;
+                        await _repo.UpdateDriverAsync(edited);
+                        await LoadDataAsync();
+                    }
+                    finally
+                    {
+                        Cursor = Cursors.Default;
+                    }
+                }
+            };
+
+            _btnToggle.Click += async (_, __) => {
+                var d = Current();
+                if (d == null) return;
+                try
+                {
+                    Cursor = Cursors.WaitCursor;
+                    await _repo.ToggleDriverActiveAsync(d.DriverID, !d.Active);
+                    await LoadDataAsync();
+                }
+                finally
+                {
+                    Cursor = Cursors.Default;
+                }
+            };
+
             EnhanceDriversUi();
         }
 
@@ -388,29 +519,93 @@ namespace Kalendarz1.TransportPlanner
 
         private async Task LoadDataAsync()
         {
-            _all = (await _repo.GetDriversAsync(_chkActive.Checked)).ToList();
-            ApplyDriverFilter();
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                _all = (await _repo.GetDriversAsync(_chkActive.Checked)).ToList();
+                ApplyDriverFilter();
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
 
         private void EnhanceDriversUi()
         {
-            _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            _grid.DoubleClick += async (_, __) => { var d = Current(); if (d == null) return; if (DriverEditDialog.ShowDialog(this, d, out var e2)) { e2.DriverID = d.DriverID; await _repo.UpdateDriverAsync(e2); await LoadDataAsync(); } };
             _grid.CellFormatting += (_, e) =>
             {
                 if (e.RowIndex < 0) return;
-                if (_grid.Rows[e.RowIndex].DataBoundItem is DriverDto dto && !dto.Active)
-                    _grid.Rows[e.RowIndex].DefaultCellStyle.ForeColor = System.Drawing.Color.Gray;
+                if (_grid.Rows[e.RowIndex].DataBoundItem is DriverDto dto)
+                {
+                    if (!dto.Active)
+                    {
+                        _grid.Rows[e.RowIndex].DefaultCellStyle.ForeColor = Color.Gray;
+                        _grid.Rows[e.RowIndex].DefaultCellStyle.Font = new Font(_grid.Font, FontStyle.Italic);
+                    }
+                }
+            };
+
+            _grid.RowPostPaint += (_, e) =>
+            {
+                if (e.RowIndex >= 0)
+                {
+                    var idx = (e.RowIndex + 1).ToString();
+                    var rect = new Rectangle(
+                        e.RowBounds.Left,
+                        e.RowBounds.Top,
+                        _grid.RowHeadersWidth - 4,
+                        e.RowBounds.Height
+                    );
+                    TextRenderer.DrawText(
+                        e.Graphics,
+                        idx,
+                        _grid.Font,
+                        rect,
+                        Color.Gray,
+                        TextFormatFlags.VerticalCenter | TextFormatFlags.Right
+                    );
+                }
+            };
+
+            _grid.DoubleClick += async (_, __) => {
+                var d = Current();
+                if (d == null) return;
+                if (DriverEditDialog.ShowDialog(this, d, out var edited))
+                {
+                    try
+                    {
+                        Cursor = Cursors.WaitCursor;
+                        edited.DriverID = d.DriverID;
+                        await _repo.UpdateDriverAsync(edited);
+                        await LoadDataAsync();
+                    }
+                    finally
+                    {
+                        Cursor = Cursors.Default;
+                    }
+                }
             };
         }
 
         private void ApplyDriverFilter()
         {
-            var t = _tbSearch.Text.Trim().ToLowerInvariant();
+            var term = _tbSearch.Text.Trim().ToLowerInvariant();
             IEnumerable<DriverDto> data = _all;
-            if (t.Length > 1)
-                data = data.Where(d => d.FullName.ToLowerInvariant().Contains(t));
-            _bs.DataSource = data.OrderBy(d => d.LastName).ThenBy(d => d.FirstName).ToList();
+            
+            if (term.Length > 1)
+            {
+                data = data.Where(d =>
+                    d.FullName.ToLowerInvariant().Contains(term) ||
+                    (d.Phone?.ToLowerInvariant().Contains(term) ?? false));
+            }
+            
+            _bs.DataSource = data
+                .OrderBy(d => d.LastName)
+                .ThenBy(d => d.FirstName)
+                .ToList();
+            
+            _grid.DataSource = _bs;
         }
     }
     #endregion
@@ -420,66 +615,179 @@ namespace Kalendarz1.TransportPlanner
     {
         private readonly ITransportRepository _repo;
         private readonly BindingSource _bs = new();
-        private readonly ComboBox _cbKind = new() { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList };
-        private readonly CheckBox _chkActive = new() { Text = "Tylko aktywne", Dock = DockStyle.Top, Checked = true };
-        private readonly DataGridView _grid = new() { Dock = DockStyle.Fill, AutoGenerateColumns = false, ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect };
-        private readonly Button _btnAdd = new() { Text = "Dodaj" };
-        private readonly Button _btnEdit = new() { Text = "Edytuj" };
-        private readonly Button _btnToggle = new() { Text = "Aktywuj/Dezaktywuj" };
-        private readonly Button _btnClose = new() { Text = "Zamknij" };
-        private readonly TextBox _tbSearch = new() { PlaceholderText = "Szukaj (rej / marka / model)", Dock = DockStyle.Top };
+        private readonly ComboBox _cbKind;
+        private readonly CheckBox _chkActive;
+        private readonly DataGridView _grid;
+        private readonly Button _btnAdd;
+        private readonly Button _btnEdit;
+        private readonly Button _btnToggle;
+        private readonly Button _btnClose;
+        private readonly TextBox _tbSearch;
         private List<CarTrailerDto> _all = new();
 
         public VehiclesForm(ITransportRepository repo)
         {
-            _repo = repo; Text = "Pojazdy / Naczepy"; Width = 800; Height = 480; StartPosition = FormStartPosition.CenterParent;
-            Build();
-            Load += async (_, __) => await LoadDataAsync();
-        }
+            _repo = repo;
+            Text = "Zarz¹dzanie flot¹";
+            Width = 900;
+            Height = 600;
+            StartPosition = FormStartPosition.CenterParent;
+            
+            // Panel górny z kontrolkami
+            var topPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 90,
+                Padding = new Padding(10),
+                ColumnCount = 2,
+                RowCount = 2
+            };
+            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            topPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
 
-        private void Build()
-        {
-            _cbKind.Items.AddRange(new object[] { "Ci¹gniki", "Naczepy" }); _cbKind.SelectedIndex = 0;
+            // Pierwsza kolumna - filtrowanie
+            var filterGroup = new GroupBox { Text = "Filtrowanie", Dock = DockStyle.Fill };
+            var filterLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+            
+            _cbKind = new ComboBox { 
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 120,
+                Items = { "Ci¹gniki", "Naczepy" }
+            };
+            _cbKind.SelectedIndex = 0;
+            
+            _chkActive = new CheckBox { 
+                Text = "Tylko aktywne",
+                Checked = true,
+                AutoSize = true
+            };
+            
+            filterLayout.Controls.AddRange(new Control[] { 
+                new Label { Text = "Typ:", AutoSize = true, Padding = new Padding(0, 3, 5, 0) },
+                _cbKind,
+                new Label { Width = 20 },
+                _chkActive
+            });
+            filterGroup.Controls.Add(filterLayout);
+            topPanel.Controls.Add(filterGroup, 0, 0);
+
+            // Druga kolumna - wyszukiwanie
+            var searchGroup = new GroupBox { Text = "Wyszukiwanie", Dock = DockStyle.Fill };
+            _tbSearch = new TextBox { 
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Wpisz numer rejestracyjny, markê lub model...",
+                Margin = new Padding(5)
+            };
+            searchGroup.Controls.Add(_tbSearch);
+            topPanel.Controls.Add(searchGroup, 1, 0);
+
+            // Panel przycisków
+            var buttonPanel = new FlowLayoutPanel { 
+                Dock = DockStyle.Bottom,
+                Height = 40,
+                Padding = new Padding(10, 0, 10, 10),
+                FlowDirection = FlowDirection.RightToLeft
+            };
+
+            _btnClose = new Button { Text = "Zamknij", Width = 80 };
+            _btnToggle = new Button { Text = "Aktywuj/Dezaktywuj", Width = 130 };
+            _btnEdit = new Button { Text = "Edytuj", Width = 80 };
+            _btnAdd = new Button { Text = "Dodaj nowy", Width = 90 };
+
+            buttonPanel.Controls.AddRange(new Control[] { _btnClose, _btnToggle, _btnEdit, _btnAdd });
+
+            // Grid
+            _grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoGenerateColumns = false,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                BackgroundColor = SystemColors.Window,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            };
+
+            _grid.Columns.AddRange(new DataGridViewColumn[] {
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.Registration),
+                    HeaderText = "Nr rejestracyjny",
+                    Width = 100
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.Brand),
+                    HeaderText = "Marka",
+                    Width = 120
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.Model),
+                    HeaderText = "Model",
+                    Width = 120
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.PalletSlotsH1),
+                    HeaderText = "Iloœæ palet",
+                    Width = 80
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.CapacityKg),
+                    HeaderText = "£adownoœæ [kg]",
+                    Width = 100
+                },
+                new DataGridViewTextBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.E2Factor),
+                    HeaderText = "Wsp. E2",
+                    Width = 80
+                },
+                new DataGridViewCheckBoxColumn { 
+                    DataPropertyName = nameof(CarTrailerDto.Active),
+                    HeaderText = "Aktywny",
+                    Width = 70
+                }
+            });
+
+            // Dodanie kontrolek do formularza
+            Controls.AddRange(new Control[] { _grid, buttonPanel, topPanel });
+
+            // Podpiêcie zdarzeñ
+            Load += async (_, __) => await LoadDataAsync();
             _cbKind.SelectedIndexChanged += async (_, __) => await LoadDataAsync();
             _chkActive.CheckedChanged += async (_, __) => await LoadDataAsync();
-
-            var panelButtons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40, FlowDirection = FlowDirection.RightToLeft };
-            panelButtons.Controls.AddRange(new Control[] { _btnClose, _btnToggle, _btnEdit, _btnAdd });
-            _btnClose.Click += (_, __) => Close();
-            _btnAdd.Click += async (_, __) => { if (VehicleEditDialog.ShowDialog(this, null, CurrentKind(), out var dto)) { await SaveAsync(dto); } };
-            _btnEdit.Click += async (_, __) => { var v = Current(); if (v == null) return; if (VehicleEditDialog.ShowDialog(this, v, v.Kind, out var dto)) { dto.VehicleID = v.VehicleID; await SaveAsync(dto); } };
-            _btnToggle.Click += async (_, __) => { var v = Current(); if (v == null) return; await _repo.ToggleCarTrailerActiveAsync(v.VehicleID, !v.Active); await LoadDataAsync(); };
-
             _tbSearch.TextChanged += (_, __) => ApplyFilter();
+            _btnClose.Click += (_, __) => Close();
+            _btnAdd.Click += async (_, __) => { 
+                if (VehicleEditDialog.ShowDialog(this, null, CurrentKind(), out var dto)) 
+                { 
+                    await SaveAsync(dto); 
+                } 
+            };
+            _btnEdit.Click += async (_, __) => { 
+                var v = Current(); 
+                if (v == null) return;
+                if (VehicleEditDialog.ShowDialog(this, v, v.Kind, out var dto)) 
+                { 
+                    dto.VehicleID = v.VehicleID; 
+                    await SaveAsync(dto); 
+                } 
+            };
+            _btnToggle.Click += async (_, __) => { 
+                var v = Current(); 
+                if (v == null) return; 
+                await _repo.ToggleCarTrailerActiveAsync(v.VehicleID, !v.Active); 
+                await LoadDataAsync(); 
+            };
 
-            _grid.DataSource = _bs;
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.VehicleID), HeaderText = "ID", Width = 60 });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.Registration), HeaderText = "Rej", Width = 90 });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.Brand), HeaderText = "Marka", Width = 120 });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.Model), HeaderText = "Model", Width = 120 });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.PalletSlotsH1), HeaderText = "Palety" });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.CapacityKg), HeaderText = "Kg" });
-            _grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(CarTrailerDto.E2Factor), HeaderText = "E2" });
-            _grid.Columns.Add(new DataGridViewCheckBoxColumn { DataPropertyName = nameof(CarTrailerDto.Active), HeaderText = "Akt" });
-
-            Controls.AddRange(new Control[] { _grid, _tbSearch, _chkActive, _cbKind, panelButtons });
             EnhanceGridUi();
         }
 
-        private int CurrentKind() => _cbKind.SelectedIndex == 0 ? 3 : 4;
-        private CarTrailerDto? Current() => _grid.CurrentRow?.DataBoundItem as CarTrailerDto;
-
-        private async Task SaveAsync(CarTrailerDto dto)
-        {
-            if (dto.Kind != 3 && dto.Kind != 4) dto.Kind = CurrentKind();
-            if (dto.Kind == 3) await _repo.UpsertVehicleAsync(dto); else await _repo.UpsertTrailerAsync(dto);
-            await LoadDataAsync();
-        }
+        // ...istniej¹ce metody pomocnicze...
 
         private void EnhanceGridUi()
         {
-            _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            _grid.RowHeadersVisible = true;
             _grid.CellFormatting += (_, e) =>
             {
                 if (e.RowIndex < 0) return;
@@ -487,32 +795,79 @@ namespace Kalendarz1.TransportPlanner
                 {
                     if (!dto.Active)
                     {
-                        _grid.Rows[e.RowIndex].DefaultCellStyle.ForeColor = System.Drawing.Color.Gray;
-                        _grid.Rows[e.RowIndex].DefaultCellStyle.Font = new System.Drawing.Font(_grid.Font, System.Drawing.FontStyle.Italic);
+                        _grid.Rows[e.RowIndex].DefaultCellStyle.ForeColor = Color.Gray;
+                        _grid.Rows[e.RowIndex].DefaultCellStyle.Font = new Font(_grid.Font, FontStyle.Italic);
                     }
-                    if (_grid.Columns[e.ColumnIndex].DataPropertyName == nameof(CarTrailerDto.CapacityKg) && e.Value is decimal dec)
+                    
+                    // Formatowanie liczb
+                    if (e.ColumnIndex >= 0)
                     {
-                        e.Value = dec.ToString("#,0", CultureInfo.InvariantCulture);
-                        e.FormattingApplied = true;
+                        var column = _grid.Columns[e.ColumnIndex];
+                        if (column.DataPropertyName == nameof(CarTrailerDto.CapacityKg) && e.Value is decimal dec)
+                        {
+                            e.Value = dec.ToString("#,##0", CultureInfo.InvariantCulture);
+                            e.FormattingApplied = true;
+                        }
+                        else if (column.DataPropertyName == nameof(CarTrailerDto.E2Factor) && e.Value is decimal e2)
+                        {
+                            e.Value = e2.ToString("0.0000", CultureInfo.InvariantCulture);
+                            e.FormattingApplied = true;
+                        }
                     }
                 }
             };
+
             _grid.RowPostPaint += (_, e) =>
             {
-                var idx = (e.RowIndex + 1).ToString();
-                var rect = new System.Drawing.Rectangle(e.RowBounds.Left, e.RowBounds.Top, _grid.RowHeadersWidth, e.RowBounds.Height);
-                TextRenderer.DrawText(e.Graphics, idx, _grid.Font, rect, System.Drawing.Color.DimGray, TextFormatFlags.VerticalCenter | TextFormatFlags.Right);
+                if (e.RowIndex >= 0)
+                {
+                    var idx = (e.RowIndex + 1).ToString();
+                    var rect = new Rectangle(
+                        e.RowBounds.Left, 
+                        e.RowBounds.Top,
+                        _grid.RowHeadersWidth - 4,
+                        e.RowBounds.Height
+                    );
+                    TextRenderer.DrawText(
+                        e.Graphics,
+                        idx,
+                        _grid.Font,
+                        rect,
+                        Color.Gray,
+                        TextFormatFlags.VerticalCenter | TextFormatFlags.Right
+                    );
+                }
             };
-            _grid.DoubleClick += async (_, __) => { var v = Current(); if (v == null) return; if (VehicleEditDialog.ShowDialog(this, v, v.Kind, out var dto)) { dto.VehicleID = v.VehicleID; await SaveAsync(dto); } };
+
+            _grid.DoubleClick += async (_, __) => {
+                var v = Current();
+                if (v == null) return;
+                if (VehicleEditDialog.ShowDialog(this, v, v.Kind, out var dto))
+                {
+                    dto.VehicleID = v.VehicleID;
+                    await SaveAsync(dto);
+                }
+            };
         }
+
+        private int CurrentKind() => _cbKind.SelectedIndex == 0 ? 3 : 4;
+        private CarTrailerDto? Current() => _grid.CurrentRow?.DataBoundItem as CarTrailerDto;
 
         private async Task LoadDataAsync()
         {
-            IEnumerable<CarTrailerDto> data = CurrentKind() == 3
-                ? await _repo.GetVehiclesAsync(_chkActive.Checked)
-                : await _repo.GetTrailersAsync(_chkActive.Checked);
-            _all = data.ToList();
-            ApplyFilter();
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                IEnumerable<CarTrailerDto> data = CurrentKind() == 3
+                    ? await _repo.GetVehiclesAsync(_chkActive.Checked)
+                    : await _repo.GetTrailersAsync(_chkActive.Checked);
+                _all = data.ToList();
+                ApplyFilter();
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
 
         private void ApplyFilter()
@@ -527,74 +882,235 @@ namespace Kalendarz1.TransportPlanner
                     (v.Model?.ToLowerInvariant().Contains(term) ?? false));
             }
             _bs.DataSource = data.OrderBy(v => v.Registration).ToList();
+            _grid.DataSource = _bs;
+        }
+
+        private async Task SaveAsync(CarTrailerDto dto)
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                if (dto.Kind != 3 && dto.Kind != 4) dto.Kind = CurrentKind();
+                if (dto.Kind == 3)
+                    await _repo.UpsertVehicleAsync(dto);
+                else
+                    await _repo.UpsertTrailerAsync(dto);
+                await LoadDataAsync();
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
         }
     }
     #endregion
 
-    #region Dialogi
+    #region Dialog edycji kierowcy
     internal static class DriverEditDialog
     {
         public static bool ShowDialog(IWin32Window owner, DriverDto? existing, out DriverDto result)
         {
             result = new DriverDto();
-            var f = new Form { Text = existing == null ? "Nowy kierowca" : "Edycja kierowcy", Width = 400, Height = 220, StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-            var tbName = new TextBox { Left = 20, Top = 30, Width = 340 };
-            var tbPhone = new TextBox { Left = 20, Top = 90, Width = 200 };
-            f.Controls.AddRange(new Control[] { new Label { Left = 20, Top = 10, Text = "Imiê i nazwisko:" }, tbName, new Label { Left = 20, Top = 70, Text = "Telefon:" }, tbPhone });
-            var btnOk = new Button { Text = "Zapisz", Left = 200, Width = 80, Top = 130, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Anuluj", Left = 280, Width = 80, Top = 130, DialogResult = DialogResult.Cancel };
-            f.Controls.AddRange(new Control[] { btnOk, btnCancel });
-            f.AcceptButton = btnOk; f.CancelButton = btnCancel;
+            
+            var f = new Form
+            {
+                Text = existing == null ? "Nowy kierowca" : "Edycja kierowcy",
+                Width = 420,
+                Height = 260,
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Padding = new Padding(20)
+            };
+
+            // Panel danych osobowych
+            var personalGroup = new GroupBox
+            {
+                Text = "Dane osobowe",
+                Dock = DockStyle.Top,
+                Height = 120,
+                Padding = new Padding(10)
+            };
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                ColumnStyles =
+                {
+                    new ColumnStyle(SizeType.Absolute, 100),
+                    new ColumnStyle(SizeType.Percent, 100)
+                }
+            };
+
+            var tbName = new TextBox { Width = 250, Dock = DockStyle.Fill };
+            var tbPhone = new TextBox { Width = 150, Dock = DockStyle.Fill };
+
+            layout.Controls.Add(new Label { Text = "Imiê i nazwisko:", Dock = DockStyle.Left }, 0, 0);
+            layout.Controls.Add(tbName, 1, 0);
+            layout.Controls.Add(new Label { Text = "Telefon:", Dock = DockStyle.Left }, 0, 1);
+            layout.Controls.Add(tbPhone, 1, 1);
+
+            personalGroup.Controls.Add(layout);
+
+            // Status
+            var chkActive = new CheckBox { Text = "Aktywny", Checked = true, Left = 20, Top = 140 };
+
+            // Panel przycisków
+            var btnPanel = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.RightToLeft,
+                Dock = DockStyle.Bottom,
+                Height = 40
+            };
+
+            var btnOk = new Button { Text = "Zapisz", Width = 80, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Anuluj", Width = 80, DialogResult = DialogResult.Cancel };
+            btnPanel.Controls.AddRange(new Control[] { btnCancel, btnOk });
+
+            f.Controls.AddRange(new Control[] { personalGroup, chkActive, btnPanel });
+            f.AcceptButton = btnOk;
+            f.CancelButton = btnCancel;
+
             if (existing != null)
             {
                 tbName.Text = existing.FullName;
                 tbPhone.Text = existing.Phone;
+                chkActive.Checked = existing.Active;
             }
+
             if (f.ShowDialog(owner) == DialogResult.OK)
             {
-                if (string.IsNullOrWhiteSpace(tbName.Text)) { MessageBox.Show("Nazwa jest wymagana."); return ShowDialog(owner, existing, out result); }
+                if (string.IsNullOrWhiteSpace(tbName.Text))
+                {
+                    MessageBox.Show("Imiê i nazwisko s¹ wymagane", "B³¹d", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return ShowDialog(owner, existing, out result);
+                }
+
                 var parts = tbName.Text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 result.FirstName = parts.Length > 0 ? parts[0] : string.Empty;
                 result.LastName = parts.Length > 1 ? string.Join(" ", parts.Skip(1)) : string.Empty;
                 result.Phone = string.IsNullOrWhiteSpace(tbPhone.Text) ? null : tbPhone.Text.Trim();
-                result.Active = existing?.Active ?? true;
+                result.Active = chkActive.Checked;
                 result.DriverID = existing?.DriverID ?? 0;
                 return true;
             }
+
             return false;
         }
     }
+    #endregion
 
+    #region Dialog edycji pojazdu
     internal static class VehicleEditDialog
     {
         public static bool ShowDialog(IWin32Window owner, CarTrailerDto? existing, int enforcedKind, out CarTrailerDto dto)
         {
             dto = new CarTrailerDto { Kind = enforcedKind, Active = true };
             string titleKind = enforcedKind == 3 ? "ci¹gnik" : "naczepa";
-            var f = new Form { Text = existing == null ? $"Nowy {titleKind}" : $"Edycja {titleKind}", Width = 520, Height = 300, StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-            var tbId = new TextBox { Left = 20, Top = 30, Width = 80, Enabled = existing == null };
-            var tbReg = new TextBox { Left = 120, Top = 30, Width = 120 };
-            var tbBrand = new TextBox { Left = 260, Top = 30, Width = 100 };
-            var tbModel = new TextBox { Left = 370, Top = 30, Width = 110 };
-            var tbCap = new TextBox { Left = 20, Top = 100, Width = 100 };
-            var tbPal = new TextBox { Left = 140, Top = 100, Width = 60 };
-            var tbE2 = new TextBox { Left = 220, Top = 100, Width = 60 };
-            var chk = new CheckBox { Left = 300, Top = 102, Text = "Aktywny", Checked = true };
-            f.Controls.AddRange(new Control[] {
-                new Label{Left=20,Top=10,Text="VehicleID"},tbId,
-                new Label{Left=120,Top=10,Text="Rej"},tbReg,
-                new Label{Left=260,Top=10,Text="Marka"},tbBrand,
-                new Label{Left=370,Top=10,Text="Model"},tbModel,
-                new Label{Left=20,Top=80,Text="Kg"},tbCap,
-                new Label{Left=140,Top=80,Text="Palety"},tbPal,
-                new Label{Left=220,Top=80,Text="E2"},tbE2,chk });
-            var btnOk = new Button { Text = "Zapisz", Left = 300, Top = 200, Width = 80, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Anuluj", Left = 390, Top = 200, Width = 80, DialogResult = DialogResult.Cancel };
-            f.Controls.AddRange(new Control[] { btnOk, btnCancel });
-            f.AcceptButton = btnOk; f.CancelButton = btnCancel;
+            var f = new Form
+            {
+                Text = existing == null ? $"Nowy {titleKind}" : $"Edycja {titleKind}",
+                Width = 460,
+                Height = 300,
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                Padding = new Padding(20)
+            };
+
+            // G³ówne informacje
+            var mainGroup = new GroupBox
+            {
+                Text = "Podstawowe informacje",
+                Dock = DockStyle.Top,
+                Height = 80,
+                Padding = new Padding(10)
+            };
+
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 2,
+                ColumnStyles = {
+                    new ColumnStyle(SizeType.Percent, 33.33f),
+                    new ColumnStyle(SizeType.Percent, 33.33f),
+                    new ColumnStyle(SizeType.Percent, 33.33f)
+                }
+            };
+
+            var tbReg = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+            var tbBrand = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+            var tbModel = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+
+            mainLayout.Controls.Add(new Label { Text = "Rejestracja:", AutoSize = true }, 0, 0);
+            mainLayout.Controls.Add(new Label { Text = "Marka:", AutoSize = true }, 1, 0);
+            mainLayout.Controls.Add(new Label { Text = "Model:", AutoSize = true }, 2, 0);
+            mainLayout.Controls.Add(tbReg, 0, 1);
+            mainLayout.Controls.Add(tbBrand, 1, 1);
+            mainLayout.Controls.Add(tbModel, 2, 1);
+            mainGroup.Controls.Add(mainLayout);
+
+            // Parametry techniczne
+            var techGroup = new GroupBox
+            {
+                Text = "Parametry techniczne",
+                Dock = DockStyle.Top,
+                Height = 80,
+                Top = 90,
+                Padding = new Padding(10)
+            };
+
+            var techLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 2,
+                ColumnStyles = {
+                    new ColumnStyle(SizeType.Percent, 33.33f),
+                    new ColumnStyle(SizeType.Percent, 33.33f),
+                    new ColumnStyle(SizeType.Percent, 33.33f)
+                }
+            };
+
+            var tbCap = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+            var tbPal = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+            var tbE2 = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(3) };
+
+            techLayout.Controls.Add(new Label { Text = "£adownoœæ [kg]:", AutoSize = true }, 0, 0);
+            techLayout.Controls.Add(new Label { Text = "Iloœæ palet:", AutoSize = true }, 1, 0);
+            techLayout.Controls.Add(new Label { Text = "Wspó³czynnik E2:", AutoSize = true }, 2, 0);
+            techLayout.Controls.Add(tbCap, 0, 1);
+            techLayout.Controls.Add(tbPal, 1, 1);
+            techLayout.Controls.Add(tbE2, 2, 1);
+            techGroup.Controls.Add(techLayout);
+
+            // Status
+            var chk = new CheckBox { Text = "Aktywny", Checked = true, Left = 20, Top = 180 };
+
+            // Panel przycisków
+            var btnPanel = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.RightToLeft,
+                Dock = DockStyle.Bottom,
+                Height = 40
+            };
+
+            var btnOk = new Button { Text = "Zapisz", Width = 80, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Anuluj", Width = 80, DialogResult = DialogResult.Cancel };
+            btnPanel.Controls.AddRange(new Control[] { btnCancel, btnOk });
+
+            f.Controls.AddRange(new Control[] { mainGroup, techGroup, chk, btnPanel });
+            f.AcceptButton = btnOk;
+            f.CancelButton = btnCancel;
+
+            // Wype³nienie danymi istniej¹cego pojazdu
             if (existing != null)
             {
-                tbId.Text = existing.VehicleID.ToString();
                 tbReg.Text = existing.Registration;
                 tbBrand.Text = existing.Brand;
                 tbModel.Text = existing.Model;
@@ -603,20 +1119,28 @@ namespace Kalendarz1.TransportPlanner
                 tbE2.Text = existing.E2Factor?.ToString(CultureInfo.InvariantCulture);
                 chk.Checked = existing.Active;
             }
+
             if (f.ShowDialog(owner) == DialogResult.OK)
             {
-                if (string.IsNullOrWhiteSpace(tbReg.Text)) { MessageBox.Show("Rejestracja wymagana"); return ShowDialog(owner, existing, enforcedKind, out dto); }
-                dto.VehicleID = existing?.VehicleID ?? 0; // przy nowym zawsze 0
-                dto.Registration = tbReg.Text.Trim();
+                if (string.IsNullOrWhiteSpace(tbReg.Text))
+                {
+                    MessageBox.Show("Numer rejestracyjny jest wymagany", "B³¹d", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return ShowDialog(owner, existing, enforcedKind, out dto);
+                }
+
+                // ID jest zawsze 0 dla nowego pojazdu lub zachowane z istniej¹cego
+                dto.VehicleID = existing?.VehicleID ?? 0;
+                dto.Registration = tbReg.Text.Trim().ToUpper(); // Numery rejestracyjne wielkimi literami
                 dto.Brand = string.IsNullOrWhiteSpace(tbBrand.Text) ? null : tbBrand.Text.Trim();
                 dto.Model = string.IsNullOrWhiteSpace(tbModel.Text) ? null : tbModel.Text.Trim();
                 dto.CapacityKg = decimal.TryParse(tbCap.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var cap) ? cap : null;
                 dto.PalletSlotsH1 = int.TryParse(tbPal.Text, out var pal) ? pal : null;
                 dto.E2Factor = decimal.TryParse(tbE2.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var e2) ? e2 : null;
                 dto.Active = chk.Checked;
-                dto.Kind = enforcedKind; // 3 lub 4
+                dto.Kind = enforcedKind;
                 return true;
             }
+
             return false;
         }
     }
