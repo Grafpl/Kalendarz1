@@ -30,7 +30,7 @@
         {
             UsernameTextBox = new System.Windows.Forms.TextBox();
             LoginButton = new System.Windows.Forms.Button();
-            CancelButton = new System.Windows.Forms.Button();
+            btnCancel = new System.Windows.Forms.Button();
             pictureBox1 = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
@@ -52,14 +52,15 @@
             LoginButton.UseVisualStyleBackColor = true;
             LoginButton.Click += LoginButton_Click;
             // 
-            // CancelButton
+            // btnCancel
             // 
-            CancelButton.Location = new System.Drawing.Point(183, 207);
-            CancelButton.Name = "CancelButton";
-            CancelButton.Size = new System.Drawing.Size(62, 23);
-            CancelButton.TabIndex = 2;
-            CancelButton.Text = "Anuluj";
-            CancelButton.UseVisualStyleBackColor = true;
+            btnCancel.Location = new System.Drawing.Point(183, 207);
+            btnCancel.Name = "btnCancel";
+            btnCancel.Size = new System.Drawing.Size(62, 23);
+            btnCancel.TabIndex = 2;
+            btnCancel.Text = "Anuluj";
+            btnCancel.UseVisualStyleBackColor = true;
+            btnCancel.Click += CancelButton_Click;
             // 
             // pictureBox1
             // 
@@ -76,7 +77,7 @@
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(362, 237);
             Controls.Add(pictureBox1);
-            Controls.Add(CancelButton);
+            Controls.Add(btnCancel);
             Controls.Add(LoginButton);
             Controls.Add(UsernameTextBox);
             Name = "LoginForm";
@@ -91,7 +92,7 @@
 
         private System.Windows.Forms.TextBox UsernameTextBox;
         private System.Windows.Forms.Button LoginButton;
-        private System.Windows.Forms.Button CancelButton;
+        private System.Windows.Forms.Button btnCancel;
         private System.Windows.Forms.PictureBox pictureBox1;
     }
 }
