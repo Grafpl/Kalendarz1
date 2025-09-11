@@ -593,7 +593,7 @@ SELECT
     COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) +
     COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) +
     COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Suma]
-FROM WojHandlowcy
+FROM WojHandlowcy 
 GROUP BY NazwaHandlowca
 ORDER BY NazwaHandlowca";
 
