@@ -568,7 +568,7 @@ WITH WojHandlowcy AS (
     ON (
         (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
         (V.UserID = '9998' AND LOWER(O.Wojewodztwo) = 'wielkopolskie') OR
-        (V.UserID = '98122' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'lubelskie'))
+        (V.UserID = '98122' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'lubelskie')) OR
         (V.UserID = '11111' AND LOWER(O.Wojewodztwo) = 'mazowieckie') OR
         (V.UserID = '871231' AND LOWER(O.Wojewodztwo) = 'śląskie') OR
         (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
