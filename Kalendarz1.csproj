@@ -2,12 +2,19 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
     <StartupObject>Kalendarz1.App</StartupObject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Kalendarz\**" />
+    <EmbeddedResource Remove="Kalendarz\**" />
+    <None Remove="Kalendarz\**" />
+    <Page Remove="Kalendarz\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Resources\Screenshot_4.ico" />
@@ -100,8 +107,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Domain\Dto\" />
-    <Folder Include="Kalendarz\" />
+    <Folder Include="Kalendarz1\" />
   </ItemGroup>
 
 </Project>
