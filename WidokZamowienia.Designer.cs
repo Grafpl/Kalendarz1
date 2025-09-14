@@ -113,7 +113,7 @@ namespace Kalendarz1
             btnZapisz.BackColor = System.Drawing.Color.FromArgb(25, 135, 84);
             btnZapisz.FlatAppearance.BorderSize = 0;
             btnZapisz.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnZapisz.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnZapisz.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             btnZapisz.ForeColor = System.Drawing.Color.White;
             btnZapisz.Location = new System.Drawing.Point(308, 23);
             btnZapisz.Name = "btnZapisz";
@@ -127,7 +127,7 @@ namespace Kalendarz1
             // 
             btnAnuluj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnAnuluj.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             btnAnuluj.Location = new System.Drawing.Point(202, 23);
             btnAnuluj.Name = "btnAnuluj";
             btnAnuluj.Size = new System.Drawing.Size(100, 45);
@@ -153,7 +153,7 @@ namespace Kalendarz1
             // label5
             // 
             label5.AutoSize = true;
-            label5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label5.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label5.Location = new System.Drawing.Point(23, 114);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(57, 17);
@@ -164,7 +164,7 @@ namespace Kalendarz1
             // 
             textBoxUwagi.AcceptsReturn = true;
             textBoxUwagi.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            textBoxUwagi.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            textBoxUwagi.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             textBoxUwagi.Location = new System.Drawing.Point(23, 140);
             textBoxUwagi.Multiline = true;
             textBoxUwagi.Name = "textBoxUwagi";
@@ -175,7 +175,7 @@ namespace Kalendarz1
             // dateTimePickerGodzinaPrzyjazdu
             // 
             dateTimePickerGodzinaPrzyjazdu.CustomFormat = "HH:mm";
-            dateTimePickerGodzinaPrzyjazdu.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePickerGodzinaPrzyjazdu.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             dateTimePickerGodzinaPrzyjazdu.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
             dateTimePickerGodzinaPrzyjazdu.Location = new System.Drawing.Point(212, 65);
             dateTimePickerGodzinaPrzyjazdu.Name = "dateTimePickerGodzinaPrzyjazdu";
@@ -186,7 +186,7 @@ namespace Kalendarz1
             // label3
             // 
             label3.AutoSize = true;
-            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label3.Location = new System.Drawing.Point(209, 39);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(98, 17);
@@ -195,7 +195,7 @@ namespace Kalendarz1
             // 
             // dateTimePickerSprzedaz
             // 
-            dateTimePickerSprzedaz.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePickerSprzedaz.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             dateTimePickerSprzedaz.Format = System.Windows.Forms.DateTimePickerFormat.Short;
             dateTimePickerSprzedaz.Location = new System.Drawing.Point(23, 65);
             dateTimePickerSprzedaz.Name = "dateTimePickerSprzedaz";
@@ -205,7 +205,7 @@ namespace Kalendarz1
             // label2
             // 
             label2.AutoSize = true;
-            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label2.Location = new System.Drawing.Point(23, 39);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(102, 17);
@@ -231,12 +231,12 @@ namespace Kalendarz1
             // 
             listaWynikowOdbiorcy.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             listaWynikowOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            listaWynikowOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            listaWynikowOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             listaWynikowOdbiorcy.FormattingEnabled = true;
             listaWynikowOdbiorcy.ItemHeight = 17;
             listaWynikowOdbiorcy.Location = new System.Drawing.Point(23, 99);
             listaWynikowOdbiorcy.Name = "listaWynikowOdbiorcy";
-            listaWynikowOdbiorcy.Size = new System.Drawing.Size(404, 172);
+            listaWynikowOdbiorcy.Size = new System.Drawing.Size(404, 189);
             listaWynikowOdbiorcy.TabIndex = 5;
             listaWynikowOdbiorcy.Visible = false;
             // 
@@ -258,7 +258,7 @@ namespace Kalendarz1
             // lblHandlowiec
             // 
             lblHandlowiec.AutoSize = true;
-            lblHandlowiec.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblHandlowiec.Font = new System.Drawing.Font("Segoe UI", 9F);
             lblHandlowiec.ForeColor = System.Drawing.Color.FromArgb(64, 64, 64);
             lblHandlowiec.Location = new System.Drawing.Point(16, 96);
             lblHandlowiec.Name = "lblHandlowiec";
@@ -269,7 +269,7 @@ namespace Kalendarz1
             // lblAdres
             // 
             lblAdres.AutoSize = true;
-            lblAdres.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblAdres.Font = new System.Drawing.Font("Segoe UI", 9F);
             lblAdres.ForeColor = System.Drawing.Color.FromArgb(64, 64, 64);
             lblAdres.Location = new System.Drawing.Point(16, 70);
             lblAdres.Name = "lblAdres";
@@ -280,7 +280,7 @@ namespace Kalendarz1
             // lblNip
             // 
             lblNip.AutoSize = true;
-            lblNip.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblNip.Font = new System.Drawing.Font("Segoe UI", 9F);
             lblNip.ForeColor = System.Drawing.Color.FromArgb(64, 64, 64);
             lblNip.Location = new System.Drawing.Point(16, 45);
             lblNip.Name = "lblNip";
@@ -291,7 +291,7 @@ namespace Kalendarz1
             // lblWybranyOdbiorca
             // 
             lblWybranyOdbiorca.AutoSize = true;
-            lblWybranyOdbiorca.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblWybranyOdbiorca.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold);
             lblWybranyOdbiorca.Location = new System.Drawing.Point(14, 14);
             lblWybranyOdbiorca.Name = "lblWybranyOdbiorca";
             lblWybranyOdbiorca.Size = new System.Drawing.Size(139, 20);
@@ -301,7 +301,7 @@ namespace Kalendarz1
             // btnPickOdbiorca
             // 
             btnPickOdbiorca.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnPickOdbiorca.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnPickOdbiorca.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             btnPickOdbiorca.Location = new System.Drawing.Point(347, 36);
             btnPickOdbiorca.Name = "btnPickOdbiorca";
             btnPickOdbiorca.Size = new System.Drawing.Size(80, 25);
@@ -313,7 +313,7 @@ namespace Kalendarz1
             // cbHandlowiecFilter
             // 
             cbHandlowiecFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            cbHandlowiecFilter.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            cbHandlowiecFilter.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             cbHandlowiecFilter.FormattingEnabled = true;
             cbHandlowiecFilter.Location = new System.Drawing.Point(23, 36);
             cbHandlowiecFilter.Name = "cbHandlowiecFilter";
@@ -323,7 +323,7 @@ namespace Kalendarz1
             // txtSzukajOdbiorcy
             // 
             txtSzukajOdbiorcy.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            txtSzukajOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            txtSzukajOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             txtSzukajOdbiorcy.Location = new System.Drawing.Point(23, 68);
             txtSzukajOdbiorcy.Name = "txtSzukajOdbiorcy";
             txtSzukajOdbiorcy.PlaceholderText = "Wpisz nazwę, NIP lub miasto...";
@@ -333,7 +333,7 @@ namespace Kalendarz1
             // label1
             // 
             label1.AutoSize = true;
-            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label1.Location = new System.Drawing.Point(23, 10);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(64, 17);
@@ -352,7 +352,7 @@ namespace Kalendarz1
             // lblTytul
             // 
             lblTytul.AutoSize = true;
-            lblTytul.Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblTytul.Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Bold);
             lblTytul.Location = new System.Drawing.Point(20, 20);
             lblTytul.Name = "lblTytul";
             lblTytul.Size = new System.Drawing.Size(197, 30);
@@ -400,7 +400,7 @@ namespace Kalendarz1
             // 
             // txtSzukajTowaru
             // 
-            txtSzukajTowaru.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            txtSzukajTowaru.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             txtSzukajTowaru.Location = new System.Drawing.Point(3, 27);
             txtSzukajTowaru.Name = "txtSzukajTowaru";
             txtSzukajTowaru.PlaceholderText = "Wpisz kod towaru...";
@@ -410,7 +410,7 @@ namespace Kalendarz1
             // label4
             // 
             label4.AutoSize = true;
-            label4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label4.Location = new System.Drawing.Point(3, 4);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(126, 17);
@@ -442,7 +442,7 @@ namespace Kalendarz1
             // 
             summaryLabelIlosc.AutoSize = true;
             summaryLabelIlosc.Dock = System.Windows.Forms.DockStyle.Fill;
-            summaryLabelIlosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            summaryLabelIlosc.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold);
             summaryLabelIlosc.Location = new System.Drawing.Point(628, 0);
             summaryLabelIlosc.Name = "summaryLabelIlosc";
             summaryLabelIlosc.Size = new System.Drawing.Size(113, 34);
@@ -454,7 +454,7 @@ namespace Kalendarz1
             // 
             summaryLabelPojemniki.AutoSize = true;
             summaryLabelPojemniki.Dock = System.Windows.Forms.DockStyle.Fill;
-            summaryLabelPojemniki.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            summaryLabelPojemniki.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold);
             summaryLabelPojemniki.Location = new System.Drawing.Point(519, 0);
             summaryLabelPojemniki.Name = "summaryLabelPojemniki";
             summaryLabelPojemniki.Size = new System.Drawing.Size(103, 34);
@@ -466,7 +466,7 @@ namespace Kalendarz1
             // 
             summaryLabelPalety.AutoSize = true;
             summaryLabelPalety.Dock = System.Windows.Forms.DockStyle.Fill;
-            summaryLabelPalety.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            summaryLabelPalety.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold);
             summaryLabelPalety.Location = new System.Drawing.Point(430, 0);
             summaryLabelPalety.Name = "summaryLabelPalety";
             summaryLabelPalety.Size = new System.Drawing.Size(83, 34);
@@ -478,7 +478,7 @@ namespace Kalendarz1
             // 
             label6.AutoSize = true;
             label6.Dock = System.Windows.Forms.DockStyle.Fill;
-            label6.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label6.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold);
             label6.Location = new System.Drawing.Point(3, 0);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(421, 34);

@@ -252,6 +252,8 @@ namespace Kalendarz1
             tabControl1 = new TabControl();
             SpecTab = new TabPage();
             NotTab = new TabPage();
+            Ranking = new TabPage();
+            datagridRanking = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewNotatki).BeginInit();
@@ -282,11 +284,13 @@ namespace Kalendarz1
             tabControl1.SuspendLayout();
             SpecTab.SuspendLayout();
             NotTab.SuspendLayout();
+            Ranking.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)datagridRanking).BeginInit();
             SuspendLayout();
             // 
             // MyCalendar
             // 
-            MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MyCalendar.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             MyCalendar.Location = new System.Drawing.Point(802, 429);
             MyCalendar.Margin = new Padding(2);
             MyCalendar.Name = "MyCalendar";
@@ -300,7 +304,6 @@ namespace Kalendarz1
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView1.Location = new System.Drawing.Point(0, 68);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new System.Drawing.Size(801, 908);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellContentClick += DataGridView1_CellContentClick;
@@ -309,7 +312,7 @@ namespace Kalendarz1
             // checkBoxAnulowane
             // 
             checkBoxAnulowane.AutoSize = true;
-            checkBoxAnulowane.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxAnulowane.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxAnulowane.Location = new System.Drawing.Point(0, 49);
             checkBoxAnulowane.Name = "checkBoxAnulowane";
             checkBoxAnulowane.Size = new System.Drawing.Size(65, 15);
@@ -320,7 +323,7 @@ namespace Kalendarz1
             // 
             // weekNumberTextBox
             // 
-            weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            weekNumberTextBox.Font = new System.Drawing.Font("Segoe UI", 14F);
             weekNumberTextBox.Location = new System.Drawing.Point(13, 352);
             weekNumberTextBox.Multiline = true;
             weekNumberTextBox.Name = "weekNumberTextBox";
@@ -377,7 +380,6 @@ namespace Kalendarz1
             dataGridViewNotatki.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewNotatki.Location = new System.Drawing.Point(141, 287);
             dataGridViewNotatki.Name = "dataGridViewNotatki";
-            dataGridViewNotatki.RowTemplate.Height = 25;
             dataGridViewNotatki.Size = new System.Drawing.Size(379, 120);
             dataGridViewNotatki.TabIndex = 151;
             // 
@@ -437,7 +439,7 @@ namespace Kalendarz1
             // 
             // buttonModWstawienie
             // 
-            buttonModWstawienie.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonModWstawienie.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             buttonModWstawienie.Location = new System.Drawing.Point(65, 16);
             buttonModWstawienie.Name = "buttonModWstawienie";
             buttonModWstawienie.Size = new System.Drawing.Size(73, 38);
@@ -448,7 +450,7 @@ namespace Kalendarz1
             // 
             // label7
             // 
-            label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label7.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F);
             label7.Location = new System.Drawing.Point(115, 87);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(52, 26);
@@ -459,7 +461,7 @@ namespace Kalendarz1
             // sztukiPozostale
             // 
             sztukiPozostale.BackColor = System.Drawing.SystemColors.ScrollBar;
-            sztukiPozostale.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            sztukiPozostale.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             sztukiPozostale.Location = new System.Drawing.Point(115, 113);
             sztukiPozostale.Multiline = true;
             sztukiPozostale.Name = "sztukiPozostale";
@@ -469,7 +471,7 @@ namespace Kalendarz1
             // 
             // label1
             // 
-            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F);
             label1.Location = new System.Drawing.Point(61, 87);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(52, 26);
@@ -480,7 +482,7 @@ namespace Kalendarz1
             // sztukiPoUpadkach
             // 
             sztukiPoUpadkach.BackColor = System.Drawing.SystemColors.ScrollBar;
-            sztukiPoUpadkach.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            sztukiPoUpadkach.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             sztukiPoUpadkach.Location = new System.Drawing.Point(61, 113);
             sztukiPoUpadkach.Multiline = true;
             sztukiPoUpadkach.Name = "sztukiPoUpadkach";
@@ -494,15 +496,14 @@ namespace Kalendarz1
             DataGridWstawienia.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             DataGridWstawienia.Location = new System.Drawing.Point(173, 16);
             DataGridWstawienia.Name = "DataGridWstawienia";
-            DataGridWstawienia.RowTemplate.Height = 25;
             DataGridWstawienia.Size = new System.Drawing.Size(345, 118);
             DataGridWstawienia.TabIndex = 95;
             // 
             // dataWstawienia
             // 
-            dataWstawienia.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataWstawienia.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F);
             dataWstawienia.CustomFormat = "yyyy-MM-dd";
-            dataWstawienia.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataWstawienia.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             dataWstawienia.Format = DateTimePickerFormat.Custom;
             dataWstawienia.Location = new System.Drawing.Point(65, 55);
             dataWstawienia.Name = "dataWstawienia";
@@ -513,7 +514,7 @@ namespace Kalendarz1
             // 
             // LpWstawienia
             // 
-            LpWstawienia.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            LpWstawienia.Font = new System.Drawing.Font("Segoe UI", 6F);
             LpWstawienia.FormattingEnabled = true;
             LpWstawienia.Location = new System.Drawing.Point(6, 44);
             LpWstawienia.Name = "LpWstawienia";
@@ -523,7 +524,7 @@ namespace Kalendarz1
             // 
             // label34
             // 
-            label34.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label34.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
             label34.Location = new System.Drawing.Point(18, 14);
             label34.Name = "label34";
             label34.Size = new System.Drawing.Size(36, 30);
@@ -533,7 +534,7 @@ namespace Kalendarz1
             // 
             // label35
             // 
-            label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label35.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.4F);
             label35.Location = new System.Drawing.Point(7, 82);
             label35.Name = "label35";
             label35.Size = new System.Drawing.Size(52, 31);
@@ -544,7 +545,7 @@ namespace Kalendarz1
             // obecnaDoba
             // 
             obecnaDoba.BackColor = System.Drawing.SystemColors.ScrollBar;
-            obecnaDoba.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obecnaDoba.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
             obecnaDoba.Location = new System.Drawing.Point(141, 27);
             obecnaDoba.Name = "obecnaDoba";
             obecnaDoba.Size = new System.Drawing.Size(30, 22);
@@ -554,7 +555,7 @@ namespace Kalendarz1
             // sztukiWstawienia
             // 
             sztukiWstawienia.BackColor = System.Drawing.SystemColors.ScrollBar;
-            sztukiWstawienia.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            sztukiWstawienia.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             sztukiWstawienia.Location = new System.Drawing.Point(7, 113);
             sztukiWstawienia.Multiline = true;
             sztukiWstawienia.Name = "sztukiWstawienia";
@@ -609,7 +610,7 @@ namespace Kalendarz1
             // checkBoxSZTUKI2
             // 
             checkBoxSZTUKI2.AutoSize = true;
-            checkBoxSZTUKI2.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxSZTUKI2.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxSZTUKI2.Location = new System.Drawing.Point(138, 102);
             checkBoxSZTUKI2.Name = "checkBoxSZTUKI2";
             checkBoxSZTUKI2.Size = new System.Drawing.Size(15, 14);
@@ -619,7 +620,7 @@ namespace Kalendarz1
             // sztukNaSzuflade2
             // 
             sztukNaSzuflade2.BackColor = System.Drawing.SystemColors.Window;
-            sztukNaSzuflade2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukNaSzuflade2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             sztukNaSzuflade2.Location = new System.Drawing.Point(159, 96);
             sztukNaSzuflade2.Name = "sztukNaSzuflade2";
             sztukNaSzuflade2.Size = new System.Drawing.Size(36, 25);
@@ -630,7 +631,7 @@ namespace Kalendarz1
             // KGSuma2
             // 
             KGSuma2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGSuma2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGSuma2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGSuma2.Location = new System.Drawing.Point(455, 95);
             KGSuma2.Name = "KGSuma2";
             KGSuma2.Size = new System.Drawing.Size(57, 25);
@@ -640,7 +641,7 @@ namespace Kalendarz1
             // KGwSkrzynekWAucie2
             // 
             KGwSkrzynekWAucie2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwSkrzynekWAucie2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwSkrzynekWAucie2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwSkrzynekWAucie2.Location = new System.Drawing.Point(264, 95);
             KGwSkrzynekWAucie2.Name = "KGwSkrzynekWAucie2";
             KGwSkrzynekWAucie2.Size = new System.Drawing.Size(57, 25);
@@ -651,7 +652,7 @@ namespace Kalendarz1
             // KGZestaw2
             // 
             KGZestaw2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGZestaw2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGZestaw2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGZestaw2.Location = new System.Drawing.Point(392, 95);
             KGZestaw2.Name = "KGZestaw2";
             KGZestaw2.Size = new System.Drawing.Size(57, 25);
@@ -662,7 +663,7 @@ namespace Kalendarz1
             // KGwPaleciak2
             // 
             KGwPaleciak2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwPaleciak2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwPaleciak2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwPaleciak2.Location = new System.Drawing.Point(328, 95);
             KGwPaleciak2.Name = "KGwPaleciak2";
             KGwPaleciak2.Size = new System.Drawing.Size(57, 25);
@@ -673,7 +674,7 @@ namespace Kalendarz1
             // KGwSkrzynce2
             // 
             KGwSkrzynce2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwSkrzynce2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwSkrzynce2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwSkrzynce2.Location = new System.Drawing.Point(201, 95);
             KGwSkrzynce2.Name = "KGwSkrzynce2";
             KGwSkrzynce2.Size = new System.Drawing.Size(57, 25);
@@ -684,7 +685,7 @@ namespace Kalendarz1
             // label50
             // 
             label50.BackColor = System.Drawing.Color.Honeydew;
-            label50.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label50.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label50.Location = new System.Drawing.Point(138, 14);
             label50.Name = "label50";
             label50.Size = new System.Drawing.Size(57, 48);
@@ -695,7 +696,7 @@ namespace Kalendarz1
             // sztukNaSzuflade1
             // 
             sztukNaSzuflade1.BackColor = System.Drawing.SystemColors.ScrollBar;
-            sztukNaSzuflade1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukNaSzuflade1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             sztukNaSzuflade1.Location = new System.Drawing.Point(138, 65);
             sztukNaSzuflade1.Name = "sztukNaSzuflade1";
             sztukNaSzuflade1.Size = new System.Drawing.Size(57, 25);
@@ -706,7 +707,7 @@ namespace Kalendarz1
             // label45
             // 
             label45.BackColor = System.Drawing.Color.Honeydew;
-            label45.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label45.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label45.Location = new System.Drawing.Point(455, 14);
             label45.Name = "label45";
             label45.Size = new System.Drawing.Size(57, 47);
@@ -717,7 +718,7 @@ namespace Kalendarz1
             // KGSuma
             // 
             KGSuma.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGSuma.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGSuma.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGSuma.Location = new System.Drawing.Point(455, 64);
             KGSuma.Name = "KGSuma";
             KGSuma.Size = new System.Drawing.Size(57, 25);
@@ -727,7 +728,7 @@ namespace Kalendarz1
             // label43
             // 
             label43.BackColor = System.Drawing.Color.Honeydew;
-            label43.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label43.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label43.Location = new System.Drawing.Point(264, 13);
             label43.Name = "label43";
             label43.Size = new System.Drawing.Size(57, 48);
@@ -738,7 +739,7 @@ namespace Kalendarz1
             // KGwSkrzynekWAucie
             // 
             KGwSkrzynekWAucie.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwSkrzynekWAucie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwSkrzynekWAucie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwSkrzynekWAucie.Location = new System.Drawing.Point(264, 64);
             KGwSkrzynekWAucie.Name = "KGwSkrzynekWAucie";
             KGwSkrzynekWAucie.Size = new System.Drawing.Size(57, 25);
@@ -760,7 +761,7 @@ namespace Kalendarz1
             // label44
             // 
             label44.BackColor = System.Drawing.Color.Honeydew;
-            label44.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label44.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label44.Location = new System.Drawing.Point(392, 13);
             label44.Name = "label44";
             label44.Size = new System.Drawing.Size(57, 48);
@@ -771,7 +772,7 @@ namespace Kalendarz1
             // KGZestaw
             // 
             KGZestaw.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGZestaw.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGZestaw.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGZestaw.Location = new System.Drawing.Point(392, 64);
             KGZestaw.Name = "KGZestaw";
             KGZestaw.Size = new System.Drawing.Size(57, 25);
@@ -782,7 +783,7 @@ namespace Kalendarz1
             // label22
             // 
             label22.BackColor = System.Drawing.Color.Honeydew;
-            label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label22.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label22.Location = new System.Drawing.Point(328, 13);
             label22.Name = "label22";
             label22.Size = new System.Drawing.Size(57, 36);
@@ -793,7 +794,7 @@ namespace Kalendarz1
             // KGwPaleciak
             // 
             KGwPaleciak.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwPaleciak.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwPaleciak.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwPaleciak.Location = new System.Drawing.Point(328, 64);
             KGwPaleciak.Name = "KGwPaleciak";
             KGwPaleciak.Size = new System.Drawing.Size(57, 25);
@@ -804,7 +805,7 @@ namespace Kalendarz1
             // label23
             // 
             label23.BackColor = System.Drawing.Color.Honeydew;
-            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label23.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label23.Location = new System.Drawing.Point(201, 13);
             label23.Name = "label23";
             label23.Size = new System.Drawing.Size(57, 48);
@@ -815,7 +816,7 @@ namespace Kalendarz1
             // KGwSkrzynce
             // 
             KGwSkrzynce.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KGwSkrzynce.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            KGwSkrzynce.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             KGwSkrzynce.Location = new System.Drawing.Point(201, 64);
             KGwSkrzynce.Name = "KGwSkrzynce";
             KGwSkrzynce.Size = new System.Drawing.Size(57, 25);
@@ -826,7 +827,7 @@ namespace Kalendarz1
             // KtoSztuki
             // 
             KtoSztuki.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KtoSztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KtoSztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             KtoSztuki.Location = new System.Drawing.Point(796, 350);
             KtoSztuki.Name = "KtoSztuki";
             KtoSztuki.Size = new System.Drawing.Size(95, 19);
@@ -847,7 +848,7 @@ namespace Kalendarz1
             // 
             // label52
             // 
-            label52.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label52.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label52.Location = new System.Drawing.Point(709, 351);
             label52.Name = "label52";
             label52.Size = new System.Drawing.Size(81, 17);
@@ -858,7 +859,7 @@ namespace Kalendarz1
             // KiedySztuki
             // 
             KiedySztuki.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KiedySztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KiedySztuki.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             KiedySztuki.Location = new System.Drawing.Point(796, 325);
             KiedySztuki.Name = "KiedySztuki";
             KiedySztuki.Size = new System.Drawing.Size(95, 19);
@@ -867,7 +868,7 @@ namespace Kalendarz1
             // 
             // label53
             // 
-            label53.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label53.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label53.Location = new System.Drawing.Point(723, 324);
             label53.Name = "label53";
             label53.Size = new System.Drawing.Size(67, 20);
@@ -878,7 +879,7 @@ namespace Kalendarz1
             // KtoWaga
             // 
             KtoWaga.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KtoWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KtoWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             KtoWaga.Location = new System.Drawing.Point(796, 300);
             KtoWaga.Name = "KtoWaga";
             KtoWaga.Size = new System.Drawing.Size(95, 19);
@@ -887,7 +888,7 @@ namespace Kalendarz1
             // 
             // label46
             // 
-            label46.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label46.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label46.Location = new System.Drawing.Point(711, 302);
             label46.Name = "label46";
             label46.Size = new System.Drawing.Size(79, 15);
@@ -898,7 +899,7 @@ namespace Kalendarz1
             // KiedyWaga
             // 
             KiedyWaga.BackColor = System.Drawing.SystemColors.ScrollBar;
-            KiedyWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KiedyWaga.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             KiedyWaga.Location = new System.Drawing.Point(796, 373);
             KiedyWaga.Name = "KiedyWaga";
             KiedyWaga.Size = new System.Drawing.Size(95, 19);
@@ -907,7 +908,7 @@ namespace Kalendarz1
             // 
             // label51
             // 
-            label51.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label51.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label51.Location = new System.Drawing.Point(723, 375);
             label51.Name = "label51";
             label51.Size = new System.Drawing.Size(67, 15);
@@ -949,7 +950,7 @@ namespace Kalendarz1
             // 
             // label8
             // 
-            label8.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label8.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label8.Location = new System.Drawing.Point(6, 51);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(60, 22);
@@ -959,7 +960,7 @@ namespace Kalendarz1
             // 
             // Status
             // 
-            Status.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Status.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             Status.FormattingEnabled = true;
             Status.Location = new System.Drawing.Point(6, 30);
             Status.Name = "Status";
@@ -969,7 +970,7 @@ namespace Kalendarz1
             // 
             // label2
             // 
-            label2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label2.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label2.Location = new System.Drawing.Point(6, 16);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(95, 15);
@@ -979,7 +980,7 @@ namespace Kalendarz1
             // 
             // TypUmowy
             // 
-            TypUmowy.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TypUmowy.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             TypUmowy.FormattingEnabled = true;
             TypUmowy.Location = new System.Drawing.Point(107, 30);
             TypUmowy.Name = "TypUmowy";
@@ -988,7 +989,7 @@ namespace Kalendarz1
             // 
             // label17
             // 
-            label17.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label17.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label17.Location = new System.Drawing.Point(107, 16);
             label17.Name = "label17";
             label17.Size = new System.Drawing.Size(95, 15);
@@ -998,7 +999,7 @@ namespace Kalendarz1
             // 
             // TypCeny
             // 
-            TypCeny.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            TypCeny.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             TypCeny.FormattingEnabled = true;
             TypCeny.Location = new System.Drawing.Point(208, 29);
             TypCeny.Name = "TypCeny";
@@ -1007,7 +1008,7 @@ namespace Kalendarz1
             // 
             // label16
             // 
-            label16.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label16.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label16.Location = new System.Drawing.Point(208, 15);
             label16.Name = "label16";
             label16.Size = new System.Drawing.Size(95, 15);
@@ -1018,7 +1019,7 @@ namespace Kalendarz1
             // Data
             // 
             Data.CustomFormat = "yyyy-MM-dd";
-            Data.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Data.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             Data.Format = DateTimePickerFormat.Custom;
             Data.Location = new System.Drawing.Point(68, 51);
             Data.Name = "Data";
@@ -1030,7 +1031,7 @@ namespace Kalendarz1
             // RoznicaDni
             // 
             RoznicaDni.BackColor = System.Drawing.SystemColors.ScrollBar;
-            RoznicaDni.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            RoznicaDni.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
             RoznicaDni.Location = new System.Drawing.Point(168, 51);
             RoznicaDni.Name = "RoznicaDni";
             RoznicaDni.Size = new System.Drawing.Size(34, 22);
@@ -1103,7 +1104,7 @@ namespace Kalendarz1
             // 
             // button8
             // 
-            button8.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button8.Font = new System.Drawing.Font("Segoe UI", 6F);
             button8.Location = new System.Drawing.Point(308, 62);
             button8.Name = "button8";
             button8.Size = new System.Drawing.Size(51, 20);
@@ -1113,7 +1114,7 @@ namespace Kalendarz1
             // 
             // button7
             // 
-            button7.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button7.Font = new System.Drawing.Font("Segoe UI", 6F);
             button7.Location = new System.Drawing.Point(8, 63);
             button7.Name = "button7";
             button7.Size = new System.Drawing.Size(51, 20);
@@ -1123,7 +1124,7 @@ namespace Kalendarz1
             // 
             // button4
             // 
-            button4.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button4.Font = new System.Drawing.Font("Segoe UI", 6F);
             button4.Location = new System.Drawing.Point(8, 43);
             button4.Name = "button4";
             button4.Size = new System.Drawing.Size(51, 20);
@@ -1133,7 +1134,7 @@ namespace Kalendarz1
             // 
             // DostawcaMapa
             // 
-            DostawcaMapa.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            DostawcaMapa.Font = new System.Drawing.Font("Segoe UI", 6F);
             DostawcaMapa.Location = new System.Drawing.Point(8, 23);
             DostawcaMapa.Name = "DostawcaMapa";
             DostawcaMapa.Size = new System.Drawing.Size(51, 20);
@@ -1146,7 +1147,7 @@ namespace Kalendarz1
             // 
             Kurnik.DropDownHeight = 300;
             Kurnik.DropDownWidth = 200;
-            Kurnik.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Kurnik.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             Kurnik.FormattingEnabled = true;
             Kurnik.IntegralHeight = false;
             Kurnik.Location = new System.Drawing.Point(58, 43);
@@ -1157,7 +1158,7 @@ namespace Kalendarz1
             // 
             // Email
             // 
-            Email.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Email.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             Email.Location = new System.Drawing.Point(363, 63);
             Email.Name = "Email";
             Email.Size = new System.Drawing.Size(144, 18);
@@ -1166,7 +1167,7 @@ namespace Kalendarz1
             // 
             // KmK
             // 
-            KmK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             KmK.Location = new System.Drawing.Point(465, 43);
             KmK.Name = "KmK";
             KmK.Size = new System.Drawing.Size(43, 18);
@@ -1177,7 +1178,7 @@ namespace Kalendarz1
             // 
             Dostawca.DropDownHeight = 300;
             Dostawca.DropDownWidth = 200;
-            Dostawca.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            Dostawca.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             Dostawca.FormattingEnabled = true;
             Dostawca.IntegralHeight = false;
             Dostawca.Location = new System.Drawing.Point(58, 23);
@@ -1188,7 +1189,7 @@ namespace Kalendarz1
             // 
             // KmH
             // 
-            KmH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KmH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             KmH.Location = new System.Drawing.Point(465, 23);
             KmH.Name = "KmH";
             KmH.Size = new System.Drawing.Size(43, 18);
@@ -1198,7 +1199,7 @@ namespace Kalendarz1
             // 
             // MiejscK
             // 
-            MiejscK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             MiejscK.Location = new System.Drawing.Point(363, 43);
             MiejscK.Name = "MiejscK";
             MiejscK.Size = new System.Drawing.Size(96, 18);
@@ -1207,7 +1208,7 @@ namespace Kalendarz1
             // 
             // tel1
             // 
-            tel1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             tel1.Location = new System.Drawing.Point(58, 63);
             tel1.Name = "tel1";
             tel1.Size = new System.Drawing.Size(77, 19);
@@ -1216,7 +1217,7 @@ namespace Kalendarz1
             // 
             // label6
             // 
-            label6.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label6.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label6.Location = new System.Drawing.Point(464, 10);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(43, 14);
@@ -1226,7 +1227,7 @@ namespace Kalendarz1
             // 
             // tel2
             // 
-            tel2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             tel2.Location = new System.Drawing.Point(141, 63);
             tel2.Name = "tel2";
             tel2.Size = new System.Drawing.Size(77, 19);
@@ -1236,7 +1237,7 @@ namespace Kalendarz1
             // 
             // MiejscH
             // 
-            MiejscH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            MiejscH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             MiejscH.Location = new System.Drawing.Point(363, 23);
             MiejscH.Name = "MiejscH";
             MiejscH.Size = new System.Drawing.Size(96, 18);
@@ -1245,7 +1246,7 @@ namespace Kalendarz1
             // 
             // KodPocztowyK
             // 
-            KodPocztowyK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             KodPocztowyK.Location = new System.Drawing.Point(321, 43);
             KodPocztowyK.Name = "KodPocztowyK";
             KodPocztowyK.Size = new System.Drawing.Size(38, 18);
@@ -1254,7 +1255,7 @@ namespace Kalendarz1
             // 
             // tel3
             // 
-            tel3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            tel3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             tel3.Location = new System.Drawing.Point(224, 63);
             tel3.Name = "tel3";
             tel3.Size = new System.Drawing.Size(77, 19);
@@ -1263,7 +1264,7 @@ namespace Kalendarz1
             // 
             // label3
             // 
-            label3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label3.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label3.Location = new System.Drawing.Point(215, 10);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(99, 14);
@@ -1273,7 +1274,7 @@ namespace Kalendarz1
             // 
             // UlicaK
             // 
-            UlicaK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaK.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             UlicaK.Location = new System.Drawing.Point(216, 43);
             UlicaK.Name = "UlicaK";
             UlicaK.Size = new System.Drawing.Size(99, 18);
@@ -1282,7 +1283,7 @@ namespace Kalendarz1
             // 
             // label5
             // 
-            label5.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label5.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label5.Location = new System.Drawing.Point(362, 10);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(96, 14);
@@ -1292,7 +1293,7 @@ namespace Kalendarz1
             // 
             // KodPocztowyH
             // 
-            KodPocztowyH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            KodPocztowyH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             KodPocztowyH.Location = new System.Drawing.Point(321, 23);
             KodPocztowyH.Name = "KodPocztowyH";
             KodPocztowyH.Size = new System.Drawing.Size(38, 18);
@@ -1301,7 +1302,7 @@ namespace Kalendarz1
             // 
             // UlicaH
             // 
-            UlicaH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            UlicaH.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             UlicaH.Location = new System.Drawing.Point(216, 23);
             UlicaH.Name = "UlicaH";
             UlicaH.Size = new System.Drawing.Size(99, 18);
@@ -1310,7 +1311,7 @@ namespace Kalendarz1
             // 
             // label4
             // 
-            label4.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label4.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label4.Location = new System.Drawing.Point(321, 10);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(38, 14);
@@ -1368,7 +1369,7 @@ namespace Kalendarz1
             // obliczeniaAut2
             // 
             obliczeniaAut2.BackColor = System.Drawing.SystemColors.ScrollBar;
-            obliczeniaAut2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obliczeniaAut2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             obliczeniaAut2.Location = new System.Drawing.Point(197, 144);
             obliczeniaAut2.Multiline = true;
             obliczeniaAut2.Name = "obliczeniaAut2";
@@ -1408,7 +1409,7 @@ namespace Kalendarz1
             // 
             // label36
             // 
-            label36.Font = new System.Drawing.Font("Segoe UI", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label36.Font = new System.Drawing.Font("Segoe UI", 7F);
             label36.Location = new System.Drawing.Point(308, 125);
             label36.Name = "label36";
             label36.Size = new System.Drawing.Size(59, 29);
@@ -1419,7 +1420,7 @@ namespace Kalendarz1
             // textBox4
             // 
             textBox4.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textBox4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox4.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             textBox4.Location = new System.Drawing.Point(311, 155);
             textBox4.Multiline = true;
             textBox4.Name = "textBox4";
@@ -1429,7 +1430,7 @@ namespace Kalendarz1
             // 
             // buttonWklej
             // 
-            buttonWklej.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonWklej.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             buttonWklej.Location = new System.Drawing.Point(128, 113);
             buttonWklej.Name = "buttonWklej";
             buttonWklej.Size = new System.Drawing.Size(63, 28);
@@ -1441,7 +1442,7 @@ namespace Kalendarz1
             // ubytekProcentowyObliczenie
             // 
             ubytekProcentowyObliczenie.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ubytekProcentowyObliczenie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            ubytekProcentowyObliczenie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             ubytekProcentowyObliczenie.Location = new System.Drawing.Point(248, 114);
             ubytekProcentowyObliczenie.Multiline = true;
             ubytekProcentowyObliczenie.Name = "ubytekProcentowyObliczenie";
@@ -1452,7 +1453,7 @@ namespace Kalendarz1
             // obliczoneSztuki
             // 
             obliczoneSztuki.BackColor = System.Drawing.SystemColors.ScrollBar;
-            obliczoneSztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obliczoneSztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             obliczoneSztuki.Location = new System.Drawing.Point(128, 140);
             obliczoneSztuki.Name = "obliczoneSztuki";
             obliczoneSztuki.Size = new System.Drawing.Size(62, 25);
@@ -1461,7 +1462,7 @@ namespace Kalendarz1
             // 
             // label41
             // 
-            label41.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label41.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label41.Location = new System.Drawing.Point(110, 147);
             label41.Name = "label41";
             label41.Size = new System.Drawing.Size(18, 13);
@@ -1472,7 +1473,7 @@ namespace Kalendarz1
             // 
             // label33
             // 
-            label33.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label33.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label33.Location = new System.Drawing.Point(60, 146);
             label33.Name = "label33";
             label33.Size = new System.Drawing.Size(10, 12);
@@ -1482,7 +1483,7 @@ namespace Kalendarz1
             // 
             // label32
             // 
-            label32.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label32.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label32.Location = new System.Drawing.Point(70, 125);
             label32.Name = "label32";
             label32.Size = new System.Drawing.Size(39, 12);
@@ -1492,7 +1493,7 @@ namespace Kalendarz1
             // 
             // label28
             // 
-            label28.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label28.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label28.Location = new System.Drawing.Point(2, 125);
             label28.Name = "label28";
             label28.Size = new System.Drawing.Size(62, 15);
@@ -1503,7 +1504,7 @@ namespace Kalendarz1
             // obliczoneAuta
             // 
             obliczoneAuta.BackColor = System.Drawing.SystemColors.Window;
-            obliczoneAuta.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obliczoneAuta.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             obliczoneAuta.Location = new System.Drawing.Point(70, 140);
             obliczoneAuta.Multiline = true;
             obliczoneAuta.Name = "obliczoneAuta";
@@ -1515,7 +1516,7 @@ namespace Kalendarz1
             // Dodatek
             // 
             Dodatek.BackColor = System.Drawing.SystemColors.ScrollBar;
-            Dodatek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Dodatek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             Dodatek.Location = new System.Drawing.Point(366, 55);
             Dodatek.Name = "Dodatek";
             Dodatek.Size = new System.Drawing.Size(51, 25);
@@ -1524,7 +1525,7 @@ namespace Kalendarz1
             // 
             // Cena
             // 
-            Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Cena.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             Cena.Location = new System.Drawing.Point(311, 56);
             Cena.Name = "Cena";
             Cena.Size = new System.Drawing.Size(50, 25);
@@ -1614,7 +1615,7 @@ namespace Kalendarz1
             // wyliczone
             // 
             wyliczone.BackColor = System.Drawing.SystemColors.ScrollBar;
-            wyliczone.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            wyliczone.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             wyliczone.Location = new System.Drawing.Point(2, 140);
             wyliczone.Name = "wyliczone";
             wyliczone.Size = new System.Drawing.Size(58, 25);
@@ -1624,7 +1625,7 @@ namespace Kalendarz1
             // 
             // Ubytek
             // 
-            Ubytek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Ubytek.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             Ubytek.Location = new System.Drawing.Point(248, 57);
             Ubytek.Name = "Ubytek";
             Ubytek.Size = new System.Drawing.Size(57, 25);
@@ -1634,7 +1635,7 @@ namespace Kalendarz1
             // 
             // label15
             // 
-            label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label15.Location = new System.Drawing.Point(248, 19);
             label15.Name = "label15";
             label15.Size = new System.Drawing.Size(57, 35);
@@ -1645,7 +1646,7 @@ namespace Kalendarz1
             // obliczeniaAut
             // 
             obliczeniaAut.BackColor = System.Drawing.SystemColors.ScrollBar;
-            obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            obliczeniaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             obliczeniaAut.Location = new System.Drawing.Point(197, 114);
             obliczeniaAut.Multiline = true;
             obliczeniaAut.Name = "obliczeniaAut";
@@ -1655,7 +1656,7 @@ namespace Kalendarz1
             // 
             // liczbaAut
             // 
-            liczbaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            liczbaAut.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             liczbaAut.Location = new System.Drawing.Point(197, 56);
             liczbaAut.Name = "liczbaAut";
             liczbaAut.Size = new System.Drawing.Size(45, 25);
@@ -1664,7 +1665,7 @@ namespace Kalendarz1
             // 
             // label12
             // 
-            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold);
             label12.Location = new System.Drawing.Point(197, 22);
             label12.Name = "label12";
             label12.Size = new System.Drawing.Size(45, 34);
@@ -1674,7 +1675,7 @@ namespace Kalendarz1
             // 
             // sztuki
             // 
-            sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztuki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             sztuki.Location = new System.Drawing.Point(128, 56);
             sztuki.Name = "sztuki";
             sztuki.Size = new System.Drawing.Size(62, 25);
@@ -1684,7 +1685,7 @@ namespace Kalendarz1
             // 
             // label11
             // 
-            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label11.Location = new System.Drawing.Point(128, 22);
             label11.Name = "label11";
             label11.Size = new System.Drawing.Size(49, 34);
@@ -1694,7 +1695,7 @@ namespace Kalendarz1
             // 
             // sztukNaSzuflade
             // 
-            sztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             sztukNaSzuflade.Location = new System.Drawing.Point(66, 56);
             sztukNaSzuflade.Name = "sztukNaSzuflade";
             sztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
@@ -1704,7 +1705,7 @@ namespace Kalendarz1
             // 
             // label10
             // 
-            label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label10.Location = new System.Drawing.Point(66, 21);
             label10.Name = "label10";
             label10.Size = new System.Drawing.Size(57, 35);
@@ -1714,7 +1715,7 @@ namespace Kalendarz1
             // 
             // srednia
             // 
-            srednia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            srednia.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             srednia.Location = new System.Drawing.Point(2, 57);
             srednia.Multiline = true;
             srednia.Name = "srednia";
@@ -1725,7 +1726,7 @@ namespace Kalendarz1
             // 
             // label9
             // 
-            label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F);
             label9.Location = new System.Drawing.Point(2, 22);
             label9.Name = "label9";
             label9.Size = new System.Drawing.Size(43, 33);
@@ -1737,7 +1738,7 @@ namespace Kalendarz1
             // dataStwo
             // 
             dataStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             dataStwo.Location = new System.Drawing.Point(610, 300);
             dataStwo.Name = "dataStwo";
             dataStwo.Size = new System.Drawing.Size(95, 19);
@@ -1746,7 +1747,7 @@ namespace Kalendarz1
             // 
             // lalv
             // 
-            lalv.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lalv.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             lalv.Location = new System.Drawing.Point(530, 327);
             lalv.Name = "lalv";
             lalv.Size = new System.Drawing.Size(74, 15);
@@ -1757,7 +1758,7 @@ namespace Kalendarz1
             // dataMod
             // 
             dataMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            dataMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataMod.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             dataMod.Location = new System.Drawing.Point(610, 350);
             dataMod.Name = "dataMod";
             dataMod.Size = new System.Drawing.Size(95, 19);
@@ -1766,7 +1767,7 @@ namespace Kalendarz1
             // 
             // label24
             // 
-            label24.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label24.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label24.Location = new System.Drawing.Point(530, 302);
             label24.Name = "label24";
             label24.Size = new System.Drawing.Size(74, 15);
@@ -1776,7 +1777,7 @@ namespace Kalendarz1
             // 
             // label25
             // 
-            label25.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label25.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label25.Location = new System.Drawing.Point(530, 352);
             label25.Name = "label25";
             label25.Size = new System.Drawing.Size(74, 15);
@@ -1786,7 +1787,7 @@ namespace Kalendarz1
             // 
             // Uwagi
             // 
-            Uwagi.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            Uwagi.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             Uwagi.Location = new System.Drawing.Point(9, 288);
             Uwagi.Multiline = true;
             Uwagi.Name = "Uwagi";
@@ -1797,7 +1798,7 @@ namespace Kalendarz1
             // ktoMod
             // 
             ktoMod.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ktoMod.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            ktoMod.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             ktoMod.Location = new System.Drawing.Point(610, 375);
             ktoMod.Name = "ktoMod";
             ktoMod.Size = new System.Drawing.Size(95, 19);
@@ -1807,7 +1808,7 @@ namespace Kalendarz1
             // ktoStwo
             // 
             ktoStwo.BackColor = System.Drawing.SystemColors.ScrollBar;
-            ktoStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            ktoStwo.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             ktoStwo.Location = new System.Drawing.Point(610, 325);
             ktoStwo.Name = "ktoStwo";
             ktoStwo.Size = new System.Drawing.Size(95, 19);
@@ -1816,7 +1817,7 @@ namespace Kalendarz1
             // 
             // label29
             // 
-            label29.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label29.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label29.Location = new System.Drawing.Point(530, 377);
             label29.Name = "label29";
             label29.Size = new System.Drawing.Size(76, 15);
@@ -1826,7 +1827,7 @@ namespace Kalendarz1
             // 
             // label60
             // 
-            label60.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label60.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label60.Location = new System.Drawing.Point(925, 640);
             label60.Name = "label60";
             label60.Size = new System.Drawing.Size(118, 43);
@@ -1836,7 +1837,7 @@ namespace Kalendarz1
             // 
             // label54
             // 
-            label54.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label54.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label54.Location = new System.Drawing.Point(925, 599);
             label54.Name = "label54";
             label54.Size = new System.Drawing.Size(118, 12);
@@ -1848,7 +1849,7 @@ namespace Kalendarz1
             // 
             comboBoxOsobowosc2.DropDownHeight = 300;
             comboBoxOsobowosc2.DropDownWidth = 200;
-            comboBoxOsobowosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            comboBoxOsobowosc2.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             comboBoxOsobowosc2.FormattingEnabled = true;
             comboBoxOsobowosc2.IntegralHeight = false;
             comboBoxOsobowosc2.Location = new System.Drawing.Point(927, 686);
@@ -1860,7 +1861,7 @@ namespace Kalendarz1
             // 
             comboBoxOsobowosc.DropDownHeight = 300;
             comboBoxOsobowosc.DropDownWidth = 200;
-            comboBoxOsobowosc.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            comboBoxOsobowosc.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F);
             comboBoxOsobowosc.FormattingEnabled = true;
             comboBoxOsobowosc.IntegralHeight = false;
             comboBoxOsobowosc.Location = new System.Drawing.Point(927, 614);
@@ -1891,7 +1892,7 @@ namespace Kalendarz1
             // 
             // info1
             // 
-            info1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info1.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             info1.Location = new System.Drawing.Point(519, 853);
             info1.Name = "info1";
             info1.Size = new System.Drawing.Size(90, 19);
@@ -1901,7 +1902,7 @@ namespace Kalendarz1
             // 
             // info2
             // 
-            info2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info2.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             info2.Location = new System.Drawing.Point(519, 872);
             info2.Name = "info2";
             info2.Size = new System.Drawing.Size(90, 19);
@@ -1911,7 +1912,7 @@ namespace Kalendarz1
             // 
             // label27
             // 
-            label27.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label27.Font = new System.Drawing.Font("Segoe UI", 6.75F);
             label27.Location = new System.Drawing.Point(509, 952);
             label27.Name = "label27";
             label27.Size = new System.Drawing.Size(90, 13);
@@ -1922,7 +1923,7 @@ namespace Kalendarz1
             // 
             // info3
             // 
-            info3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            info3.Font = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Bold);
             info3.Location = new System.Drawing.Point(519, 891);
             info3.Name = "info3";
             info3.Size = new System.Drawing.Size(90, 19);
@@ -1953,7 +1954,7 @@ namespace Kalendarz1
             // 
             // label21
             // 
-            label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label21.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             label21.Location = new System.Drawing.Point(13, 332);
             label21.Name = "label21";
             label21.Size = new System.Drawing.Size(50, 20);
@@ -1972,7 +1973,7 @@ namespace Kalendarz1
             // 
             // textBox12
             // 
-            textBox12.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox12.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             textBox12.Location = new System.Drawing.Point(340, 914);
             textBox12.Name = "textBox12";
             textBox12.Size = new System.Drawing.Size(57, 25);
@@ -1983,7 +1984,7 @@ namespace Kalendarz1
             // CalcSztukNaSzuflade
             // 
             CalcSztukNaSzuflade.BackColor = System.Drawing.SystemColors.ScrollBar;
-            CalcSztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CalcSztukNaSzuflade.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             CalcSztukNaSzuflade.Location = new System.Drawing.Point(340, 945);
             CalcSztukNaSzuflade.Name = "CalcSztukNaSzuflade";
             CalcSztukNaSzuflade.Size = new System.Drawing.Size(57, 25);
@@ -2013,7 +2014,7 @@ namespace Kalendarz1
             // 
             // textBox13
             // 
-            textBox13.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox13.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             textBox13.Location = new System.Drawing.Point(687, 858);
             textBox13.Name = "textBox13";
             textBox13.Size = new System.Drawing.Size(57, 25);
@@ -2024,7 +2025,7 @@ namespace Kalendarz1
             // iloscPoj
             // 
             iloscPoj.BackColor = System.Drawing.SystemColors.ScrollBar;
-            iloscPoj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            iloscPoj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             iloscPoj.Location = new System.Drawing.Point(381, 869);
             iloscPoj.Name = "iloscPoj";
             iloscPoj.Size = new System.Drawing.Size(57, 25);
@@ -2035,7 +2036,7 @@ namespace Kalendarz1
             // WagaTuszki
             // 
             WagaTuszki.BackColor = System.Drawing.SystemColors.ScrollBar;
-            WagaTuszki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            WagaTuszki.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             WagaTuszki.Location = new System.Drawing.Point(443, 909);
             WagaTuszki.Name = "WagaTuszki";
             WagaTuszki.Size = new System.Drawing.Size(57, 25);
@@ -2045,7 +2046,7 @@ namespace Kalendarz1
             // 
             // WagaDni
             // 
-            WagaDni.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            WagaDni.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             WagaDni.Location = new System.Drawing.Point(341, 877);
             WagaDni.Name = "WagaDni";
             WagaDni.Size = new System.Drawing.Size(57, 25);
@@ -2055,7 +2056,7 @@ namespace Kalendarz1
             // 
             // sztukiPelne
             // 
-            sztukiPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sztukiPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             sztukiPelne.Location = new System.Drawing.Point(679, 817);
             sztukiPelne.Name = "sztukiPelne";
             sztukiPelne.Size = new System.Drawing.Size(35, 25);
@@ -2065,7 +2066,7 @@ namespace Kalendarz1
             // 
             // dataUbiorka
             // 
-            dataUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dataUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             dataUbiorka.Location = new System.Drawing.Point(413, 940);
             dataUbiorka.Name = "dataUbiorka";
             dataUbiorka.Size = new System.Drawing.Size(86, 25);
@@ -2075,7 +2076,7 @@ namespace Kalendarz1
             // 
             // dataPelne
             // 
-            dataPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            dataPelne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             dataPelne.Location = new System.Drawing.Point(674, 841);
             dataPelne.Name = "dataPelne";
             dataPelne.Size = new System.Drawing.Size(40, 25);
@@ -2085,7 +2086,7 @@ namespace Kalendarz1
             // 
             // SztukiUbiorka
             // 
-            SztukiUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SztukiUbiorka.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             SztukiUbiorka.Location = new System.Drawing.Point(284, 910);
             SztukiUbiorka.Name = "SztukiUbiorka";
             SztukiUbiorka.Size = new System.Drawing.Size(65, 25);
@@ -2105,7 +2106,7 @@ namespace Kalendarz1
             // 
             // SumAutDzien
             // 
-            SumAutDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SumAutDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             SumAutDzien.Location = new System.Drawing.Point(676, 816);
             SumAutDzien.Name = "SumAutDzien";
             SumAutDzien.Size = new System.Drawing.Size(57, 25);
@@ -2115,7 +2116,7 @@ namespace Kalendarz1
             // 
             // SumaSztukDzien
             // 
-            SumaSztukDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            SumaSztukDzien.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             SumaSztukDzien.Location = new System.Drawing.Point(330, 830);
             SumaSztukDzien.Name = "SumaSztukDzien";
             SumaSztukDzien.Size = new System.Drawing.Size(57, 25);
@@ -2125,7 +2126,7 @@ namespace Kalendarz1
             // 
             // textBox10
             // 
-            textBox10.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox10.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             textBox10.Location = new System.Drawing.Point(676, 847);
             textBox10.Name = "textBox10";
             textBox10.Size = new System.Drawing.Size(57, 25);
@@ -2135,7 +2136,7 @@ namespace Kalendarz1
             // 
             // textBox11
             // 
-            textBox11.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textBox11.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             textBox11.Location = new System.Drawing.Point(330, 861);
             textBox11.Name = "textBox11";
             textBox11.Size = new System.Drawing.Size(57, 25);
@@ -2146,7 +2147,7 @@ namespace Kalendarz1
             // checkBoxSprzedane
             // 
             checkBoxSprzedane.AutoSize = true;
-            checkBoxSprzedane.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxSprzedane.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxSprzedane.Location = new System.Drawing.Point(0, 4);
             checkBoxSprzedane.Name = "checkBoxSprzedane";
             checkBoxSprzedane.Size = new System.Drawing.Size(62, 15);
@@ -2157,7 +2158,7 @@ namespace Kalendarz1
             // checkBoxDoWykupienia
             // 
             checkBoxDoWykupienia.AutoSize = true;
-            checkBoxDoWykupienia.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxDoWykupienia.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxDoWykupienia.Location = new System.Drawing.Point(0, 19);
             checkBoxDoWykupienia.Name = "checkBoxDoWykupienia";
             checkBoxDoWykupienia.Size = new System.Drawing.Size(66, 15);
@@ -2189,7 +2190,7 @@ namespace Kalendarz1
             // 
             // label38
             // 
-            label38.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label38.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label38.Location = new System.Drawing.Point(226, 5);
             label38.Name = "label38";
             label38.Size = new System.Drawing.Size(52, 14);
@@ -2199,7 +2200,7 @@ namespace Kalendarz1
             // 
             // textLaczona
             // 
-            textLaczona.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textLaczona.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textLaczona.Location = new System.Drawing.Point(226, 19);
             textLaczona.Name = "textLaczona";
             textLaczona.Size = new System.Drawing.Size(52, 21);
@@ -2208,7 +2209,7 @@ namespace Kalendarz1
             // 
             // textMinister
             // 
-            textMinister.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textMinister.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textMinister.Location = new System.Drawing.Point(179, 20);
             textMinister.Name = "textMinister";
             textMinister.Size = new System.Drawing.Size(45, 21);
@@ -2217,7 +2218,7 @@ namespace Kalendarz1
             // 
             // textRolnicza
             // 
-            textRolnicza.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textRolnicza.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textRolnicza.Location = new System.Drawing.Point(123, 20);
             textRolnicza.Name = "textRolnicza";
             textRolnicza.Size = new System.Drawing.Size(54, 21);
@@ -2226,7 +2227,7 @@ namespace Kalendarz1
             // 
             // label42
             // 
-            label42.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label42.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label42.Location = new System.Drawing.Point(365, 7);
             label42.Name = "label42";
             label42.Size = new System.Drawing.Size(46, 10);
@@ -2237,7 +2238,7 @@ namespace Kalendarz1
             // 
             // textTuszki
             // 
-            textTuszki.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textTuszki.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textTuszki.Location = new System.Drawing.Point(365, 19);
             textTuszki.Name = "textTuszki";
             textTuszki.Size = new System.Drawing.Size(44, 21);
@@ -2246,7 +2247,7 @@ namespace Kalendarz1
             // 
             // label49
             // 
-            label49.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label49.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label49.Location = new System.Drawing.Point(323, 7);
             label49.Name = "label49";
             label49.Size = new System.Drawing.Size(40, 10);
@@ -2256,7 +2257,7 @@ namespace Kalendarz1
             // 
             // label48
             // 
-            label48.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label48.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label48.Location = new System.Drawing.Point(280, 8);
             label48.Name = "label48";
             label48.Size = new System.Drawing.Size(42, 10);
@@ -2266,7 +2267,7 @@ namespace Kalendarz1
             // 
             // textTuszkiRol
             // 
-            textTuszkiRol.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textTuszkiRol.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textTuszkiRol.Location = new System.Drawing.Point(323, 19);
             textTuszkiRol.Name = "textTuszkiRol";
             textTuszkiRol.Size = new System.Drawing.Size(40, 21);
@@ -2275,7 +2276,7 @@ namespace Kalendarz1
             // 
             // textWolny
             // 
-            textWolny.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textWolny.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textWolny.Location = new System.Drawing.Point(280, 19);
             textWolny.Name = "textWolny";
             textWolny.Size = new System.Drawing.Size(42, 21);
@@ -2284,7 +2285,7 @@ namespace Kalendarz1
             // 
             // buttonPokazTuszke
             // 
-            buttonPokazTuszke.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            buttonPokazTuszke.Font = new System.Drawing.Font("Segoe UI", 6F);
             buttonPokazTuszke.Location = new System.Drawing.Point(365, 41);
             buttonPokazTuszke.Name = "buttonPokazTuszke";
             buttonPokazTuszke.Size = new System.Drawing.Size(46, 22);
@@ -2296,7 +2297,7 @@ namespace Kalendarz1
             // textRolniczaPrzebitka
             // 
             textRolniczaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textRolniczaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textRolniczaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textRolniczaPrzebitka.Location = new System.Drawing.Point(123, 41);
             textRolniczaPrzebitka.Name = "textRolniczaPrzebitka";
             textRolniczaPrzebitka.Size = new System.Drawing.Size(54, 21);
@@ -2306,7 +2307,7 @@ namespace Kalendarz1
             // textMinisterPrzebitka
             // 
             textMinisterPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textMinisterPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textMinisterPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textMinisterPrzebitka.Location = new System.Drawing.Point(179, 41);
             textMinisterPrzebitka.Name = "textMinisterPrzebitka";
             textMinisterPrzebitka.Size = new System.Drawing.Size(45, 21);
@@ -2316,7 +2317,7 @@ namespace Kalendarz1
             // textLaczonaPrzebitka
             // 
             textLaczonaPrzebitka.BackColor = System.Drawing.SystemColors.ScrollBar;
-            textLaczonaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            textLaczonaPrzebitka.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold);
             textLaczonaPrzebitka.Location = new System.Drawing.Point(226, 41);
             textLaczonaPrzebitka.Name = "textLaczonaPrzebitka";
             textLaczonaPrzebitka.Size = new System.Drawing.Size(52, 21);
@@ -2325,7 +2326,7 @@ namespace Kalendarz1
             // 
             // label40
             // 
-            label40.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label40.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label40.Location = new System.Drawing.Point(123, 2);
             label40.Name = "label40";
             label40.Size = new System.Drawing.Size(54, 20);
@@ -2336,7 +2337,7 @@ namespace Kalendarz1
             // 
             // label39
             // 
-            label39.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            label39.Font = new System.Drawing.Font("Microsoft Sans Serif", 6F);
             label39.Location = new System.Drawing.Point(174, 2);
             label39.Name = "label39";
             label39.Size = new System.Drawing.Size(55, 20);
@@ -2351,7 +2352,7 @@ namespace Kalendarz1
             buttonWstawienie.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonWstawienie.BackgroundImage");
             buttonWstawienie.BackgroundImageLayout = ImageLayout.Stretch;
             buttonWstawienie.FlatStyle = FlatStyle.Flat;
-            buttonWstawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonWstawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Bold);
             buttonWstawienie.ForeColor = System.Drawing.Color.MidnightBlue;
             buttonWstawienie.Location = new System.Drawing.Point(0, 158);
             buttonWstawienie.Name = "buttonWstawienie";
@@ -2367,15 +2368,15 @@ namespace Kalendarz1
             dataGridPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridPartie.Location = new System.Drawing.Point(6, 6);
             dataGridPartie.Name = "dataGridPartie";
-            dataGridPartie.RowTemplate.Height = 25;
             dataGridPartie.Size = new System.Drawing.Size(765, 431);
+            dataGridPartie.StandardTab = true;
             dataGridPartie.TabIndex = 113;
             dataGridPartie.CellContentClick += dataGridPartie_CellContentClick;
             dataGridPartie.CellFormatting += dataGridPartie_CellFormatting;
             // 
             // button1
             // 
-            button1.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button1.Font = new System.Drawing.Font("Segoe UI", 14F);
             button1.Location = new System.Drawing.Point(1, 389);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(38, 31);
@@ -2387,7 +2388,7 @@ namespace Kalendarz1
             // 
             // button5
             // 
-            button5.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button5.Font = new System.Drawing.Font("Segoe UI", 14F);
             button5.Location = new System.Drawing.Point(38, 389);
             button5.Name = "button5";
             button5.Size = new System.Drawing.Size(36, 31);
@@ -2399,7 +2400,7 @@ namespace Kalendarz1
             // 
             // buttonUpDate
             // 
-            buttonUpDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonUpDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             buttonUpDate.Location = new System.Drawing.Point(13, 61);
             buttonUpDate.Name = "buttonUpDate";
             buttonUpDate.Size = new System.Drawing.Size(50, 49);
@@ -2410,7 +2411,7 @@ namespace Kalendarz1
             // 
             // buttonDownDate
             // 
-            buttonDownDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonDownDate.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             buttonDownDate.Location = new System.Drawing.Point(13, 14);
             buttonDownDate.Name = "buttonDownDate";
             buttonDownDate.Size = new System.Drawing.Size(50, 46);
@@ -2423,7 +2424,7 @@ namespace Kalendarz1
             // checkBoxCena
             // 
             checkBoxCena.AutoSize = true;
-            checkBoxCena.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxCena.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxCena.Location = new System.Drawing.Point(0, 34);
             checkBoxCena.Name = "checkBoxCena";
             checkBoxCena.Size = new System.Drawing.Size(63, 15);
@@ -2435,7 +2436,7 @@ namespace Kalendarz1
             // checkBoxNotatki
             // 
             checkBoxNotatki.AutoSize = true;
-            checkBoxNotatki.Font = new System.Drawing.Font("Segoe UI", 6F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            checkBoxNotatki.Font = new System.Drawing.Font("Segoe UI", 6F);
             checkBoxNotatki.Location = new System.Drawing.Point(68, 3);
             checkBoxNotatki.Name = "checkBoxNotatki";
             checkBoxNotatki.Size = new System.Drawing.Size(51, 15);
@@ -2458,7 +2459,7 @@ namespace Kalendarz1
             // button12
             // 
             button12.BackColor = System.Drawing.Color.Chartreuse;
-            button12.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button12.Font = new System.Drawing.Font("Segoe UI", 8F);
             button12.Location = new System.Drawing.Point(494, 21);
             button12.Name = "button12";
             button12.Size = new System.Drawing.Size(75, 22);
@@ -2470,7 +2471,7 @@ namespace Kalendarz1
             // button13
             // 
             button13.BackColor = System.Drawing.Color.Chartreuse;
-            button13.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button13.Font = new System.Drawing.Font("Segoe UI", 8F);
             button13.Location = new System.Drawing.Point(494, -1);
             button13.Name = "button13";
             button13.Size = new System.Drawing.Size(75, 22);
@@ -2482,7 +2483,7 @@ namespace Kalendarz1
             // button9
             // 
             button9.BackColor = System.Drawing.Color.Black;
-            button9.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button9.Font = new System.Drawing.Font("Segoe UI", 8F);
             button9.ForeColor = System.Drawing.SystemColors.ControlLightLight;
             button9.Location = new System.Drawing.Point(494, 43);
             button9.Name = "button9";
@@ -2495,7 +2496,7 @@ namespace Kalendarz1
             // button14
             // 
             button14.BackColor = System.Drawing.Color.Yellow;
-            button14.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            button14.Font = new System.Drawing.Font("Segoe UI", 8F);
             button14.Location = new System.Drawing.Point(413, -1);
             button14.Name = "button14";
             button14.Size = new System.Drawing.Size(75, 22);
@@ -2564,7 +2565,6 @@ namespace Kalendarz1
             dataGridAvilog.Location = new System.Drawing.Point(823, 899);
             dataGridAvilog.Name = "dataGridAvilog";
             dataGridAvilog.RowHeadersVisible = false;
-            dataGridAvilog.RowTemplate.Height = 25;
             dataGridAvilog.Size = new System.Drawing.Size(10, 104);
             dataGridAvilog.TabIndex = 130;
             dataGridAvilog.CellFormatting += dataGridAvilog_CellFormatting;
@@ -2574,7 +2574,6 @@ namespace Kalendarz1
             dataGridSumaPartie.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridSumaPartie.Location = new System.Drawing.Point(803, 596);
             dataGridSumaPartie.Name = "dataGridSumaPartie";
-            dataGridSumaPartie.RowTemplate.Height = 25;
             dataGridSumaPartie.Size = new System.Drawing.Size(107, 186);
             dataGridSumaPartie.TabIndex = 131;
             // 
@@ -2590,9 +2589,9 @@ namespace Kalendarz1
             // 
             // dateTimePicker1
             // 
-            dateTimePicker1.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker1.CalendarFont = new System.Drawing.Font("Segoe UI", 6.75F);
             dateTimePicker1.CustomFormat = "yyyy-MM-dd";
-            dateTimePicker1.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dateTimePicker1.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             dateTimePicker1.Format = DateTimePickerFormat.Custom;
             dateTimePicker1.Location = new System.Drawing.Point(725, 982);
             dateTimePicker1.Name = "dateTimePicker1";
@@ -2604,10 +2603,9 @@ namespace Kalendarz1
             // dataGridViewOstatnieNotatki
             // 
             dataGridViewOstatnieNotatki.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewOstatnieNotatki.Location = new System.Drawing.Point(6, 6);
+            dataGridViewOstatnieNotatki.Location = new System.Drawing.Point(4, 3);
             dataGridViewOstatnieNotatki.Name = "dataGridViewOstatnieNotatki";
-            dataGridViewOstatnieNotatki.RowTemplate.Height = 25;
-            dataGridViewOstatnieNotatki.Size = new System.Drawing.Size(806, 440);
+            dataGridViewOstatnieNotatki.Size = new System.Drawing.Size(772, 440);
             dataGridViewOstatnieNotatki.TabIndex = 134;
             // 
             // contextMenuStrip1
@@ -2653,6 +2651,7 @@ namespace Kalendarz1
             // 
             tabControl1.Controls.Add(SpecTab);
             tabControl1.Controls.Add(NotTab);
+            tabControl1.Controls.Add(Ranking);
             tabControl1.Location = new System.Drawing.Point(1049, 426);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -2680,6 +2679,24 @@ namespace Kalendarz1
             NotTab.TabIndex = 1;
             NotTab.Text = "Spis Notatek";
             NotTab.UseVisualStyleBackColor = true;
+            // 
+            // Ranking
+            // 
+            Ranking.Controls.Add(datagridRanking);
+            Ranking.Location = new System.Drawing.Point(4, 24);
+            Ranking.Name = "Ranking";
+            Ranking.Size = new System.Drawing.Size(782, 450);
+            Ranking.TabIndex = 2;
+            Ranking.Text = "Ranking hodowców";
+            Ranking.UseVisualStyleBackColor = true;
+            // 
+            // datagridRanking
+            // 
+            datagridRanking.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            datagridRanking.Location = new System.Drawing.Point(3, 4);
+            datagridRanking.Name = "datagridRanking";
+            datagridRanking.Size = new System.Drawing.Size(776, 440);
+            datagridRanking.TabIndex = 135;
             // 
             // WidokKalendarza
             // 
@@ -2799,6 +2816,8 @@ namespace Kalendarz1
             tabControl1.ResumeLayout(false);
             SpecTab.ResumeLayout(false);
             NotTab.ResumeLayout(false);
+            Ranking.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)datagridRanking).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -3023,5 +3042,7 @@ namespace Kalendarz1
         private TabControl tabControl2;
         private TabPage WstawieniaTab;
         private TabPage AvilogTab;
+        private TabPage Ranking;
+        private DataGridView datagridRanking;
     }
 }

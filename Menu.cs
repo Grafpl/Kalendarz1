@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Kalendarz1.Transport;
+using Kalendarz1.Transport.Formularze;
+using Kalendarz1.Transport.Repozytorium;
+using System;
 using System.Windows.Forms;
-using Kalendarz1.TransportPlanner; // właściwa przestrzeń nazw dla transportu
-
 namespace Kalendarz1
+
 {
     public partial class MENU : Form
     {
@@ -113,11 +115,21 @@ namespace Kalendarz1
 
         private void button6_Click(object sender, EventArgs e)
         {
-            // Uruchom moduł transportu (MVP planner)
-            var connString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-            var repo = new TransportRepository(connString);
-            var frm = new TransportMainForm(repo);
-            frm.Show();
+            try
+            {
+                // Uruchom moduł transportu
+                var connString = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var libraConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+                var repo = new TransportRepozytorium(connString, libraConnString);
+                var frm = new TransportMainForm(repo, App.UserID);
+                frm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas uruchamiania modułu transportu:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

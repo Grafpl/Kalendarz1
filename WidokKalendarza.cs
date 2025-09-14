@@ -75,6 +75,7 @@ namespace Kalendarz1
             dataGridPartie.ReadOnly = true;
             dataGridViewOstatnieNotatki.ReadOnly = true;
 
+
             // Inicjalizacja timera
             timer = new Timer();
             timer.Interval = 600000; // Interwał 10 minut (600 000 ms)
@@ -92,6 +93,8 @@ namespace Kalendarz1
 
             // === Ankieta: uruchom harmonogram (14:00–15:00) ===
             ConfigureSurveyTimer();
+            ZaladujRankingAsync();
+            InitRankingUiAsync();
 
         }
         // Metoda wywoływana podczas ładowania formularza
@@ -3642,6 +3645,8 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
         /// <summary>
         /// Pobiera potwierdzone dostawy z bieżącego dnia do ankiety.
         /// </summary>
+        /// 
+        private ContextMenuStrip _rankingMenu;
         private List<AnkietaPotwierdzoneForm.DeliverySurveyItem> LoadSurveyDeliveriesForDay(DateTime day)
         {
             var list = new List<AnkietaPotwierdzoneForm.DeliverySurveyItem>();
@@ -3680,6 +3685,212 @@ ORDER BY WagaDek DESC, Auta DESC, Dostawca ASC;";
             }
             return list;
         }
+        private const string SqlRanking = @"
+WITH B AS (
+    SELECT
+        h.Dostawca,
+        f.OcenaCena,
+        f.OcenaTransport,
+        f.OcenaKomunikacja,
+        f.OcenaElastycznosc
+    FROM dbo.DostawaFeedback f
+    INNER JOIN dbo.HarmonogramDostaw h
+        ON h.Lp = f.DostawaLp
+),
+Agg AS (
+    SELECT
+        Dostawca,
+        -- Średnie kategorii: AVG ignoruje NULL; TRUNC do 2 miejsc (ROUND(...,2,1))
+        CAST(ROUND(AVG(CAST(OcenaCena         AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrCena,
+        CAST(ROUND(AVG(CAST(OcenaTransport    AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrTransport,
+        CAST(ROUND(AVG(CAST(OcenaKomunikacja  AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrKomunikacja,
+        CAST(ROUND(AVG(CAST(OcenaElastycznosc AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrElastycznosc,
+
+        -- Liczba ankiet do hodowcy (liczba wierszy feedbacku)
+        COUNT(*) AS LiczbaAnkiet,
+
+        -- Wynik: średnia z wierszowych średnich (wiersz = średnia po dostępnych kategoriach)
+        CAST(ROUND(
+            AVG(
+                CAST((
+                    COALESCE(CAST(OcenaCena         AS DECIMAL(18,6)), 0) +
+                    COALESCE(CAST(OcenaTransport    AS DECIMAL(18,6)), 0) +
+                    COALESCE(CAST(OcenaKomunikacja  AS DECIMAL(18,6)), 0) +
+                    COALESCE(CAST(OcenaElastycznosc AS DECIMAL(18,6)), 0)
+                ) / NULLIF(
+                    (CASE WHEN OcenaCena         IS NOT NULL THEN 1 ELSE 0 END) +
+                    (CASE WHEN OcenaTransport    IS NOT NULL THEN 1 ELSE 0 END) +
+                    (CASE WHEN OcenaKomunikacja  IS NOT NULL THEN 1 ELSE 0 END) +
+                    (CASE WHEN OcenaElastycznosc IS NOT NULL THEN 1 ELSE 0 END)
+                , 0) AS DECIMAL(18,6))
+            )
+        , 2, 1) AS DECIMAL(10,2)) AS Wynik
+    FROM B
+    GROUP BY Dostawca
+)
+SELECT
+    DENSE_RANK() OVER (ORDER BY Wynik DESC, Dostawca ASC) AS Pozycja,
+    Dostawca,
+    SrCena,
+    SrTransport,
+    SrKomunikacja,
+    SrElastycznosc,
+    LiczbaAnkiet,
+    Wynik
+FROM Agg
+ORDER BY Wynik DESC, Dostawca ASC;";
+
+
+        public async Task InitRankingUiAsync()
+        {
+            // Tylko grid, bez paneli bocznych
+            datagridRanking.AutoGenerateColumns = false;
+            datagridRanking.ReadOnly = true;
+            datagridRanking.AllowUserToAddRows = false;
+            datagridRanking.AllowUserToDeleteRows = false;
+            datagridRanking.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            datagridRanking.MultiSelect = false;
+            datagridRanking.RowHeadersVisible = false;
+            datagridRanking.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+
+            datagridRanking.Columns.Clear();
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "Pozycja", DataPropertyName = "Pozycja", HeaderText = "Poz.", ReadOnly = true, SortMode = DataGridViewColumnSortMode.Automatic });
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "Dostawca", DataPropertyName = "Dostawca", HeaderText = "Hodowca", ReadOnly = true, SortMode = DataGridViewColumnSortMode.Automatic });
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrCena", DataPropertyName = "SrCena", HeaderText = "Śr. Cena", ReadOnly = true });
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrTransport", DataPropertyName = "SrTransport", HeaderText = "Śr. Transport", ReadOnly = true });
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrKomunikacja", DataPropertyName = "SrKomunikacja", HeaderText = "Śr. Komunikacja", ReadOnly = true });
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrElastycznosc", DataPropertyName = "SrElastycznosc", HeaderText = "Śr. Elastyczność", ReadOnly = true });
+            // definicja kolumny
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "LiczbaAnkiet",
+                DataPropertyName = "LiczbaAnkiet",
+                HeaderText = "Ankiet",
+                ReadOnly = true,
+                SortMode = DataGridViewColumnSortMode.Automatic
+            });
+
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wynik", DataPropertyName = "Wynik", HeaderText = "Wynik", ReadOnly = true, SortMode = DataGridViewColumnSortMode.Automatic });
+
+
+            // „pkt.” w gridzie
+            datagridRanking.CellFormatting -= DatagridRanking_CellFormatting; // na wszelki
+            datagridRanking.CellFormatting += DatagridRanking_CellFormatting;
+
+            // PPM: historia + kto dawał
+            _rankingMenu = new ContextMenuStrip();
+            var miHistoria = new ToolStripMenuItem("Pokaż historię i notatki");
+            miHistoria.Click += async (_, __) => await PokazHistorieZaznaczonegoAsync();
+            _rankingMenu.Items.Add(miHistoria);
+            datagridRanking.ContextMenuStrip = _rankingMenu;
+
+            // zaznaczanie wiersza pod PPM (jak miałeś)
+            datagridRanking.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    var hit = datagridRanking.HitTest(e.X, e.Y);
+                    if (hit.RowIndex >= 0)
+                    {
+                        datagridRanking.ClearSelection();
+                        datagridRanking.Rows[hit.RowIndex].Selected = true;
+                        datagridRanking.CurrentCell = datagridRanking.Rows[hit.RowIndex].Cells[Math.Max(0, hit.ColumnIndex)];
+                    }
+                }
+            };
+        }
+        private async Task PokazKtoDawalAnkietyAsync()
+        {
+            if (datagridRanking.CurrentRow == null) return;
+
+            var dostawca = Convert.ToString(GetCellValueByDataProperty(datagridRanking.CurrentRow, "Dostawca"));
+            if (string.IsNullOrWhiteSpace(dostawca)) return;
+
+            const string sql = @"
+SELECT f.Kto, COUNT(*) AS Ilosc
+FROM dbo.DostawaFeedback f
+INNER JOIN dbo.HarmonogramDostaw h ON h.Lp = f.DostawaLp
+WHERE h.Dostawca = @dostawca
+GROUP BY f.Kto
+ORDER BY Ilosc DESC, f.Kto ASC;";
+
+            using var cn = new SqlConnection(connectionPermission);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.AddWithValue("@dostawca", dostawca);
+            using var rdr = await cmd.ExecuteReaderAsync();
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Hodowca: {dostawca}");
+            sb.AppendLine("Kto dawał ankiety:");
+            while (await rdr.ReadAsync())
+            {
+                var kto = rdr["Kto"]?.ToString() ?? "(brak)";
+                var ile = Convert.ToInt32(rdr["Ilosc"]);
+                sb.AppendLine($"• {kto} — {ile}");
+            }
+
+            MessageBox.Show(sb.ToString(), "Kto dawał ankiety", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        private static object? GetCellValueByDataProperty(DataGridViewRow row, string dataPropertyName)
+        {
+            var col = row?.DataGridView?.Columns
+                .Cast<DataGridViewColumn>()
+                .FirstOrDefault(c => string.Equals(c.DataPropertyName, dataPropertyName, StringComparison.OrdinalIgnoreCase));
+            return (col != null) ? row.Cells[col.Index].Value : null;
+        }
+
+
+
+        public async Task ZaladujRankingAsync()
+        {
+            using var cn = new SqlConnection(connectionPermission);
+            await cn.OpenAsync();
+            using var cmd = new SqlCommand(SqlRanking, cn);
+            using var da = new SqlDataAdapter(cmd);
+            var dt = new DataTable();
+            da.Fill(dt);
+
+            datagridRanking.DataSource = dt;
+
+            if (datagridRanking.Columns.Contains("Wynik"))
+                datagridRanking.Sort(datagridRanking.Columns["Wynik"],
+                    System.ComponentModel.ListSortDirection.Descending);
+
+
+        }
+
+        // Sufiks „ pkt.” + 1 miejsce po przecinku dla Wynik
+       private void DatagridRanking_CellFormatting(object? s, DataGridViewCellFormattingEventArgs e)
+{
+    var name = ((DataGridView)s!).Columns[e.ColumnIndex].Name;
+    if (name is "SrCena" or "SrTransport" or "SrKomunikacja" or "SrElastycznosc" or "Wynik")
+    {
+        if (e.Value != null && e.Value != DBNull.Value)
+        {
+            e.Value = $"{Convert.ToDecimal(e.Value).ToString("0.00")} pkt.";
+            e.FormattingApplied = true;
+        }
+    }
+}
+
+
+
+
+
+
+        private async Task PokazHistorieZaznaczonegoAsync()
+        {
+            if (datagridRanking.CurrentRow == null) return;
+            var dostawca = Convert.ToString(datagridRanking.CurrentRow.Cells["Dostawca"].Value);
+            if (string.IsNullOrWhiteSpace(dostawca)) return;
+
+            using var f = new HistoriaHodowcyForm(connectionPermission, dostawca);
+            f.StartPosition = FormStartPosition.CenterParent;
+            f.ShowDialog(this);
+            await Task.CompletedTask;
+        }
+
 
         /// <summary>
         /// Buduje i pokazuje okno ankiety dla wskazanego dnia.
