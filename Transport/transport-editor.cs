@@ -927,21 +927,7 @@ namespace Kalendarz1.Transport.Formularze
 
         private async Task LoadZamowienia()
         {
-            try
-            {
-                Cursor = Cursors.WaitCursor;
-                _zamowienia = await _repozytorium.PobierzWolneZamowieniaNaDateAsync(_data);
-                dgvZamowienia.DataSource = _zamowienia;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas ładowania zamówień: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
+
         }
 
         private async void BtnDodaj_Click(object sender, EventArgs e)
@@ -955,24 +941,7 @@ namespace Kalendarz1.Transport.Formularze
 
             try
             {
-                Cursor = Cursors.WaitCursor;
-                int dodano = 0;
-
-                foreach (DataGridViewRow row in dgvZamowienia.SelectedRows)
-                {
-                    var zamowienie = row.DataBoundItem as ZamowienieTransport;
-                    if (zamowienie != null)
-                    {
-                        if (await _repozytorium.DodajZamowienieDoKursuAsync(_kursId, zamowienie.ZamowienieID))
-                            dodano++;
-                    }
-                }
-
-                MessageBox.Show($"Dodano {dodano} zamówień do kursu.",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                DialogResult = DialogResult.OK;
-                Close();
+               
             }
             catch (Exception ex)
             {
