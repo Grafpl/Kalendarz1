@@ -1,4 +1,4 @@
-// Plik: Transport/TransportRepozytorium.cs
+// Plik: /Repozytorium/TransportRepozytorium.cs
 // Repozytorium dla operacji na bazie danych TransportPL
 
 using System;
@@ -216,74 +216,137 @@ namespace Kalendarz1.Transport.Repozytorium
 
         #region Kursy
 
-        // Metoda do pobrania pojedynczego kursu po ID
-        public async Task<Kurs> PobierzKursPoIdAsync(long kursId)
+        /// <summary>
+        /// Pobiera pojedynczy kurs po ID z pełną obsługą błędów
+        /// </summary>
+        public async Task<Kurs> PobierzKursAsync(long kursId)
         {
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var sql = @"
-                SELECT 
-                    k.KursID, k.DataKursu, k.KierowcaID, k.PojazdID, k.Trasa,
-                    k.GodzWyjazdu, k.GodzPowrotu, k.Status, k.PlanE2NaPalete,
-                    k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil,
-                    CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
-                    p.Rejestracja,
-                    ISNULL(p.PaletyH1, 33) AS PaletyPojazdu
-                FROM dbo.Kurs k
-                LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
-                LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
-                WHERE k.KursID = @KursID";
-
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@KursID", kursId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            try
             {
-                var kurs = new Kurs
-                {
-                    KursID = reader.GetInt64(0),
-                    DataKursu = reader.GetDateTime(1),
-                    KierowcaID = reader.GetInt32(2),
-                    PojazdID = reader.GetInt32(3),
-                    Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
-                    GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
-                    Status = reader.GetString(7),
-                    PlanE2NaPalete = reader.GetByte(8),
-                    UtworzonoUTC = reader.GetDateTime(9),
-                    Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                    Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
-                    KierowcaNazwa = reader.IsDBNull(13) ? "" : reader.GetString(13),
-                    PojazdRejestracja = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                    PaletyPojazdu = reader.IsDBNull(15) ? 33 : reader.GetInt32(15)
-                };
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
 
-                // Oblicz wypełnienie
-                try
+                // Najpierw sprawdź czy kurs istnieje
+                var sqlCheck = "SELECT COUNT(*) FROM dbo.Kurs WHERE KursID = @KursID";
+                using (var cmdCheck = new SqlCommand(sqlCheck, connection))
                 {
-                    var wynik = await ObliczPakowanieKursuAsync(kurs.KursID);
-                    kurs.SumaE2 = wynik.SumaE2;
-                    kurs.PaletyNominal = wynik.PaletyNominal;
-                    kurs.PaletyMax = wynik.PaletyMax;
-                    kurs.ProcNominal = wynik.ProcNominal;
-                    kurs.ProcMax = wynik.ProcMax;
-                }
-                catch
-                {
-                    kurs.SumaE2 = 0;
-                    kurs.PaletyNominal = 0;
-                    kurs.PaletyMax = 0;
-                    kurs.ProcNominal = 0;
-                    kurs.ProcMax = 0;
+                    cmdCheck.Parameters.AddWithValue("@KursID", kursId);
+                    var count = (int)await cmdCheck.ExecuteScalarAsync();
+
+                    if (count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Kurs o ID {kursId} nie istnieje w bazie danych");
+                        return null;
+                    }
                 }
 
-                return kurs;
+                // Pobierz dane kursu - używamy LEFT JOIN aby obsłużyć przypadki gdy kierowca lub pojazd zostały usunięte
+                var sql = @"
+                    SELECT 
+                        k.KursID, 
+                        k.DataKursu, 
+                        ISNULL(k.KierowcaID, 0) AS KierowcaID, 
+                        ISNULL(k.PojazdID, 0) AS PojazdID, 
+                        k.Trasa,
+                        k.GodzWyjazdu, 
+                        k.GodzPowrotu, 
+                        ISNULL(k.Status, 'Planowany') AS Status, 
+                        ISNULL(k.PlanE2NaPalete, 36) AS PlanE2NaPalete,
+                        k.UtworzonoUTC, 
+                        k.Utworzyl, 
+                        k.ZmienionoUTC, 
+                        k.Zmienil,
+                        ISNULL(CONCAT(ki.Imie, ' ', ki.Nazwisko), 'Brak kierowcy') AS KierowcaNazwa,
+                        ISNULL(p.Rejestracja, 'Brak pojazdu') AS Rejestracja,
+                        ISNULL(p.PaletyH1, 33) AS PaletyPojazdu
+                    FROM dbo.Kurs k
+                    LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                    WHERE k.KursID = @KursID";
+
+                using var cmd = new SqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@KursID", kursId);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    var kurs = new Kurs
+                    {
+                        KursID = reader.GetInt64(0),
+                        DataKursu = reader.GetDateTime(1),
+                        KierowcaID = reader.GetInt32(2),
+                        PojazdID = reader.GetInt32(3),
+                        Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
+                        GodzWyjazdu = reader.IsDBNull(5) ? null : (TimeSpan?)reader.GetTimeSpan(5),
+                        GodzPowrotu = reader.IsDBNull(6) ? null : (TimeSpan?)reader.GetTimeSpan(6),
+                        Status = reader.GetString(7),
+                        PlanE2NaPalete = (byte)reader.GetInt32(8), // Konwersja z TINYINT
+                        UtworzonoUTC = reader.GetDateTime(9),
+                        Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
+                        ZmienionoUTC = reader.IsDBNull(11) ? null : (DateTime?)reader.GetDateTime(11),
+                        Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
+                        KierowcaNazwa = reader.GetString(13),
+                        PojazdRejestracja = reader.GetString(14),
+                        PaletyPojazdu = reader.GetInt32(15),
+                        // Wartości wypełnienia ustawimy poniżej
+                        SumaE2 = 0,
+                        PaletyNominal = 0,
+                        PaletyMax = 0,
+                        ProcNominal = 0,
+                        ProcMax = 0
+                    };
+
+                    // Próbuj obliczyć wypełnienie kursu (nie krytyczne jeśli się nie uda)
+                    try
+                    {
+                        // Pobierz sumę pojemników z ładunków
+                        var sqlLadunki = @"
+                            SELECT ISNULL(SUM(PojemnikiE2), 0) 
+                            FROM dbo.Ladunek 
+                            WHERE KursID = @KursID";
+
+                        using (var cmdLadunki = new SqlCommand(sqlLadunki, connection))
+                        {
+                            cmdLadunki.Parameters.AddWithValue("@KursID", kursId);
+                            var sumaE2 = Convert.ToInt32(await cmdLadunki.ExecuteScalarAsync());
+
+                            kurs.SumaE2 = sumaE2;
+
+                            if (kurs.PaletyPojazdu > 0 && kurs.PlanE2NaPalete > 0)
+                            {
+                                // Oblicz wypełnienie
+                                kurs.PaletyNominal = (int)Math.Ceiling((double)sumaE2 / kurs.PlanE2NaPalete);
+                                kurs.PaletyMax = (int)Math.Ceiling((double)sumaE2 / 30); // Maksymalne upakowanie
+
+                                kurs.ProcNominal = Math.Round(100.0m * kurs.PaletyNominal / kurs.PaletyPojazdu, 2);
+                                kurs.ProcMax = Math.Round(100.0m * kurs.PaletyMax / kurs.PaletyPojazdu, 2);
+                            }
+                        }
+                    }
+                    catch (Exception exCalc)
+                    {
+                        // Loguj błąd ale nie przerywaj - wypełnienie nie jest krytyczne
+                        System.Diagnostics.Debug.WriteLine($"Błąd obliczania wypełnienia: {exCalc.Message}");
+                    }
+
+                    return kurs;
+                }
+
+                // Nie powinno się zdarzyć jeśli COUNT(*) zwrócił 1
+                System.Diagnostics.Debug.WriteLine($"Nieoczekiwany błąd - kurs {kursId} istnieje ale nie można go odczytać");
+                return null;
             }
-
-            return null;
+            catch (SqlException sqlEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd SQL przy pobieraniu kursu {kursId}: {sqlEx.Message}");
+                throw new Exception($"Błąd połączenia z bazą danych: {sqlEx.Message}", sqlEx);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Nieoczekiwany błąd przy pobieraniu kursu {kursId}: {ex.Message}");
+                throw new Exception($"Błąd podczas pobierania kursu: {ex.Message}", ex);
+            }
         }
 
         public async Task<List<Kurs>> PobierzKursyPoDacieAsync(DateTime data)
@@ -300,15 +363,16 @@ namespace Kalendarz1.Transport.Repozytorium
                     k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil,
                     CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
                     p.Rejestracja,
-                    ISNULL(p.PaletyH1, 33) AS PaletyPojazdu,
-                    0 AS SumaE2,
-                    0 AS PaletyNominal,
-                    0 AS PaletyMax,
-                    CAST(0 AS decimal(10,2)) AS ProcNominal,
-                    CAST(0 AS decimal(10,2)) AS ProcMax
+                    ISNULL(v.PaletyPojazdu, p.PaletyH1) AS PaletyPojazdu,
+                    ISNULL(v.SumaE2, 0) AS SumaE2,
+                    ISNULL(v.PaletyNominal, 0) AS PaletyNominal,
+                    ISNULL(v.PaletyMax, 0) AS PaletyMax,
+                    ISNULL(v.ProcNominal, 0) AS ProcNominal,
+                    ISNULL(v.ProcMax, 0) AS ProcMax
                 FROM dbo.Kurs k
-                LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
-                LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+                JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                LEFT JOIN dbo.vKursWypelnienie v ON k.KursID = v.KursID
                 WHERE k.DataKursu = @Data
                 ORDER BY k.GodzWyjazdu, k.KursID";
 
@@ -318,57 +382,30 @@ namespace Kalendarz1.Transport.Repozytorium
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                try
+                kursy.Add(new Kurs
                 {
-                    var kurs = new Kurs
-                    {
-                        KursID = reader.GetInt64(0),
-                        DataKursu = reader.GetDateTime(1),
-                        KierowcaID = reader.GetInt32(2),
-                        PojazdID = reader.GetInt32(3),
-                        Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
-                        GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
-                        GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
-                        Status = reader.GetString(7),
-                        PlanE2NaPalete = reader.GetByte(8),
-                        UtworzonoUTC = reader.GetDateTime(9),
-                        Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
-                        ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                        Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
-                        KierowcaNazwa = reader.IsDBNull(13) ? "" : reader.GetString(13),
-                        PojazdRejestracja = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                        PaletyPojazdu = reader.IsDBNull(15) ? 33 : reader.GetInt32(15),
-                        SumaE2 = 0,
-                        PaletyNominal = 0,
-                        PaletyMax = 0,
-                        ProcNominal = 0,
-                        ProcMax = 0
-                    };
-
-                    kursy.Add(kurs);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Błąd podczas parsowania kursu: {ex.Message}");
-                }
-            }
-
-            // Oblicz wypełnienia dla każdego kursu
-            foreach (var kurs in kursy)
-            {
-                try
-                {
-                    var wynik = await ObliczPakowanieKursuAsync(kurs.KursID);
-                    kurs.SumaE2 = wynik.SumaE2;
-                    kurs.PaletyNominal = wynik.PaletyNominal;
-                    kurs.PaletyMax = wynik.PaletyMax;
-                    kurs.ProcNominal = wynik.ProcNominal;
-                    kurs.ProcMax = wynik.ProcMax;
-                }
-                catch
-                {
-                    // Pozostaw domyślne wartości
-                }
+                    KursID = reader.GetInt64(0),
+                    DataKursu = reader.GetDateTime(1),
+                    KierowcaID = reader.GetInt32(2),
+                    PojazdID = reader.GetInt32(3),
+                    Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
+                    GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
+                    Status = reader.GetString(7),
+                    PlanE2NaPalete = reader.GetByte(8),
+                    UtworzonoUTC = reader.GetDateTime(9),
+                    Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
+                    Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
+                    KierowcaNazwa = reader.GetString(13),
+                    PojazdRejestracja = reader.GetString(14),
+                    PaletyPojazdu = reader.GetInt32(15),
+                    SumaE2 = reader.GetInt32(16),
+                    PaletyNominal = reader.GetInt32(17),
+                    PaletyMax = reader.GetInt32(18),
+                    ProcNominal = reader.GetDecimal(19),
+                    ProcMax = reader.GetDecimal(20)
+                });
             }
 
             return kursy;
@@ -432,16 +469,11 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            // Najpierw usuń ładunki
-            var sqlLadunki = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
-            using var cmdLadunki = new SqlCommand(sqlLadunki, connection);
-            cmdLadunki.Parameters.AddWithValue("@KursID", kursId);
-            await cmdLadunki.ExecuteNonQueryAsync();
-
-            // Potem usuń kurs
             var sql = "DELETE FROM dbo.Kurs WHERE KursID = @KursID";
+
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@KursID", kursId);
+
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -550,6 +582,29 @@ namespace Kalendarz1.Transport.Repozytorium
             await cmd.ExecuteNonQueryAsync();
         }
 
+        public async Task RenumerujLadunkiAsync(long kursId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var sql = @"
+                WITH CTE AS (
+                    SELECT LadunekID, 
+                           ROW_NUMBER() OVER (ORDER BY Kolejnosc, LadunekID) AS NowaKolejnosc
+                    FROM dbo.Ladunek
+                    WHERE KursID = @KursID
+                )
+                UPDATE l
+                SET l.Kolejnosc = c.NowaKolejnosc
+                FROM dbo.Ladunek l
+                JOIN CTE c ON l.LadunekID = c.LadunekID";
+
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@KursID", kursId);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         #endregion
 
         #region Pakowanie
@@ -568,7 +623,7 @@ namespace Kalendarz1.Transport.Repozytorium
             using var cmdKurs = new SqlCommand(sqlKurs, connection);
             cmdKurs.Parameters.AddWithValue("@KursID", kursId);
 
-            int paletyPojazdu = 33;
+            int paletyPojazdu = 0;
             int planE2NaPalete = 36;
 
             using (var reader = await cmdKurs.ExecuteReaderAsync())
@@ -590,103 +645,45 @@ namespace Kalendarz1.Transport.Repozytorium
 
         #endregion
 
-        #region Integracja z zamówieniami
+        #region Pomocnicze
 
-        public async Task<List<ZamowienieTransport>> PobierzWolneZamowieniaNaDateAsync(DateTime data)
-        {
-            var zamowienia = new List<ZamowienieTransport>();
-
-            using var connection = new SqlConnection(_libraConnectionString);
-            await connection.OpenAsync();
-
-            // Pobierz zamówienia które nie są jeszcze przypisane do żadnego kursu
-            var sql = @"
-                SELECT 
-                    z.Id AS ZamowienieID,
-                    z.KlientId AS KlientID,
-                    'Klient ' + CAST(z.KlientId AS NVARCHAR(50)) AS KlientNazwa,
-                    z.DataZamowienia,
-                    SUM(ISNULL(zt.Ilosc, 0)) AS IloscKg,
-                    ISNULL(z.Status, 'Nowe') AS Status,
-                    '' AS Handlowiec
-                FROM dbo.ZamowieniaMieso z
-                LEFT JOIN dbo.ZamowieniaMiesoTowar zt ON z.Id = zt.ZamowienieId
-                WHERE z.DataZamowienia = @Data
-                  AND ISNULL(z.Status, 'Nowe') NOT IN ('Anulowane', 'Zrealizowane')
-                GROUP BY z.Id, z.KlientId, z.DataZamowienia, z.Status
-                ORDER BY z.Id";
-
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@Data", data.Date);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                zamowienia.Add(new ZamowienieTransport
-                {
-                    ZamowienieID = reader.GetInt32(0),
-                    KlientID = reader.GetInt32(1),
-                    KlientNazwa = reader.GetString(2),
-                    DataZamowienia = reader.GetDateTime(3),
-                    IloscKg = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
-                    Status = reader.GetString(5),
-                    Handlowiec = reader.GetString(6)
-                });
-            }
-
-            return zamowienia;
-        }
-
-        public async Task<bool> DodajZamowienieDoKursuAsync(long kursId, int zamowienieId)
+        public async Task<bool> SprawdzPolaczenieAsync()
         {
             try
             {
-                // Pobierz dane zamówienia
-                using var connectionLibra = new SqlConnection(_libraConnectionString);
-                await connectionLibra.OpenAsync();
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
 
-                var sqlZamowienie = @"
-                    SELECT 
-                        z.Id,
-                        z.KlientId,
-                        'Klient ' + CAST(z.KlientId AS NVARCHAR(50)) AS KlientNazwa,
-                        SUM(ISNULL(zt.Ilosc, 0)) AS IloscKg
-                    FROM dbo.ZamowieniaMieso z
-                    LEFT JOIN dbo.ZamowieniaMiesoTowar zt ON z.Id = zt.ZamowienieId
-                    WHERE z.Id = @ZamowienieID
-                    GROUP BY z.Id, z.KlientId";
+                using var cmd = new SqlCommand("SELECT 1", connection);
+                await cmd.ExecuteScalarAsync();
 
-                using var cmdZamowienie = new SqlCommand(sqlZamowienie, connectionLibra);
-                cmdZamowienie.Parameters.AddWithValue("@ZamowienieID", zamowienieId);
-
-                string kodKlienta = "";
-                int pojemnikiE2 = 0;
-                string uwagi = "";
-
-                using (var reader = await cmdZamowienie.ExecuteReaderAsync())
-                {
-                    if (await reader.ReadAsync())
-                    {
-                        var klientNazwa = reader.GetString(2);
-                        var iloscKg = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
-
-                        kodKlienta = zamowienieId.ToString();
-                        pojemnikiE2 = (int)Math.Ceiling(iloscKg / 15.0m);
-                        uwagi = $"{klientNazwa} - Zam.{zamowienieId}";
-                    }
-                }
-
-                // Dodaj jako ładunek
-                var ladunek = new Ladunek
-                {
-                    KursID = kursId,
-                    KodKlienta = kodKlienta,
-                    PojemnikiE2 = pojemnikiE2,
-                    Uwagi = uwagi
-                };
-
-                await DodajLadunekAsync(ladunek);
                 return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd połączenia z bazą: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SprawdzCzyTabelaIstniejeAsync(string nazwaTabeli)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                var sql = @"
+                    SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.TABLES 
+                    WHERE TABLE_SCHEMA = 'dbo' 
+                      AND TABLE_NAME = @NazwaTabeli";
+
+                using var cmd = new SqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@NazwaTabeli", nazwaTabeli);
+
+                var count = (int)await cmd.ExecuteScalarAsync();
+                return count > 0;
             }
             catch
             {
@@ -694,22 +691,39 @@ namespace Kalendarz1.Transport.Repozytorium
             }
         }
 
-        #endregion
-
-        #region Pomocnicze
-
-        public async Task<(List<Kurs> kursy, Dictionary<long, WynikPakowania> wypelnienia)> PobierzKursyZWypelnieniemAsync(DateTime data)
+        public async Task<string> SprawdzStanBazyAsync()
         {
-            var kursy = await PobierzKursyPoDacieAsync(data);
-            var wypelnienia = new Dictionary<long, WynikPakowania>();
+            var result = new System.Text.StringBuilder();
 
-            foreach (var kurs in kursy)
+            try
             {
-                var wynik = await ObliczPakowanieKursuAsync(kurs.KursID);
-                wypelnienia[kurs.KursID] = wynik;
+                using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync();
+                result.AppendLine("✓ Połączenie z bazą danych OK");
+
+                // Sprawdź tabele
+                var tabele = new[] { "Kierowca", "Pojazd", "Kurs", "Ladunek" };
+                foreach (var tabela in tabele)
+                {
+                    if (await SprawdzCzyTabelaIstniejeAsync(tabela))
+                    {
+                        var sql = $"SELECT COUNT(*) FROM dbo.{tabela}";
+                        using var cmd = new SqlCommand(sql, connection);
+                        var count = (int)await cmd.ExecuteScalarAsync();
+                        result.AppendLine($"✓ Tabela {tabela}: {count} rekordów");
+                    }
+                    else
+                    {
+                        result.AppendLine($"✗ Brak tabeli {tabela}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                result.AppendLine($"✗ Błąd: {ex.Message}");
             }
 
-            return (kursy, wypelnienia);
+            return result.ToString();
         }
 
         #endregion

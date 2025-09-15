@@ -56,9 +56,14 @@ namespace Kalendarz1
         public WidokCenWszystkich()
         {
             InitializeComponent();
-            SetupEnhancedUI();
-            LoadData();
-            SetupAutoRefresh();
+
+            // Opóźniona inicjalizacja po załadowaniu formularza
+            this.Load += (s, e) =>
+            {
+                SetupEnhancedUI();
+                LoadData();
+                SetupAutoRefresh();
+            };
         }
 
         private void SetupEnhancedUI()
@@ -321,44 +326,11 @@ namespace Kalendarz1
 
         private void SetupChartsTab(TabPage tab)
         {
-            var chartPanel = new Panel
+            var mainChartPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(10)
             };
-
-            priceChart = new Chart
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Drawing.Color.White
-            };
-
-            var chartArea = new ChartArea("MainArea")
-            {
-                BackColor = Drawing.Color.White,
-                BackSecondaryColor = Drawing.Color.FromArgb(250, 250, 250),
-                BackGradientStyle = GradientStyle.TopBottom
-            };
-
-            chartArea.AxisX.LabelStyle.Format = "dd.MM";
-            chartArea.AxisX.MajorGrid.LineColor = Drawing.Color.LightGray;
-            chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
-            chartArea.AxisX.Title = "Data";
-
-            chartArea.AxisY.MajorGrid.LineColor = Drawing.Color.LightGray;
-            chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
-            chartArea.AxisY.Title = "Cena (zł)";
-            chartArea.AxisY.LabelStyle.Format = "N2";
-
-            priceChart.ChartAreas.Add(chartArea);
-
-            var legend = new Legend
-            {
-                Docking = Docking.Top,
-                BackColor = Drawing.Color.Transparent,
-                Font = new Drawing.Font("Segoe UI", 9F)
-            };
-            priceChart.Legends.Add(legend);
 
             // Panel kontroli wykresu
             var chartControlPanel = new Panel
@@ -417,8 +389,50 @@ namespace Kalendarz1
                 cmbChartType, chkShowMinister, chkShowRolnicza, chkShowWolny, chkShowTuszka
             });
 
-            chartPanel.Controls.Add(priceChart);
-            tab.Controls.Add(chartPanel);
+            // Utworzenie wykresu przy pierwszym wyświetleniu zakładki
+            tab.VisibleChanged += (s, e) =>
+            {
+                if (tab.Visible && priceChart == null && mainChartPanel.Width > 0 && mainChartPanel.Height > 0)
+                {
+                    priceChart = new Chart
+                    {
+                        Dock = DockStyle.Fill,
+                        BackColor = Drawing.Color.White
+                    };
+
+                    var chartArea = new ChartArea("MainArea")
+                    {
+                        BackColor = Drawing.Color.White,
+                        BackSecondaryColor = Drawing.Color.FromArgb(250, 250, 250),
+                        BackGradientStyle = GradientStyle.TopBottom
+                    };
+
+                    chartArea.AxisX.LabelStyle.Format = "dd.MM";
+                    chartArea.AxisX.MajorGrid.LineColor = Drawing.Color.LightGray;
+                    chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+                    chartArea.AxisX.Title = "Data";
+
+                    chartArea.AxisY.MajorGrid.LineColor = Drawing.Color.LightGray;
+                    chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+                    chartArea.AxisY.Title = "Cena (zł)";
+                    chartArea.AxisY.LabelStyle.Format = "N2";
+
+                    priceChart.ChartAreas.Add(chartArea);
+
+                    var legend = new Legend
+                    {
+                        Docking = Docking.Top,
+                        BackColor = Drawing.Color.Transparent,
+                        Font = new Drawing.Font("Segoe UI", 9F)
+                    };
+                    priceChart.Legends.Add(legend);
+
+                    mainChartPanel.Controls.Add(priceChart);
+                    UpdateChart();
+                }
+            };
+
+            tab.Controls.Add(mainChartPanel);
             tab.Controls.Add(chartControlPanel);
         }
 
@@ -1412,6 +1426,14 @@ namespace Kalendarz1
             }
         }
 
-
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                refreshTimer?.Dispose();
+                components?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }
