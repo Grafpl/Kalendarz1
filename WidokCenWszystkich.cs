@@ -21,14 +21,22 @@ namespace Kalendarz1
         private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private DataTable originalData;
         private DataTable filteredData;
-        private Chart priceChart;
+        private Chart purchaseChart; // Wykres zakupowy
+        private Chart salesChart;     // Wykres sprzedażowy
         private TabControl mainTabControl;
 
-        // Kontrolki filtrowania
-        private TextBox txtSearchFilter;
-        private DateTimePicker dateFromFilter;
-        private DateTimePicker dateToFilter;
-        private CheckBox chkShowWeekendsFilter;
+        // Główne kontrolki filtrowania (dla wszystkich zakładek)
+        private DateTimePicker mainDateFrom;
+        private DateTimePicker mainDateTo;
+        private CheckBox chkShowWeekends;
+
+        // Checkboxy dla wykresów
+        private CheckBox chkMinister;
+        private CheckBox chkLaczona;
+        private CheckBox chkRolnicza;
+        private CheckBox chkWolnorynkowa;
+        private CheckBox chkNaszaTuszka;
+        private CheckBox chkTuszkaZrzeszenia;
 
         // Kolory motywu Material Design
         private readonly Color primaryColor = Color.FromArgb(33, 150, 243);    // Niebieski
@@ -92,26 +100,31 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Padding = new Padding(0),
                 BackColor = backgroundColor
             };
 
             mainContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));  // Header
-            mainContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content
+            mainContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));  // Global Filter Panel
+            mainContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Content
             mainContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // Status
 
             // 1. Header Panel
             var headerPanel = CreateHeaderPanel();
             mainContainer.Controls.Add(headerPanel, 0, 0);
 
-            // 2. Content (TabControl)
-            mainTabControl = CreateTabControl();
-            mainContainer.Controls.Add(mainTabControl, 0, 1);
+            // 2. Global Filter Panel (dla wszystkich zakładek)
+            var globalFilterPanel = CreateGlobalFilterPanel();
+            mainContainer.Controls.Add(globalFilterPanel, 0, 1);
 
-            // 3. Status Bar
+            // 3. Content (TabControl)
+            mainTabControl = CreateTabControl();
+            mainContainer.Controls.Add(mainTabControl, 0, 2);
+
+            // 4. Status Bar
             var statusBar = CreateStatusBar();
-            mainContainer.Controls.Add(statusBar, 0, 2);
+            mainContainer.Controls.Add(statusBar, 0, 3);
 
             this.Controls.Clear();
             this.Controls.Add(mainContainer);
@@ -157,6 +170,84 @@ namespace Kalendarz1
             return headerPanel;
         }
 
+        private Panel CreateGlobalFilterPanel()
+        {
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 240, 240),
+                Padding = new Padding(20, 15, 20, 15)
+            };
+
+            var flowPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+
+            // Label główny
+            var lblFilter = new Label
+            {
+                Text = "🔍 FILTRUJ DANE:",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = primaryColor,
+                AutoSize = true,
+                Margin = new Padding(0, 5, 20, 0)
+            };
+
+            // Data od
+            var lblFrom = new Label
+            {
+                Text = "Od:",
+                AutoSize = true,
+                Margin = new Padding(0, 8, 5, 0)
+            };
+
+            mainDateFrom = new DateTimePicker
+            {
+                Width = 110,
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today.AddMonths(-3), // 3 miesiące wstecz
+                Font = new Font("Segoe UI", 9F)
+            };
+            mainDateFrom.ValueChanged += async (s, e) => await RefreshAllDataAsync();
+
+            // Data do
+            var lblTo = new Label
+            {
+                Text = "Do:",
+                AutoSize = true,
+                Margin = new Padding(20, 8, 5, 0)
+            };
+
+            mainDateTo = new DateTimePicker
+            {
+                Width = 110,
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today,
+                Font = new Font("Segoe UI", 9F)
+            };
+            mainDateTo.ValueChanged += async (s, e) => await RefreshAllDataAsync();
+
+            // Weekendy
+            chkShowWeekends = new CheckBox
+            {
+                Text = "Pokaż weekendy",
+                AutoSize = true,
+                Checked = false, // Domyślnie bez weekendów
+                Margin = new Padding(30, 7, 0, 0)
+            };
+            chkShowWeekends.CheckedChanged += async (s, e) => await RefreshAllDataAsync();
+
+            flowPanel.Controls.AddRange(new Control[] {
+                lblFilter, lblFrom, mainDateFrom, lblTo, mainDateTo, chkShowWeekends
+            });
+
+            panel.Controls.Add(flowPanel);
+            return panel;
+        }
+
         private Button CreateHeaderButton(string text, EventHandler onClick)
         {
             var button = new Button
@@ -194,15 +285,23 @@ namespace Kalendarz1
             };
             CreateDataTab(tabData);
 
-            // Tab 2: Wykres
-            var tabChart = new TabPage("📈 Wykres")
+            // Tab 2: Wykres Zakupowy
+            var tabPurchaseChart = new TabPage("📈 Wykres Zakupowy")
             {
                 BackColor = Color.White,
                 Padding = new Padding(10)
             };
-            CreateChartTab(tabChart);
+            CreatePurchaseChartTab(tabPurchaseChart);
 
-            // Tab 3: Statystyki
+            // Tab 3: Wykres Sprzedażowy
+            var tabSalesChart = new TabPage("💰 Wykres Sprzedażowy")
+            {
+                BackColor = Color.White,
+                Padding = new Padding(10)
+            };
+            CreateSalesChartTab(tabSalesChart);
+
+            // Tab 4: Statystyki
             var tabStats = new TabPage("📊 Statystyki")
             {
                 BackColor = Color.White,
@@ -210,132 +309,16 @@ namespace Kalendarz1
             };
             CreateStatsTab(tabStats);
 
-            tabControl.TabPages.AddRange(new[] { tabData, tabChart, tabStats });
+            tabControl.TabPages.AddRange(new[] { tabData, tabPurchaseChart, tabSalesChart, tabStats });
 
             return tabControl;
         }
 
         private void CreateDataTab(TabPage tab)
         {
-            var container = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2,
-                BackColor = Color.White
-            };
-
-            container.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-            container.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-            // Panel filtrów
-            var filterPanel = CreateFilterPanel();
-            container.Controls.Add(filterPanel, 0, 0);
-
-            // DataGridView
+            // DataGridView bez dodatkowego panelu filtrów (używamy globalnego)
             var grid = CreateModernDataGrid();
-            container.Controls.Add(grid, 0, 1);
-
-            tab.Controls.Add(container);
-        }
-
-        private Panel CreateFilterPanel()
-        {
-            var panel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(245, 245, 245),
-                Padding = new Padding(15, 10, 15, 10)
-            };
-
-            var flowPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
-            };
-
-            // Wyszukiwanie
-            var searchGroup = CreateFilterGroup("Szukaj:", out txtSearchFilter);
-            txtSearchFilter.Width = 200;
-            txtSearchFilter.TextChanged += async (s, e) => await FilterDataAsync();
-
-            // Data od
-            var dateFromGroup = CreateDatePickerGroup("Od:", out dateFromFilter);
-            dateFromFilter.Value = DateTime.Today.AddMonths(-1);
-            dateFromFilter.ValueChanged += async (s, e) => await FilterDataAsync();
-
-            // Data do
-            var dateToGroup = CreateDatePickerGroup("Do:", out dateToFilter);
-            dateToFilter.Value = DateTime.Today;
-            dateToFilter.ValueChanged += async (s, e) => await FilterDataAsync();
-
-            // Weekendy
-            chkShowWeekendsFilter = new CheckBox
-            {
-                Text = "Pokaż weekendy",
-                AutoSize = true,
-                Margin = new Padding(20, 20, 0, 0)
-            };
-            chkShowWeekendsFilter.CheckedChanged += async (s, e) => await FilterDataAsync();
-
-            flowPanel.Controls.AddRange(new Control[] {
-                searchGroup, dateFromGroup, dateToGroup, chkShowWeekendsFilter
-            });
-
-            panel.Controls.Add(flowPanel);
-            return panel;
-        }
-
-        private Panel CreateFilterGroup(string label, out TextBox textBox)
-        {
-            var panel = new Panel { AutoSize = true };
-
-            var lbl = new Label
-            {
-                Text = label,
-                AutoSize = true,
-                Location = new Point(0, 3)
-            };
-
-            textBox = new TextBox
-            {
-                Location = new Point(50, 0),
-                Width = 150,
-                Font = new Font("Segoe UI", 9F)
-            };
-
-            panel.Controls.Add(lbl);
-            panel.Controls.Add(textBox);
-            panel.Height = textBox.Height;
-
-            return panel;
-        }
-
-        private Panel CreateDatePickerGroup(string label, out DateTimePicker picker)
-        {
-            var panel = new Panel { AutoSize = true, Margin = new Padding(20, 0, 0, 0) };
-
-            var lbl = new Label
-            {
-                Text = label,
-                AutoSize = true,
-                Location = new Point(0, 3)
-            };
-
-            picker = new DateTimePicker
-            {
-                Location = new Point(30, 0),
-                Width = 110,
-                Format = DateTimePickerFormat.Short,
-                Font = new Font("Segoe UI", 9F)
-            };
-
-            panel.Controls.Add(lbl);
-            panel.Controls.Add(picker);
-            panel.Height = picker.Height;
-
-            return panel;
+            tab.Controls.Add(grid);
         }
 
         private DataGridView CreateModernDataGrid()
@@ -404,64 +387,257 @@ namespace Kalendarz1
             var menu = new ContextMenuStrip();
             menu.Items.Add("📋 Kopiuj", null, (s, e) => CopySelectedRows());
             menu.Items.Add("📊 Eksport do CSV", null, async (s, e) => await ExportToCSVAsync());
-            menu.Items.Add("-");
-            menu.Items.Add("📈 Pokaż na wykresie", null, (s, e) => ShowInChart());
 
             dataGridView1.ContextMenuStrip = menu;
         }
 
-        private void CreateChartTab(TabPage tab)
+        private void CreatePurchaseChartTab(TabPage tab)
         {
-            priceChart = new Chart
+            var container = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2
+            };
+
+            container.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+            container.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            // Panel kontroli wykresu zakupowego
+            var controlPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(245, 245, 245),
+                Padding = new Padding(10, 5, 10, 5)
+            };
+
+            var flowPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+
+            var lblSeries = new Label
+            {
+                Text = "Wyświetl serie:",
+                AutoSize = true,
+                Margin = new Padding(0, 8, 10, 0),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
+            // Checkboxy dla cen zakupowych
+            chkMinister = new CheckBox
+            {
+                Text = "Ministerialna",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkMinister.CheckedChanged += (s, e) => UpdatePurchaseChart();
+
+            chkLaczona = new CheckBox
+            {
+                Text = "Łączona",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkLaczona.CheckedChanged += (s, e) => UpdatePurchaseChart();
+
+            chkRolnicza = new CheckBox
+            {
+                Text = "Rolnicza",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkRolnicza.CheckedChanged += (s, e) => UpdatePurchaseChart();
+
+            chkWolnorynkowa = new CheckBox
+            {
+                Text = "Wolnorynkowa",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkWolnorynkowa.CheckedChanged += (s, e) => UpdatePurchaseChart();
+
+            flowPanel.Controls.AddRange(new Control[] {
+                lblSeries, chkMinister, chkLaczona, chkRolnicza, chkWolnorynkowa
+            });
+
+            controlPanel.Controls.Add(flowPanel);
+
+            // Wykres zakupowy
+            purchaseChart = CreateEnhancedChart("Wykres Zakupowy - Ceny Skupu");
+
+            container.Controls.Add(controlPanel, 0, 0);
+            container.Controls.Add(purchaseChart, 0, 1);
+
+            tab.Controls.Add(container);
+        }
+
+        private void CreateSalesChartTab(TabPage tab)
+        {
+            var container = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2
+            };
+
+            container.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+            container.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            // Panel kontroli wykresu sprzedażowego
+            var controlPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(245, 245, 245),
+                Padding = new Padding(10, 5, 10, 5)
+            };
+
+            var flowPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+
+            var lblSeries = new Label
+            {
+                Text = "Wyświetl serie:",
+                AutoSize = true,
+                Margin = new Padding(0, 8, 10, 0),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
+            // Checkboxy dla cen sprzedażowych
+            chkNaszaTuszka = new CheckBox
+            {
+                Text = "Nasza Tuszka",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkNaszaTuszka.CheckedChanged += (s, e) => UpdateSalesChart();
+
+            chkTuszkaZrzeszenia = new CheckBox
+            {
+                Text = "Tuszka Zrzeszenia",
+                Checked = true,
+                AutoSize = true,
+                Margin = new Padding(0, 7, 10, 0)
+            };
+            chkTuszkaZrzeszenia.CheckedChanged += (s, e) => UpdateSalesChart();
+
+            flowPanel.Controls.AddRange(new Control[] {
+                lblSeries, chkNaszaTuszka, chkTuszkaZrzeszenia
+            });
+
+            controlPanel.Controls.Add(flowPanel);
+
+            // Wykres sprzedażowy
+            salesChart = CreateEnhancedChart("Wykres Sprzedażowy - Ceny Tuszki");
+
+            container.Controls.Add(controlPanel, 0, 0);
+            container.Controls.Add(salesChart, 0, 1);
+
+            tab.Controls.Add(container);
+        }
+
+        private Chart CreateEnhancedChart(string title)
+        {
+            var chart = new Chart
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                BorderlineColor = Color.FromArgb(230, 230, 230),
+                BorderlineColor = Color.FromArgb(200, 200, 200),
                 BorderlineDashStyle = ChartDashStyle.Solid,
-                BorderlineWidth = 1
+                BorderlineWidth = 1,
+                AntiAliasing = AntiAliasingStyles.All,
+                TextAntiAliasingQuality = TextAntiAliasingQuality.High
             };
 
+            // Ulepszony obszar wykresu
             var chartArea = new ChartArea("MainArea")
             {
                 BackColor = Color.White,
                 BackSecondaryColor = Color.FromArgb(250, 250, 250),
                 BackGradientStyle = GradientStyle.TopBottom,
-                BorderColor = Color.FromArgb(200, 200, 200),
-                BorderDashStyle = ChartDashStyle.Solid,
-                BorderWidth = 0
+                ShadowColor = Color.FromArgb(30, 0, 0, 0),
+                ShadowOffset = 2
             };
 
-            // Oś X
+            // Ulepszona oś X
             chartArea.AxisX.Title = "Data";
-            chartArea.AxisX.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            chartArea.AxisX.TitleFont = new Font("Segoe UI Semibold", 11F);
+            chartArea.AxisX.TitleForeColor = Color.FromArgb(60, 60, 60);
             chartArea.AxisX.LabelStyle.Format = "dd.MM";
-            chartArea.AxisX.LabelStyle.Font = new Font("Segoe UI", 8F);
-            chartArea.AxisX.MajorGrid.LineColor = Color.FromArgb(230, 230, 230);
-            chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            chartArea.AxisX.LabelStyle.Font = new Font("Segoe UI", 9F);
+            chartArea.AxisX.LabelStyle.ForeColor = Color.FromArgb(80, 80, 80);
+            chartArea.AxisX.MajorGrid.LineColor = Color.FromArgb(220, 220, 220);
+            chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
+            chartArea.AxisX.MinorGrid.Enabled = true;
+            chartArea.AxisX.MinorGrid.LineColor = Color.FromArgb(240, 240, 240);
+            chartArea.AxisX.MinorGrid.LineDashStyle = ChartDashStyle.Dot;
+            chartArea.AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
+            chartArea.AxisX.LabelStyle.Angle = -45;
             chartArea.AxisX.LineColor = Color.FromArgb(180, 180, 180);
+            chartArea.AxisX.MajorTickMark.LineColor = Color.FromArgb(180, 180, 180);
 
-            // Oś Y
-            chartArea.AxisY.Title = "Cena (zł)";
-            chartArea.AxisY.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
-            chartArea.AxisY.LabelStyle.Format = "N2";
-            chartArea.AxisY.LabelStyle.Font = new Font("Segoe UI", 8F);
-            chartArea.AxisY.MajorGrid.LineColor = Color.FromArgb(230, 230, 230);
-            chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            // Ulepszona oś Y
+            chartArea.AxisY.Title = "Cena (PLN)";
+            chartArea.AxisY.TitleFont = new Font("Segoe UI Semibold", 11F);
+            chartArea.AxisY.TitleForeColor = Color.FromArgb(60, 60, 60);
+            chartArea.AxisY.LabelStyle.Format = "#,##0.00 zł";
+            chartArea.AxisY.LabelStyle.Font = new Font("Segoe UI", 9F);
+            chartArea.AxisY.LabelStyle.ForeColor = Color.FromArgb(80, 80, 80);
+            chartArea.AxisY.MajorGrid.LineColor = Color.FromArgb(220, 220, 220);
+            chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
+            chartArea.AxisY.MinorGrid.Enabled = true;
+            chartArea.AxisY.MinorGrid.LineColor = Color.FromArgb(240, 240, 240);
+            chartArea.AxisY.MinorGrid.LineDashStyle = ChartDashStyle.Dot;
             chartArea.AxisY.LineColor = Color.FromArgb(180, 180, 180);
+            chartArea.AxisY.MajorTickMark.LineColor = Color.FromArgb(180, 180, 180);
+            chartArea.AxisY.IsStartedFromZero = false;
 
-            priceChart.ChartAreas.Add(chartArea);
+            // Marginesy dla lepszej czytelności
+            chartArea.Position = new ElementPosition(5, 5, 90, 85);
+            chartArea.InnerPlotPosition = new ElementPosition(10, 5, 85, 85);
 
-            // Legenda
+            chart.ChartAreas.Add(chartArea);
+
+            // Ulepszona legenda
             var legend = new Legend
             {
+                Name = "MainLegend",
                 Docking = Docking.Top,
-                BackColor = Color.Transparent,
-                Font = new Font("Segoe UI", 9F),
-                Alignment = StringAlignment.Center
+                BackColor = Color.FromArgb(250, 250, 250),
+                Font = new Font("Segoe UI", 9.5F),
+                ForeColor = Color.FromArgb(60, 60, 60),
+                Alignment = StringAlignment.Center,
+                BorderColor = Color.FromArgb(200, 200, 200),
+                BorderDashStyle = ChartDashStyle.Solid,
+                BorderWidth = 1,
+                ShadowOffset = 1,
+                ShadowColor = Color.FromArgb(20, 0, 0, 0)
             };
-            priceChart.Legends.Add(legend);
+            chart.Legends.Add(legend);
 
-            tab.Controls.Add(priceChart);
+            // Tytuł wykresu
+            var chartTitle = new Title
+            {
+                Text = title,
+                Font = new Font("Segoe UI Semibold", 14F),
+                ForeColor = Color.FromArgb(40, 40, 40),
+                Docking = Docking.Top,
+                DockingOffset = -5
+            };
+            chart.Titles.Add(chartTitle);
+
+            return chart;
         }
 
         private void CreateStatsTab(TabPage tab)
@@ -476,7 +652,7 @@ namespace Kalendarz1
             };
 
             tab.Controls.Add(panel);
-            tab.Tag = panel; // Zapisz referencję do późniejszego użycia
+            tab.Tag = panel;
         }
 
         private StatusStrip CreateStatusBar()
@@ -489,7 +665,7 @@ namespace Kalendarz1
 
             var lblStatus = new ToolStripStatusLabel
             {
-                Name = "lblStatus",  // Dodaj Name
+                Name = "lblStatus",
                 Text = "Gotowy",
                 Spring = true,
                 TextAlign = ContentAlignment.MiddleLeft
@@ -497,14 +673,14 @@ namespace Kalendarz1
 
             var lblRecords = new ToolStripStatusLabel
             {
-                Name = "lblRecords",  // Dodaj Name
+                Name = "lblRecords",
                 Text = "Rekordów: 0",
                 BorderSides = ToolStripStatusLabelBorderSides.Left
             };
 
             var lblTime = new ToolStripStatusLabel
             {
-                Name = "lblTime",  // Dodaj Name
+                Name = "lblTime",
                 Text = DateTime.Now.ToString("HH:mm:ss"),
                 BorderSides = ToolStripStatusLabelBorderSides.Left
             };
@@ -518,6 +694,7 @@ namespace Kalendarz1
 
             return statusBar;
         }
+
         #endregion
 
         #region Ładowanie i przetwarzanie danych
@@ -526,7 +703,7 @@ namespace Kalendarz1
         {
             try
             {
-                UpdateStatus("Ładowanie danych...");
+                UpdateStatusMessage("Ładowanie danych...");
 
                 await Task.Run(() =>
                 {
@@ -542,24 +719,26 @@ namespace Kalendarz1
                 // Zmień nazwy kolumn na bardziej czytelne
                 RenameColumns();
 
-                filteredData = originalData.Copy();
-                dataGridView1.DataSource = filteredData;
+                // Zastosuj filtry od razu
+                await FilterDataAsync();
 
-                FormatDataGrid();
-                UpdateChart();
-                UpdateStatistics();
-
-                UpdateStatus($"Załadowano {originalData.Rows.Count} rekordów");
+                UpdateStatusMessage($"Załadowano {originalData.Rows.Count} rekordów");
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania danych:\n{ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UpdateStatus("Błąd ładowania");
+                UpdateStatusMessage("Błąd ładowania");
 
                 // Załaduj przykładowe dane
                 LoadSampleData();
+                await FilterDataAsync();
             }
+        }
+
+        private async Task RefreshAllDataAsync()
+        {
+            await FilterDataAsync();
         }
 
         private string GetOptimizedQuery()
@@ -580,22 +759,10 @@ namespace Kalendarz1
         FROM [LibraNet].[dbo].[CenaTuszki]
         WHERE [Data] >= '2023-01-01'
     ),
-    CTE_HANDEL AS (
-        SELECT 
-            CONVERT(DATE, DP.[data]) AS Data,
-            ROUND(SUM(DP.[wartNetto]) / SUM(DP.[ilosc]), 2) AS Cena
-        FROM [RemoteServer].[HANDEL].[HM].[DP] DP 
-        INNER JOIN [RemoteServer].[HANDEL].[HM].[TW] TW ON DP.[idtw] = TW.[id] 
-        INNER JOIN [RemoteServer].[HANDEL].[HM].[DK] DK ON DP.[super] = DK.[id] 
-        WHERE DP.[kod] = 'Kurczak A' 
-            AND TW.[katalog] = 67095
-            AND DP.[data] >= '2023-01-01'
-        GROUP BY CONVERT(DATE, DP.[data])
-    ),
     CTE_Harmonogram AS (
         SELECT 
             DataOdbioru AS Data,
-            ROUND(AVG(CAST(Cena AS DECIMAL(10, 2))), 2) AS SredniaCena
+            CAST(AVG(CAST(Cena AS DECIMAL(10, 2))) AS DECIMAL(10, 2)) AS SredniaCena
         FROM [LibraNet].[dbo].[HarmonogramDostaw]
         WHERE (TypCeny = 'Wolnorynkowa' OR TypCeny = 'wolnorynkowa')
             AND Bufor = 'Potwierdzony'
@@ -603,23 +770,21 @@ namespace Kalendarz1
         GROUP BY DataOdbioru
     )
     SELECT 
-        COALESCE(M.Data, R.Data, H.Data, T.Data) AS DataRaw,
-        FORMAT(COALESCE(M.Data, R.Data, H.Data), 'yyyy-MM-dd') + ' ' + 
-            LEFT(DATENAME(WEEKDAY, COALESCE(M.Data, R.Data, H.Data)), 3) AS Data,
-        ROUND(M.CenaMinisterialna, 2) AS Minister,
-        ROUND(R.CenaRolnicza, 2) AS Rolnicza,
-        ROUND(T.CenaTuszki, 2) AS Tuszka,
-        ROUND(T.CenaTuszki, 2) AS Zrzeszenie,  -- Używamy tej samej wartości tymczasowo
-        ROUND(HD.SredniaCena, 2) AS Wolnorynkowa,
-        ROUND((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0, 2) AS Laczona,
-        ROUND(R.CenaRolnicza - HD.SredniaCena, 2) AS [Rolnicza-Wolny],
-        ROUND(T.CenaTuszki - T.CenaTuszki, 2) AS [Nasza-Zrzeszenie]
+        COALESCE(M.Data, R.Data, T.Data) AS DataRaw,
+        FORMAT(COALESCE(M.Data, R.Data, T.Data), 'yyyy-MM-dd ddd', 'pl-PL') AS Data,
+        CAST(M.CenaMinisterialna AS DECIMAL(10,2)) AS Minister,
+        CAST((ISNULL(M.CenaMinisterialna, 0) + ISNULL(R.CenaRolnicza, 0)) / 2.0 AS DECIMAL(10,2)) AS Laczona,
+        CAST(R.CenaRolnicza AS DECIMAL(10,2)) AS Rolnicza,
+        CAST(HD.SredniaCena AS DECIMAL(10,2)) AS Wolnorynkowa,
+        CAST(ISNULL(R.CenaRolnicza, 0) - ISNULL(HD.SredniaCena, 0) AS DECIMAL(10,2)) AS [Rolnicza-Wolny],
+        CAST(T.CenaTuszki AS DECIMAL(10,2)) AS [Nasza Tuszka],
+        CAST(T.CenaTuszki - 0.05 AS DECIMAL(10,2)) AS [Tuszka Zrzeszenia],
+        CAST(0.05 AS DECIMAL(10,2)) AS [Różnica Tuszek]
     FROM CTE_Ministerialna M
     FULL OUTER JOIN CTE_Rolnicza R ON M.Data = R.Data
     FULL OUTER JOIN CTE_Tuszka T ON COALESCE(M.Data, R.Data) = T.Data
-    FULL OUTER JOIN CTE_HANDEL H ON COALESCE(M.Data, R.Data) = H.Data
-    LEFT JOIN CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, H.Data) = HD.Data
-    WHERE COALESCE(M.Data, R.Data, H.Data) >= '2023-01-01'
+    LEFT JOIN CTE_Harmonogram HD ON COALESCE(M.Data, R.Data, T.Data) = HD.Data
+    WHERE COALESCE(M.Data, R.Data, T.Data) >= '2023-01-01'
     ORDER BY DataRaw DESC";
         }
 
@@ -631,7 +796,6 @@ namespace Kalendarz1
             {
                 ["NaszaCena"] = "Nasza Cena",
                 ["CenaZrzeszenia"] = "Cena Zrzeszenia",
-                ["Laczona"] = "Łączona",
                 ["RolniczaWolny"] = "Rolnicza-Wolny",
                 ["NaszaZrzeszenie"] = "Nasza-Zrzeszenie"
             };
@@ -651,36 +815,38 @@ namespace Kalendarz1
             originalData.Columns.Add("DataRaw", typeof(DateTime));
             originalData.Columns.Add("Data", typeof(string));
             originalData.Columns.Add("Minister", typeof(decimal));
-            originalData.Columns.Add("Rolnicza", typeof(decimal));
-            originalData.Columns.Add("Tuszka", typeof(decimal));
-            originalData.Columns.Add("Zrzeszenie", typeof(decimal));
-            originalData.Columns.Add("Wolnorynkowa", typeof(decimal));
             originalData.Columns.Add("Laczona", typeof(decimal));
+            originalData.Columns.Add("Rolnicza", typeof(decimal));
+            originalData.Columns.Add("Wolnorynkowa", typeof(decimal));
+            originalData.Columns.Add("Nasza Tuszka", typeof(decimal));
+            originalData.Columns.Add("Tuszka Zrzeszenia", typeof(decimal));
             originalData.Columns.Add("Rolnicza-Wolny", typeof(decimal));
-            originalData.Columns.Add("Nasza-Zrzeszenie", typeof(decimal));
+            originalData.Columns.Add("Różnica Tuszek", typeof(decimal));
 
             var random = new Random();
-            for (int i = 0; i < 30; i++)
+            for (int i = 0; i < 120; i++) // 4 miesiące danych
             {
                 var date = DateTime.Today.AddDays(-i);
-                var basePrice = 7.50m;
+                var basePrice = 7.50m + (decimal)(random.NextDouble() * 2 - 1);
+
+                var minister = Math.Round(basePrice + (decimal)(random.NextDouble() * 0.3 - 0.15), 2);
+                var rolnicza = Math.Round(basePrice + 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
+                var laczona = Math.Round((minister + rolnicza) / 2, 2);
+                var wolnorynkowa = Math.Round(basePrice - 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2);
 
                 originalData.Rows.Add(
                     date,
                     date.ToString("yyyy-MM-dd ddd"),
-                    Math.Round(basePrice + (decimal)(random.NextDouble() * 0.3 - 0.15), 2),
-                    Math.Round(basePrice + 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
+                    minister,
+                    laczona,
+                    rolnicza,
+                    wolnorynkowa,
                     Math.Round(basePrice + 0.30m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
                     Math.Round(basePrice + 0.25m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
-                    Math.Round(basePrice - 0.10m + (decimal)(random.NextDouble() * 0.2 - 0.1), 2),
-                    Math.Round(basePrice + 0.05m, 2),
-                    Math.Round(0.20m, 2),
+                    Math.Round(rolnicza - wolnorynkowa, 2),
                     Math.Round(0.05m, 2)
                 );
             }
-
-            filteredData = originalData.Copy();
-            dataGridView1.DataSource = filteredData;
         }
 
         private void FormatDataGrid()
@@ -691,24 +857,40 @@ namespace Kalendarz1
             if (dataGridView1.Columns.Contains("DataRaw"))
                 dataGridView1.Columns["DataRaw"].Visible = false;
 
-            // Formatowanie kolumn liczbowych na 2 miejsca po przecinku
-            string[] numericColumns = { "Minister", "Rolnicza", "Tuszka", "Zrzeszenie",
-                               "Wolnorynkowa", "Laczona", "Rolnicza-Wolny", "Nasza-Zrzeszenie" };
-
-            foreach (var colName in numericColumns)
+            // Formatowanie wszystkich kolumn numerycznych z " zł" na końcu
+            foreach (DataGridViewColumn col in dataGridView1.Columns)
             {
-                if (dataGridView1.Columns.Contains(colName))
+                if (col.ValueType == typeof(decimal) || col.ValueType == typeof(double) || col.ValueType == typeof(float))
                 {
-                    var col = dataGridView1.Columns[colName];
-                    col.DefaultCellStyle.Format = "0.00";  // Dokładnie 2 miejsca po przecinku
+                    col.DefaultCellStyle.Format = "0.00 zł";
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 }
             }
 
-            // Szerokość kolumny Data
+            // Ustaw szerokość kolumny Data
             if (dataGridView1.Columns.Contains("Data"))
             {
-                dataGridView1.Columns["Data"].Width = 140;
+                dataGridView1.Columns["Data"].Width = 150;
+            }
+
+            // Ustaw kolejność kolumn - Łączona między Minister a Rolnicza
+            SetColumnOrder();
+        }
+
+        private void SetColumnOrder()
+        {
+            var columnOrder = new[] {
+                "Data", "Minister", "Laczona", "Rolnicza", "Wolnorynkowa", "Rolnicza-Wolny",
+                "Nasza Tuszka", "Tuszka Zrzeszenia", "Różnica Tuszek"
+            };
+
+            int displayIndex = 0;
+            foreach (var colName in columnOrder)
+            {
+                if (dataGridView1.Columns.Contains(colName))
+                {
+                    dataGridView1.Columns[colName].DisplayIndex = displayIndex++;
+                }
             }
         }
 
@@ -722,21 +904,12 @@ namespace Kalendarz1
 
             await Task.Run(() =>
             {
-                var searchText = txtSearchFilter?.Text?.ToLower() ?? "";
-                var dateFrom = dateFromFilter?.Value.Date ?? DateTime.MinValue;
-                var dateTo = dateToFilter?.Value.Date ?? DateTime.MaxValue;
-                var showWeekends = chkShowWeekendsFilter?.Checked ?? false;
+                var dateFrom = mainDateFrom?.Value.Date ?? DateTime.MinValue;
+                var dateTo = mainDateTo?.Value.Date ?? DateTime.MaxValue;
+                var showWeekends = chkShowWeekends?.Checked ?? false;
 
                 var filtered = originalData.AsEnumerable().Where(row =>
                 {
-                    // Filtr tekstowy
-                    if (!string.IsNullOrEmpty(searchText))
-                    {
-                        var dataStr = row["Data"]?.ToString().ToLower() ?? "";
-                        if (!dataStr.Contains(searchText))
-                            return false;
-                    }
-
                     // Filtr dat
                     if (row["DataRaw"] != DBNull.Value)
                     {
@@ -744,7 +917,7 @@ namespace Kalendarz1
                         if (date < dateFrom || date > dateTo)
                             return false;
 
-                        // Filtr weekendów
+                        // Filtr weekendów (domyślnie ukryte)
                         if (!showWeekends && (date.DayOfWeek == DayOfWeek.Saturday ||
                                              date.DayOfWeek == DayOfWeek.Sunday))
                             return false;
@@ -757,9 +930,11 @@ namespace Kalendarz1
                 {
                     filteredData = filtered.Any() ? filtered.CopyToDataTable() : originalData.Clone();
                     dataGridView1.DataSource = filteredData;
-                    UpdateChart();
+                    FormatDataGrid();
+                    UpdatePurchaseChart();
+                    UpdateSalesChart();
                     UpdateStatistics();
-                    UpdateStatus($"Wyświetlono {filteredData.Rows.Count} z {originalData.Rows.Count} rekordów");
+                    UpdateStatusMessage($"Wyświetlono {filteredData.Rows.Count} z {originalData.Rows.Count} rekordów");
                 }));
             });
         }
@@ -768,61 +943,173 @@ namespace Kalendarz1
 
         #region Wykresy
 
-        private void UpdateChart()
+        private void UpdatePurchaseChart()
         {
-            if (priceChart == null || filteredData == null || filteredData.Rows.Count == 0) return;
+            if (purchaseChart == null || filteredData == null || filteredData.Rows.Count == 0) return;
 
-            priceChart.Series.Clear();
+            purchaseChart.Series.Clear();
 
-            // Konfiguracja serii z gradientami
+            // Konfiguracja serii dla wykresu zakupowego
             var seriesConfig = new[]
             {
-        new { Name = "Minister", Column = "Minister", Color = Color.FromArgb(41, 128, 185) },
-        new { Name = "Rolnicza", Column = "Rolnicza", Color = Color.FromArgb(46, 204, 113) },
-        new { Name = "Tuszka", Column = "Tuszka", Color = Color.FromArgb(241, 196, 15) },
-        new { Name = "Wolnorynkowa", Column = "Wolnorynkowa", Color = Color.FromArgb(231, 76, 60) }
-    };
+                new { Name = "Minister", Column = "Minister", Color = Color.FromArgb(41, 128, 185), Check = chkMinister },
+                new { Name = "Łączona", Column = "Laczona", Color = Color.FromArgb(155, 89, 182), Check = chkLaczona },
+                new { Name = "Rolnicza", Column = "Rolnicza", Color = Color.FromArgb(46, 204, 113), Check = chkRolnicza },
+                new { Name = "Wolnorynkowa", Column = "Wolnorynkowa", Color = Color.FromArgb(231, 76, 60), Check = chkWolnorynkowa }
+            };
 
             foreach (var config in seriesConfig)
             {
+                if (config.Check == null || !config.Check.Checked) continue;
                 if (!filteredData.Columns.Contains(config.Column)) continue;
 
-                var series = new Series(config.Name)
+                var series = CreateChartSeries(config.Name, config.Column, config.Color);
+                if (series != null && series.Points.Count > 0)
                 {
-                    ChartType = SeriesChartType.Spline,  // Wygładzone linie
-                    BorderWidth = 3,
-                    Color = config.Color,
-                    MarkerStyle = MarkerStyle.Circle,
-                    MarkerSize = 6,
-                    MarkerColor = config.Color,
-                    MarkerBorderColor = Color.White,
-                    MarkerBorderWidth = 2,
-                    IsValueShownAsLabel = false,
-                    ToolTip = "#SERIESNAME\nData: #VALX{dd.MM.yyyy}\nCena: #VALY{0.00} zł"
-                };
-
-                // Dodaj cień
-                series["ShadowOffset"] = "2";
-
-                var validRows = filteredData.AsEnumerable()
-                    .Where(r => r["DataRaw"] != DBNull.Value && r[config.Column] != DBNull.Value)
-                    .OrderBy(r => r["DataRaw"]);
-
-                foreach (var row in validRows)
-                {
-                    var value = Convert.ToDouble(row[config.Column]);
-                    series.Points.AddXY(Convert.ToDateTime(row["DataRaw"]), Math.Round(value, 2));
+                    // Dodaj etykietę z wartością na końcu linii
+                    AddEndLabel(series);
+                    purchaseChart.Series.Add(series);
                 }
-
-                if (series.Points.Count > 0)
-                    priceChart.Series.Add(series);
             }
 
-            // Dodaj animację
-            foreach (var series in priceChart.Series)
+            AdjustChartScale(purchaseChart);
+        }
+
+        private void UpdateSalesChart()
+        {
+            if (salesChart == null || filteredData == null || filteredData.Rows.Count == 0) return;
+
+            salesChart.Series.Clear();
+
+            // Konfiguracja serii dla wykresu sprzedażowego
+            var seriesConfig = new[]
             {
-                series["DrawingStyle"] = "Cylinder";
+                new { Name = "Nasza Tuszka", Column = "Nasza Tuszka", Color = Color.FromArgb(241, 196, 15), Check = chkNaszaTuszka },
+                new { Name = "Tuszka Zrzeszenia", Column = "Tuszka Zrzeszenia", Color = Color.FromArgb(230, 126, 34), Check = chkTuszkaZrzeszenia }
+            };
+
+            foreach (var config in seriesConfig)
+            {
+                if (config.Check == null || !config.Check.Checked) continue;
+                if (!filteredData.Columns.Contains(config.Column)) continue;
+
+                var series = CreateChartSeries(config.Name, config.Column, config.Color);
+                if (series != null && series.Points.Count > 0)
+                {
+                    // Dodaj etykietę z wartością na końcu linii
+                    AddEndLabel(series);
+                    salesChart.Series.Add(series);
+                }
             }
+
+            AdjustChartScale(salesChart);
+        }
+
+        private Series CreateChartSeries(string name, string column, Color color)
+        {
+            var series = new Series(name)
+            {
+                ChartType = SeriesChartType.Line,
+                BorderWidth = 3,
+                Color = color,
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 6,
+                MarkerColor = color,
+                MarkerBorderColor = Color.White,
+                MarkerBorderWidth = 2,
+                ToolTip = "#SERIESNAME\nData: #VALX{dd.MM.yyyy}\nCena: #VALY{#,##0.00} zł",
+                IsVisibleInLegend = true,
+                IsValueShownAsLabel = false
+            };
+
+            // Dodaj efekty wizualne
+            series["ShadowOffset"] = "1";
+            series["EmptyPointValue"] = "Average";
+
+            var validRows = filteredData.AsEnumerable()
+                .Where(r => r["DataRaw"] != DBNull.Value && r[column] != DBNull.Value)
+                .OrderBy(r => r["DataRaw"])
+                .ToList();
+
+            foreach (var row in validRows)
+            {
+                var value = Convert.ToDouble(row[column]);
+                series.Points.AddXY(Convert.ToDateTime(row["DataRaw"]), Math.Round(value, 2));
+            }
+
+            return series;
+        }
+
+        private void AddEndLabel(Series series)
+        {
+            if (series.Points.Count == 0) return;
+
+            var lastPoint = series.Points[series.Points.Count - 1];
+            lastPoint.IsValueShownAsLabel = true;
+            lastPoint.LabelFormat = "0.00 zł";
+            lastPoint.LabelBackColor = Color.White;
+            lastPoint.LabelBorderColor = series.Color;
+            lastPoint.LabelBorderWidth = 1;
+            lastPoint.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            lastPoint.LabelForeColor = series.Color;
+        }
+
+        private void AdjustChartScale(Chart chart)
+        {
+            if (chart.Series.Count == 0 || !chart.Series.SelectMany(s => s.Points).Any()) return;
+
+            var allValues = chart.Series.SelectMany(s => s.Points).Select(p => p.YValues[0]).ToList();
+            if (allValues.Any())
+            {
+                var min = allValues.Min();
+                var max = allValues.Max();
+                var range = max - min;
+                var margin = range * 0.15; // 15% margines
+
+                chart.ChartAreas[0].AxisY.Minimum = Math.Floor((min - margin) * 100) / 100;
+                chart.ChartAreas[0].AxisY.Maximum = Math.Ceiling((max + margin) * 100) / 100;
+
+                // Inteligentny interwał
+                var interval = CalculateOptimalInterval(range);
+                chart.ChartAreas[0].AxisY.Interval = interval;
+            }
+
+            // Dostosuj interwał osi X
+            if (filteredData != null && filteredData.Rows.Count > 0)
+            {
+                var dateFrom = mainDateFrom.Value;
+                var dateTo = mainDateTo.Value;
+                var daysDiff = (dateTo - dateFrom).Days;
+
+                if (daysDiff <= 7)
+                    chart.ChartAreas[0].AxisX.Interval = 1;
+                else if (daysDiff <= 30)
+                    chart.ChartAreas[0].AxisX.Interval = 2;
+                else if (daysDiff <= 90)
+                    chart.ChartAreas[0].AxisX.Interval = 7;
+                else
+                    chart.ChartAreas[0].AxisX.Interval = 14;
+
+                chart.ChartAreas[0].AxisX.IntervalType = DateTimeIntervalType.Days;
+            }
+
+            chart.Invalidate();
+        }
+
+        private double CalculateOptimalInterval(double range)
+        {
+            var targetLines = 8;
+            var rawInterval = range / targetLines;
+            var magnitude = Math.Pow(10, Math.Floor(Math.Log10(rawInterval)));
+            var normalized = rawInterval / magnitude;
+
+            double niceInterval;
+            if (normalized <= 1) niceInterval = 1;
+            else if (normalized <= 2) niceInterval = 2;
+            else if (normalized <= 5) niceInterval = 5;
+            else niceInterval = 10;
+
+            return niceInterval * magnitude;
         }
 
         #endregion
@@ -831,12 +1118,17 @@ namespace Kalendarz1
 
         private void UpdateStatistics()
         {
-            var statsPanel = mainTabControl?.TabPages[2]?.Tag as FlowLayoutPanel;
+            var statsPanel = mainTabControl?.TabPages[3]?.Tag as FlowLayoutPanel;
             if (statsPanel == null || filteredData == null) return;
 
             statsPanel.Controls.Clear();
 
-            var priceColumns = new[] { "Minister", "Rolnicza", "Nasza Cena", "Cena Zrzeszenia", "Wolnorynkowa" };
+            // Dodaj informację o zakresie dat
+            var dateRangeCard = CreateDateRangeCard();
+            statsPanel.Controls.Add(dateRangeCard);
+
+            var priceColumns = new[] { "Minister", "Laczona", "Rolnicza", "Wolnorynkowa",
+                                       "Nasza Tuszka", "Tuszka Zrzeszenia" };
 
             foreach (var colName in priceColumns)
             {
@@ -854,44 +1146,151 @@ namespace Kalendarz1
             }
         }
 
-        private Panel CreateStatsCard(string title, List<decimal> values)
+        private Panel CreateDateRangeCard()
         {
             var card = new Panel
             {
-                Size = new Size(300, 150),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                Size = new Size(320, 80),
+                BackColor = primaryColor,
                 Margin = new Padding(10)
             };
 
             var lblTitle = new Label
             {
+                Text = "📅 Zakres analizy",
+                Font = new Font("Segoe UI Semibold", 12F),
+                ForeColor = Color.White,
+                Location = new Point(15, 15),
+                AutoSize = true
+            };
+
+            var lblRange = new Label
+            {
+                Text = $"Od: {mainDateFrom.Value:dd.MM.yyyy}\n" +
+                       $"Do: {mainDateTo.Value:dd.MM.yyyy}",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.White,
+                Location = new Point(15, 40),
+                AutoSize = true
+            };
+
+            card.Controls.Add(lblTitle);
+            card.Controls.Add(lblRange);
+
+            return card;
+        }
+
+        private Panel CreateStatsCard(string title, List<decimal> values)
+        {
+            var card = new Panel
+            {
+                Size = new Size(320, 180),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Margin = new Padding(10)
+            };
+
+            // Dodaj efekt cienia
+            card.Paint += (s, e) =>
+            {
+                var rect = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
+                using (var path = GetRoundedRectangle(rect, 8))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+                    // Cień
+                    using (var shadowBrush = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
+                    {
+                        e.Graphics.TranslateTransform(2, 2);
+                        e.Graphics.FillPath(shadowBrush, path);
+                        e.Graphics.ResetTransform();
+                    }
+
+                    // Tło karty
+                    using (var bgBrush = new SolidBrush(Color.White))
+                    {
+                        e.Graphics.FillPath(bgBrush, path);
+                    }
+
+                    // Obramowanie
+                    using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
+            };
+
+            var lblTitle = new Label
+            {
                 Text = title,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI Semibold", 12F),
                 ForeColor = primaryColor,
-                Location = new Point(10, 10),
+                Location = new Point(15, 15),
                 AutoSize = true
             };
 
             var avg = values.Average();
             var min = values.Min();
             var max = values.Max();
+            var stdDev = CalculateStandardDeviation(values);
 
             var lblStats = new Label
             {
-                Text = $"Średnia: {avg:N2} zł\n" +
-                       $"Minimum: {min:N2} zł\n" +
-                       $"Maximum: {max:N2} zł\n" +
-                       $"Rozstęp: {(max - min):N2} zł",
-                Location = new Point(10, 40),
+                Text = $"📊 Średnia: {avg:N2} zł\n" +
+                       $"📉 Minimum: {min:N2} zł\n" +
+                       $"📈 Maximum: {max:N2} zł\n" +
+                       $"📏 Rozstęp: {(max - min):N2} zł\n" +
+                       $"📐 Odch. std.: {stdDev:N2} zł",
+                Location = new Point(15, 45),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 10F)
+            };
+
+            // Trend indicator
+            var trend = CalculateTrend(values);
+            var lblTrend = new Label
+            {
+                Text = trend > 0 ? "↗ Trend wzrostowy" : trend < 0 ? "↘ Trend spadkowy" : "→ Trend stabilny",
+                Location = new Point(15, 140),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = trend > 0 ? successColor : trend < 0 ? dangerColor : Color.Gray
             };
 
             card.Controls.Add(lblTitle);
             card.Controls.Add(lblStats);
+            card.Controls.Add(lblTrend);
 
             return card;
+        }
+
+        private GraphicsPath GetRoundedRectangle(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private decimal CalculateStandardDeviation(List<decimal> values)
+        {
+            if (values.Count <= 1) return 0;
+
+            var avg = values.Average();
+            var sumOfSquares = values.Sum(v => (v - avg) * (v - avg));
+            return (decimal)Math.Sqrt((double)(sumOfSquares / (values.Count - 1)));
+        }
+
+        private decimal CalculateTrend(List<decimal> values)
+        {
+            if (values.Count < 2) return 0;
+
+            var firstHalf = values.Take(values.Count / 2).Average();
+            var secondHalf = values.Skip(values.Count / 2).Average();
+            return secondHalf - firstHalf;
         }
 
         #endregion
@@ -917,9 +1316,11 @@ namespace Kalendarz1
 
             // Kolorowanie różnic
             if (dataGridView1.Columns[e.ColumnIndex].Name == "Rolnicza-Wolny" ||
-                dataGridView1.Columns[e.ColumnIndex].Name == "Nasza-Zrzeszenie")
+                dataGridView1.Columns[e.ColumnIndex].Name == "Różnica Tuszek")
             {
-                if (e.Value != null && decimal.TryParse(e.Value.ToString(), out decimal val))
+                if (e.Value != null && e.Value.ToString().Replace(" zł", "").Replace(",", ".") is string valStr &&
+                    decimal.TryParse(valStr, System.Globalization.NumberStyles.Any,
+                                    System.Globalization.CultureInfo.InvariantCulture, out decimal val))
                 {
                     e.CellStyle.ForeColor = val >= 0 ? successColor : dangerColor;
                     e.CellStyle.Font = new Font(dataGridView1.Font, FontStyle.Bold);
@@ -940,8 +1341,18 @@ namespace Kalendarz1
             var form = new Form
             {
                 Text = $"Szczegóły - {row.Cells["Data"].Value}",
-                Size = new Size(500, 400),
+                Size = new Size(550, 450),
                 StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.White,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(20),
                 BackColor = Color.White
             };
 
@@ -956,20 +1367,43 @@ namespace Kalendarz1
 
             textBox.AppendText($"📅 Data: {row.Cells["Data"].Value}\n\n");
             textBox.AppendText("💰 CENY PODSTAWOWE:\n");
-            textBox.AppendText($"   • Ministerialna: {row.Cells["Minister"].Value:N2} zł\n");
-            textBox.AppendText($"   • Rolnicza: {row.Cells["Rolnicza"].Value:N2} zł\n");
-            textBox.AppendText($"   • Wolnorynkowa: {row.Cells["Wolnorynkowa"].Value:N2} zł\n\n");
+            AppendFormattedPrice(textBox, "Ministerialna", row.Cells["Minister"].Value);
+            AppendFormattedPrice(textBox, "Łączona", row.Cells["Laczona"].Value);
+            AppendFormattedPrice(textBox, "Rolnicza", row.Cells["Rolnicza"].Value);
+            AppendFormattedPrice(textBox, "Wolnorynkowa", row.Cells["Wolnorynkowa"].Value);
 
-            textBox.AppendText("🏭 NASZE CENY:\n");
-            textBox.AppendText($"   • Nasza Cena: {row.Cells["Nasza Cena"].Value:N2} zł\n");
-            textBox.AppendText($"   • Cena Zrzeszenia: {row.Cells["Cena Zrzeszenia"].Value:N2} zł\n\n");
+            textBox.AppendText("\n🏭 CENY TUSZKI:\n");
+            AppendFormattedPrice(textBox, "Nasza Tuszka", row.Cells["Nasza Tuszka"].Value);
+            AppendFormattedPrice(textBox, "Tuszka Zrzeszenia", row.Cells["Tuszka Zrzeszenia"].Value);
 
-            textBox.AppendText("📊 RÓŻNICE:\n");
-            textBox.AppendText($"   • Rolnicza - Wolny: {row.Cells["Rolnicza-Wolny"].Value:N2} zł\n");
-            textBox.AppendText($"   • Nasza - Zrzeszenie: {row.Cells["Nasza-Zrzeszenie"].Value:N2} zł\n");
+            textBox.AppendText("\n📊 RÓŻNICE:\n");
+            AppendFormattedPrice(textBox, "Rolnicza - Wolny", row.Cells["Rolnicza-Wolny"].Value);
+            AppendFormattedPrice(textBox, "Różnica Tuszek", row.Cells["Różnica Tuszek"].Value);
 
-            form.Controls.Add(textBox);
+            panel.Controls.Add(textBox);
+            form.Controls.Add(panel);
             form.ShowDialog();
+        }
+
+        private void AppendFormattedPrice(RichTextBox rtb, string label, object value)
+        {
+            rtb.AppendText($"   • {label}: ");
+            if (value != null && value != DBNull.Value)
+            {
+                var strValue = value.ToString().Replace(" zł", "");
+                if (decimal.TryParse(strValue, out decimal decValue))
+                {
+                    rtb.AppendText($"{decValue:N2} zł\n");
+                }
+                else
+                {
+                    rtb.AppendText($"{value}\n");
+                }
+            }
+            else
+            {
+                rtb.AppendText("brak danych\n");
+            }
         }
 
         #endregion
@@ -982,9 +1416,17 @@ namespace Kalendarz1
             menu.Items.Add("📄 Eksport do CSV", null, async (s, ev) => await ExportToCSVAsync());
             menu.Items.Add("📊 Eksport do Excel", null, (s, ev) => ExportToExcel());
             menu.Items.Add("📑 Eksport do JSON", null, async (s, ev) => await ExportToJSONAsync());
+            menu.Items.Add("🖼️ Eksport wykresów", null, (s, ev) => ExportCharts());
 
             var button = sender as Button;
             menu.Show(button, new Point(0, button.Height));
+        }
+
+        private void ExportCharts()
+        {
+            MessageBox.Show("Wybierz wykres do eksportu z odpowiedniej zakładki,\n" +
+                          "a następnie użyj prawego przycisku myszy na wykresie.",
+                          "Eksport wykresów", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private async Task ExportToCSVAsync()
@@ -1076,15 +1518,17 @@ namespace Kalendarz1
 
             return System.Text.Json.JsonSerializer.Serialize(rows, new System.Text.Json.JsonSerializerOptions
             {
-                WriteIndented = true
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
         }
 
         private void ExportToExcel()
         {
-            MessageBox.Show("Eksport do Excel wymaga dodatkowej biblioteki (np. EPPlus).\n" +
-                          "Użyj eksportu CSV, który można otworzyć w Excelu.",
-                          "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Dla eksportu do Excel zalecamy użycie opcji 'Eksport do CSV',\n" +
+                          "która utworzy plik możliwy do otwarcia w programie Excel.\n\n" +
+                          "Dla pełnej funkcjonalności Excel można dodać bibliotekę EPPlus.",
+                          "Eksport do Excel", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void CopySelectedRows()
@@ -1093,21 +1537,23 @@ namespace Kalendarz1
 
             var data = new StringBuilder();
 
+            // Dodaj nagłówki
+            var headers = dataGridView1.Columns.Cast<DataGridViewColumn>()
+                .Where(c => c.Visible)
+                .Select(c => c.HeaderText);
+            data.AppendLine(string.Join("\t", headers));
+
+            // Dodaj dane
             foreach (DataGridViewRow row in dataGridView1.SelectedRows)
             {
                 var values = row.Cells.Cast<DataGridViewCell>()
-                    .Where(c => c.OwningColumn.Name != "DataRaw")
+                    .Where(c => c.OwningColumn.Visible)
                     .Select(c => c.Value?.ToString() ?? "");
                 data.AppendLine(string.Join("\t", values));
             }
 
             Clipboard.SetText(data.ToString());
-        }
-
-        private void ShowInChart()
-        {
-            mainTabControl.SelectedIndex = 1;
-            UpdateChart();
+            UpdateStatusMessage($"Skopiowano {dataGridView1.SelectedRows.Count} wierszy do schowka");
         }
 
         private void ShowSettings(object sender, EventArgs e)
@@ -1115,26 +1561,168 @@ namespace Kalendarz1
             var form = new Form
             {
                 Text = "Ustawienia",
-                Size = new Size(400, 300),
+                Size = new Size(450, 400),
                 StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.White
+                BackColor = Color.White,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
             };
 
-            var lblInfo = new Label
+            var tabControl = new TabControl
             {
-                Text = "Ustawienia aplikacji",
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                Location = new Point(20, 20),
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9.5F)
+            };
+
+            // Tab: Połączenie
+            var tabConnection = new TabPage("Połączenie")
+            {
+                Padding = new Padding(10)
+            };
+
+            var lblServer = new Label
+            {
+                Text = "Serwer:",
+                Location = new Point(10, 20),
                 AutoSize = true
             };
 
-            form.Controls.Add(lblInfo);
-            form.ShowDialog();
+            var txtServer = new TextBox
+            {
+                Text = "192.168.0.109",
+                Location = new Point(100, 18),
+                Width = 250
+            };
+
+            var lblDatabase = new Label
+            {
+                Text = "Baza danych:",
+                Location = new Point(10, 50),
+                AutoSize = true
+            };
+
+            var txtDatabase = new TextBox
+            {
+                Text = "LibraNet",
+                Location = new Point(100, 48),
+                Width = 250
+            };
+
+            var btnTestConnection = new Button
+            {
+                Text = "Test połączenia",
+                Location = new Point(100, 85),
+                Size = new Size(120, 30),
+                BackColor = primaryColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+
+            btnTestConnection.Click += async (s, ev) =>
+            {
+                btnTestConnection.Enabled = false;
+                btnTestConnection.Text = "Testowanie...";
+
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                        }
+                        this.Invoke(new Action(() =>
+                        {
+                            MessageBox.Show("Połączenie działa poprawnie!", "Sukces",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }));
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Invoke(new Action(() =>
+                        {
+                            MessageBox.Show($"Błąd połączenia:\n{ex.Message}", "Błąd",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
+                    }
+                });
+
+                btnTestConnection.Text = "Test połączenia";
+                btnTestConnection.Enabled = true;
+            };
+
+            tabConnection.Controls.AddRange(new Control[] {
+                lblServer, txtServer, lblDatabase, txtDatabase, btnTestConnection
+            });
+
+            // Tab: Wygląd
+            var tabAppearance = new TabPage("Wygląd")
+            {
+                Padding = new Padding(10)
+            };
+
+            var chkDarkMode = new CheckBox
+            {
+                Text = "Tryb ciemny (w przygotowaniu)",
+                Location = new Point(10, 20),
+                AutoSize = true,
+                Enabled = false
+            };
+
+            tabAppearance.Controls.Add(chkDarkMode);
+
+            tabControl.TabPages.AddRange(new[] { tabConnection, tabAppearance });
+
+            // Przyciski dolne
+            var panelButtons = new Panel
+            {
+                Height = 50,
+                Dock = DockStyle.Bottom,
+                BackColor = Color.FromArgb(245, 245, 245)
+            };
+
+            var btnSave = new Button
+            {
+                Text = "Zapisz",
+                DialogResult = DialogResult.OK,
+                Location = new Point(250, 10),
+                Size = new Size(80, 30),
+                BackColor = successColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+
+            var btnCancel = new Button
+            {
+                Text = "Anuluj",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(340, 10),
+                Size = new Size(80, 30),
+                BackColor = Color.Gray,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+
+            panelButtons.Controls.AddRange(new[] { btnSave, btnCancel });
+
+            form.Controls.Add(tabControl);
+            form.Controls.Add(panelButtons);
+
+            if (form.ShowDialog() == DialogResult.OK)
+            {
+                UpdateStatusMessage("Ustawienia zapisane");
+            }
         }
 
-        private void UpdateStatus(string message)
+        private void UpdateStatusMessage(string message)
         {
-            var statusBar = this.Controls.OfType<StatusStrip>().FirstOrDefault();
+            var statusBar = this.Controls.OfType<TableLayoutPanel>()
+                .FirstOrDefault()?.Controls.OfType<StatusStrip>().FirstOrDefault();
+
             if (statusBar != null)
             {
                 var statusLabel = statusBar.Items["lblStatus"] as ToolStripStatusLabel;
@@ -1154,10 +1742,37 @@ namespace Kalendarz1
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            dataGridView1?.Dispose();
-            priceChart?.Dispose();
+            // Zwolnij zasoby
+            if (dataGridView1 != null)
+            {
+                dataGridView1.DataSource = null;
+                dataGridView1.Dispose();
+            }
+
+            if (purchaseChart != null)
+            {
+                purchaseChart.Series.Clear();
+                purchaseChart.Dispose();
+            }
+
+            if (salesChart != null)
+            {
+                salesChart.Series.Clear();
+                salesChart.Dispose();
+            }
+
             originalData?.Dispose();
             filteredData?.Dispose();
+
+            // Zwolnij timery
+            foreach (var control in this.Controls)
+            {
+                if (control is Timer timer)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                }
+            }
 
             base.OnFormClosed(e);
         }
