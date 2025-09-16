@@ -226,7 +226,7 @@ namespace Kalendarz1.Transport.Repozytorium
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                // Najpierw sprawdź czy kurs istnieje
+                // Sprawdź czy kurs istnieje
                 var sqlCheck = "SELECT COUNT(*) FROM dbo.Kurs WHERE KursID = @KursID";
                 using (var cmdCheck = new SqlCommand(sqlCheck, connection))
                 {
@@ -240,29 +240,29 @@ namespace Kalendarz1.Transport.Repozytorium
                     }
                 }
 
-                // Pobierz dane kursu - używamy LEFT JOIN aby obsłużyć przypadki gdy kierowca lub pojazd zostały usunięte
+                // Pobierz dane kursu
                 var sql = @"
-                    SELECT 
-                        k.KursID, 
-                        k.DataKursu, 
-                        ISNULL(k.KierowcaID, 0) AS KierowcaID, 
-                        ISNULL(k.PojazdID, 0) AS PojazdID, 
-                        k.Trasa,
-                        k.GodzWyjazdu, 
-                        k.GodzPowrotu, 
-                        ISNULL(k.Status, 'Planowany') AS Status, 
-                        ISNULL(k.PlanE2NaPalete, 36) AS PlanE2NaPalete,
-                        k.UtworzonoUTC, 
-                        k.Utworzyl, 
-                        k.ZmienionoUTC, 
-                        k.Zmienil,
-                        ISNULL(CONCAT(ki.Imie, ' ', ki.Nazwisko), 'Brak kierowcy') AS KierowcaNazwa,
-                        ISNULL(p.Rejestracja, 'Brak pojazdu') AS Rejestracja,
-                        ISNULL(p.PaletyH1, 33) AS PaletyPojazdu
-                    FROM dbo.Kurs k
-                    LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
-                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
-                    WHERE k.KursID = @KursID";
+            SELECT 
+                k.KursID, 
+                k.DataKursu, 
+                ISNULL(k.KierowcaID, 0) AS KierowcaID, 
+                ISNULL(k.PojazdID, 0) AS PojazdID, 
+                k.Trasa,
+                k.GodzWyjazdu, 
+                k.GodzPowrotu, 
+                ISNULL(k.Status, 'Planowany') AS Status, 
+                ISNULL(k.PlanE2NaPalete, 36) AS PlanE2NaPalete,
+                k.UtworzonoUTC, 
+                k.Utworzyl, 
+                k.ZmienionoUTC, 
+                k.Zmienil,
+                ISNULL(CONCAT(ki.Imie, ' ', ki.Nazwisko), 'Brak kierowcy') AS KierowcaNazwa,
+                ISNULL(p.Rejestracja, 'Brak pojazdu') AS Rejestracja,
+                ISNULL(p.PaletyH1, 33) AS PaletyPojazdu
+            FROM dbo.Kurs k
+            LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+            LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+            WHERE k.KursID = @KursID";
 
                 using var cmd = new SqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@KursID", kursId);
@@ -281,7 +281,7 @@ namespace Kalendarz1.Transport.Repozytorium
                         GodzWyjazdu = reader.IsDBNull(5) ? null : (TimeSpan?)reader.GetTimeSpan(5),
                         GodzPowrotu = reader.IsDBNull(6) ? null : (TimeSpan?)reader.GetTimeSpan(6),
                         Status = reader.GetString(7),
-                        PlanE2NaPalete = (byte)reader.GetInt32(8), // Konwersja z TINYINT
+                        PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36), // UŻYJ SafeConvert
                         UtworzonoUTC = reader.GetDateTime(9),
                         Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                         ZmienionoUTC = reader.IsDBNull(11) ? null : (DateTime?)reader.GetDateTime(11),
@@ -289,7 +289,6 @@ namespace Kalendarz1.Transport.Repozytorium
                         KierowcaNazwa = reader.GetString(13),
                         PojazdRejestracja = reader.GetString(14),
                         PaletyPojazdu = reader.GetInt32(15),
-                        // Wartości wypełnienia ustawimy poniżej
                         SumaE2 = 0,
                         PaletyNominal = 0,
                         PaletyMax = 0,
@@ -297,14 +296,13 @@ namespace Kalendarz1.Transport.Repozytorium
                         ProcMax = 0
                     };
 
-                    // Próbuj obliczyć wypełnienie kursu (nie krytyczne jeśli się nie uda)
+                    // Oblicz wypełnienie
                     try
                     {
-                        // Pobierz sumę pojemników z ładunków
                         var sqlLadunki = @"
-                            SELECT ISNULL(SUM(PojemnikiE2), 0) 
-                            FROM dbo.Ladunek 
-                            WHERE KursID = @KursID";
+                    SELECT ISNULL(SUM(PojemnikiE2), 0) 
+                    FROM dbo.Ladunek 
+                    WHERE KursID = @KursID";
 
                         using (var cmdLadunki = new SqlCommand(sqlLadunki, connection))
                         {
@@ -315,9 +313,8 @@ namespace Kalendarz1.Transport.Repozytorium
 
                             if (kurs.PaletyPojazdu > 0 && kurs.PlanE2NaPalete > 0)
                             {
-                                // Oblicz wypełnienie
                                 kurs.PaletyNominal = (int)Math.Ceiling((double)sumaE2 / kurs.PlanE2NaPalete);
-                                kurs.PaletyMax = (int)Math.Ceiling((double)sumaE2 / 30); // Maksymalne upakowanie
+                                kurs.PaletyMax = (int)Math.Ceiling((double)sumaE2 / 40);
 
                                 kurs.ProcNominal = Math.Round(100.0m * kurs.PaletyNominal / kurs.PaletyPojazdu, 2);
                                 kurs.ProcMax = Math.Round(100.0m * kurs.PaletyMax / kurs.PaletyPojazdu, 2);
@@ -326,25 +323,17 @@ namespace Kalendarz1.Transport.Repozytorium
                     }
                     catch (Exception exCalc)
                     {
-                        // Loguj błąd ale nie przerywaj - wypełnienie nie jest krytyczne
                         System.Diagnostics.Debug.WriteLine($"Błąd obliczania wypełnienia: {exCalc.Message}");
                     }
 
                     return kurs;
                 }
 
-                // Nie powinno się zdarzyć jeśli COUNT(*) zwrócił 1
-                System.Diagnostics.Debug.WriteLine($"Nieoczekiwany błąd - kurs {kursId} istnieje ale nie można go odczytać");
                 return null;
-            }
-            catch (SqlException sqlEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd SQL przy pobieraniu kursu {kursId}: {sqlEx.Message}");
-                throw new Exception($"Błąd połączenia z bazą danych: {sqlEx.Message}", sqlEx);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Nieoczekiwany błąd przy pobieraniu kursu {kursId}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Błąd przy pobieraniu kursu {kursId}: {ex.Message}");
                 throw new Exception($"Błąd podczas pobierania kursu: {ex.Message}", ex);
             }
         }
@@ -357,24 +346,24 @@ namespace Kalendarz1.Transport.Repozytorium
             await connection.OpenAsync();
 
             var sql = @"
-                SELECT 
-                    k.KursID, k.DataKursu, k.KierowcaID, k.PojazdID, k.Trasa,
-                    k.GodzWyjazdu, k.GodzPowrotu, k.Status, k.PlanE2NaPalete,
-                    k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil,
-                    CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
-                    p.Rejestracja,
-                    ISNULL(v.PaletyPojazdu, p.PaletyH1) AS PaletyPojazdu,
-                    ISNULL(v.SumaE2, 0) AS SumaE2,
-                    ISNULL(v.PaletyNominal, 0) AS PaletyNominal,
-                    ISNULL(v.PaletyMax, 0) AS PaletyMax,
-                    ISNULL(v.ProcNominal, 0) AS ProcNominal,
-                    ISNULL(v.ProcMax, 0) AS ProcMax
-                FROM dbo.Kurs k
-                JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
-                JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
-                LEFT JOIN dbo.vKursWypelnienie v ON k.KursID = v.KursID
-                WHERE k.DataKursu = @Data
-                ORDER BY k.GodzWyjazdu, k.KursID";
+        SELECT 
+            k.KursID, k.DataKursu, k.KierowcaID, k.PojazdID, k.Trasa,
+            k.GodzWyjazdu, k.GodzPowrotu, k.Status, k.PlanE2NaPalete,
+            k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil,
+            CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
+            p.Rejestracja,
+            ISNULL(v.PaletyPojazdu, p.PaletyH1) AS PaletyPojazdu,
+            ISNULL(v.SumaE2, 0) AS SumaE2,
+            ISNULL(v.PaletyNominal, 0) AS PaletyNominal,
+            ISNULL(v.PaletyMax, 0) AS PaletyMax,
+            ISNULL(v.ProcNominal, 0) AS ProcNominal,
+            ISNULL(v.ProcMax, 0) AS ProcMax
+        FROM dbo.Kurs k
+        JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+        JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+        LEFT JOIN dbo.vKursWypelnienie v ON k.KursID = v.KursID
+        WHERE k.DataKursu = @Data
+        ORDER BY k.GodzWyjazdu, k.KursID";
 
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@Data", data.Date);
@@ -392,23 +381,37 @@ namespace Kalendarz1.Transport.Repozytorium
                     GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
                     GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
                     Status = reader.GetString(7),
-                    PlanE2NaPalete = reader.GetByte(8),
+                    PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36),  // ZMIENIONE
                     UtworzonoUTC = reader.GetDateTime(9),
                     Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                     ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
                     Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
                     KierowcaNazwa = reader.GetString(13),
                     PojazdRejestracja = reader.GetString(14),
-                    PaletyPojazdu = reader.GetInt32(15),
-                    SumaE2 = reader.GetInt32(16),
-                    PaletyNominal = reader.GetInt32(17),
-                    PaletyMax = reader.GetInt32(18),
-                    ProcNominal = reader.GetDecimal(19),
-                    ProcMax = reader.GetDecimal(20)
+                    PaletyPojazdu = SafeConvert<int>(reader.GetValue(15), 0),  // ZMIENIONE
+                    SumaE2 = SafeConvert<int>(reader.GetValue(16), 0),  // ZMIENIONE
+                    PaletyNominal = SafeConvert<int>(reader.GetValue(17), 0),  // ZMIENIONE
+                    PaletyMax = SafeConvert<int>(reader.GetValue(18), 0),  // ZMIENIONE
+                    ProcNominal = SafeConvert<decimal>(reader.GetValue(19), 0),  // ZMIENIONE
+                    ProcMax = SafeConvert<decimal>(reader.GetValue(20), 0)  // ZMIENIONE
                 });
             }
 
             return kursy;
+        }
+        private static T SafeConvert<T>(object value, T defaultValue = default)
+        {
+            if (value == null || value == DBNull.Value)
+                return defaultValue;
+
+            try
+            {
+                return (T)Convert.ChangeType(value, typeof(T));
+            }
+            catch
+            {
+                return defaultValue;
+            }
         }
 
         public async Task<long> DodajKursAsync(Kurs kurs, string uzytkownik)

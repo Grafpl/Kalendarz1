@@ -122,7 +122,7 @@ namespace Kalendarz1
                 var libraConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
                 var repo = new TransportRepozytorium(connString, libraConnString);
-                var frm = new TransportMainForm(repo, App.UserID);
+                var frm = new TransportMainFormImproved(repo, App.UserID);
                 frm.Show();
             }
             catch (Exception ex)

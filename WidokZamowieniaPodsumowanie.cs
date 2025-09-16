@@ -1,9 +1,12 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 6.0 – funkcjonalności: wydania po pozycjach, różnice, prognozy per produkt,
-// ukrycie "Kurczak B", bezpieczne konwersje typów i SUM.
-// Uwaga: dla przypisania WYDANO do zamówienia zakładamy, że 1 klient składa max 1 zamówienie/dzień
-// albo przynajmniej nie zamawia tego samego towaru w wielu zamówieniach jednego dnia.
-// Jeśli to się zdarza – wydania będą „wspólne”.
+// WERSJA 7.0 – wszystkie wymagane poprawki:
+// - Rozszerzone dublowanie (wiele dni)
+// - Ostrzeżenie przy cyklicznych
+// - Domyślne daty na okrągły tydzień
+// - Usunięcie kursora ładowania
+// - DataGridy tylko do odczytu
+// - Dodawanie notatek z poziomu tabeli
+// - Data i godzina przyjęcia w głównym gridzie
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -18,6 +21,418 @@ using System.Reflection;
 
 namespace Kalendarz1
 {
+    // Rozszerzony dialog dublowania - możliwość wyboru wielu dni
+    public class MultipleDatePickerDialog : Form
+    {
+        public List<DateTime> SelectedDates { get; private set; } = new();
+        private DateTimePicker dtpStartDate;
+        private DateTimePicker dtpEndDate;
+        private CheckedListBox clbDays;
+        private Label lblInfo;
+
+        public MultipleDatePickerDialog(string title)
+        {
+            Text = title;
+            Size = new Size(400, 450);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+
+            var lblStart = new Label
+            {
+                Text = "Od dnia:",
+                Location = new Point(20, 20),
+                Size = new Size(60, 25)
+            };
+
+            dtpStartDate = new DateTimePicker
+            {
+                Location = new Point(90, 17),
+                Size = new Size(250, 25),
+                Format = DateTimePickerFormat.Long
+            };
+            dtpStartDate.Value = DateTime.Today.AddDays(1);
+            dtpStartDate.ValueChanged += DateRange_Changed;
+
+            var lblEnd = new Label
+            {
+                Text = "Do dnia:",
+                Location = new Point(20, 55),
+                Size = new Size(60, 25)
+            };
+
+            dtpEndDate = new DateTimePicker
+            {
+                Location = new Point(90, 52),
+                Size = new Size(250, 25),
+                Format = DateTimePickerFormat.Long
+            };
+            dtpEndDate.Value = DateTime.Today.AddDays(7); // domyślnie tydzień
+            dtpEndDate.ValueChanged += DateRange_Changed;
+
+            lblInfo = new Label
+            {
+                Text = "Wybierz dni do dublowania:",
+                Location = new Point(20, 90),
+                Size = new Size(350, 20)
+            };
+
+            clbDays = new CheckedListBox
+            {
+                Location = new Point(20, 115),
+                Size = new Size(350, 200),
+                CheckOnClick = true
+            };
+
+            var btnSelectAll = new Button
+            {
+                Text = "Zaznacz wszystkie",
+                Location = new Point(20, 325),
+                Size = new Size(120, 30)
+            };
+            btnSelectAll.Click += (s, e) => {
+                for (int i = 0; i < clbDays.Items.Count; i++)
+                    clbDays.SetItemChecked(i, true);
+            };
+
+            var btnDeselectAll = new Button
+            {
+                Text = "Odznacz wszystkie",
+                Location = new Point(150, 325),
+                Size = new Size(120, 30)
+            };
+            btnDeselectAll.Click += (s, e) => {
+                for (int i = 0; i < clbDays.Items.Count; i++)
+                    clbDays.SetItemChecked(i, false);
+            };
+
+            var btnOK = new Button
+            {
+                Text = "Dubluj",
+                DialogResult = DialogResult.OK,
+                Location = new Point(80, 370),
+                Size = new Size(100, 35),
+                BackColor = Color.SeaGreen,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            btnOK.Click += (s, e) => {
+                SelectedDates.Clear();
+                foreach (DateTime date in clbDays.CheckedItems)
+                    SelectedDates.Add(date);
+            };
+
+            var btnCancel = new Button
+            {
+                Text = "Anuluj",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(190, 370),
+                Size = new Size(100, 35)
+            };
+
+            Controls.AddRange(new Control[] {
+                lblStart, dtpStartDate, lblEnd, dtpEndDate,
+                lblInfo, clbDays, btnSelectAll, btnDeselectAll,
+                btnOK, btnCancel
+            });
+
+            PopulateDays();
+        }
+
+        private void DateRange_Changed(object? sender, EventArgs e)
+        {
+            PopulateDays();
+        }
+
+        private void PopulateDays()
+        {
+            clbDays.Items.Clear();
+            if (dtpEndDate.Value < dtpStartDate.Value)
+            {
+                lblInfo.Text = "Data końcowa nie może być wcześniejsza niż początkowa!";
+                lblInfo.ForeColor = Color.Red;
+                return;
+            }
+
+            lblInfo.Text = "Wybierz dni do dublowania:";
+            lblInfo.ForeColor = SystemColors.ControlText;
+
+            var current = dtpStartDate.Value.Date;
+            while (current <= dtpEndDate.Value.Date)
+            {
+                clbDays.Items.Add(current, true); // domyślnie zaznaczone
+                current = current.AddDays(1);
+            }
+        }
+    }
+
+    public class CykliczneZamowieniaDialog : Form
+    {
+        public List<DateTime> SelectedDays { get; private set; } = new();
+        public DateTime StartDate { get; private set; }
+        public DateTime EndDate { get; private set; }
+
+        private DateTimePicker dtpStart, dtpEnd;
+        private CheckBox[] dayCheckBoxes;
+        private RadioButton rbCodziennie, rbWybraneDni, rbCoTydzien;
+        private Label lblPreview;
+        private Label lblWarning;
+
+        public CykliczneZamowieniaDialog()
+        {
+            Text = "Utwórz zamówienia cykliczne";
+            Size = new Size(450, 480);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+
+            // Ostrzeżenie
+            lblWarning = new Label
+            {
+                Text = "⚠️ UWAGA: Tworzysz cykliczne zamówienie dla zaznaczonego zamówienia.\n" +
+                      "Pamiętaj o ostrożnym ustawianiu dat!",
+                Location = new Point(20, 10),
+                Size = new Size(400, 40),
+                ForeColor = Color.DarkOrange,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                BackColor = Color.LightYellow,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(5)
+            };
+
+            // Zakres dat
+            var lblStart = new Label { Text = "Od dnia:", Location = new Point(20, 65), Size = new Size(60, 25) };
+            dtpStart = new DateTimePicker { Location = new Point(90, 62), Size = new Size(200, 25) };
+            dtpStart.Value = DateTime.Today.AddDays(1);
+            dtpStart.ValueChanged += (s, e) => UpdatePreview();
+
+            var lblEnd = new Label { Text = "Do dnia:", Location = new Point(20, 95), Size = new Size(60, 25) };
+            dtpEnd = new DateTimePicker { Location = new Point(90, 92), Size = new Size(200, 25) };
+            // Domyślnie ustawienie na okrągły tydzień
+            dtpEnd.Value = DateTime.Today.AddDays(7);
+            dtpEnd.ValueChanged += (s, e) => UpdatePreview();
+
+            // Opcje częstotliwości
+            var gbOpcje = new GroupBox
+            {
+                Text = "Częstotliwość",
+                Location = new Point(20, 130),
+                Size = new Size(400, 150)
+            };
+
+            rbCodziennie = new RadioButton
+            {
+                Text = "Codziennie (poniedziałek - piątek)",
+                Location = new Point(15, 25),
+                Size = new Size(250, 25),
+                Checked = true
+            };
+            rbCodziennie.CheckedChanged += (s, e) => { UpdateCheckboxesState(); UpdatePreview(); };
+
+            rbWybraneDni = new RadioButton
+            {
+                Text = "Wybrane dni tygodnia:",
+                Location = new Point(15, 55),
+                Size = new Size(150, 25)
+            };
+            rbWybraneDni.CheckedChanged += (s, e) => { UpdateCheckboxesState(); UpdatePreview(); };
+
+            rbCoTydzien = new RadioButton
+            {
+                Text = "Co tydzień w:",
+                Location = new Point(15, 115),
+                Size = new Size(100, 25)
+            };
+            rbCoTydzien.CheckedChanged += (s, e) => { UpdateCheckboxesState(); UpdatePreview(); };
+
+            // Checkboxy dni tygodnia
+            string[] dni = { "Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd" };
+            dayCheckBoxes = new CheckBox[7];
+            for (int i = 0; i < 7; i++)
+            {
+                dayCheckBoxes[i] = new CheckBox
+                {
+                    Text = dni[i],
+                    Location = new Point(170 + (i * 45), 55),
+                    Size = new Size(40, 25),
+                    Checked = i < 5,
+                    Enabled = false
+                };
+                dayCheckBoxes[i].CheckedChanged += (s, e) => UpdatePreview();
+                gbOpcje.Controls.Add(dayCheckBoxes[i]);
+            }
+
+            gbOpcje.Controls.AddRange(new Control[] { rbCodziennie, rbWybraneDni, rbCoTydzien });
+
+            // Podgląd
+            lblPreview = new Label
+            {
+                Text = "Zostanie utworzonych: 0 zamówień",
+                Location = new Point(20, 295),
+                Size = new Size(400, 60),
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(5),
+                BackColor = Color.LightYellow
+            };
+
+            // Przyciski
+            var btnOK = new Button
+            {
+                Text = "Utwórz zamówienia",
+                DialogResult = DialogResult.OK,
+                Location = new Point(100, 370),
+                Size = new Size(120, 35),
+                BackColor = Color.DarkOrange,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat
+            };
+            btnOK.Click += (s, e) => CalculateSelectedDays();
+
+            var btnCancel = new Button
+            {
+                Text = "Anuluj",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(230, 370),
+                Size = new Size(100, 35)
+            };
+
+            Controls.AddRange(new Control[] {
+                lblWarning, lblStart, dtpStart, lblEnd, dtpEnd, gbOpcje, lblPreview, btnOK, btnCancel
+            });
+
+            UpdatePreview();
+        }
+
+        private void UpdateCheckboxesState()
+        {
+            bool enable = rbWybraneDni.Checked || rbCoTydzien.Checked;
+            foreach (var cb in dayCheckBoxes)
+            {
+                cb.Enabled = enable;
+                if (rbCoTydzien.Checked)
+                {
+                    cb.Checked = false;
+                }
+            }
+            if (rbCoTydzien.Checked && dayCheckBoxes.Length > 0)
+            {
+                dayCheckBoxes[0].Checked = true;
+            }
+        }
+
+        private void UpdatePreview()
+        {
+            CalculateSelectedDays();
+            lblPreview.Text = $"Zostanie utworzonych: {SelectedDays.Count} zamówień\n" +
+                             (SelectedDays.Count > 0 ?
+                              $"Pierwsze: {SelectedDays.First():yyyy-MM-dd}\n" +
+                              $"Ostatnie: {SelectedDays.Last():yyyy-MM-dd}" : "");
+        }
+
+        private void CalculateSelectedDays()
+        {
+            SelectedDays.Clear();
+            StartDate = dtpStart.Value.Date;
+            EndDate = dtpEnd.Value.Date;
+
+            if (EndDate < StartDate)
+            {
+                MessageBox.Show("Data końcowa nie może być wcześniejsza niż początkowa!",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var current = StartDate;
+            while (current <= EndDate)
+            {
+                var dayOfWeek = (int)current.DayOfWeek;
+                var dayIndex = dayOfWeek == 0 ? 6 : dayOfWeek - 1;
+
+                if (rbCodziennie.Checked)
+                {
+                    if (dayIndex < 5)
+                        SelectedDays.Add(current);
+                }
+                else if (rbWybraneDni.Checked)
+                {
+                    if (dayCheckBoxes[dayIndex].Checked)
+                        SelectedDays.Add(current);
+                }
+                else if (rbCoTydzien.Checked)
+                {
+                    if (dayCheckBoxes[dayIndex].Checked)
+                    {
+                        var weeksDiff = ((current - StartDate).Days / 7);
+                        if ((current - StartDate).Days % 7 == 0 ||
+                            current.DayOfWeek == StartDate.DayOfWeek)
+                            SelectedDays.Add(current);
+                    }
+                }
+
+                current = current.AddDays(1);
+            }
+        }
+    }
+
+    // Dialog do dodawania/edycji notatek
+    public class NotatkiDialog : Form
+    {
+        public string Notatka { get; private set; } = "";
+        private TextBox txtNotatka;
+
+        public NotatkiDialog(string currentNote = "")
+        {
+            Text = "Edytuj notatkę do zamówienia";
+            Size = new Size(500, 300);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+
+            var lblInfo = new Label
+            {
+                Text = "Wprowadź notatkę:",
+                Location = new Point(20, 20),
+                Size = new Size(450, 20)
+            };
+
+            txtNotatka = new TextBox
+            {
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Location = new Point(20, 45),
+                Size = new Size(450, 150),
+                Text = currentNote
+            };
+
+            var btnOK = new Button
+            {
+                Text = "Zapisz",
+                DialogResult = DialogResult.OK,
+                Location = new Point(140, 210),
+                Size = new Size(100, 35),
+                BackColor = Color.SeaGreen,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnOK.Click += (s, e) => Notatka = txtNotatka.Text;
+
+            var btnCancel = new Button
+            {
+                Text = "Anuluj",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(250, 210),
+                Size = new Size(100, 35)
+            };
+
+            Controls.AddRange(new Control[] { lblInfo, txtNotatka, btnOK, btnCancel });
+        }
+    }
+
     public partial class WidokZamowieniaPodsumowanie : Form
     {
         // ====== Połączenia ======
@@ -33,16 +448,13 @@ namespace Kalendarz1
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
         private readonly BindingSource _bsZamowienia = new();
-        private readonly Dictionary<int, string> _twKodCache = new();      // idtw -> kod
-        private readonly Dictionary<int, string> _twKatalogCache = new();  // idtw -> kod (katalog 67095)
-        private readonly Dictionary<string, string> _userCache = new();    // operators.ID -> Name
+        private readonly Dictionary<int, string> _twKodCache = new();
+        private readonly Dictionary<int, string> _twKatalogCache = new();
+        private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _handlowcyCache = new();
 
-        // Wydajności elementów z puli „B/elementy”: kod->udział (0..1).
-        // Uzupełnij wg własnych danych. „Kurczak A/B” traktowane osobno (poniżej).
         private readonly Dictionary<string, decimal> YieldByKod = new(StringComparer.OrdinalIgnoreCase)
         {
-            // przykłady – dopasowywane po kodzie (dokładny match)
             // {"Filet", 0.32m}, {"Ćwiartka", 0.22m}, {"Skrzydło", 0.09m}, ...
         };
 
@@ -54,7 +466,6 @@ namespace Kalendarz1
             Load += WidokZamowieniaPodsumowanie_Load;
             btnUsun.Visible = false;
 
-            // Naprawa: sprawdzenie czy dgvPojTuszki istnieje przed wywołaniem
             if (dgvPojTuszki != null)
             {
                 nazwaZiD.PokazPojTuszki(dgvPojTuszki);
@@ -66,30 +477,27 @@ namespace Kalendarz1
             _selectedDate = DateTime.Today;
             UstawPrzyciskiDniTygodnia();
 
-            // Dynamiczne utworzenie brakującego DataGridView (mini grid) jeśli nie został wygenerowany przez Designera
             if (dgvPojTuszki == null)
             {
                 dgvPojTuszki = new DataGridView();
                 dgvPojTuszki.Name = "dgvPojTuszki";
-                dgvPojTuszki.Height = 110;          // kompaktowy
-                dgvPojTuszki.Dock = DockStyle.Bottom; // pod główną tabelą przychodów
+                dgvPojTuszki.Height = 110;
+                dgvPojTuszki.Dock = DockStyle.Bottom;
                 dgvPojTuszki.ReadOnly = true;
                 dgvPojTuszki.AllowUserToAddRows = false;
                 dgvPojTuszki.AllowUserToDeleteRows = false;
                 dgvPojTuszki.RowHeadersVisible = false;
-                // Umieszczamy w panelu przychodów (jest zawsze dostępny)
                 panelPrzychody.Controls.Add(dgvPojTuszki);
-                panelPrzychody.Controls.SetChildIndex(dgvPojTuszki, 0); // na dół stosu dokowania
+                panelPrzychody.Controls.SetChildIndex(dgvPojTuszki, 0);
             }
 
             SzybkiGrid(dgvZamowienia);
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
             SzybkiGrid(dgvPrzychody);
-            SzybkiGrid(dgvPojTuszki); // mini grid (teraz na pewno istnieje)
+            SzybkiGrid(dgvPojTuszki);
 
             btnUsun.Visible = (UserID == "11111");
-            // Załaduj dane do mini grida
             nazwaZiD.PokazPojTuszki(dgvPojTuszki);
 
             await ZaladujDanePoczatkoweAsync();
@@ -97,7 +505,6 @@ namespace Kalendarz1
         }
 
         #region Helpers
-        // ===== Null-safe helpers =====
         private static string SafeString(IDataRecord r, int i)
             => r.IsDBNull(i) ? string.Empty : Convert.ToString(r.GetValue(i)) ?? string.Empty;
 
@@ -110,7 +517,7 @@ namespace Kalendarz1
         private static decimal SafeDecimal(IDataRecord r, int i)
         {
             if (r.IsDBNull(i)) return 0m;
-            return Convert.ToDecimal(r.GetValue(i)); // obsłuży double/float:int/decimal:string
+            return Convert.ToDecimal(r.GetValue(i));
         }
 
         private static object DbOrNull(DateTime? dt) => dt.HasValue ? dt.Value : DBNull.Value;
@@ -121,6 +528,7 @@ namespace Kalendarz1
             if (r.IsDBNull(i)) return 0m;
             return Convert.ToDecimal(r.GetValue(i));
         }
+
         private static string AsString(IDataRecord r, int i)
         {
             if (r.IsDBNull(i)) return "";
@@ -132,11 +540,9 @@ namespace Kalendarz1
 
         private static bool IsKurczakA(string kod)
             => kod.IndexOf("Kurczak A", StringComparison.OrdinalIgnoreCase) >= 0;
-
         #endregion
 
         #region Inicjalizacja i UI
-
         private void UstawPrzyciskiDniTygodnia()
         {
             _dayButtons.AddRange(new[] { btnPon, btnWt, btnSr, btnCzw, btnPt, btnSo, btnNd });
@@ -147,7 +553,7 @@ namespace Kalendarz1
 
         private void SzybkiGrid(DataGridView dgv)
         {
-            if (dgv == null) return; // zabezpieczenie przed NullReferenceException
+            if (dgv == null) return;
             dgv.AllowUserToAddRows = false;
             dgv.AllowUserToDeleteRows = false;
             dgv.AllowUserToResizeRows = false;
@@ -161,6 +567,7 @@ namespace Kalendarz1
             dgv.RowTemplate.Height = 30;
             dgv.Font = new Font("Segoe UI", 9f);
             dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            dgv.ReadOnly = true; // WSZYSTKIE GRIDY READONLY
             TryEnableDoubleBuffer(dgv);
         }
 
@@ -168,16 +575,15 @@ namespace Kalendarz1
         {
             try
             {
-                var pi = c.GetType().GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var pi = c.GetType().GetProperty("DoubleBuffered",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 pi?.SetValue(c, true, null);
             }
-            catch { /* ignoruj */ }
+            catch { }
         }
-
         #endregion
 
         #region Nawigacja i zdarzenia
-
         private async void DzienButton_Click(object? sender, EventArgs e)
         {
             if (sender is Button clickedButton && clickedButton.Tag is DateTime date)
@@ -247,6 +653,52 @@ namespace Kalendarz1
                 Task.Run(async () => await OdswiezWszystkieDaneAsync());
             }
         }
+
+        // Nowy przycisk do dodawania notatek
+        private async void btnDodajNotatke_Click(object? sender, EventArgs e)
+        {
+            if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
+            {
+                MessageBox.Show("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.", "Brak wyboru",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Pobierz aktualną notatkę
+            string currentNote = "";
+            await using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                var cmd = new SqlCommand("SELECT Uwagi FROM ZamowieniaMieso WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", id);
+                var result = await cmd.ExecuteScalarAsync();
+                currentNote = result?.ToString() ?? "";
+            }
+
+            using var dlg = new NotatkiDialog(currentNote);
+            if (dlg.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand("UPDATE ZamowieniaMieso SET Uwagi = @Uwagi WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dlg.Notatka) ? DBNull.Value : dlg.Notatka);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Notatka została zapisana.", "Sukces",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await WyswietlSzczegolyZamowieniaAsync(id);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}", "Błąd",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
         private async void btnAnuluj_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
@@ -256,7 +708,8 @@ namespace Kalendarz1
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź anulowanie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.",
+                "Potwierdź anulowanie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 try
@@ -272,7 +725,8 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -283,45 +737,144 @@ namespace Kalendarz1
             AktualizujPodsumowanieDnia();
         }
 
-        private void btnDuplikuj_Click(object? sender, EventArgs e)
+        private async void btnDuplikuj_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem do duplikacji.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie do duplikacji.", "Brak wyboru",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            using var widokZamowienia = new WidokZamowienia(UserID, id);
-            widokZamowienia.Text = "Duplikuj zamówienie";
-            widokZamowienia.Load += (s, ev) =>
+            using var dlg = new MultipleDatePickerDialog("Wybierz dni dla duplikatu zamówienia");
+            if (dlg.ShowDialog() == DialogResult.OK && dlg.SelectedDates.Any())
             {
                 try
                 {
-                    var dtp = widokZamowienia.Controls.Find("dateTimePickerSprzedaz", true).FirstOrDefault() as DateTimePicker;
-                    if (dtp != null)
+                    int utworzono = 0;
+                    foreach (var date in dlg.SelectedDates)
                     {
-                        var now = DateTime.Today;
-                        var next = now.AddDays(1);
-                        if (next.DayOfWeek == DayOfWeek.Saturday)
-                            next = next.AddDays(2); // na poniedziałek
-                        dtp.Value = next;
+                        await DuplikujZamowienie(id, date);
+                        utworzono++;
                     }
+
+                    MessageBox.Show($"Zamówienie zostało zduplikowane na {utworzono} dni.\n" +
+                                  $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    // Przejdź do pierwszego dnia z duplikatem
+                    _selectedDate = dlg.SelectedDates.First();
+                    AktualizujDatyPrzyciskow();
+                    await OdswiezWszystkieDaneAsync();
                 }
-                catch { }
-            };
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
-            {
-                Task.Run(async () => await OdswiezWszystkieDaneAsync());
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}", "Błąd",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
+        private async Task DuplikujZamowienie(int sourceId, DateTime targetDate)
+        {
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+            await using var tr = cn.BeginTransaction();
+
+            try
+            {
+                int klientId = 0;
+                string uwagi = "";
+                DateTime godzinaPrzyjazdu = DateTime.Today.AddHours(8);
+
+                using (var cmd = new SqlCommand(
+                    @"SELECT KlientId, Uwagi, DataPrzyjazdu 
+                      FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
+                {
+                    cmd.Parameters.AddWithValue("@Id", sourceId);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        klientId = reader.GetInt32(0);
+                        uwagi = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        godzinaPrzyjazdu = reader.GetDateTime(2);
+                        godzinaPrzyjazdu = targetDate.Date.Add(godzinaPrzyjazdu.TimeOfDay);
+                    }
+                }
+
+                var cmdGetId = new SqlCommand("SELECT ISNULL(MAX(Id),0)+1 FROM ZamowieniaMieso", cn, tr);
+                int newId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
+
+                var cmdInsert = new SqlCommand(
+                    @"INSERT INTO ZamowieniaMieso (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia) 
+                      VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE())", cn, tr);
+                cmdInsert.Parameters.AddWithValue("@id", newId);
+                cmdInsert.Parameters.AddWithValue("@dz", targetDate.Date);
+                cmdInsert.Parameters.AddWithValue("@dp", godzinaPrzyjazdu);
+                cmdInsert.Parameters.AddWithValue("@kid", klientId);
+                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(uwagi) ? DBNull.Value : uwagi + " [DUPLIKAT]");
+                cmdInsert.Parameters.AddWithValue("@u", UserID);
+                await cmdInsert.ExecuteNonQueryAsync();
+
+                var cmdCopyItems = new SqlCommand(
+                    @"INSERT INTO ZamowieniaMiesoTowar (ZamowienieId, KodTowaru, Ilosc, Cena)
+                      SELECT @newId, KodTowaru, Ilosc, Cena 
+                      FROM ZamowieniaMiesoTowar 
+                      WHERE ZamowienieId = @sourceId", cn, tr);
+                cmdCopyItems.Parameters.AddWithValue("@newId", newId);
+                cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
+                await cmdCopyItems.ExecuteNonQueryAsync();
+
+                await tr.CommitAsync();
+            }
+            catch
+            {
+                await tr.RollbackAsync();
+                throw;
+            }
+        }
+
+        private async void btnCykliczne_Click(object? sender, EventArgs e)
+        {
+            if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
+            {
+                MessageBox.Show("Najpierw wybierz zamówienie wzorcowe dla cyklu.", "Brak wyboru",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var dlg = new CykliczneZamowieniaDialog();
+            if (dlg.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    int utworzono = 0;
+                    foreach (var date in dlg.SelectedDays)
+                    {
+                        await DuplikujZamowienie(id, date);
+                        utworzono++;
+                    }
+
+                    MessageBox.Show($"Utworzono {utworzono} zamówień cyklicznych.\n" +
+                                  $"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}",
+                                  "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    await OdswiezWszystkieDaneAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}",
+                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
         #endregion
 
         #region Wczytywanie i przetwarzanie
-
         private async Task OdswiezWszystkieDaneAsync()
         {
-            Cursor = Cursors.WaitCursor;
+            // Usunięcie kursora ładowania
+            // Cursor = Cursors.WaitCursor; // USUNIĘTE
             try
             {
                 await WczytajZamowieniaDlaDniaAsync(_selectedDate);
@@ -332,11 +885,12 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}", "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}",
+                    "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                Cursor = Cursors.Default;
+                // Cursor = Cursors.Default; // USUNIĘTE
             }
         }
 
@@ -368,7 +922,6 @@ namespace Kalendarz1
                 }
             }
 
-            // combobox towar
             var listaTowarow = _twKatalogCache
                 .OrderBy(x => x.Value)
                 .Select(k => new KeyValuePair<int, string>(k.Key, k.Value))
@@ -380,7 +933,6 @@ namespace Kalendarz1
             cbFiltrujTowar.SelectedIndexChanged += Filtry_Changed;
             cbFiltrujTowar.SelectedIndex = 0;
 
-            // users
             _userCache.Clear();
             await using (var cn2 = new SqlConnection(_connLibra))
             {
@@ -396,7 +948,6 @@ namespace Kalendarz1
                 }
             }
 
-            // handlowcy (string/INT-safe)
             _handlowcyCache.Clear();
             await using (var cn3 = new SqlConnection(_connHandel))
             {
@@ -426,7 +977,7 @@ namespace Kalendarz1
 
         private async Task WczytajZamowieniaDlaDniaAsync(DateTime dzien)
         {
-            // Definicja kolumn (raz)
+            // Dodanie kolumn dla daty i godziny przyjęcia
             if (_dtZamowienia.Columns.Count == 0)
             {
                 _dtZamowienia.Columns.Add("Id", typeof(int));
@@ -434,6 +985,8 @@ namespace Kalendarz1
                 _dtZamowienia.Columns.Add("Handlowiec", typeof(string));
                 _dtZamowienia.Columns.Add("IloscZamowiona", typeof(decimal));
                 _dtZamowienia.Columns.Add("IloscFaktyczna", typeof(decimal));
+                _dtZamowienia.Columns.Add("DataPrzyjecia", typeof(DateTime)); // NOWA KOLUMNA
+                _dtZamowienia.Columns.Add("GodzinaPrzyjecia", typeof(string)); // NOWA KOLUMNA
                 var colDataUtw = new DataColumn("DataUtworzenia", typeof(DateTime));
                 colDataUtw.AllowDBNull = true;
                 _dtZamowienia.Columns.Add(colDataUtw);
@@ -445,15 +998,14 @@ namespace Kalendarz1
                 _dtZamowienia.Clear();
             }
 
-            // map kontrahentów: id -> (Shortcut?, Handlowiec?)
             var kontrahenci = new Dictionary<int, (string Nazwa, string Handlowiec)>();
             await using (var cnHandel = new SqlConnection(_connHandel))
             {
                 await cnHandel.OpenAsync();
                 const string sqlKontr = @"
-            SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val 
-            FROM [HANDEL].[SSCommon].[STContractors] c
-            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
+                    SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val 
+                    FROM [HANDEL].[SSCommon].[STContractors] c
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
                 await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
                 await using var rd = await cmdKontr.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
@@ -465,12 +1017,10 @@ namespace Kalendarz1
                 }
             }
 
-            // filtr – wybrany towar
             int? selectedProductId = null;
             if (cbFiltrujTowar.SelectedIndex > 0 && cbFiltrujTowar.SelectedValue is int selectedTowarId)
                 selectedProductId = selectedTowarId;
 
-            // wczytaj zamówienia (sumy)
             var temp = new DataTable();
             if (_twKatalogCache.Keys.Any())
             {
@@ -479,13 +1029,14 @@ namespace Kalendarz1
                     await cnLibra.OpenAsync();
                     var idwList = string.Join(",", _twKatalogCache.Keys);
                     string sql = $@"
-                SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, zm.DataUtworzenia, zm.IdUser, zm.Status
-                FROM [dbo].[ZamowieniaMieso] zm
-                JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-                WHERE zm.DataZamowienia = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
-                        (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
-                        @"GROUP BY zm.Id, zm.KlientId, zm.DataUtworzenia, zm.IdUser, zm.Status
-                  ORDER BY zm.Id";
+                        SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
+                               zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status
+                        FROM [dbo].[ZamowieniaMieso] zm
+                        JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                        WHERE zm.DataZamowienia = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
+                            (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
+                            @"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status
+                          ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
@@ -496,18 +1047,16 @@ namespace Kalendarz1
                 }
             }
 
-            // Faktyczne wydania (WZ) per klient i produkt
             var wydaniaPerKhidIdtw = await PobierzWydaniaPerKhidIdtwAsync(dzien);
-
-            // Zbiór klientów z zamówień
-            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>().Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
+            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>()
+                .Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
 
             foreach (DataRow r in temp.Rows)
             {
-                // NULL-safe konwersje z DataTable (może zwrócić DBNull)
                 int id = r["Id"] == DBNull.Value ? 0 : Convert.ToInt32(r["Id"]);
                 int klientId = r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"]);
                 decimal ilosc = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
+                DateTime? dataPrzyjazdu = (r["DataPrzyjazdu"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataPrzyjazdu"]);
                 DateTime? dataUtw = (r["DataUtworzenia"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
@@ -528,18 +1077,19 @@ namespace Kalendarz1
                     handlowiec,
                     ilosc,
                     wydane,
+                    dataPrzyjazdu?.Date ?? dzien,                    // Data przyjęcia
+                    dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",    // Godzina przyjęcia
                     dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value,
                     _userCache.TryGetValue(idUser, out var user) ? user : "Brak",
                     status
                 );
             }
 
-            // Dodaj wydania bez zamówień (Symfonia)
             var wydaniaBezZamowien = new List<DataRow>();
             foreach (var kv in wydaniaPerKhidIdtw)
             {
                 int khid = kv.Key;
-                if (klienciZamowien.Contains(khid)) continue; // już jest zamówienie
+                if (klienciZamowien.Contains(khid)) continue;
                 decimal wydane = kv.Value.Values.Sum();
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh)
                     ? kh
@@ -550,61 +1100,80 @@ namespace Kalendarz1
                 row["Handlowiec"] = handlowiec;
                 row["IloscZamowiona"] = 0m;
                 row["IloscFaktyczna"] = wydane;
+                row["DataPrzyjecia"] = dzien;
+                row["GodzinaPrzyjecia"] = "";
                 row["DataUtworzenia"] = DBNull.Value;
                 row["Utworzyl"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
                 wydaniaBezZamowien.Add(row);
             }
-            // Sortuj wydania bez zamówień malejąco po IloscFaktyczna
+
             foreach (var row in wydaniaBezZamowien.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
                 _dtZamowienia.Rows.Add(row.ItemArray);
 
-            // Sortowanie: najpierw zamówienia, potem wydania bez zamówień
             _bsZamowienia.DataSource = _dtZamowienia;
             dgvZamowienia.DataSource = _bsZamowienia;
             _bsZamowienia.Sort = "Status ASC, IloscZamowiona DESC";
             dgvZamowienia.ClearSelection();
 
-            // Ustawienia kolumn: szerokości, kolejność, nagłówki
+            // Ustawienia kolumn z datą i godziną przyjęcia
             if (dgvZamowienia.Columns["Id"] != null) dgvZamowienia.Columns["Id"].Visible = false;
             if (dgvZamowienia.Columns["Odbiorca"] != null)
-                dgvZamowienia.Columns["Odbiorca"].Width = 160;
+                dgvZamowienia.Columns["Odbiorca"].Width = 140;
             if (dgvZamowienia.Columns["Handlowiec"] != null)
-                dgvZamowienia.Columns["Handlowiec"].Width = 120;
+                dgvZamowienia.Columns["Handlowiec"].Width = 100;
             if (dgvZamowienia.Columns["IloscZamowiona"] != null)
             {
                 dgvZamowienia.Columns["IloscZamowiona"].DefaultCellStyle.Format = "N0";
-                dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono (kg)";
-                dgvZamowienia.Columns["IloscZamowiona"].DisplayIndex = 3;
+                dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono";
+                dgvZamowienia.Columns["IloscZamowiona"].Width = 80;
             }
             if (dgvZamowienia.Columns["IloscFaktyczna"] != null)
             {
                 dgvZamowienia.Columns["IloscFaktyczna"].DefaultCellStyle.Format = "N0";
-                dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano (kg)";
-                dgvZamowienia.Columns["IloscFaktyczna"].DisplayIndex = 4;
+                dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano";
+                dgvZamowienia.Columns["IloscFaktyczna"].Width = 80;
+            }
+            if (dgvZamowienia.Columns["DataPrzyjecia"] != null)
+            {
+                dgvZamowienia.Columns["DataPrzyjecia"].HeaderText = "Data odbioru";
+                dgvZamowienia.Columns["DataPrzyjecia"].DefaultCellStyle.Format = "dd.MM";
+                dgvZamowienia.Columns["DataPrzyjecia"].Width = 80;
+            }
+            if (dgvZamowienia.Columns["GodzinaPrzyjecia"] != null)
+            {
+                dgvZamowienia.Columns["GodzinaPrzyjecia"].HeaderText = "Godz.";
+                dgvZamowienia.Columns["GodzinaPrzyjecia"].Width = 50;
             }
             if (dgvZamowienia.Columns["DataUtworzenia"] != null)
             {
                 dgvZamowienia.Columns["DataUtworzenia"].HeaderText = "Utworzono";
-                dgvZamowienia.Columns["DataUtworzenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                dgvZamowienia.Columns["DataUtworzenia"].DefaultCellStyle.Format = "dd.MM HH:mm";
+                dgvZamowienia.Columns["DataUtworzenia"].Width = 100;
             }
+            if (dgvZamowienia.Columns["Utworzyl"] != null)
+                dgvZamowienia.Columns["Utworzyl"].Width = 80;
             if (dgvZamowienia.Columns["Status"] != null)
+            {
+                dgvZamowienia.Columns["Status"].Width = 120;
                 dgvZamowienia.Columns["Status"].DisplayIndex = dgvZamowienia.Columns.Count - 1;
+            }
 
             ZastosujFiltry();
         }
+
         private async Task<Dictionary<int, decimal>> PobierzFaktyczneWydaniaAsync(DateTime dzien, int? towarId = null)
         {
             var wynik = new Dictionary<int, decimal>();
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
             string sqlWz = @"
-        SELECT DK.khid, SUM(ABS(MZ.ilosc))
-        FROM [HANDEL].[HM].[MZ] MZ
-        JOIN [HANDEL].[HM].[DK] ON MZ.super = DK.id
-        WHERE DK.seria IN ('sWZ', 'sWZ-W') AND DK.data = @Dzien " +
-                (towarId.HasValue ? "AND MZ.idtw = @TowarId " : "") +
-                "GROUP BY DK.khid";
+                SELECT DK.khid, SUM(ABS(MZ.ilosc))
+                FROM [HANDEL].[HM].[MZ] MZ
+                JOIN [HANDEL].[HM].[DK] ON MZ.super = DK.id
+                WHERE DK.seria IN ('sWZ', 'sWZ-W') AND DK.data = @Dzien " +
+                    (towarId.HasValue ? "AND MZ.idtw = @TowarId " : "") +
+                    "GROUP BY DK.khid";
 
             await using var cmd = new SqlCommand(sqlWz, cn);
             cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
@@ -614,16 +1183,12 @@ namespace Kalendarz1
             while (await rd.ReadAsync())
             {
                 int khid = rd.GetInt32(0);
-                decimal ilosc = SafeDecimal(rd, 1); // obsługa double/NULL
+                decimal ilosc = SafeDecimal(rd, 1);
                 wynik[khid] = ilosc;
             }
             return wynik;
         }
 
-
-        /// <summary>
-        /// Sumy wydań per (khid, idtw) dla MG.seria in ('sWZ','sWZ-W'), MG.aktywny=1, MG.data=@Dzien.
-        /// </summary>
         private async Task<Dictionary<int, Dictionary<int, decimal>>> PobierzWydaniaPerKhidIdtwAsync(DateTime dzien)
         {
             var dict = new Dictionary<int, Dictionary<int, decimal>>();
@@ -669,6 +1234,7 @@ namespace Kalendarz1
                 WyczyscSzczegoly();
             }
         }
+
         private async void dgvZamowienia_CellClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
@@ -706,10 +1272,9 @@ namespace Kalendarz1
                 WyczyscSzczegoly();
             }
         }
-        // Dodaj metodę do wyświetlania szczegółów wydania bez zamówienia
+
         private async Task WyswietlSzczegolyWydaniaBezZamowieniaAsync(string odbiorca, DateTime dzien)
         {
-            // Pobierz wydania z Symfonii dla tego odbiorcy i dnia
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Wydano", typeof(decimal));
@@ -758,20 +1323,18 @@ namespace Kalendarz1
             if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
         }
 
-
         private async Task WyswietlSzczegolyZamowieniaAsync(int zamowienieId)
         {
-            // Pobierz dane zamówienia
             var dtZam = new DataTable();
             int klientId = 0;
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
                 const string sql = @"
-            SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId
-            FROM [dbo].[ZamowieniaMiesoTowar] zmt
-            INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId
-            WHERE zmt.ZamowienieId = @Id";
+                    SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId
+                    FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                    INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId
+                    WHERE zmt.ZamowienieId = @Id";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamowienieId);
                 using var da = new SqlDataAdapter(cmd);
@@ -780,7 +1343,6 @@ namespace Kalendarz1
                     klientId = dtZam.Rows[0]["KlientId"] is DBNull ? 0 : Convert.ToInt32(dtZam.Rows[0]["KlientId"]);
             }
 
-            // Pobierz wydania z Symfonii dla tego klienta i dnia
             var wydania = new Dictionary<int, decimal>();
             if (klientId > 0)
             {
@@ -788,11 +1350,11 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
                     const string sql = @"
-                SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid
-                GROUP BY MZ.idtw";
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid
+                        GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", _selectedDate.Date);
                     cmd.Parameters.AddWithValue("@Khid", klientId);
@@ -806,50 +1368,46 @@ namespace Kalendarz1
                 }
             }
 
-            // Przygotuj wynikową tabelę
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Zamówiono", typeof(decimal));
             dt.Columns.Add("Wydano", typeof(decimal));
 
-            // Dodaj wszystkie towary z zamówienia
             foreach (DataRow r in dtZam.Rows)
             {
                 int idTowaru = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
-                if (!_twKatalogCache.ContainsKey(idTowaru)) continue; // Pomiń towary spoza katalogu
+                if (!_twKatalogCache.ContainsKey(idTowaru)) continue;
 
                 string produkt = _twKatalogCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
                 decimal zamowiono = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
                 decimal wydano = wydania.TryGetValue(idTowaru, out var w) ? w : 0m;
                 dt.Rows.Add(produkt, zamowiono, wydano);
-                wydania.Remove(idTowaru); // usuwamy, by potem dodać tylko te wydane bez zamówienia
+                wydania.Remove(idTowaru);
             }
 
-            // Dodaj towary wydane bez zamówienia (ale z katalogu 67095)
             foreach (var kv in wydania)
             {
-                if (!_twKatalogCache.ContainsKey(kv.Key)) continue; // Pomiń towary spoza katalogu
+                if (!_twKatalogCache.ContainsKey(kv.Key)) continue;
                 string produkt = _twKatalogCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
                 dt.Rows.Add(produkt, 0m, kv.Value);
             }
 
-            // Notatki
             string notatki = dtZam.Rows.Count > 0 ? (dtZam.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
             txtNotatki.Text = notatki;
             dgvSzczegoly.DataSource = dt;
 
-            // Formatowanie
-            if (dgvSzczegoly.Columns["Zamówiono"] != null) {
+            if (dgvSzczegoly.Columns["Zamówiono"] != null)
+            {
                 dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
                 dgvSzczegoly.Columns["Zamówiono"].HeaderText = "Zamówiono (kg)";
             }
-            if (dgvSzczegoly.Columns["Wydano"] != null) {
+            if (dgvSzczegoly.Columns["Wydano"] != null)
+            {
                 dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
                 dgvSzczegoly.Columns["Wydano"].HeaderText = "Wydano (kg)";
             }
             if (dgvSzczegoly.Columns["Produkt"] != null) dgvSzczegoly.Columns["Produkt"].DisplayIndex = 0;
         }
-
 
         private async Task WyswietlAgregacjeProduktowAsync(DateTime dzien)
         {
@@ -858,16 +1416,12 @@ namespace Kalendarz1
             dtAg.Columns.Add("Zamówiono", typeof(decimal));
             dtAg.Columns.Add("Wydano", typeof(decimal));
             dtAg.Columns.Add("Różnica", typeof(decimal));
-            dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal)); // prognoza per produkt
-            dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal)); // PWU per produkt
+            dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
+            dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
 
-            // SUMY WYDAN per produkt
             var sumaWydan = await PobierzSumeWydanPoProdukcieAsync(dzien);
-
-            // PROGNOZA / FAKT przychodu per produkt (PWU)
             var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
 
-            // SUMY ZAMÓWIEŃ per produkt z bieżącej listy zamówień (bez anulowanych)
             var sumaZamowien = new Dictionary<int, decimal>();
             var zamowieniaIds = _dtZamowienia.AsEnumerable()
                 .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
@@ -886,7 +1440,7 @@ namespace Kalendarz1
             foreach (var towar in _twKatalogCache.OrderBy(kvp => kvp.Value))
             {
                 var kod = towar.Value;
-                if (IsKurczakB(kod)) continue; // #1 ukryj „Kurczak B”
+                if (IsKurczakB(kod)) continue;
 
                 var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
                 var wyd = sumaWydan.TryGetValue(towar.Key, out var w) ? w : 0m;
@@ -930,21 +1484,29 @@ namespace Kalendarz1
                         {
                             liczbaWydanBezZamowien++;
                             sumaKgWydano += iloscWyd;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1, handlowiecStat[handlowiec].kgZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam,
+                                handlowiecStat[handlowiec].bezZam + 1,
+                                handlowiecStat[handlowiec].kgZam,
+                                handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
                         else if (status != "Anulowane")
                         {
                             liczbaZamowien++;
                             sumaKgZamowiono += iloscZam;
                             sumaKgWydano += iloscWyd;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam, handlowiecStat[handlowiec].kgZam + iloscZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1,
+                                handlowiecStat[handlowiec].bezZam,
+                                handlowiecStat[handlowiec].kgZam + iloscZam,
+                                handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
                     }
                 }
             }
             int suma = liczbaZamowien + liczbaWydanBezZamowien;
-            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key).Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
-            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | {perHandlowiec}";
+            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key)
+                .Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
+            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | " +
+                                  $"Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | {perHandlowiec}";
         }
 
         private void WyczyscSzczegoly()
@@ -954,9 +1516,6 @@ namespace Kalendarz1
             _aktualneIdZamowienia = null;
         }
 
-        /// <summary>
-        /// PRZYCHODY: prognoza (na podstawie harmonogramu) i fakt (PWU) per produkt.
-        /// </summary>
         private async Task WczytajDanePrzychodowAsync(DateTime dzien)
         {
             var dtP = new DataTable();
@@ -983,9 +1542,6 @@ namespace Kalendarz1
             if (dgvPrzychody.Columns["Różnica"] != null) dgvPrzychody.Columns["Różnica"].DefaultCellStyle.Format = "N0";
         }
 
-        /// <summary>
-        /// Suma WZ/WZ-W per produkt.
-        /// </summary>
         private async Task<Dictionary<int, decimal>> PobierzSumeWydanPoProdukcieAsync(DateTime dzien)
         {
             var sumaWydan = new Dictionary<int, decimal>();
@@ -1005,17 +1561,9 @@ namespace Kalendarz1
             return sumaWydan;
         }
 
-        /// <summary>
-        /// Wylicza prognozę (z Harmonogramu) per produkt i faktyczny przychód z PWU per produkt.
-        /// Reguły:
-        ///  - obliczamy całkowitą masę tuszek: masaDek * 0.78,
-        ///  - Tuszka A = 85% puli, Tuszka B (i „elementy”) = 15% puli,
-        ///  - „Kurczak A” dostaje pulę A; „Kurczak B” – pulę B; pozostałe z puli B wg YieldByKod.
-        /// </summary>
         private async Task<(Dictionary<int, decimal> plan, Dictionary<int, decimal> fakt)> PrognozaIFaktPrzychoduPerProduktAsync(DateTime dzien)
         {
-            // 1) POLICZ surowiec z harmonogramu
-            decimal sumaMasyDek = 0m; // WagaDek * SztukiDek
+            decimal sumaMasyDek = 0m;
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
@@ -1034,7 +1582,6 @@ namespace Kalendarz1
                 }
             }
 
-            // współczynniki (jak w Twoim starym kodzie)
             decimal p_tuszka = 0.78m;
             decimal udzA = 0.85m;
             decimal udzB = 0.15m;
@@ -1043,9 +1590,8 @@ namespace Kalendarz1
             decimal pulaA = pula * udzA;
             decimal pulaB = pula * udzB;
 
-            // 2) Zmapuj puli na produkty
             var plan = new Dictionary<int, decimal>();
-            foreach (var kv in _twKatalogCache) // idtw->kod
+            foreach (var kv in _twKatalogCache)
             {
                 var idtw = kv.Key;
                 var kod = kv.Value;
@@ -1063,11 +1609,10 @@ namespace Kalendarz1
                     if (YieldByKod.TryGetValue(kod, out var share) && share > 0m)
                         plan[idtw] = Math.Max(0m, pulaB * share);
                     else
-                        plan[idtw] = 0m; // brak skonfigurowanej wydajności
+                        plan[idtw] = 0m;
                 }
             }
 
-            // 3) Faktyczny przychód PWU per produkt
             var fakt = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -1097,7 +1642,6 @@ namespace Kalendarz1
                 ? rowObj.Row["Status"]?.ToString()
                 : null;
 
-            // Bezpieczne pobranie daty utworzenia (może być null)
             DateTime? dataUtw = null;
             if (rowObj.Row.Table.Columns.Contains("DataUtworzenia"))
             {
@@ -1107,10 +1651,9 @@ namespace Kalendarz1
             }
 
             var row = dgvZamowienia.Rows[e.RowIndex];
-            // Kolorowanie: zamówienia z wydaniami (standard), wydania bez zamówień (specjalny kolor)
             if (status == "Wydanie bez zamówienia")
             {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 200); // jasny pomarańczowy
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 200);
                 row.DefaultCellStyle.ForeColor = Color.Black;
                 row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Italic);
             }
@@ -1118,7 +1661,7 @@ namespace Kalendarz1
             {
                 row.DefaultCellStyle.ForeColor = Color.Gray;
                 row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Strikeout);
-                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230); // czerwona poświata
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
             }
             else if (status == "Zrealizowane")
             {
@@ -1133,13 +1676,12 @@ namespace Kalendarz1
                 row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
             }
         }
-        // ===== Pomocnicza: odczyt ID z aktualnego wiersza dgvZamowienia =====
+
         private bool TrySetAktualneIdZamowieniaFromGrid(out int id)
         {
             id = 0;
             if (dgvZamowienia.CurrentRow == null) return false;
 
-            // 1) Najpierw spróbuj przez DataRowView
             if (dgvZamowienia.CurrentRow.DataBoundItem is DataRowView rv &&
                 rv.Row.Table.Columns.Contains("Id") &&
                 rv.Row["Id"] != DBNull.Value)
@@ -1148,7 +1690,6 @@ namespace Kalendarz1
                 if (id > 0) { _aktualneIdZamowienia = id; return true; }
             }
 
-            // 2) Fallback – bezpośrednio z komórki „Id”
             if (dgvZamowienia.Columns.Contains("Id"))
             {
                 var cellVal = dgvZamowienia.CurrentRow.Cells["Id"]?.Value;
@@ -1162,8 +1703,6 @@ namespace Kalendarz1
             _aktualneIdZamowienia = null;
             return false;
         }
-
-
         #endregion
 
         #region Filtrowanie
@@ -1188,16 +1727,17 @@ namespace Kalendarz1
         }
         #endregion
 
-        // Metoda do obsługi usuwania zamówienia (wiersza)
         private async void btnUsun_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.",
+                "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 try
@@ -1214,12 +1754,14 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@Id", id);
                         await cmd.ExecuteNonQueryAsync();
                     }
-                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }

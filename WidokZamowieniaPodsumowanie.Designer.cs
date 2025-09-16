@@ -112,7 +112,7 @@ namespace Kalendarz1
             // 
             btnAnuluj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnAnuluj.BackColor = System.Drawing.Color.IndianRed;
-            btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             btnAnuluj.ForeColor = System.Drawing.Color.White;
             btnAnuluj.Location = new System.Drawing.Point(1020, 12);
             btnAnuluj.Name = "btnAnuluj";
@@ -124,7 +124,7 @@ namespace Kalendarz1
             // 
             // lblZakresDat
             // 
-            lblZakresDat.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            lblZakresDat.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             lblZakresDat.Location = new System.Drawing.Point(82, 9);
             lblZakresDat.Name = "lblZakresDat";
             lblZakresDat.Size = new System.Drawing.Size(200, 49);
@@ -134,7 +134,7 @@ namespace Kalendarz1
             // 
             // btnTydzienNext
             // 
-            btnTydzienNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnTydzienNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             btnTydzienNext.Location = new System.Drawing.Point(288, 12);
             btnTydzienNext.Name = "btnTydzienNext";
             btnTydzienNext.Size = new System.Drawing.Size(40, 40);
@@ -145,7 +145,7 @@ namespace Kalendarz1
             // 
             // btnTydzienPrev
             // 
-            btnTydzienPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnTydzienPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             btnTydzienPrev.Location = new System.Drawing.Point(36, 12);
             btnTydzienPrev.Name = "btnTydzienPrev";
             btnTydzienPrev.Size = new System.Drawing.Size(40, 40);
@@ -158,7 +158,7 @@ namespace Kalendarz1
             // 
             btnNoweZamowienie.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnNoweZamowienie.BackColor = System.Drawing.Color.SeaGreen;
-            btnNoweZamowienie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnNoweZamowienie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             btnNoweZamowienie.ForeColor = System.Drawing.Color.White;
             btnNoweZamowienie.Location = new System.Drawing.Point(788, 12);
             btnNoweZamowienie.Name = "btnNoweZamowienie";
@@ -171,7 +171,7 @@ namespace Kalendarz1
             // btnModyfikuj
             // 
             btnModyfikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnModyfikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnModyfikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             btnModyfikuj.Location = new System.Drawing.Point(904, 12);
             btnModyfikuj.Name = "btnModyfikuj";
             btnModyfikuj.Size = new System.Drawing.Size(110, 40);
@@ -183,7 +183,7 @@ namespace Kalendarz1
             // btnOdswiez
             // 
             btnOdswiez.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnOdswiez.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnOdswiez.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             btnOdswiez.Location = new System.Drawing.Point(1136, 12);
             btnOdswiez.Name = "btnOdswiez";
             btnOdswiez.Size = new System.Drawing.Size(110, 40);
@@ -208,7 +208,7 @@ namespace Kalendarz1
             // 
             // btnPon
             // 
-            btnPon.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnPon.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnPon.Location = new System.Drawing.Point(3, 3);
             btnPon.Name = "btnPon";
             btnPon.Size = new System.Drawing.Size(70, 45);
@@ -218,7 +218,7 @@ namespace Kalendarz1
             // 
             // btnWt
             // 
-            btnWt.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnWt.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnWt.Location = new System.Drawing.Point(79, 3);
             btnWt.Name = "btnWt";
             btnWt.Size = new System.Drawing.Size(70, 45);
@@ -228,7 +228,7 @@ namespace Kalendarz1
             // 
             // btnSr
             // 
-            btnSr.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnSr.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnSr.Location = new System.Drawing.Point(155, 3);
             btnSr.Name = "btnSr";
             btnSr.Size = new System.Drawing.Size(70, 45);
@@ -238,7 +238,7 @@ namespace Kalendarz1
             // 
             // btnCzw
             // 
-            btnCzw.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnCzw.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnCzw.Location = new System.Drawing.Point(231, 3);
             btnCzw.Name = "btnCzw";
             btnCzw.Size = new System.Drawing.Size(70, 45);
@@ -248,7 +248,7 @@ namespace Kalendarz1
             // 
             // btnPt
             // 
-            btnPt.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnPt.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnPt.Location = new System.Drawing.Point(307, 3);
             btnPt.Name = "btnPt";
             btnPt.Size = new System.Drawing.Size(70, 45);
@@ -258,7 +258,7 @@ namespace Kalendarz1
             // 
             // btnSo
             // 
-            btnSo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnSo.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnSo.Location = new System.Drawing.Point(383, 3);
             btnSo.Name = "btnSo";
             btnSo.Size = new System.Drawing.Size(70, 45);
@@ -268,7 +268,7 @@ namespace Kalendarz1
             // 
             // btnNd
             // 
-            btnNd.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnNd.Font = new System.Drawing.Font("Segoe UI", 9F);
             btnNd.Location = new System.Drawing.Point(459, 3);
             btnNd.Name = "btnNd";
             btnNd.Size = new System.Drawing.Size(70, 45);
@@ -280,7 +280,7 @@ namespace Kalendarz1
             // 
             btnDuplikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnDuplikuj.BackColor = System.Drawing.Color.RoyalBlue;
-            btnDuplikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnDuplikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             btnDuplikuj.ForeColor = System.Drawing.Color.White;
             btnDuplikuj.Location = new System.Drawing.Point(672, 12);
             btnDuplikuj.Name = "btnDuplikuj";
@@ -294,7 +294,7 @@ namespace Kalendarz1
             // 
             btnUsun.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnUsun.BackColor = System.Drawing.Color.Black;
-            btnUsun.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            btnUsun.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             btnUsun.ForeColor = System.Drawing.Color.White;
             btnUsun.Location = new System.Drawing.Point(560, 12);
             btnUsun.Name = "btnUsun";
@@ -395,7 +395,7 @@ namespace Kalendarz1
             // 
             lblPodsumowanie.AutoEllipsis = true;
             lblPodsumowanie.Dock = System.Windows.Forms.DockStyle.Fill;
-            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             lblPodsumowanie.Location = new System.Drawing.Point(0, 0);
             lblPodsumowanie.Name = "lblPodsumowanie";
             lblPodsumowanie.Padding = new System.Windows.Forms.Padding(12, 0, 0, 0);
@@ -434,7 +434,7 @@ namespace Kalendarz1
             // 
             label2.AutoSize = true;
             label2.Dock = System.Windows.Forms.DockStyle.Fill;
-            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label2.Location = new System.Drawing.Point(3, 227);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(366, 30);
@@ -492,7 +492,7 @@ namespace Kalendarz1
             // 
             label3.AutoSize = true;
             label3.Dock = System.Windows.Forms.DockStyle.Top;
-            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label3.Location = new System.Drawing.Point(0, 0);
             label3.Name = "label3";
             label3.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
@@ -523,7 +523,7 @@ namespace Kalendarz1
             // 
             label1.AutoSize = true;
             label1.Dock = System.Windows.Forms.DockStyle.Top;
-            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             label1.Location = new System.Drawing.Point(0, 0);
             label1.Name = "label1";
             label1.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
@@ -561,6 +561,26 @@ namespace Kalendarz1
             panelPrzychody.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dgvPrzychody).EndInit();
             ResumeLayout(false);
+            // btnCykliczne
+            // 
+            btnCykliczne = new System.Windows.Forms.Button();
+            btnCykliczne.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnCykliczne.BackColor = System.Drawing.Color.DarkOrange;
+            btnCykliczne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            btnCykliczne.ForeColor = System.Drawing.Color.White;
+            btnCykliczne.Location = new System.Drawing.Point(556, 12);
+            btnCykliczne.Name = "btnCykliczne";
+            btnCykliczne.Size = new System.Drawing.Size(110, 40);
+            btnCykliczne.TabIndex = 10;
+            btnCykliczne.Text = "Cykliczne";
+            btnCykliczne.UseVisualStyleBackColor = false;
+            btnCykliczne.Click += btnCykliczne_Click;
+
+            // Dodaj do panelu nawigacyjnego (po btnDuplikuj)
+            panelNawigacja.Controls.Add(btnCykliczne);
+
+            // Przesuń przycisk Usuń bardziej w lewo
+            btnUsun.Location = new System.Drawing.Point(440, 12);
 
         }
 
@@ -606,5 +626,7 @@ namespace Kalendarz1
         private System.Windows.Forms.Button btnDuplikuj;
         private System.Windows.Forms.Button btnUsun;
         private System.Windows.Forms.DataGridView dgvPojTuszki;
+        // W sekcji deklaracji (na końcu pliku przed klasą)
+        private System.Windows.Forms.Button btnCykliczne;
     }
 }

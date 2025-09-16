@@ -1,6 +1,5 @@
-// Plik: Transport/transport-editor.cs
-// Kompletny edytor kursu transportowego z obsługą ładunków
-// WERSJA POPRAWIONA - bez duplikacji klas
+// Plik: Transport/EdytorKursuImproved.cs
+// Usprawniony edytor kursu - prosty i funkcjonalny UI
 
 using System;
 using System.Collections.Generic;
@@ -14,355 +13,478 @@ using Kalendarz1.Transport.Pakowanie;
 
 namespace Kalendarz1.Transport.Formularze
 {
-    public partial class EdytorKursu : Form
+    public partial class EdytorKursuImproved : Form
     {
         private readonly TransportRepozytorium _repozytorium;
         private long? _kursId;
         private readonly string _uzytkownik;
         private Kurs _kurs;
-        private List<Ladunek> _ladunki;
+        private List<Ladunek> _ladunki = new List<Ladunek>();
         private List<Kierowca> _kierowcy;
         private List<Pojazd> _pojazdy;
 
-        // Główne kontrolki
-        private DateTimePicker dtpDataKursu;
+        // Kontrolki nagłówka
         private ComboBox cboKierowca;
         private ComboBox cboPojazd;
+        private DateTimePicker dtpData;
+        private MaskedTextBox txtGodzWyjazdu;
+        private MaskedTextBox txtGodzPowrotu;
         private TextBox txtTrasa;
-        private DateTimePicker dtpGodzWyjazdu;
-        private DateTimePicker dtpGodzPowrotu;
-        private ComboBox cboStatus;
-        private NumericUpDown nudPlanE2NaPalete;
 
-        // Kontrolki ładunków
+        // Grid ładunków
         private DataGridView dgvLadunki;
-        private TextBox txtKodKlienta;
-        private NumericUpDown nudPojemnikiE2;
-        private NumericUpDown nudPaletyH1;
-        private NumericUpDown nudPlanE2Override;
-        private TextBox txtUwagiLadunek;
-        private Button btnDodajLadunek;
-        private Button btnUsunLadunek;
-        private Button btnEdytujLadunek;
 
-        // Kontrolki statystyk
-        private Label lblSumaE2;
-        private Label lblPaletyNominal;
-        private Label lblPaletyMax;
-        private Label lblProcNominal;
-        private Label lblProcMax;
-        private ProgressBar prgWypelnienie;
+        // Panel dodawania
+        private TextBox txtKlient;
+        private NumericUpDown nudPojemniki;
+        private TextBox txtUwagi;
+        private Button btnDodaj;
 
-        // Przyciski akcji
+        // Wskaźnik wypełnienia
+        private ProgressBar progressWypelnienie;
+        private Label lblWypelnienie;
+        private Label lblStatystyki;
+
+        // Przyciski główne
         private Button btnZapisz;
         private Button btnAnuluj;
-        private Button btnDodajZamowienia;
-        private Button btnOptymalizuj;
 
-        // Główny konstruktor - kompatybilny z transport-panel-main.cs
-        public EdytorKursu(TransportRepozytorium repozytorium, long? kursId = null, DateTime? data = null, string uzytkownik = null)
+        public EdytorKursuImproved(TransportRepozytorium repozytorium, DateTime data, string uzytkownik)
+            : this(repozytorium, null, data, uzytkownik)
+        {
+        }
+
+        public EdytorKursuImproved(TransportRepozytorium repozytorium, Kurs kurs, string uzytkownik)
+            : this(repozytorium, kurs?.KursID, kurs?.DataKursu, uzytkownik)
+        {
+            _kurs = kurs;
+        }
+
+        private EdytorKursuImproved(TransportRepozytorium repozytorium, long? kursId, DateTime? data, string uzytkownik)
         {
             _repozytorium = repozytorium ?? throw new ArgumentNullException(nameof(repozytorium));
             _kursId = kursId;
             _uzytkownik = uzytkownik ?? Environment.UserName;
 
             InitializeComponent();
-            ConfigureForm();
-
-            // Ustaw datę jeśli przekazana
-            if (data.HasValue)
-                dtpDataKursu.Value = data.Value;
-            else
-                dtpDataKursu.Value = DateTime.Today;
-
+            dtpData.Value = data ?? DateTime.Today;
             _ = LoadDataAsync();
-        }
-
-        // Konstruktor dla nowego kursu z datą
-        public EdytorKursu(TransportRepozytorium repozytorium, DateTime data, string uzytkownik = null)
-            : this(repozytorium, null, data, uzytkownik)
-        {
-        }
-
-        // Konstruktor dla edycji istniejącego kursu
-        public EdytorKursu(TransportRepozytorium repozytorium, Kurs kurs, string uzytkownik = null)
-            : this(repozytorium, kurs?.KursID, kurs?.DataKursu, uzytkownik)
-        {
-            _kurs = kurs;
         }
 
         private void InitializeComponent()
         {
-            Text = _kursId.HasValue ? "Edycja kursu" : "Nowy kurs";
-            Size = new Size(1200, 700);
-            StartPosition = FormStartPosition.CenterScreen;
-            Font = new Font("Segoe UI", 9F);
+            Text = _kursId.HasValue ? "Edycja kursu transportowego" : "Nowy kurs transportowy";
+            Size = new Size(1100, 750);
+            StartPosition = FormStartPosition.CenterParent;
+            Font = new Font("Segoe UI", 10F);
+            BackColor = Color.FromArgb(240, 242, 247);
 
-            // Panel główny
+            // Dodaj ikonę okna
+            try
+            {
+                Icon = SystemIcons.Application;
+            }
+            catch { }
+
             var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 3,
-                Padding = new Padding(10)
-            };
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
-            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 200)); // Nagłówek
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // Lista ładunków
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));   // Przyciski
-
-            // ========== PANEL NAGŁÓWKA ==========
-            var panelNaglowek = new GroupBox
-            {
-                Text = "Dane kursu",
-                Dock = DockStyle.Fill
-            };
-
-            var layoutNaglowek = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 4,
+                ColumnCount = 1,
                 RowCount = 4,
-                Padding = new Padding(5)
+                Padding = new Padding(25),
+                BackColor = Color.FromArgb(240, 242, 247)
             };
 
-            // Wiersz 1
-            layoutNaglowek.Controls.Add(new Label { Text = "Data kursu:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            dtpDataKursu = new DateTimePicker { Format = DateTimePickerFormat.Short };
-            layoutNaglowek.Controls.Add(dtpDataKursu, 1, 0);
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150)); // Nagłówek
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Lista ładunków
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));  // Panel dodawania
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 65));  // Przyciski
 
-            layoutNaglowek.Controls.Add(new Label { Text = "Status:", TextAlign = ContentAlignment.MiddleRight }, 2, 0);
-            cboStatus = new ComboBox
+            // ========== NAGŁÓWEK ==========
+            mainLayout.Controls.Add(CreateHeaderPanel(), 0, 0);
+
+            // ========== LISTA ŁADUNKÓW ==========
+            mainLayout.Controls.Add(CreateLadunkiPanel(), 0, 1);
+
+            // ========== PANEL DODAWANIA ==========
+            mainLayout.Controls.Add(CreateAddPanel(), 0, 2);
+
+            // ========== PRZYCISKI ==========
+            mainLayout.Controls.Add(CreateButtonsPanel(), 0, 3);
+
+            Controls.Add(mainLayout);
+        }
+
+        private Panel CreateHeaderPanel()
+        {
+            var panel = new Panel
             {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(41, 44, 51),
+                Padding = new Padding(15)
+            };
+
+            // Dodaj zaokrąglone rogi
+            panel.Paint += (s, e) =>
+            {
+                var rect = panel.ClientRectangle;
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 8;
+                    path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                    path.AddArc(rect.Right - radius, rect.Y, radius, radius, 270, 90);
+                    path.AddArc(rect.Right - radius, rect.Bottom - radius, radius, radius, 0, 90);
+                    path.AddArc(rect.X, rect.Bottom - radius, radius, radius, 90, 90);
+                    path.CloseFigure();
+                    panel.Region = new Region(path);
+                }
+            };
+
+            // Pierwsza linia
+            var lblKierowca = CreateLabel("KIEROWCA:", 20, 20, 90);
+            lblKierowca.ForeColor = Color.FromArgb(173, 181, 189);
+            lblKierowca.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            cboKierowca = new ComboBox
+            {
+                Location = new Point(115, 18),
+                Size = new Size(230, 26),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Items = { "Planowany", "Potwierdzony", "W realizacji", "Zakończony", "Anulowany" }
+                Font = new Font("Segoe UI", 10F),
+                DisplayMember = "PelneNazwisko",
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
             };
-            layoutNaglowek.Controls.Add(cboStatus, 3, 0);
 
-            // Wiersz 2
-            layoutNaglowek.Controls.Add(new Label { Text = "Kierowca:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            cboKierowca = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = "PelneNazwisko" };
-            layoutNaglowek.Controls.Add(cboKierowca, 1, 1);
+            var lblPojazd = CreateLabel("POJAZD:", 365, 20, 70);
+            lblPojazd.ForeColor = Color.FromArgb(173, 181, 189);
+            lblPojazd.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
 
-            layoutNaglowek.Controls.Add(new Label { Text = "Pojazd:", TextAlign = ContentAlignment.MiddleRight }, 2, 1);
-            cboPojazd = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = "Opis" };
-            cboPojazd.SelectedIndexChanged += CboPojazd_SelectedIndexChanged;
-            layoutNaglowek.Controls.Add(cboPojazd, 3, 1);
-
-            // Wiersz 3
-            layoutNaglowek.Controls.Add(new Label { Text = "Trasa:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-            txtTrasa = new TextBox { Dock = DockStyle.Fill };
-            layoutNaglowek.SetColumnSpan(txtTrasa, 3);
-            layoutNaglowek.Controls.Add(txtTrasa, 1, 2);
-
-            // Wiersz 4
-            layoutNaglowek.Controls.Add(new Label { Text = "Godz. wyjazdu:", TextAlign = ContentAlignment.MiddleRight }, 0, 3);
-            dtpGodzWyjazdu = new DateTimePicker { Format = DateTimePickerFormat.Time, ShowUpDown = true };
-            layoutNaglowek.Controls.Add(dtpGodzWyjazdu, 1, 3);
-
-            layoutNaglowek.Controls.Add(new Label { Text = "Godz. powrotu:", TextAlign = ContentAlignment.MiddleRight }, 2, 3);
-            dtpGodzPowrotu = new DateTimePicker { Format = DateTimePickerFormat.Time, ShowUpDown = true };
-            layoutNaglowek.Controls.Add(dtpGodzPowrotu, 3, 3);
-
-            panelNaglowek.Controls.Add(layoutNaglowek);
-            mainLayout.Controls.Add(panelNaglowek, 0, 0);
-
-            // ========== PANEL STATYSTYK ==========
-            var panelStatystyki = new GroupBox
+            cboPojazd = new ComboBox
             {
-                Text = "Wypełnienie pojazdu",
-                Dock = DockStyle.Fill
+                Location = new Point(440, 18),
+                Size = new Size(170, 26),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F),
+                DisplayMember = "Opis",
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            cboPojazd.SelectedIndexChanged += async (s, e) => await UpdateWypelnienie();
+
+            var lblData = CreateLabel("DATA:", 630, 20, 50);
+            lblData.ForeColor = Color.FromArgb(173, 181, 189);
+            lblData.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            dtpData = new DateTimePicker
+            {
+                Location = new Point(685, 18),
+                Size = new Size(140, 26),
+                Format = DateTimePickerFormat.Short,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                CalendarMonthBackground = Color.FromArgb(52, 56, 64)
             };
 
-            var layoutStatystyki = new TableLayoutPanel
+            // Druga linia
+            var lblGodziny = CreateLabel("GODZINY:", 20, 60, 90);
+            lblGodziny.ForeColor = Color.FromArgb(173, 181, 189);
+            lblGodziny.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            txtGodzWyjazdu = new MaskedTextBox
+            {
+                Location = new Point(115, 58),
+                Size = new Size(65, 26),
+                Mask = "00:00",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "06:00",
+                TextAlign = HorizontalAlignment.Center,
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.FromArgb(255, 193, 7),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblDo = CreateLabel("➔", 185, 60, 30);
+            lblDo.TextAlign = ContentAlignment.MiddleCenter;
+            lblDo.ForeColor = Color.FromArgb(255, 193, 7);
+            lblDo.Font = new Font("Segoe UI", 12F);
+
+            txtGodzPowrotu = new MaskedTextBox
+            {
+                Location = new Point(220, 58),
+                Size = new Size(65, 26),
+                Mask = "00:00",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Text = "18:00",
+                TextAlign = HorizontalAlignment.Center,
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.FromArgb(255, 193, 7),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblTrasa = CreateLabel("TRASA:", 305, 60, 60);
+            lblTrasa.ForeColor = Color.FromArgb(173, 181, 189);
+            lblTrasa.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            txtTrasa = new TextBox
+            {
+                Location = new Point(370, 58),
+                Size = new Size(455, 26),
+                Font = new Font("Segoe UI", 10F),
+                BackColor = Color.FromArgb(52, 56, 64),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            txtTrasa.GotFocus += (s, e) => txtTrasa.BackColor = Color.FromArgb(62, 66, 74);
+            txtTrasa.LostFocus += (s, e) => txtTrasa.BackColor = Color.FromArgb(52, 56, 64);
+
+            // Trzecia linia - wskaźnik wypełnienia
+            var panelWypelnienie = new Panel
+            {
+                Location = new Point(20, 100),
+                Size = new Size(805, 40),
+                BackColor = Color.FromArgb(33, 37, 43)
+            };
+
+            // Zaokrąglone rogi dla panelu wypełnienia
+            panelWypelnienie.Paint += (s, e) =>
+            {
+                var rect = panelWypelnienie.ClientRectangle;
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    int radius = 5;
+                    path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                    path.AddArc(rect.Right - radius, rect.Y, radius, radius, 270, 90);
+                    path.AddArc(rect.Right - radius, rect.Bottom - radius, radius, radius, 0, 90);
+                    path.AddArc(rect.X, rect.Bottom - radius, radius, radius, 90, 90);
+                    path.CloseFigure();
+                    panelWypelnienie.Region = new Region(path);
+                }
+            };
+
+            lblWypelnienie = new Label
+            {
+                Location = new Point(15, 10),
+                Size = new Size(120, 20),
+                Text = "WYPEŁNIENIE:",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(173, 181, 189)
+            };
+
+            progressWypelnienie = new ProgressBar
+            {
+                Location = new Point(140, 10),
+                Size = new Size(420, 22),
+                Maximum = 100,
+                Value = 0,
+                Style = ProgressBarStyle.Continuous
+            };
+
+            lblStatystyki = new Label
+            {
+                Location = new Point(570, 10),
+                Size = new Size(220, 20),
+                Text = "0 pojemników / 0 palet",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 193, 7),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            panelWypelnienie.Controls.AddRange(new Control[] { lblWypelnienie, progressWypelnienie, lblStatystyki });
+
+            panel.Controls.AddRange(new Control[] {
+                lblKierowca, cboKierowca, lblPojazd, cboPojazd, lblData, dtpData,
+                lblGodziny, txtGodzWyjazdu, lblDo, txtGodzPowrotu, lblTrasa, txtTrasa,
+                panelWypelnienie
+            });
+
+            return panel;
+        }
+
+        private Panel CreateLadunkiPanel()
+        {
+            var panel = new Panel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 7,
-                Padding = new Padding(5)
+                Padding = new Padding(0, 10, 0, 10)
             };
 
-            layoutStatystyki.Controls.Add(new Label { Text = "Plan E2/paletę:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            nudPlanE2NaPalete = new NumericUpDown { Minimum = 1, Maximum = 50, Value = 36 };
-            nudPlanE2NaPalete.ValueChanged += async (s, e) => await AktualizujStatystyki();
-            layoutStatystyki.Controls.Add(nudPlanE2NaPalete, 1, 0);
-
-            layoutStatystyki.Controls.Add(new Label { Text = "Suma E2:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            lblSumaE2 = new Label { Text = "0", Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-            layoutStatystyki.Controls.Add(lblSumaE2, 1, 1);
-
-            layoutStatystyki.Controls.Add(new Label { Text = "Palety (nominal):", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-            lblPaletyNominal = new Label { Text = "0", Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-            layoutStatystyki.Controls.Add(lblPaletyNominal, 1, 2);
-
-            layoutStatystyki.Controls.Add(new Label { Text = "Palety (max):", TextAlign = ContentAlignment.MiddleRight }, 0, 3);
-            lblPaletyMax = new Label { Text = "0" };
-            layoutStatystyki.Controls.Add(lblPaletyMax, 1, 3);
-
-            layoutStatystyki.Controls.Add(new Label { Text = "Wypełnienie (nom):", TextAlign = ContentAlignment.MiddleRight }, 0, 4);
-            lblProcNominal = new Label { Text = "0%", Font = new Font("Segoe UI", 11F, FontStyle.Bold) };
-            layoutStatystyki.Controls.Add(lblProcNominal, 1, 4);
-
-            layoutStatystyki.Controls.Add(new Label { Text = "Wypełnienie (max):", TextAlign = ContentAlignment.MiddleRight }, 0, 5);
-            lblProcMax = new Label { Text = "0%" };
-            layoutStatystyki.Controls.Add(lblProcMax, 1, 5);
-
-            prgWypelnienie = new ProgressBar { Minimum = 0, Maximum = 120, Height = 25 };
-            layoutStatystyki.SetColumnSpan(prgWypelnienie, 2);
-            layoutStatystyki.Controls.Add(prgWypelnienie, 0, 6);
-
-            panelStatystyki.Controls.Add(layoutStatystyki);
-            mainLayout.Controls.Add(panelStatystyki, 1, 0);
-
-            // ========== PANEL ŁADUNKÓW ==========
-            var panelLadunki = new GroupBox
-            {
-                Text = "Ładunki",
-                Dock = DockStyle.Fill
-            };
-
-            var splitLadunki = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Horizontal,
-                SplitterDistance = 250
-            };
-
-            // Grid z ładunkami
             dgvLadunki = new DataGridView
             {
                 Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ReadOnly = true
-            };
-            dgvLadunki.SelectionChanged += DgvLadunki_SelectionChanged;
-            splitLadunki.Panel1.Controls.Add(dgvLadunki);
-
-            // Panel dodawania/edycji ładunku
-            var panelEdycjaLadunku = new GroupBox
-            {
-                Text = "Dodaj/Edytuj ładunek",
-                Dock = DockStyle.Fill
+                ReadOnly = true,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
 
-            var layoutEdycja = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 4,
-                RowCount = 4,
-                Padding = new Padding(5)
-            };
+            // Stylizacja
+            dgvLadunki.EnableHeadersVisualStyles = false;
+            dgvLadunki.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
+            dgvLadunki.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
+            dgvLadunki.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvLadunki.ColumnHeadersHeight = 35;
 
-            layoutEdycja.Controls.Add(new Label { Text = "Kod klienta:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            txtKodKlienta = new TextBox { Dock = DockStyle.Fill };
-            layoutEdycja.Controls.Add(txtKodKlienta, 1, 0);
+            dgvLadunki.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgvLadunki.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
+            dgvLadunki.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
+            dgvLadunki.RowTemplate.Height = 32;
+            dgvLadunki.GridColor = Color.FromArgb(236, 240, 241);
 
-            layoutEdycja.Controls.Add(new Label { Text = "Pojemniki E2:", TextAlign = ContentAlignment.MiddleRight }, 2, 0);
-            nudPojemnikiE2 = new NumericUpDown { Minimum = 0, Maximum = 1000, Dock = DockStyle.Fill };
-            layoutEdycja.Controls.Add(nudPojemnikiE2, 3, 0);
+            // Menu kontekstowe
+            var contextMenu = new ContextMenuStrip();
+            var menuUsun = new ToolStripMenuItem("🗑️ Usuń", null, async (s, e) => await UsunLadunek());
+            var menuEdytuj = new ToolStripMenuItem("✏️ Edytuj", null, (s, e) => EdytujLadunek());
+            contextMenu.Items.AddRange(new[] { menuEdytuj, menuUsun });
+            dgvLadunki.ContextMenuStrip = contextMenu;
 
-            layoutEdycja.Controls.Add(new Label { Text = "Palety H1:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            nudPaletyH1 = new NumericUpDown { Minimum = 0, Maximum = 100, Dock = DockStyle.Fill };
-            layoutEdycja.Controls.Add(nudPaletyH1, 1, 1);
+            panel.Controls.Add(dgvLadunki);
+            return panel;
+        }
 
-            layoutEdycja.Controls.Add(new Label { Text = "E2/paletę (override):", TextAlign = ContentAlignment.MiddleRight }, 2, 1);
-            nudPlanE2Override = new NumericUpDown { Minimum = 0, Maximum = 50, Dock = DockStyle.Fill };
-            layoutEdycja.Controls.Add(nudPlanE2Override, 3, 1);
-
-            layoutEdycja.Controls.Add(new Label { Text = "Uwagi:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-            txtUwagiLadunek = new TextBox { Dock = DockStyle.Fill, Multiline = true };
-            layoutEdycja.SetColumnSpan(txtUwagiLadunek, 3);
-            layoutEdycja.Controls.Add(txtUwagiLadunek, 1, 2);
-
-            // Przyciski akcji dla ładunku
-            var panelPrzyciskiLadunek = new FlowLayoutPanel
+        private Panel CreateAddPanel()
+        {
+            var panel = new Panel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft
+                BackColor = Color.White,
+                Padding = new Padding(20, 10, 20, 10)
             };
 
-            btnDodajLadunek = new Button { Text = "Dodaj", Width = 80, Height = 30 };
-            btnDodajLadunek.Click += BtnDodajNowyLadunek_Click;
+            var lblKlient = CreateLabel("Klient/Kod:", 0, 20, 90);
+            txtKlient = new TextBox
+            {
+                Location = new Point(100, 18),
+                Size = new Size(250, 26),
+                Font = new Font("Segoe UI", 10F),
+                PlaceholderText = "Nazwa klienta lub kod..."
+            };
 
-            btnEdytujLadunek = new Button { Text = "Zapisz zmiany", Width = 100, Height = 30, Enabled = false };
-            btnEdytujLadunek.Click += BtnEdytujLadunek_Click;
+            var lblPojemniki = CreateLabel("Pojemniki:", 370, 20, 80);
+            nudPojemniki = new NumericUpDown
+            {
+                Location = new Point(460, 18),
+                Size = new Size(80, 26),
+                Font = new Font("Segoe UI", 10F),
+                Maximum = 1000,
+                Minimum = 0,
+                TextAlign = HorizontalAlignment.Center
+            };
 
-            btnUsunLadunek = new Button { Text = "Usuń", Width = 80, Height = 30, Enabled = false };
-            btnUsunLadunek.Click += BtnUsunLadunek_Click;
+            var lblUwagi = CreateLabel("Uwagi:", 560, 20, 50);
+            txtUwagi = new TextBox
+            {
+                Location = new Point(620, 18),
+                Size = new Size(200, 26),
+                Font = new Font("Segoe UI", 10F),
+                PlaceholderText = "Opcjonalne..."
+            };
 
-            btnDodajZamowienia = new Button { Text = "Dodaj zamówienia...", Width = 130, Height = 30 };
-            btnDodajZamowienia.Click += BtnDodajZamowienia_Click;
+            btnDodaj = new Button
+            {
+                Location = new Point(840, 15),
+                Size = new Size(100, 35),
+                Text = "➕ Dodaj",
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnDodaj.FlatAppearance.BorderSize = 0;
+            btnDodaj.Click += async (s, e) => await DodajLadunek();
 
-            panelPrzyciskiLadunek.Controls.Add(btnDodajLadunek);
-            panelPrzyciskiLadunek.Controls.Add(btnEdytujLadunek);
-            panelPrzyciskiLadunek.Controls.Add(btnUsunLadunek);
-            panelPrzyciskiLadunek.Controls.Add(btnDodajZamowienia);
+            // Enter dodaje ładunek
+            txtKlient.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) await DodajLadunek(); };
+            nudPojemniki.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) await DodajLadunek(); };
+            txtUwagi.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) await DodajLadunek(); };
 
-            layoutEdycja.SetColumnSpan(panelPrzyciskiLadunek, 4);
-            layoutEdycja.Controls.Add(panelPrzyciskiLadunek, 0, 3);
+            panel.Controls.AddRange(new Control[] {
+                lblKlient, txtKlient, lblPojemniki, nudPojemniki,
+                lblUwagi, txtUwagi, btnDodaj
+            });
 
-            panelEdycjaLadunku.Controls.Add(layoutEdycja);
-            splitLadunki.Panel2.Controls.Add(panelEdycjaLadunku);
+            return panel;
+        }
 
-            panelLadunki.Controls.Add(splitLadunki);
-            mainLayout.SetColumnSpan(panelLadunki, 2);
-            mainLayout.Controls.Add(panelLadunki, 0, 1);
-
-            // ========== PANEL PRZYCISKÓW ==========
-            var panelPrzyciski = new FlowLayoutPanel
+        private Panel CreateButtonsPanel()
+        {
+            var panel = new Panel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft
+                BackColor = Color.FromArgb(33, 37, 43),
+                Padding = new Padding(0, 10, 0, 0)
             };
 
             btnZapisz = new Button
             {
-                Text = "Zapisz",
-                Width = 100,
-                Height = 35,
-                BackColor = Color.Green,
+                Size = new Size(140, 45),
+                Text = "💾 ZAPISZ",
+                BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
+            btnZapisz.FlatAppearance.BorderSize = 0;
+            btnZapisz.FlatAppearance.MouseOverBackColor = Color.FromArgb(33, 136, 56);
+            btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 10);
             btnZapisz.Click += BtnZapisz_Click;
+
+            // Efekt hover
+            btnZapisz.MouseEnter += (s, e) => btnZapisz.BackColor = Color.FromArgb(33, 136, 56);
+            btnZapisz.MouseLeave += (s, e) => btnZapisz.BackColor = Color.FromArgb(40, 167, 69);
 
             btnAnuluj = new Button
             {
-                Text = "Anuluj",
-                Width = 100,
-                Height = 35
+                Size = new Size(140, 45),
+                Text = "❌ ANULUJ",
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11F),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
+            btnAnuluj.FlatAppearance.BorderSize = 0;
+            btnAnuluj.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
+            btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
             btnAnuluj.Click += (s, e) => Close();
 
-            btnOptymalizuj = new Button
-            {
-                Text = "Optymalizuj",
-                Width = 100,
-                Height = 35
+            // Efekt hover
+            btnAnuluj.MouseEnter += (s, e) => btnAnuluj.BackColor = Color.FromArgb(90, 98, 104);
+            btnAnuluj.MouseLeave += (s, e) => btnAnuluj.BackColor = Color.FromArgb(108, 117, 125);
+
+            panel.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
+
+            // Obsługa zmiany rozmiaru
+            panel.Resize += (s, e) => {
+                btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
+                btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 10);
             };
-            btnOptymalizuj.Click += BtnOptymalizuj_Click;
 
-            panelPrzyciski.Controls.Add(btnZapisz);
-            panelPrzyciski.Controls.Add(btnAnuluj);
-            panelPrzyciski.Controls.Add(btnOptymalizuj);
-
-            mainLayout.SetColumnSpan(panelPrzyciski, 2);
-            mainLayout.Controls.Add(panelPrzyciski, 0, 2);
-
-            Controls.Add(mainLayout);
+            return panel;
         }
 
-        private void ConfigureForm()
+        private Label CreateLabel(string text, int x, int y, int width)
         {
-            // Ustawienia domyślne
-            cboStatus.SelectedIndex = 0;
-            dtpGodzWyjazdu.Value = DateTime.Today.AddHours(6);
-            dtpGodzPowrotu.Value = DateTime.Today.AddHours(18);
+            return new Label
+            {
+                Text = text,
+                Location = new Point(x, y),
+                Size = new Size(width, 23),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
         }
 
         private async Task LoadDataAsync()
@@ -371,15 +493,12 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Cursor = Cursors.WaitCursor;
 
-                // Załaduj słowniki
                 _kierowcy = await _repozytorium.PobierzKierowcowAsync(true);
                 _pojazdy = await _repozytorium.PobierzPojazdyAsync(true);
 
-                // Wypełnij combobox'y
                 cboKierowca.DataSource = _kierowcy;
                 cboPojazd.DataSource = _pojazdy;
 
-                // Jeśli edycja - załaduj dane kursu
                 if (_kursId.HasValue && _kursId.Value > 0)
                 {
                     await LoadKursData();
@@ -400,345 +519,197 @@ namespace Kalendarz1.Transport.Formularze
         {
             if (!_kursId.HasValue) return;
 
-            try
+            var kursy = await _repozytorium.PobierzKursyPoDacieAsync(dtpData.Value);
+            _kurs = kursy.FirstOrDefault(k => k.KursID == _kursId.Value);
+
+            if (_kurs == null)
             {
-                // Pobierz dane kursu
-                var kursy = await _repozytorium.PobierzKursyPoDacieAsync(DateTime.Today.AddDays(-30));
-                _kurs = kursy.FirstOrDefault(k => k.KursID == _kursId.Value);
-
-                if (_kurs == null)
-                {
-                    MessageBox.Show("Nie znaleziono kursu o podanym ID.",
-                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Ustaw wartości w kontrolkach
-                dtpDataKursu.Value = _kurs.DataKursu;
-                cboKierowca.SelectedValue = _kurs.KierowcaID;
-                cboPojazd.SelectedValue = _kurs.PojazdID;
-                txtTrasa.Text = _kurs.Trasa;
-                cboStatus.Text = _kurs.Status;
-                nudPlanE2NaPalete.Value = _kurs.PlanE2NaPalete;
-
-                if (_kurs.GodzWyjazdu.HasValue)
-                    dtpGodzWyjazdu.Value = DateTime.Today.Add(_kurs.GodzWyjazdu.Value);
-                if (_kurs.GodzPowrotu.HasValue)
-                    dtpGodzPowrotu.Value = DateTime.Today.Add(_kurs.GodzPowrotu.Value);
-
-                // Załaduj ładunki
-                await LoadLadunki();
+                MessageBox.Show("Nie znaleziono kursu.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Close();
+                return;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas ładowania kursu: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+
+            // Ustaw wartości
+            dtpData.Value = _kurs.DataKursu;
+            cboKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID);
+            cboPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID);
+
+            if (_kurs.GodzWyjazdu.HasValue)
+                txtGodzWyjazdu.Text = _kurs.GodzWyjazdu.Value.ToString(@"hh\:mm");
+            if (_kurs.GodzPowrotu.HasValue)
+                txtGodzPowrotu.Text = _kurs.GodzPowrotu.Value.ToString(@"hh\:mm");
+
+            txtTrasa.Text = _kurs.Trasa ?? "";
+
+            await LoadLadunki();
         }
 
         private async Task LoadLadunki()
         {
             if (!_kursId.HasValue) return;
 
-            try
+            _ladunki = await _repozytorium.PobierzLadunkiAsync(_kursId.Value);
+
+            var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(long));
+            dt.Columns.Add("Lp.", typeof(int));
+            dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Pojemniki", typeof(int));
+            dt.Columns.Add("Uwagi", typeof(string));
+
+            int lp = 1;
+            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
             {
-                _ladunki = await _repozytorium.PobierzLadunkiAsync(_kursId.Value);
-
-                var dt = new DataTable();
-                dt.Columns.Add("LadunekID", typeof(long));
-                dt.Columns.Add("Kolejnosc", typeof(int));
-                dt.Columns.Add("KodKlienta", typeof(string));
-                dt.Columns.Add("PojemnikiE2", typeof(int));
-                dt.Columns.Add("PaletyH1", typeof(int));
-                dt.Columns.Add("Uwagi", typeof(string));
-
-                foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
-                {
-                    dt.Rows.Add(
-                        ladunek.LadunekID,
-                        ladunek.Kolejnosc,
-                        ladunek.KodKlienta,
-                        ladunek.PojemnikiE2,
-                        ladunek.PaletyH1 ?? 0,
-                        ladunek.Uwagi
-                    );
-                }
-
-                dgvLadunki.DataSource = dt;
-
-                // Ukryj kolumnę ID
-                if (dgvLadunki.Columns["LadunekID"] != null)
-                    dgvLadunki.Columns["LadunekID"].Visible = false;
-
-                await AktualizujStatystyki();
+                dt.Rows.Add(
+                    ladunek.LadunekID,
+                    lp++,
+                    ladunek.KodKlienta ?? "",
+                    ladunek.PojemnikiE2,
+                    ladunek.Uwagi ?? ""
+                );
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas ładowania ładunków: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+
+            dgvLadunki.DataSource = dt;
+
+            if (dgvLadunki.Columns["ID"] != null)
+                dgvLadunki.Columns["ID"].Visible = false;
+            if (dgvLadunki.Columns["Lp."] != null)
+                dgvLadunki.Columns["Lp."].Width = 50;
+
+            await UpdateWypelnienie();
         }
 
-        private async void BtnDodajNowyLadunek_Click(object sender, EventArgs e)
+        private async Task UpdateWypelnienie()
         {
             try
             {
-                // Walidacja
-                if (string.IsNullOrWhiteSpace(txtKodKlienta.Text))
+                if (cboPojazd.SelectedItem is not Pojazd pojazd)
                 {
-                    MessageBox.Show("Proszę podać kod klienta.",
-                        "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtKodKlienta.Focus();
+                    progressWypelnienie.Value = 0;
+                    lblStatystyki.Text = "0 pojemników / 0 palet";
                     return;
                 }
 
-                if (nudPojemnikiE2.Value <= 0)
+                int sumaPojemnikow = _ladunki?.Sum(l => l.PojemnikiE2) ?? 0;
+                int paletyNominal = (int)Math.Ceiling(sumaPojemnikow / 36.0);
+                int paletyPojazdu = pojazd.PaletyH1;
+                int procent = paletyPojazdu > 0 ? (int)(paletyNominal * 100.0 / paletyPojazdu) : 0;
+
+                progressWypelnienie.Value = Math.Min(100, procent);
+                lblStatystyki.Text = $"{sumaPojemnikow} pojemników / {paletyNominal} palet";
+
+                // Kolorowanie
+                if (procent > 100)
                 {
-                    MessageBox.Show("Proszę podać liczbę pojemników E2.",
-                        "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    nudPojemnikiE2.Focus();
-                    return;
+                    progressWypelnienie.ForeColor = Color.Red;
+                    lblWypelnienie.ForeColor = Color.Red;
                 }
-
-                // Jeśli nowy kurs - najpierw go zapisz
-                if (!_kursId.HasValue || _kursId.Value <= 0)
+                else if (procent > 90)
                 {
-                    if (MessageBox.Show("Aby dodać ładunek, kurs musi być najpierw zapisany. Zapisać teraz?",
-                        "Zapisać kurs?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        await SaveKurs();
-                        if (!_kursId.HasValue || _kursId.Value <= 0)
-                            return;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                // Utwórz nowy ładunek
-                var nowyLadunek = new Ladunek
-                {
-                    KursID = _kursId.Value,
-                    KodKlienta = txtKodKlienta.Text.Trim(),
-                    PojemnikiE2 = (int)nudPojemnikiE2.Value,
-                    PaletyH1 = nudPaletyH1.Value > 0 ? (int?)nudPaletyH1.Value : null,
-                    PlanE2NaPaleteOverride = nudPlanE2Override.Value > 0 ? (byte?)nudPlanE2Override.Value : null,
-                    Uwagi = string.IsNullOrWhiteSpace(txtUwagiLadunek.Text) ? null : txtUwagiLadunek.Text.Trim()
-                };
-
-                // Zapisz do bazy
-                Cursor = Cursors.WaitCursor;
-                await _repozytorium.DodajLadunekAsync(nowyLadunek);
-
-                // Odśwież listę
-                await LoadLadunki();
-
-                // Wyczyść formularz
-                ClearLadunekForm();
-
-                MessageBox.Show("Ładunek został dodany.",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas dodawania ładunku: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private async void BtnEdytujLadunek_Click(object sender, EventArgs e)
-        {
-            if (dgvLadunki.CurrentRow == null) return;
-
-            try
-            {
-                var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["LadunekID"].Value);
-                var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
-
-                if (ladunek == null) return;
-
-                // Aktualizuj dane
-                ladunek.KodKlienta = txtKodKlienta.Text.Trim();
-                ladunek.PojemnikiE2 = (int)nudPojemnikiE2.Value;
-                ladunek.PaletyH1 = nudPaletyH1.Value > 0 ? (int?)nudPaletyH1.Value : null;
-                ladunek.PlanE2NaPaleteOverride = nudPlanE2Override.Value > 0 ? (byte?)nudPlanE2Override.Value : null;
-                ladunek.Uwagi = string.IsNullOrWhiteSpace(txtUwagiLadunek.Text) ? null : txtUwagiLadunek.Text.Trim();
-
-                // Zapisz do bazy
-                Cursor = Cursors.WaitCursor;
-                await _repozytorium.AktualizujLadunekAsync(ladunek);
-
-                // Odśwież listę
-                await LoadLadunki();
-
-                MessageBox.Show("Ładunek został zaktualizowany.",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas aktualizacji ładunku: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private async void BtnUsunLadunek_Click(object sender, EventArgs e)
-        {
-            if (dgvLadunki.CurrentRow == null) return;
-
-            if (MessageBox.Show("Czy na pewno usunąć wybrany ładunek?",
-                "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                return;
-
-            try
-            {
-                var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["LadunekID"].Value);
-
-                Cursor = Cursors.WaitCursor;
-                await _repozytorium.UsunLadunekAsync(ladunekId);
-
-                // Odśwież listę
-                await LoadLadunki();
-
-                MessageBox.Show("Ładunek został usunięty.",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas usuwania ładunku: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private void DgvLadunki_SelectionChanged(object sender, EventArgs e)
-        {
-            if (dgvLadunki.CurrentRow == null)
-            {
-                btnEdytujLadunek.Enabled = false;
-                btnUsunLadunek.Enabled = false;
-                ClearLadunekForm();
-                return;
-            }
-
-            btnEdytujLadunek.Enabled = true;
-            btnUsunLadunek.Enabled = true;
-
-            // Wypełnij formularz danymi wybranego ładunku
-            var row = dgvLadunki.CurrentRow;
-            txtKodKlienta.Text = row.Cells["KodKlienta"].Value?.ToString() ?? "";
-            nudPojemnikiE2.Value = Convert.ToInt32(row.Cells["PojemnikiE2"].Value ?? 0);
-            nudPaletyH1.Value = Convert.ToInt32(row.Cells["PaletyH1"].Value ?? 0);
-            txtUwagiLadunek.Text = row.Cells["Uwagi"].Value?.ToString() ?? "";
-
-            // Znajdź ładunek dla override
-            var ladunekId = Convert.ToInt64(row.Cells["LadunekID"].Value);
-            var ladunek = _ladunki?.FirstOrDefault(l => l.LadunekID == ladunekId);
-            nudPlanE2Override.Value = ladunek?.PlanE2NaPaleteOverride ?? 0;
-        }
-
-        private void ClearLadunekForm()
-        {
-            txtKodKlienta.Clear();
-            nudPojemnikiE2.Value = 0;
-            nudPaletyH1.Value = 0;
-            nudPlanE2Override.Value = 0;
-            txtUwagiLadunek.Clear();
-        }
-
-        private async void CboPojazd_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            await AktualizujStatystyki();
-        }
-
-        private async Task AktualizujStatystyki()
-        {
-            try
-            {
-                if (!_kursId.HasValue || _kursId.Value <= 0)
-                {
-                    // Brak kursu - wyzeruj statystyki
-                    lblSumaE2.Text = "0";
-                    lblPaletyNominal.Text = "0";
-                    lblPaletyMax.Text = "0";
-                    lblProcNominal.Text = "0%";
-                    lblProcMax.Text = "0%";
-                    prgWypelnienie.Value = 0;
-                    return;
-                }
-
-                // Oblicz pakowanie
-                var wynik = await _repozytorium.ObliczPakowanieKursuAsync(_kursId.Value);
-
-                // Aktualizuj etykiety
-                lblSumaE2.Text = wynik.SumaE2.ToString();
-                lblPaletyNominal.Text = wynik.PaletyNominal.ToString();
-                lblPaletyMax.Text = wynik.PaletyMax.ToString();
-                lblProcNominal.Text = $"{wynik.ProcNominal:F1}%";
-                lblProcMax.Text = $"{wynik.ProcMax:F1}%";
-
-                // Aktualizuj progress bar
-                prgWypelnienie.Value = Math.Min(120, (int)wynik.ProcNominal);
-
-                // Kolorowanie w zależności od wypełnienia
-                if (wynik.ProcNominal > 100)
-                {
-                    lblProcNominal.ForeColor = Color.Red;
-                    prgWypelnienie.ForeColor = Color.Red;
-                }
-                else if (wynik.ProcNominal > 90)
-                {
-                    lblProcNominal.ForeColor = Color.Orange;
-                    prgWypelnienie.ForeColor = Color.Orange;
+                    progressWypelnienie.ForeColor = Color.Orange;
+                    lblWypelnienie.ForeColor = Color.Orange;
                 }
                 else
                 {
-                    lblProcNominal.ForeColor = Color.Green;
-                    prgWypelnienie.ForeColor = Color.Green;
+                    progressWypelnienie.ForeColor = Color.Green;
+                    lblWypelnienie.ForeColor = Color.Green;
                 }
+
+                lblWypelnienie.Text = $"Wypełnienie: {procent}%";
             }
-            catch (Exception ex)
+            catch
             {
-                // Logowanie błędu, ale nie przerywanie działania
-                System.Diagnostics.Debug.WriteLine($"Błąd aktualizacji statystyk: {ex.Message}");
+                // Ignoruj błędy aktualizacji
             }
+        }
+
+        private async Task DodajLadunek()
+        {
+            if (string.IsNullOrWhiteSpace(txtKlient.Text))
+            {
+                MessageBox.Show("Podaj nazwę klienta lub kod.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtKlient.Focus();
+                return;
+            }
+
+            if (nudPojemniki.Value <= 0)
+            {
+                MessageBox.Show("Podaj liczbę pojemników.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                nudPojemniki.Focus();
+                return;
+            }
+
+            // Jeśli nowy kurs - najpierw zapisz
+            if (!_kursId.HasValue || _kursId.Value <= 0)
+            {
+                await SaveKurs();
+                if (!_kursId.HasValue || _kursId.Value <= 0) return;
+            }
+
+            var ladunek = new Ladunek
+            {
+                KursID = _kursId.Value,
+                KodKlienta = txtKlient.Text.Trim(),
+                PojemnikiE2 = (int)nudPojemniki.Value,
+                Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text) ? null : txtUwagi.Text.Trim()
+            };
+
+            await _repozytorium.DodajLadunekAsync(ladunek);
+
+            // Wyczyść formularz
+            txtKlient.Clear();
+            nudPojemniki.Value = 0;
+            txtUwagi.Clear();
+            txtKlient.Focus();
+
+            await LoadLadunki();
+        }
+
+        private async Task UsunLadunek()
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
+            await _repozytorium.UsunLadunekAsync(ladunekId);
+            await LoadLadunki();
+        }
+
+        private void EdytujLadunek()
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            // Wypełnij formularz danymi do edycji
+            var row = dgvLadunki.CurrentRow;
+            txtKlient.Text = row.Cells["Klient"].Value?.ToString() ?? "";
+            nudPojemniki.Value = Convert.ToInt32(row.Cells["Pojemniki"].Value ?? 0);
+            txtUwagi.Text = row.Cells["Uwagi"].Value?.ToString() ?? "";
+
+            // Usuń stary i fokus na dodanie nowego
+            _ = UsunLadunek();
         }
 
         private async void BtnZapisz_Click(object sender, EventArgs e)
         {
+            if (cboKierowca.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz kierowcę.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (cboPojazd.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz pojazd.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
-                // Walidacja
-                if (cboKierowca.SelectedItem == null)
-                {
-                    MessageBox.Show("Proszę wybrać kierowcę.",
-                        "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    cboKierowca.Focus();
-                    return;
-                }
-
-                if (cboPojazd.SelectedItem == null)
-                {
-                    MessageBox.Show("Proszę wybrać pojazd.",
-                        "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    cboPojazd.Focus();
-                    return;
-                }
-
                 Cursor = Cursors.WaitCursor;
                 await SaveKurs();
-
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -755,202 +726,38 @@ namespace Kalendarz1.Transport.Formularze
 
         private async Task SaveKurs()
         {
-            try
+            var kierowca = cboKierowca.SelectedItem as Kierowca;
+            var pojazd = cboPojazd.SelectedItem as Pojazd;
+
+            TimeSpan? godzWyjazdu = null;
+            TimeSpan? godzPowrotu = null;
+
+            if (TimeSpan.TryParse(txtGodzWyjazdu.Text, out var gw))
+                godzWyjazdu = gw;
+            if (TimeSpan.TryParse(txtGodzPowrotu.Text, out var gp))
+                godzPowrotu = gp;
+
+            var kurs = new Kurs
             {
-                var kierowca = cboKierowca.SelectedItem as Kierowca;
-                var pojazd = cboPojazd.SelectedItem as Pojazd;
-
-                if (kierowca == null || pojazd == null)
-                {
-                    throw new InvalidOperationException("Nie wybrano kierowcy lub pojazdu.");
-                }
-
-                var kurs = new Kurs
-                {
-                    KursID = _kursId ?? 0,
-                    DataKursu = dtpDataKursu.Value.Date,
-                    KierowcaID = kierowca.KierowcaID,
-                    PojazdID = pojazd.PojazdID,
-                    Trasa = string.IsNullOrWhiteSpace(txtTrasa.Text) ? null : txtTrasa.Text.Trim(),
-                    GodzWyjazdu = dtpGodzWyjazdu.Value.TimeOfDay,
-                    GodzPowrotu = dtpGodzPowrotu.Value.TimeOfDay,
-                    Status = cboStatus.Text,
-                    PlanE2NaPalete = (byte)nudPlanE2NaPalete.Value
-                };
-
-                if (_kursId.HasValue && _kursId.Value > 0)
-                {
-                    // Aktualizacja
-                    await _repozytorium.AktualizujNaglowekKursuAsync(kurs, _uzytkownik);
-                }
-                else
-                {
-                    // Nowy kurs
-                    _kursId = await _repozytorium.DodajKursAsync(kurs, _uzytkownik);
-                    Text = "Edycja kursu";
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Błąd podczas zapisywania kursu do bazy danych: {ex.Message}", ex);
-            }
-        }
-
-        private async void BtnDodajZamowienia_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // Najpierw zapisz kurs jeśli nowy
-                if (!_kursId.HasValue || _kursId.Value <= 0)
-                {
-                    if (MessageBox.Show("Aby dodać zamówienia, kurs musi być najpierw zapisany. Zapisać teraz?",
-                        "Zapisać kurs?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        await SaveKurs();
-                        if (!_kursId.HasValue || _kursId.Value <= 0)
-                            return;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                // Otwórz okno wyboru zamówień
-                using var dlg = new WyborZamowienForm(_repozytorium, dtpDataKursu.Value, _kursId.Value);
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                {
-                    // Odśwież listę ładunków
-                    await LoadLadunki();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas dodawania zamówień: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private async void BtnOptymalizuj_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (!_kursId.HasValue || _kursId.Value <= 0)
-                {
-                    MessageBox.Show("Najpierw zapisz kurs.",
-                        "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                if (_ladunki == null || !_ladunki.Any())
-                {
-                    MessageBox.Show("Brak ładunków do optymalizacji.",
-                        "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                Cursor = Cursors.WaitCursor;
-
-                // Tu można dodać logikę optymalizacji kolejności ładunków
-                // np. sortowanie po trasie, wielkości, priorytetach itp.
-
-                MessageBox.Show("Funkcja optymalizacji jest w przygotowaniu.",
-                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas optymalizacji: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-    }
-
-    // Formularz wyboru zamówień
-    public class WyborZamowienForm : Form
-    {
-        private readonly TransportRepozytorium _repozytorium;
-        private readonly DateTime _data;
-        private readonly long _kursId;
-        private DataGridView dgvZamowienia;
-        private Button btnDodaj;
-        private Button btnAnuluj;
-        private List<ZamowienieTransport> _zamowienia;
-
-        public WyborZamowienForm(TransportRepozytorium repozytorium, DateTime data, long kursId)
-        {
-            _repozytorium = repozytorium;
-            _data = data;
-            _kursId = kursId;
-            InitializeComponent();
-            _ = LoadZamowienia();
-        }
-
-        private void InitializeComponent()
-        {
-            Text = "Wybierz zamówienia do dodania";
-            Size = new Size(800, 500);
-            StartPosition = FormStartPosition.CenterParent;
-
-            dgvZamowienia = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = true,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                KursID = _kursId ?? 0,
+                DataKursu = dtpData.Value.Date,
+                KierowcaID = kierowca.KierowcaID,
+                PojazdID = pojazd.PojazdID,
+                Trasa = string.IsNullOrWhiteSpace(txtTrasa.Text) ? null : txtTrasa.Text.Trim(),
+                GodzWyjazdu = godzWyjazdu,
+                GodzPowrotu = godzPowrotu,
+                Status = "Planowany",
+                PlanE2NaPalete = 36
             };
 
-            var panelPrzyciski = new FlowLayoutPanel
+            if (_kursId.HasValue && _kursId.Value > 0)
             {
-                Dock = DockStyle.Bottom,
-                Height = 50,
-                FlowDirection = FlowDirection.RightToLeft
-            };
-
-            btnDodaj = new Button { Text = "Dodaj wybrane", Width = 120, Height = 35 };
-            btnDodaj.Click += BtnDodaj_Click;
-
-            btnAnuluj = new Button { Text = "Anuluj", Width = 100, Height = 35 };
-            btnAnuluj.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
-
-            panelPrzyciski.Controls.Add(btnDodaj);
-            panelPrzyciski.Controls.Add(btnAnuluj);
-
-            Controls.Add(dgvZamowienia);
-            Controls.Add(panelPrzyciski);
-        }
-
-        private async Task LoadZamowienia()
-        {
-
-        }
-
-        private async void BtnDodaj_Click(object sender, EventArgs e)
-        {
-            if (dgvZamowienia.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Proszę wybrać zamówienia do dodania.",
-                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                await _repozytorium.AktualizujNaglowekKursuAsync(kurs, _uzytkownik);
             }
-
-            try
+            else
             {
-               
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas dodawania zamówień: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
+                _kursId = await _repozytorium.DodajKursAsync(kurs, _uzytkownik);
+                Text = "Edycja kursu";
             }
         }
     }
