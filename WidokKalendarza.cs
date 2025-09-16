@@ -2138,7 +2138,7 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 Widokpaszapisklak.TextBoxValue = selectedValue;
 
                 // Ustaw wartość TextBoxa przed wyświetleniem formularza
-                Widokpaszapisklak.SetTextBoxValue();
+                //Widokpaszapisklak.SetTextBoxValue();
 
                 // Wyświetlanie formularza
                 Widokpaszapisklak.Show();

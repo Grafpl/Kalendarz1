@@ -84,9 +84,7 @@
     <Compile Update="WidokWszystkichDostaw.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="WidokPaszaPisklak.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Update="WidokPaszaPisklak.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -77,7 +77,9 @@ namespace Kalendarz1
 
         private void odbiorcaButton_Click(object sender, EventArgs e)
         {
-            new WidokZamowieniaPodsumowanie { UserID = App.UserID }.Show();
+            WidokZamowieniaPodsumowanie widokZamowieniaPodsumowanie = new WidokZamowieniaPodsumowanie();
+            widokZamowieniaPodsumowanie.UserID = App.UserID;
+            widokZamowieniaPodsumowanie.Show();
         }
 
         private void UzgodnienieSaldButton_Click(object sender, EventArgs e)
