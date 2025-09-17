@@ -617,7 +617,7 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
-                using var dlg = new EdytorKursuImproved(_repozytorium, _selectedDate, _currentUser);
+                using var dlg = new EdytorKursuWithPalety(_repozytorium, _selectedDate, _currentUser);
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     _ = LoadKursyAsync();
@@ -646,7 +646,7 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (kurs == null) return;
 
-                using var dlg = new EdytorKursuImproved(_repozytorium, kurs, _currentUser);
+                using var dlg = new EdytorKursuWithPalety(_repozytorium, kurs, _currentUser);
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     _ = LoadKursyAsync();

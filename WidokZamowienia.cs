@@ -1,9 +1,9 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 12.0 - Z ZAPISEM DO BAZY KOLUMN PALET/POJEMNIKÓW
+// WERSJA 13.0 - POPRAWKA ZAPISU PALET I POJEMNIKÓW
 // Zmiany:
-// 1. Zapis kolumn Pojemniki, Palety, E2 do bazy danych
-// 2. Aktualizacja głównej tabeli ZamowieniaMieso z sumarycznymi wartościami
-// 3. Wywołanie procedury PrzeliczPaletyPojemniki po zapisie
+// 1. Poprawione zapisywanie dokładnych wartości palet (30 zamiast 29.70)
+// 2. Poprawione zapisywanie pojemników E2
+// 3. Usunięty filtr "Szukaj w ofercie"
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -104,6 +104,17 @@ namespace Kalendarz1
 
             dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
             dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
+
+            // Ukryj panel szukania towaru (nie jest potrzebny)
+            if (panelSzukajTowaru != null)
+            {
+                panelSzukajTowaru.Visible = false;
+                panelSzukajTowaru.Height = 0;
+            }
+            if (txtSzukajTowaru != null)
+            {
+                txtSzukajTowaru.Visible = false;
+            }
 
             try
             {
@@ -445,7 +456,6 @@ namespace Kalendarz1
             StyleDateTimePicker(dateTimePickerSprzedaz);
             StyleDateTimePicker(dateTimePickerGodzinaPrzyjazdu);
             StyleTextBox(txtSzukajOdbiorcy);
-            StyleTextBox(txtSzukajTowaru);
             StyleTextBox(textBoxUwagi);
 
             if (summaryLabelPalety != null) summaryLabelPalety.Visible = false;
@@ -606,11 +616,7 @@ namespace Kalendarz1
             cIlosc.DefaultCellStyle.ForeColor = Color.FromArgb(34, 197, 94);
 
             var cKodTowaru = dataGridViewZamowienie.Columns["KodTowaru"]!;
-            cKodTowaru.ReadOnly = true;
-            cKodTowaru.FillWeight = 200;
-            cKodTowaru.HeaderText = "Kod Towaru";
-            cKodTowaru.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            cKodTowaru.DefaultCellStyle.ForeColor = Color.FromArgb(107, 114, 128);
+            cKodTowaru.Visible = false; // Ukryta kolumna - nie potrzebujemy duplikatu kodu
         }
 
         private void WireUpUIEvents()
@@ -626,7 +632,6 @@ namespace Kalendarz1
             listaWynikowOdbiorcy.DoubleClick += ListaWynikowOdbiorcy_DoubleClick;
             listaWynikowOdbiorcy.KeyDown += ListaWynikowOdbiorcy_KeyDown;
 
-            txtSzukajTowaru.TextChanged += TxtSzukajTowaru_TextChanged;
             btnPickOdbiorca.Click += (s, e) => OpenKontrahentPicker();
 
             var hands = _kontrahenci.Select(k => k.Handlowiec).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s).ToList();
@@ -806,14 +811,8 @@ namespace Kalendarz1
                 lblNip.Text = $"NIP: {info.NIP}";
                 lblAdres.Text = $"{info.KodPocztowy} {info.Miejscowosc}";
                 lblHandlowiec.Text = $"Opiekun: {info.Handlowiec}";
-                txtSzukajTowaru.Focus();
+                dataGridViewZamowienie.Focus();
             }
-        }
-
-        private void TxtSzukajTowaru_TextChanged(object? sender, EventArgs e)
-        {
-            var q = (sender as TextBox)?.Text?.Trim().Replace("'", "''") ?? "";
-            _view.RowFilter = string.IsNullOrEmpty(q) ? string.Empty : $"Kod LIKE '%{q}%'";
         }
 
         private void DataGridViewZamowienie_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
@@ -836,30 +835,33 @@ namespace Kalendarz1
                 switch (changedColumnName)
                 {
                     case "E2":
-                        decimal currentIlosc = ParseDec(row["Ilosc"]);
-                        if (currentIlosc > 0)
+                        // Przelicz istniejące wartości dla nowego trybu E2
+                        decimal currentPalety = ParseDec(row["Palety"]);
+                        if (currentPalety > 0)
                         {
-                            row["Palety"] = Math.Round(currentIlosc / kgNaPalete, 2);
-                            row["Pojemniki"] = Math.Round(currentIlosc / KG_NA_POJEMNIKU, 0);
+                            // Zachowaj liczbę palet, przelicz pojemniki i kg
+                            row["Pojemniki"] = currentPalety * pojemnikNaPalete;
+                            row["Ilosc"] = currentPalety * kgNaPalete;
                         }
                         break;
 
                     case "Ilosc":
                         decimal ilosc = ParseDec(row["Ilosc"]);
                         row["Pojemniki"] = (ilosc > 0 && KG_NA_POJEMNIKU > 0) ? Math.Round(ilosc / KG_NA_POJEMNIKU, 0) : 0m;
-                        row["Palety"] = (ilosc > 0 && kgNaPalete > 0) ? Math.Round(ilosc / kgNaPalete, 2) : 0m;
+                        row["Palety"] = (ilosc > 0 && kgNaPalete > 0) ? ilosc / kgNaPalete : 0m;
                         MarkInvalid(dataGridViewZamowienie.Rows[e.RowIndex].Cells["Ilosc"], ilosc < 0);
                         break;
 
                     case "Pojemniki":
                         decimal pojemniki = ParseDec(row["Pojemniki"]);
                         row["Ilosc"] = pojemniki * KG_NA_POJEMNIKU;
-                        row["Palety"] = (pojemniki > 0 && pojemnikNaPalete > 0) ? Math.Round(pojemniki / pojemnikNaPalete, 2) : 0m;
+                        row["Palety"] = (pojemniki > 0 && pojemnikNaPalete > 0) ? pojemniki / pojemnikNaPalete : 0m;
                         break;
 
                     case "Palety":
                         decimal palety = ParseDec(row["Palety"]);
-                        row["Pojemniki"] = Math.Round(palety * pojemnikNaPalete, 0);
+                        // Zachowujemy dokładną wartość palet wpisaną przez użytkownika
+                        row["Pojemniki"] = palety * pojemnikNaPalete;
                         row["Ilosc"] = palety * kgNaPalete;
                         break;
                 }
@@ -895,6 +897,7 @@ namespace Kalendarz1
             _blokujObslugeZmian = false;
             RecalcSum();
         }
+
         private void CreateHeaderIcons()
         {
             _headerIcons["Kod"] = CreateIconForText("PROD");
@@ -946,25 +949,22 @@ namespace Kalendarz1
             TextRenderer.DrawText(g, text, font, new Point(0, 2), Color.FromArgb(100, 100, 100));
             return bmp;
         }
+
         private void RecalcSum()
         {
             decimal sumaIlosc = 0m;
             decimal sumaPalety = 0m;
             decimal sumaPojemniki = 0m;
-            bool jakikolwiekE2 = false;
 
             foreach (DataRow row in _dt.Rows)
             {
                 decimal ilosc = row.Field<decimal?>("Ilosc") ?? 0m;
                 decimal pojemniki = row.Field<decimal?>("Pojemniki") ?? 0m;
                 decimal palety = row.Field<decimal?>("Palety") ?? 0m;
-                bool e2 = row.Field<bool>("E2");
 
                 sumaIlosc += ilosc;
                 sumaPojemniki += pojemniki;
                 sumaPalety += palety;
-
-                if (e2 && ilosc > 0) jakikolwiekE2 = true;
             }
 
             // Aktualizuj panel podsumowania
@@ -990,6 +990,7 @@ namespace Kalendarz1
             if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && e.KeyChar != dec) e.Handled = true;
             if (e.KeyChar == dec && sender is TextBox tb && tb.Text.Contains(dec)) e.Handled = true;
         }
+
         private void DataGridViewZamowienie_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex != -1 || e.ColumnIndex < 0) return;
@@ -1016,6 +1017,7 @@ namespace Kalendarz1
 
             e.Handled = true;
         }
+
         private void ClearFormForNewOrder()
         {
             var selectedHandlowiec = cbHandlowiecFilter.SelectedItem;
@@ -1025,7 +1027,6 @@ namespace Kalendarz1
             txtSzukajOdbiorcy.Text = "";
             panelDaneOdbiorcy.Visible = false;
             listaWynikowOdbiorcy.Visible = false;
-            txtSzukajTowaru.Text = "";
             _view.RowFilter = string.Empty;
 
             _blokujObslugeZmian = true;
@@ -1101,8 +1102,8 @@ namespace Kalendarz1
                         bool e2 = rd.GetBoolean(4);
 
                         rows[0]["Ilosc"] = ilosc;
-                        rows[0]["Pojemniki"] = pojemniki > 0 ? pojemniki : (ilosc > 0 ? Math.Round(ilosc / KG_NA_POJEMNIKU, 0) : 0m);
-                        rows[0]["Palety"] = palety > 0 ? palety : (ilosc > 0 ? Math.Round(ilosc / (e2 ? KG_NA_PALECIE_E2 : KG_NA_PALECIE), 2) : 0m);
+                        rows[0]["Pojemniki"] = pojemniki;
+                        rows[0]["Palety"] = palety;
                         rows[0]["E2"] = e2;
                     }
                 }
@@ -1208,6 +1209,7 @@ namespace Kalendarz1
 
             return sb.ToString();
         }
+
         private sealed class KontrahentPicker : Form
         {
             private readonly DataView _view;
@@ -1302,6 +1304,7 @@ namespace Kalendarz1
                 _view.RowFilter = string.Join(" AND ", parts);
             }
         }
+
         private async Task SaveOrderAsync()
         {
             await using var cn = new SqlConnection(_connLibra);
@@ -1339,7 +1342,7 @@ namespace Kalendarz1
                 cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
                 cmdUpdate.Parameters.AddWithValue("@km", UserID);
                 cmdUpdate.Parameters.AddWithValue("@id", orderId);
-                cmdUpdate.Parameters.AddWithValue("@poj", (int)sumaPojemnikow);
+                cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdUpdate.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
                 await cmdUpdate.ExecuteNonQueryAsync();
@@ -1363,13 +1366,13 @@ namespace Kalendarz1
                 cmdInsert.Parameters.AddWithValue("@kid", _selectedKlientId!);
                 cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
                 cmdInsert.Parameters.AddWithValue("@u", UserID);
-                cmdInsert.Parameters.AddWithValue("@poj", (int)sumaPojemnikow);
+                cmdInsert.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdInsert.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdInsert.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
                 await cmdInsert.ExecuteNonQueryAsync();
             }
 
-            // Zapisz towary z kolumnami palet/pojemników
+            // Zapisz towary z dokładnymi wartościami palet/pojemników
             var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
                 (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2) 
                 VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2)", cn, tr);
@@ -1385,24 +1388,23 @@ namespace Kalendarz1
             {
                 if (r.Field<decimal>("Ilosc") <= 0m) continue;
 
+                // Zapisuj dokładne wartości użytkownika
+                decimal palety = r.Field<decimal>("Palety");
+                decimal pojemniki = r.Field<decimal>("Pojemniki");
+                bool e2 = r.Field<bool>("E2");
+
                 cmdInsertItem.Parameters["@zid"].Value = orderId;
                 cmdInsertItem.Parameters["@kt"].Value = r.Field<int>("Id");
                 cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
                 cmdInsertItem.Parameters["@ce"].Value = 0m;
-                cmdInsertItem.Parameters["@poj"].Value = (int)r.Field<decimal>("Pojemniki");
-                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal>("Palety");
-                cmdInsertItem.Parameters["@e2"].Value = r.Field<bool>("E2");
+                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(pojemniki);
+                cmdInsertItem.Parameters["@pal"].Value = palety; // Dokładna wartość palet
+                cmdInsertItem.Parameters["@e2"].Value = e2;
                 await cmdInsertItem.ExecuteNonQueryAsync();
             }
-
-            // Wywołaj procedurę przeliczającą (opcjonalne)
-            var cmdProc = new SqlCommand("EXEC dbo.PrzeliczPaletyPojemniki @ZamowienieId", cn, tr);
-            cmdProc.Parameters.AddWithValue("@ZamowienieId", orderId);
-            await cmdProc.ExecuteNonQueryAsync();
 
             await tr.CommitAsync();
         }
     }
-    }
-
-        #endregion
+}
+#endregion
