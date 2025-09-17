@@ -1,6 +1,10 @@
 // Plik: Transport/TransportMainFormImproved.cs
 // Usprawniony główny panel zarządzania transportem - przejrzysty i prosty UI
 
+using Kalendarz1.Transport.Formularze;
+using Kalendarz1.Transport.Pakowanie;
+using Kalendarz1.Transport.Repozytorium;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -8,9 +12,6 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Kalendarz1.Transport.Formularze;
-using Kalendarz1.Transport.Pakowanie;
-using Kalendarz1.Transport.Repozytorium;
 
 namespace Kalendarz1.Transport.Formularze
 {
@@ -40,6 +41,7 @@ namespace Kalendarz1.Transport.Formularze
         private Button btnEdytuj;
         private Button btnUsun;
         private Button btnKopiuj;
+        private Button BtnMapa;
 
         // Podsumowanie
         private Label lblSummaryKursy;
@@ -170,8 +172,8 @@ namespace Kalendarz1.Transport.Formularze
             // Panel przycisków (prawa strona) - zwiększony rozmiar i margines
             var panelButtons = new FlowLayoutPanel
             {
-                Location = new Point(panelHeader.Width - 620, 15),
-                Size = new Size(600, 50),
+                Location = new Point(panelHeader.Width - 720, 15), // Zwiększono szerokość dla nowego przycisku
+                Size = new Size(700, 50),
                 FlowDirection = FlowDirection.RightToLeft,
                 BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
@@ -189,11 +191,16 @@ namespace Kalendarz1.Transport.Formularze
             btnUsun = CreateActionButton("🗑️ USUŃ", Color.FromArgb(220, 53, 69), 110);
             btnUsun.Click += BtnUsunKurs_Click;
 
-            panelButtons.Controls.AddRange(new Control[] { btnUsun, btnKopiuj, btnEdytuj, btnNowyKurs });
+            // DODANIE PRZYCISKU MAPA
+            BtnMapa = CreateActionButton("🗺️ MAPA", Color.FromArgb(156, 39, 176), 100);
+            BtnMapa.Click += BtnMapa_Click;
+            BtnMapa.Enabled = false; // Domyślnie wyłączony
+
+
+            panelButtons.Controls.AddRange(new Control[] { btnUsun, btnKopiuj, BtnMapa, btnEdytuj, btnNowyKurs });
 
             panelHeader.Controls.Add(panelDate);
             panelHeader.Controls.Add(panelButtons);
-
             // Dolna linia akcentowa
             var bottomLine = new Panel
             {
@@ -201,7 +208,6 @@ namespace Kalendarz1.Transport.Formularze
                 Height = 3,
                 BackColor = Color.FromArgb(0, 123, 255)
             };
-            panelHeader.Controls.Add(bottomLine);
         }
 
         private Button CreateNavButton(string text, int x, int dayChange)
@@ -448,6 +454,7 @@ namespace Kalendarz1.Transport.Formularze
             btnEdytuj.Enabled = hasSelection;
             btnUsun.Enabled = hasSelection;
             btnKopiuj.Enabled = hasSelection;
+            BtnMapa.Enabled = hasSelection; // Włącz/wyłącz przycisk Mapa
         }
 
         private async Task LoadKursyAsync()
@@ -610,6 +617,234 @@ namespace Kalendarz1.Transport.Formularze
                 }
             }
         }
+        private async void BtnMapa_Click(object sender, EventArgs e)
+        {
+            if (dgvKursy.CurrentRow == null)
+            {
+                MessageBox.Show("Proszę wybrać kurs do wyświetlenia trasy.",
+                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                await OtworzMapeTrasy(kursId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania mapy: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+
+        // 5. Metoda do otwierania mapy Google z trasą
+        private async Task OtworzMapeTrasy(long kursId)
+        {
+            try
+            {
+                // Pobierz ładunki dla kursu
+                var ladunki = await _repozytorium.PobierzLadunkiAsync(kursId);
+
+                if (!ladunki.Any())
+                {
+                    MessageBox.Show("Kurs nie ma żadnych ładunków do wyświetlenia trasy.",
+                        "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var adresy = new List<string>();
+                var debugInfo = new List<string>(); // Do debugowania
+
+                // Punkt startowy - baza
+                adresy.Add("Koziołki 40, 95-061 Dmosin, Polska");
+                debugInfo.Add("START: Koziołki 40, 95-061 Dmosin, Polska");
+
+                // Pobierz adresy klientów
+                foreach (var ladunek in ladunki.OrderBy(l => l.Kolejnosc))
+                {
+                    string adres = await PobierzPelnyAdresKlienta(ladunek.KodKlienta);
+                    debugInfo.Add($"Ładunek {ladunek.KodKlienta}: {adres}");
+
+                    if (!string.IsNullOrEmpty(adres))
+                    {
+                        adresy.Add(adres);
+                    }
+                    else
+                    {
+                        // Fallback - użyj kodu klienta jako adresu
+                        if (!string.IsNullOrEmpty(ladunek.KodKlienta))
+                        {
+                            adresy.Add(ladunek.KodKlienta + ", Polska");
+                            debugInfo.Add($"FALLBACK dla {ladunek.KodKlienta}");
+                        }
+                    }
+                }
+
+                // Powrót do bazy
+                adresy.Add("Koziołki 40, 95-061 Dmosin, Polska");
+                debugInfo.Add("KONIEC: Koziołki 40, 95-061 Dmosin, Polska");
+
+                // Pokaż informacje debug w przypadku problemów
+                if (adresy.Count < 3) // Start + minimum 1 klient + powrót
+                {
+                    var debugText = string.Join("\n", debugInfo);
+                    MessageBox.Show($"Nie można utworzyć trasy - problem z adresami:\n\n{debugText}\n\nSprawdź czy ładunki mają przypisanych klientów z adresami.",
+                        "Debug - Brak adresów", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Utwórz URL do Google Maps
+                string googleMapsUrl = UtworzUrlGoogleMaps(adresy);
+
+                // Debug - pokaż URL
+                System.Diagnostics.Debug.WriteLine($"Google Maps URL: {googleMapsUrl}");
+
+                // Otwórz w domyślnej przeglądarce
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = googleMapsUrl,
+                    UseShellExecute = true
+                });
+
+                // Pokaż informację o sukcesie
+                MessageBox.Show($"Otwarto trasę z {adresy.Count - 1} punktami w Google Maps.",
+                    "Trasa utworzona", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd tworzenia trasy: {ex.Message}\n\nStackTrace:\n{ex.StackTrace}",
+                    "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // 6. Pomocnicza metoda do pobierania pełnego adresu klienta
+        private async Task<string> PobierzPelnyAdresKlienta(string kodKlienta)
+        {
+            try
+            {
+                var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
+                int klientId = 0;
+
+                // Przypadek 1: Jeśli to zamówienie (ZAM_123)
+                if (kodKlienta?.StartsWith("ZAM_") == true && int.TryParse(kodKlienta.Substring(4), out int zamId))
+                {
+                    await using var cnLibra = new SqlConnection(connLibra);
+                    await cnLibra.OpenAsync();
+
+                    var sqlZam = "SELECT KlientId FROM dbo.ZamowieniaMieso WHERE Id = @ZamId";
+                    using var cmdZam = new SqlCommand(sqlZam, cnLibra);
+                    cmdZam.Parameters.AddWithValue("@ZamId", zamId);
+
+                    var klientIdObj = await cmdZam.ExecuteScalarAsync();
+                    if (klientIdObj != null)
+                    {
+                        klientId = Convert.ToInt32(klientIdObj);
+                    }
+                }
+                // Przypadek 2: Jeśli to bezpośrednio ID klienta
+                else if (int.TryParse(kodKlienta, out int directKlientId))
+                {
+                    klientId = directKlientId;
+                }
+                // Przypadek 3: Spróbuj wyciągnąć nazwę klienta z kodu
+                else if (!string.IsNullOrEmpty(kodKlienta))
+                {
+                    // Jeśli kod zawiera nazwę firmy, spróbuj wyszukać po nazwie
+                    await using var cnHandel2 = new SqlConnection(connHandel);
+                    await cnHandel2.OpenAsync();
+
+                    var sqlNazwa = "SELECT TOP 1 Id FROM SSCommon.STContractors WHERE Shortcut LIKE @Nazwa";
+                    using var cmdNazwa = new SqlCommand(sqlNazwa, cnHandel2);
+                    cmdNazwa.Parameters.AddWithValue("@Nazwa", $"%{kodKlienta}%");
+
+                    var result = await cmdNazwa.ExecuteScalarAsync();
+                    if (result != null)
+                    {
+                        klientId = Convert.ToInt32(result);
+                    }
+                }
+
+                // Jeśli znaleziono ID klienta, pobierz adres
+                if (klientId > 0)
+                {
+                    await using var cnHandel = new SqlConnection(connHandel);
+                    await cnHandel.OpenAsync();
+
+                    var sqlAdres = @"
+                SELECT 
+                    ISNULL(c.Shortcut, 'Klient') AS Nazwa,
+                    ISNULL(poa.Street, '') AS Ulica,
+                    ISNULL(poa.Postcode, '') AS KodPocztowy,
+                    ISNULL(poa.City, '') AS Miasto
+                FROM SSCommon.STContractors c
+                LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid 
+                    AND poa.AddressName = N'adres domyślny'
+                WHERE c.Id = @KlientId";
+
+                    using var cmdAdres = new SqlCommand(sqlAdres, cnHandel);
+                    cmdAdres.Parameters.AddWithValue("@KlientId", klientId);
+
+                    using var reader = await cmdAdres.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        var nazwa = reader.GetString(0).Trim();
+                        var ulica = reader.GetString(1).Trim();
+                        var kodPocztowy = reader.GetString(2).Trim();
+                        var miasto = reader.GetString(3).Trim();
+
+                        // Twórz adres nawet jeśli mamy tylko nazwę firmy
+                        var adresParts = new List<string>();
+                        if (!string.IsNullOrEmpty(ulica)) adresParts.Add(ulica);
+                        if (!string.IsNullOrEmpty(kodPocztowy)) adresParts.Add(kodPocztowy);
+                        if (!string.IsNullOrEmpty(miasto)) adresParts.Add(miasto);
+                        else if (!string.IsNullOrEmpty(nazwa)) adresParts.Add(nazwa); // Użyj nazwy jako fallback
+
+                        if (adresParts.Any())
+                        {
+                            adresParts.Add("Polska");
+                            return string.Join(", ", adresParts);
+                        }
+                    }
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania adresu dla {kodKlienta}: {ex.Message}");
+                return "";
+            }
+        }
+
+        // 7. Metoda do tworzenia URL Google Maps
+        private string UtworzUrlGoogleMaps(List<string> adresy)
+        {
+            if (adresy.Count < 2) return "";
+
+            var origin = Uri.EscapeDataString(adresy[0]);
+            var destination = Uri.EscapeDataString(adresy[adresy.Count - 1]);
+
+            var waypoints = "";
+            if (adresy.Count > 2)
+            {
+                var waypointList = adresy.Skip(1).Take(adresy.Count - 2)
+                    .Select(Uri.EscapeDataString);
+                waypoints = "&waypoints=" + string.Join("|", waypointList);
+            }
+
+            return $"https://www.google.com/maps/dir/{origin}/{destination}?travelmode=driving{waypoints}";
+        }
+
+        // 8. Zaktualizuj metodę DgvKursy_SelectionChanged
 
         #region Event Handlers
 

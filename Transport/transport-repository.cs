@@ -466,18 +466,88 @@ namespace Kalendarz1.Transport.Repozytorium
 
             await cmd.ExecuteNonQueryAsync();
         }
+        private async Task PrzywrocStatusZamowienAsync(long kursId, SqlConnection connection, SqlTransaction transaction)
+        {
+            try
+            {
+                // Pobierz kody klientów z ładunków tego kursu, które zaczynają się od "ZAM_"
+                var sqlPobierzZamowienia = @"
+            SELECT DISTINCT KodKlienta 
+            FROM dbo.Ladunek 
+            WHERE KursID = @KursID 
+              AND KodKlienta LIKE 'ZAM_%'";
 
+                using var cmd = new SqlCommand(sqlPobierzZamowienia, connection, transaction);
+                cmd.Parameters.AddWithValue("@KursID", kursId);
+
+                var zamowieniaIds = new List<int>();
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var kodKlienta = reader.GetString(0);
+                    if (kodKlienta.StartsWith("ZAM_") && int.TryParse(kodKlienta.Substring(4), out int zamId))
+                    {
+                        zamowieniaIds.Add(zamId);
+                    }
+                }
+                reader.Close();
+
+                // Przywróć status dla znalezionych zamówień
+                if (zamowieniaIds.Count > 0)
+                {
+                    using var cnLibra = new SqlConnection(_libraConnectionString);
+                    await cnLibra.OpenAsync();
+
+                    foreach (var zamId in zamowieniaIds)
+                    {
+                        var sqlUpdate = @"
+                    UPDATE dbo.ZamowieniaMieso 
+                    SET TransportStatus = 'Oczekuje', TransportKursId = NULL 
+                    WHERE Id = @ZamowienieId";
+
+                        using var cmdUpdate = new SqlCommand(sqlUpdate, cnLibra);
+                        cmdUpdate.Parameters.AddWithValue("@ZamowienieId", zamId);
+                        await cmdUpdate.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd przywracania statusu zamówień: {ex.Message}");
+                // Nie rzucamy wyjątku, żeby nie blokować usuwania kursu
+            }
+        }
         public async Task UsunKursAsync(long kursId)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            var sql = "DELETE FROM dbo.Kurs WHERE KursID = @KursID";
+            using var transaction = connection.BeginTransaction();
 
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@KursID", kursId);
+            try
+            {
+                // 1. Najpierw przywróć status zamówień które były przypisane do tego kursu
+                await PrzywrocStatusZamowienAsync(kursId, connection, transaction);
 
-            await cmd.ExecuteNonQueryAsync();
+                // 2. Usuń ładunki
+                var sqlUsunLadunki = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+                using var cmdLadunki = new SqlCommand(sqlUsunLadunki, connection, transaction);
+                cmdLadunki.Parameters.AddWithValue("@KursID", kursId);
+                await cmdLadunki.ExecuteNonQueryAsync();
+
+                // 3. Usuń kurs
+                var sqlUsunKurs = "DELETE FROM dbo.Kurs WHERE KursID = @KursID";
+                using var cmdKurs = new SqlCommand(sqlUsunKurs, connection, transaction);
+                cmdKurs.Parameters.AddWithValue("@KursID", kursId);
+                await cmdKurs.ExecuteNonQueryAsync();
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
         #endregion

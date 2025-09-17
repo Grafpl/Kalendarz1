@@ -727,7 +727,7 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Godz.", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
-            dt.Columns.Add("E2", typeof(string));
+            dt.Columns.Add("Pojemniki", typeof(int)); // Zmieniono z "E2" na "Pojemniki"
             dt.Columns.Add("Handlowiec", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
@@ -738,7 +738,7 @@ namespace Kalendarz1.Transport.Formularze
                     zam.KlientNazwa,
                     zam.GodzinaStr,
                     zam.Palety,
-                    zam.TrybE2 ? "TAK" : "",
+                    zam.Pojemniki, // Wyświetla liczbę pojemników
                     zam.Handlowiec,
                     zam.Adres
                 );
@@ -759,10 +759,12 @@ namespace Kalendarz1.Transport.Formularze
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N1";
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
-            if (dgvWolneZamowienia.Columns["E2"] != null)
+            if (dgvWolneZamowienia.Columns["Pojemniki"] != null)
             {
-                dgvWolneZamowienia.Columns["E2"].Width = 40;
-                dgvWolneZamowienia.Columns["E2"].DefaultCellStyle.ForeColor = Color.Blue;
+                dgvWolneZamowienia.Columns["Pojemniki"].Width = 80;
+                dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+                dgvWolneZamowienia.Columns["Pojemniki"].HeaderText = "Pojemniki";
             }
             if (dgvWolneZamowienia.Columns["Handlowiec"] != null)
                 dgvWolneZamowienia.Columns["Handlowiec"].Width = 100;
@@ -800,6 +802,15 @@ namespace Kalendarz1.Transport.Formularze
                 if (!_kursId.HasValue || _kursId.Value <= 0) return;
             }
 
+            // Sprawdź czy kurs nadal istnieje
+            if (!await CzyKursIstniejeAsync(_kursId.Value))
+            {
+                MessageBox.Show("Kurs został usunięty. Odśwież formularz.",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Close();
+                return;
+            }
+
             // Dodaj jako ładunek z dokładną liczbą palet
             var ladunek = new LadunekWithPalety
             {
@@ -820,6 +831,26 @@ namespace Kalendarz1.Transport.Formularze
             _wolneZamowienia.Remove(zamowienie);
             ShowZamowieniaInGrid();
             await LoadLadunki();
+        }
+       
+        private async Task<bool> CzyKursIstniejeAsync(long kursId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connectionString);
+                await cn.OpenAsync();
+
+                var sql = "SELECT COUNT(*) FROM dbo.Kurs WHERE KursID = @KursID";
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@KursID", kursId);
+
+                var count = (int)await cmd.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private async Task UpdateTransportStatus(int zamowienieId, string status)
@@ -884,7 +915,7 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Lp.", typeof(int));
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
-            dt.Columns.Add("E2", typeof(string));
+            dt.Columns.Add("Pojemniki", typeof(int)); // Zmieniono z "E2" na "Pojemniki"
             dt.Columns.Add("Adres", typeof(string));
             dt.Columns.Add("Uwagi", typeof(string));
 
@@ -894,8 +925,13 @@ namespace Kalendarz1.Transport.Formularze
             foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
             {
                 string klientNazwa = ladunek.Uwagi ?? ladunek.KodKlienta ?? "";
-                string e2 = ladunek.TrybE2 ? "TAK" : "";
+
+                // Pobierz adres - najpierw sprawdź czy jest w obiekcie, jeśli nie to pobierz z bazy
                 string adres = ladunek.Adres ?? "";
+                if (string.IsNullOrEmpty(adres))
+                {
+                    adres = await PobierzAdresKlientaAsync(ladunek.KodKlienta);
+                }
 
                 if (!string.IsNullOrEmpty(klientNazwa) && klientNazwa.Contains("("))
                 {
@@ -913,7 +949,7 @@ namespace Kalendarz1.Transport.Formularze
                     lp++,
                     klientNazwa,
                     ladunek.Palety,
-                    e2,
+                    ladunek.PojemnikiE2, // Wyświetla liczbę pojemników
                     adres,
                     ladunek.Uwagi ?? ""
                 );
@@ -921,25 +957,35 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvLadunki.DataSource = dt;
 
+            // Konfiguracja kolumn
             if (dgvLadunki.Columns["ID"] != null)
                 dgvLadunki.Columns["ID"].Visible = false;
             if (dgvLadunki.Columns["Lp."] != null)
                 dgvLadunki.Columns["Lp."].Width = 40;
+            if (dgvLadunki.Columns["Klient"] != null)
+                dgvLadunki.Columns["Klient"].Width = 150;
             if (dgvLadunki.Columns["Palety"] != null)
             {
                 dgvLadunki.Columns["Palety"].Width = 70;
                 dgvLadunki.Columns["Palety"].DefaultCellStyle.Format = "N1";
                 dgvLadunki.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
-            if (dgvLadunki.Columns["E2"] != null)
+            if (dgvLadunki.Columns["Pojemniki"] != null)
             {
-                dgvLadunki.Columns["E2"].Width = 40;
-                dgvLadunki.Columns["E2"].DefaultCellStyle.ForeColor = Color.Blue;
+                dgvLadunki.Columns["Pojemniki"].Width = 80;
+                dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvLadunki.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+                dgvLadunki.Columns["Pojemniki"].HeaderText = "Pojemniki";
             }
             if (dgvLadunki.Columns["Adres"] != null)
             {
-                dgvLadunki.Columns["Adres"].Width = 200;
-                dgvLadunki.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvLadunki.Columns["Adres"].Width = 180;
+                dgvLadunki.Columns["Adres"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
+                dgvLadunki.Columns["Adres"].DefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 100);
+            }
+            if (dgvLadunki.Columns["Uwagi"] != null)
+            {
+                dgvLadunki.Columns["Uwagi"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
 
             if (klientNazwy.Any())
@@ -949,7 +995,51 @@ namespace Kalendarz1.Transport.Formularze
 
             await UpdateWypelnienie();
         }
+        // Metoda do pobierania adresu dla istniejącego ładunku na podstawie kodu klienta
+        private async Task<string> PobierzAdresKlientaAsync(string kodKlienta)
+        {
+            try
+            {
+                // Jeśli to zamówienie (ZAM_ID), pobierz adres z bazy
+                if (kodKlienta?.StartsWith("ZAM_") == true && int.TryParse(kodKlienta.Substring(4), out int zamId))
+                {
+                    await using var cnLibra = new SqlConnection(_connLibra);
+                    await cnLibra.OpenAsync();
 
+                    var sqlZam = "SELECT KlientId FROM dbo.ZamowieniaMieso WHERE Id = @ZamId";
+                    using var cmdZam = new SqlCommand(sqlZam, cnLibra);
+                    cmdZam.Parameters.AddWithValue("@ZamId", zamId);
+
+                    var klientIdObj = await cmdZam.ExecuteScalarAsync();
+                    if (klientIdObj != null)
+                    {
+                        int klientId = Convert.ToInt32(klientIdObj);
+
+                        await using var cnHandel = new SqlConnection(_connHandel);
+                        await cnHandel.OpenAsync();
+
+                        var sqlAdres = @"
+                    SELECT ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '') AS Adres
+                    FROM SSCommon.STContractors c
+                    LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid 
+                        AND poa.AddressName = N'adres domyślny'
+                    WHERE c.Id = @KlientId";
+
+                        using var cmdAdres = new SqlCommand(sqlAdres, cnHandel);
+                        cmdAdres.Parameters.AddWithValue("@KlientId", klientId);
+
+                        var adres = await cmdAdres.ExecuteScalarAsync();
+                        return adres?.ToString()?.Trim() ?? "";
+                    }
+                }
+
+                return "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
         private async Task UpdateWypelnienie()
         {
             try
@@ -1045,6 +1135,7 @@ namespace Kalendarz1.Transport.Formularze
             var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
             var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
 
+            // Jeśli to zamówienie, przywróć jego status
             if (ladunek?.KodKlienta?.StartsWith("ZAM_") == true)
             {
                 var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
