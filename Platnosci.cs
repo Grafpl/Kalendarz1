@@ -1,11 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Configuration;
 using System.Data;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -17,7 +13,6 @@ namespace Kalendarz1
 {
     public partial class Platnosci : Form
     {
-        // Connection string bezpośrednio w kodzie
         private readonly string connectionString;
         private CancellationTokenSource cancellationTokenSource;
         private BindingSource bindingSource1;
@@ -30,27 +25,18 @@ namespace Kalendarz1
         public Platnosci()
         {
             InitializeComponent();
-            
-            // Connection string
+
             connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;Connection Timeout=30";
-            
+
             InitializeBindingSources();
             InitializeEventHandlers();
             SetupDataGridViewStyles();
-            
-            // Ustaw domyślne wartości
-            if (comboBoxFiltr != null)
-                comboBoxFiltr.SelectedIndex = 0;
-            
-            // Inicjalizacja ToolTip
-            if (toolTip1 == null)
-                toolTip1 = new System.Windows.Forms.ToolTip();
-            
-            toolTip1.InitialDelay = 500;
-            toolTip1.ShowAlways = true;
-            
-            // Automatyczne odświeżenie przy starcie
-            this.Load += async (s, e) => await RefreshDataAsync();
+
+            comboBoxFiltr.SelectedIndex = 0;
+
+            toolTip1 ??= new ToolTip { InitialDelay = 500, ShowAlways = true };
+
+            this.Load += async (_, __) => await RefreshDataAsync();
         }
 
         private void InitializeBindingSources()
@@ -59,7 +45,7 @@ namespace Kalendarz1
             bindingSource2 = new BindingSource();
             dataTable1 = new DataTable();
             dataTable2 = new DataTable();
-            
+
             dataGridView1.DataSource = bindingSource1;
             dataGridView2.DataSource = bindingSource2;
         }
@@ -67,33 +53,27 @@ namespace Kalendarz1
         private void InitializeEventHandlers()
         {
             dataGridView1.RowPrePaint += DataGridView1_RowPrePaint;
-            dataGridView1.CellFormatting += DataGridView1_CellFormatting;
+            dataGridView1.CellFormatting += DataGridView_CellFormatting;
             dataGridView1.DataError += DataGridView_DataError;
-            dataGridView2.DataError += DataGridView_DataError;
+
             dataGridView2.RowPrePaint += DataGridView2_RowPrePaint;
-            dataGridView2.CellFormatting += DataGridView2_CellFormatting;
-            
-            textBox1.TextChanged += TextBox1_TextChanged;
-            showAllCheckBox.CheckedChanged += ShowAllCheckBox_CheckedChanged;
-            
-            // Obsługa sortowania
-            dataGridView1.ColumnHeaderMouseClick += DataGridView_ColumnHeaderMouseClick;
-            dataGridView2.ColumnHeaderMouseClick += DataGridView_ColumnHeaderMouseClick;
-            
-            // Obsługa zamykania formularza
-            FormClosing += Platnosci_FormClosing;
+            dataGridView2.CellFormatting += DataGridView_CellFormatting;
+            dataGridView2.DataError += DataGridView_DataError;
+
+            textBox1.TextChanged += (_, __) => UpdateFiltersAndSums();
+            showAllCheckBox.CheckedChanged += (_, __) => { UkryjKolumny(); UpdateTop3List(); };
+
+            FormClosing += (_, __) => cancellationTokenSource?.Cancel();
         }
 
         private void SetupDataGridViewStyles()
         {
-            // Styl dla obu DataGridView
             ConfigureDataGridView(dataGridView1);
             ConfigureDataGridView(dataGridView2);
         }
 
         private void ConfigureDataGridView(DataGridView dgv)
         {
-            // Podstawowe ustawienia
             dgv.AllowUserToAddRows = false;
             dgv.AllowUserToDeleteRows = false;
             dgv.ReadOnly = true;
@@ -104,8 +84,7 @@ namespace Kalendarz1
             dgv.BackgroundColor = Color.White;
             dgv.BorderStyle = BorderStyle.None;
             dgv.GridColor = Color.FromArgb(229, 231, 235);
-            
-            // Styl nagłówków
+
             dgv.EnableHeadersVisualStyles = false;
             dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(37, 99, 235);
             dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
@@ -114,16 +93,14 @@ namespace Kalendarz1
             dgv.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
             dgv.ColumnHeadersHeight = 40;
             dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
-            
-            // Styl wierszy
+
             dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9.5f);
-            dgv.DefaultCellStyle.Padding = new Padding(5, 3, 5, 3);
-            dgv.RowTemplate.Height = 35;
+            dgv.DefaultCellStyle.Padding = new Padding(6, 4, 6, 4);  // większe odstępy
+            dgv.RowTemplate.Height = 36;
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(147, 197, 253);
             dgv.DefaultCellStyle.SelectionForeColor = Color.FromArgb(30, 58, 138);
-            
-            // Double buffering dla płynności
+
             typeof(DataGridView).InvokeMember("DoubleBuffered",
                 System.Reflection.BindingFlags.NonPublic |
                 System.Reflection.BindingFlags.Instance |
@@ -131,37 +108,30 @@ namespace Kalendarz1
                 null, dgv, new object[] { true });
         }
 
-        private async void refreshButton_Click(object sender, EventArgs e)
-        {
-            await RefreshDataAsync();
-        }
+        private async void refreshButton_Click(object sender, EventArgs e) => await RefreshDataAsync();
 
         private async Task RefreshDataAsync()
         {
             if (isLoading) return;
-            
-            // Anuluj poprzednie operacje jeśli są w toku
+
             cancellationTokenSource?.Cancel();
             cancellationTokenSource = new CancellationTokenSource();
-            
+
             try
             {
                 isLoading = true;
                 ShowLoadingState(true);
                 refreshButton.Enabled = false;
-                
-                // Równoległe ładowanie danych
-                var task1 = LoadHodowcyDataAsync(cancellationTokenSource.Token);
-                var task2 = LoadUbojniaDataAsync(cancellationTokenSource.Token);
-                
-                await Task.WhenAll(task1, task2);
-                
-                // Zastosuj formatowanie i filtry
+
+                var t1 = LoadHodowcyDataAsync(cancellationTokenSource.Token);
+                var t2 = LoadUbojniaDataAsync(cancellationTokenSource.Token);
+                await Task.WhenAll(t1, t2);
+
                 FormatujKolumny();
                 UkryjKolumny();
-                ObliczISumujDoZaplacenia();
-                
-                // Aktualizuj status
+                UpdateFiltersAndSums();
+                UpdateTop3List();
+
                 UpdateStatusBar($"Ostatnie odświeżenie: {DateTime.Now:HH:mm:ss}");
             }
             catch (OperationCanceledException)
@@ -170,7 +140,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas pobierania danych: {ex.Message}", 
+                MessageBox.Show($"Błąd podczas pobierania danych: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 LogError(ex);
             }
@@ -182,7 +152,7 @@ namespace Kalendarz1
             }
         }
 
-        private async Task LoadHodowcyDataAsync(CancellationToken cancellationToken)
+        private async Task LoadHodowcyDataAsync(CancellationToken ct)
         {
             const string query = @"
                 SELECT DISTINCT 
@@ -200,7 +170,7 @@ namespace Kalendarz1
                     CASE 
                         WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= -7 THEN 'Bardzo przeterminowane'
                         WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= 0 THEN 'Przeterminowane'
-                        WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= 7 THEN 'Zbliżający się termin'
+                        WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= 7 THEN 'Zbliżające (≤7 dni)'
                         ELSE 'W terminie'
                     END AS Status
                 FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
@@ -213,11 +183,10 @@ namespace Kalendarz1
                     AND DK.typ_dk IN ('FVR', 'FVZ')
                     AND DP.kod IN ('Kurczak żywy - 8', 'Kurczak żywy -7')
                 ORDER BY Roznica ASC";
-
-            await LoadDataAsync(query, dataTable1, bindingSource1, cancellationToken);
+            await LoadDataAsync(query, dataTable1, bindingSource1, ct);
         }
 
-        private async Task LoadUbojniaDataAsync(CancellationToken cancellationToken)
+        private async Task LoadUbojniaDataAsync(CancellationToken ct)
         {
             const string query = @"
                 SELECT 
@@ -232,12 +201,20 @@ namespace Kalendarz1
                     DATEDIFF(day, DK.data, PN.Termin) AS Termin,
                     DATEDIFF(day, DK.data, GETDATE()) AS Obecny,
                     (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) AS Roznica,
+                    -- STATUS z dodanym 'Zbliżające (≤7 dni)'
                     CASE 
                         WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= -14 THEN 'Krytycznie przeterminowane'
                         WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= -7 THEN 'Bardzo przeterminowane'
                         WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= 0 THEN 'Przeterminowane'
+                        WHEN (DATEDIFF(day, DK.data, PN.Termin) - DATEDIFF(day, DK.data, GETDATE())) <= 7 THEN 'Zbliżające (≤7 dni)'
                         ELSE 'W terminie'
-                    END AS StatusPlatnosci
+                    END AS StatusPlatnosci,
+                    -- OPIS
+                    CASE 
+                        WHEN PN.wartosc > 0 AND PN.wartosc <= 800 THEN 'Podatek rolniczy'
+                        WHEN PN.wartosc < 0 THEN 'Ubojnia nam'
+                        ELSE 'My hodowcy'
+                    END AS Opis
                 FROM [HANDEL].[HM].[DK] DK WITH (NOLOCK)
                 JOIN [HANDEL].[HM].[DP] DP WITH (NOLOCK) ON DK.id = DP.super
                 JOIN [HANDEL].[HM].[PN] PN WITH (NOLOCK) ON DK.id = PN.dkid
@@ -248,139 +225,119 @@ namespace Kalendarz1
                     AND DK.typ_dk IN ('FVR', 'FVZ', 'FVS')
                     AND DP.kod IN ('Kurczak żywy - 8 SPRZEDAŻ', 'Kurczak żywy - 7 SPRZEDAŻ')
                 ORDER BY DataSprzedazy DESC";
-
-            await LoadDataAsync(query, dataTable2, bindingSource2, cancellationToken);
+            await LoadDataAsync(query, dataTable2, bindingSource2, ct);
         }
 
-        private async Task LoadDataAsync(string query, DataTable targetTable, BindingSource targetBinding, CancellationToken cancellationToken)
+        private async Task LoadDataAsync(string query, DataTable targetTable, BindingSource targetBinding, CancellationToken ct)
         {
-            using (var connection = new SqlConnection(connectionString))
+            using var conn = new SqlConnection(connectionString);
+            using var cmd = new SqlCommand(query, conn) { CommandTimeout = 60 };
+            await conn.OpenAsync(ct);
+            using var rdr = await cmd.ExecuteReaderAsync(ct);
+
+            var newTable = new DataTable();
+            newTable.Load(rdr);
+
+            if (!ct.IsCancellationRequested)
             {
-                using (var command = new SqlCommand(query, connection))
+                BeginInvoke(new Action(() =>
                 {
-                    command.CommandTimeout = 60;
-                    
-                    await connection.OpenAsync(cancellationToken);
-                    
-                    using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+                    lock (dataLock)
                     {
-                        var newTable = new DataTable();
-                        newTable.Load(reader);
-                        
-                        // Aktualizuj DataTable w głównym wątku
-                        if (!cancellationToken.IsCancellationRequested)
-                        {
-                            BeginInvoke(new Action(() =>
-                            {
-                                lock (dataLock)
-                                {
-                                    targetTable.Clear();
-                                    targetTable.Merge(newTable);
-                                    targetBinding.DataSource = targetTable;
-                                }
-                            }));
-                        }
+                        targetTable.Clear();
+                        targetTable.Merge(newTable);
+                        targetBinding.DataSource = targetTable;
                     }
-                }
+                }));
             }
         }
 
         private void DataGridView1_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            
-            DataGridViewRow row = dataGridView1.Rows[e.RowIndex];
-            
-            if (row.Cells["Roznica"].Value != null && int.TryParse(row.Cells["Roznica"].Value.ToString(), out int roznica))
+            var row = dataGridView1.Rows[e.RowIndex];
+
+            if (TryGetInt(row, "Roznica", out int roznica))
             {
                 if (roznica <= -7)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 226, 226);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(153, 27, 27);
-                }
+                    SetRowColors(row, Color.FromArgb(254, 226, 226), Color.FromArgb(153, 27, 27));
                 else if (roznica <= 0)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 243, 199);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(146, 64, 14);
-                }
-                else if (roznica <= 7)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 249, 195);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(133, 77, 14);
-                }
+                    SetRowColors(row, Color.FromArgb(254, 243, 199), Color.FromArgb(146, 64, 14));
+                else if (roznica <= 7) // Zbliżające się
+                    SetRowColors(row, Color.FromArgb(254, 249, 195), Color.FromArgb(133, 77, 14));
                 else
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 252, 231);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(22, 101, 52);
-                }
-            }
-        }
-        
-        private void DataGridView2_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            
-            DataGridViewRow row = dataGridView2.Rows[e.RowIndex];
-            
-            if (row.Cells["Roznica"].Value != null && int.TryParse(row.Cells["Roznica"].Value.ToString(), out int roznica))
-            {
-                if (roznica <= -14)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 202, 202);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(127, 29, 29);
-                }
-                else if (roznica <= -7)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 226, 226);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(153, 27, 27);
-                }
-                else if (roznica <= 0)
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(254, 243, 199);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(146, 64, 14);
-                }
-                else
-                {
-                    row.DefaultCellStyle.BackColor = Color.FromArgb(220, 252, 231);
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(22, 101, 52);
-                }
+                    SetRowColors(row, Color.FromArgb(220, 252, 231), Color.FromArgb(22, 101, 52));
             }
         }
 
-        private void DataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            FormatCell(sender, e);
-        }
-        
-        private void DataGridView2_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            FormatCell(sender, e);
-        }
-        
-        private void FormatCell(object sender, DataGridViewCellFormattingEventArgs e)
+        private void DataGridView2_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            
-            var dgv = (DataGridView)sender;
-            
-            // Formatowanie dat
-            if (dgv.Columns[e.ColumnIndex].Name.Contains("Data") && e.Value != null)
+            var row = dataGridView2.Rows[e.RowIndex];
+
+            // Szary „Podatek rolniczy” (0–800] – gdy wiersze są ujawnione
+            if (TryGetDecimal(row, "DoZaplacenia", out decimal dz) && dz > 0 && dz <= 800)
             {
-                if (DateTime.TryParse(e.Value.ToString(), out DateTime date))
+                SetRowColors(row, Color.FromArgb(243, 244, 246), Color.FromArgb(75, 85, 99));
+                return; // priorytet nad klasyfikacją daty
+            }
+
+            if (TryGetInt(row, "Roznica", out int roznica))
+            {
+                if (roznica <= -14)
+                    SetRowColors(row, Color.FromArgb(254, 202, 202), Color.FromArgb(127, 29, 29));
+                else if (roznica <= -7)
+                    SetRowColors(row, Color.FromArgb(254, 226, 226), Color.FromArgb(153, 27, 27));
+                else if (roznica <= 0)
+                    SetRowColors(row, Color.FromArgb(254, 243, 199), Color.FromArgb(146, 64, 14));
+                else if (roznica <= 7) // Zbliżające się
+                    SetRowColors(row, Color.FromArgb(254, 249, 195), Color.FromArgb(133, 77, 14));
+                else
+                    SetRowColors(row, Color.FromArgb(220, 252, 231), Color.FromArgb(22, 101, 52));
+            }
+        }
+
+        private static void SetRowColors(DataGridViewRow row, Color back, Color fore)
+        {
+            row.DefaultCellStyle.BackColor = back;
+            row.DefaultCellStyle.ForeColor = fore;
+        }
+
+        private static bool TryGetInt(DataGridViewRow row, string col, out int value)
+        {
+            value = 0;
+            var cell = row.Cells[col]?.Value;
+            return cell != null && int.TryParse(Convert.ToString(cell), out value);
+        }
+
+        private static bool TryGetDecimal(DataGridViewRow row, string col, out decimal value)
+        {
+            value = 0m;
+            var cell = row.Cells[col]?.Value;
+            return cell != null && decimal.TryParse(Convert.ToString(cell, CultureInfo.InvariantCulture), out value);
+        }
+
+        private void DataGridView_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var dgv = (DataGridView)sender;
+
+            // format dat
+            if (dgv.Columns[e.ColumnIndex].Name.Contains("Data") || dgv.Columns[e.ColumnIndex].Name.Contains("Termin"))
+            {
+                if (e.Value != null && DateTime.TryParse(e.Value.ToString(), out var date))
                 {
                     e.Value = date.ToString("yyyy-MM-dd");
                     e.FormattingApplied = true;
                 }
             }
-            
-            // Podświetlenie ujemnych wartości
-            if (dgv.Columns[e.ColumnIndex].Name == "DoZaplacenia" && e.Value != null)
+
+            // wyróżnienie wartości ujemnych
+            if (dgv.Columns[e.ColumnIndex].Name == "DoZaplacenia" && e.Value != null &&
+                decimal.TryParse(e.Value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) && v < 0)
             {
-                if (decimal.TryParse(e.Value.ToString(), out decimal value) && value < 0)
-                {
-                    e.CellStyle.ForeColor = Color.Red;
-                    e.CellStyle.Font = new Font(dgv.Font, FontStyle.Bold);
-                }
+                e.CellStyle.ForeColor = Color.Red;
+                e.CellStyle.Font = new Font(dgv.Font, FontStyle.Bold);
             }
         }
 
@@ -394,433 +351,271 @@ namespace Kalendarz1
         {
             foreach (DataGridViewColumn column in dgv.Columns)
             {
-                // Formatowanie kolumn kwotowych
-                if (column.Name == "Kwota" || column.Name == "Rozliczone" || column.Name == "DoZaplacenia")
+                if (column.Name is "Kwota" or "Rozliczone" or "DoZaplacenia")
                 {
                     column.DefaultCellStyle.Format = "N2";
                     column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    
                     if (column.Name == "DoZaplacenia")
-                    {
                         column.DefaultCellStyle.Font = new Font(dgv.Font, FontStyle.Bold);
-                    }
                 }
-                
-                // Formatowanie dat
+
                 if (column.Name.Contains("Data") || column.Name.Contains("Termin"))
                 {
                     column.DefaultCellStyle.Format = "dd.MM.yyyy";
                     column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
-                
-                // Formatowanie liczb
-                if (column.Name == "Roznica" || column.Name == "Obecny" || column.Name == "Termin")
-                {
+
+                if (column.Name is "Roznica" or "Obecny" or "Termin")
                     column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-                
-                // Auto-size dla lepszej widoczności
+
                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
             }
         }
 
-        private void TextBox1_TextChanged(object sender, EventArgs e)
+        // ====== FILTRY: wyszukiwarka + status + podatek rolniczy (0–800) ======
+        private void comboBoxFiltr_SelectedIndexChanged(object sender, EventArgs e) => UpdateFiltersAndSums();
+        private void chkPokazPodatekRolniczy_CheckedChanged(object sender, EventArgs e) => UpdateFiltersAndSums();
+
+        private void UpdateFiltersAndSums()
         {
-            string filterText = textBox1.Text.Trim();
-            var activeGrid = tabControl1.SelectedIndex == 0 ? bindingSource1 : bindingSource2;
-            
-            if (string.IsNullOrEmpty(filterText))
+            var isUbojnia = tabControl1.SelectedIndex == 1;
+
+            // wyszukiwarka
+            string text = (textBox1.Text ?? "").Replace("'", "''");
+            string nameCol = isUbojnia ? "Klient" : "Hodowca";
+            string searchFilter = string.IsNullOrWhiteSpace(text) ? "" : $"{nameCol} LIKE '%{text}%'";
+
+            // filtr statusu
+            string statusSel = comboBoxFiltr.SelectedItem?.ToString() ?? "Wszystkie";
+            string statusFilter = statusSel switch
             {
-                activeGrid.RemoveFilter();
-            }
-            else
+                "Przeterminowane" => "Roznica <= 0",
+                "Zbliżające (≤7 dni)" => "Roznica > 0 AND Roznica <= 7",
+                "W terminie" => "Roznica > 7",
+                _ => ""
+            };
+
+            // filtr podatku rolniczego – tylko Ubojnia
+            string taxFilter = "";
+            if (isUbojnia && !chkPokazPodatekRolniczy.Checked)
+                taxFilter = "NOT (DoZaplacenia > 0 AND DoZaplacenia <= 800)";
+
+            string Compose(params string[] parts)
             {
-                string columnName = tabControl1.SelectedIndex == 0 ? "Hodowca" : "Klient";
-                activeGrid.Filter = $"{columnName} LIKE '%{filterText}%'";
+                var nonEmpty = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+                return string.Join(" AND ", nonEmpty);
             }
-            
+
+            var bs = isUbojnia ? bindingSource2 : bindingSource1;
+            bs.Filter = Compose(searchFilter, statusFilter, taxFilter);
+
+            // UI dla checkboxa
+            chkPokazPodatekRolniczy.Visible = isUbojnia;
+
             ObliczISumujDoZaplacenia();
-            UpdateStatusBar($"Znaleziono rekordów: {(tabControl1.SelectedIndex == 0 ? dataGridView1 : dataGridView2).RowCount}");
+            UpdateTop3List();
+            UpdateStatusBar($"Znaleziono rekordów: {(isUbojnia ? dataGridView2 : dataGridView1).RowCount}");
         }
 
         private void UkryjKolumny()
         {
             if (!showAllCheckBox.Checked)
             {
-                // Pokaż tylko najważniejsze kolumny dla hodowców
-                string[] visibleColumns1 = { "Hodowca", "DoZaplacenia", "Roznica", "Status", "DataOdbioru" };
-                foreach (DataGridViewColumn column in dataGridView1.Columns)
-                {
-                    column.Visible = visibleColumns1.Contains(column.Name);
-                }
-                
-                // Pokaż tylko najważniejsze kolumny dla ubojni
-                string[] visibleColumns2 = { "Klient", "DoZaplacenia", "Roznica", "StatusPlatnosci", "DataSprzedazy" };
-                foreach (DataGridViewColumn column in dataGridView2.Columns)
-                {
-                    column.Visible = visibleColumns2.Contains(column.Name);
-                }
+                string[] visible1 = { "Hodowca", "DoZaplacenia", "Roznica", "Status", "DataOdbioru" };
+                foreach (DataGridViewColumn c in dataGridView1.Columns) c.Visible = visible1.Contains(c.Name);
+
+                string[] visible2 = { "Klient", "DoZaplacenia", "Roznica", "StatusPlatnosci", "Opis", "DataSprzedazy" };
+                foreach (DataGridViewColumn c in dataGridView2.Columns) c.Visible = visible2.Contains(c.Name);
             }
             else
             {
-                // Pokaż wszystkie kolumny
-                foreach (DataGridViewColumn column in dataGridView1.Columns)
-                {
-                    column.Visible = true;
-                }
-                foreach (DataGridViewColumn column in dataGridView2.Columns)
-                {
-                    column.Visible = true;
-                }
+                foreach (DataGridViewColumn c in dataGridView1.Columns) c.Visible = true;
+                foreach (DataGridViewColumn c in dataGridView2.Columns) c.Visible = true;
             }
         }
 
         private void ObliczISumujDoZaplacenia()
         {
-            // Oblicz dla hodowców
-            decimal sumaDoZaplaceniaHodowcy = 0;
-            decimal sumaPrzeterminowaneHodowcy = 0;
-            decimal sumaWTerminieHodowcy = 0;
-            int liczbaPrzeterminowanychHodowcy = 0;
-            int liczbaWTerminieHodowcy = 0;
+            // HODOWCY
+            decimal sumaH = 0, sumPrzH = 0, sumZblH = 0, sumTermH = 0;
+            int cntPrzH = 0, cntZblH = 0, cntTermH = 0;
 
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
-                if (row.Cells["Roznica"].Value != null && 
-                    int.TryParse(row.Cells["Roznica"].Value.ToString(), out int roznica))
+                if (TryGetInt(row, "Roznica", out int r) &&
+                    TryGetDecimal(row, "DoZaplacenia", out decimal v))
                 {
-                    if (row.Cells["DoZaplacenia"].Value != null && 
-                        decimal.TryParse(row.Cells["DoZaplacenia"].Value.ToString(), out decimal wartosc))
-                    {
-                        if (roznica <= 0)
-                        {
-                            sumaPrzeterminowaneHodowcy += wartosc;
-                            liczbaPrzeterminowanychHodowcy++;
-                        }
-                        else
-                        {
-                            sumaWTerminieHodowcy += wartosc;
-                            liczbaWTerminieHodowcy++;
-                        }
-                        
-                        sumaDoZaplaceniaHodowcy += wartosc;
-                    }
+                    if (r <= 0) { sumPrzH += v; cntPrzH++; }
+                    else if (r <= 7) { sumZblH += v; cntZblH++; }
+                    else { sumTermH += v; cntTermH++; }
+                    sumaH += v;
                 }
             }
 
-            // Oblicz dla ubojni
-            decimal sumaUbojnia = 0;
-            int przeterminowaneUbojnia = 0;
-            
+            // UBOJNIA
+            decimal sumaU = 0;
+            int przU = 0, zblU = 0, inTermU = 0;
+
             foreach (DataGridViewRow row in dataGridView2.Rows)
             {
-                if (row.Cells["DoZaplacenia"] != null && row.Cells["DoZaplacenia"].Value != null)
+                if (TryGetDecimal(row, "DoZaplacenia", out decimal v))
                 {
-                    if (decimal.TryParse(row.Cells["DoZaplacenia"].Value.ToString(), out decimal wartosc))
+                    sumaU += v;
+                    if (TryGetInt(row, "Roznica", out int r))
                     {
-                        sumaUbojnia += wartosc;
-                        
-                        if (row.Cells["Roznica"] != null && row.Cells["Roznica"].Value != null)
-                        {
-                            if (int.TryParse(row.Cells["Roznica"].Value.ToString(), out int roznica) && roznica <= 0)
-                            {
-                                przeterminowaneUbojnia++;
-                            }
-                        }
+                        if (r <= 0) przU++;
+                        else if (r <= 7) zblU++;
+                        else inTermU++;
                     }
                 }
             }
 
-            // Aktualizuj pola tekstowe w zależności od aktywnej karty
-            if (tabControl1.SelectedIndex == 0) // Hodowcy
+            if (tabControl1.SelectedIndex == 0)
             {
-                textBox2.Text = $"{sumaDoZaplaceniaHodowcy:N2} zł";
-                if (textBoxPrzeterminowane != null)
-                    textBoxPrzeterminowane.Text = $"{sumaPrzeterminowaneHodowcy:N2} zł ({liczbaPrzeterminowanychHodowcy})";
-                if (textBoxWTerminie != null)
-                    textBoxWTerminie.Text = $"{sumaWTerminieHodowcy:N2} zł ({liczbaWTerminieHodowcy})";
+                textBox2.Text = $"{sumaH:N2} zł";
+                textBoxPrzeterminowane.Text = $"{sumPrzH:N2} zł ({cntPrzH})";
+                textBoxZblizajace.Text = $"{sumZblH:N2} zł ({cntZblH})";   // SUMA ZBLIŻAJĄCYCH – wyeksponowana
+                textBoxWTerminie.Text = $"{sumTermH:N2} zł ({cntTermH})";
             }
-            else // Ubojnia
+            else
             {
-                textBox2.Text = $"{sumaUbojnia:N2} zł";
-                if (textBoxPrzeterminowane != null)
-                    textBoxPrzeterminowane.Text = $"{przeterminowaneUbojnia} faktur";
-                if (textBoxWTerminie != null)
-                    textBoxWTerminie.Text = $"{dataGridView2.RowCount - przeterminowaneUbojnia} faktur";
+                textBox2.Text = $"{sumaU:N2} zł";
+                textBoxPrzeterminowane.Text = $"{przU} faktur";
+                textBoxZblizajace.Text = $"{zblU} faktur";
+                textBoxWTerminie.Text = $"{inTermU} faktur";
             }
-            
-            // Zapisz sumę ubojni
-            if (textBoxSumaUbojnia != null)
-            {
-                textBoxSumaUbojnia.Text = $"{sumaUbojnia:N2} zł";
-                toolTip1.SetToolTip(textBoxSumaUbojnia, $"Przeterminowane: {przeterminowaneUbojnia} faktur");
-            }
-            
-            // Dodaj dodatkowe informacje w tooltip
-            var info = tabControl1.SelectedIndex == 0 
-                ? $"Przeterminowane: {sumaPrzeterminowaneHodowcy:N2} zł ({liczbaPrzeterminowanychHodowcy} faktur)\n" +
-                  $"W terminie: {sumaWTerminieHodowcy:N2} zł ({liczbaWTerminieHodowcy} faktur)\n" +
-                  $"RAZEM: {sumaDoZaplaceniaHodowcy:N2} zł"
-                : $"Do otrzymania: {sumaUbojnia:N2} zł\n" +
-                  $"Przeterminowane: {przeterminowaneUbojnia} faktur";
-            
-            toolTip1.SetToolTip(textBox2, info);
+
+            textBoxSumaUbojnia.Text = $"{sumaU:N2} zł";
+
+            toolTip1.SetToolTip(textBox2,
+                tabControl1.SelectedIndex == 0
+                ? $"Przeterminowane: {sumPrzH:N2} zł ({cntPrzH})\nZbliżające (≤7 dni): {sumZblH:N2} zł ({cntZblH})\nW terminie: {sumTermH:N2} zł ({cntTermH})"
+                : $"Przeterminowane: {przU} faktur\nZbliżające (≤7 dni): {zblU} faktur\nW terminie: {inTermU} faktur");
         }
 
-        private void ShowAllCheckBox_CheckedChanged(object sender, EventArgs e)
+        private void UpdateTop3List()
         {
-            UkryjKolumny();
-        }
+            listViewTop3.BeginUpdate();
+            listViewTop3.Items.Clear();
 
-        private async void button1_Click_1(object sender, EventArgs e)
-        {
-            try
-            {
-                var report = GenerateDetailedReport();
-                Clipboard.SetText(report);
-                
-                MessageBox.Show("Raport został skopiowany do schowka.", 
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas generowania raportu: {ex.Message}", 
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+            var dgv = tabControl1.SelectedIndex == 0 ? dataGridView1 : dataGridView2;
+            string kontrahentCol = tabControl1.SelectedIndex == 0 ? "Hodowca" : "Klient";
 
-        private string GenerateDetailedReport()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"=== RAPORT PŁATNOŚCI - {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
-            sb.AppendLine();
-            
-            // Podsumowanie dla hodowców
-            sb.AppendLine("HODOWCY:");
-            decimal sumaHodowcy = 0;
-            int przeterminowaneHodowcy = 0;
-            
-            foreach (DataGridViewRow row in dataGridView1.Rows)
-            {
-                if (row.Cells["DoZaplacenia"].Value != null)
+            var rows = dgv.Rows.Cast<DataGridViewRow>()
+                .Where(r => r.Cells["DoZaplacenia"].Value != null &&
+                            decimal.TryParse(Convert.ToString(r.Cells["DoZaplacenia"].Value), out _))
+                .Select(r => new
                 {
-                    decimal kwota = Convert.ToDecimal(row.Cells["DoZaplacenia"].Value);
-                    sumaHodowcy += kwota;
-                    
-                    if (row.Cells["Roznica"].Value != null && 
-                        Convert.ToInt32(row.Cells["Roznica"].Value) <= 0)
-                    {
-                        przeterminowaneHodowcy++;
-                    }
-                }
-            }
-            
-            sb.AppendLine($"Łączna kwota: {sumaHodowcy:N2} zł");
-            sb.AppendLine($"Liczba przeterminowanych: {przeterminowaneHodowcy}");
-            sb.AppendLine();
-            
-            // Podsumowanie dla ubojni
-            sb.AppendLine("UBOJNIA:");
-            decimal sumaUbojnia = 0;
-            int przeterminowaneUbojnia = 0;
-            
-            foreach (DataGridViewRow row in dataGridView2.Rows)
-            {
-                if (row.Cells["DoZaplacenia"].Value != null)
-                {
-                    decimal kwota = Convert.ToDecimal(row.Cells["DoZaplacenia"].Value);
-                    sumaUbojnia += kwota;
-                    
-                    if (row.Cells["Roznica"].Value != null && 
-                        Convert.ToInt32(row.Cells["Roznica"].Value) <= 0)
-                    {
-                        przeterminowaneUbojnia++;
-                    }
-                }
-            }
-            
-            sb.AppendLine($"Łączna kwota: {sumaUbojnia:N2} zł");
-            sb.AppendLine($"Liczba przeterminowanych: {przeterminowaneUbojnia}");
-            sb.AppendLine();
-            
-            // Bilans
-            sb.AppendLine("BILANS:");
-            sb.AppendLine($"Do zapłaty hodowcom: {sumaHodowcy:N2} zł");
-            sb.AppendLine($"Do otrzymania od ubojni: {sumaUbojnia:N2} zł");
-            sb.AppendLine($"Różnica: {(sumaUbojnia - sumaHodowcy):N2} zł");
-            
-            return sb.ToString();
-        }
+                    Nazwa = Convert.ToString(r.Cells[kontrahentCol].Value) ?? "",
+                    Kwota = Convert.ToDecimal(r.Cells["DoZaplacenia"].Value)
+                })
+                .GroupBy(x => x.Nazwa)
+                .Select(g => new { Nazwa = g.Key, Suma = g.Sum(z => z.Kwota) })
+                .OrderByDescending(x => x.Suma)
+                .Take(3)
+                .ToList();
 
-        private void DataGridView_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
-        {
-            var dgv = (DataGridView)sender;
-            var column = dgv.Columns[e.ColumnIndex];
-            
-            // Implementacja sortowania
-            if (dgv.DataSource is BindingSource bs && bs.DataSource is DataTable dt)
+            int lp = 1;
+            foreach (var r in rows)
             {
-                string sortColumn = column.DataPropertyName;
-                if (string.IsNullOrEmpty(sortColumn))
-                    sortColumn = column.Name;
-                    
-                string currentSort = dt.DefaultView.Sort;
-                
-                if (currentSort.StartsWith(sortColumn + " ASC"))
-                {
-                    dt.DefaultView.Sort = sortColumn + " DESC";
-                }
-                else
-                {
-                    dt.DefaultView.Sort = sortColumn + " ASC";
-                }
+                var item = new System.Windows.Forms.ListViewItem(lp.ToString());
+                item.SubItems.Add(r.Nazwa);
+                item.SubItems.Add($"{r.Suma:N2} zł");
+                listViewTop3.Items.Add(item);
+                lp++;
             }
+            listViewTop3.EndUpdate();
+
+            toolTip1.SetToolTip(listViewTop3, tabControl1.SelectedIndex == 0
+                ? "Top 3 hodowców wg sumy 'Do zapłacenia'"
+                : "Top 3 klientów wg sumy 'Do zapłacenia'");
         }
 
         private void DataGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
         {
-            // Obsługa błędów danych
             e.ThrowException = false;
             LogError(new Exception($"DataGridView error at row {e.RowIndex}, column {e.ColumnIndex}"));
         }
 
-        private void Platnosci_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            cancellationTokenSource?.Cancel();
-        }
-
         private void ShowLoadingState(bool show)
         {
-            if (show)
-            {
-                this.Cursor = Cursors.WaitCursor;
-                if (progressBar1 != null)
-                {
-                    progressBar1.Visible = true;
-                    progressBar1.Style = ProgressBarStyle.Marquee;
-                }
-            }
-            else
-            {
-                this.Cursor = Cursors.Default;
-                if (progressBar1 != null)
-                {
-                    progressBar1.Visible = false;
-                }
-            }
+            this.Cursor = show ? Cursors.WaitCursor : Cursors.Default;
+            progressBar1.Visible = show;
+            if (show) progressBar1.Style = ProgressBarStyle.Marquee;
         }
 
-        private void UpdateStatusBar(string message)
-        {
-            if (lblStatus != null)
-            {
-                lblStatus.Text = message;
-            }
-        }
+        private void UpdateStatusBar(string message) => lblStatus.Text = message;
 
         private void LogError(Exception ex)
         {
             try
             {
-                string logPath = "errors.log";
-                string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.Message}\n{ex.StackTrace}\n\n";
-                System.IO.File.AppendAllText(logPath, logMessage);
+                System.IO.File.AppendAllText("errors.log",
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.Message}\n{ex.StackTrace}\n\n");
             }
-            catch
+            catch { }
+        }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            try
             {
-                // Ignoruj błędy logowania
+                var sb = new StringBuilder();
+                sb.AppendLine($"=== RAPORT PŁATNOŚCI - {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
+                sb.AppendLine();
+                sb.AppendLine($"Zakładka: {(tabControl1.SelectedIndex == 0 ? "Hodowcy" : "Ubojnia")}");
+                sb.AppendLine($"Suma: {textBox2.Text}");
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Raport skopiowany do schowka.", "Sukces",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas generowania raportu: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void buttonExportExcel_Click(object sender, EventArgs e)
-        {
-            ExportToExcel();
-        }
+        private void buttonExportExcel_Click(object sender, EventArgs e) => ExportToExcel();
 
-        private void comboBoxFiltr_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            ApplyStatusFilter();
-        }
-        
-        private void ApplyStatusFilter()
-        {
-            if (comboBoxFiltr == null) return;
-            
-            var activeBinding = tabControl1.SelectedIndex == 0 ? bindingSource1 : bindingSource2;
-            if (activeBinding == null) return;
-            
-            string selectedFilter = comboBoxFiltr.SelectedItem?.ToString() ?? "Wszystkie";
-            
-            switch (selectedFilter)
-            {
-                case "Przeterminowane":
-                    activeBinding.Filter = "Roznica <= 0";
-                    break;
-                case "Do 7 dni":
-                    activeBinding.Filter = "Roznica > 0 AND Roznica <= 7";
-                    break;
-                case "W terminie":
-                    activeBinding.Filter = "Roznica > 7";
-                    break;
-                default:
-                    activeBinding.RemoveFilter();
-                    break;
-            }
-            
-            ObliczISumujDoZaplacenia();
-        }
-        
         private void ExportToExcel()
         {
             try
             {
-                SaveFileDialog saveDialog = new SaveFileDialog();
-                saveDialog.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*";
-                saveDialog.FileName = $"Platnosci_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-                
-                if (saveDialog.ShowDialog() == DialogResult.OK)
+                using var dlg = new SaveFileDialog
                 {
-                    using (var writer = new System.IO.StreamWriter(saveDialog.FileName, false, Encoding.UTF8))
-                    {
-                        // Nagłówki dla hodowców
-                        writer.WriteLine("=== PŁATNOŚCI HODOWCÓW ===");
-                        writer.WriteLine("Hodowca;Numer Dokumentu;Kwota;Rozliczone;Do Zapłacenia;Data Odbioru;Termin;Różnica;Status");
-                        
-                        // Dane hodowców
-                        foreach (DataGridViewRow row in dataGridView1.Rows)
-                        {
-                            var values = new List<string>();
-                            foreach (DataGridViewCell cell in row.Cells)
-                            {
-                                values.Add(cell.Value?.ToString()?.Replace(";", ",") ?? "");
-                            }
-                            writer.WriteLine(string.Join(";", values));
-                        }
-                        
-                        writer.WriteLine();
-                        writer.WriteLine("=== PŁATNOŚCI UBOJNI ===");
-                        writer.WriteLine("Klient;Numer Faktury;Kwota;Rozliczone;Do Zapłacenia;Data Sprzedaży;Termin;Różnica;Status");
-                        
-                        // Dane ubojni
-                        foreach (DataGridViewRow row in dataGridView2.Rows)
-                        {
-                            var values = new List<string>();
-                            foreach (DataGridViewCell cell in row.Cells)
-                            {
-                                values.Add(cell.Value?.ToString()?.Replace(";", ",") ?? "");
-                            }
-                            writer.WriteLine(string.Join(";", values));
-                        }
-                        
-                        // Podsumowanie
-                        writer.WriteLine();
-                        writer.WriteLine("=== PODSUMOWANIE ===");
-                        writer.WriteLine($"Data raportu: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    }
-                    
-                    MessageBox.Show($"Dane zostały wyeksportowane do pliku:\n{saveDialog.FileName}", 
-                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                    FileName = $"Platnosci_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                };
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+
+                using var w = new System.IO.StreamWriter(dlg.FileName, false, Encoding.UTF8);
+
+                // Hodowcy
+                w.WriteLine("=== PŁATNOŚCI HODOWCÓW ===");
+                w.WriteLine("Hodowca;NumerDokumentu;Kwota;Rozliczone;DoZaplacenia;DataOdbioru;DataTermin;TerminPrawdziwy;Termin;Obecny;Roznica;Status");
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    var values = row.Cells.Cast<DataGridViewCell>().Select(c => c.Value?.ToString()?.Replace(";", ",") ?? "");
+                    w.WriteLine(string.Join(";", values));
                 }
+
+                // Ubojnia
+                w.WriteLine();
+                w.WriteLine("=== PŁATNOŚCI UBOJNI ===");
+                w.WriteLine("Klient;NumerFaktury;Kwota;Rozliczone;DoZaplacenia;DataSprzedazy;DataTermin;TerminPrawdziwy;Termin;Obecny;Roznica;StatusPlatnosci;Opis");
+                foreach (DataGridViewRow row in dataGridView2.Rows)
+                {
+                    var values = row.Cells.Cast<DataGridViewCell>().Select(c => c.Value?.ToString()?.Replace(";", ",") ?? "");
+                    w.WriteLine(string.Join(";", values));
+                }
+
+                w.WriteLine();
+                w.WriteLine("=== PODSUMOWANIE ===");
+                w.WriteLine($"Data raportu: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+                MessageBox.Show($"Wyeksportowano do pliku:\n{dlg.FileName}", "Sukces",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -831,17 +626,10 @@ namespace Kalendarz1
 
         private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Przelicz sumy dla aktywnej karty
-            ObliczISumujDoZaplacenia();
-            
-            // Zaktualizuj etykietę wyszukiwania
-            if (label6 != null)
-            {
-                label6.Text = tabControl1.SelectedIndex == 0 ? "Szukaj hodowcy:" : "Szukaj klienta:";
-            }
-            
-            // Wyczyść pole wyszukiwania
+            label6.Text = tabControl1.SelectedIndex == 0 ? "Szukaj hodowcy:" : "Szukaj klienta:";
+            chkPokazPodatekRolniczy.Visible = tabControl1.SelectedIndex == 1;
             textBox1.Text = "";
+            UpdateFiltersAndSums();
         }
     }
 }
