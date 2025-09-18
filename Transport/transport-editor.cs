@@ -1,5 +1,5 @@
 // Plik: Transport/EdytorKursuWithPalety.cs
-// Wersja z pełną obsługą palet z bazy danych
+// Wersja z poprawioną obsługą duplikatów kluczy w tabeli Ladunek
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
@@ -52,6 +52,11 @@ namespace Kalendarz1.Transport.Formularze
         private TextBox txtUwagi;
         private Button btnDodaj;
 
+        // Przyciski zarządzania kolejnością
+        private Button btnMoveUp;
+        private Button btnMoveDown;
+        private Button btnSortujPoKolejnosci;
+
         // Wskaźnik wypełnienia
         private ProgressBar progressWypelnienie;
         private Label lblWypelnienie;
@@ -68,11 +73,146 @@ namespace Kalendarz1.Transport.Formularze
             public long KursID { get; set; }
             public int Kolejnosc { get; set; }
             public string? KodKlienta { get; set; }
-            public decimal Palety { get; set; } // Zmiana na decimal dla dokładności
+            public decimal Palety { get; set; }
             public int PojemnikiE2 { get; set; }
             public string? Uwagi { get; set; }
             public string? Adres { get; set; }
             public bool TrybE2 { get; set; }
+            public string? NazwaKlienta { get; set; }
+        }
+
+        // Dialog do dodawania kierowcy
+        public class DodajKierowceDialog : Form
+        {
+            public Kierowca NowyKierowca { get; private set; }
+            private TextBox txtImie, txtNazwisko, txtTelefon;
+
+            public DodajKierowceDialog()
+            {
+                Text = "Dodaj nowego kierowcę";
+                Size = new Size(400, 250);
+                StartPosition = FormStartPosition.CenterParent;
+
+                var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+
+                txtImie = new TextBox { Dock = DockStyle.Fill };
+                txtNazwisko = new TextBox { Dock = DockStyle.Fill };
+                txtTelefon = new TextBox { Dock = DockStyle.Fill };
+
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
+                layout.Controls.Add(new Label { Text = "Imię:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
+                layout.Controls.Add(txtImie, 1, 0);
+                layout.Controls.Add(new Label { Text = "Nazwisko:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
+                layout.Controls.Add(txtNazwisko, 1, 1);
+                layout.Controls.Add(new Label { Text = "Telefon:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
+                layout.Controls.Add(txtTelefon, 1, 2);
+
+                var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
+                var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
+                var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
+
+                btnOK.Click += (s, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(txtImie.Text) || string.IsNullOrWhiteSpace(txtNazwisko.Text))
+                    {
+                        MessageBox.Show("Podaj imię i nazwisko.");
+                        DialogResult = DialogResult.None;
+                        return;
+                    }
+
+                    NowyKierowca = new Kierowca
+                    {
+                        Imie = txtImie.Text.Trim(),
+                        Nazwisko = txtNazwisko.Text.Trim(),
+                        Telefon = string.IsNullOrWhiteSpace(txtTelefon.Text) ? null : txtTelefon.Text.Trim(),
+                        Aktywny = true
+                    };
+                };
+
+                btnPanel.Controls.Add(btnCancel);
+                btnPanel.Controls.Add(btnOK);
+                layout.SetColumnSpan(btnPanel, 2);
+                layout.Controls.Add(btnPanel, 0, 3);
+
+                Controls.Add(layout);
+            }
+        }
+
+        // Dialog do dodawania pojazdu
+        public class DodajPojazdDialog : Form
+        {
+            public Pojazd NowyPojazd { get; private set; }
+            private TextBox txtRejestracja, txtMarka, txtModel;
+            private NumericUpDown nudPalety;
+
+            public DodajPojazdDialog()
+            {
+                Text = "Dodaj nowy pojazd";
+                Size = new Size(400, 280);
+                StartPosition = FormStartPosition.CenterParent;
+
+                var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+
+                txtRejestracja = new TextBox { Dock = DockStyle.Fill };
+                txtMarka = new TextBox { Dock = DockStyle.Fill };
+                txtModel = new TextBox { Dock = DockStyle.Fill };
+                nudPalety = new NumericUpDown
+                {
+                    Dock = DockStyle.Fill,
+                    Minimum = 1,
+                    Maximum = 50,
+                    Value = 33
+                };
+
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
+                layout.Controls.Add(new Label { Text = "Rejestracja:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
+                layout.Controls.Add(txtRejestracja, 1, 0);
+                layout.Controls.Add(new Label { Text = "Marka:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
+                layout.Controls.Add(txtMarka, 1, 1);
+                layout.Controls.Add(new Label { Text = "Model:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
+                layout.Controls.Add(txtModel, 1, 2);
+                layout.Controls.Add(new Label { Text = "Palety H1:", TextAlign = ContentAlignment.MiddleRight }, 0, 3);
+                layout.Controls.Add(nudPalety, 1, 3);
+
+                var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
+                var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
+                var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
+
+                btnOK.Click += (s, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(txtRejestracja.Text))
+                    {
+                        MessageBox.Show("Podaj numer rejestracyjny.");
+                        DialogResult = DialogResult.None;
+                        return;
+                    }
+
+                    NowyPojazd = new Pojazd
+                    {
+                        Rejestracja = txtRejestracja.Text.Trim().ToUpper(),
+                        Marka = string.IsNullOrWhiteSpace(txtMarka.Text) ? null : txtMarka.Text.Trim(),
+                        Model = string.IsNullOrWhiteSpace(txtModel.Text) ? null : txtModel.Text.Trim(),
+                        PaletyH1 = (int)nudPalety.Value,
+                        Aktywny = true
+                    };
+                };
+
+                btnPanel.Controls.Add(btnCancel);
+                btnPanel.Controls.Add(btnOK);
+                layout.SetColumnSpan(btnPanel, 2);
+                layout.Controls.Add(btnPanel, 0, 4);
+
+                Controls.Add(layout);
+            }
         }
 
         // Klasa dla zamówień
@@ -82,9 +222,9 @@ namespace Kalendarz1.Transport.Formularze
             public int KlientId { get; set; }
             public string KlientNazwa { get; set; } = "";
             public decimal IloscKg { get; set; }
-            public decimal Palety { get; set; } // Pobrane z bazy
-            public int Pojemniki { get; set; } // Pobrane z bazy
-            public bool TrybE2 { get; set; } // Tryb E2
+            public decimal Palety { get; set; }
+            public int Pojemniki { get; set; }
+            public bool TrybE2 { get; set; }
             public DateTime DataPrzyjazdu { get; set; }
             public string GodzinaStr => DataPrzyjazdu.ToString("HH:mm");
             public string Status { get; set; } = "Nowe";
@@ -289,7 +429,8 @@ namespace Kalendarz1.Transport.Formularze
                 BackColor = Color.FromArgb(52, 56, 64),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
-                PlaceholderText = "Trasa zostanie uzupełniona automatycznie na podstawie klientów..."
+                PlaceholderText = "Trasa zostanie uzupełniona automatycznie na podstawie klientów...",
+                ReadOnly = true
             };
 
             // Trzecia linia - wskaźnik wypełnienia
@@ -422,6 +563,75 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(0, 10, 0, 10)
             };
 
+            // Panel z przyciskami kolejności
+            var panelKolejnosc = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 45,
+                BackColor = Color.FromArgb(248, 249, 252),
+                Padding = new Padding(10, 8, 10, 8)
+            };
+
+            var lblKolejnosc = new Label
+            {
+                Text = "KOLEJNOŚĆ:",
+                Location = new Point(10, 12),
+                Size = new Size(80, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
+            };
+
+            btnMoveUp = new Button
+            {
+                Text = "▲",
+                Location = new Point(100, 8),
+                Size = new Size(40, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnMoveUp.FlatAppearance.BorderSize = 0;
+            btnMoveUp.Click += async (s, e) => await PrzesunLadunek(-1);
+
+            var toolTip = new ToolTip();
+            toolTip.SetToolTip(btnMoveUp, "Przesuń w górę");
+
+            btnMoveDown = new Button
+            {
+                Text = "▼",
+                Location = new Point(145, 8),
+                Size = new Size(40, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnMoveDown.FlatAppearance.BorderSize = 0;
+            btnMoveDown.Click += async (s, e) => await PrzesunLadunek(1);
+            toolTip.SetToolTip(btnMoveDown, "Przesuń w dół");
+
+            btnSortujPoKolejnosci = new Button
+            {
+                Text = "🔄 Sortuj",
+                Location = new Point(195, 8),
+                Size = new Size(80, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            toolTip.SetToolTip(btnSortujPoKolejnosci, "Przywróć domyślną kolejność");
+            btnSortujPoKolejnosci.FlatAppearance.BorderSize = 0;
+            btnSortujPoKolejnosci.Click += async (s, e) => await OtworzDialogKolejnosci();
+
+            panelKolejnosc.Controls.AddRange(new Control[] {
+                lblKolejnosc, btnMoveUp, btnMoveDown, btnSortujPoKolejnosci
+            });
+
             dgvLadunki = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -452,10 +662,19 @@ namespace Kalendarz1.Transport.Formularze
             var contextMenu = new ContextMenuStrip();
             var menuUsun = new ToolStripMenuItem("Usuń", null, async (s, e) => await UsunLadunek());
             var menuEdytuj = new ToolStripMenuItem("Edytuj", null, (s, e) => EdytujLadunek());
-            contextMenu.Items.AddRange(new[] { menuEdytuj, menuUsun });
+            var menuGora = new ToolStripMenuItem("Przesuń w górę", null, async (s, e) => await PrzesunLadunek(-1));
+            var menuDol = new ToolStripMenuItem("Przesuń w dół", null, async (s, e) => await PrzesunLadunek(1));
+            var separator = new ToolStripSeparator();
+            contextMenu.Items.Add(menuEdytuj);
+            contextMenu.Items.Add(menuUsun);
+            contextMenu.Items.Add(separator);
+            contextMenu.Items.Add(menuGora);
+            contextMenu.Items.Add(menuDol);
             dgvLadunki.ContextMenuStrip = contextMenu;
 
+            panel.Controls.Add(panelKolejnosc);
             panel.Controls.Add(dgvLadunki);
+
             return panel;
         }
 
@@ -562,7 +781,8 @@ namespace Kalendarz1.Transport.Formularze
 
             panel.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
 
-            panel.Resize += (s, e) => {
+            panel.Resize += (s, e) =>
+            {
                 btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
                 btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 10);
             };
@@ -581,6 +801,154 @@ namespace Kalendarz1.Transport.Formularze
                 ForeColor = Color.FromArgb(52, 73, 94),
                 TextAlign = ContentAlignment.MiddleLeft
             };
+        }
+
+        private async Task PrzesunLadunek(int kierunek)
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
+            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+            if (ladunek == null) return;
+
+            int currentIndex = _ladunki.IndexOf(ladunek);
+            int newIndex = currentIndex + kierunek;
+
+            if (newIndex < 0 || newIndex >= _ladunki.Count) return;
+
+            // Zamień miejscami w liście
+            var temp = _ladunki[currentIndex];
+            _ladunki[currentIndex] = _ladunki[newIndex];
+            _ladunki[newIndex] = temp;
+
+            // Zaktualizuj kolejność
+            for (int i = 0; i < _ladunki.Count; i++)
+            {
+                _ladunki[i].Kolejnosc = i + 1;
+            }
+
+            // Zapisz do bazy
+            if (_kursId.HasValue)
+            {
+                await SaveKolejnoscToBaza();
+            }
+
+            // Odśwież widok zachowując selekcję
+            await LoadLadunki();
+
+            // Przywróć selekcję
+            foreach (DataGridViewRow row in dgvLadunki.Rows)
+            {
+                if (Convert.ToInt64(row.Cells["ID"].Value) == ladunekId)
+                {
+                    row.Selected = true;
+                    dgvLadunki.CurrentCell = row.Cells[1];
+                    break;
+                }
+            }
+        }
+
+        private async Task OtworzDialogKolejnosci()
+        {
+            using var dlg = new KolejnoscLadunkuDialog(_ladunki);
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.ZmienioneKolejnosci != null)
+            {
+                _ladunki = dlg.ZmienioneKolejnosci;
+
+                if (_kursId.HasValue)
+                {
+                    await SaveKolejnoscToBaza();
+                }
+
+                await LoadLadunki();
+            }
+        }
+
+        private async Task SaveKolejnoscToBaza()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connectionString);
+                await cn.OpenAsync();
+
+                // Najpierw usuń istniejące ładunki z bazy
+                var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+                using var cmdDelete = new SqlCommand(sqlDelete, cn);
+                cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
+                await cmdDelete.ExecuteNonQueryAsync();
+
+                // Wstaw ponownie z nową kolejnością
+                foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+                {
+                    var sqlInsert = @"INSERT INTO dbo.Ladunek 
+                        (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
+                        VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
+
+                    using var cmdInsert = new SqlCommand(sqlInsert, cn);
+                    cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
+                    cmdInsert.Parameters.AddWithValue("@Kolejnosc", ladunek.Kolejnosc);
+                    cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@Palety", ladunek.Palety);
+                    cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
+                    cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
+                    await cmdInsert.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania kolejności: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void UpdateTrasa()
+        {
+            // Aktualizuj trasę na podstawie aktualnej kolejności
+            var klientNazwy = new List<string>();
+
+            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                string nazwa = "";
+
+                // Pobierz nazwę klienta
+                if (!string.IsNullOrEmpty(ladunek.NazwaKlienta))
+                {
+                    nazwa = ladunek.NazwaKlienta;
+                }
+                else if (!string.IsNullOrEmpty(ladunek.Uwagi))
+                {
+                    // Próbuj wyciągnąć nazwę z uwag
+                    var idx = ladunek.Uwagi.IndexOf('(');
+                    if (idx > 0)
+                    {
+                        nazwa = ladunek.Uwagi.Substring(0, idx).Trim();
+                    }
+                    else
+                    {
+                        nazwa = ladunek.Uwagi;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(ladunek.KodKlienta))
+                {
+                    nazwa = ladunek.KodKlienta;
+                }
+
+                if (!string.IsNullOrEmpty(nazwa))
+                {
+                    klientNazwy.Add(nazwa);
+                }
+            }
+
+            // Jeśli nie ma żadnych ładunków, wyczyść trasę
+            if (klientNazwy.Count == 0)
+            {
+                txtTrasa.Text = "";
+            }
+            else
+            {
+                txtTrasa.Text = string.Join(" → ", klientNazwy.Distinct());
+            }
         }
 
         private async Task LoadDataAsync()
@@ -638,7 +1006,7 @@ namespace Kalendarz1.Transport.Formularze
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataZamowienia = @Data
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane', 'Zrealizowane')
-                      AND zm.TransportStatus = 'Oczekuje'
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje'
                     GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, zm.Uwagi,
                              zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2
                     ORDER BY zm.DataPrzyjazdu";
@@ -727,7 +1095,7 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Godz.", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
-            dt.Columns.Add("Pojemniki", typeof(int)); // Zmieniono z "E2" na "Pojemniki"
+            dt.Columns.Add("Pojemniki", typeof(int));
             dt.Columns.Add("Handlowiec", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
@@ -738,7 +1106,7 @@ namespace Kalendarz1.Transport.Formularze
                     zam.KlientNazwa,
                     zam.GodzinaStr,
                     zam.Palety,
-                    zam.Pojemniki, // Wyświetla liczbę pojemników
+                    zam.Pojemniki,
                     zam.Handlowiec,
                     zam.Adres
                 );
@@ -802,15 +1170,6 @@ namespace Kalendarz1.Transport.Formularze
                 if (!_kursId.HasValue || _kursId.Value <= 0) return;
             }
 
-            // Sprawdź czy kurs nadal istnieje
-            if (!await CzyKursIstniejeAsync(_kursId.Value))
-            {
-                MessageBox.Show("Kurs został usunięty. Odśwież formularz.",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                Close();
-                return;
-            }
-
             // Dodaj jako ładunek z dokładną liczbą palet
             var ladunek = new LadunekWithPalety
             {
@@ -820,7 +1179,9 @@ namespace Kalendarz1.Transport.Formularze
                 PojemnikiE2 = zamowienie.Pojemniki,
                 TrybE2 = zamowienie.TrybE2,
                 Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
-                Adres = zamowienie.Adres
+                Adres = zamowienie.Adres,
+                NazwaKlienta = zamowienie.KlientNazwa,
+                Kolejnosc = _ladunki.Count + 1
             };
 
             await SaveLadunekToDatabase(ladunek);
@@ -831,26 +1192,6 @@ namespace Kalendarz1.Transport.Formularze
             _wolneZamowienia.Remove(zamowienie);
             ShowZamowieniaInGrid();
             await LoadLadunki();
-        }
-       
-        private async Task<bool> CzyKursIstniejeAsync(long kursId)
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connectionString);
-                await cn.OpenAsync();
-
-                var sql = "SELECT COUNT(*) FROM dbo.Kurs WHERE KursID = @KursID";
-                using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KursID", kursId);
-
-                var count = (int)await cmd.ExecuteScalarAsync();
-                return count > 0;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         private async Task UpdateTransportStatus(int zamowienieId, string status)
@@ -915,41 +1256,52 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("Lp.", typeof(int));
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
-            dt.Columns.Add("Pojemniki", typeof(int)); // Zmieniono z "E2" na "Pojemniki"
+            dt.Columns.Add("Pojemniki", typeof(int));
             dt.Columns.Add("Adres", typeof(string));
             dt.Columns.Add("Uwagi", typeof(string));
 
-            var klientNazwy = new List<string>();
-            int lp = 1;
-
             foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
             {
-                string klientNazwa = ladunek.Uwagi ?? ladunek.KodKlienta ?? "";
+                string klientNazwa = ladunek.NazwaKlienta ?? "";
+
+                // Jeśli nie mamy nazwy klienta, spróbuj ją wydobyć
+                if (string.IsNullOrEmpty(klientNazwa))
+                {
+                    if (!string.IsNullOrEmpty(ladunek.Uwagi))
+                    {
+                        var idx = ladunek.Uwagi.IndexOf('(');
+                        if (idx > 0)
+                        {
+                            klientNazwa = ladunek.Uwagi.Substring(0, idx).Trim();
+                            ladunek.NazwaKlienta = klientNazwa;
+                        }
+                        else
+                        {
+                            klientNazwa = ladunek.Uwagi;
+                            ladunek.NazwaKlienta = klientNazwa;
+                        }
+                    }
+                    else
+                    {
+                        klientNazwa = ladunek.KodKlienta ?? "";
+                        ladunek.NazwaKlienta = klientNazwa;
+                    }
+                }
 
                 // Pobierz adres - najpierw sprawdź czy jest w obiekcie, jeśli nie to pobierz z bazy
                 string adres = ladunek.Adres ?? "";
                 if (string.IsNullOrEmpty(adres))
                 {
                     adres = await PobierzAdresKlientaAsync(ladunek.KodKlienta);
-                }
-
-                if (!string.IsNullOrEmpty(klientNazwa) && klientNazwa.Contains("("))
-                {
-                    var idx = klientNazwa.IndexOf("(");
-                    if (idx > 0)
-                    {
-                        var nazwa = klientNazwa.Substring(0, idx).Trim();
-                        klientNazwy.Add(nazwa);
-                        klientNazwa = nazwa;
-                    }
+                    ladunek.Adres = adres;
                 }
 
                 dt.Rows.Add(
                     ladunek.LadunekID,
-                    lp++,
+                    ladunek.Kolejnosc,
                     klientNazwa,
                     ladunek.Palety,
-                    ladunek.PojemnikiE2, // Wyświetla liczbę pojemników
+                    ladunek.PojemnikiE2,
                     adres,
                     ladunek.Uwagi ?? ""
                 );
@@ -988,13 +1340,12 @@ namespace Kalendarz1.Transport.Formularze
                 dgvLadunki.Columns["Uwagi"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
 
-            if (klientNazwy.Any())
-            {
-                txtTrasa.Text = string.Join(" → ", klientNazwy.Distinct());
-            }
+            // Aktualizuj trasę
+            UpdateTrasa();
 
             await UpdateWypelnienie();
         }
+
         // Metoda do pobierania adresu dla istniejącego ładunku na podstawie kodu klienta
         private async Task<string> PobierzAdresKlientaAsync(string kodKlienta)
         {
@@ -1040,6 +1391,7 @@ namespace Kalendarz1.Transport.Formularze
                 return "";
             }
         }
+
         private async Task UpdateWypelnienie()
         {
             try
@@ -1112,10 +1464,12 @@ namespace Kalendarz1.Transport.Formularze
             {
                 KursID = _kursId.Value,
                 KodKlienta = txtKlient.Text.Trim(),
+                NazwaKlienta = txtKlient.Text.Trim(),
                 Palety = nudPalety.Value,
                 PojemnikiE2 = (int)(nudPalety.Value * 36), // Domyślnie 36 poj/paletę
                 TrybE2 = false,
-                Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text) ? null : txtUwagi.Text.Trim()
+                Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text) ? null : txtUwagi.Text.Trim(),
+                Kolejnosc = _ladunki.Count + 1
             };
 
             await SaveLadunekToDatabase(ladunek);
@@ -1236,7 +1590,8 @@ namespace Kalendarz1.Transport.Formularze
             using var dlg = new DodajKierowceDialog();
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                _ = Task.Run(async () => {
+                _ = Task.Run(async () =>
+                {
                     await _repozytorium.DodajKierowceAsync(dlg.NowyKierowca);
                     await LoadDataAsync();
                 });
@@ -1248,7 +1603,8 @@ namespace Kalendarz1.Transport.Formularze
             using var dlg = new DodajPojazdDialog();
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                _ = Task.Run(async () => {
+                _ = Task.Run(async () =>
+                {
                     await _repozytorium.DodajPojazdAsync(dlg.NowyPojazd);
                     await LoadDataAsync();
                 });
@@ -1284,7 +1640,6 @@ namespace Kalendarz1.Transport.Formularze
                     Kolejnosc = reader.GetInt32(2),
                     KodKlienta = reader.IsDBNull(3) ? null : reader.GetString(3),
                     Palety = reader.IsDBNull(4) ? 0 : Convert.ToDecimal(reader.GetInt32(4)),
-
                     PojemnikiE2 = reader.GetInt32(5),
                     Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
                     TrybE2 = reader.GetBoolean(7)
@@ -1299,167 +1654,182 @@ namespace Kalendarz1.Transport.Formularze
             await using var cn = new SqlConnection(_connectionString);
             await cn.OpenAsync();
 
-            var sql = @"INSERT INTO dbo.Ladunek 
-                       (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
-                       VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
+            // Najpierw usuń wszystkie istniejące ładunki
+            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+            using var cmdDelete = new SqlCommand(sqlDelete, cn);
+            cmdDelete.Parameters.AddWithValue("@KursID", ladunek.KursID);
+            await cmdDelete.ExecuteNonQueryAsync();
 
-            using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@KursID", ladunek.KursID);
-            cmd.Parameters.AddWithValue("@Kolejnosc", (_ladunki.Count + 1));
-            cmd.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Palety", ladunek.Palety);
-            cmd.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
-            cmd.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
+            // Dodaj z powrotem wszystkie ładunki z lokalnej listy
+            _ladunki.Add(ladunek);
 
-            await cmd.ExecuteNonQueryAsync();
+            foreach (var lad in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                var sqlInsert = @"INSERT INTO dbo.Ladunek 
+                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
+                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
+
+                using var cmdInsert = new SqlCommand(sqlInsert, cn);
+                cmdInsert.Parameters.AddWithValue("@KursID", lad.KursID);
+                cmdInsert.Parameters.AddWithValue("@Kolejnosc", lad.Kolejnosc);
+                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)lad.KodKlienta ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@Palety", lad.Palety);
+                cmdInsert.Parameters.AddWithValue("@Pojemniki", lad.PojemnikiE2);
+                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)lad.Uwagi ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@TrybE2", lad.TrybE2);
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
         }
 
         private async Task DeleteLadunekFromDatabase(long ladunekId)
         {
+            // Usuń z lokalnej listy
+            _ladunki.RemoveAll(l => l.LadunekID == ladunekId);
+
+            // Przenumeruj pozostałe
+            for (int i = 0; i < _ladunki.Count; i++)
+            {
+                _ladunki[i].Kolejnosc = i + 1;
+            }
+
+            // Usuń wszystkie i dodaj ponownie
             await using var cn = new SqlConnection(_connectionString);
             await cn.OpenAsync();
 
-            var sql = "DELETE FROM dbo.Ladunek WHERE LadunekID = @LadunekID";
+            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+            using var cmdDelete = new SqlCommand(sqlDelete, cn);
+            cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
+            await cmdDelete.ExecuteNonQueryAsync();
 
-            using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@LadunekID", ladunekId);
+            // Dodaj wszystkie z powrotem
+            foreach (var lad in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                var sqlInsert = @"INSERT INTO dbo.Ladunek 
+                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
+                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
 
-            await cmd.ExecuteNonQueryAsync();
+                using var cmdInsert = new SqlCommand(sqlInsert, cn);
+                cmdInsert.Parameters.AddWithValue("@KursID", lad.KursID);
+                cmdInsert.Parameters.AddWithValue("@Kolejnosc", lad.Kolejnosc);
+                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)lad.KodKlienta ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@Palety", lad.Palety);
+                cmdInsert.Parameters.AddWithValue("@Pojemniki", lad.PojemnikiE2);
+                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)lad.Uwagi ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@TrybE2", lad.TrybE2);
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
+        }
+
+        // Dodaj tę metodę pomocniczą do pobierania pojedynczego kursu
+        private async Task<Kurs> PobierzKursAsync(long kursId)
+        {
+            var kursy = await _repozytorium.PobierzKursyPoDacieAsync(DateTime.Today.AddYears(-1));
+            return kursy.FirstOrDefault(k => k.KursID == kursId);
         }
 
         private string _connectionString => "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
     }
 
-    // Dialog do dodawania kierowcy
-    public class DodajKierowceDialog : Form
+    // Dialog do zmiany kolejności ładunków
+    public class KolejnoscLadunkuDialog : Form
     {
-        public Kierowca NowyKierowca { get; private set; }
-        private TextBox txtImie, txtNazwisko, txtTelefon;
+        public List<EdytorKursuWithPalety.LadunekWithPalety> ZmienioneKolejnosci { get; private set; }
+        private ListBox lstLadunki;
+        private Button btnUp, btnDown, btnOK, btnCancel;
+        private List<EdytorKursuWithPalety.LadunekWithPalety> _ladunki;
 
-        public DodajKierowceDialog()
+        public KolejnoscLadunkuDialog(List<EdytorKursuWithPalety.LadunekWithPalety> ladunki)
         {
-            Text = "Dodaj nowego kierowcę";
-            Size = new Size(400, 250);
-            StartPosition = FormStartPosition.CenterParent;
-
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
-
-            txtImie = new TextBox { Dock = DockStyle.Fill };
-            txtNazwisko = new TextBox { Dock = DockStyle.Fill };
-            txtTelefon = new TextBox { Dock = DockStyle.Fill };
-
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-            layout.Controls.Add(new Label { Text = "Imię:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            layout.Controls.Add(txtImie, 1, 0);
-            layout.Controls.Add(new Label { Text = "Nazwisko:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            layout.Controls.Add(txtNazwisko, 1, 1);
-            layout.Controls.Add(new Label { Text = "Telefon:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-            layout.Controls.Add(txtTelefon, 1, 2);
-
-            var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
-            var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
-            var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
-
-            btnOK.Click += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtImie.Text) || string.IsNullOrWhiteSpace(txtNazwisko.Text))
-                {
-                    MessageBox.Show("Podaj imię i nazwisko.");
-                    DialogResult = DialogResult.None;
-                    return;
-                }
-
-                NowyKierowca = new Kierowca
-                {
-                    Imie = txtImie.Text.Trim(),
-                    Nazwisko = txtNazwisko.Text.Trim(),
-                    Telefon = string.IsNullOrWhiteSpace(txtTelefon.Text) ? null : txtTelefon.Text.Trim(),
-                    Aktywny = true
-                };
-            };
-
-            btnPanel.Controls.Add(btnCancel);
-            btnPanel.Controls.Add(btnOK);
-            layout.SetColumnSpan(btnPanel, 2);
-            layout.Controls.Add(btnPanel, 0, 3);
-
-            Controls.Add(layout);
+            _ladunki = ladunki.OrderBy(l => l.Kolejnosc).ToList();
+            InitializeComponent();
+            RefreshList();
         }
-    }
 
-    // Dialog do dodawania pojazdu
-    public class DodajPojazdDialog : Form
-    {
-        public Pojazd NowyPojazd { get; private set; }
-        private TextBox txtRejestracja, txtMarka, txtModel;
-        private NumericUpDown nudPalety;
-
-        public DodajPojazdDialog()
+        private void InitializeComponent()
         {
-            Text = "Dodaj nowy pojazd";
-            Size = new Size(400, 280);
+            Text = "Zmień kolejność ładunków";
+            Size = new Size(600, 500);
             StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
 
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
-
-            txtRejestracja = new TextBox { Dock = DockStyle.Fill };
-            txtMarka = new TextBox { Dock = DockStyle.Fill };
-            txtModel = new TextBox { Dock = DockStyle.Fill };
-            nudPalety = new NumericUpDown
+            lstLadunki = new ListBox
             {
-                Dock = DockStyle.Fill,
-                Minimum = 1,
-                Maximum = 50,
-                Value = 33
+                Location = new Point(20, 20),
+                Size = new Size(450, 400),
+                Font = new Font("Segoe UI", 10F)
             };
 
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+            btnUp = new Button
+            {
+                Text = "▲",
+                Location = new Point(480, 50),
+                Size = new Size(80, 40),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+            };
+            btnUp.Click += (s, e) => MoveItem(-1);
 
-            layout.Controls.Add(new Label { Text = "Rejestracja:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            layout.Controls.Add(txtRejestracja, 1, 0);
-            layout.Controls.Add(new Label { Text = "Marka:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            layout.Controls.Add(txtMarka, 1, 1);
-            layout.Controls.Add(new Label { Text = "Model:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);
-            layout.Controls.Add(txtModel, 1, 2);
-            layout.Controls.Add(new Label { Text = "Palety H1:", TextAlign = ContentAlignment.MiddleRight }, 0, 3);
-            layout.Controls.Add(nudPalety, 1, 3);
+            btnDown = new Button
+            {
+                Text = "▼",
+                Location = new Point(480, 100),
+                Size = new Size(80, 40),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+            };
+            btnDown.Click += (s, e) => MoveItem(1);
 
-            var btnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill };
-            var btnOK = new Button { Text = "Dodaj", DialogResult = DialogResult.OK, Width = 80 };
-            var btnCancel = new Button { Text = "Anuluj", DialogResult = DialogResult.Cancel, Width = 80 };
-
-            btnOK.Click += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtRejestracja.Text))
+            btnOK = new Button
+            {
+                Text = "OK",
+                Location = new Point(380, 430),
+                Size = new Size(90, 30),
+                DialogResult = DialogResult.OK
+            };
+            btnOK.Click += (s, e) =>
+            {
+                for (int i = 0; i < _ladunki.Count; i++)
                 {
-                    MessageBox.Show("Podaj numer rejestracyjny.");
-                    DialogResult = DialogResult.None;
-                    return;
+                    _ladunki[i].Kolejnosc = i + 1;
                 }
-
-                NowyPojazd = new Pojazd
-                {
-                    Rejestracja = txtRejestracja.Text.Trim().ToUpper(),
-                    Marka = string.IsNullOrWhiteSpace(txtMarka.Text) ? null : txtMarka.Text.Trim(),
-                    Model = string.IsNullOrWhiteSpace(txtModel.Text) ? null : txtModel.Text.Trim(),
-                    PaletyH1 = (int)nudPalety.Value,
-                    Aktywny = true
-                };
+                ZmienioneKolejnosci = _ladunki;
             };
 
-            btnPanel.Controls.Add(btnCancel);
-            btnPanel.Controls.Add(btnOK);
-            layout.SetColumnSpan(btnPanel, 2);
-            layout.Controls.Add(btnPanel, 0, 4);
+            btnCancel = new Button
+            {
+                Text = "Anuluj",
+                Location = new Point(480, 430),
+                Size = new Size(90, 30),
+                DialogResult = DialogResult.Cancel
+            };
 
-            Controls.Add(layout);
+            Controls.AddRange(new Control[] { lstLadunki, btnUp, btnDown, btnOK, btnCancel });
+        }
+
+        private void RefreshList()
+        {
+            lstLadunki.Items.Clear();
+            foreach (var ladunek in _ladunki)
+            {
+                string text = $"{ladunek.Kolejnosc}. {ladunek.NazwaKlienta ?? ladunek.KodKlienta} - {ladunek.Palety:N1} palet";
+                lstLadunki.Items.Add(text);
+            }
+        }
+
+        private void MoveItem(int direction)
+        {
+            int index = lstLadunki.SelectedIndex;
+            if (index < 0) return;
+
+            int newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= _ladunki.Count) return;
+
+            var temp = _ladunki[index];
+            _ladunki[index] = _ladunki[newIndex];
+            _ladunki[newIndex] = temp;
+
+            RefreshList();
+            lstLadunki.SelectedIndex = newIndex;
         }
     }
 }
