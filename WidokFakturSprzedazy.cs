@@ -20,7 +20,7 @@ namespace Kalendarz1
         private readonly Dictionary<string, string> mapaHandlowcow = new Dictionary<string, string>
         {
             { "9991", "Dawid" },
-            { "9998", "Daniel" },
+            { "9998", "Daniel, Jola" },
             { "871231", "Radek" },
             { "432143", "Ania" }
             // Można tu dodać więcej mapowań
