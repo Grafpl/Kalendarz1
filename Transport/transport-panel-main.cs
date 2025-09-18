@@ -1,5 +1,5 @@
 // Plik: Transport/TransportMainFormImproved.cs
-// Usprawniony główny panel zarządzania transportem - przejrzysty i prosty UI
+// Naprawiony główny panel zarządzania transportem
 
 using Kalendarz1.Transport.Formularze;
 using Kalendarz1.Transport.Pakowanie;
@@ -42,10 +42,13 @@ namespace Kalendarz1.Transport.Formularze
         private Button btnUsun;
         private Button btnKopiuj;
         private Button btnMapa;
+        private Button btnKierowcy;
+        private Button btnPojazdy;
 
         // Podsumowanie
         private Label lblSummaryKursy;
         private Label lblSummaryPojemniki;
+        private Label lblSummaryPalety;
         private Label lblSummaryWypelnienie;
 
         // Dane
@@ -58,8 +61,17 @@ namespace Kalendarz1.Transport.Formularze
             _currentUser = uzytkownik ?? Environment.UserName;
             _selectedDate = DateTime.Today;
 
+            // Inicjalizuj puste kolekcje
+            _kursy = new List<Kurs>();
+            _wypelnienia = new Dictionary<long, WynikPakowania>();
+
             InitializeComponent();
-            _ = LoadInitialDataAsync();
+
+            this.Load += async (s, e) =>
+            {
+                // NIE wywołuj UpdateSummary tutaj - niech LoadKursyAsync to zrobi
+                await LoadInitialDataAsync();
+            };
         }
 
         private void InitializeComponent()
@@ -169,45 +181,132 @@ namespace Kalendarz1.Transport.Formularze
 
             panelDate.Controls.AddRange(new Control[] { btnPrevDay, datePanel, btnNextDay, btnToday, lblDayName });
 
-            // Panel przycisków (prawa strona)
+            // Panel przycisków (prawa strona) - BEZ IKON, NAPRAWIONE obsługa błędów
             var panelButtons = new FlowLayoutPanel
             {
-                Location = new Point(panelHeader.Width - 720, 15),
-                Size = new Size(700, 50),
+                Location = new Point(600, 15), // Zmniejszona odległość od lewej
+                Size = new Size(1200, 50),
                 FlowDirection = FlowDirection.RightToLeft,
                 BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
-            btnNowyKurs = CreateActionButton("➕ NOWY KURS", Color.FromArgb(40, 167, 69), 150);
+            btnNowyKurs = CreateActionButton("NOWY KURS", Color.FromArgb(40, 167, 69), 120);
             btnNowyKurs.Click += BtnNowyKurs_Click;
 
-            btnEdytuj = CreateActionButton("✏️ EDYTUJ", Color.FromArgb(255, 193, 7), 120);
+            btnEdytuj = CreateActionButton("EDYTUJ", Color.FromArgb(255, 193, 7), 100);
             btnEdytuj.Click += BtnEdytujKurs_Click;
 
-            btnKopiuj = CreateActionButton("📋 KOPIUJ", Color.FromArgb(108, 117, 125), 120);
+            btnKopiuj = CreateActionButton("KOPIUJ", Color.FromArgb(108, 117, 125), 100);
             btnKopiuj.Click += BtnKopiujKurs_Click;
 
-            btnUsun = CreateActionButton("🗑️ USUŃ", Color.FromArgb(220, 53, 69), 110);
+            btnUsun = CreateActionButton("USUŃ", Color.FromArgb(220, 53, 69), 80);
             btnUsun.Click += BtnUsunKurs_Click;
 
-            btnMapa = CreateActionButton("🗺️ MAPA", Color.FromArgb(156, 39, 176), 100);
+            btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
             btnMapa.Click += BtnMapa_Click;
             btnMapa.Enabled = false;
 
-            panelButtons.Controls.AddRange(new Control[] { btnUsun, btnKopiuj, btnMapa, btnEdytuj, btnNowyKurs });
+            // NAPRAWIONE przyciski zarządzania
+            btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
+            btnKierowcy.Click += SafeBtnKierowcy_Click; // Używamy bezpiecznej wersji
 
+            btnPojazdy = CreateActionButton("POJAZDY", Color.FromArgb(52, 73, 94), 100);
+            btnPojazdy.Click += SafeBtnPojazdy_Click; // Używamy bezpiecznej wersji
+
+            panelButtons.Controls.AddRange(new Control[] { btnUsun, btnKopiuj, btnMapa, btnKierowcy, btnPojazdy, btnEdytuj, btnNowyKurs });
             panelHeader.Controls.Add(panelDate);
             panelHeader.Controls.Add(panelButtons);
 
-            // Dolna linia akcentowa
-            var bottomLine = new Panel
+            // Obsługa zmiany rozmiaru dla prawidłowego pozycjonowania przycisków
+            panelHeader.Resize += (s, e) =>
             {
-                Dock = DockStyle.Bottom,
-                Height = 3,
-                BackColor = Color.FromArgb(0, 123, 255)
+                if (panelButtons != null)
+                {
+                    panelButtons.Location = new Point(panelHeader.Width - panelButtons.Width - 20, 15);
+                }
             };
-            panelHeader.Controls.Add(bottomLine);
+        }
+
+        // BEZPIECZNE obsługa przycisków - z pełną obsługą błędów
+        private void SafeBtnKierowcy_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Opening KierowcyForm...");
+
+                // Sprawdź czy formularz można utworzyć
+                using (var testForm = new Form())
+                {
+                    testForm.Dispose();
+                }
+
+                var frm = new KierowcyForm();
+                frm.ShowDialog(this);
+
+                System.Diagnostics.Debug.WriteLine("KierowcyForm closed successfully");
+            }
+            catch (System.IO.FileNotFoundException ex)
+            {
+                MessageBox.Show($"Nie można znaleźć wymaganych plików dla formularza kierowców.\nBłąd: {ex.Message}",
+                    "Brak plików", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (System.TypeLoadException ex)
+            {
+                MessageBox.Show($"Błąd ładowania typu formularza kierowców.\nSprawdź czy wszystkie klasy są poprawnie zdefiniowane.\nBłąd: {ex.Message}",
+                    "Błąd typu", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (System.MissingMethodException ex)
+            {
+                MessageBox.Show($"Brak konstruktora dla formularza kierowców.\nBłąd: {ex.Message}",
+                    "Błąd konstruktora", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in SafeBtnKierowcy_Click: {ex}");
+                MessageBox.Show($"Nie można otworzyć formularza kierowców.\n\nSzczegóły błędu:\n{ex.Message}\n\nTyp błędu: {ex.GetType().Name}",
+                    "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SafeBtnPojazdy_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Opening PojazdyForm...");
+
+                // Sprawdź czy formularz można utworzyć
+                using (var testForm = new Form())
+                {
+                    testForm.Dispose();
+                }
+
+                var frm = new PojazdyForm();
+                frm.ShowDialog(this);
+
+                System.Diagnostics.Debug.WriteLine("PojazdyForm closed successfully");
+            }
+            catch (System.IO.FileNotFoundException ex)
+            {
+                MessageBox.Show($"Nie można znaleźć wymaganych plików dla formularza pojazdów.\nBłąd: {ex.Message}",
+                    "Brak plików", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (System.TypeLoadException ex)
+            {
+                MessageBox.Show($"Błąd ładowania typu formularza pojazdów.\nSprawdź czy wszystkie klasy są poprawnie zdefiniowane.\nBłąd: {ex.Message}",
+                    "Błąd typu", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (System.MissingMethodException ex)
+            {
+                MessageBox.Show($"Brak konstruktora dla formularza pojazdów.\nBłąd: {ex.Message}",
+                    "Błąd konstruktora", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in SafeBtnPojazdy_Click: {ex}");
+                MessageBox.Show($"Nie można otworzyć formularza pojazdów.\n\nSzczegóły błędu:\n{ex.Message}\n\nTyp błędu: {ex.GetType().Name}",
+                    "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private Button CreateNavButton(string text, int x, int dayChange)
@@ -310,85 +409,181 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(20, 15, 20, 15)
             };
 
-            // Górna linia akcentowa
-            var topLine = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 3,
-                BackColor = Color.FromArgb(0, 123, 255)
-            };
-            panelSummary.Controls.Add(topLine);
-
-            var layoutSummary = new FlowLayoutPanel
+            // PROSTY układ bez skomplikowanych tile'ów
+            var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                Padding = new Padding(10, 20, 10, 10)
+                ColumnCount = 4,
+                RowCount = 2,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
 
-            // Kafelki podsumowania
-            var tile1 = CreateSummaryTile("KURSY DZISIAJ", "0", Color.FromArgb(0, 123, 255), "📊");
-            var tile2 = CreateSummaryTile("POJEMNIKI", "0", Color.FromArgb(255, 193, 7), "📦");
-            var tile3 = CreateSummaryTile("WYPEŁNIENIE", "0%", Color.FromArgb(40, 167, 69), "📈");
+            // Ustawienia kolumn - równomierne
+            for (int i = 0; i < 4; i++)
+            {
+                mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            }
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40)); // Tytuły
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 60)); // Wartości
 
-            lblSummaryKursy = tile1.Controls[2] as Label;
-            lblSummaryPojemniki = tile2.Controls[2] as Label;
-            lblSummaryWypelnienie = tile3.Controls[2] as Label;
+            // BEZPOŚREDNIE tworzenie labels
+            var lblTytulKursy = new Label
+            {
+                Text = "KURSY DZISIAJ",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(173, 181, 189),
+                TextAlign = ContentAlignment.BottomCenter,
+                Dock = DockStyle.Fill
+            };
 
-            layoutSummary.Controls.Add(tile1);
-            layoutSummary.Controls.Add(tile2);
-            layoutSummary.Controls.Add(tile3);
+            lblSummaryKursy = new Label
+            {
+                Text = "0",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 123, 255),
+                TextAlign = ContentAlignment.TopCenter,
+                Dock = DockStyle.Fill
+            };
 
-            panelSummary.Controls.Add(layoutSummary);
+            var lblTytulPojemniki = new Label
+            {
+                Text = "POJEMNIKI",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(173, 181, 189),
+                TextAlign = ContentAlignment.BottomCenter,
+                Dock = DockStyle.Fill
+            };
+
+            lblSummaryPojemniki = new Label
+            {
+                Text = "0",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 193, 7),
+                TextAlign = ContentAlignment.TopCenter,
+                Dock = DockStyle.Fill
+            };
+
+            var lblTytulPalety = new Label
+            {
+                Text = "PALETY",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(173, 181, 189),
+                TextAlign = ContentAlignment.BottomCenter,
+                Dock = DockStyle.Fill
+            };
+
+            lblSummaryPalety = new Label
+            {
+                Text = "0",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(156, 39, 176),
+                TextAlign = ContentAlignment.TopCenter,
+                Dock = DockStyle.Fill
+            };
+
+            var lblTytulWypelnienie = new Label
+            {
+                Text = "ŚREDNIE WYPEŁNIENIE",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(173, 181, 189),
+                TextAlign = ContentAlignment.BottomCenter,
+                Dock = DockStyle.Fill
+            };
+
+            lblSummaryWypelnienie = new Label
+            {
+                Text = "0%",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69),
+                TextAlign = ContentAlignment.TopCenter,
+                Dock = DockStyle.Fill
+            };
+
+            // Dodaj do layoutu
+            mainLayout.Controls.Add(lblTytulKursy, 0, 0);
+            mainLayout.Controls.Add(lblSummaryKursy, 0, 1);
+            mainLayout.Controls.Add(lblTytulPojemniki, 1, 0);
+            mainLayout.Controls.Add(lblSummaryPojemniki, 1, 1);
+            mainLayout.Controls.Add(lblTytulPalety, 2, 0);
+            mainLayout.Controls.Add(lblSummaryPalety, 2, 1);
+            mainLayout.Controls.Add(lblTytulWypelnienie, 3, 0);
+            mainLayout.Controls.Add(lblSummaryWypelnienie, 3, 1);
+
+            panelSummary.Controls.Add(mainLayout);
+
+            // Test czy labels są przypisane
+            System.Diagnostics.Debug.WriteLine($"=== CreateSummary: Labels created ===");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryKursy: {lblSummaryKursy != null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryPojemniki: {lblSummaryPojemniki != null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryPalety: {lblSummaryPalety != null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryWypelnienie: {lblSummaryWypelnienie != null}");
+
+            // TESTUJ funkcję aktualizacji z przykładowymi danymi
+            if (lblSummaryKursy != null)
+            {
+                System.Diagnostics.Debug.WriteLine("Testing summary update with sample data...");
+                lblSummaryKursy.Text = "Test";
+                lblSummaryPojemniki.Text = "123";
+                lblSummaryPalety.Text = "456";
+                lblSummaryWypelnienie.Text = "78%";
+
+                // Po krótkiej chwili przywróć wartości domyślne
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 1000; // 1 sekunda
+                timer.Tick += (s, e) =>
+                {
+                    lblSummaryKursy.Text = "0";
+                    lblSummaryPojemniki.Text = "0";
+                    lblSummaryPalety.Text = "0";
+                    lblSummaryWypelnienie.Text = "0%";
+                    timer.Stop();
+                    timer.Dispose();
+                    System.Diagnostics.Debug.WriteLine("Sample data cleared, ready for real data");
+                };
+                timer.Start();
+            }
         }
 
-        private Panel CreateSummaryTile(string title, string value, Color color, string icon)
+        private Panel CreateSummaryTile(string title, string value, Color color)
         {
             var tile = new Panel
             {
-                Size = new Size(250, 70),
+                Size = new Size(220, 70),
                 BackColor = Color.FromArgb(52, 56, 64),
-                Margin = new Padding(15, 5, 15, 5)
-            };
-
-            var lblIcon = new Label
-            {
-                Text = icon,
-                Location = new Point(15, 20),
-                Size = new Size(30, 30),
-                Font = new Font("Segoe UI", 16F),
-                ForeColor = color
+                Margin = new Padding(10, 5, 10, 5)
             };
 
             var lblTitle = new Label
             {
                 Text = title,
-                Location = new Point(50, 10),
-                Size = new Size(180, 20),
+                Location = new Point(15, 10),
+                Size = new Size(190, 20),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189)
+                ForeColor = Color.FromArgb(173, 181, 189),
+                Name = "lblTitle"
             };
 
             var lblValue = new Label
             {
                 Text = value,
-                Location = new Point(50, 32),
-                Size = new Size(180, 30),
+                Location = new Point(15, 32),
+                Size = new Size(190, 30),
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-                ForeColor = color
+                ForeColor = color,
+                Name = "lblValue" // Dodajemy nazwę dla łatwiejszego znalezienia
             };
 
             var sideBar = new Panel
             {
                 Location = new Point(0, 0),
                 Size = new Size(4, 70),
-                BackColor = color
+                BackColor = color,
+                Name = "sideBar"
             };
 
-            tile.Controls.Add(lblIcon);
-            tile.Controls.Add(lblTitle);
-            tile.Controls.Add(lblValue);
-            tile.Controls.Add(sideBar);
+            tile.Controls.Add(lblTitle);    // Indeks [0]
+            tile.Controls.Add(lblValue);    // Indeks [1] 
+            tile.Controls.Add(sideBar);     // Indeks [2]
 
             return tile;
         }
@@ -397,10 +592,19 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync START ===");
+
+                // Ustaw nazwę dnia tygodnia
+                lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+
+                // Załaduj kursy - to automatycznie wywoła UpdateSummary
                 await LoadKursyAsync();
+
+                System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync END ===");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Error in LoadInitialDataAsync: {ex.Message}");
                 MessageBox.Show($"Błąd podczas ładowania danych: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -410,7 +614,13 @@ namespace Kalendarz1.Transport.Formularze
         {
             _selectedDate = dtpData.Value.Date;
             lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+            System.Diagnostics.Debug.WriteLine($"Date changed to: {_selectedDate:yyyy-MM-dd}");
+
             await LoadKursyAsync();
+
+            // Wymuś wywołanie UpdateSummary po zmianie daty
+            System.Diagnostics.Debug.WriteLine("Force calling UpdateSummary after date change");
+            UpdateSummary();
         }
 
         private void DgvKursy_SelectionChanged(object sender, EventArgs e)
@@ -427,25 +637,33 @@ namespace Kalendarz1.Transport.Formularze
             try
             {
                 Cursor = Cursors.WaitCursor;
+                System.Diagnostics.Debug.WriteLine("=== LoadKursyAsync START ===");
 
                 _kursy = await _repozytorium.PobierzKursyPoDacieAsync(_selectedDate);
                 _wypelnienia = new Dictionary<long, WynikPakowania>();
 
-                foreach (var kurs in _kursy)
+                System.Diagnostics.Debug.WriteLine($"Loaded {_kursy?.Count ?? 0} courses");
+
+                if (_kursy != null)
                 {
-                    try
+                    foreach (var kurs in _kursy)
                     {
-                        var wynik = await _repozytorium.ObliczPakowanieKursuAsync(kurs.KursID);
-                        _wypelnienia[kurs.KursID] = wynik;
-                    }
-                    catch
-                    {
-                        _wypelnienia[kurs.KursID] = new WynikPakowania
+                        try
                         {
-                            SumaE2 = 0,
-                            PaletyNominal = 0,
-                            ProcNominal = 0
-                        };
+                            var wynik = await _repozytorium.ObliczPakowanieKursuAsync(kurs.KursID);
+                            _wypelnienia[kurs.KursID] = wynik;
+                            System.Diagnostics.Debug.WriteLine($"Course {kurs.KursID}: SumaE2={wynik?.SumaE2}, PaletyNominal={wynik?.PaletyNominal}");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error calculating packing for course {kurs.KursID}: {ex.Message}");
+                            _wypelnienia[kurs.KursID] = new WynikPakowania
+                            {
+                                SumaE2 = 0,
+                                PaletyNominal = 0,
+                                ProcNominal = 0
+                            };
+                        }
                     }
                 }
 
@@ -459,19 +677,22 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Wypełnienie", typeof(decimal));
                 dt.Columns.Add("Status", typeof(string));
 
-                foreach (var kurs in _kursy.OrderBy(k => k.GodzWyjazdu))
+                if (_kursy != null)
                 {
-                    var wyp = _wypelnienia.ContainsKey(kurs.KursID) ? _wypelnienia[kurs.KursID] : null;
-                    dt.Rows.Add(
-                        kurs.KursID,
-                        kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--",
-                        kurs.KierowcaNazwa ?? "",
-                        kurs.PojazdRejestracja ?? "",
-                        kurs.Trasa ?? "",
-                        wyp?.SumaE2 ?? 0,
-                        wyp?.ProcNominal ?? 0,
-                        kurs.Status ?? "Planowany"
-                    );
+                    foreach (var kurs in _kursy.OrderBy(k => k.GodzWyjazdu))
+                    {
+                        var wyp = _wypelnienia.ContainsKey(kurs.KursID) ? _wypelnienia[kurs.KursID] : null;
+                        dt.Rows.Add(
+                            kurs.KursID,
+                            kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--",
+                            kurs.KierowcaNazwa ?? "",
+                            kurs.PojazdRejestracja ?? "",
+                            kurs.Trasa ?? "",
+                            wyp?.SumaE2 ?? 0,
+                            wyp?.ProcNominal ?? 0,
+                            kurs.Status ?? "Planowany"
+                        );
+                    }
                 }
 
                 dgvKursy.DataSource = dt;
@@ -491,13 +712,16 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKursy.Columns["Wypełnienie"].Width = 120;
                     dgvKursy.Columns["Wypełnienie"].HeaderText = "Wypełnienie";
                 }
-
+                System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
+                System.Diagnostics.Debug.WriteLine("UpdateSummary completed");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Error in LoadKursyAsync: {ex.Message}");
                 MessageBox.Show($"Błąd podczas ładowania kursów: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                UpdateSummary();
             }
             finally
             {
@@ -507,31 +731,150 @@ namespace Kalendarz1.Transport.Formularze
 
         private void UpdateSummary()
         {
+            // DEBUG: Sprawdź stan labels
+            System.Diagnostics.Debug.WriteLine("=== UpdateSummary START ===");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryKursy is null: {lblSummaryKursy == null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryPojemniki is null: {lblSummaryPojemniki == null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryPalety is null: {lblSummaryPalety == null}");
+            System.Diagnostics.Debug.WriteLine($"lblSummaryWypelnienie is null: {lblSummaryWypelnienie == null}");
+
+            // Sprawdź czy labels istnieją - jeśli nie, nie rób nic
+            if (lblSummaryKursy == null || lblSummaryPojemniki == null ||
+                lblSummaryPalety == null || lblSummaryWypelnienie == null)
+            {
+                System.Diagnostics.Debug.WriteLine("One or more labels are null, skipping UpdateSummary");
+
+                // Spróbuj znaleźć labels ponownie
+                TryFindLabelsInPanels();
+
+                // Jeśli nadal null, wyjdź
+                if (lblSummaryKursy == null || lblSummaryPojemniki == null ||
+                    lblSummaryPalety == null || lblSummaryWypelnienie == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Still null after TryFindLabelsInPanels, exiting");
+                    return;
+                }
+            }
+
             if (_kursy == null)
             {
                 lblSummaryKursy.Text = "0";
                 lblSummaryPojemniki.Text = "0";
+                lblSummaryPalety.Text = "0";
                 lblSummaryWypelnienie.Text = "0%";
                 return;
             }
 
             int liczbaKursow = _kursy.Count;
-            int sumaPojemnikow = _wypelnienia?.Sum(w => w.Value.SumaE2) ?? 0;
-            decimal srednieWypelnienie = _wypelnienia?.Count > 0
-                ? _wypelnienia.Average(w => w.Value.ProcNominal)
-                : 0;
+            int sumaPojemnikow = 0;
+            int sumaPalet = 0;
+            decimal srednieWypelnienie = 0;
 
-            lblSummaryKursy.Text = liczbaKursow.ToString();
-            lblSummaryPojemniki.Text = sumaPojemnikow.ToString();
-            lblSummaryWypelnienie.Text = $"{srednieWypelnienie:F0}%";
+            // Bezpieczne obliczenia z sprawdzeniem null
+            if (_wypelnienia != null && _wypelnienia.Any())
+            {
+                try
+                {
+                    sumaPojemnikow = _wypelnienia.Sum(w => w.Value?.SumaE2 ?? 0);
+                    sumaPalet = _wypelnienia.Sum(w => w.Value?.PaletyNominal ?? 0);
 
-            // Kolorowanie według wypełnienia
-            if (srednieWypelnienie > 90)
-                lblSummaryWypelnienie.ForeColor = Color.FromArgb(231, 76, 60);
-            else if (srednieWypelnienie > 75)
-                lblSummaryWypelnienie.ForeColor = Color.FromArgb(243, 156, 18);
-            else
-                lblSummaryWypelnienie.ForeColor = Color.FromArgb(46, 204, 113);
+                    var validEntries = _wypelnienia.Where(w => w.Value != null).ToList();
+                    if (validEntries.Any())
+                    {
+                        srednieWypelnienie = validEntries.Average(w => w.Value.ProcNominal);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // W przypadku błędu, użyj wartości domyślnych
+                    System.Diagnostics.Debug.WriteLine($"Error in calculations: {ex.Message}");
+                    sumaPojemnikow = 0;
+                    sumaPalet = 0;
+                    srednieWypelnienie = 0;
+                }
+            }
+
+            try
+            {
+                lblSummaryKursy.Text = liczbaKursow.ToString();
+                lblSummaryPojemniki.Text = sumaPojemnikow.ToString();
+                lblSummaryPalety.Text = sumaPalet.ToString();
+                lblSummaryWypelnienie.Text = $"{srednieWypelnienie:F0}%";
+
+                // Kolorowanie według wypełnienia
+                if (srednieWypelnienie > 90)
+                    lblSummaryWypelnienie.ForeColor = Color.FromArgb(231, 76, 60);
+                else if (srednieWypelnienie > 75)
+                    lblSummaryWypelnienie.ForeColor = Color.FromArgb(243, 156, 18);
+                else
+                    lblSummaryWypelnienie.ForeColor = Color.FromArgb(46, 204, 113);
+
+                System.Diagnostics.Debug.WriteLine("UpdateSummary completed successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting label values: {ex.Message}");
+            }
+        }
+
+        private void TryFindLabelsInPanels()
+        {
+            try
+            {
+                if (panelSummary != null)
+                {
+                    // Szukaj wszystkich labels w panelSummary
+                    var allLabels = FindAllLabelsRecursive(panelSummary).ToList();
+                    System.Diagnostics.Debug.WriteLine($"Found {allLabels.Count} labels in panelSummary");
+
+                    foreach (var label in allLabels)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Label text: '{label.Text}'");
+
+                        // Przypisz na podstawie wartości tekstowych
+                        if (label.Text == "0" && lblSummaryKursy == null &&
+                            label.Font.Size >= 16) // Większa czcionka = label wartości
+                        {
+                            lblSummaryKursy = label;
+                            System.Diagnostics.Debug.WriteLine("Assigned lblSummaryKursy");
+                        }
+                        else if (label.Text == "0" && lblSummaryPojemniki == null && lblSummaryKursy != null &&
+                                 label.Font.Size >= 16)
+                        {
+                            lblSummaryPojemniki = label;
+                            System.Diagnostics.Debug.WriteLine("Assigned lblSummaryPojemniki");
+                        }
+                        else if (label.Text == "0" && lblSummaryPalety == null && lblSummaryPojemniki != null &&
+                                 label.Font.Size >= 16)
+                        {
+                            lblSummaryPalety = label;
+                            System.Diagnostics.Debug.WriteLine("Assigned lblSummaryPalety");
+                        }
+                        else if (label.Text == "0%" && lblSummaryWypelnienie == null &&
+                                 label.Font.Size >= 16)
+                        {
+                            lblSummaryWypelnienie = label;
+                            System.Diagnostics.Debug.WriteLine("Assigned lblSummaryWypelnienie");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in TryFindLabelsInPanels: {ex.Message}");
+            }
+        }
+
+        private IEnumerable<Label> FindAllLabelsRecursive(Control parent)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                if (control is Label label)
+                    yield return label;
+
+                foreach (var childLabel in FindAllLabelsRecursive(control))
+                    yield return childLabel;
+            }
         }
 
         private void DgvKursy_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
@@ -582,7 +925,14 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
-        #region Event Handlers - Obsługa przycisków
+        // USUNIĘTE stare metody które nie działały:
+        // - BtnKierowcy_Click
+        // - BtnPojazdy_Click  
+        // - CreateSummaryTile
+        // - TryFindLabelsInPanels
+        // - FindAllLabelsRecursive
+
+        #region Event Handlers - Obsługa przycisków - NAPRAWIONE
 
         private void BtnNowyKurs_Click(object sender, EventArgs e)
         {

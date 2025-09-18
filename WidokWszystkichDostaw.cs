@@ -20,8 +20,6 @@ namespace Kalendarz1
         private Timer filterTimer;
 
         // Kontrolki UI
-        private DateTimePicker dateFromPicker;
-        private DateTimePicker dateToPicker;
         private ComboBox comboBoxDostawca;
         private ComboBox comboBoxStatus;
 
@@ -31,7 +29,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             InitializeUI();
-            LoadDataInitial(); // Specjalna metoda dla pierwszego ładowania
+            LoadDataInitial();
         }
 
         private void InitializeUI()
@@ -59,51 +57,20 @@ namespace Kalendarz1
             filterGroup.Controls.Add(lblSearch);
 
             textBox1.Location = new Point(65, 22);
-            textBox1.Width = 150;
-            // Filtrowanie na żywo po wpisaniu
+            textBox1.Width = 200;
             textBox1.TextChanged += TextBox1_TextChanged;
             filterGroup.Controls.Add(textBox1);
-
-            // Data od - USTAWIONA NA 2023
-            Label lblDateFrom = new Label();
-            lblDateFrom.Text = "Data od:";
-            lblDateFrom.Location = new Point(230, 25);
-            lblDateFrom.Width = 55;
-            filterGroup.Controls.Add(lblDateFrom);
-
-            dateFromPicker = new DateTimePicker();
-            dateFromPicker.Location = new Point(290, 22);
-            dateFromPicker.Width = 100;
-            dateFromPicker.Format = DateTimePickerFormat.Short;
-            dateFromPicker.Value = new DateTime(2023, 1, 1);
-            dateFromPicker.ValueChanged += (s, e) => { if (!isLoading) ApplyFilters(); };
-            filterGroup.Controls.Add(dateFromPicker);
-
-            // Data do
-            Label lblDateTo = new Label();
-            lblDateTo.Text = "Data do:";
-            lblDateTo.Location = new Point(400, 25);
-            lblDateTo.Width = 55;
-            filterGroup.Controls.Add(lblDateTo);
-
-            dateToPicker = new DateTimePicker();
-            dateToPicker.Location = new Point(460, 22);
-            dateToPicker.Width = 100;
-            dateToPicker.Format = DateTimePickerFormat.Short;
-            dateToPicker.Value = DateTime.Now;
-            dateToPicker.ValueChanged += (s, e) => { if (!isLoading) ApplyFilters(); };
-            filterGroup.Controls.Add(dateToPicker);
 
             // Dostawca
             Label lblDostawca = new Label();
             lblDostawca.Text = "Dostawca:";
-            lblDostawca.Location = new Point(580, 25);
+            lblDostawca.Location = new Point(280, 25);
             lblDostawca.Width = 65;
             filterGroup.Controls.Add(lblDostawca);
 
             comboBoxDostawca = new ComboBox();
-            comboBoxDostawca.Location = new Point(650, 22);
-            comboBoxDostawca.Width = 200;
+            comboBoxDostawca.Location = new Point(350, 22);
+            comboBoxDostawca.Width = 250;
             comboBoxDostawca.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxDostawca.SelectedIndexChanged += (s, e) => { if (!isLoading) ApplyFilters(); };
             filterGroup.Controls.Add(comboBoxDostawca);
@@ -111,13 +78,13 @@ namespace Kalendarz1
             // Status
             Label lblStatus = new Label();
             lblStatus.Text = "Status:";
-            lblStatus.Location = new Point(870, 25);
+            lblStatus.Location = new Point(620, 25);
             lblStatus.Width = 50;
             filterGroup.Controls.Add(lblStatus);
 
             comboBoxStatus = new ComboBox();
-            comboBoxStatus.Location = new Point(925, 22);
-            comboBoxStatus.Width = 120;
+            comboBoxStatus.Location = new Point(675, 22);
+            comboBoxStatus.Width = 150;
             comboBoxStatus.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBoxStatus.Items.AddRange(new[] { "Wszystkie", "Potwierdzony", "Anulowany", "Sprzedany", "B.Kontr.", "B.Wolny.", "Do wykupienia" });
             comboBoxStatus.SelectedIndex = 0;
@@ -152,8 +119,18 @@ namespace Kalendarz1
             btnExport.Click += (s, e) => ExportToCSV();
             filterGroup.Controls.Add(btnExport);
 
+            Button btnAnalysis = new Button();
+            btnAnalysis.Text = "Analiza K/W";
+            btnAnalysis.Location = new Point(280, 55);
+            btnAnalysis.Width = 90;
+            btnAnalysis.FlatStyle = FlatStyle.Flat;
+            btnAnalysis.BackColor = Color.FromArgb(255, 230, 150);
+            btnAnalysis.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            btnAnalysis.Click += (s, e) => ShowContractAnalysis();
+            filterGroup.Controls.Add(btnAnalysis);
+
             // CheckBox grupowanie
-            checkBoxGroupBySupplier.Location = new Point(290, 55);
+            checkBoxGroupBySupplier.Location = new Point(380, 55);
             checkBoxGroupBySupplier.Width = 160;
             checkBoxGroupBySupplier.Text = "Grupuj po dostawcy";
             checkBoxGroupBySupplier.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -163,7 +140,7 @@ namespace Kalendarz1
             // Label ze statystykami
             Label lblStats = new Label();
             lblStats.Name = "lblStats";
-            lblStats.Location = new Point(460, 55);
+            lblStats.Location = new Point(550, 55);
             lblStats.Width = 600;
             lblStats.Text = "Statystyki: Ładowanie...";
             lblStats.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -214,7 +191,11 @@ namespace Kalendarz1
 
             // Dodaj obsługę sortowania po kliknięciu nagłówka
             dataGridView1.ColumnHeaderMouseClick += DataGridView1_ColumnHeaderMouseClick;
+
+
         }
+
+       
 
         private void EnableDoubleBuffering()
         {
@@ -225,7 +206,6 @@ namespace Kalendarz1
                 pi.SetValue(dataGridView1, true, null);
         }
 
-        // Specjalna metoda dla pierwszego ładowania - bez żadnych komunikatów
         private void LoadDataInitial()
         {
             try
@@ -237,16 +217,53 @@ namespace Kalendarz1
                 {
                     string query = @"
                         SELECT 
-                            LP, DostawcaID, DataOdbioru, Dostawca, Auta, 
-                            SztukiDek, WagaDek, SztSzuflada, TypUmowy, TypCeny, 
-                            Cena, PaszaPisklak, Bufor, UWAGI, LpW, LpP1, LpP2,
-                            Utworzone, Wysłane, Otrzymane, PotwWaga, KtoWaga, 
-                            KiedyWaga, PotwSztuki, KtoSztuki, KiedySztuki, 
-                            PotwCena, Dodatek, Kurnik, KmK, KmH, Ubiorka, 
-                            Ubytek, DataUtw, KtoStwo, DataMod, KtoMod, 
-                            CzyOdznaczoneWstawienie
-                        FROM [LibraNet].[dbo].[HarmonogramDostaw] 
-                        ORDER BY LP DESC";
+                            HD.LP, 
+                            HD.DostawcaID, 
+                            HD.DataOdbioru, 
+                            HD.Dostawca, 
+                            HD.Auta, 
+                            HD.SztukiDek, 
+                            HD.WagaDek, 
+                            HD.SztSzuflada, 
+                            HD.TypUmowy, 
+                            HD.TypCeny, 
+                            HD.Cena, 
+                            HD.PaszaPisklak, 
+                            HD.Bufor, 
+                            HD.UWAGI, 
+                            HD.LpW, 
+                            HD.LpP1, 
+                            HD.LpP2,
+                            HD.Utworzone, 
+                            HD.Wysłane, 
+                            HD.Otrzymane, 
+                            HD.PotwWaga, 
+                            HD.KtoWaga, 
+                            HD.KiedyWaga, 
+                            HD.PotwSztuki, 
+                            HD.KtoSztuki, 
+                            HD.KiedySztuki, 
+                            HD.PotwCena, 
+                            HD.Dodatek, 
+                            HD.Kurnik, 
+                            HD.KmK, 
+                            HD.KmH, 
+                            HD.Ubiorka, 
+                            HD.Ubytek, 
+                            HD.DataUtw, 
+                            HD.KtoStwo, 
+                            HD.DataMod, 
+                            HD.KtoMod, 
+                            HD.CzyOdznaczoneWstawienie,
+                            WK.DataWstawienia,
+                            CASE 
+                                WHEN WK.DataWstawienia IS NOT NULL 
+                                THEN DATEDIFF(day, WK.DataWstawienia, HD.DataOdbioru)
+                                ELSE NULL
+                            END AS RoznicaDni
+                        FROM [LibraNet].[dbo].[HarmonogramDostaw] HD
+                        LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                        ORDER BY HD.LP DESC";
 
                     SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
                     DataTable table = new DataTable();
@@ -293,16 +310,53 @@ namespace Kalendarz1
                 {
                     string query = @"
                         SELECT 
-                            LP, DostawcaID, DataOdbioru, Dostawca, Auta, 
-                            SztukiDek, WagaDek, SztSzuflada, TypUmowy, TypCeny, 
-                            Cena, PaszaPisklak, Bufor, UWAGI, LpW, LpP1, LpP2,
-                            Utworzone, Wysłane, Otrzymane, PotwWaga, KtoWaga, 
-                            KiedyWaga, PotwSztuki, KtoSztuki, KiedySztuki, 
-                            PotwCena, Dodatek, Kurnik, KmK, KmH, Ubiorka, 
-                            Ubytek, DataUtw, KtoStwo, DataMod, KtoMod, 
-                            CzyOdznaczoneWstawienie
-                        FROM [LibraNet].[dbo].[HarmonogramDostaw] 
-                        ORDER BY LP DESC";
+                            HD.LP, 
+                            HD.DostawcaID, 
+                            HD.DataOdbioru, 
+                            HD.Dostawca, 
+                            HD.Auta, 
+                            HD.SztukiDek, 
+                            HD.WagaDek, 
+                            HD.SztSzuflada, 
+                            HD.TypUmowy, 
+                            HD.TypCeny, 
+                            HD.Cena, 
+                            HD.PaszaPisklak, 
+                            HD.Bufor, 
+                            HD.UWAGI, 
+                            HD.LpW, 
+                            HD.LpP1, 
+                            HD.LpP2,
+                            HD.Utworzone, 
+                            HD.Wysłane, 
+                            HD.Otrzymane, 
+                            HD.PotwWaga, 
+                            HD.KtoWaga, 
+                            HD.KiedyWaga, 
+                            HD.PotwSztuki, 
+                            HD.KtoSztuki, 
+                            HD.KiedySztuki, 
+                            HD.PotwCena, 
+                            HD.Dodatek, 
+                            HD.Kurnik, 
+                            HD.KmK, 
+                            HD.KmH, 
+                            HD.Ubiorka, 
+                            HD.Ubytek, 
+                            HD.DataUtw, 
+                            HD.KtoStwo, 
+                            HD.DataMod, 
+                            HD.KtoMod, 
+                            HD.CzyOdznaczoneWstawienie,
+                            WK.DataWstawienia,
+                            CASE 
+                                WHEN WK.DataWstawienia IS NOT NULL 
+                                THEN DATEDIFF(day, WK.DataWstawienia, HD.DataOdbioru)
+                                ELSE NULL
+                            END AS RoznicaDni
+                        FROM [LibraNet].[dbo].[HarmonogramDostaw] HD
+                        LEFT JOIN WstawieniaKurczakow WK ON HD.LpW = WK.Lp
+                        ORDER BY HD.LP DESC";
 
                     SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
                     DataTable table = new DataTable();
@@ -338,6 +392,7 @@ namespace Kalendarz1
                 {"Lp", ("Lp", 50)},
                 {"DostawcaID", ("ID", 50)},
                 {"DataOdbioru", ("Data Odb.", 85)},
+                {"RoznicaDni", ("Dni hodowli", 80)},
                 {"Dostawca", ("Dostawca", 200)},
                 {"Auta", ("Auta", 50)},
                 {"SztukiDek", ("Szt.Dek", 70)},
@@ -358,7 +413,8 @@ namespace Kalendarz1
                 {"Kurnik", ("Kurnik", 100)},
                 {"KmK", ("KmK", 60)},
                 {"KmH", ("KmH", 60)},
-                {"Ubytek", ("Ubytek %", 70)}
+                {"Ubytek", ("Ubytek %", 70)},
+                {"DataWstawienia", ("Data Wstaw.", 85)}
             };
 
             foreach (var config in configs)
@@ -370,10 +426,35 @@ namespace Kalendarz1
                 }
             }
 
+            // Ustawienie kolejności kolumn - RoznicaDni zaraz po DataOdbioru
+            if (dataGridView1.Columns.Contains("RoznicaDni") && dataGridView1.Columns.Contains("DataOdbioru"))
+            {
+                int dataOdbioruIndex = dataGridView1.Columns["DataOdbioru"].DisplayIndex;
+                dataGridView1.Columns["RoznicaDni"].DisplayIndex = dataOdbioruIndex + 1;
+
+                // Przesuń pozostałe kolumny
+                if (dataGridView1.Columns.Contains("Dostawca"))
+                    dataGridView1.Columns["Dostawca"].DisplayIndex = dataOdbioruIndex + 2;
+                if (dataGridView1.Columns.Contains("Auta"))
+                    dataGridView1.Columns["Auta"].DisplayIndex = dataOdbioruIndex + 3;
+                if (dataGridView1.Columns.Contains("SztukiDek"))
+                    dataGridView1.Columns["SztukiDek"].DisplayIndex = dataOdbioruIndex + 4;
+                if (dataGridView1.Columns.Contains("WagaDek"))
+                    dataGridView1.Columns["WagaDek"].DisplayIndex = dataOdbioruIndex + 5;
+            }
+
+            // Formatowanie kolumny RoznicaDni
+            if (dataGridView1.Columns.Contains("RoznicaDni"))
+            {
+                dataGridView1.Columns["RoznicaDni"].DefaultCellStyle.Format = "0 dni";
+                dataGridView1.Columns["RoznicaDni"].DefaultCellStyle.NullValue = "-";
+                dataGridView1.Columns["RoznicaDni"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+
             // Ukryj niektóre kolumny
             string[] hiddenColumns = { "PaszaPisklak", "LpW", "LpP1", "LpP2", "KtoWaga",
                 "KiedyWaga", "KtoSztuki", "KiedySztuki", "Ubiorka", "DataUtw",
-                "KtoStwo", "DataMod", "KtoMod", "CzyOdznaczoneWstawienie" };
+                "KtoStwo", "DataMod", "KtoMod", "CzyOdznaczoneWstawienie", "DataWstawienia" };
 
             foreach (string col in hiddenColumns)
             {
@@ -480,12 +561,8 @@ namespace Kalendarz1
             if (!string.IsNullOrWhiteSpace(textBox1.Text))
             {
                 string searchText = textBox1.Text.Trim().Replace("'", "''");
-                filters.Add($"Dostawca LIKE '%{searchText}%'");
+                filters.Add($"(Dostawca LIKE '%{searchText}%' OR UWAGI LIKE '%{searchText}%' OR Kurnik LIKE '%{searchText}%')");
             }
-
-            // Filtr dat
-            filters.Add($"DataOdbioru >= #{dateFromPicker.Value.Date:yyyy-MM-dd}#");
-            filters.Add($"DataOdbioru <= #{dateToPicker.Value.Date:yyyy-MM-dd}#");
 
             // Filtr dostawcy
             if (comboBoxDostawca.SelectedIndex > 0 && comboBoxDostawca.SelectedItem != null)
@@ -501,7 +578,16 @@ namespace Kalendarz1
                 filters.Add($"Bufor = '{status}'");
             }
 
-            dv.RowFilter = string.Join(" AND ", filters);
+            // Zastosuj filtry jeśli są
+            if (filters.Count > 0)
+            {
+                dv.RowFilter = string.Join(" AND ", filters);
+            }
+            else
+            {
+                dv.RowFilter = "";
+            }
+
             DataTable filteredTable = dv.ToTable();
 
             dataGridView1.DataSource = filteredTable;
@@ -514,8 +600,6 @@ namespace Kalendarz1
             isLoading = true;
 
             textBox1.Clear();
-            dateFromPicker.Value = new DateTime(2023, 1, 1);
-            dateToPicker.Value = DateTime.Now;
             if (comboBoxDostawca.Items.Count > 0)
                 comboBoxDostawca.SelectedIndex = 0;
             if (comboBoxStatus.Items.Count > 0)
@@ -591,6 +675,7 @@ namespace Kalendarz1
                         SumaWagi = g.Sum(r => r.Field<decimal?>("WagaDek") ?? 0),
                         SumaSztuk = g.Sum(r => r.Field<int?>("SztukiDek") ?? 0),
                         SredniaCena = g.Average(r => r.Field<decimal?>("Cena") ?? 0),
+                        SrednieDniHodowli = g.Average(r => r.Field<int?>("RoznicaDni") ?? 0),
                         Potwierdzone = g.Count(r => r.Field<string>("Bufor") == "Potwierdzony"),
                         Anulowane = g.Count(r => r.Field<string>("Bufor") == "Anulowany")
                     })
@@ -602,6 +687,7 @@ namespace Kalendarz1
                 groupedTable.Columns.Add("Suma Wagi (kg)", typeof(decimal));
                 groupedTable.Columns.Add("Suma Sztuk", typeof(int));
                 groupedTable.Columns.Add("Średnia Cena", typeof(decimal));
+                groupedTable.Columns.Add("Śr. Dni Hodowli", typeof(decimal));
                 groupedTable.Columns.Add("Potwierdzone", typeof(int));
                 groupedTable.Columns.Add("Anulowane", typeof(int));
 
@@ -609,6 +695,7 @@ namespace Kalendarz1
                 {
                     groupedTable.Rows.Add(item.Dostawca, item.IloscDostaw,
                         item.SumaWagi, item.SumaSztuk, Math.Round(item.SredniaCena, 2),
+                        Math.Round(item.SrednieDniHodowli, 1),
                         item.Potwierdzone, item.Anulowane);
                 }
 
@@ -690,6 +777,256 @@ namespace Kalendarz1
             }
         }
 
+        private void ShowSuppliersBreakdown()
+        {
+            if (originalData == null || originalData.Rows.Count == 0)
+            {
+                MessageBox.Show("Brak danych do analizy!", "Informacja",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Utworzenie okna z listą hodowców
+            Form suppliersForm = new Form();
+            suppliersForm.Text = "Analiza Hodowców - Kontrakty vs Wolny Rynek";
+            suppliersForm.Size = new Size(1200, 700);
+            suppliersForm.StartPosition = FormStartPosition.CenterParent;
+
+            // TabControl dla różnych widoków
+            TabControl tabControl = new TabControl();
+            tabControl.Dock = DockStyle.Fill;
+
+            // Tab 1: Szczegółowa lista hodowców
+            TabPage tabDetails = new TabPage("Szczegóły Hodowców");
+            DataGridView dgvSuppliers = new DataGridView();
+            dgvSuppliers.Dock = DockStyle.Fill;
+            dgvSuppliers.AllowUserToAddRows = false;
+            dgvSuppliers.AllowUserToDeleteRows = false;
+            dgvSuppliers.ReadOnly = true;
+            dgvSuppliers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+            dgvSuppliers.BackgroundColor = Color.White;
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 152, 219);
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvSuppliers.EnableHeadersVisualStyles = false;
+            dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
+
+            // Tab 2: Podsumowanie grup
+            TabPage tabSummary = new TabPage("Podsumowanie Grup");
+
+            // Panel z podsumowaniem kontraktów
+            Panel panelContracts = new Panel();
+            panelContracts.Dock = DockStyle.Left;
+            panelContracts.Width = 580;
+            panelContracts.BackColor = Color.FromArgb(236, 240, 241);
+
+            Label lblContractsTitle = new Label();
+            lblContractsTitle.Text = "🤝 HODOWCY KONTRAKTOWI";
+            lblContractsTitle.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+            lblContractsTitle.ForeColor = Color.FromArgb(41, 128, 185);
+            lblContractsTitle.Dock = DockStyle.Top;
+            lblContractsTitle.Height = 40;
+            lblContractsTitle.TextAlign = ContentAlignment.MiddleCenter;
+
+            ListBox listContracts = new ListBox();
+            listContracts.Dock = DockStyle.Fill;
+            listContracts.Font = new Font("Segoe UI", 10F);
+            listContracts.BorderStyle = BorderStyle.None;
+
+            panelContracts.Controls.Add(listContracts);
+            panelContracts.Controls.Add(lblContractsTitle);
+
+            // Panel z podsumowaniem wolnego rynku
+            Panel panelFreeMarket = new Panel();
+            panelFreeMarket.Dock = DockStyle.Right;
+            panelFreeMarket.Width = 580;
+            panelFreeMarket.BackColor = Color.FromArgb(253, 235, 208);
+
+            Label lblFreeMarketTitle = new Label();
+            lblFreeMarketTitle.Text = "💰 HODOWCY WOLNEGO RYNKU";
+            lblFreeMarketTitle.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+            lblFreeMarketTitle.ForeColor = Color.FromArgb(211, 84, 0);
+            lblFreeMarketTitle.Dock = DockStyle.Top;
+            lblFreeMarketTitle.Height = 40;
+            lblFreeMarketTitle.TextAlign = ContentAlignment.MiddleCenter;
+
+            ListBox listFreeMarket = new ListBox();
+            listFreeMarket.Dock = DockStyle.Fill;
+            listFreeMarket.Font = new Font("Segoe UI", 10F);
+            listFreeMarket.BorderStyle = BorderStyle.None;
+
+            panelFreeMarket.Controls.Add(listFreeMarket);
+            panelFreeMarket.Controls.Add(lblFreeMarketTitle);
+
+            // Separator
+            Panel separator = new Panel();
+            separator.Dock = DockStyle.Fill;
+            separator.BackColor = Color.Gray;
+
+            tabSummary.Controls.Add(separator);
+            tabSummary.Controls.Add(panelFreeMarket);
+            tabSummary.Controls.Add(panelContracts);
+
+            // Analiza danych
+            var confirmedData = originalData.AsEnumerable()
+                .Where(r => r.Field<string>("Bufor") == "Potwierdzony");
+
+            var supplierAnalysis = confirmedData
+                .GroupBy(r => r.Field<string>("Dostawca"))
+                .Select(g =>
+                {
+                    var kontrakty = g.Where(r =>
+                    {
+                        string typCeny = r.Field<string>("TypCeny")?.ToLower() ?? "";
+                        return !typCeny.Contains("wolnyrynek") && !typCeny.Contains("wolnorynkowa");
+                    });
+
+                    var wolnyRynek = g.Where(r =>
+                    {
+                        string typCeny = r.Field<string>("TypCeny")?.ToLower() ?? "";
+                        return typCeny.Contains("wolnyrynek") || typCeny.Contains("wolnorynkowa");
+                    });
+
+                    int dostawK = kontrakty.Count();
+                    int dostawWR = wolnyRynek.Count();
+                    int sztukiK = kontrakty.Sum(r => r.Field<int?>("SztukiDek") ?? 0);
+                    int sztukiWR = wolnyRynek.Sum(r => r.Field<int?>("SztukiDek") ?? 0);
+                    decimal wagaK = kontrakty.Sum(r => r.Field<decimal?>("WagaDek") ?? 0);
+                    decimal wagaWR = wolnyRynek.Sum(r => r.Field<decimal?>("WagaDek") ?? 0);
+
+                    return new
+                    {
+                        Hodowca = g.Key,
+                        DostawK = dostawK,
+                        DostawWR = dostawWR,
+                        DostawRazem = dostawK + dostawWR,
+                        SztukiK = sztukiK,
+                        SztukiWR = sztukiWR,
+                        SztukiRazem = sztukiK + sztukiWR,
+                        ProcentSztukiK = (sztukiK + sztukiWR) > 0 ? (decimal)sztukiK / (sztukiK + sztukiWR) * 100 : 0,
+                        ProcentSztukiWR = (sztukiK + sztukiWR) > 0 ? (decimal)sztukiWR / (sztukiK + sztukiWR) * 100 : 0,
+                        WagaK = wagaK,
+                        WagaWR = wagaWR,
+                        WagaRazem = wagaK + wagaWR,
+                        Typ = dostawK > dostawWR ? "Kontrakt" : dostawWR > dostawK ? "Wolny Rynek" : "Mieszany",
+                        DominacjaKontrakt = dostawK > 0 ? (decimal)dostawK / (dostawK + dostawWR) * 100 : 0
+                    };
+                })
+                .OrderByDescending(x => x.SztukiRazem)
+                .ToList();
+
+            // Utworzenie DataTable dla szczegółów
+            DataTable dtSuppliers = new DataTable();
+            dtSuppliers.Columns.Add("Hodowca", typeof(string));
+            dtSuppliers.Columns.Add("Typ dominujący", typeof(string));
+            dtSuppliers.Columns.Add("Sztuki K", typeof(int));
+            dtSuppliers.Columns.Add("Sztuki WR", typeof(int));
+            dtSuppliers.Columns.Add("Sztuki Razem", typeof(int));
+            dtSuppliers.Columns.Add("Kontrakty %", typeof(decimal));
+            dtSuppliers.Columns.Add("Wolny Rynek %", typeof(decimal));
+
+            foreach (var item in supplierAnalysis)
+            {
+                dtSuppliers.Rows.Add(
+                    item.Hodowca,
+                    item.Typ,
+                    item.SztukiK,
+                    item.SztukiWR,
+                    item.SztukiRazem,
+                    item.ProcentSztukiK,
+                    item.ProcentSztukiWR
+                );
+            }
+
+            dgvSuppliers.DataSource = dtSuppliers;
+
+            // Formatowanie kolumn
+            foreach (DataGridViewColumn col in dgvSuppliers.Columns)
+            {
+                if (col.Name.Contains("%"))
+                    col.DefaultCellStyle.Format = "0.0'%'";
+                else if (col.Name.Contains("Waga"))
+                    col.DefaultCellStyle.Format = "N0";
+                else if (col.Name.Contains("Sztuki"))
+                    col.DefaultCellStyle.Format = "N0";
+            }
+
+            // Kolorowanie wierszy według typu
+            dgvSuppliers.CellFormatting += (s, e) =>
+            {
+                if (e.RowIndex >= 0 && dgvSuppliers.Columns[e.ColumnIndex].Name == "Typ dominujący")
+                {
+                    string typ = dgvSuppliers.Rows[e.RowIndex].Cells["Typ dominujący"].Value?.ToString();
+                    if (typ == "Kontrakt")
+                    {
+                        dgvSuppliers.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.FromArgb(214, 234, 248);
+                    }
+                    else if (typ == "Wolny Rynek")
+                    {
+                        dgvSuppliers.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.FromArgb(253, 237, 197);
+                    }
+                }
+            };
+
+            // Wypełnienie list w zakładce podsumowania
+            var contractSuppliers = supplierAnalysis
+                .Where(x => x.DominacjaKontrakt >= 70)
+                .OrderByDescending(x => x.SztukiK);
+
+            var freeMarketSuppliers = supplierAnalysis
+                .Where(x => x.DominacjaKontrakt <= 30)
+                .OrderByDescending(x => x.SztukiWR);
+
+            foreach (var supplier in contractSuppliers)
+            {
+                listContracts.Items.Add($"{supplier.Hodowca} - {supplier.SztukiK:N0} szt ({supplier.ProcentSztukiK:F0}%)");
+            }
+
+            foreach (var supplier in freeMarketSuppliers)
+            {
+                listFreeMarket.Items.Add($"{supplier.Hodowca} - {supplier.SztukiWR:N0} szt ({supplier.ProcentSztukiWR:F0}%)");
+            }
+
+            // Panel statystyk na dole
+            Panel statsPanel = new Panel();
+            statsPanel.Height = 80;
+            statsPanel.Dock = DockStyle.Bottom;
+            statsPanel.BackColor = Color.FromArgb(44, 62, 80);
+
+            Label lblStats = new Label();
+            lblStats.Dock = DockStyle.Fill;
+            lblStats.ForeColor = Color.White;
+            lblStats.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            lblStats.Padding = new Padding(10);
+
+            int totalSuppliersK = supplierAnalysis.Count(x => x.DominacjaKontrakt >= 70);
+            int totalSuppliersWR = supplierAnalysis.Count(x => x.DominacjaKontrakt <= 30);
+            int totalSuppliersMixed = supplierAnalysis.Count(x => x.DominacjaKontrakt > 30 && x.DominacjaKontrakt < 70);
+
+            int totalSztukiK = supplierAnalysis.Sum(x => x.SztukiK);
+            int totalSztukiWR = supplierAnalysis.Sum(x => x.SztukiWR);
+
+            lblStats.Text = $"📊 PODSUMOWANIE:   " +
+                $"Hodowcy kontraktowi (≥70% K): {totalSuppliersK}   |   " +
+                $"Hodowcy mieszani: {totalSuppliersMixed}   |   " +
+                $"Hodowcy wolnego rynku (≥70% WR): {totalSuppliersWR}\n" +
+                $"🐔 SZTUKI OGÓŁEM:   Kontrakty: {totalSztukiK:N0} ({(totalSztukiK + totalSztukiWR > 0 ? (decimal)totalSztukiK / (totalSztukiK + totalSztukiWR) * 100 : 0):F1}%)   |   " +
+                $"Wolny Rynek: {totalSztukiWR:N0} ({(totalSztukiK + totalSztukiWR > 0 ? (decimal)totalSztukiWR / (totalSztukiK + totalSztukiWR) * 100 : 0):F1}%)";
+
+            statsPanel.Controls.Add(lblStats);
+
+            // Dodanie kontrolek do zakładek
+            tabDetails.Controls.Add(dgvSuppliers);
+
+            tabControl.TabPages.Add(tabDetails);
+            tabControl.TabPages.Add(tabSummary);
+
+            suppliersForm.Controls.Add(tabControl);
+            suppliersForm.Controls.Add(statsPanel);
+
+            suppliersForm.ShowDialog();
+        }
+
         public void SetTextBoxValue()
         {
             textBox1.Text = TextBoxValue;
@@ -698,6 +1035,366 @@ namespace Kalendarz1
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
             // Pusta - obsługa w TextBox1_TextChanged
+        }
+
+        private void ShowContractAnalysis()
+        {
+            if (originalData == null || originalData.Rows.Count == 0)
+            {
+                MessageBox.Show("Brak danych do analizy!", "Informacja",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Utworzenie okna analizy
+            Form analysisForm = new Form();
+            analysisForm.Text = "Analiza Kontrakty vs Wolny Rynek";
+            analysisForm.Size = new Size(900, 600);
+            analysisForm.StartPosition = FormStartPosition.CenterParent;
+
+            // Panel kontrolek
+            Panel controlPanel = new Panel();
+            controlPanel.Height = 80;
+            controlPanel.Dock = DockStyle.Top;
+            controlPanel.BackColor = Color.FromArgb(240, 240, 240);
+
+            // RadioButtons dla wyboru okresu
+            GroupBox periodGroup = new GroupBox();
+            periodGroup.Text = "Wybór okresu";
+            periodGroup.Location = new Point(10, 5);
+            periodGroup.Size = new Size(400, 65);
+
+            RadioButton rbYear = new RadioButton();
+            rbYear.Text = "Rok";
+            rbYear.Location = new Point(10, 20);
+            rbYear.Width = 60;
+            rbYear.Checked = true;
+
+            RadioButton rbQuarter = new RadioButton();
+            rbQuarter.Text = "Kwartał";
+            rbQuarter.Location = new Point(80, 20);
+            rbQuarter.Width = 70;
+
+            RadioButton rbMonth = new RadioButton();
+            rbMonth.Text = "Miesiąc";
+            rbMonth.Location = new Point(160, 20);
+            rbMonth.Width = 70;
+
+            RadioButton rbAll = new RadioButton();
+            rbAll.Text = "Wszystko";
+            rbAll.Location = new Point(240, 20);
+            rbAll.Width = 80;
+
+            RadioButton rbCustom = new RadioButton();
+            rbCustom.Text = "Zakres";
+            rbCustom.Location = new Point(330, 20);
+            rbCustom.Width = 65;
+
+            periodGroup.Controls.AddRange(new Control[] { rbYear, rbQuarter, rbMonth, rbAll, rbCustom });
+
+            // Data pickers dla zakresu custom
+            DateTimePicker dtpFrom = new DateTimePicker();
+            dtpFrom.Format = DateTimePickerFormat.Short;
+            dtpFrom.Location = new Point(10, 40);
+            dtpFrom.Width = 100;
+            dtpFrom.Enabled = false;
+
+            DateTimePicker dtpTo = new DateTimePicker();
+            dtpTo.Format = DateTimePickerFormat.Short;
+            dtpTo.Location = new Point(120, 40);
+            dtpTo.Width = 100;
+            dtpTo.Enabled = false;
+
+            periodGroup.Controls.Add(dtpFrom);
+            periodGroup.Controls.Add(dtpTo);
+
+            // Przycisk analizy
+            Button btnAnalyze = new Button();
+            btnAnalyze.Text = "Analizuj";
+            btnAnalyze.Location = new Point(420, 25);
+            btnAnalyze.Size = new Size(100, 40);
+            btnAnalyze.BackColor = Color.FromArgb(52, 152, 219);
+            btnAnalyze.ForeColor = Color.White;
+            btnAnalyze.FlatStyle = FlatStyle.Flat;
+            btnAnalyze.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
+            // Przycisk listy hodowców
+            Button btnShowSuppliers = new Button();
+            btnShowSuppliers.Text = "Hodowcy";
+            btnShowSuppliers.Location = new Point(530, 25);
+            btnShowSuppliers.Size = new Size(100, 40);
+            btnShowSuppliers.BackColor = Color.FromArgb(155, 89, 182);
+            btnShowSuppliers.ForeColor = Color.White;
+            btnShowSuppliers.FlatStyle = FlatStyle.Flat;
+            btnShowSuppliers.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
+            // Przycisk eksportu
+            Button btnExportAnalysis = new Button();
+            btnExportAnalysis.Text = "Eksport CSV";
+            btnExportAnalysis.Location = new Point(640, 25);
+            btnExportAnalysis.Size = new Size(100, 40);
+            btnExportAnalysis.BackColor = Color.FromArgb(46, 204, 113);
+            btnExportAnalysis.ForeColor = Color.White;
+            btnExportAnalysis.FlatStyle = FlatStyle.Flat;
+            btnExportAnalysis.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+
+            controlPanel.Controls.Add(periodGroup);
+            controlPanel.Controls.Add(btnAnalyze);
+            controlPanel.Controls.Add(btnShowSuppliers);
+            controlPanel.Controls.Add(btnExportAnalysis);
+
+            // DataGridView dla wyników
+            DataGridView dgvResults = new DataGridView();
+            dgvResults.Dock = DockStyle.Fill;
+            dgvResults.AllowUserToAddRows = false;
+            dgvResults.AllowUserToDeleteRows = false;
+            dgvResults.ReadOnly = true;
+            dgvResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvResults.BackgroundColor = Color.White;
+            dgvResults.BorderStyle = BorderStyle.None;
+            dgvResults.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 152, 219);
+            dgvResults.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvResults.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dgvResults.EnableHeadersVisualStyles = false;
+            dgvResults.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
+
+            // Panel podsumowania
+            Panel summaryPanel = new Panel();
+            summaryPanel.Height = 120;
+            summaryPanel.Dock = DockStyle.Bottom;
+            summaryPanel.BackColor = Color.FromArgb(245, 245, 245);
+            summaryPanel.BorderStyle = BorderStyle.FixedSingle;
+
+            Label lblSummary = new Label();
+            lblSummary.Name = "lblSummary";
+            lblSummary.Dock = DockStyle.Fill;
+            lblSummary.Font = new Font("Segoe UI", 10F);
+            lblSummary.Padding = new Padding(10);
+            summaryPanel.Controls.Add(lblSummary);
+
+            // Obsługa zmiany typu okresu
+            rbCustom.CheckedChanged += (s, e) =>
+            {
+                dtpFrom.Enabled = rbCustom.Checked;
+                dtpTo.Enabled = rbCustom.Checked;
+            };
+
+            // Obsługa przycisku Analizuj
+            btnAnalyze.Click += (s, e) =>
+            {
+                DataTable analysisData = PerformContractAnalysis(
+                    rbYear.Checked ? "Year" :
+                    rbQuarter.Checked ? "Quarter" :
+                    rbMonth.Checked ? "Month" :
+                    rbAll.Checked ? "All" : "Custom",
+                    dtpFrom.Value, dtpTo.Value);
+
+                dgvResults.DataSource = analysisData;
+
+                // Formatowanie kolumn
+                foreach (DataGridViewColumn col in dgvResults.Columns)
+                {
+                    if (col.Name.Contains("%"))
+                        col.DefaultCellStyle.Format = "0.0'%'";
+                    else if (col.Name.Contains("Waga"))
+                        col.DefaultCellStyle.Format = "N0";
+                    else if (col.Name.Contains("Sztuki"))
+                        col.DefaultCellStyle.Format = "N0";
+                }
+
+                // Aktualizacja podsumowania
+                UpdateAnalysisSummary(lblSummary, analysisData);
+            };
+
+            // Obsługa przycisku Hodowcy
+            btnShowSuppliers.Click += (s, e) =>
+            {
+                ShowSuppliersBreakdown();
+            };
+
+            // Obsługa eksportu
+            btnExportAnalysis.Click += (s, e) =>
+            {
+                if (dgvResults.DataSource == null)
+                {
+                    MessageBox.Show("Najpierw wykonaj analizę!", "Informacja",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                ExportAnalysisToCSV(dgvResults);
+            };
+
+            analysisForm.Controls.Add(dgvResults);
+            analysisForm.Controls.Add(summaryPanel);
+            analysisForm.Controls.Add(controlPanel);
+
+            // Wykonaj początkową analizę
+            btnAnalyze.PerformClick();
+
+            analysisForm.ShowDialog();
+        }
+
+        private DataTable PerformContractAnalysis(string periodType, DateTime customFrom, DateTime customTo)
+        {
+            DataTable result = new DataTable();
+            result.Columns.Add("Okres", typeof(string));
+            result.Columns.Add("SztukiKontrakty", typeof(int));
+            result.Columns.Add("SztukiWolnyRynek", typeof(int));
+            result.Columns.Add("SztukiRazem", typeof(int));
+            result.Columns.Add("ProcentSztukiK", typeof(decimal));
+            result.Columns.Add("ProcentSztukiWR", typeof(decimal));
+
+            // Filtruj tylko potwierdzone
+            var confirmedData = originalData.AsEnumerable()
+                .Where(r => r.Field<string>("Bufor") == "Potwierdzony" &&
+                           r.Field<DateTime?>("DataOdbioru") != null);
+
+            if (periodType == "Custom")
+            {
+                confirmedData = confirmedData.Where(r =>
+                    r.Field<DateTime>("DataOdbioru") >= customFrom.Date &&
+                    r.Field<DateTime>("DataOdbioru") <= customTo.Date);
+            }
+
+            // Grupowanie według okresu
+            IEnumerable<IGrouping<string, DataRow>> grouped = null;
+
+            switch (periodType)
+            {
+                case "Year":
+                    grouped = confirmedData.GroupBy(r => r.Field<DateTime>("DataOdbioru").Year.ToString());
+                    break;
+                case "Quarter":
+                    grouped = confirmedData.GroupBy(r =>
+                    {
+                        var date = r.Field<DateTime>("DataOdbioru");
+                        int quarter = (date.Month - 1) / 3 + 1;
+                        return $"{date.Year} Q{quarter}";
+                    });
+                    break;
+                case "Month":
+                    grouped = confirmedData.GroupBy(r =>
+                    {
+                        var date = r.Field<DateTime>("DataOdbioru");
+                        return $"{date.Year}-{date.Month:00}";
+                    });
+                    break;
+                case "All":
+                    grouped = confirmedData.GroupBy(r => "Wszystkie dane");
+                    break;
+                case "Custom":
+                    grouped = confirmedData.GroupBy(r => $"{customFrom:yyyy-MM-dd} - {customTo:yyyy-MM-dd}");
+                    break;
+            }
+
+            // Analiza dla każdego okresu
+            foreach (var group in grouped.OrderBy(g => g.Key))
+            {
+                var kontrakty = group.Where(r =>
+                {
+                    string typCeny = r.Field<string>("TypCeny")?.ToLower() ?? "";
+                    return !typCeny.Contains("wolnyrynek") && !typCeny.Contains("wolnorynkowa");
+                });
+
+                var wolnyRynek = group.Where(r =>
+                {
+                    string typCeny = r.Field<string>("TypCeny")?.ToLower() ?? "";
+                    return typCeny.Contains("wolnyrynek") || typCeny.Contains("wolnorynkowa");
+                });
+
+                int sztukiKontrakty = kontrakty.Sum(r => r.Field<int?>("SztukiDek") ?? 0);
+                int sztukiWolnyRynek = wolnyRynek.Sum(r => r.Field<int?>("SztukiDek") ?? 0);
+                int sztukiRazem = sztukiKontrakty + sztukiWolnyRynek;
+
+                decimal procentSztukiK = sztukiRazem > 0 ? (decimal)sztukiKontrakty / sztukiRazem * 100 : 0;
+                decimal procentSztukiWR = sztukiRazem > 0 ? (decimal)sztukiWolnyRynek / sztukiRazem * 100 : 0;
+
+                result.Rows.Add(
+                    group.Key,
+                    sztukiKontrakty,
+                    sztukiWolnyRynek,
+                    sztukiRazem,
+                    procentSztukiK,
+                    procentSztukiWR
+                );
+            }
+
+            // Zmiana nazw kolumn na polskie
+            result.Columns["SztukiKontrakty"].ColumnName = "Sztuki K";
+            result.Columns["SztukiWolnyRynek"].ColumnName = "Sztuki WR";
+            result.Columns["SztukiRazem"].ColumnName = "Sztuki Razem";
+            result.Columns["ProcentSztukiK"].ColumnName = "Kontrakty %";
+            result.Columns["ProcentSztukiWR"].ColumnName = "Wolny Rynek %";
+
+            return result;
+        }
+
+        private void UpdateAnalysisSummary(Label lblSummary, DataTable data)
+        {
+            if (data == null || data.Rows.Count == 0)
+            {
+                lblSummary.Text = "Brak danych do analizy";
+                return;
+            }
+
+            int sztukiKontrakty = data.AsEnumerable().Sum(r => Convert.ToInt32(r["Sztuki K"]));
+            int sztukiWolnyRynek = data.AsEnumerable().Sum(r => Convert.ToInt32(r["Sztuki WR"]));
+            int sztukiTotal = sztukiKontrakty + sztukiWolnyRynek;
+
+            decimal percentSztukiK = sztukiTotal > 0 ? (decimal)sztukiKontrakty / sztukiTotal * 100 : 0;
+            decimal percentSztukiWR = sztukiTotal > 0 ? (decimal)sztukiWolnyRynek / sztukiTotal * 100 : 0;
+
+            lblSummary.Text = $"PODSUMOWANIE ANALIZY:\n\n" +
+                $"🐔 SZTUKI DROBIU OGÓŁEM: {sztukiTotal:N0}\n\n" +
+                $"📊 KONTRAKTY: {sztukiKontrakty:N0} sztuk ({percentSztukiK:F1}%)\n" +
+                $"💰 WOLNY RYNEK: {sztukiWolnyRynek:N0} sztuk ({percentSztukiWR:F1}%)\n\n" +
+                $"📈 ŚREDNIA WAGA/SZTUKĘ: {(sztukiTotal > 0 ? "Oblicz na podstawie danych szczegółowych" : "Brak danych")}";
+        }
+
+        private void ExportAnalysisToCSV(DataGridView dgv)
+        {
+            try
+            {
+                SaveFileDialog saveDialog = new SaveFileDialog();
+                saveDialog.Filter = "CSV Files (*.csv)|*.csv";
+                saveDialog.FileName = $"Analiza_KW_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    StringBuilder csv = new StringBuilder();
+
+                    // Nagłówki
+                    for (int i = 0; i < dgv.Columns.Count; i++)
+                    {
+                        csv.Append(dgv.Columns[i].HeaderText);
+                        if (i < dgv.Columns.Count - 1)
+                            csv.Append(";");
+                    }
+                    csv.AppendLine();
+
+                    // Dane
+                    foreach (DataGridViewRow row in dgv.Rows)
+                    {
+                        for (int i = 0; i < dgv.Columns.Count; i++)
+                        {
+                            csv.Append(row.Cells[i].Value?.ToString() ?? "");
+                            if (i < dgv.Columns.Count - 1)
+                                csv.Append(";");
+                        }
+                        csv.AppendLine();
+                    }
+
+                    File.WriteAllText(saveDialog.FileName, csv.ToString(), Encoding.UTF8);
+                    MessageBox.Show("Eksport zakończony pomyślnie!", "Sukces",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu: {ex.Message}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

@@ -851,6 +851,27 @@ namespace Kalendarz1.Transport.Formularze
         private async Task OtworzDialogKolejnosci()
         {
             using var dlg = new KolejnoscLadunkuDialog(_ladunki);
+
+            // Ustaw pozycję dialogu z przesunięciem w górę, aby nie przysłaniać okna zamówień
+            dlg.StartPosition = FormStartPosition.Manual;
+
+            // Oblicz pozycję - przesuń dialog w górę i lekko w lewo względem centrum głównego okna
+            var centerX = this.Left + (this.Width / 2) - (dlg.Width / 2) - 100; // 100px w lewo
+            var centerY = this.Top + 100; // Tylko 100px od góry głównego okna
+
+            // Upewnij się, że okno nie wyjdzie poza ekran
+            if (centerX < 0) centerX = 20;
+            if (centerY < 0) centerY = 20;
+
+            // Sprawdź czy nie wyjdzie poza prawy/dolny brzeg ekranu
+            var screen = Screen.FromControl(this);
+            if (centerX + dlg.Width > screen.WorkingArea.Right)
+                centerX = screen.WorkingArea.Right - dlg.Width - 20;
+            if (centerY + dlg.Height > screen.WorkingArea.Bottom)
+                centerY = screen.WorkingArea.Bottom - dlg.Height - 20;
+
+            dlg.Location = new Point(centerX, centerY);
+
             if (dlg.ShowDialog(this) == DialogResult.OK && dlg.ZmienioneKolejnosci != null)
             {
                 _ladunki = dlg.ZmienioneKolejnosci;
