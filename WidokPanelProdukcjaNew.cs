@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace Kalendarz1
 {
-    public class WidokPanelProdukcja : Form
+    public class WidokPanelProdukcjaNowy : Form
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -41,7 +41,6 @@ namespace Kalendarz1
 
         private sealed class ZamowienieInfo
         {
-            // Changed fields to properties to enable proper data binding in DataGridView
             public int Id { get; set; }
             public int KlientId { get; set; }
             public string Klient { get; set; } = "";
@@ -50,14 +49,19 @@ namespace Kalendarz1
             public string Status { get; set; } = "";
             public decimal TotalIlosc { get; set; }
             public bool IsShipmentOnly { get; set; } = false;
-            public DateTime? DataUtworzenia { get; set; } // Dodane pole DataUtworzenia
-            public bool MaNotatke { get; set; } = false; // Nowe pole dla ikony notatki
+            public DateTime? DataUtworzenia { get; set; }
+            public bool MaNotatke { get; set; } = false;
+            public TimeSpan? CzasWyjazdu { get; set; } = null; // NOWA WŁAŚCIWOŚĆ
+            public string StatusTransportu { get; set; } = ""; // Status kursu transportu
+
+            public DateTime? DataKursu { get; set; } = null; // DODANE
+
         }
         private sealed class ContractorInfo { public int Id; public string Shortcut = ""; public string Handlowiec = "(Brak)"; }
         private sealed class TowarInfo { public int Id; public string Kod = ""; }
         private sealed class NodeContext { public int? OrderId; public int ClientId; public bool IsShipmentOnly; }
 
-        public WidokPanelProdukcja()
+        public WidokPanelProdukcjaNowy()
         {
             BuildUi();
             WindowState = FormWindowState.Maximized;
@@ -193,21 +197,104 @@ namespace Kalendarz1
             dgvZamowienia.Columns.Add(colNotatka);
             */
 
-            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn { Name = "Klient", DataPropertyName = "Klient", HeaderText = "Nazwa Klienta", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 35 });
-            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn { Name = "TotalIlosc", DataPropertyName = "TotalIlosc", HeaderText = "Ilość (kg)", DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" }, AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells });
-            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", DataPropertyName = "Handlowiec", HeaderText = "Handlowiec", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 20 });
-            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", DataPropertyName = "Status", HeaderText = "Status", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells });
-            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataUtworzenia", DataPropertyName = "DataUtworzenia", HeaderText = "Data utworzenia", AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells, DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd HH:mm" } });
+            // W sekcji tworzenia kolumn dgvZamowienia, dodaj nową kolumnę:
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Klient",
+                DataPropertyName = "Klient",
+                HeaderText = "Nazwa Klienta",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                FillWeight = 30 // zmniejszono z 35
+            });
 
-            // Obsługa wyświetlania ikony notatki
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "TotalIlosc",
+                DataPropertyName = "TotalIlosc",
+                HeaderText = "Ilość (kg)",
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" },
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            });
+
+            // NOWA KOLUMNA - CZAS WYJAZDU
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CzasWyjazdu",
+                DataPropertyName = "CzasWyjazdu",
+                HeaderText = "Wyjazd o",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "HH:mm",
+                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    ForeColor = Color.Orange
+                }
+            });
+
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Handlowiec",
+                DataPropertyName = "Handlowiec",
+                HeaderText = "Handlowiec",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                FillWeight = 18 // zmniejszono z 20
+            });
+
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Status",
+                DataPropertyName = "Status",
+                HeaderText = "Status",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+            });
+
+            dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DataUtworzenia",
+                DataPropertyName = "DataUtworzenia",
+                HeaderText = "Data utworzenia",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd HH:mm" }
+            });
+
+            // Dodaj obsługę formatowania kolumny czasu wyjazdu
             dgvZamowienia.CellFormatting += (s, e) =>
             {
-                if (e.ColumnIndex == dgvZamowienia.Columns["Klient"].Index && e.RowIndex >= 0) // Kolumna Klient
+                if (e.ColumnIndex == dgvZamowienia.Columns["Klient"].Index && e.RowIndex >= 0)
                 {
                     var row = dgvZamowienia.Rows[e.RowIndex];
                     if (row.DataBoundItem is ZamowienieInfo info && info.MaNotatke)
                     {
                         e.Value = "📝 " + e.Value;
+                    }
+                }
+
+                // NOWE: Formatowanie kolumny czasu wyjazdu
+                // NOWE: Formatowanie kolumny czasu wyjazdu
+                // NOWE: Formatowanie kolumny czasu wyjazdu
+                // NOWE: Formatowanie kolumny czasu wyjazdu
+                if (e.ColumnIndex == dgvZamowienia.Columns["CzasWyjazdu"]?.Index && e.RowIndex >= 0)
+                {
+                    var row = dgvZamowienia.Rows[e.RowIndex];
+                    if (row.DataBoundItem is ZamowienieInfo info)
+                    {
+                        if (info.CzasWyjazdu.HasValue && info.DataKursu.HasValue)
+                        {
+                            var dataKursu = info.DataKursu.Value;
+                            var dzienTygodnia = dataKursu.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+
+                            e.Value = $"{info.CzasWyjazdu.Value:hh\\:mm} {dzienTygodnia}";
+                            e.FormattingApplied = true;
+
+                            // USUŃ całe kolorowanie - zostaw tylko formatowanie tekstu
+                            // Kolorowanie będzie obsługiwane przez kolorowanie całego wiersza
+                        }
+                        else
+                        {
+                            e.Value = info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu";
+                            e.FormattingApplied = true;
+                            // USUŃ ustawianie koloru - zostaw tylko tekst
+                        }
                     }
                 }
             };
@@ -419,26 +506,29 @@ namespace Kalendarz1
             {
                 await cn.OpenAsync();
                 string sql = @"
-    SELECT 
-        z.Id,
-        z.KlientId, 
-        ISNULL(z.Uwagi,'') AS Uwagi, 
-        ISNULL(z.Status,'Nowe') AS Status,
-        (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id " + (_filteredProductId.HasValue ? " AND t.KodTowaru=@P" : "") + @") AS TotalIlosc,
-        z.DataUtworzenia
-    FROM dbo.ZamowieniaMieso z 
-    WHERE z.DataZamowienia=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+        SELECT 
+            z.Id,
+            z.KlientId, 
+            ISNULL(z.Uwagi,'') AS Uwagi, 
+            ISNULL(z.Status,'Nowe') AS Status,
+            (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id " + (_filteredProductId.HasValue ? " AND t.KodTowaru=@P" : "") + @") AS TotalIlosc,
+            z.DataUtworzenia,
+            z.TransportKursID
+        FROM dbo.ZamowieniaMieso z 
+        WHERE z.DataZamowienia=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
                 if (_filteredProductId.HasValue)
                 {
                     sql += " AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)";
                 }
+
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
                 if (_filteredProductId.HasValue)
                 {
                     cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
                 }
+
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
@@ -452,15 +542,67 @@ namespace Kalendarz1
                         TotalIlosc = rd.IsDBNull(4) ? 0 : rd.GetDecimal(4),
                         IsShipmentOnly = false,
                         DataUtworzenia = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
-                        MaNotatke = !string.IsNullOrWhiteSpace(uwagi) // Sprawdzenie czy ma notatkę
+                        MaNotatke = !string.IsNullOrWhiteSpace(uwagi),
+                        // Tymczasowo NULL - wypełnimy w następnym kroku
+                        CzasWyjazdu = null,
+                        StatusTransportu = ""
                     };
+
+                    // Zapisz ID kursu transportu jeśli istnieje
+                    var transportKursId = rd.IsDBNull(6) ? (long?)null : rd.GetInt64(6);
+                    info.StatusTransportu = transportKursId?.ToString() ?? ""; // Tymczasowo przechowaj ID
+
                     _zamowienia[info.Id] = info;
                     orderListForGrid.Add(info);
                     klientIdsWithOrder.Add(info.KlientId);
                 }
             }
 
-            // 2. Load shipments from Handel and add those without an order
+            // 2. Pobierz informacje o kursach z TransportPL - POPRAWIONE
+            var transportConn = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, string Status, DateTime DataKursu)>();
+
+            try
+            {
+                using var cn = new SqlConnection(transportConn);
+                await cn.OpenAsync();
+
+                var sql = "SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs";
+                var cmd = new SqlCommand(sql, cn);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    var kursId = rd.GetInt64(0);
+                    var godzWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
+                    var status = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                    var dataKursu = rd.GetDateTime(3);
+
+                    kursyInfo[kursId] = (godzWyjazdu, status, dataKursu);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Jeśli nie można połączyć z bazą transportu, kontynuuj bez tych danych
+                System.Diagnostics.Debug.WriteLine($"Nie można pobrać danych transportu: {ex.Message}");
+            }
+            // 3. Przypisz informacje o kursach do zamówień
+            // 3. Przypisz informacje o kursach do zamówień - POPRAWIONE
+            foreach (var orderInfo in orderListForGrid.Where(o => !o.IsShipmentOnly))
+            {
+                if (long.TryParse(orderInfo.StatusTransportu, out var kursId) && kursyInfo.TryGetValue(kursId, out var kursInfo))
+                {
+                    orderInfo.CzasWyjazdu = kursInfo.CzasWyjazdu;
+                    orderInfo.StatusTransportu = kursInfo.Status;
+                    orderInfo.DataKursu = kursInfo.DataKursu; // DODANE
+                }
+                else
+                {
+                    orderInfo.StatusTransportu = "";
+                    orderInfo.DataKursu = null; // DODANE
+                }
+            }
+            // 4. Load shipments from Handel (bez zmian)
             var shipments = new List<(int KlientId, decimal Qty)>();
             using (var cn = new SqlConnection(_connHandel))
             {
@@ -478,6 +620,7 @@ namespace Kalendarz1
                 }
             }
 
+            // 5. Add shipments without orders
             var shipmentOnlyClientIds = shipments.Where(s => !klientIdsWithOrder.Contains(s.KlientId)).Select(s => s.KlientId).Distinct().ToList();
             if (shipmentOnlyClientIds.Count > 0)
             {
@@ -487,21 +630,26 @@ namespace Kalendarz1
                     contractors.TryGetValue(s.KlientId, out var cinfo);
                     var info = new ZamowienieInfo
                     {
-                        Id = -s.KlientId, // Negative ID to signify it's not a real order
+                        Id = -s.KlientId,
                         KlientId = s.KlientId,
                         Klient = Normalize(cinfo?.Shortcut ?? $"KH {s.KlientId}"),
                         Handlowiec = Normalize(cinfo?.Handlowiec),
-                        Status = "Wydanie Symfonia", // Zmieniono z "(Wydanie)" na "Wydanie Symfonia"
+                        Status = "Wydanie Symfonia",
                         TotalIlosc = s.Qty,
                         IsShipmentOnly = true,
                         DataUtworzenia = null,
-                        MaNotatke = false
+                        MaNotatke = false,
+                        CzasWyjazdu = null,
+                        DataKursu = _selectedDate.Date, // DODAJ TO
+
+                        StatusTransportu = "Wydano"
+
                     };
                     orderListForGrid.Add(info);
                 }
             }
 
-            // Populate contractor names for real orders
+            // 6. Populate contractor names for real orders
             var orderClientIds = orderListForGrid.Where(o => !o.IsShipmentOnly).Select(o => o.KlientId).Distinct().ToList();
             if (orderClientIds.Count > 0)
             {
@@ -521,7 +669,7 @@ namespace Kalendarz1
                 }
             }
 
-            // Sortowanie po statusie: Nowe > Zrealizowane > Wydanie Symfonia > Anulowane, potem po Handlowiec, Klient
+            // 7. Sort and display
             int StatusOrder(string status) => status switch
             {
                 "Nowe" => 0,
@@ -534,6 +682,16 @@ namespace Kalendarz1
             dgvZamowienia.DataSource = null;
             dgvZamowienia.DataSource = orderListForGrid
                 .OrderBy(o => StatusOrder(o.Status))
+                .ThenBy(o => {
+                    if (o.CzasWyjazdu.HasValue && o.DataKursu.HasValue)
+                    {
+                        return o.DataKursu.Value.Add(o.CzasWyjazdu.Value);
+                    }
+                    else
+                    {
+                        return DateTime.MaxValue;
+                    }
+                })
                 .ThenBy(o => o.Handlowiec)
                 .ThenBy(o => o.Klient)
                 .ToList();
@@ -542,19 +700,48 @@ namespace Kalendarz1
             {
                 if (row.DataBoundItem is ZamowienieInfo info)
                 {
-                    if (info.IsShipmentOnly)
-                    {
-                        row.DefaultCellStyle.BackColor = Color.FromArgb(80, 58, 32);
-                        row.DefaultCellStyle.ForeColor = Color.Gold;
-                    }
-                    else if (info.Status == "Zrealizowane")
+                    // Jeśli zamówienie jest zrealizowane - standardowe zielone tło, bez dodatkowych kolorów
+                    if (info.Status == "Zrealizowane")
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(32, 80, 44);
                         row.DefaultCellStyle.ForeColor = Color.LightGreen;
                     }
+                    // Jeśli to wydanie bez zamówienia - pomarańczowe tło
+                    else if (info.IsShipmentOnly)
+                    {
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(80, 58, 32);
+                        row.DefaultCellStyle.ForeColor = Color.Gold;
+                    }
+                    // Jeśli zamówienie ma przypisany czas wyjazdu - kolorowanie według terminów
+                    else if (info.CzasWyjazdu.HasValue && info.DataKursu.HasValue)
+                    {
+                        var dataICzasWyjazdu = info.DataKursu.Value.Add(info.CzasWyjazdu.Value);
+                        var teraz = DateTime.Now;
+                        var roznicaCzasu = dataICzasWyjazdu - teraz;
+
+                        if (roznicaCzasu.TotalMinutes < 0)
+                        {
+                            // CZERWONY: Termin już minął (spóźnienie)
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(139, 0, 0); // Ciemny czerwony
+                            row.DefaultCellStyle.ForeColor = Color.White;
+                        }
+                        else if (roznicaCzasu.TotalMinutes <= 30)
+                        {
+                            // ŻÓŁTY: Zostało mniej niż 30 minut
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(218, 165, 32); // Ciemno-żółty/złoty
+                            row.DefaultCellStyle.ForeColor = Color.Black;
+                        }
+                        else
+                        {
+                            // ZIELONY: Jeszcze dużo czasu
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(34, 139, 34); // Ciemno-zielony
+                            row.DefaultCellStyle.ForeColor = Color.White;
+                        }
+                    }
+                    // Standardowe tło dla zamówień bez przypisanego czasu
                     else
                     {
-                        // Explicitly set ForeColor for standard rows
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(55, 57, 70); // Standardowe ciemne tło
                         row.DefaultCellStyle.ForeColor = Color.White;
                     }
                 }
@@ -562,7 +749,49 @@ namespace Kalendarz1
 
             UpdateStatsLabel();
         }
+        // 4. Opcjonalnie - dodaj metodę pomocniczą do pobierania informacji o transporcie
+        private async Task<Dictionary<int, (TimeSpan? CzasWyjazdu, string Status)>> PobierzInfoTransportuAsync(List<int> zamowieniaIds)
+        {
+            var transportInfo = new Dictionary<int, (TimeSpan?, string)>();
 
+            if (zamowieniaIds.Count == 0) return transportInfo;
+
+            try
+            {
+                using var cn = new SqlConnection("Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True");
+                await cn.OpenAsync();
+
+                var sql = @"
+            SELECT 
+                CAST(l.KodKlienta AS INT) as ZamowienieId,
+                k.GodzWyjazdu,
+                k.Status
+            FROM dbo.Ladunek l
+            JOIN dbo.Kurs k ON l.KursID = k.KursID
+            WHERE k.DataKursu = @Data 
+            AND l.KodKlienta IN (" + string.Join(",", zamowieniaIds.Select(id => $"'{id}'")) + ")";
+
+                var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int zamowienieId = rd.GetInt32(0);
+                    TimeSpan? czasWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
+                    string status = rd.IsDBNull(2) ? "" : rd.GetString(2);
+
+                    transportInfo[zamowienieId] = (czasWyjazdu, status);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't break the main functionality
+                System.Diagnostics.Debug.WriteLine($"Error loading transport info: {ex.Message}");
+            }
+
+            return transportInfo;
+        }
         private async Task LoadPozycjeForSelectedAsync()
         {
             if (dgvZamowienia.CurrentRow?.DataBoundItem is not ZamowienieInfo info)

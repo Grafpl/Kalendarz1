@@ -1,4 +1,4 @@
-// Plik: /Repozytorium/TransportRepozytorium.cs
+// Plik: Transport/TransportRepository.cs
 // Repozytorium dla operacji na bazie danych TransportPL
 
 using System;
@@ -7,6 +7,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
+using Kalendarz1.Transport;
 using Kalendarz1.Transport.Pakowanie;
 
 namespace Kalendarz1.Transport.Repozytorium
@@ -281,7 +282,7 @@ namespace Kalendarz1.Transport.Repozytorium
                         GodzWyjazdu = reader.IsDBNull(5) ? null : (TimeSpan?)reader.GetTimeSpan(5),
                         GodzPowrotu = reader.IsDBNull(6) ? null : (TimeSpan?)reader.GetTimeSpan(6),
                         Status = reader.GetString(7),
-                        PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36), // UŻYJ SafeConvert
+                        PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36),
                         UtworzonoUTC = reader.GetDateTime(9),
                         Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                         ZmienionoUTC = reader.IsDBNull(11) ? null : (DateTime?)reader.GetDateTime(11),
@@ -381,24 +382,25 @@ namespace Kalendarz1.Transport.Repozytorium
                     GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
                     GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
                     Status = reader.GetString(7),
-                    PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36),  // ZMIENIONE
+                    PlanE2NaPalete = SafeConvert<byte>(reader.GetValue(8), 36),
                     UtworzonoUTC = reader.GetDateTime(9),
                     Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                     ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
                     Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
                     KierowcaNazwa = reader.GetString(13),
                     PojazdRejestracja = reader.GetString(14),
-                    PaletyPojazdu = SafeConvert<int>(reader.GetValue(15), 0),  // ZMIENIONE
-                    SumaE2 = SafeConvert<int>(reader.GetValue(16), 0),  // ZMIENIONE
-                    PaletyNominal = SafeConvert<int>(reader.GetValue(17), 0),  // ZMIENIONE
-                    PaletyMax = SafeConvert<int>(reader.GetValue(18), 0),  // ZMIENIONE
-                    ProcNominal = SafeConvert<decimal>(reader.GetValue(19), 0),  // ZMIENIONE
-                    ProcMax = SafeConvert<decimal>(reader.GetValue(20), 0)  // ZMIENIONE
+                    PaletyPojazdu = SafeConvert<int>(reader.GetValue(15), 0),
+                    SumaE2 = SafeConvert<int>(reader.GetValue(16), 0),
+                    PaletyNominal = SafeConvert<int>(reader.GetValue(17), 0),
+                    PaletyMax = SafeConvert<int>(reader.GetValue(18), 0),
+                    ProcNominal = SafeConvert<decimal>(reader.GetValue(19), 0),
+                    ProcMax = SafeConvert<decimal>(reader.GetValue(20), 0)
                 });
             }
 
             return kursy;
         }
+
         private static T SafeConvert<T>(object value, T defaultValue = default)
         {
             if (value == null || value == DBNull.Value)
@@ -466,6 +468,7 @@ namespace Kalendarz1.Transport.Repozytorium
 
             await cmd.ExecuteNonQueryAsync();
         }
+
         private async Task PrzywrocStatusZamowienAsync(long kursId, SqlConnection connection, SqlTransaction transaction)
         {
             try
@@ -517,6 +520,7 @@ namespace Kalendarz1.Transport.Repozytorium
                 // Nie rzucamy wyjątku, żeby nie blokować usuwania kursu
             }
         }
+
         public async Task UsunKursAsync(long kursId)
         {
             using var connection = new SqlConnection(_connectionString);

@@ -65,6 +65,16 @@
     <Compile Update="CRM.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="WidokPanelProdukcja.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>WidokPanelProdukcja.resx</DependentUpon>
+    </Compile>
+    <Compile Update="WidokPanelProdukcjaNew.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>WidokPanelProdukcjaNew.resx</DependentUpon>
+    </Compile>
     <Compile Update="WidokPojemnikiZestawienie.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -86,8 +96,9 @@
     </Compile>
     <Compile Update="WidokPaszaPisklak.cs" />
   </ItemGroup>
+	
 
-  <ItemGroup>
+	<ItemGroup>
     <EmbeddedResource Update="MenuPojemniki.resx">
       <SubType>Designer</SubType>
     </EmbeddedResource>

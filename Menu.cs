@@ -112,26 +112,24 @@ namespace Kalendarz1
 
         private void button5_Click(object sender, EventArgs e)
         {
-            new WidokPanelProdukcja { UserID = App.UserID }.Show();
+            new WidokPanelProdukcjaNowy { UserID = App.UserID }.Show();
         }
 
         private void button6_Click(object sender, EventArgs e)
         {
             try
             {
-                // Utwórz repozytorium
-                var connString = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                var libraConnString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                // Uruchom moduł transportu z raportem
+                var connString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
-                var repo = new Kalendarz1.Transport.Repozytorium.TransportRepozytorium(connString, libraConnString);
-
-                // Otwórz formularz transportu
+                var repo = new Kalendarz1.Transport.Repozytorium.TransportRepozytorium(connTransport, connString);
                 var frm = new Kalendarz1.Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
                 frm.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas otwierania modułu transportu:\n{ex.Message}",
+                MessageBox.Show($"Błąd podczas uruchamiania modułu transportu: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

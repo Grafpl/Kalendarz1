@@ -122,7 +122,7 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(20, 15, 20, 15)
             };
 
-            // Panel nawigacji dat (lewa strona)
+            // Panel nawigacji dat (lewa strona) - bez zmian
             var panelDate = new Panel
             {
                 Location = new Point(20, 15),
@@ -181,11 +181,11 @@ namespace Kalendarz1.Transport.Formularze
 
             panelDate.Controls.AddRange(new Control[] { btnPrevDay, datePanel, btnNextDay, btnToday, lblDayName });
 
-            // Panel przycisków (prawa strona) - BEZ IKON, NAPRAWIONE obsługa błędów
+            // Panel przycisków (prawa strona) - DODANY PRZYCISK RAPORT
             var panelButtons = new FlowLayoutPanel
             {
-                Location = new Point(600, 15), // Zmniejszona odległość od lewej
-                Size = new Size(1200, 50),
+                Location = new Point(600, 15),
+                Size = new Size(1300, 50), // Zwiększono szerokość dla nowego przycisku
                 FlowDirection = FlowDirection.RightToLeft,
                 BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
@@ -203,22 +203,29 @@ namespace Kalendarz1.Transport.Formularze
             btnUsun = CreateActionButton("USUŃ", Color.FromArgb(220, 53, 69), 80);
             btnUsun.Click += BtnUsunKurs_Click;
 
+            // NOWY PRZYCISK RAPORT
+            var btnRaport = CreateActionButton("RAPORT", Color.FromArgb(155, 89, 182), 100);
+            btnRaport.Click += BtnRaport_Click;
+
             btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
             btnMapa.Click += BtnMapa_Click;
             btnMapa.Enabled = false;
 
-            // NAPRAWIONE przyciski zarządzania
             btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
-            btnKierowcy.Click += SafeBtnKierowcy_Click; // Używamy bezpiecznej wersji
+            btnKierowcy.Click += SafeBtnKierowcy_Click;
 
             btnPojazdy = CreateActionButton("POJAZDY", Color.FromArgb(52, 73, 94), 100);
-            btnPojazdy.Click += SafeBtnPojazdy_Click; // Używamy bezpiecznej wersji
+            btnPojazdy.Click += SafeBtnPojazdy_Click;
 
-            panelButtons.Controls.AddRange(new Control[] { btnUsun, btnKopiuj, btnMapa, btnKierowcy, btnPojazdy, btnEdytuj, btnNowyKurs });
+            // Dodanie wszystkich przycisków do panelu - WŁĄCZNIE Z RAPORTEM
+            panelButtons.Controls.AddRange(new Control[] {
+        btnUsun, btnKopiuj, btnMapa, btnRaport, btnKierowcy, btnPojazdy, btnEdytuj, btnNowyKurs
+    });
+
             panelHeader.Controls.Add(panelDate);
             panelHeader.Controls.Add(panelButtons);
 
-            // Obsługa zmiany rozmiaru dla prawidłowego pozycjonowania przycisków
+            // Obsługa zmiany rozmiaru
             panelHeader.Resize += (s, e) =>
             {
                 if (panelButtons != null)
@@ -228,6 +235,22 @@ namespace Kalendarz1.Transport.Formularze
             };
         }
 
+        // NOWA METODA obsługi przycisku RAPORT
+        private void BtnRaport_Click(object sender, EventArgs e)
+        {
+            // Raport transportowy
+            var connString = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+            try
+            {
+                var raportForm = new Kalendarz1.Transport.TransportRaportForm(connString);
+                raportForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania raportu transportowego: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         // BEZPIECZNE obsługa przycisków - z pełną obsługą błędów
         private void SafeBtnKierowcy_Click(object sender, EventArgs e)
         {
