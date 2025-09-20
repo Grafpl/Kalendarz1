@@ -1630,7 +1630,8 @@ namespace Kalendarz1
                     LiczbaPojemnikow = @poj, LiczbaPalet = @pal, TrybE2 = @e2
                     WHERE Id=@id", cn, tr);
                 cmdUpdate.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
-                cmdUpdate.Parameters.AddWithValue("@dp", dateTimePickerGodzinaPrzyjazdu.Value);
+                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+                cmdUpdate.Parameters.AddWithValue("@dp", dataPrzyjazdu);
                 cmdUpdate.Parameters.AddWithValue("@kid", _selectedKlientId!);
                 cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
                 cmdUpdate.Parameters.AddWithValue("@km", UserID);
@@ -1655,7 +1656,8 @@ namespace Kalendarz1
                     VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
                 cmdInsert.Parameters.AddWithValue("@id", orderId);
                 cmdInsert.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
-                cmdInsert.Parameters.AddWithValue("@dp", dateTimePickerGodzinaPrzyjazdu.Value);
+                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+                cmdInsert.Parameters.AddWithValue("@dp", dataPrzyjazdu);
                 cmdInsert.Parameters.AddWithValue("@kid", _selectedKlientId!);
                 cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
                 cmdInsert.Parameters.AddWithValue("@u", UserID);
