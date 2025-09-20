@@ -852,21 +852,30 @@ namespace Kalendarz1.Transport.Formularze
         {
             using var dlg = new KolejnoscLadunkuDialog(_ladunki);
 
-            // Ustaw pozycję dialogu z przesunięciem w górę, aby nie przysłaniać okna zamówień
+            // Ustaw pozycję dialogu tak, aby nie nachodzić na panel zamówień
             dlg.StartPosition = FormStartPosition.Manual;
 
-            // Oblicz pozycję - przesuń dialog w górę i lekko w lewo względem centrum głównego okna
-            var centerX = this.Left + (this.Width / 2) - (dlg.Width / 2) - 100; // 100px w lewo
-            var centerY = this.Top + 100; // Tylko 100px od góry głównego okna
+            // Oblicz pozycję względem lewego panelu (ładunki)
+            // Dialog będzie wycentrowany nad lewą częścią okna (panel ładunków)
+            var leftPanelWidth = this.Width * 0.55; // 55% szerokości to lewa kolumna
+            var centerX = this.Left + (int)(leftPanelWidth / 2) - (dlg.Width / 2);
+            var centerY = this.Top + 250; // Pozycja Y poniżej nagłówka
 
-            // Upewnij się, że okno nie wyjdzie poza ekran
-            if (centerX < 0) centerX = 20;
-            if (centerY < 0) centerY = 20;
-
-            // Sprawdź czy nie wyjdzie poza prawy/dolny brzeg ekranu
+            // Sprawdź czy dialog mieści się w lewej części ekranu
             var screen = Screen.FromControl(this);
-            if (centerX + dlg.Width > screen.WorkingArea.Right)
-                centerX = screen.WorkingArea.Right - dlg.Width - 20;
+
+            // Upewnij się, że dialog nie wyjdzie poza lewą stronę
+            if (centerX < 20)
+                centerX = 20;
+
+            // Upewnij się, że dialog nie nachodzi na prawy panel (zamówienia)
+            var maxRightPosition = this.Left + (int)leftPanelWidth - dlg.Width - 20;
+            if (centerX > maxRightPosition)
+                centerX = maxRightPosition;
+
+            // Sprawdź górną i dolną granicę ekranu
+            if (centerY < 20)
+                centerY = 20;
             if (centerY + dlg.Height > screen.WorkingArea.Bottom)
                 centerY = screen.WorkingArea.Bottom - dlg.Height - 20;
 
@@ -884,7 +893,6 @@ namespace Kalendarz1.Transport.Formularze
                 await LoadLadunki();
             }
         }
-
         private async Task SaveKolejnoscToBaza()
         {
             try

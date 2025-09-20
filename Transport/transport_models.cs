@@ -1,5 +1,5 @@
 // =====================================================================
-// PLIK: Transport/TransportModels.cs - KOMPLETNY PLIK BEZ DUPLIKATÓW
+// PLIK: Transport/TransportModels.cs - KOMPLETNY PLIK Z POPRAWKAMI
 // =====================================================================
 
 using System;
@@ -30,6 +30,10 @@ namespace Kalendarz1.Transport
         public DateTime? ZmienionoUTC { get; set; }
 
         public string PelneImie => $"{Imie} {Nazwisko}";
+        public string PelneNazwisko => $"{Imie} {Nazwisko}";
+
+        // Override ToString dla poprawnego wyświetlania w ComboBox
+        public override string ToString() => PelneNazwisko;
     }
 
     public class Pojazd
@@ -57,6 +61,11 @@ namespace Kalendarz1.Transport
         public string PelnyNazwa => string.IsNullOrEmpty(Marka)
             ? Rejestracja
             : $"{Marka} {Model} ({Rejestracja})";
+
+        public string Opis => $"{Rejestracja} - {PaletyH1} palet";
+
+        // Override ToString dla poprawnego wyświetlania w ComboBox  
+        public override string ToString() => Opis;
     }
 
     public class Kurs

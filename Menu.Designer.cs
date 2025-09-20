@@ -65,6 +65,9 @@
             buttonAkceptacja = new System.Windows.Forms.Button();
             button5 = new System.Windows.Forms.Button();
             button6 = new System.Windows.Forms.Button();
+            label17 = new System.Windows.Forms.Label();
+            label18 = new System.Windows.Forms.Label();
+            label19 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -72,7 +75,7 @@
             // 
             kalendarzButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("kalendarzButton.BackgroundImage");
             kalendarzButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            kalendarzButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            kalendarzButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             kalendarzButton.ForeColor = System.Drawing.Color.Black;
             kalendarzButton.Location = new System.Drawing.Point(816, 383);
             kalendarzButton.Name = "kalendarzButton";
@@ -85,7 +88,7 @@
             // 
             terminyButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("terminyButton.BackgroundImage");
             terminyButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            terminyButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            terminyButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             terminyButton.ForeColor = System.Drawing.Color.Black;
             terminyButton.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
             terminyButton.Location = new System.Drawing.Point(816, 138);
@@ -99,7 +102,7 @@
             // 
             buttonWstawienia.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonWstawienia.BackgroundImage");
             buttonWstawienia.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            buttonWstawienia.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonWstawienia.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             buttonWstawienia.ForeColor = System.Drawing.Color.Black;
             buttonWstawienia.Location = new System.Drawing.Point(548, 138);
             buttonWstawienia.Name = "buttonWstawienia";
@@ -112,7 +115,7 @@
             // 
             buttonKontrahenci.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonKontrahenci.BackgroundImage");
             buttonKontrahenci.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            buttonKontrahenci.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonKontrahenci.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             buttonKontrahenci.ForeColor = System.Drawing.Color.Black;
             buttonKontrahenci.Location = new System.Drawing.Point(12, 138);
             buttonKontrahenci.Name = "buttonKontrahenci";
@@ -125,7 +128,7 @@
             // 
             mrozniaButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("mrozniaButton.BackgroundImage");
             mrozniaButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            mrozniaButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            mrozniaButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             mrozniaButton.ForeColor = System.Drawing.Color.Cornsilk;
             mrozniaButton.Location = new System.Drawing.Point(816, 612);
             mrozniaButton.Name = "mrozniaButton";
@@ -138,7 +141,7 @@
             // 
             sprzedazZakupButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("sprzedazZakupButton.BackgroundImage");
             sprzedazZakupButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            sprzedazZakupButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            sprzedazZakupButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             sprzedazZakupButton.Location = new System.Drawing.Point(816, 841);
             sprzedazZakupButton.Name = "sprzedazZakupButton";
             sprzedazZakupButton.Size = new System.Drawing.Size(262, 193);
@@ -150,7 +153,7 @@
             // 
             krojenieButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("krojenieButton.BackgroundImage");
             krojenieButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            krojenieButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            krojenieButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             krojenieButton.Location = new System.Drawing.Point(548, 612);
             krojenieButton.Name = "krojenieButton";
             krojenieButton.Size = new System.Drawing.Size(262, 193);
@@ -162,7 +165,7 @@
             // 
             odbiorcaButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("odbiorcaButton.BackgroundImage");
             odbiorcaButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            odbiorcaButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            odbiorcaButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             odbiorcaButton.Location = new System.Drawing.Point(280, 612);
             odbiorcaButton.Name = "odbiorcaButton";
             odbiorcaButton.Size = new System.Drawing.Size(262, 193);
@@ -174,9 +177,9 @@
             // 
             pictureBox1.BackgroundImage = Properties.Resources.pm;
             pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            pictureBox1.Location = new System.Drawing.Point(343, -1);
+            pictureBox1.Location = new System.Drawing.Point(493, 12);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new System.Drawing.Size(376, 87);
+            pictureBox1.Size = new System.Drawing.Size(358, 90);
             pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 8;
             pictureBox1.TabStop = false;
@@ -185,7 +188,7 @@
             // 
             button1.BackgroundImage = (System.Drawing.Image)resources.GetObject("button1.BackgroundImage");
             button1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button1.Location = new System.Drawing.Point(548, 383);
             button1.Name = "button1";
             button1.Size = new System.Drawing.Size(262, 193);
@@ -197,7 +200,7 @@
             // 
             button2.BackgroundImage = (System.Drawing.Image)resources.GetObject("button2.BackgroundImage");
             button2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button2.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button2.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button2.Location = new System.Drawing.Point(12, 383);
             button2.Name = "button2";
             button2.Size = new System.Drawing.Size(262, 193);
@@ -209,7 +212,7 @@
             // 
             button3.BackgroundImage = (System.Drawing.Image)resources.GetObject("button3.BackgroundImage");
             button3.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button3.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button3.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button3.Location = new System.Drawing.Point(280, 138);
             button3.Name = "button3";
             button3.Size = new System.Drawing.Size(262, 193);
@@ -221,7 +224,7 @@
             // 
             button4.BackgroundImage = (System.Drawing.Image)resources.GetObject("button4.BackgroundImage");
             button4.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button4.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button4.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button4.Location = new System.Drawing.Point(280, 383);
             button4.Name = "button4";
             button4.Size = new System.Drawing.Size(262, 193);
@@ -233,7 +236,7 @@
             // 
             UzgodnienieSaldButton.BackgroundImage = (System.Drawing.Image)resources.GetObject("UzgodnienieSaldButton.BackgroundImage");
             UzgodnienieSaldButton.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            UzgodnienieSaldButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            UzgodnienieSaldButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             UzgodnienieSaldButton.Location = new System.Drawing.Point(548, 841);
             UzgodnienieSaldButton.Name = "UzgodnienieSaldButton";
             UzgodnienieSaldButton.Size = new System.Drawing.Size(262, 193);
@@ -245,7 +248,7 @@
             // 
             buttonPojemnikiZestawienie.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonPojemnikiZestawienie.BackgroundImage");
             buttonPojemnikiZestawienie.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            buttonPojemnikiZestawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonPojemnikiZestawienie.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             buttonPojemnikiZestawienie.Location = new System.Drawing.Point(280, 841);
             buttonPojemnikiZestawienie.Name = "buttonPojemnikiZestawienie";
             buttonPojemnikiZestawienie.Size = new System.Drawing.Size(262, 193);
@@ -257,7 +260,7 @@
             // 
             CRM.BackgroundImage = (System.Drawing.Image)resources.GetObject("CRM.BackgroundImage");
             CRM.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            CRM.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            CRM.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             CRM.Location = new System.Drawing.Point(12, 612);
             CRM.Name = "CRM";
             CRM.Size = new System.Drawing.Size(262, 193);
@@ -269,7 +272,7 @@
             // 
             buttonFakturySprzedazy.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonFakturySprzedazy.BackgroundImage");
             buttonFakturySprzedazy.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            buttonFakturySprzedazy.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonFakturySprzedazy.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             buttonFakturySprzedazy.Location = new System.Drawing.Point(12, 841);
             buttonFakturySprzedazy.Name = "buttonFakturySprzedazy";
             buttonFakturySprzedazy.Size = new System.Drawing.Size(262, 193);
@@ -279,7 +282,7 @@
             // 
             // label10
             // 
-            label10.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label10.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label10.Location = new System.Drawing.Point(12, 105);
             label10.Name = "label10";
             label10.Size = new System.Drawing.Size(262, 30);
@@ -289,7 +292,7 @@
             // 
             // label1
             // 
-            label1.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label1.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label1.Location = new System.Drawing.Point(280, 105);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(262, 30);
@@ -299,7 +302,7 @@
             // 
             // label2
             // 
-            label2.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label2.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label2.Location = new System.Drawing.Point(548, 105);
             label2.Name = "label2";
             label2.Size = new System.Drawing.Size(262, 30);
@@ -309,7 +312,7 @@
             // 
             // label6
             // 
-            label6.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label6.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label6.Location = new System.Drawing.Point(816, 105);
             label6.Name = "label6";
             label6.Size = new System.Drawing.Size(262, 30);
@@ -319,7 +322,7 @@
             // 
             // label3
             // 
-            label3.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label3.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label3.Location = new System.Drawing.Point(816, 350);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(262, 30);
@@ -329,7 +332,7 @@
             // 
             // label4
             // 
-            label4.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label4.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label4.Location = new System.Drawing.Point(548, 350);
             label4.Name = "label4";
             label4.Size = new System.Drawing.Size(262, 30);
@@ -339,7 +342,7 @@
             // 
             // label5
             // 
-            label5.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label5.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label5.Location = new System.Drawing.Point(280, 350);
             label5.Name = "label5";
             label5.Size = new System.Drawing.Size(262, 30);
@@ -349,7 +352,7 @@
             // 
             // label7
             // 
-            label7.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label7.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label7.Location = new System.Drawing.Point(12, 350);
             label7.Name = "label7";
             label7.Size = new System.Drawing.Size(262, 30);
@@ -359,7 +362,7 @@
             // 
             // label8
             // 
-            label8.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label8.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label8.Location = new System.Drawing.Point(816, 579);
             label8.Name = "label8";
             label8.Size = new System.Drawing.Size(262, 30);
@@ -369,7 +372,7 @@
             // 
             // label9
             // 
-            label9.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label9.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label9.Location = new System.Drawing.Point(548, 579);
             label9.Name = "label9";
             label9.Size = new System.Drawing.Size(262, 30);
@@ -379,7 +382,7 @@
             // 
             // label11
             // 
-            label11.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label11.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label11.Location = new System.Drawing.Point(280, 579);
             label11.Name = "label11";
             label11.Size = new System.Drawing.Size(262, 30);
@@ -389,7 +392,7 @@
             // 
             // label13
             // 
-            label13.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label13.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label13.Location = new System.Drawing.Point(12, 579);
             label13.Name = "label13";
             label13.Size = new System.Drawing.Size(262, 30);
@@ -399,7 +402,7 @@
             // 
             // label12
             // 
-            label12.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label12.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label12.Location = new System.Drawing.Point(816, 808);
             label12.Name = "label12";
             label12.Size = new System.Drawing.Size(262, 30);
@@ -409,7 +412,7 @@
             // 
             // label14
             // 
-            label14.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label14.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label14.Location = new System.Drawing.Point(548, 808);
             label14.Name = "label14";
             label14.Size = new System.Drawing.Size(262, 30);
@@ -419,7 +422,7 @@
             // 
             // label15
             // 
-            label15.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label15.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label15.Location = new System.Drawing.Point(280, 808);
             label15.Name = "label15";
             label15.Size = new System.Drawing.Size(262, 30);
@@ -429,7 +432,7 @@
             // 
             // label16
             // 
-            label16.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            label16.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
             label16.Location = new System.Drawing.Point(12, 808);
             label16.Name = "label16";
             label16.Size = new System.Drawing.Size(262, 30);
@@ -441,12 +444,12 @@
             // 
             buttonAkceptacja.BackgroundImage = (System.Drawing.Image)resources.GetObject("buttonAkceptacja.BackgroundImage");
             buttonAkceptacja.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            buttonAkceptacja.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            buttonAkceptacja.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             buttonAkceptacja.ForeColor = System.Drawing.Color.Black;
             buttonAkceptacja.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
-            buttonAkceptacja.Location = new System.Drawing.Point(851, 20);
+            buttonAkceptacja.Location = new System.Drawing.Point(1084, 383);
             buttonAkceptacja.Name = "buttonAkceptacja";
-            buttonAkceptacja.Size = new System.Drawing.Size(85, 66);
+            buttonAkceptacja.Size = new System.Drawing.Size(262, 193);
             buttonAkceptacja.TabIndex = 53;
             buttonAkceptacja.UseVisualStyleBackColor = true;
             buttonAkceptacja.Click += buttonAkceptacja_Click;
@@ -455,12 +458,12 @@
             // 
             button5.BackgroundImage = (System.Drawing.Image)resources.GetObject("button5.BackgroundImage");
             button5.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button5.ForeColor = System.Drawing.Color.Black;
             button5.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
-            button5.Location = new System.Drawing.Point(942, 20);
+            button5.Location = new System.Drawing.Point(1084, 612);
             button5.Name = "button5";
-            button5.Size = new System.Drawing.Size(85, 66);
+            button5.Size = new System.Drawing.Size(262, 193);
             button5.TabIndex = 54;
             button5.UseVisualStyleBackColor = true;
             button5.Click += button5_Click;
@@ -469,21 +472,54 @@
             // 
             button6.BackgroundImage = (System.Drawing.Image)resources.GetObject("button6.BackgroundImage");
             button6.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
             button6.ForeColor = System.Drawing.Color.Black;
             button6.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
-            button6.Location = new System.Drawing.Point(175, 20);
+            button6.Location = new System.Drawing.Point(1084, 138);
             button6.Name = "button6";
-            button6.Size = new System.Drawing.Size(85, 66);
+            button6.Size = new System.Drawing.Size(262, 193);
             button6.TabIndex = 55;
             button6.UseVisualStyleBackColor = true;
             button6.Click += button6_Click;
+            // 
+            // label17
+            // 
+            label17.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
+            label17.Location = new System.Drawing.Point(1084, 87);
+            label17.Name = "label17";
+            label17.Size = new System.Drawing.Size(262, 48);
+            label17.TabIndex = 56;
+            label17.Text = "Ustalanie transportu mięsa";
+            label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label18
+            // 
+            label18.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
+            label18.Location = new System.Drawing.Point(1084, 350);
+            label18.Name = "label18";
+            label18.Size = new System.Drawing.Size(262, 30);
+            label18.TabIndex = 57;
+            label18.Text = "Zmiany u hodowców";
+            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // label19
+            // 
+            label19.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
+            label19.Location = new System.Drawing.Point(1084, 579);
+            label19.Name = "label19";
+            label19.Size = new System.Drawing.Size(262, 30);
+            label19.TabIndex = 58;
+            label19.Text = "Produkcja podgląd";
+            label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // MENU
             // 
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             BackColor = System.Drawing.Color.White;
-            ClientSize = new System.Drawing.Size(1084, 1054);
+            ClientSize = new System.Drawing.Size(1443, 1054);
+            Controls.Add(label19);
+            Controls.Add(label18);
+            Controls.Add(label17);
             Controls.Add(button6);
             Controls.Add(button5);
             Controls.Add(buttonAkceptacja);
@@ -567,5 +603,8 @@
         private System.Windows.Forms.Button buttonAkceptacja;
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.Label label19;
     }
 }
