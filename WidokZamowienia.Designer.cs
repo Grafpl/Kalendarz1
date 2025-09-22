@@ -31,12 +31,15 @@ namespace Kalendarz1
             label3 = new System.Windows.Forms.Label();
             dateTimePickerSprzedaz = new System.Windows.Forms.DateTimePicker();
             label2 = new System.Windows.Forms.Label();
+            panelOstatniOdbiorcy = new System.Windows.Forms.Panel();
+            lblOstatniOdbiorcy = new System.Windows.Forms.Label();
+            gridOstatniOdbiorcy = new System.Windows.Forms.DataGridView();
             panelOdbiorca = new System.Windows.Forms.Panel();
             lblTytul = new System.Windows.Forms.Label();
+            label4 = new System.Windows.Forms.Label();
             cbHandlowiecFilter = new System.Windows.Forms.ComboBox();
             txtSzukajOdbiorcy = new System.Windows.Forms.TextBox();
             label1 = new System.Windows.Forms.Label();
-            label4 = new System.Windows.Forms.Label();
             panelDetails = new System.Windows.Forms.Panel();
             dataGridViewZamowienie = new System.Windows.Forms.DataGridView();
             panelDaneOdbiorcy = new System.Windows.Forms.Panel();
@@ -53,6 +56,8 @@ namespace Kalendarz1
             panelMaster.SuspendLayout();
             panelAkcji.SuspendLayout();
             panelDetaleZamowienia.SuspendLayout();
+            panelOstatniOdbiorcy.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridOstatniOdbiorcy).BeginInit();
             panelOdbiorca.SuspendLayout();
             panelDetails.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewZamowienie).BeginInit();
@@ -139,6 +144,7 @@ namespace Kalendarz1
             panelDetaleZamowienia.Controls.Add(label3);
             panelDetaleZamowienia.Controls.Add(dateTimePickerSprzedaz);
             panelDetaleZamowienia.Controls.Add(label2);
+            panelDetaleZamowienia.Controls.Add(panelOstatniOdbiorcy);
             panelDetaleZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
             panelDetaleZamowienia.Location = new System.Drawing.Point(0, 180);
             panelDetaleZamowienia.Name = "panelDetaleZamowienia";
@@ -225,6 +231,51 @@ namespace Kalendarz1
             label2.Size = new System.Drawing.Size(108, 17);
             label2.TabIndex = 0;
             label2.Text = "📅 Data odbioru";
+            // 
+            // panelOstatniOdbiorcy
+            // 
+            panelOstatniOdbiorcy.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            panelOstatniOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            panelOstatniOdbiorcy.Controls.Add(lblOstatniOdbiorcy);
+            panelOstatniOdbiorcy.Controls.Add(gridOstatniOdbiorcy);
+            panelOstatniOdbiorcy.Location = new System.Drawing.Point(10, 20);
+            panelOstatniOdbiorcy.Name = "panelOstatniOdbiorcy";
+            panelOstatniOdbiorcy.Size = new System.Drawing.Size(410, 260);
+            panelOstatniOdbiorcy.TabIndex = 6;
+            panelOstatniOdbiorcy.Visible = true;
+            // 
+            // lblOstatniOdbiorcy
+            // 
+            lblOstatniOdbiorcy.BackColor = System.Drawing.Color.Transparent;
+            lblOstatniOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9F);
+            lblOstatniOdbiorcy.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
+            lblOstatniOdbiorcy.Location = new System.Drawing.Point(10, 8);
+            lblOstatniOdbiorcy.Name = "lblOstatniOdbiorcy";
+            lblOstatniOdbiorcy.Size = new System.Drawing.Size(390, 20);
+            lblOstatniOdbiorcy.TabIndex = 0;
+            lblOstatniOdbiorcy.Text = "Wybierz odbiorcę:";
+            // 
+            // gridOstatniOdbiorcy
+            // 
+            gridOstatniOdbiorcy.AllowUserToAddRows = false;
+            gridOstatniOdbiorcy.AllowUserToDeleteRows = false;
+            gridOstatniOdbiorcy.AllowUserToResizeColumns = false;
+            gridOstatniOdbiorcy.AllowUserToResizeRows = false;
+            gridOstatniOdbiorcy.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            gridOstatniOdbiorcy.BackgroundColor = System.Drawing.Color.White;
+            gridOstatniOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            gridOstatniOdbiorcy.ColumnHeadersVisible = false;
+            gridOstatniOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9F);
+            gridOstatniOdbiorcy.GridColor = System.Drawing.Color.FromArgb(243, 244, 246);
+            gridOstatniOdbiorcy.Location = new System.Drawing.Point(10, 30);
+            gridOstatniOdbiorcy.MultiSelect = false;
+            gridOstatniOdbiorcy.Name = "gridOstatniOdbiorcy";
+            gridOstatniOdbiorcy.ReadOnly = true;
+            gridOstatniOdbiorcy.RowHeadersVisible = false;
+            gridOstatniOdbiorcy.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            gridOstatniOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect;
+            gridOstatniOdbiorcy.Size = new System.Drawing.Size(390, 220);
+            gridOstatniOdbiorcy.TabIndex = 1;
             // 
             // panelOdbiorca
             // 
@@ -472,6 +523,8 @@ namespace Kalendarz1
             panelAkcji.ResumeLayout(false);
             panelDetaleZamowienia.ResumeLayout(false);
             panelDetaleZamowienia.PerformLayout();
+            panelOstatniOdbiorcy.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)gridOstatniOdbiorcy).EndInit();
             panelOdbiorca.ResumeLayout(false);
             panelOdbiorca.PerformLayout();
             panelDetails.ResumeLayout(false);
@@ -516,5 +569,8 @@ namespace Kalendarz1
         private System.Windows.Forms.Label lblAdres;
         private System.Windows.Forms.Label lblNip;
         private System.Windows.Forms.Label lblWybranyOdbiorca;
+        private System.Windows.Forms.Panel panelOstatniOdbiorcy;
+        private System.Windows.Forms.Label lblOstatniOdbiorcy;
+        private System.Windows.Forms.DataGridView gridOstatniOdbiorcy;
     }
 }

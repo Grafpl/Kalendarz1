@@ -45,10 +45,6 @@ namespace Kalendarz1
         private readonly CultureInfo _pl = new("pl-PL");
         private readonly Dictionary<string, Image> _headerIcons = new();
 
-        // ===== Kontrolki dla grida ostatnich odbiorców =====
-        private DataGridView? gridOstatniOdbiorcy;
-        private Panel? panelOstatniOdbiorcy;
-        private Label? lblOstatniOdbiorcy;
 
         // ===== Dane i Cache =====
         private sealed class KontrahentInfo
@@ -109,9 +105,10 @@ namespace Kalendarz1
             WireShortcuts();
             BuildDataTableSchema();
             InitDefaults();
-            CreateOstatniOdbiorcyGrid();
             CreateSummaryPanel();
             CreateTransportPanel();
+            SetupOstatniOdbiorcyGrid();
+
 
             dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
             dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
@@ -143,19 +140,10 @@ namespace Kalendarz1
 
         #region Grid Ostatnich Odbiorców
 
-        private void CreateOstatniOdbiorcyGrid()
+        // Poprawiona metoda SetupOstatniOdbiorcyGrid z dodaną obsługą kliknięć
+        private void SetupOstatniOdbiorcyGrid()
         {
-            // Panel odbiorców wyżej i większy
-            panelOstatniOdbiorcy = new Panel
-            {
-                Location = new Point(10, 195),  // Przesunięty wyżej (z 285 na 195)
-                Size = new Size(410, 260),      // Zwiększona wysokość (z 180 na 260)
-                BorderStyle = BorderStyle.None,
-                BackColor = Color.FromArgb(249, 250, 251),
-                Visible = true
-            };
-
-            // Dodaj efekt zaokrąglonych rogów
+            // Stylowanie panelu
             panelOstatniOdbiorcy.Paint += (s, e) =>
             {
                 using var path = GetRoundedRectPath(panelOstatniOdbiorcy.ClientRectangle, 8);
@@ -166,95 +154,68 @@ namespace Kalendarz1
                 e.Graphics.DrawPath(pen, path);
             };
 
-            lblOstatniOdbiorcy = new Label
-            {
-                Text = "Wybierz odbiorcę:",
-                Location = new Point(10, 8),
-                Size = new Size(390, 20),
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                ForeColor = Color.FromArgb(107, 114, 128),
-                BackColor = Color.Transparent
-            };
-
-            gridOstatniOdbiorcy = new DataGridView
-            {
-                Location = new Point(10, 30),
-                Size = new Size(390, 220),  // Zwiększona wysokość grida (z 140 na 220)
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                AllowUserToResizeRows = false,
-                AllowUserToResizeColumns = false,
-                ReadOnly = true,
-                RowHeadersVisible = false,
-                ColumnHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.CellSelect,
-                MultiSelect = false,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                GridColor = Color.FromArgb(243, 244, 246),
-                Font = new Font("Segoe UI", 9f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ScrollBars = ScrollBars.Vertical
-            };
-
+            // Stylowanie grida
             gridOstatniOdbiorcy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(99, 102, 241);
             gridOstatniOdbiorcy.DefaultCellStyle.SelectionForeColor = Color.White;
             gridOstatniOdbiorcy.DefaultCellStyle.Padding = new Padding(8, 3, 8, 3);
             gridOstatniOdbiorcy.RowTemplate.Height = 28;
             gridOstatniOdbiorcy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            gridOstatniOdbiorcy.CellClick += (s, e) =>
-            {
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    var value = gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
-                    if (!string.IsNullOrEmpty(value))
-                    {
-                        SelectOdbiorcaFromCell(value);
-                    }
-                }
-            };
+            // WAŻNE: Usuń wszystkie poprzednie obsługi zdarzeń aby uniknąć duplikacji
+            gridOstatniOdbiorcy.CellClick -= GridOstatniOdbiorcy_CellClick;
+            gridOstatniOdbiorcy.CellMouseEnter -= GridOstatniOdbiorcy_CellMouseEnter;
+            gridOstatniOdbiorcy.CellMouseLeave -= GridOstatniOdbiorcy_CellMouseLeave;
 
-            gridOstatniOdbiorcy.CellMouseEnter += (s, e) =>
-            {
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = Color.FromArgb(238, 242, 255);
-                }
-            };
-
-            gridOstatniOdbiorcy.CellMouseLeave += (s, e) =>
-            {
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
-                {
-                    var row = gridOstatniOdbiorcy.Rows[e.RowIndex];
-                    row.Cells[e.ColumnIndex].Style.BackColor =
-                        e.RowIndex % 2 == 0 ? Color.White : Color.FromArgb(249, 250, 251);
-                }
-            };
-
-            panelOstatniOdbiorcy.Controls.Add(lblOstatniOdbiorcy);
-            panelOstatniOdbiorcy.Controls.Add(gridOstatniOdbiorcy);
-            panelMaster.Controls.Add(panelOstatniOdbiorcy);
-            panelOstatniOdbiorcy.BringToFront();
+            // Dodaj nowe obsługi zdarzeń
+            gridOstatniOdbiorcy.CellClick += GridOstatniOdbiorcy_CellClick;
+            gridOstatniOdbiorcy.CellMouseEnter += GridOstatniOdbiorcy_CellMouseEnter;
+            gridOstatniOdbiorcy.CellMouseLeave += GridOstatniOdbiorcy_CellMouseLeave;
         }
 
-        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        // Osobne metody obsługi zdarzeń dla lepszej czytelności i debugowania
+        private void GridOstatniOdbiorcy_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            var path = new GraphicsPath();
-            path.AddArc(rect.X, rect.Y, radius * 2, radius * 2, 180, 90);
-            path.AddArc(rect.Right - radius * 2, rect.Y, radius * 2, radius * 2, 270, 90);
-            path.AddArc(rect.Right - radius * 2, rect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
-            path.AddArc(rect.X, rect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
-            path.CloseAllFigures();
-            return path;
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                var value = gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    // Debug - sprawdź czy metoda jest wywoływana
+                    System.Diagnostics.Debug.WriteLine($"Kliknięto w: {value}");
+                    SelectOdbiorcaFromCell(value);
+                }
+            }
         }
 
+        private void GridOstatniOdbiorcy_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = Color.FromArgb(238, 242, 255);
+            }
+        }
+
+        private void GridOstatniOdbiorcy_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                var row = gridOstatniOdbiorcy.Rows[e.RowIndex];
+                row.Cells[e.ColumnIndex].Style.BackColor =
+                    e.RowIndex % 2 == 0 ? Color.White : Color.FromArgb(249, 250, 251);
+            }
+        }
+
+        // Sprawdź czy metoda SelectOdbiorcaFromCell działa poprawnie
         private void SelectOdbiorcaFromCell(string nazwaOdbiorcy)
         {
+            // Debug - sprawdź czy ta metoda jest wywoływana
+            System.Diagnostics.Debug.WriteLine($"SelectOdbiorcaFromCell wywołana z: {nazwaOdbiorcy}");
+
             var odbiorca = _kontrahenci.FirstOrDefault(k => k.Nazwa == nazwaOdbiorcy);
             if (odbiorca != null)
             {
+                System.Diagnostics.Debug.WriteLine($"Znaleziono odbiorcę: {odbiorca.Id} - {odbiorca.Nazwa}");
+
                 if (_selectedKlientId != null && _selectedKlientId != odbiorca.Id)
                 {
                     _blokujObslugeZmian = true;
@@ -272,30 +233,45 @@ namespace Kalendarz1
                 UstawOdbiorce(odbiorca.Id);
                 RecalcSum();
             }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"NIE znaleziono odbiorcy o nazwie: {nazwaOdbiorcy}");
+            }
         }
+        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
+            path.CloseAllFigures();
+            return path;
+        }
+
+        
 
         private void UpdateOstatniOdbiorcyGrid(string? handlowiec)
         {
-            if (gridOstatniOdbiorcy == null || panelOstatniOdbiorcy == null) return;
-
             panelOstatniOdbiorcy.Visible = true;
 
             if (string.IsNullOrEmpty(handlowiec) || handlowiec == "— Wszyscy —")
             {
-                lblOstatniOdbiorcy!.Text = "Wybierz handlowca aby zobaczyć odbiorców";
+                lblOstatniOdbiorcy.Text = "Wybierz handlowca aby zobaczyć odbiorców";
                 gridOstatniOdbiorcy.DataSource = null;
                 return;
             }
 
             var odbiorcy = _kontrahenci
                 .Where(k => k.Handlowiec == handlowiec)
-                .OrderBy(k => k.Nazwa)
+                .OrderByDescending(k => k.OstatnieZamowienie.HasValue && k.OstatnieZamowienie >= DateTime.Now.AddMonths(-1)) // Najpierw z ostatnimi zamówieniami
+                .ThenBy(k => k.Nazwa) // Potem alfabetycznie
                 .Select(k => k.Nazwa)
                 .ToList();
 
             if (!odbiorcy.Any())
             {
-                lblOstatniOdbiorcy!.Text = $"Brak odbiorców dla: {handlowiec}";
+                lblOstatniOdbiorcy.Text = $"Brak odbiorców dla: {handlowiec}";
                 gridOstatniOdbiorcy.DataSource = null;
                 return;
             }
@@ -316,10 +292,11 @@ namespace Kalendarz1
 
             if (gridOstatniOdbiorcy.Columns.Count > 0)
             {
-                gridOstatniOdbiorcy.Columns["Kolumna1"]!.Width = 195;
-                gridOstatniOdbiorcy.Columns["Kolumna2"]!.Width = 195;
+                gridOstatniOdbiorcy.Columns["Kolumna1"].Width = 195;
+                gridOstatniOdbiorcy.Columns["Kolumna2"].Width = 195;
             }
 
+            // Zastosuj formatowanie do wierszy
             foreach (DataGridViewRow row in gridOstatniOdbiorcy.Rows)
             {
                 for (int col = 0; col < 2; col++)
@@ -338,9 +315,8 @@ namespace Kalendarz1
                 }
             }
 
-            lblOstatniOdbiorcy!.Text = $"Odbiorcy ({odbiorcy.Count}):";
+            lblOstatniOdbiorcy.Text = $"Odbiorcy ({odbiorcy.Count}):";
         }
-
         private async Task LoadOstatnieZamowienia()
         {
             const string sql = @"

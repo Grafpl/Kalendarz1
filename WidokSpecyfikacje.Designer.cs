@@ -76,10 +76,10 @@
             dataGridView1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { ID, Nr, Dostawca, RealDostawca, SztukiDek, Padle, CH, NW, ZM, BruttoHodowcy, TaraHodowcy, NettoHodowcy, BruttoUbojni, TaraUbojni, NettoUbojni, LUMEL, SztukiWybijak, KilogramyWybijak, Cena, TypCeny, PiK, Ubytek });
             dataGridView1.Location = new System.Drawing.Point(12, 81);
             dataGridView1.Name = "dataGridView1";
-            dataGridView1.RowTemplate.Height = 25;
             dataGridView1.Size = new System.Drawing.Size(1469, 521);
             dataGridView1.TabIndex = 1;
             dataGridView1.CellClick += dataGridView1_CellClick;
+            dataGridView1.CellContentClick += dataGridView1_CellContentClick;
             dataGridView1.CellDoubleClick += DataGridView1_CellDoubleClick;
             dataGridView1.CellEndEdit += dataGridView1_CellEndEdit;
             dataGridView1.CellValueChanged += dataGridView1_CellValueChanged;
@@ -258,7 +258,6 @@
             dataGridView2.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridView2.Location = new System.Drawing.Point(1487, 50);
             dataGridView2.Name = "dataGridView2";
-            dataGridView2.RowTemplate.Height = 25;
             dataGridView2.Size = new System.Drawing.Size(264, 552);
             dataGridView2.TabIndex = 3;
             // 
