@@ -1,9 +1,11 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 8.0 – Integracja z nowymi kolumnami bazy danych
+// WERSJA 9.0 – Ulepszona skalowalność i UI
 // Zmiany:
-// - Obsługa kolumn LiczbaPalet, LiczbaPojemnikow, TrybE2 z bazy
-// - Wyświetlanie rzeczywistych danych o paletach/pojemnikach
-// - Zachowanie kompatybilności z transportem
+// - Responsywny layout dla różnych rozdzielczości
+// - Automatyczne odświeżanie po operacjach
+// - Ulepszone duplikowanie (checkbox dla notatki)
+// - Przycisk "Cykliczne" widoczny dla wszystkich
+// - Poprawiony wygląd UI (ikony, kolory, cienie)
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -15,22 +17,25 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Reflection;
+using System.Drawing.Drawing2D;
 
 namespace Kalendarz1
 {
-    // Dialog dublowania pozostaje bez zmian
+    // Ulepszona klasa dialogu dublowania
     public class MultipleDatePickerDialog : Form
     {
         public List<DateTime> SelectedDates { get; private set; } = new();
+        public bool CopyNotes { get; private set; } = false;
         private DateTimePicker dtpStartDate;
         private DateTimePicker dtpEndDate;
         private CheckedListBox clbDays;
+        private CheckBox chkCopyNotes;
         private Label lblInfo;
 
         public MultipleDatePickerDialog(string title)
         {
             Text = title;
-            Size = new Size(400, 450);
+            Size = new Size(400, 500);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -104,35 +109,46 @@ namespace Kalendarz1
                     clbDays.SetItemChecked(i, false);
             };
 
+            // Nowy checkbox dla kopiowania notatek
+            chkCopyNotes = new CheckBox
+            {
+                Text = "Kopiuj notatkę z oryginalnego zamówienia",
+                Location = new Point(20, 365),
+                Size = new Size(350, 25),
+                Checked = false
+            };
+
             var btnOK = new Button
             {
                 Text = "Dubluj",
                 DialogResult = DialogResult.OK,
-                Location = new Point(80, 370),
+                Location = new Point(80, 405),
                 Size = new Size(100, 35),
-                BackColor = Color.SeaGreen,
+                BackColor = Color.FromArgb(41, 128, 185),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold)
             };
+            btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += (s, e) => {
                 SelectedDates.Clear();
                 foreach (DateTime date in clbDays.CheckedItems)
                     SelectedDates.Add(date);
+                CopyNotes = chkCopyNotes.Checked;
             };
 
             var btnCancel = new Button
             {
                 Text = "Anuluj",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(190, 370),
+                Location = new Point(190, 405),
                 Size = new Size(100, 35)
             };
 
             Controls.AddRange(new Control[] {
                 lblStart, dtpStartDate, lblEnd, dtpEndDate,
                 lblInfo, clbDays, btnSelectAll, btnDeselectAll,
-                btnOK, btnCancel
+                chkCopyNotes, btnOK, btnCancel
             });
 
             PopulateDays();
@@ -159,13 +175,14 @@ namespace Kalendarz1
             var current = dtpStartDate.Value.Date;
             while (current <= dtpEndDate.Value.Date)
             {
-                clbDays.Items.Add(current, true);
+                // Domyślnie ODZNACZONE
+                clbDays.Items.Add(current, false);
                 current = current.AddDays(1);
             }
         }
     }
 
-    // Pozostałe dialogi bez zmian
+    // Pozostałe dialogi bez zmian (CykliczneZamowieniaDialog, NotatkiDialog)
     public class CykliczneZamowieniaDialog : Form
     {
         public List<DateTime> SelectedDays { get; private set; } = new();
@@ -195,7 +212,7 @@ namespace Kalendarz1
                 Size = new Size(400, 40),
                 ForeColor = Color.DarkOrange,
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                BackColor = Color.LightYellow,
+                BackColor = Color.FromArgb(255, 243, 224),
                 BorderStyle = BorderStyle.FixedSingle,
                 Padding = new Padding(5)
             };
@@ -267,7 +284,7 @@ namespace Kalendarz1
                 Size = new Size(400, 60),
                 BorderStyle = BorderStyle.FixedSingle,
                 Padding = new Padding(5),
-                BackColor = Color.LightYellow
+                BackColor = Color.FromArgb(255, 253, 235)
             };
 
             var btnOK = new Button
@@ -276,11 +293,12 @@ namespace Kalendarz1
                 DialogResult = DialogResult.OK,
                 Location = new Point(100, 370),
                 Size = new Size(120, 35),
-                BackColor = Color.DarkOrange,
+                BackColor = Color.FromArgb(230, 126, 34),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat
             };
+            btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += (s, e) => CalculateSelectedDays();
 
             var btnCancel = new Button
@@ -405,10 +423,12 @@ namespace Kalendarz1
                 DialogResult = DialogResult.OK,
                 Location = new Point(140, 210),
                 Size = new Size(100, 35),
-                BackColor = Color.SeaGreen,
+                BackColor = Color.FromArgb(46, 204, 113),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
             };
+            btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += (s, e) => Notatka = txtNotatka.Text;
 
             var btnCancel = new Button
@@ -434,6 +454,7 @@ namespace Kalendarz1
         private DateTime _selectedDate;
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
+        private Button btnDodajNotatke; // Deklaracja przycisku Notatka
 
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
@@ -454,7 +475,22 @@ namespace Kalendarz1
         {
             InitializeComponent();
             Load += WidokZamowieniaPodsumowanie_Load;
+
+            // Utwórz przycisk Notatka jeśli nie istnieje
+            if (btnDodajNotatke == null)
+            {
+                btnDodajNotatke = new Button();
+                btnDodajNotatke.Name = "btnDodajNotatke";
+                btnDodajNotatke.Text = "Notatka";
+                btnDodajNotatke.Click += btnDodajNotatke_Click;
+                panelNawigacja.Controls.Add(btnDodajNotatke);
+            }
+
+            // Przycisk Usuń widoczny tylko dla admina
             btnUsun.Visible = false;
+
+            // Przycisk Cykliczne widoczny dla wszystkich
+            btnCykliczne.Visible = true;
 
             if (dgvPojTuszki != null)
             {
@@ -466,6 +502,10 @@ namespace Kalendarz1
         {
             _selectedDate = DateTime.Today;
             UstawPrzyciskiDniTygodnia();
+            ApplyModernUI();
+
+            // Dodaj obsługę zmiany rozmiaru okna
+            this.SizeChanged += (s, ev) => ApplyModernUI();
 
             if (dgvPojTuszki == null)
             {
@@ -488,10 +528,216 @@ namespace Kalendarz1
             SzybkiGrid(dgvPojTuszki);
 
             btnUsun.Visible = (UserID == "11111");
+            btnCykliczne.Visible = true; // Widoczny dla wszystkich
             nazwaZiD.PokazPojTuszki(dgvPojTuszki);
 
             await ZaladujDanePoczatkoweAsync();
             await OdswiezWszystkieDaneAsync();
+        }
+
+        private void ApplyModernUI()
+        {
+            // Tło formularza
+            this.BackColor = Color.FromArgb(245, 247, 250);
+
+            // Panel nawigacji
+            panelNawigacja.BackColor = Color.White;
+            panelNawigacja.Paint += (s, e) =>
+            {
+                // Cień na dole panelu
+                using (var brush = new LinearGradientBrush(
+                    new Rectangle(0, panelNawigacja.Height - 3, panelNawigacja.Width, 3),
+                    Color.FromArgb(40, Color.Black),
+                    Color.Transparent,
+                    LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, 0, panelNawigacja.Height - 3, panelNawigacja.Width, 3);
+                }
+            };
+
+            // Ustawienia responsywne
+            bool isCompact = this.Width < 1400;
+            int btnWidth = isCompact ? 75 : 95;
+            int btnHeight = isCompact ? 35 : 40;
+            Font btnFont = new Font("Segoe UI", isCompact ? 8f : 9f, FontStyle.Bold);
+
+            // Stylizacja przycisków akcji - używamy TEKSTU zamiast emoji
+            StyleActionButton(btnNoweZamowienie, Color.FromArgb(46, 204, 113),
+                isCompact ? "+ Nowe" : "+ Nowe", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnModyfikuj, Color.FromArgb(52, 152, 219),
+                isCompact ? "Modyfikuj" : "✏ Modyfikuj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnDuplikuj, Color.FromArgb(155, 89, 182),
+                isCompact ? "Duplikuj" : "⧉ Duplikuj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnCykliczne, Color.FromArgb(230, 126, 34),
+                isCompact ? "Cykliczne" : "⟲ Cykliczne", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnDodajNotatke, Color.FromArgb(241, 196, 15),
+                isCompact ? "Notatka" : "✎ Notatka", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnAnuluj, Color.FromArgb(231, 76, 60),
+                isCompact ? "Anuluj" : "✕ Anuluj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnOdswiez, Color.FromArgb(149, 165, 166),
+                isCompact ? "Odśwież" : "⟲ Odśwież", btnWidth, btnHeight, btnFont);
+
+            if (btnUsun.Visible)
+            {
+                StyleActionButton(btnUsun, Color.FromArgb(44, 62, 80),
+                    isCompact ? "Usuń" : "✕ Usuń", btnWidth, btnHeight, btnFont);
+            }
+
+            // NOWY UKŁAD - nawigacja tygodnia po LEWEJ stronie
+            // Pozycja strzałek i etykiety daty (lewy róg)
+            btnTydzienPrev.Location = new Point(10, 12);
+            btnTydzienPrev.Size = new Size(40, 40);
+
+            lblZakresDat.Location = new Point(55, 9);
+            lblZakresDat.Size = new Size(90, 49);
+            lblZakresDat.TextAlign = ContentAlignment.MiddleCenter;
+            lblZakresDat.Font = new Font("Segoe UI", 8f, FontStyle.Regular); // Mniejsza czcionka dla dat
+
+            btnTydzienNext.Location = new Point(150, 12);
+            btnTydzienNext.Size = new Size(40, 40);
+
+            // Panel dni tygodnia - ZWIĘKSZONA SZEROKOŚĆ dla 7 dni
+            panelDni.Width = 560; // Zwiększone z 490 na 560 (7 dni x 80px)
+            panelDni.Height = 52;
+            panelDni.Location = new Point(200, 6);
+            panelDni.AutoSize = false;
+
+            // Stylizacja przycisków dni tygodnia - upewnij się że wszystkie 7 jest widocznych
+            int dayButtonWidth = 75;
+            int dayButtonHeight = 45;
+            int daySpacing = 5;
+
+            // Ustaw przyciski dni ręcznie aby mieć pewność że wszystkie są widoczne
+            if (_dayButtons.Count >= 7)
+            {
+                for (int i = 0; i < 7; i++)
+                {
+                    var btn = _dayButtons[i];
+                    btn.Size = new Size(dayButtonWidth, dayButtonHeight);
+                    btn.Location = new Point(i * (dayButtonWidth + daySpacing), 3);
+                    btn.FlatStyle = FlatStyle.Flat;
+                    btn.FlatAppearance.BorderSize = 0;
+                    btn.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+                    btn.Cursor = Cursors.Hand;
+                    btn.Visible = true; // Upewnij się że jest widoczny
+                }
+            }
+
+            // Układanie przycisków akcji po PRAWEJ stronie (od prawej do lewej)
+            int spacing = 5;
+            int currentX = panelNawigacja.Width - btnWidth - 10;
+
+            // Układaj od prawej do lewej
+            btnOdswiez.Location = new Point(currentX, 12);
+            btnOdswiez.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            btnAnuluj.Location = new Point(currentX, 12);
+            btnAnuluj.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            if (btnDodajNotatke != null)
+            {
+                btnDodajNotatke.Location = new Point(currentX, 12);
+                btnDodajNotatke.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                currentX -= (btnWidth + spacing);
+            }
+
+            btnCykliczne.Location = new Point(currentX, 12);
+            btnCykliczne.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            btnDuplikuj.Location = new Point(currentX, 12);
+            btnDuplikuj.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            btnModyfikuj.Location = new Point(currentX, 12);
+            btnModyfikuj.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            btnNoweZamowienie.Location = new Point(currentX, 12);
+            btnNoweZamowienie.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            currentX -= (btnWidth + spacing);
+
+            if (btnUsun.Visible)
+            {
+                btnUsun.Location = new Point(currentX, 12);
+                btnUsun.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            }
+
+            // Stylizacja filtrów
+            panelFiltry.BackColor = Color.FromArgb(236, 240, 241);
+            txtFiltrujOdbiorce.BorderStyle = BorderStyle.FixedSingle;
+            cbFiltrujHandlowca.FlatStyle = FlatStyle.Flat;
+            cbFiltrujTowar.FlatStyle = FlatStyle.Flat;
+
+            // Stylizacja podsumowania
+            panelPodsumowanie.BackColor = Color.FromArgb(44, 62, 80);
+            lblPodsumowanie.ForeColor = Color.White;
+            lblPodsumowanie.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+        }
+
+        private void StyleActionButton(Button btn, Color color, string text, int width = 95, int height = 40, Font font = null)
+        {
+            btn.Text = text;
+            btn.BackColor = color;
+            btn.ForeColor = Color.White;
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Font = font ?? new Font("Segoe UI", 9f, FontStyle.Bold);
+            btn.Cursor = Cursors.Hand;
+            btn.Size = new Size(width, height);
+
+            // Efekt hover
+            var handlers = btn.GetType().GetProperty("Events",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (handlers != null)
+            {
+                var eventList = handlers.GetValue(btn, null);
+                if (eventList != null)
+                {
+                    var mouseEnterField = btn.GetType().GetField("EventMouseEnter",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                    var mouseLeaveField = btn.GetType().GetField("EventMouseLeave",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+                    if (mouseEnterField != null && mouseLeaveField != null)
+                    {
+                        // Usuń istniejące handlery
+                        var mouseEnterKey = mouseEnterField.GetValue(null);
+                        var mouseLeaveKey = mouseLeaveField.GetValue(null);
+                        var removeMethod = eventList.GetType().GetMethod("RemoveHandler");
+                        if (removeMethod != null && mouseEnterKey != null && mouseLeaveKey != null)
+                        {
+                            removeMethod.Invoke(eventList, new[] { mouseEnterKey, null });
+                            removeMethod.Invoke(eventList, new[] { mouseLeaveKey, null });
+                        }
+                    }
+                }
+            }
+
+            // Dodaj nowe handlery
+            btn.MouseEnter -= BtnMouseEnter;
+            btn.MouseLeave -= BtnMouseLeave;
+            btn.MouseEnter += BtnMouseEnter;
+            btn.MouseLeave += BtnMouseLeave;
+            btn.Tag = color;
+        }
+
+        private void BtnMouseEnter(object sender, EventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is Color color)
+            {
+                btn.BackColor = ControlPaint.Light(color, 0.1f);
+            }
+        }
+
+        private void BtnMouseLeave(object sender, EventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is Color color)
+            {
+                btn.BackColor = color;
+            }
         }
 
         #region Helpers
@@ -535,9 +781,30 @@ namespace Kalendarz1
         #region Inicjalizacja i UI
         private void UstawPrzyciskiDniTygodnia()
         {
+            // Upewnij się, że lista jest pusta przed dodaniem
+            _dayButtons.Clear();
+
+            // Dodaj wszystkie 7 przycisków dni tygodnia
             _dayButtons.AddRange(new[] { btnPon, btnWt, btnSr, btnCzw, btnPt, btnSo, btnNd });
+
+            // Sprawdź czy wszystkie przyciski istnieją
+            for (int i = 0; i < _dayButtons.Count; i++)
+            {
+                if (_dayButtons[i] == null)
+                {
+                    MessageBox.Show($"Brak przycisku dnia {i}!", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            // Dodaj event handler dla każdego przycisku
             foreach (var btn in _dayButtons)
-                btn.Click += DzienButton_Click;
+            {
+                if (btn != null)
+                {
+                    btn.Click += DzienButton_Click;
+                }
+            }
+
             AktualizujDatyPrzyciskow();
         }
 
@@ -557,7 +824,22 @@ namespace Kalendarz1
             dgv.RowTemplate.Height = 30;
             dgv.Font = new Font("Segoe UI", 9f);
             dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgv.EnableHeadersVisualStyles = false;
             dgv.ReadOnly = true;
+
+            // Alternating row colors
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
+            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
+
+            // Dodaj obsługę podwójnego kliknięcia dla dgvZamowienia
+            if (dgv == dgvZamowienia)
+            {
+                dgv.CellDoubleClick += dgvZamowienia_CellDoubleClick;
+            }
+
             TryEnableDoubleBuffer(dgv);
         }
 
@@ -587,6 +869,9 @@ namespace Kalendarz1
         private async void btnTydzienPrev_Click(object? sender, EventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(-7);
+            // Ustaw poniedziałek jako domyślny dzień przy zmianie tygodnia
+            int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
+            _selectedDate = _selectedDate.AddDays(-delta);
             AktualizujDatyPrzyciskow();
             await OdswiezWszystkieDaneAsync();
         }
@@ -594,6 +879,9 @@ namespace Kalendarz1
         private async void btnTydzienNext_Click(object? sender, EventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(7);
+            // Ustaw poniedziałek jako domyślny dzień przy zmianie tygodnia
+            int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
+            _selectedDate = _selectedDate.AddDays(-delta);
             AktualizujDatyPrzyciskow();
             await OdswiezWszystkieDaneAsync();
         }
@@ -602,15 +890,79 @@ namespace Kalendarz1
         {
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             DateTime startOfWeek = _selectedDate.AddDays(-delta);
-            lblZakresDat.Text = $"{startOfWeek:dd.MM.yyyy} - {startOfWeek.AddDays(6):dd.MM.yyyy}";
 
-            for (int i = 0; i < 7; i++)
+            // Wyświetl zakres dat w dwóch liniach
+            lblZakresDat.Text = $"{startOfWeek:dd.MM.yyyy}\n{startOfWeek.AddDays(6):dd.MM.yyyy}";
+            lblZakresDat.TextAlign = ContentAlignment.MiddleCenter;
+
+            // Debug - sprawdź ile przycisków mamy
+            if (_dayButtons.Count != 7)
+            {
+                MessageBox.Show($"Uwaga: Mamy tylko {_dayButtons.Count} przycisków dni zamiast 7!",
+                    "Problem z przyciskami dni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            // Nazwy dni
+            string[] dniNazwy = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
+
+            for (int i = 0; i < Math.Min(7, _dayButtons.Count); i++)
             {
                 var dt = startOfWeek.AddDays(i);
-                _dayButtons[i].Tag = dt;
-                _dayButtons[i].Text = $"{_dayButtons[i].Name.Substring(3)}\n{dt:dd.MM}";
-                _dayButtons[i].BackColor = dt.Date == _selectedDate.Date ? SystemColors.Highlight : SystemColors.Control;
-                _dayButtons[i].ForeColor = dt.Date == _selectedDate.Date ? Color.White : SystemColors.ControlText;
+                var btn = _dayButtons[i];
+
+                if (btn == null)
+                {
+                    continue;
+                }
+
+                btn.Tag = dt;
+                btn.Text = $"{dniNazwy[i]}\n{dt:dd.MM}";
+                btn.Visible = true; // Upewnij się, że przycisk jest widoczny
+
+                if (dt.Date == _selectedDate.Date)
+                {
+                    btn.BackColor = Color.FromArgb(52, 152, 219);
+                    btn.ForeColor = Color.White;
+                }
+                else if (dt.Date == DateTime.Today)
+                {
+                    btn.BackColor = Color.FromArgb(241, 196, 15);
+                    btn.ForeColor = Color.White;
+                }
+                else
+                {
+                    btn.BackColor = Color.FromArgb(236, 240, 241);
+                    btn.ForeColor = Color.FromArgb(44, 62, 80);
+                }
+            }
+
+            // Jeśli mamy mniej niż 7 przycisków, spróbuj utworzyć brakujące
+            if (_dayButtons.Count < 7)
+            {
+                CreateMissingDayButtons();
+            }
+        }
+
+        private void CreateMissingDayButtons()
+        {
+            string[] dniNazwy = { "btnPon", "btnWt", "btnSr", "btnCzw", "btnPt", "btnSo", "btnNd" };
+
+            while (_dayButtons.Count < 7)
+            {
+                int index = _dayButtons.Count;
+                var newBtn = new Button
+                {
+                    Name = dniNazwy[index],
+                    Size = new Size(65, 45),
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9f),
+                    Cursor = Cursors.Hand
+                };
+                newBtn.FlatAppearance.BorderSize = 0;
+                newBtn.Click += DzienButton_Click;
+
+                panelDni.Controls.Add(newBtn);
+                _dayButtons.Add(newBtn);
             }
         }
 
@@ -619,16 +971,16 @@ namespace Kalendarz1
             await OdswiezWszystkieDaneAsync();
         }
 
-        private void btnNoweZamowienie_Click(object? sender, EventArgs e)
+        private async void btnNoweZamowienie_Click(object? sender, EventArgs e)
         {
             using var widokZamowienia = new WidokZamowienia(UserID, null);
             if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
             {
-                Task.Run(async () => await OdswiezWszystkieDaneAsync());
+                await OdswiezWszystkieDaneAsync();
             }
         }
 
-        private void btnModyfikuj_Click(object? sender, EventArgs e)
+        private async void btnModyfikuj_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
@@ -640,7 +992,7 @@ namespace Kalendarz1
             using var widokZamowienia = new WidokZamowienia(UserID, id);
             if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
             {
-                Task.Run(async () => await OdswiezWszystkieDaneAsync());
+                await OdswiezWszystkieDaneAsync();
             }
         }
 
@@ -678,6 +1030,7 @@ namespace Kalendarz1
                     MessageBox.Show("Notatka została zapisana.", "Sukces",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     await WyswietlSzczegolyZamowieniaAsync(id);
+                    await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
@@ -742,7 +1095,7 @@ namespace Kalendarz1
                     int utworzono = 0;
                     foreach (var date in dlg.SelectedDates)
                     {
-                        await DuplikujZamowienie(id, date);
+                        await DuplikujZamowienie(id, date, dlg.CopyNotes);
                         utworzono++;
                     }
 
@@ -762,7 +1115,7 @@ namespace Kalendarz1
             }
         }
 
-        private async Task DuplikujZamowienie(int sourceId, DateTime targetDate)
+        private async Task DuplikujZamowienie(int sourceId, DateTime targetDate, bool copyNotes = false)
         {
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
@@ -799,7 +1152,7 @@ namespace Kalendarz1
                 var cmdGetId = new SqlCommand("SELECT ISNULL(MAX(Id),0)+1 FROM ZamowieniaMieso", cn, tr);
                 int newId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
-                // Dodaj nowe zamówienie z kolumnami palet/pojemników
+                // Dodaj nowe zamówienie
                 var cmdInsert = new SqlCommand(
                     @"INSERT INTO ZamowieniaMieso (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
                       LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
@@ -808,14 +1161,18 @@ namespace Kalendarz1
                 cmdInsert.Parameters.AddWithValue("@dz", targetDate.Date);
                 cmdInsert.Parameters.AddWithValue("@dp", godzinaPrzyjazdu);
                 cmdInsert.Parameters.AddWithValue("@kid", klientId);
-                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(uwagi) ? DBNull.Value : uwagi + " [DUPLIKAT]");
+
+                // Kopiuj notatkę tylko jeśli użytkownik tego chce
+                string finalNotes = copyNotes && !string.IsNullOrEmpty(uwagi) ? uwagi : "";
+                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(finalNotes) ? DBNull.Value : finalNotes);
+
                 cmdInsert.Parameters.AddWithValue("@u", UserID);
                 cmdInsert.Parameters.AddWithValue("@poj", liczbaPojemnikow);
                 cmdInsert.Parameters.AddWithValue("@pal", liczbaPalet);
                 cmdInsert.Parameters.AddWithValue("@e2", trybE2);
                 await cmdInsert.ExecuteNonQueryAsync();
 
-                // Kopiuj towary z danymi o pojemnikach/paletach
+                // Kopiuj towary
                 var cmdCopyItems = new SqlCommand(
                     @"INSERT INTO ZamowieniaMiesoTowar (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2)
                       SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2 
@@ -851,7 +1208,7 @@ namespace Kalendarz1
                     int utworzono = 0;
                     foreach (var date in dlg.SelectedDays)
                     {
-                        await DuplikujZamowienie(id, date);
+                        await DuplikujZamowienie(id, date, false);
                         utworzono++;
                     }
 
@@ -978,9 +1335,9 @@ namespace Kalendarz1
                 _dtZamowienia.Columns.Add("Handlowiec", typeof(string));
                 _dtZamowienia.Columns.Add("IloscZamowiona", typeof(decimal));
                 _dtZamowienia.Columns.Add("IloscFaktyczna", typeof(decimal));
-                _dtZamowienia.Columns.Add("Pojemniki", typeof(int));      // NOWA KOLUMNA
-                _dtZamowienia.Columns.Add("Palety", typeof(decimal));     // NOWA KOLUMNA
-                _dtZamowienia.Columns.Add("TrybE2", typeof(string));      // NOWA KOLUMNA
+                _dtZamowienia.Columns.Add("Pojemniki", typeof(int));
+                _dtZamowienia.Columns.Add("Palety", typeof(decimal));
+                _dtZamowienia.Columns.Add("TrybE2", typeof(string));
                 _dtZamowienia.Columns.Add("DataPrzyjecia", typeof(DateTime));
                 _dtZamowienia.Columns.Add("GodzinaPrzyjecia", typeof(string));
                 var colDataUtw = new DataColumn("DataUtworzenia", typeof(DateTime));
@@ -1059,7 +1416,6 @@ namespace Kalendarz1
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
 
-                // Nowe dane z bazy
                 int pojemniki = r["LiczbaPojemnikow"] == DBNull.Value ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
                 decimal palety = r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]);
                 bool trybE2 = r["TrybE2"] == DBNull.Value ? false : Convert.ToBoolean(r["TrybE2"]);
@@ -1081,9 +1437,9 @@ namespace Kalendarz1
                     handlowiec,
                     ilosc,
                     wydane,
-                    pojemniki,                                    // Pojemniki z bazy
-                    palety,                                       // Palety z bazy
-                    trybText,                                     // Tryb E2 jako tekst
+                    pojemniki,
+                    palety,
+                    trybText,
                     dataPrzyjazdu?.Date ?? dzien,
                     dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
                     dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value,
@@ -1271,6 +1627,23 @@ namespace Kalendarz1
             }
         }
 
+        private async void dgvZamowienia_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
+                {
+                    return;
+                }
+
+                using var widokZamowienia = new WidokZamowienia(UserID, id);
+                if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+                {
+                    await OdswiezWszystkieDaneAsync();
+                }
+            }
+        }
+
         private async Task HandleGridSelection(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= dgvZamowienia.Rows.Count)
@@ -1366,7 +1739,6 @@ namespace Kalendarz1
             var sumaWydan = await PobierzSumeWydanPoProdukcieAsync(dzien);
             var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
 
-            // Pobierz agregację pojemników i palet z bazy
             var agregacjaPojemnikowPalet = new Dictionary<int, (int pojemniki, decimal palety)>();
             await using (var cn = new SqlConnection(_connLibra))
             {
@@ -1701,9 +2073,9 @@ namespace Kalendarz1
             return false;
         }
         #endregion
+
         private async Task WyswietlSzczegolyZamowieniaAsync(int zamowienieId)
         {
-            // Pobierz dane zamówienia
             var dtZam = new DataTable();
             int klientId = 0;
             await using (var cn = new SqlConnection(_connLibra))
@@ -1722,7 +2094,6 @@ namespace Kalendarz1
                     klientId = dtZam.Rows[0]["KlientId"] is DBNull ? 0 : Convert.ToInt32(dtZam.Rows[0]["KlientId"]);
             }
 
-            // Pobierz wydania z Symfonii dla tego klienta i dnia
             var wydania = new Dictionary<int, decimal>();
             if (klientId > 0)
             {
@@ -1748,13 +2119,11 @@ namespace Kalendarz1
                 }
             }
 
-            // Przygotuj wynikową tabelę
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Zamówiono", typeof(decimal));
             dt.Columns.Add("Wydano", typeof(decimal));
 
-            // Dodaj wszystkie towary z zamówienia
             foreach (DataRow r in dtZam.Rows)
             {
                 int idTowaru = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
@@ -1767,7 +2136,6 @@ namespace Kalendarz1
                 wydania.Remove(idTowaru);
             }
 
-            // Dodaj towary wydane bez zamówienia
             foreach (var kv in wydania)
             {
                 if (!_twKatalogCache.ContainsKey(kv.Key)) continue;
@@ -1775,12 +2143,10 @@ namespace Kalendarz1
                 dt.Rows.Add(produkt, 0m, kv.Value);
             }
 
-            // Notatki
             string notatki = dtZam.Rows.Count > 0 ? (dtZam.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
             txtNotatki.Text = notatki;
             dgvSzczegoly.DataSource = dt;
 
-            // Formatowanie
             if (dgvSzczegoly.Columns["Zamówiono"] != null)
             {
                 dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
@@ -1792,6 +2158,7 @@ namespace Kalendarz1
                 dgvSzczegoly.Columns["Wydano"].HeaderText = "Wydano (kg)";
             }
         }
+
         #region Filtrowanie
         private void ZastosujFiltry()
         {

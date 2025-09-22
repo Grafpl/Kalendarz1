@@ -106,8 +106,11 @@ namespace Kalendarz1
             btnZrealizowano.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnZrealizowano.Left = btnClose.Left - btnZrealizowano.Width - rightMargin;
 
-            btnSaveNotes = MakeTopButton("Zapisz not.", 0, async (s, e) => await SaveItemNotesAsync(), Color.FromArgb(95, 95, 95));
-            btnSaveNotes.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnSaveNotes = MakeTopButton("Zapisz not.", 0, async (s, e) =>
+            {
+                await SaveItemNotesAsync();  // Zapisz notatki pozycji
+                await SaveProductionNotesAsync();  // Zapisz notatkę produkcji
+            }, Color.FromArgb(95, 95, 95)); btnSaveNotes.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnSaveNotes.Left = btnZrealizowano.Left - btnSaveNotes.Width - rightMargin;
 
             btnUndo = MakeTopButton("Cofnij", 0, async (s, e) => await UndoRealizedAsync(), Color.FromArgb(140, 100, 60));
@@ -139,10 +142,11 @@ namespace Kalendarz1
             root.Controls.Add(top, 0, 0);
 
             // MAIN – przychody, zamówienia, pozycje + notatki
+            // MAIN – przychody, zamówienia, pozycje + notatki
             var main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(4) };
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 47)); // Zwiększono dla zamówień
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20)); // Zmniejszono dla notatek
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));  // Lewy panel - zmniejszony z 33%
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));  // Środkowy panel (zamówienia) - zwiększony z 47%
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));  // Prawy panel - bez zmian
             root.Controls.Add(main, 0, 1);
 
             // Kolumna 1: Przychody i panel tuszek
@@ -338,15 +342,14 @@ namespace Kalendarz1
 
             var lblNotatkiTransportu = new Label
             {
-                Text = "Notatki transportu",
-                Font = new Font("Segoe UI Semibold", 12f, FontStyle.Bold), // Zmniejszono czcionkę
+                Text = "Notatka produkcji",
+                Font = new Font("Segoe UI Semibold", 12f, FontStyle.Bold),
                 Dock = DockStyle.Top,
                 Padding = new Padding(4),
                 BackColor = Color.FromArgb(50, 52, 64),
-                ForeColor = Color.Orange,
-                AutoSize = true // Dodano AutoSize
-            };
-            txtNotatkiTransportu = new TextBox
+                ForeColor = Color.LightBlue,  // Zmieniony kolor na niebieski dla produkcji
+                AutoSize = true
+            }; txtNotatkiTransportu = new TextBox
             {
                 Multiline = true,
                 Dock = DockStyle.Fill,
@@ -382,7 +385,49 @@ namespace Kalendarz1
             // rightPanel.Controls.Add(panelSzczegolyTransportu, 0, 5); // Ukryto panel
             main.Controls.Add(rightPanel, 2, 0);
         }
+        private async Task SaveProductionNotesAsync()
+        {
+            var orderId = GetSelectedOrderId();
+            if (!orderId.HasValue) return;
 
+            string notatka = txtNotatkiTransportu.Text.Trim();
+
+            using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            // Sprawdź czy istnieje już notatka
+            var checkCmd = new SqlCommand(
+                "SELECT COUNT(*) FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cn);
+            checkCmd.Parameters.AddWithValue("@Id", orderId.Value);
+            int exists = (int)await checkCmd.ExecuteScalarAsync();
+
+            SqlCommand cmd;
+            if (exists > 0)
+            {
+                // Aktualizuj istniejącą
+                cmd = new SqlCommand(@"
+            UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki 
+            SET NotatkaProdukcja = @Notatka, 
+                DataModyfikacji = GETDATE(), 
+                Uzytkownik = @User 
+            WHERE ZamowienieId = @Id", cn);
+            }
+            else
+            {
+                // Wstaw nową
+                cmd = new SqlCommand(@"
+            INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki 
+            (ZamowienieId, NotatkaProdukcja, DataModyfikacji, Uzytkownik) 
+            VALUES (@Id, @Notatka, GETDATE(), @User)", cn);
+            }
+
+            cmd.Parameters.AddWithValue("@Id", orderId.Value);
+            cmd.Parameters.AddWithValue("@Notatka", string.IsNullOrWhiteSpace(notatka) ? DBNull.Value : notatka);
+            cmd.Parameters.AddWithValue("@User", UserID);
+
+            await cmd.ExecuteNonQueryAsync();
+            MessageBox.Show("Zapisano notatkę produkcji.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
         // Metoda do tworzenia ikony notatnika
         private Image CreateNotebookIcon()
         {
@@ -809,7 +854,21 @@ namespace Kalendarz1
             }
 
             txtUwagi.Text = info.Uwagi;
-            txtNotatkiTransportu.Text = ""; // Tutaj można dodać logikę ładowania notatek transportu
+            // Załaduj notatkę produkcji
+            try
+            {
+                using var cnProd = new SqlConnection(_connLibra);
+                await cnProd.OpenAsync();
+                var cmdProd = new SqlCommand(
+                    "SELECT NotatkaProdukcja FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cnProd);
+                cmdProd.Parameters.AddWithValue("@Id", info.Id);
+                var notatkaProd = await cmdProd.ExecuteScalarAsync();
+                txtNotatkiTransportu.Text = notatkaProd?.ToString() ?? "";
+            }
+            catch
+            {
+                txtNotatkiTransportu.Text = "";
+            }
             await EnsureNotesTableAsync();
 
             var orderPositions = new List<(int TowarId, decimal Ilosc, string Notatka)>();

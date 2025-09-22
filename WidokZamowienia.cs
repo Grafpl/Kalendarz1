@@ -1,10 +1,12 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 15.0 - RESPONSYWNY DESIGN
+// WERSJA 15.1 - FINALNA Z WSZYSTKIMI POPRAWKAMI
 // Zmiany:
-// 1. TableLayoutPanel dla lepszej skalowalności
-// 2. Anchor i Dock dla automatycznego dopasowania
-// 3. MinimumSize dla kontrolek
-// 4. FlowLayoutPanel dla elastycznego układu
+// 1. Lista rozwijana 50px poniżej textboxa
+// 2. ComboBox handlowca 140px szerokości
+// 3. Zielony/czerwony dla limitów transportowych
+// 4. Kolumna "40 E2" zamiast "E2"
+// 5. Panel odbiorców 260-380px wysokości
+// 6. Wysokość wierszy grida 32px
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -186,15 +188,15 @@ namespace Kalendarz1
                 panelOdbiorca.Controls.Remove(oldHandlowiecLabel);
             }
 
-            // Przenieś combobox handlowca obok tytułu
+            // Przenieś combobox handlowca obok tytułu - JESZCZE MNIEJSZA szerokość
             if (lblTytul != null && cbHandlowiecFilter != null)
             {
                 lblTytul.Location = new Point(10, 10);
                 lblTytul.Size = new Size(180, 30);
 
                 cbHandlowiecFilter.Location = new Point(195, 10);
-                cbHandlowiecFilter.Size = new Size(215, 30);
-                cbHandlowiecFilter.Font = new Font("Segoe UI", 11f);
+                cbHandlowiecFilter.Size = new Size(140, 30);  // Zmniejszone z 170 na 140
+                cbHandlowiecFilter.Font = new Font("Segoe UI", 10f);  // Zmniejszona czcionka z 11f na 10f
             }
 
             // Przesuń pole szukania odbiorcy wyżej
@@ -728,14 +730,16 @@ namespace Kalendarz1
             progressSolowka.Value = Math.Min(paletyInt, 18);
             lblSolowkaInfo!.Text = $"{paletyInt:N0} / 18";
 
-            // Zmień kolor paska w zależności od wypełnienia
+            // Zmień kolor paska w zależności od wypełnienia - SOLÓWKA
             if (paletyInt <= 18)
             {
+                // Zielony - mieści się w limicie
                 SetProgressBarColor(progressSolowka, Color.FromArgb(34, 197, 94));
                 lblSolowkaInfo.ForeColor = Color.FromArgb(34, 197, 94);
             }
             else
             {
+                // Czerwony - przekroczony limit
                 SetProgressBarColor(progressSolowka, Color.FromArgb(239, 68, 68));
                 lblSolowkaInfo.ForeColor = Color.FromArgb(239, 68, 68);
                 lblSolowkaInfo.Text = $"{paletyInt:N0} / 18 ⚠";
@@ -748,19 +752,13 @@ namespace Kalendarz1
             // Zmień kolor paska TIR w zależności od wypełnienia
             if (paletyInt <= 33)
             {
-                if (paletyInt <= 25)
-                {
-                    SetProgressBarColor(progressTir, Color.FromArgb(34, 197, 94));
-                    lblTirInfo.ForeColor = Color.FromArgb(34, 197, 94);
-                }
-                else
-                {
-                    SetProgressBarColor(progressTir, Color.FromArgb(251, 146, 60));
-                    lblTirInfo.ForeColor = Color.FromArgb(251, 146, 60);
-                }
+                // Zielony - mieści się w limicie
+                SetProgressBarColor(progressTir, Color.FromArgb(34, 197, 94));
+                lblTirInfo.ForeColor = Color.FromArgb(34, 197, 94);
             }
             else
             {
+                // Czerwony - przekroczony limit
                 SetProgressBarColor(progressTir, Color.FromArgb(239, 68, 68));
                 lblTirInfo.ForeColor = Color.FromArgb(239, 68, 68);
                 lblTirInfo.Text = $"{paletyInt:N0} / 33 ⚠";
@@ -1081,8 +1079,8 @@ namespace Kalendarz1
             var cE2 = dataGridViewZamowienie.Columns["E2"] as DataGridViewCheckBoxColumn;
             if (cE2 != null)
             {
-                cE2.HeaderText = "E2";
-                cE2.FillWeight = 40;
+                cE2.HeaderText = "40 E2";  // Zmieniona nazwa kolumny
+                cE2.FillWeight = 50;  // Zwiększone z 40 dla dłuższej nazwy
                 cE2.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 cE2.ToolTipText = "40 pojemników/paletę";
             }
@@ -1257,13 +1255,13 @@ namespace Kalendarz1
 
             if (wyniki.Any())
             {
-                // Ustaw pozycję listy względem textboxa - jeszcze niżej
+                // Ustaw pozycję listy względem textboxa - BARDZO NISKO
                 var screenPoint = txtSzukajOdbiorcy.Parent.PointToScreen(txtSzukajOdbiorcy.Location);
                 var clientPoint = panelDetaleZamowienia.PointToClient(screenPoint);
 
                 listaWynikowOdbiorcy.Location = new Point(
                     clientPoint.X,
-                    clientPoint.Y + txtSzukajOdbiorcy.Height + 20  // Zwiększone z 10 na 20 pikseli
+                    clientPoint.Y + txtSzukajOdbiorcy.Height + 50  // Zwiększone z 35 na 50 pikseli - bardzo duży odstęp
                 );
                 listaWynikowOdbiorcy.Width = txtSzukajOdbiorcy.Width;
                 listaWynikowOdbiorcy.Height = Math.Min(180, wyniki.Count * 22 + 5);
@@ -1828,6 +1826,7 @@ namespace Kalendarz1
 
             await tr.CommitAsync();
         }
+
 
         #endregion
     }
