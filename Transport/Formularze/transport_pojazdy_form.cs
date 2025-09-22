@@ -1,5 +1,5 @@
 // Plik: Transport/Formularze/PojazdyForm.cs
-// Formularz do zarządzania pojazdami
+// Poprawiony formularz do zarządzania pojazdami
 
 using System;
 using System.Data;
@@ -14,7 +14,7 @@ namespace Kalendarz1.Transport.Formularze
     public class PojazdyForm : Form
     {
         private readonly string _connectionString = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        
+
         // Kontrolki
         private DataGridView dgvPojazdy;
         private TextBox txtRejestracja;
@@ -29,10 +29,11 @@ namespace Kalendarz1.Transport.Formularze
         private Panel panelEdycji;
         private Label lblTytul;
         private Label lblStatystyki;
-        
+
         private DataTable _dtPojazdy;
         private int? _selectedPojazdId;
-        
+        private bool _isAddingNew = false;
+
         public PojazdyForm()
         {
             InitializeComponent();
@@ -43,7 +44,7 @@ namespace Kalendarz1.Transport.Formularze
             base.OnLoad(e);
             _ = LoadPojazdyAsync();
         }
-        
+
         private void InitializeComponent()
         {
             Text = "Zarządzanie pojazdami";
@@ -51,8 +52,8 @@ namespace Kalendarz1.Transport.Formularze
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10F);
             BackColor = Color.FromArgb(240, 242, 247);
-            
-            // Panel główny - TablelayoutPanel zamiast SplitContainer
+
+            // Panel główny
             var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -61,12 +62,9 @@ namespace Kalendarz1.Transport.Formularze
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
-            
-            // Ustawienia kolumn - 70% grid, 30% edycja
+
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
-            
-            // Ustawienia wierszy - header i content
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -77,7 +75,7 @@ namespace Kalendarz1.Transport.Formularze
                 BackColor = Color.FromArgb(41, 44, 51),
                 Padding = new Padding(20)
             };
-            
+
             lblTytul = new Label
             {
                 Text = "ZARZĄDZANIE POJAZDAMI",
@@ -86,7 +84,7 @@ namespace Kalendarz1.Transport.Formularze
                 Location = new Point(20, 25),
                 AutoSize = true
             };
-            
+
             lblStatystyki = new Label
             {
                 Text = "Pojazdy: 0 aktywnych / 0 wszystkich",
@@ -95,10 +93,9 @@ namespace Kalendarz1.Transport.Formularze
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 AutoSize = true
             };
-            
+
             panelHeader.Controls.AddRange(new Control[] { lblTytul, lblStatystyki });
-            
-            // Pozycjonowanie statystyk po prawej stronie
+
             panelHeader.Resize += (s, e) =>
             {
                 if (lblStatystyki != null)
@@ -114,7 +111,7 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(20, 10, 10, 20),
                 BackColor = Color.White
             };
-            
+
             dgvPojazdy = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -129,8 +126,7 @@ namespace Kalendarz1.Transport.Formularze
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
-            
-            // Stylizacja grida
+
             dgvPojazdy.EnableHeadersVisualStyles = false;
             dgvPojazdy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
             dgvPojazdy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
@@ -141,10 +137,10 @@ namespace Kalendarz1.Transport.Formularze
             dgvPojazdy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
             dgvPojazdy.RowTemplate.Height = 35;
             dgvPojazdy.GridColor = Color.FromArgb(236, 240, 241);
-            
+
             dgvPojazdy.SelectionChanged += DgvPojazdy_SelectionChanged;
             dgvPojazdy.CellFormatting += DgvPojazdy_CellFormatting;
-            
+
             panelGrid.Controls.Add(dgvPojazdy);
 
             // PRAWA STRONA - Panel edycji
@@ -154,7 +150,7 @@ namespace Kalendarz1.Transport.Formularze
                 BackColor = Color.White,
                 Padding = new Padding(10, 10, 20, 20)
             };
-            
+
             var lblEdycjaTytul = new Label
             {
                 Text = "SZCZEGÓŁY POJAZDU",
@@ -163,21 +159,20 @@ namespace Kalendarz1.Transport.Formularze
                 Location = new Point(20, 20),
                 Size = new Size(300, 30)
             };
-            
-            // Pola edycji
+
             var lblRejestracja = CreateLabel("Numer rejestracyjny:", 20, 70);
             txtRejestracja = CreateTextBox(20, 95, 250);
             txtRejestracja.CharacterCasing = CharacterCasing.Upper;
             txtRejestracja.PlaceholderText = "np. EL 123AB";
-            
+
             var lblMarka = CreateLabel("Marka:", 20, 135);
             txtMarka = CreateTextBox(20, 160, 250);
             txtMarka.PlaceholderText = "np. Mercedes-Benz";
-            
+
             var lblModel = CreateLabel("Model:", 20, 200);
             txtModel = CreateTextBox(20, 225, 250);
             txtModel.PlaceholderText = "np. Actros 2545";
-            
+
             var lblPalety = CreateLabel("Liczba palet H1:", 20, 265);
             nudPalety = new NumericUpDown
             {
@@ -189,8 +184,7 @@ namespace Kalendarz1.Transport.Formularze
                 Value = 33,
                 TextAlign = HorizontalAlignment.Center
             };
-            
-            // Etykieta pomocnicza
+
             var lblPaletyInfo = new Label
             {
                 Text = "Standardowa naczepka: 33 palety",
@@ -199,7 +193,7 @@ namespace Kalendarz1.Transport.Formularze
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             };
-            
+
             chkAktywny = new CheckBox
             {
                 Text = "Aktywny",
@@ -208,42 +202,41 @@ namespace Kalendarz1.Transport.Formularze
                 Font = new Font("Segoe UI", 10F),
                 Checked = true
             };
-            
-            // Przyciski
+
             var panelButtons = new FlowLayoutPanel
             {
                 Location = new Point(20, 390),
                 Size = new Size(280, 120),
                 FlowDirection = FlowDirection.TopDown
             };
-            
+
             btnDodaj = CreateButton("NOWY", Color.FromArgb(40, 167, 69), 250);
             btnDodaj.Click += BtnDodaj_Click;
-            
+
             btnZapisz = CreateButton("ZAPISZ", Color.FromArgb(0, 123, 255), 250);
             btnZapisz.Click += BtnZapisz_Click;
             btnZapisz.Enabled = false;
-            
+
             btnUsun = CreateButton("USUŃ", Color.FromArgb(220, 53, 69), 250);
             btnUsun.Click += BtnUsun_Click;
             btnUsun.Enabled = false;
-            
+
             panelButtons.Controls.AddRange(new Control[] { btnDodaj, btnZapisz, btnUsun });
-            
+
             panelEdycji.Controls.AddRange(new Control[] {
-                lblEdycjaTytul, lblRejestracja, txtRejestracja, 
+                lblEdycjaTytul, lblRejestracja, txtRejestracja,
                 lblMarka, txtMarka, lblModel, txtModel,
                 lblPalety, nudPalety, lblPaletyInfo, chkAktywny, panelButtons
             });
 
-            // Panel dolny z przyciskiem zamknij
+            // Panel dolny
             var panelBottom = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(33, 37, 43),
                 Padding = new Padding(20, 10, 20, 10)
             };
-            
+
             btnAnuluj = new Button
             {
                 Text = "ZAMKNIJ",
@@ -257,10 +250,9 @@ namespace Kalendarz1.Transport.Formularze
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
             btnAnuluj.Click += (s, e) => Close();
-            
+
             panelBottom.Controls.Add(btnAnuluj);
-            
-            // Pozycjonowanie przycisku zamknij
+
             panelBottom.Resize += (s, e) =>
             {
                 if (btnAnuluj != null)
@@ -269,25 +261,21 @@ namespace Kalendarz1.Transport.Formularze
                 }
             };
 
-            // Dodaj kontrolki do layoutu
             mainLayout.Controls.Add(panelHeader, 0, 0);
-            mainLayout.SetColumnSpan(panelHeader, 2); // Header na całą szerokość
-            
+            mainLayout.SetColumnSpan(panelHeader, 2);
             mainLayout.Controls.Add(panelGrid, 0, 1);
             mainLayout.Controls.Add(panelEdycji, 1, 1);
-            
-            // Dodaj layout i panel dolny do formularza
+
             var rootPanel = new Panel { Dock = DockStyle.Fill };
             rootPanel.Controls.Add(mainLayout);
             rootPanel.Controls.Add(panelBottom);
-            
-            // Panel dolny na dole
+
             panelBottom.Dock = DockStyle.Bottom;
             panelBottom.Height = 60;
-            
+
             Controls.Add(rootPanel);
         }
-        
+
         private Label CreateLabel(string text, int x, int y)
         {
             return new Label
@@ -299,7 +287,7 @@ namespace Kalendarz1.Transport.Formularze
                 ForeColor = Color.FromArgb(52, 73, 94)
             };
         }
-        
+
         private TextBox CreateTextBox(int x, int y, int width)
         {
             return new TextBox
@@ -310,7 +298,7 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.FixedSingle
             };
         }
-        
+
         private Button CreateButton(string text, Color color, int width)
         {
             var btn = new Button
@@ -328,70 +316,80 @@ namespace Kalendarz1.Transport.Formularze
             btn.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(color, 0.1f);
             return btn;
         }
-        
+
         private async Task LoadPojazdyAsync()
         {
             try
             {
                 _dtPojazdy = new DataTable();
-                
+
                 await using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
-                var sql = @"SELECT PojazdID, Rejestracja, Marka, Model, PaletyH1, Aktywny,
+
+                // Zmienione zapytanie - konwertuje Aktywny na tekst już w SQL
+                var sql = @"SELECT PojazdID, Rejestracja, Marka, Model, PaletyH1, 
+                                  CASE WHEN Aktywny = 1 THEN 'Aktywny' ELSE 'Nieaktywny' END AS StatusText,
+                                  Aktywny,
                                   UtworzonoUTC, ZmienionoUTC
                            FROM dbo.Pojazd
                            ORDER BY Rejestracja";
-                
+
                 using var adapter = new SqlDataAdapter(sql, connection);
                 adapter.Fill(_dtPojazdy);
-                
+
                 dgvPojazdy.DataSource = _dtPojazdy;
-                
+
                 // Konfiguracja kolumn
                 if (dgvPojazdy.Columns["PojazdID"] != null)
                     dgvPojazdy.Columns["PojazdID"].Visible = false;
-                    
+
                 if (dgvPojazdy.Columns["Rejestracja"] != null)
                 {
                     dgvPojazdy.Columns["Rejestracja"].HeaderText = "Nr rejestracyjny";
                     dgvPojazdy.Columns["Rejestracja"].Width = 130;
                 }
-                
+
                 if (dgvPojazdy.Columns["Marka"] != null)
                 {
                     dgvPojazdy.Columns["Marka"].HeaderText = "Marka";
                     dgvPojazdy.Columns["Marka"].Width = 120;
                 }
-                
+
                 if (dgvPojazdy.Columns["Model"] != null)
                 {
                     dgvPojazdy.Columns["Model"].HeaderText = "Model";
                     dgvPojazdy.Columns["Model"].Width = 150;
                 }
-                
+
                 if (dgvPojazdy.Columns["PaletyH1"] != null)
                 {
                     dgvPojazdy.Columns["PaletyH1"].HeaderText = "Palety";
                     dgvPojazdy.Columns["PaletyH1"].Width = 70;
                     dgvPojazdy.Columns["PaletyH1"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
-                
+
+                // Ukryj oryginalną kolumnę Aktywny
                 if (dgvPojazdy.Columns["Aktywny"] != null)
                 {
-                    dgvPojazdy.Columns["Aktywny"].HeaderText = "Status";
-                    dgvPojazdy.Columns["Aktywny"].Width = 80;
+                    dgvPojazdy.Columns["Aktywny"].Visible = false;
                 }
-                
+
+                // Wyświetl kolumnę StatusText
+                if (dgvPojazdy.Columns["StatusText"] != null)
+                {
+                    dgvPojazdy.Columns["StatusText"].HeaderText = "Status";
+                    dgvPojazdy.Columns["StatusText"].Width = 80;
+                }
+
                 if (dgvPojazdy.Columns["UtworzonoUTC"] != null)
                 {
                     dgvPojazdy.Columns["UtworzonoUTC"].HeaderText = "Utworzono";
                     dgvPojazdy.Columns["UtworzonoUTC"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
                 }
-                
+
                 if (dgvPojazdy.Columns["ZmienionoUTC"] != null)
                     dgvPojazdy.Columns["ZmienionoUTC"].Visible = false;
-                
+
                 UpdateStatystyki();
             }
             catch (Exception ex)
@@ -400,22 +398,24 @@ namespace Kalendarz1.Transport.Formularze
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        
+
         private void UpdateStatystyki()
         {
             if (_dtPojazdy == null) return;
-            
+
             int wszystkich = _dtPojazdy.Rows.Count;
             int aktywnych = _dtPojazdy.AsEnumerable().Count(r => r.Field<bool>("Aktywny"));
             int sumaPalet = _dtPojazdy.AsEnumerable()
                 .Where(r => r.Field<bool>("Aktywny"))
                 .Sum(r => r.Field<int>("PaletyH1"));
-            
+
             lblStatystyki.Text = $"Pojazdy: {aktywnych} aktywnych / {wszystkich} wszystkich | Łącznie {sumaPalet} palet";
         }
 
         private void DgvPojazdy_SelectionChanged(object sender, EventArgs e)
         {
+            if (_isAddingNew) return;
+
             if (dgvPojazdy.CurrentRow == null)
             {
                 ClearForm();
@@ -426,7 +426,6 @@ namespace Kalendarz1.Transport.Formularze
             {
                 var row = dgvPojazdy.CurrentRow;
 
-                // Bezpieczne pobieranie wartości
                 var pojazdIdValue = row.Cells["PojazdID"]?.Value;
                 if (pojazdIdValue == null || pojazdIdValue == DBNull.Value)
                 {
@@ -436,46 +435,26 @@ namespace Kalendarz1.Transport.Formularze
 
                 _selectedPojazdId = Convert.ToInt32(pojazdIdValue);
 
-                // Tekstowe wartości
                 txtRejestracja.Text = row.Cells["Rejestracja"]?.Value?.ToString() ?? "";
                 txtMarka.Text = row.Cells["Marka"]?.Value?.ToString() ?? "";
                 txtModel.Text = row.Cells["Model"]?.Value?.ToString() ?? "";
 
-                // Numeryczne wartości z obsługą różnych typów
                 var paletyValue = row.Cells["PaletyH1"]?.Value;
                 if (paletyValue != null && paletyValue != DBNull.Value)
                 {
-                    if (paletyValue is int intVal)
-                        nudPalety.Value = intVal;
-                    else if (paletyValue is decimal decVal)
-                        nudPalety.Value = (int)decVal;
-                    else if (int.TryParse(paletyValue.ToString(), out int parsed))
-                        nudPalety.Value = parsed;
-                    else
-                        nudPalety.Value = 33;
+                    nudPalety.Value = Convert.ToInt32(paletyValue);
                 }
                 else
                 {
                     nudPalety.Value = 33;
                 }
 
-                // Boolean wartość - KLUCZOWA NAPRAWA
                 var aktywnyValue = row.Cells["Aktywny"]?.Value;
                 if (aktywnyValue != null && aktywnyValue != DBNull.Value)
                 {
-                    // NIE KONWERTUJ NA STRING - użyj bezpośrednio jako bool
                     if (aktywnyValue is bool boolVal)
                     {
                         chkAktywny.Checked = boolVal;
-                    }
-                    else if (aktywnyValue is int intVal)
-                    {
-                        chkAktywny.Checked = intVal != 0;
-                    }
-                    else if (aktywnyValue is string strVal)
-                    {
-                        chkAktywny.Checked = strVal.Equals("True", StringComparison.OrdinalIgnoreCase)
-                                          || strVal.Equals("1", StringComparison.OrdinalIgnoreCase);
                     }
                     else
                     {
@@ -496,21 +475,22 @@ namespace Kalendarz1.Transport.Formularze
                 ClearForm();
             }
         }
+
         private void DgvPojazdy_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
 
-            // NIE FORMATUJ kolumnę Aktywny jeśli wartość jest Boolean
-            if (dgvPojazdy.Columns[e.ColumnIndex].Name == "Aktywny")
+            // Formatuj kolumnę StatusText
+            if (dgvPojazdy.Columns[e.ColumnIndex].Name == "StatusText")
             {
-                if (e.Value is bool boolValue)
+                if (e.Value != null && e.Value.ToString() == "Nieaktywny")
                 {
-                    // Zostaw wartość jako bool, nie konwertuj na string
-                    e.FormattingApplied = false;
-                    return;
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Font = new Font(dgvPojazdy.Font, FontStyle.Italic);
                 }
             }
 
+            // Formatuj kolumnę PaletyH1
             if (dgvPojazdy.Columns[e.ColumnIndex].Name == "PaletyH1")
             {
                 e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
@@ -526,6 +506,7 @@ namespace Kalendarz1.Transport.Formularze
                 }
             }
         }
+
         private void ClearForm()
         {
             _selectedPojazdId = null;
@@ -538,16 +519,18 @@ namespace Kalendarz1.Transport.Formularze
             btnUsun.Enabled = false;
             txtRejestracja.Focus();
         }
-        
+
         private void BtnDodaj_Click(object sender, EventArgs e)
         {
+            _isAddingNew = true;
             ClearForm();
             dgvPojazdy.ClearSelection();
+            btnZapisz.Enabled = true;
+            _isAddingNew = false;
         }
-        
+
         private async void BtnZapisz_Click(object sender, EventArgs e)
         {
-            // Walidacja
             if (string.IsNullOrWhiteSpace(txtRejestracja.Text))
             {
                 MessageBox.Show("Podaj numer rejestracyjny pojazdu.", "Brak danych",
@@ -555,24 +538,24 @@ namespace Kalendarz1.Transport.Formularze
                 txtRejestracja.Focus();
                 return;
             }
-            
+
             try
             {
                 await using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
-                // Sprawdź czy rejestracja już istnieje
+
+                // Sprawdź duplikat
                 var sqlCheck = @"SELECT COUNT(*) FROM dbo.Pojazd 
                                 WHERE Rejestracja = @Rejestracja 
                                 AND (@PojazdID IS NULL OR PojazdID != @PojazdID)";
-                
+
                 using var cmdCheck = new SqlCommand(sqlCheck, connection);
                 cmdCheck.Parameters.AddWithValue("@Rejestracja", txtRejestracja.Text.Trim().ToUpper());
-                cmdCheck.Parameters.AddWithValue("@PojazdID", 
+                cmdCheck.Parameters.AddWithValue("@PojazdID",
                     _selectedPojazdId.HasValue ? (object)_selectedPojazdId.Value : DBNull.Value);
-                
+
                 int existingCount = (int)await cmdCheck.ExecuteScalarAsync();
-                
+
                 if (existingCount > 0)
                 {
                     MessageBox.Show("Pojazd o tym numerze rejestracyjnym już istnieje.",
@@ -580,7 +563,7 @@ namespace Kalendarz1.Transport.Formularze
                     txtRejestracja.Focus();
                     return;
                 }
-                
+
                 if (_selectedPojazdId.HasValue)
                 {
                     // Aktualizacja
@@ -589,44 +572,46 @@ namespace Kalendarz1.Transport.Formularze
                                    Model = @Model, PaletyH1 = @PaletyH1, 
                                    Aktywny = @Aktywny, ZmienionoUTC = SYSUTCDATETIME()
                                WHERE PojazdID = @PojazdID";
-                    
+
                     using var cmd = new SqlCommand(sql, connection);
                     cmd.Parameters.AddWithValue("@PojazdID", _selectedPojazdId.Value);
                     cmd.Parameters.AddWithValue("@Rejestracja", txtRejestracja.Text.Trim().ToUpper());
-                    cmd.Parameters.AddWithValue("@Marka", 
+                    cmd.Parameters.AddWithValue("@Marka",
                         string.IsNullOrWhiteSpace(txtMarka.Text) ? DBNull.Value : txtMarka.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Model", 
+                    cmd.Parameters.AddWithValue("@Model",
                         string.IsNullOrWhiteSpace(txtModel.Text) ? DBNull.Value : txtModel.Text.Trim());
                     cmd.Parameters.AddWithValue("@PaletyH1", (int)nudPalety.Value);
                     cmd.Parameters.AddWithValue("@Aktywny", chkAktywny.Checked);
-                    
+
                     await cmd.ExecuteNonQueryAsync();
-                    
+
                     MessageBox.Show("Dane pojazdu zostały zaktualizowane.",
                         "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
                     // Nowy pojazd
-                    var sql = @"INSERT INTO dbo.Pojazd (Rejestracja, Marka, Model, PaletyH1, Aktywny)
-                               VALUES (@Rejestracja, @Marka, @Model, @PaletyH1, @Aktywny)";
-                    
+                    var sql = @"INSERT INTO dbo.Pojazd (Rejestracja, Marka, Model, PaletyH1, Aktywny, UtworzonoUTC)
+                               OUTPUT INSERTED.PojazdID
+                               VALUES (@Rejestracja, @Marka, @Model, @PaletyH1, @Aktywny, SYSUTCDATETIME())";
+
                     using var cmd = new SqlCommand(sql, connection);
                     cmd.Parameters.AddWithValue("@Rejestracja", txtRejestracja.Text.Trim().ToUpper());
-                    cmd.Parameters.AddWithValue("@Marka", 
+                    cmd.Parameters.AddWithValue("@Marka",
                         string.IsNullOrWhiteSpace(txtMarka.Text) ? DBNull.Value : txtMarka.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Model", 
+                    cmd.Parameters.AddWithValue("@Model",
                         string.IsNullOrWhiteSpace(txtModel.Text) ? DBNull.Value : txtModel.Text.Trim());
                     cmd.Parameters.AddWithValue("@PaletyH1", (int)nudPalety.Value);
                     cmd.Parameters.AddWithValue("@Aktywny", chkAktywny.Checked);
-                    
-                    await cmd.ExecuteNonQueryAsync();
-                    
-                    MessageBox.Show("Nowy pojazd został dodany.",
+
+                    var newId = await cmd.ExecuteScalarAsync();
+
+                    MessageBox.Show($"Nowy pojazd został dodany (ID: {newId}).",
                         "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                
+
                 await LoadPojazdyAsync();
+                ClearForm();
             }
             catch (Exception ex)
             {
@@ -634,32 +619,32 @@ namespace Kalendarz1.Transport.Formularze
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        
+
         private async void BtnUsun_Click(object sender, EventArgs e)
         {
             if (!_selectedPojazdId.HasValue) return;
-            
+
             var result = MessageBox.Show(
                 $"Czy na pewno chcesz usunąć pojazd {txtRejestracja.Text}?\n\n" +
                 "Uwaga: Pojazd nie może być usunięty jeśli jest przypisany do kursów.",
                 "Potwierdzenie usunięcia",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
-            
+
             if (result != DialogResult.Yes) return;
-            
+
             try
             {
                 await using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
+
                 // Sprawdź czy pojazd jest używany
                 var sqlCheck = @"SELECT COUNT(*) FROM dbo.Kurs WHERE PojazdID = @PojazdID";
                 using var cmdCheck = new SqlCommand(sqlCheck, connection);
                 cmdCheck.Parameters.AddWithValue("@PojazdID", _selectedPojazdId.Value);
-                
+
                 int count = (int)await cmdCheck.ExecuteScalarAsync();
-                
+
                 if (count > 0)
                 {
                     MessageBox.Show(
@@ -670,17 +655,17 @@ namespace Kalendarz1.Transport.Formularze
                         MessageBoxIcon.Warning);
                     return;
                 }
-                
+
                 // Usuń pojazd
                 var sqlDelete = "DELETE FROM dbo.Pojazd WHERE PojazdID = @PojazdID";
                 using var cmdDelete = new SqlCommand(sqlDelete, connection);
                 cmdDelete.Parameters.AddWithValue("@PojazdID", _selectedPojazdId.Value);
-                
+
                 await cmdDelete.ExecuteNonQueryAsync();
-                
+
                 MessageBox.Show("Pojazd został usunięty.",
                     "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                
+
                 await LoadPojazdyAsync();
                 ClearForm();
             }

@@ -1,5 +1,5 @@
 // Plik: Transport/Formularze/KierowcyForm.cs
-// Naprawiony formularz do zarządzania kierowcami
+// Naprawiony formularz do zarządzania kierowcami - POPRAWKA DODAWANIA
 
 using System;
 using System.Data;
@@ -31,6 +31,7 @@ namespace Kalendarz1.Transport.Formularze
 
         private DataTable _dtKierowcy;
         private int? _selectedKierowcaId;
+        private bool _isAddingNew = false; // Flaga dla nowego rekordu
 
         public KierowcyForm()
         {
@@ -311,7 +312,10 @@ namespace Kalendarz1.Transport.Formularze
                 await using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                var sql = @"SELECT KierowcaID, Imie, Nazwisko, Telefon, Aktywny,
+                // Zmienione zapytanie - konwertuje Aktywny na tekst już w SQL
+                var sql = @"SELECT KierowcaID, Imie, Nazwisko, Telefon, 
+                                  CASE WHEN Aktywny = 1 THEN 'Aktywny' ELSE 'Nieaktywny' END AS StatusText,
+                                  Aktywny,
                                   UtworzonoUTC, ZmienionoUTC
                            FROM dbo.Kierowca
                            ORDER BY Nazwisko, Imie";
@@ -343,10 +347,17 @@ namespace Kalendarz1.Transport.Formularze
                     dgvKierowcy.Columns["Telefon"].Width = 120;
                 }
 
+                // Ukryj oryginalną kolumnę Aktywny
                 if (dgvKierowcy.Columns["Aktywny"] != null)
                 {
-                    dgvKierowcy.Columns["Aktywny"].HeaderText = "Status";
-                    dgvKierowcy.Columns["Aktywny"].Width = 80;
+                    dgvKierowcy.Columns["Aktywny"].Visible = false;
+                }
+
+                // Wyświetl kolumnę StatusText
+                if (dgvKierowcy.Columns["StatusText"] != null)
+                {
+                    dgvKierowcy.Columns["StatusText"].HeaderText = "Status";
+                    dgvKierowcy.Columns["StatusText"].Width = 80;
                 }
 
                 if (dgvKierowcy.Columns["UtworzonoUTC"] != null)
@@ -379,6 +390,9 @@ namespace Kalendarz1.Transport.Formularze
 
         private void DgvKierowcy_SelectionChanged(object sender, EventArgs e)
         {
+            // Nie reaguj na zmianę zaznaczenia jeśli dodajemy nowy rekord
+            if (_isAddingNew) return;
+
             if (dgvKierowcy.CurrentRow == null)
             {
                 ClearForm();
@@ -402,22 +416,13 @@ namespace Kalendarz1.Transport.Formularze
                 txtNazwisko.Text = row.Cells["Nazwisko"]?.Value?.ToString() ?? "";
                 txtTelefon.Text = row.Cells["Telefon"]?.Value?.ToString() ?? "";
 
-                // Boolean wartość - KLUCZOWA NAPRAWA
+                // Boolean wartość
                 var aktywnyValue = row.Cells["Aktywny"]?.Value;
                 if (aktywnyValue != null && aktywnyValue != DBNull.Value)
                 {
                     if (aktywnyValue is bool boolVal)
                     {
                         chkAktywny.Checked = boolVal;
-                    }
-                    else if (aktywnyValue is int intVal)
-                    {
-                        chkAktywny.Checked = intVal != 0;
-                    }
-                    else if (aktywnyValue is string strVal)
-                    {
-                        chkAktywny.Checked = strVal.Equals("True", StringComparison.OrdinalIgnoreCase)
-                                          || strVal.Equals("1", StringComparison.OrdinalIgnoreCase);
                     }
                     else
                     {
@@ -438,18 +443,18 @@ namespace Kalendarz1.Transport.Formularze
                 ClearForm();
             }
         }
+
         private void DgvKierowcy_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
 
-            // NIE FORMATUJ kolumnę Aktywny jeśli wartość jest Boolean
-            if (dgvKierowcy.Columns[e.ColumnIndex].Name == "Aktywny")
+            // Formatuj kolumnę StatusText
+            if (dgvKierowcy.Columns[e.ColumnIndex].Name == "StatusText")
             {
-                if (e.Value is bool)
+                if (e.Value != null && e.Value.ToString() == "Nieaktywny")
                 {
-                    // Zostaw wartość jako bool
-                    e.FormattingApplied = false;
-                    return;
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Font = new Font(dgvKierowcy.Font, FontStyle.Italic);
                 }
             }
         }
@@ -468,8 +473,11 @@ namespace Kalendarz1.Transport.Formularze
 
         private void BtnDodaj_Click(object sender, EventArgs e)
         {
+            _isAddingNew = true;
             ClearForm();
             dgvKierowcy.ClearSelection();
+            btnZapisz.Enabled = true; // Włącz przycisk zapisz dla nowego rekordu
+            _isAddingNew = false;
         }
 
         private async void BtnZapisz_Click(object sender, EventArgs e)
@@ -521,8 +529,9 @@ namespace Kalendarz1.Transport.Formularze
                 else
                 {
                     // Nowy kierowca
-                    var sql = @"INSERT INTO dbo.Kierowca (Imie, Nazwisko, Telefon, Aktywny)
-                               VALUES (@Imie, @Nazwisko, @Telefon, @Aktywny)";
+                    var sql = @"INSERT INTO dbo.Kierowca (Imie, Nazwisko, Telefon, Aktywny, UtworzonoUTC)
+                               OUTPUT INSERTED.KierowcaID
+                               VALUES (@Imie, @Nazwisko, @Telefon, @Aktywny, SYSUTCDATETIME())";
 
                     using var cmd = new SqlCommand(sql, connection);
                     cmd.Parameters.AddWithValue("@Imie", txtImie.Text.Trim());
@@ -531,13 +540,14 @@ namespace Kalendarz1.Transport.Formularze
                         string.IsNullOrWhiteSpace(txtTelefon.Text) ? DBNull.Value : txtTelefon.Text.Trim());
                     cmd.Parameters.AddWithValue("@Aktywny", chkAktywny.Checked);
 
-                    await cmd.ExecuteNonQueryAsync();
+                    var newId = await cmd.ExecuteScalarAsync();
 
-                    MessageBox.Show("Nowy kierowca został dodany.",
+                    MessageBox.Show($"Nowy kierowca został dodany (ID: {newId}).",
                         "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 await LoadKierowcyAsync();
+                ClearForm();
             }
             catch (Exception ex)
             {

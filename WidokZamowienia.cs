@@ -1,10 +1,10 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 14.0 - ULEPSZONE UI
+// WERSJA 15.0 - RESPONSYWNY DESIGN
 // Zmiany:
-// 1. Kompaktowy layout z lepszym wykorzystaniem przestrzeni
-// 2. Zintegrowany panel odbiorców z głównym panelem
-// 3. Ulepszone style i kolorystyka
-// 4. Responsywny design
+// 1. TableLayoutPanel dla lepszej skalowalności
+// 2. Anchor i Dock dla automatycznego dopasowania
+// 3. MinimumSize dla kontrolek
+// 4. FlowLayoutPanel dla elastycznego układu
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -44,7 +44,6 @@ namespace Kalendarz1
         private bool _blokujObslugeZmian;
         private readonly CultureInfo _pl = new("pl-PL");
         private readonly Dictionary<string, Image> _headerIcons = new();
-
 
         // ===== Dane i Cache =====
         private sealed class KontrahentInfo
@@ -106,13 +105,12 @@ namespace Kalendarz1
             BuildDataTableSchema();
             InitDefaults();
             CreateSummaryPanel();
-            CreateTransportPanel();
+            CreateResponsiveTransportPanel();
             SetupOstatniOdbiorcyGrid();
-
+            ConfigureResponsiveLayout();
 
             dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
             dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
-
 
             try
             {
@@ -138,11 +136,372 @@ namespace Kalendarz1
             }
         }
 
+        #region Responsywny Layout
+
+        private void ConfigureResponsiveLayout()
+        {
+            // Ustaw minimalny rozmiar formularza
+            this.MinimumSize = new Size(1024, 600);
+
+            // Skonfiguruj responsywny layout dla głównego panelu
+            if (panelDetaleZamowienia != null)
+            {
+                panelDetaleZamowienia.AutoScroll = true;
+                panelDetaleZamowienia.Padding = new Padding(10, 5, 10, 5);
+
+                // Reorganizuj kontrolki w panelu detali używając TableLayoutPanel
+                ReorganizeDetailsPanel();
+            }
+
+            // Reorganizuj panel nagłówka
+            ReorganizeHeaderPanel();
+
+            // Ustaw anchor dla kontrolek w panelu odbiorcy
+            if (txtSzukajOdbiorcy != null)
+            {
+                txtSzukajOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            }
+
+            // Ustaw responsywność dla listy wyników
+            if (listaWynikowOdbiorcy != null)
+            {
+                listaWynikowOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                listaWynikowOdbiorcy.MaximumSize = new Size(0, 155);
+                listaWynikowOdbiorcy.BringToFront(); // Ważne - lista musi być na wierzchu
+            }
+        }
+
+        private void ReorganizeHeaderPanel()
+        {
+            if (panelOdbiorca == null) return;
+
+            // Zmniejsz padding górnego panelu
+            panelOdbiorca.Padding = new Padding(10, 10, 10, 5);
+            panelOdbiorca.Height = 120; // Zmniejszona wysokość
+
+            // Usuń starą etykietę handlowca jeśli istnieje
+            var oldHandlowiecLabel = panelOdbiorca.Controls["label4"];
+            if (oldHandlowiecLabel != null)
+            {
+                panelOdbiorca.Controls.Remove(oldHandlowiecLabel);
+            }
+
+            // Przenieś combobox handlowca obok tytułu
+            if (lblTytul != null && cbHandlowiecFilter != null)
+            {
+                lblTytul.Location = new Point(10, 10);
+                lblTytul.Size = new Size(180, 30);
+
+                cbHandlowiecFilter.Location = new Point(195, 10);
+                cbHandlowiecFilter.Size = new Size(215, 30);
+                cbHandlowiecFilter.Font = new Font("Segoe UI", 11f);
+            }
+
+            // Przesuń pole szukania odbiorcy wyżej
+            var lblOdbiorca = panelOdbiorca.Controls["label1"];
+            if (lblOdbiorca != null)
+            {
+                lblOdbiorca.Location = new Point(10, 50);
+            }
+
+            if (txtSzukajOdbiorcy != null)
+            {
+                txtSzukajOdbiorcy.Location = new Point(10, 70);
+                txtSzukajOdbiorcy.Size = new Size(400, 28);
+                txtSzukajOdbiorcy.Font = new Font("Segoe UI", 10f);
+            }
+        }
+
+        private void ReorganizeDetailsPanel()
+        {
+            if (panelDetaleZamowienia == null) return;
+
+            // Usuń wszystkie kontrolki i reorganizuj je
+            panelDetaleZamowienia.SuspendLayout();
+
+            // Utworz główny TableLayoutPanel
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                AutoScroll = true,
+                ColumnCount = 1,
+                RowCount = 5,
+                Padding = new Padding(5, 0, 5, 5) // Zmniejszony górny padding
+            };
+
+            // Konfiguracja wierszy - wszystko przesunięte wyżej
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Panel odbiorców
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Daty
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Notatka
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Transport
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Wypełnienie
+
+            // 1. Panel ostatnich odbiorców - jeszcze większy
+            if (panelOstatniOdbiorcy != null)
+            {
+                panelOstatniOdbiorcy.Dock = DockStyle.Top;
+                panelOstatniOdbiorcy.MinimumSize = new Size(0, 260);  // Zwiększone z 220
+                panelOstatniOdbiorcy.MaximumSize = new Size(0, 380);  // Zwiększone z 320
+                panelOstatniOdbiorcy.AutoSize = false;
+                panelOstatniOdbiorcy.Margin = new Padding(0, 0, 0, 5);
+                mainLayout.Controls.Add(panelOstatniOdbiorcy, 0, 0);
+            }
+
+            // 2. Panel dat - kompaktowy
+            var datesPanel = CreateDatesPanel();
+            datesPanel.Height = 70; // Zmniejszona wysokość
+            mainLayout.Controls.Add(datesPanel, 0, 1);
+
+            // 3. Panel notatki - kompaktowy
+            var notesPanel = CreateNotesPanel();
+            notesPanel.Height = 100; // Zmniejszona wysokość
+            mainLayout.Controls.Add(notesPanel, 0, 2);
+
+            // 4. Panel transportu - poziomy układ
+            if (panelTransport != null)
+            {
+                panelTransport.Dock = DockStyle.Top;
+                panelTransport.Height = 100; // Zmniejszona wysokość dla poziomego układu
+                mainLayout.Controls.Add(panelTransport, 0, 3);
+            }
+
+            // Dodaj główny layout do panelu
+            panelDetaleZamowienia.Controls.Clear();
+            panelDetaleZamowienia.Controls.Add(mainLayout);
+            panelDetaleZamowienia.Controls.Add(listaWynikowOdbiorcy);
+
+            panelDetaleZamowienia.ResumeLayout(true);
+        }
+
+        private Panel CreateDatesPanel()
+        {
+            var panel = new Panel
+            {
+                Height = 80,
+                Dock = DockStyle.Top,
+                Padding = new Padding(5)
+            };
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = false
+            };
+
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            // Etykiety
+            var lblDate = new Label
+            {
+                Text = "📅 Data odbioru",
+                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(31, 41, 55),
+                AutoSize = true,
+                Padding = new Padding(0, 0, 0, 5)
+            };
+
+            var lblTime = new Label
+            {
+                Text = "🕐 Godzina odbioru",
+                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(31, 41, 55),
+                AutoSize = true,
+                Padding = new Padding(5, 0, 0, 5)
+            };
+
+            // DateTimePickers
+            if (dateTimePickerSprzedaz != null)
+            {
+                dateTimePickerSprzedaz.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            }
+
+            if (dateTimePickerGodzinaPrzyjazdu != null)
+            {
+                dateTimePickerGodzinaPrzyjazdu.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            }
+
+            layout.Controls.Add(lblDate, 0, 0);
+            layout.Controls.Add(lblTime, 1, 0);
+            layout.Controls.Add(dateTimePickerSprzedaz, 0, 1);
+            layout.Controls.Add(dateTimePickerGodzinaPrzyjazdu, 1, 1);
+
+            panel.Controls.Add(layout);
+            return panel;
+        }
+
+        private Panel CreateNotesPanel()
+        {
+            var panel = new Panel
+            {
+                Height = 120,
+                Dock = DockStyle.Top,
+                Padding = new Padding(5)
+            };
+
+            var lblNotes = new Label
+            {
+                Text = "Notatka",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Location = new Point(5, 5),
+                AutoSize = true
+            };
+
+            if (textBoxUwagi != null)
+            {
+                textBoxUwagi.Location = new Point(5, 25);
+                textBoxUwagi.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+                textBoxUwagi.Size = new Size(panel.Width - 10, 85);
+            }
+
+            panel.Controls.Add(lblNotes);
+            panel.Controls.Add(textBoxUwagi);
+
+            return panel;
+        }
+
+        private void CreateResponsiveTransportPanel()
+        {
+            panelTransport = new Panel
+            {
+                Height = 100, // Zmniejszona wysokość dla poziomego układu
+                Dock = DockStyle.Top,
+                BackColor = Color.White,
+                Padding = new Padding(5)
+            };
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2, // Dwie kolumny dla poziomego układu
+                RowCount = 2,
+                AutoSize = false
+            };
+
+            // Konfiguracja kolumn - równy podział
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+
+            // Konfiguracja wierszy
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F)); // Nagłówek
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Paski postępu
+
+            // Nagłówek
+            var lblTransportHeader = new Label
+            {
+                Text = "LIMITY TRANSPORTOWE",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            layout.Controls.Add(lblTransportHeader, 0, 0);
+            layout.SetColumnSpan(lblTransportHeader, 2); // Rozciągnij na 2 kolumny
+
+            // Panel dla Solówki (lewa kolumna)
+            var solowkaPanel = CreateCompactProgressPanel("Solówka (18 pal.)", 18, out progressSolowka, out lblSolowkaInfo);
+            layout.Controls.Add(solowkaPanel, 0, 1);
+
+            // Panel dla TIRa (prawa kolumna)
+            var tirPanel = CreateCompactProgressPanel("TIR (33 pal.)", 33, out progressTir, out lblTirInfo);
+            layout.Controls.Add(tirPanel, 1, 1);
+
+            panelTransport.Controls.Add(layout);
+
+            // Stylowanie panelu
+            panelTransport.Paint += (s, e) =>
+            {
+                using var path = GetRoundedRectPath(panelTransport.ClientRectangle, 8);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var brush = new SolidBrush(Color.FromArgb(249, 250, 251));
+                e.Graphics.FillPath(brush, path);
+                using var pen = new Pen(Color.FromArgb(229, 231, 235), 1);
+                e.Graphics.DrawPath(pen, path);
+            };
+        }
+
+        private Panel CreateCompactProgressPanel(string labelText, int maxValue, out ProgressBar progressBar, out Label infoLabel)
+        {
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(5, 0, 5, 0)
+            };
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = false
+            };
+
+            // Kolumny - pasek zajmuje więcej miejsca
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+
+            // Wiersze
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+
+            var label = new Label
+            {
+                Text = labelText,
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            progressBar = new ProgressBar
+            {
+                Maximum = maxValue,
+                Style = ProgressBarStyle.Continuous,
+                Dock = DockStyle.Fill,
+                Height = 22,
+                Margin = new Padding(0, 2, 2, 2)
+            };
+
+            infoLabel = new Label
+            {
+                Text = $"0 / {maxValue}",
+                Font = new Font("Segoe UI Semibold", 9f),
+                ForeColor = Color.FromArgb(31, 41, 55),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            layout.Controls.Add(label, 0, 0);
+            layout.SetColumnSpan(label, 2);
+            layout.Controls.Add(progressBar, 0, 1);
+            layout.Controls.Add(infoLabel, 1, 1);
+
+            panel.Controls.Add(layout);
+            return panel;
+        }
+
+        #endregion
+
         #region Grid Ostatnich Odbiorców
 
-        // Poprawiona metoda SetupOstatniOdbiorcyGrid z dodaną obsługą kliknięć
         private void SetupOstatniOdbiorcyGrid()
         {
+            if (panelOstatniOdbiorcy == null || gridOstatniOdbiorcy == null) return;
+
+            // Ustaw responsywność panelu
+            panelOstatniOdbiorcy.AutoSize = false;
+            panelOstatniOdbiorcy.Dock = DockStyle.Top;
+
+            // Ustaw responsywność grida
+            gridOstatniOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+            gridOstatniOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
             // Stylowanie panelu
             panelOstatniOdbiorcy.Paint += (s, e) =>
             {
@@ -161,18 +520,16 @@ namespace Kalendarz1
             gridOstatniOdbiorcy.RowTemplate.Height = 28;
             gridOstatniOdbiorcy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // WAŻNE: Usuń wszystkie poprzednie obsługi zdarzeń aby uniknąć duplikacji
+            // Obsługa zdarzeń
             gridOstatniOdbiorcy.CellClick -= GridOstatniOdbiorcy_CellClick;
             gridOstatniOdbiorcy.CellMouseEnter -= GridOstatniOdbiorcy_CellMouseEnter;
             gridOstatniOdbiorcy.CellMouseLeave -= GridOstatniOdbiorcy_CellMouseLeave;
 
-            // Dodaj nowe obsługi zdarzeń
             gridOstatniOdbiorcy.CellClick += GridOstatniOdbiorcy_CellClick;
             gridOstatniOdbiorcy.CellMouseEnter += GridOstatniOdbiorcy_CellMouseEnter;
             gridOstatniOdbiorcy.CellMouseLeave += GridOstatniOdbiorcy_CellMouseLeave;
         }
 
-        // Osobne metody obsługi zdarzeń dla lepszej czytelności i debugowania
         private void GridOstatniOdbiorcy_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
@@ -180,8 +537,6 @@ namespace Kalendarz1
                 var value = gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
                 if (!string.IsNullOrEmpty(value))
                 {
-                    // Debug - sprawdź czy metoda jest wywoływana
-                    System.Diagnostics.Debug.WriteLine($"Kliknięto w: {value}");
                     SelectOdbiorcaFromCell(value);
                 }
             }
@@ -205,17 +560,11 @@ namespace Kalendarz1
             }
         }
 
-        // Sprawdź czy metoda SelectOdbiorcaFromCell działa poprawnie
         private void SelectOdbiorcaFromCell(string nazwaOdbiorcy)
         {
-            // Debug - sprawdź czy ta metoda jest wywoływana
-            System.Diagnostics.Debug.WriteLine($"SelectOdbiorcaFromCell wywołana z: {nazwaOdbiorcy}");
-
             var odbiorca = _kontrahenci.FirstOrDefault(k => k.Nazwa == nazwaOdbiorcy);
             if (odbiorca != null)
             {
-                System.Diagnostics.Debug.WriteLine($"Znaleziono odbiorcę: {odbiorca.Id} - {odbiorca.Nazwa}");
-
                 if (_selectedKlientId != null && _selectedKlientId != odbiorca.Id)
                 {
                     _blokujObslugeZmian = true;
@@ -233,11 +582,8 @@ namespace Kalendarz1
                 UstawOdbiorce(odbiorca.Id);
                 RecalcSum();
             }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"NIE znaleziono odbiorcy o nazwie: {nazwaOdbiorcy}");
-            }
         }
+
         private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
         {
             var path = new GraphicsPath();
@@ -249,10 +595,10 @@ namespace Kalendarz1
             return path;
         }
 
-        
-
         private void UpdateOstatniOdbiorcyGrid(string? handlowiec)
         {
+            if (panelOstatniOdbiorcy == null || gridOstatniOdbiorcy == null) return;
+
             panelOstatniOdbiorcy.Visible = true;
 
             if (string.IsNullOrEmpty(handlowiec) || handlowiec == "— Wszyscy —")
@@ -264,8 +610,8 @@ namespace Kalendarz1
 
             var odbiorcy = _kontrahenci
                 .Where(k => k.Handlowiec == handlowiec)
-                .OrderByDescending(k => k.OstatnieZamowienie.HasValue && k.OstatnieZamowienie >= DateTime.Now.AddMonths(-1)) // Najpierw z ostatnimi zamówieniami
-                .ThenBy(k => k.Nazwa) // Potem alfabetycznie
+                .OrderByDescending(k => k.OstatnieZamowienie.HasValue && k.OstatnieZamowienie >= DateTime.Now.AddMonths(-1))
+                .ThenBy(k => k.Nazwa)
                 .Select(k => k.Nazwa)
                 .ToList();
 
@@ -290,10 +636,18 @@ namespace Kalendarz1
 
             gridOstatniOdbiorcy.DataSource = dt;
 
+            // Ustaw grid aby wykorzystywał całą dostępną wysokość
+            if (gridOstatniOdbiorcy.Parent != null)
+            {
+                gridOstatniOdbiorcy.Location = new Point(10, 30);
+                gridOstatniOdbiorcy.Size = new Size(390, panelOstatniOdbiorcy.Height - 40);  // Wykorzystaj całą wysokość panelu
+            }
+
+            // Ustaw automatyczne dopasowanie szerokości kolumn
             if (gridOstatniOdbiorcy.Columns.Count > 0)
             {
-                gridOstatniOdbiorcy.Columns["Kolumna1"].Width = 195;
-                gridOstatniOdbiorcy.Columns["Kolumna2"].Width = 195;
+                gridOstatniOdbiorcy.Columns["Kolumna1"].FillWeight = 50;
+                gridOstatniOdbiorcy.Columns["Kolumna2"].FillWeight = 50;
             }
 
             // Zastosuj formatowanie do wierszy
@@ -317,6 +671,7 @@ namespace Kalendarz1
 
             lblOstatniOdbiorcy.Text = $"Odbiorcy ({odbiorcy.Count}):";
         }
+
         private async Task LoadOstatnieZamowienia()
         {
             const string sql = @"
@@ -363,109 +718,6 @@ namespace Kalendarz1
 
         #region Panel Transportu
 
-        private void CreateTransportPanel()
-        {
-            // Panel transportu pod notatkami
-            panelTransport = new Panel
-            {
-                Location = new Point(10, 470),
-                Size = new Size(410, 140),
-                BackColor = Color.White,
-                Parent = panelDetaleZamowienia
-            };
-
-            // Nagłówek sekcji
-            var lblTransportHeader = new Label
-            {
-                Text = "LIMITY TRANSPORTOWE",
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(75, 85, 99),
-                Location = new Point(0, 5),
-                Size = new Size(410, 20),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            // SOLÓWKA
-            lblSolowka = new Label
-            {
-                Text = "Solówka (max 18 palet)",
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(107, 114, 128),
-                Location = new Point(5, 35),
-                Size = new Size(150, 20)
-            };
-
-            progressSolowka = new ProgressBar
-            {
-                Location = new Point(5, 55),
-                Size = new Size(320, 22),  // Skrócony z 340 na 320
-                Maximum = 18,
-                Style = ProgressBarStyle.Continuous
-            };
-
-            lblSolowkaInfo = new Label
-            {
-                Text = "0 / 18",
-                Font = new Font("Segoe UI Semibold", 9f),
-                ForeColor = Color.FromArgb(31, 41, 55),
-                Location = new Point(330, 55),  // Przesunięty z 350 na 330
-                Size = new Size(75, 22),  // Zwiększony z 55 na 75
-                TextAlign = ContentAlignment.MiddleRight
-            };
-
-            // TIR
-            lblTir = new Label
-            {
-                Text = "TIR (max 33 palety)",
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(107, 114, 128),
-                Location = new Point(5, 85),
-                Size = new Size(150, 20)
-            };
-
-            progressTir = new ProgressBar
-            {
-                Location = new Point(5, 105),
-                Size = new Size(320, 22),  // Skrócony z 340 na 320
-                Maximum = 33,
-                Style = ProgressBarStyle.Continuous
-            };
-
-            lblTirInfo = new Label
-            {
-                Text = "0 / 33",
-                Font = new Font("Segoe UI Semibold", 9f),
-                ForeColor = Color.FromArgb(31, 41, 55),
-                Location = new Point(330, 105),  // Przesunięty z 350 na 330
-                Size = new Size(75, 22),  // Zwiększony z 55 na 75
-                TextAlign = ContentAlignment.MiddleRight
-            };
-
-            // Dodaj kontrolki do panelu
-            panelTransport.Controls.Add(lblTransportHeader);
-            panelTransport.Controls.Add(lblSolowka);
-            panelTransport.Controls.Add(progressSolowka);
-            panelTransport.Controls.Add(lblSolowkaInfo);
-            panelTransport.Controls.Add(lblTir);
-            panelTransport.Controls.Add(progressTir);
-            panelTransport.Controls.Add(lblTirInfo);
-
-            // Dodaj efekt zaokrąglonych rogów i ramki
-            panelTransport.Paint += (s, e) =>
-            {
-                using var path = GetRoundedRectPath(panelTransport.ClientRectangle, 8);
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using var brush = new SolidBrush(Color.FromArgb(249, 250, 251));
-                e.Graphics.FillPath(brush, path);
-
-                // Narysuj elementy ponownie na tle
-                using var pen = new Pen(Color.FromArgb(229, 231, 235), 1);
-                e.Graphics.DrawPath(pen, path);
-            };
-
-            panelTransport.BringToFront();
-        }
-
         private void UpdateTransportBars(decimal palety)
         {
             if (progressSolowka == null || progressTir == null) return;
@@ -479,13 +731,11 @@ namespace Kalendarz1
             // Zmień kolor paska w zależności od wypełnienia
             if (paletyInt <= 18)
             {
-                // Zielony - mieści się
                 SetProgressBarColor(progressSolowka, Color.FromArgb(34, 197, 94));
                 lblSolowkaInfo.ForeColor = Color.FromArgb(34, 197, 94);
             }
             else
             {
-                // Czerwony - przekroczony limit
                 SetProgressBarColor(progressSolowka, Color.FromArgb(239, 68, 68));
                 lblSolowkaInfo.ForeColor = Color.FromArgb(239, 68, 68);
                 lblSolowkaInfo.Text = $"{paletyInt:N0} / 18 ⚠";
@@ -500,20 +750,17 @@ namespace Kalendarz1
             {
                 if (paletyInt <= 25)
                 {
-                    // Zielony - dużo miejsca
                     SetProgressBarColor(progressTir, Color.FromArgb(34, 197, 94));
                     lblTirInfo.ForeColor = Color.FromArgb(34, 197, 94);
                 }
                 else
                 {
-                    // Pomarańczowy - blisko limitu
                     SetProgressBarColor(progressTir, Color.FromArgb(251, 146, 60));
                     lblTirInfo.ForeColor = Color.FromArgb(251, 146, 60);
                 }
             }
             else
             {
-                // Czerwony - przekroczony limit
                 SetProgressBarColor(progressTir, Color.FromArgb(239, 68, 68));
                 lblTirInfo.ForeColor = Color.FromArgb(239, 68, 68);
                 lblTirInfo.Text = $"{paletyInt:N0} / 33 ⚠";
@@ -522,18 +769,11 @@ namespace Kalendarz1
 
         private void SetProgressBarColor(ProgressBar bar, Color color)
         {
-            // Metoda do zmiany koloru paska postępu
             bar.ForeColor = color;
-
-            // Dla Windows Forms trzeba użyć Windows API lub custom drawing
-            // Tutaj używamy prostego sposobu przez style
             if (bar.Value == bar.Maximum)
             {
                 bar.Style = ProgressBarStyle.Continuous;
             }
-
-            // Alternatywnie można użyć ModifyProgressBarColor via Windows API
-            // ale to wymaga P/Invoke
         }
 
         #endregion
@@ -644,7 +884,6 @@ namespace Kalendarz1
                 panelDaneOdbiorcy.Paint += ModernPanel_Paint;
             }
 
-            // Style dla paneli
             if (panelMaster != null)
             {
                 panelMaster.BackColor = Color.White;
@@ -660,7 +899,7 @@ namespace Kalendarz1
             if (panelDetaleZamowienia != null)
             {
                 panelDetaleZamowienia.BackColor = Color.White;
-                panelDetaleZamowienia.Padding = new Padding(20, 5, 20, 5);
+                panelDetaleZamowienia.AutoScroll = true;
             }
 
             StyleDateTimePicker(dateTimePickerSprzedaz);
@@ -705,7 +944,6 @@ namespace Kalendarz1
             btn.Height = 38;
             btn.Width = 140;
 
-            // Zaokrąglone rogi
             btn.Paint += (s, e) =>
             {
                 var rect = btn.ClientRectangle;
@@ -776,7 +1014,7 @@ namespace Kalendarz1
             dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dataGridViewZamowienie.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
 
-            dataGridViewZamowienie.RowTemplate.Height = 38;
+            dataGridViewZamowienie.RowTemplate.Height = 32;  // Zmniejszone z 38 na 32
             dataGridViewZamowienie.DefaultCellStyle.SelectionBackColor = Color.FromArgb(238, 242, 255);
             dataGridViewZamowienie.DefaultCellStyle.SelectionForeColor = Color.FromArgb(55, 65, 81);
             dataGridViewZamowienie.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
@@ -824,7 +1062,7 @@ namespace Kalendarz1
             _dt.Columns.Add("Pojemniki", typeof(decimal));
             _dt.Columns.Add("Ilosc", typeof(decimal));
             _dt.Columns.Add("KodTowaru", typeof(string));
-            _dt.Columns.Add("KodKopia", typeof(string)); // Dodana kopia kolumny
+            _dt.Columns.Add("KodKopia", typeof(string));
 
             _view = new DataView(_dt);
             dataGridViewZamowienie.DataSource = _view;
@@ -835,7 +1073,7 @@ namespace Kalendarz1
             var cKod = dataGridViewZamowienie.Columns["Kod"]!;
             cKod.ReadOnly = true;
             cKod.FillWeight = 180;
-            cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight; // Wyrównanie do prawej
+            cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             cKod.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
             cKod.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
             cKod.HeaderText = "Towar";
@@ -851,7 +1089,7 @@ namespace Kalendarz1
 
             var cPalety = dataGridViewZamowienie.Columns["Palety"]!;
             cPalety.FillWeight = 80;
-            cPalety.DefaultCellStyle.Format = "N0"; // Zmiana z N1 na N0 - bez miejsc po przecinku
+            cPalety.DefaultCellStyle.Format = "N0";
             cPalety.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             cPalety.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
             cPalety.DefaultCellStyle.ForeColor = Color.FromArgb(239, 68, 68);
@@ -870,17 +1108,15 @@ namespace Kalendarz1
             cIlosc.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
             cIlosc.DefaultCellStyle.ForeColor = Color.FromArgb(16, 185, 129);
 
-            // Kopia kolumny kod na końcu
             var cKodKopia = dataGridViewZamowienie.Columns["KodKopia"]!;
             cKodKopia.ReadOnly = true;
             cKodKopia.FillWeight = 180;
             cKodKopia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             cKodKopia.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
             cKodKopia.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
-            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251); // Lekkie tło dla odróżnienia
+            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
             cKodKopia.HeaderText = "Towar";
         }
-
 
         private void WireUpUIEvents()
         {
@@ -892,7 +1128,9 @@ namespace Kalendarz1
 
             txtSzukajOdbiorcy.TextChanged += TxtSzukajOdbiorcy_TextChanged;
             txtSzukajOdbiorcy.KeyDown += TxtSzukajOdbiorcy_KeyDown;
-            listaWynikowOdbiorcy.DoubleClick += ListaWynikowOdbiorcy_DoubleClick;
+
+            // Zmiana z DoubleClick na Click dla szybszego wyboru
+            listaWynikowOdbiorcy.Click += ListaWynikowOdbiorcy_Click;
             listaWynikowOdbiorcy.KeyDown += ListaWynikowOdbiorcy_KeyDown;
 
             var hands = _kontrahenci.Select(k => k.Handlowiec).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s).ToList();
@@ -903,6 +1141,8 @@ namespace Kalendarz1
             cbHandlowiecFilter.DropDownStyle = ComboBoxStyle.DropDownList;
             cbHandlowiecFilter.SelectedIndexChanged += CbHandlowiecFilter_SelectedIndexChanged;
         }
+
+        private void ListaWynikowOdbiorcy_Click(object? sender, EventArgs e) => WybierzOdbiorceZListy();
 
         private async void CbHandlowiecFilter_SelectedIndexChanged(object? sender, EventArgs e)
         {
@@ -941,7 +1181,7 @@ namespace Kalendarz1
             while (await rd.ReadAsync())
             {
                 var kod = rd.GetString(1);
-                _dt.Rows.Add(rd.GetInt32(0), kod, false, 0m, 0m, 0m, kod, kod); // Dodana kopia kodu
+                _dt.Rows.Add(rd.GetInt32(0), kod, false, 0m, 0m, 0m, kod, kod);
             }
         }
 
@@ -1014,15 +1254,31 @@ namespace Kalendarz1
             listaWynikowOdbiorcy.DataSource = wyniki;
             listaWynikowOdbiorcy.DisplayMember = "Nazwa";
             listaWynikowOdbiorcy.ValueMember = "Id";
-            listaWynikowOdbiorcy.Visible = wyniki.Any();
 
-            // Stylizacja listy wyników
-            if (listaWynikowOdbiorcy.Visible)
+            if (wyniki.Any())
             {
+                // Ustaw pozycję listy względem textboxa - jeszcze niżej
+                var screenPoint = txtSzukajOdbiorcy.Parent.PointToScreen(txtSzukajOdbiorcy.Location);
+                var clientPoint = panelDetaleZamowienia.PointToClient(screenPoint);
+
+                listaWynikowOdbiorcy.Location = new Point(
+                    clientPoint.X,
+                    clientPoint.Y + txtSzukajOdbiorcy.Height + 20  // Zwiększone z 10 na 20 pikseli
+                );
+                listaWynikowOdbiorcy.Width = txtSzukajOdbiorcy.Width;
+                listaWynikowOdbiorcy.Height = Math.Min(180, wyniki.Count * 22 + 5);
+
                 listaWynikowOdbiorcy.BackColor = Color.White;
                 listaWynikowOdbiorcy.ForeColor = Color.FromArgb(31, 41, 55);
                 listaWynikowOdbiorcy.BorderStyle = BorderStyle.FixedSingle;
                 listaWynikowOdbiorcy.Font = new Font("Segoe UI", 9.5f);
+
+                listaWynikowOdbiorcy.Visible = true;
+                listaWynikowOdbiorcy.BringToFront(); // Upewnij się, że lista jest na wierzchu
+            }
+            else
+            {
+                listaWynikowOdbiorcy.Visible = false;
             }
         }
 
@@ -1049,8 +1305,6 @@ namespace Kalendarz1
             }
         }
 
-        private void ListaWynikowOdbiorcy_DoubleClick(object? sender, EventArgs e) => WybierzOdbiorceZListy();
-
         private void WybierzOdbiorceZListy()
         {
             if (listaWynikowOdbiorcy.SelectedItem is KontrahentInfo wybrany)
@@ -1058,8 +1312,6 @@ namespace Kalendarz1
                 UstawOdbiorce(wybrany.Id);
             }
         }
-
-
 
         private void UstawOdbiorce(string id)
         {
@@ -1237,7 +1489,6 @@ namespace Kalendarz1
             if (lblSumaPojemnikow != null) lblSumaPojemnikow.Text = sumaPojemniki.ToString("N0");
             if (lblSumaKg != null) lblSumaKg.Text = sumaIlosc.ToString("N0");
 
-            // Aktualizuj paski transportu
             UpdateTransportBars(sumaPalety);
         }
 
@@ -1305,7 +1556,6 @@ namespace Kalendarz1
                 r["Ilosc"] = 0m;
                 r["Pojemniki"] = 0m;
                 r["Palety"] = 0m;
-                // Kolumny Kod, KodTowaru i KodKopia pozostają bez zmian
             }
             _blokujObslugeZmian = false;
 
@@ -1479,101 +1729,6 @@ namespace Kalendarz1
             return sb.ToString();
         }
 
-        private sealed class KontrahentPicker : Form
-        {
-            private readonly DataView _view;
-            private readonly TextBox _tbFilter = new() { Dock = DockStyle.Fill, PlaceholderText = "Szukaj: nazwa / NIP / miejscowość..." };
-            private readonly ComboBox _cbHandlowiec = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
-            private readonly DataGridView _grid = new()
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect
-            };
-            public string? SelectedId { get; private set; }
-
-            public KontrahentPicker(List<KontrahentInfo> src, string? handlowiecPreselected)
-            {
-                Text = "Wybierz odbiorcę";
-                StartPosition = FormStartPosition.CenterParent;
-                MinimumSize = new Size(920, 640);
-
-                var table = new DataTable();
-                table.Columns.Add("Id", typeof(string));
-                table.Columns.Add("Nazwa", typeof(string));
-                table.Columns.Add("NIP", typeof(string));
-                table.Columns.Add("KodPocztowy", typeof(string));
-                table.Columns.Add("Miejscowosc", typeof(string));
-                table.Columns.Add("Handlowiec", typeof(string));
-                foreach (var k in src)
-                    table.Rows.Add(k.Id, k.Nazwa, k.NIP, k.KodPocztowy, k.Miejscowosc, k.Handlowiec);
-
-                _view = new DataView(table);
-                _grid.DataSource = _view;
-                _grid.Font = new Font("Segoe UI", 10f);
-                _grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-                _grid.RowTemplate.Height = 28;
-                _grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
-                _grid.Columns["Id"]!.Visible = false;
-
-                var bar = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 4, Padding = new Padding(8), AutoSize = true };
-                bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-                bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-                bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-                var lblF = new Label { Text = "Filtr:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0, 8, 6, 0) };
-                var lblH = new Label { Text = "Handlowiec:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(12, 8, 6, 0) };
-                bar.Controls.Add(lblF, 0, 0);
-                bar.Controls.Add(_tbFilter, 1, 0);
-                bar.Controls.Add(lblH, 2, 0);
-                bar.Controls.Add(_cbHandlowiec, 3, 0);
-
-                var hands = src.Select(k => k.Handlowiec).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s).ToList();
-                hands.Insert(0, "— Wszyscy —");
-                _cbHandlowiec.Items.AddRange(hands.ToArray());
-
-                if (!string.IsNullOrWhiteSpace(handlowiecPreselected) && _cbHandlowiec.Items.IndexOf(handlowiecPreselected) is var idx && idx >= 0)
-                    _cbHandlowiec.SelectedIndex = idx;
-                else
-                    _cbHandlowiec.SelectedIndex = 0;
-
-                var ok = new Button { Text = "Wybierz", AutoSize = true, Padding = new Padding(12, 8, 12, 8), DialogResult = DialogResult.OK };
-                var cancel = new Button { Text = "Anuluj", AutoSize = true, Padding = new Padding(12, 8, 12, 8), DialogResult = DialogResult.Cancel };
-                ok.Click += (s, e) => { if (_grid.CurrentRow != null) SelectedId = _grid.CurrentRow.Cells["Id"].Value?.ToString(); };
-
-                var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(8), AutoSize = true };
-                buttons.Controls.Add(ok);
-                buttons.Controls.Add(cancel);
-
-                Controls.Add(_grid);
-                Controls.Add(bar);
-                Controls.Add(buttons);
-
-                _tbFilter.TextChanged += (s, e) => ApplyFilter();
-                _cbHandlowiec.SelectedIndexChanged += (s, e) => ApplyFilter();
-                _grid.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) ok.PerformClick(); };
-                AcceptButton = ok;
-                CancelButton = cancel;
-                ApplyFilter();
-            }
-
-            private void ApplyFilter()
-            {
-                var txt = _tbFilter.Text?.Trim().Replace("'", "''") ?? "";
-                var hand = _cbHandlowiec.SelectedItem?.ToString();
-                var parts = new List<string>();
-                if (!string.IsNullOrEmpty(txt))
-                    parts.Add($"(Nazwa LIKE '%{txt}%' OR NIP LIKE '%{txt}%' OR Miejscowosc LIKE '%{txt}%')");
-                if (!string.IsNullOrWhiteSpace(hand) && hand != "— Wszyscy —")
-                    parts.Add($"Handlowiec = '{hand.Replace("'", "''")}'");
-                _view.RowFilter = string.Join(" AND ", parts);
-            }
-        }
-
         private async Task SaveOrderAsync()
         {
             await using var cn = new SqlConnection(_connLibra);
@@ -1582,7 +1737,6 @@ namespace Kalendarz1
 
             int orderId;
 
-            // Oblicz sumaryczne wartości
             decimal sumaPojemnikow = 0;
             decimal sumaPalet = 0;
             bool czyJakikolwiekE2 = false;
@@ -1643,7 +1797,6 @@ namespace Kalendarz1
                 await cmdInsert.ExecuteNonQueryAsync();
             }
 
-            // Zapisz towary z dokładnymi wartościami palet/pojemników
             var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
                 (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2) 
                 VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2)", cn, tr);
@@ -1659,7 +1812,6 @@ namespace Kalendarz1
             {
                 if (r.Field<decimal>("Ilosc") <= 0m) continue;
 
-                // Zapisuj dokładne wartości użytkownika
                 decimal palety = r.Field<decimal>("Palety");
                 decimal pojemniki = r.Field<decimal>("Pojemniki");
                 bool e2 = r.Field<bool>("E2");
@@ -1669,13 +1821,14 @@ namespace Kalendarz1
                 cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
                 cmdInsertItem.Parameters["@ce"].Value = 0m;
                 cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(pojemniki);
-                cmdInsertItem.Parameters["@pal"].Value = palety; // Dokładna wartość palet
+                cmdInsertItem.Parameters["@pal"].Value = palety;
                 cmdInsertItem.Parameters["@e2"].Value = e2;
                 await cmdInsertItem.ExecuteNonQueryAsync();
             }
 
             await tr.CommitAsync();
         }
+
+        #endregion
     }
 }
-#endregion
