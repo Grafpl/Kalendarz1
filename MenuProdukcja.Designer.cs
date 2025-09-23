@@ -1,0 +1,96 @@
+﻿namespace Kalendarz1
+{
+    partial class MenuProdukcja
+
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MenuProdukcja));
+            pictureBox1 = new System.Windows.Forms.PictureBox();
+            label19 = new System.Windows.Forms.Label();
+            button5 = new System.Windows.Forms.Button();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            SuspendLayout();
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.BackgroundImage = Properties.Resources.pm;
+            pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            pictureBox1.Location = new System.Drawing.Point(73, 11);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(656, 137);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 8;
+            pictureBox1.TabStop = false;
+            // 
+            // label19
+            // 
+            label19.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
+            label19.Location = new System.Drawing.Point(73, 220);
+            label19.Name = "label19";
+            label19.Size = new System.Drawing.Size(262, 30);
+            label19.TabIndex = 60;
+            label19.Text = "Produkcja podgląd";
+            label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // button5
+            // 
+            button5.BackgroundImage = (System.Drawing.Image)resources.GetObject("button5.BackgroundImage");
+            button5.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold);
+            button5.ForeColor = System.Drawing.Color.Black;
+            button5.ImageAlign = System.Drawing.ContentAlignment.TopCenter;
+            button5.Location = new System.Drawing.Point(73, 253);
+            button5.Name = "button5";
+            button5.Size = new System.Drawing.Size(262, 193);
+            button5.TabIndex = 59;
+            button5.UseVisualStyleBackColor = true;
+            button5.Click += button5_Click;
+            // 
+            // MenuProdukcja
+            // 
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            BackColor = System.Drawing.Color.White;
+            ClientSize = new System.Drawing.Size(820, 493);
+            Controls.Add(label19);
+            Controls.Add(button5);
+            Controls.Add(pictureBox1);
+            Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
+            Name = "MenuProdukcja";
+            Text = "Menu";
+            Load += MENU_Load;
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ResumeLayout(false);
+        }
+
+        #endregion
+        private System.Windows.Forms.PictureBox pictureBox1;
+        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.Button button5;
+    }
+}

@@ -50,6 +50,12 @@
 
   <ItemGroup>
     <Compile Update="AnkietaPotwierdzoneForm.cs" />
+    <Compile Update="MenuProdukcja.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="MenuTransport.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WidokFakturSprzedazy.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -99,6 +105,12 @@
 	
 
 	<ItemGroup>
+    <EmbeddedResource Update="MenuProdukcja.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Update="MenuTransport.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <EmbeddedResource Update="MenuPojemniki.resx">
       <SubType>Designer</SubType>
     </EmbeddedResource>

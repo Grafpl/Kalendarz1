@@ -133,5 +133,10 @@ namespace Kalendarz1
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void label19_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

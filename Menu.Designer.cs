@@ -511,6 +511,7 @@
             label19.TabIndex = 58;
             label19.Text = "Produkcja podgląd";
             label19.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            label19.Click += label19_Click;
             // 
             // MENU
             // 

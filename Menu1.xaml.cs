@@ -65,6 +65,16 @@ namespace Kalendarz1
                             MenuPojemniki menuPojemniki = new MenuPojemniki();
                             menuPojemniki.Show();
                         }
+                        else if (username == "51991")
+                        {
+                            MenuTransport menuTransport = new MenuTransport();
+                            menuTransport.Show();
+                        }
+                        else if (username == "6900" || username == "9741" || username == "1199" || username == "1199" || username == "6622" || username == "9911") 
+                        {
+                            MenuProdukcja menuprodukcja = new MenuProdukcja();
+                            menuprodukcja.Show(); 
+                        }
                         else
                         {
                             MenuSprzedaz menuSprzedaz = new MenuSprzedaz();
