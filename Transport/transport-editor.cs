@@ -1,5 +1,5 @@
 // Plik: Transport/EdytorKursuWithPalety.cs
-// Wersja z pełną obsługą edycji zamówień i menu kontekstowym
+// Wersja z automatyczną aktualizacją danych zamówień w kursach
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
@@ -27,6 +27,7 @@ namespace Kalendarz1.Transport.Formularze
         private List<Kierowca> _kierowcy;
         private List<Pojazd> _pojazdy;
         private List<ZamowienieDoTransportu> _wolneZamowienia = new List<ZamowienieDoTransportu>();
+        private Timer _autoUpdateTimer;
 
         // Kontrolki nagłówka
         private ComboBox cboKierowca;
@@ -45,6 +46,8 @@ namespace Kalendarz1.Transport.Formularze
         private DataGridView dgvWolneZamowienia;
         private Button btnDodajZamowienie;
         private Label lblZamowieniaInfo;
+        private DateTimePicker _dtpZamowienia;
+        private Label _lblLiczbaZamowien;
 
         // Panel ręcznego dodawania
         private TextBox txtKlient;
@@ -61,6 +64,7 @@ namespace Kalendarz1.Transport.Formularze
         private ProgressBar progressWypelnienie;
         private Label lblWypelnienie;
         private Label lblStatystyki;
+        private Label lblAutoUpdate;
 
         // Przyciski główne
         private Button btnZapisz;
@@ -82,6 +86,9 @@ namespace Kalendarz1.Transport.Formularze
             public string? Adres { get; set; }
             public bool TrybE2 { get; set; }
             public string? NazwaKlienta { get; set; }
+            public bool ZmienionyWZamowieniu { get; set; } // Flaga zmian
+            public decimal PoprzedniePalety { get; set; } // Do wykrywania zmian
+            public int PoprzedniePojemniki { get; set; } // Do wykrywania zmian
         }
 
         // Dialog do dodawania kierowcy
@@ -229,6 +236,7 @@ namespace Kalendarz1.Transport.Formularze
             public int Pojemniki { get; set; }
             public bool TrybE2 { get; set; }
             public DateTime DataPrzyjazdu { get; set; }
+            public DateTime DataOdbioru { get; set; } // Data kiedy ma być odebrane
             public string GodzinaStr => DataPrzyjazdu.ToString("HH:mm");
             public string Status { get; set; } = "Nowe";
             public string Handlowiec { get; set; } = "";
@@ -251,11 +259,175 @@ namespace Kalendarz1.Transport.Formularze
             _repozytorium = repozytorium ?? throw new ArgumentNullException(nameof(repozytorium));
             _kursId = kursId;
             _uzytkownik = uzytkownik ?? Environment.UserName;
-            UserID = uzytkownik; // Ustawienie UserID
+            UserID = uzytkownik;
 
             InitializeComponent();
             dtpData.Value = data ?? DateTime.Today;
+
+            // Inicjalizacja timera automatycznej aktualizacji
+            InitializeAutoUpdateTimer();
+
             _ = LoadDataAsync();
+        }
+
+        private void InitializeAutoUpdateTimer()
+        {
+            _autoUpdateTimer = new Timer();
+            _autoUpdateTimer.Interval = 10000; // Co 10 sekund
+            _autoUpdateTimer.Tick += async (s, e) => await CheckForZamowieniaUpdates();
+            _autoUpdateTimer.Start();
+        }
+
+        private async Task CheckForZamowieniaUpdates()
+        {
+            try
+            {
+                bool anyChanges = false;
+                var zmienioneLadunki = new List<LadunekWithPalety>();
+
+                foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true))
+                {
+                    if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
+                    {
+                        var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
+
+                        if (aktualneZamowienie != null)
+                        {
+                            // Sprawdź czy nastąpiły zmiany
+                            if (ladunek.Palety != aktualneZamowienie.Palety ||
+                                ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
+                            {
+                                ladunek.PoprzedniePalety = ladunek.Palety;
+                                ladunek.PoprzedniePojemniki = ladunek.PojemnikiE2;
+
+                                ladunek.Palety = aktualneZamowienie.Palety;
+                                ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
+                                ladunek.ZmienionyWZamowieniu = true;
+
+                                zmienioneLadunki.Add(ladunek);
+                                anyChanges = true;
+                            }
+                        }
+                    }
+                }
+
+                if (anyChanges)
+                {
+                    // Aktualizuj widok
+                    await LoadLadunki();
+                    await UpdateWypelnienie();
+
+                    // Pokaż powiadomienie
+                    if (lblAutoUpdate != null)
+                    {
+                        lblAutoUpdate.Text = $"⚠️ Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień";
+                        lblAutoUpdate.ForeColor = Color.Orange;
+                        lblAutoUpdate.Visible = true;
+
+                        // Ukryj po 5 sekundach
+                        var hideTimer = new Timer { Interval = 5000 };
+                        hideTimer.Tick += (s, e) =>
+                        {
+                            lblAutoUpdate.Visible = false;
+                            hideTimer.Stop();
+                            hideTimer.Dispose();
+                        };
+                        hideTimer.Start();
+                    }
+
+                    // Automatyczny zapis do bazy
+                    if (_kursId.HasValue && _kursId.Value > 0)
+                    {
+                        await SaveLadunkiChangesToDatabase();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd podczas automatycznej aktualizacji: {ex.Message}");
+            }
+        }
+
+        private async Task<ZamowienieDoTransportu> PobierzAktualneZamowienie(int zamowienieId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT 
+                        zm.Id AS ZamowienieId,
+                        zm.KlientId,
+                        zm.DataPrzyjazdu,
+                        zm.Status,
+                        ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
+                        ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
+                        ISNULL(zm.TrybE2, 0) AS TrybE2,
+                        SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg
+                    FROM dbo.ZamowieniaMieso zm
+                    LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
+                    WHERE zm.Id = @ZamowienieId
+                    GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, 
+                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2";
+
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@ZamowienieId", zamowienieId);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new ZamowienieDoTransportu
+                    {
+                        ZamowienieId = reader.GetInt32(0),
+                        KlientId = reader.GetInt32(1),
+                        DataPrzyjazdu = reader.GetDateTime(2),
+                        Status = reader.IsDBNull(3) ? "Nowe" : reader.GetString(3),
+                        Palety = reader.GetDecimal(4),
+                        Pojemniki = reader.GetInt32(5),
+                        TrybE2 = reader.GetBoolean(6),
+                        IloscKg = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7)
+                    };
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd pobierania zamówienia {zamowienieId}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task SaveLadunkiChangesToDatabase()
+        {
+            try
+            {
+                if (!_kursId.HasValue) return;
+
+                await using var cn = new SqlConnection(_connectionString);
+                await cn.OpenAsync();
+
+                foreach (var ladunek in _ladunki.Where(l => l.ZmienionyWZamowieniu))
+                {
+                    var sql = @"UPDATE dbo.Ladunek 
+                               SET PaletyH1 = @Palety, PojemnikiE2 = @Pojemniki 
+                               WHERE LadunekID = @LadunekID";
+
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@LadunekID", ladunek.LadunekID);
+                    cmd.Parameters.AddWithValue("@Palety", ladunek.Palety);
+                    cmd.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
+
+                    await cmd.ExecuteNonQueryAsync();
+
+                    ladunek.ZmienionyWZamowieniu = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd zapisywania zmian ładunków: {ex.Message}");
+            }
         }
 
         private void InitializeComponent()
@@ -385,6 +557,17 @@ namespace Kalendarz1.Transport.Formularze
             };
             dtpData.ValueChanged += async (s, e) => await LoadWolneZamowienia();
 
+            // Label do pokazywania automatycznych aktualizacji
+            lblAutoUpdate = new Label
+            {
+                Location = new Point(850, 20),
+                Size = new Size(300, 23),
+                Text = "",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.Orange,
+                Visible = false
+            };
+
             // Druga linia - godziny i trasa
             var lblGodziny = CreateLabel("GODZINY:", 20, 60, 90);
             lblGodziny.ForeColor = Color.FromArgb(173, 181, 189);
@@ -478,7 +661,7 @@ namespace Kalendarz1.Transport.Formularze
             panel.Controls.AddRange(new Control[] {
                 lblKierowca, cboKierowca, btnNowyKierowca,
                 lblPojazd, cboPojazd, btnNowyPojazd,
-                lblData, dtpData,
+                lblData, dtpData, lblAutoUpdate,
                 lblGodziny, txtGodzWyjazdu, lblDo, txtGodzPowrotu,
                 lblTrasa, txtTrasa,
                 panelWypelnienie
@@ -497,22 +680,104 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Panel z nagłówkiem i DatePickerem
+            var panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = Color.FromArgb(248, 249, 252),
+                Padding = new Padding(10, 5, 10, 5)
+            };
+
             lblZamowieniaInfo = new Label
             {
                 Text = "WOLNE ZAMÓWIENIA NA DZIEŃ:",
-                Dock = DockStyle.Top,
-                Height = 30,
+                Location = new Point(10, 10),
+                Size = new Size(250, 25),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(52, 73, 94),
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.FromArgb(248, 249, 252),
-                Padding = new Padding(10, 0, 0, 0)
+                TextAlign = ContentAlignment.MiddleLeft
             };
+
+            // DatePicker dla zamówień
+            var dtpZamowienia = new DateTimePicker
+            {
+                Location = new Point(10, 35),
+                Size = new Size(150, 26),
+                Format = DateTimePickerFormat.Short,
+                Font = new Font("Segoe UI", 10F),
+                Value = dtpData.Value
+            };
+            dtpZamowienia.ValueChanged += async (s, e) =>
+            {
+                await LoadWolneZamowieniaForDate(dtpZamowienia.Value);
+            };
+
+            // Przycisk odświeżenia
+            var btnRefreshZamowienia = new Button
+            {
+                Text = "🔄",
+                Location = new Point(170, 35),
+                Size = new Size(30, 26),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand
+            };
+            btnRefreshZamowienia.FlatAppearance.BorderSize = 0;
+            btnRefreshZamowienia.Click += async (s, e) =>
+            {
+                await LoadWolneZamowieniaForDate(dtpZamowienia.Value);
+            };
+
+            // Przycisk "Dziś"
+            var btnToday = new Button
+            {
+                Text = "Dziś",
+                Location = new Point(210, 35),
+                Size = new Size(50, 26),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F),
+                Cursor = Cursors.Hand
+            };
+            btnToday.FlatAppearance.BorderSize = 0;
+            btnToday.Click += async (s, e) =>
+            {
+                dtpZamowienia.Value = DateTime.Today;
+                await LoadWolneZamowieniaForDate(DateTime.Today);
+            };
+
+            // Label z liczbą zamówień
+            var lblLiczbaZamowien = new Label
+            {
+                Location = new Point(270, 35),
+                Size = new Size(120, 26),
+                Text = "0 zamówień",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 152, 219),
+                TextAlign = ContentAlignment.MiddleRight,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            panelHeader.Controls.AddRange(new Control[] {
+                lblZamowieniaInfo,
+                dtpZamowienia,
+                btnRefreshZamowienia,
+                btnToday,
+                lblLiczbaZamowien
+            });
+
+            // Przechowaj referencje do kontrolek jako pola klasy
+            _dtpZamowienia = dtpZamowienia;
+            _lblLiczbaZamowien = lblLiczbaZamowien;
 
             dgvWolneZamowienia = new DataGridView
             {
-                Location = new Point(10, 40),
-                Size = new Size(panel.Width - 20, panel.Height - 100),
+                Location = new Point(10, 80),
+                Size = new Size(panel.Width - 20, panel.Height - 140),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -569,7 +834,7 @@ namespace Kalendarz1.Transport.Formularze
             btnDodajZamowienie.FlatAppearance.BorderSize = 0;
             btnDodajZamowienie.Click += async (s, e) => await DodajZamowienieDoKursu();
 
-            panel.Controls.AddRange(new Control[] { lblZamowieniaInfo, dgvWolneZamowienia, btnDodajZamowienie });
+            panel.Controls.AddRange(new Control[] { panelHeader, dgvWolneZamowienia, btnDodajZamowienie });
 
             return panel;
         }
@@ -685,14 +950,15 @@ namespace Kalendarz1.Transport.Formularze
             var menuUsun = new ToolStripMenuItem("🗑️ Usuń z kursu", null, async (s, e) => await UsunLadunek());
             var menuGora = new ToolStripMenuItem("⬆️ Przesuń w górę", null, async (s, e) => await PrzesunLadunek(-1));
             var menuDol = new ToolStripMenuItem("⬇️ Przesuń w dół", null, async (s, e) => await PrzesunLadunek(1));
-            var separator = new ToolStripSeparator();
-            var separator2 = new ToolStripSeparator();
+            var menuOdswiez = new ToolStripMenuItem("🔄 Odśwież z zamówienia", null, async (s, e) => await OdswiezZamowienie());
 
             contextMenu.Items.Add(menuEdytuj);
             contextMenu.Items.Add(menuEdytujZamowienie);
-            contextMenu.Items.Add(separator);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add(menuOdswiez);
+            contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(menuUsun);
-            contextMenu.Items.Add(separator2);
+            contextMenu.Items.Add(new ToolStripSeparator());
             contextMenu.Items.Add(menuGora);
             contextMenu.Items.Add(menuDol);
 
@@ -803,7 +1069,12 @@ namespace Kalendarz1.Transport.Formularze
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
             btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
-            btnAnuluj.Click += (s, e) => Close();
+            btnAnuluj.Click += (s, e) =>
+            {
+                _autoUpdateTimer?.Stop();
+                _autoUpdateTimer?.Dispose();
+                Close();
+            };
 
             panel.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
 
@@ -827,6 +1098,33 @@ namespace Kalendarz1.Transport.Formularze
                 ForeColor = Color.FromArgb(52, 73, 94),
                 TextAlign = ContentAlignment.MiddleLeft
             };
+        }
+
+        // Nowa metoda do ręcznego odświeżania zamówienia
+        private async Task OdswiezZamowienie()
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
+            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+
+            if (ladunek?.KodKlienta?.StartsWith("ZAM_") == true)
+            {
+                var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
+                var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
+
+                if (aktualneZamowienie != null)
+                {
+                    ladunek.Palety = aktualneZamowienie.Palety;
+                    ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
+
+                    await SaveLadunkiChangesToDatabase();
+                    await LoadLadunki();
+
+                    MessageBox.Show("Dane zamówienia zostały zaktualizowane.", "Odświeżono",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
         }
 
         // Metody obsługujące menu kontekstowe
@@ -917,7 +1215,7 @@ Adres: {zamowienie.Adres}";
                 if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
                 {
                     // Odśwież dane
-                    await LoadLadunki();
+                    await CheckForZamowieniaUpdates();
                     await LoadWolneZamowienia();
                 }
             }
@@ -1116,6 +1414,11 @@ Adres: {zamowienie.Adres}";
 
         private async Task LoadWolneZamowienia()
         {
+            await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
+        }
+
+        private async Task LoadWolneZamowieniaForDate(DateTime data)
+        {
             try
             {
                 _wolneZamowienia.Clear();
@@ -1123,7 +1426,10 @@ Adres: {zamowienie.Adres}";
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Pobierz WSZYSTKIE zamówienia oprócz anulowanych
+                // Pobierz zamówienia z 3 dni (wybrana data + 2 dni do przodu)
+                var dataOd = data.Date;
+                var dataDo = data.Date.AddDays(2);
+
                 var sql = @"
                     SELECT DISTINCT
                         zm.Id AS ZamowienieId,
@@ -1135,17 +1441,19 @@ Adres: {zamowienie.Adres}";
                         ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
                         ISNULL(zm.TrybE2, 0) AS TrybE2,
                         SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg,
-                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus
+                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
+                        zm.DataZamowienia
                     FROM dbo.ZamowieniaMieso zm
                     LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
-                    WHERE zm.DataZamowienia = @Data
-                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')  -- Tylko wykluczamy anulowane
+                    WHERE zm.DataZamowienia >= @DataOd AND zm.DataZamowienia <= @DataDo
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
                     GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, zm.Uwagi,
-                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus
-                    ORDER BY zm.DataPrzyjazdu";
+                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus, zm.DataZamowienia
+                    ORDER BY zm.DataZamowienia, zm.DataPrzyjazdu";
 
                 using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Data", dtpData.Value.Date);
+                cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                cmd.Parameters.AddWithValue("@DataDo", dataDo);
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -1164,7 +1472,8 @@ Adres: {zamowienie.Adres}";
                             Palety = reader.GetDecimal(5),
                             Pojemniki = reader.GetInt32(6),
                             TrybE2 = reader.GetBoolean(7),
-                            IloscKg = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8)
+                            IloscKg = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
+                            DataOdbioru = reader.GetDateTime(10) // DataZamowienia jako DataOdbioru
                         };
                         _wolneZamowienia.Add(zamowienie);
                     }
@@ -1218,7 +1527,25 @@ Adres: {zamowienie.Adres}";
                 }
 
                 ShowZamowieniaInGrid();
-                lblZamowieniaInfo.Text = $"WOLNE ZAMÓWIENIA NA {dtpData.Value:yyyy-MM-dd} ({_wolneZamowienia.Count})";
+
+                // Aktualizuj nagłówek z liczbą zamówień i zakresem dat
+                if (lblZamowieniaInfo != null)
+                {
+                    lblZamowieniaInfo.Text = $"ZAMÓWIENIA {dataOd:yyyy-MM-dd} - {dataDo:yyyy-MM-dd}:";
+                }
+
+                if (_lblLiczbaZamowien != null)
+                {
+                    _lblLiczbaZamowien.Text = $"{_wolneZamowienia.Count} zamówień";
+
+                    // Koloruj w zależności od liczby
+                    if (_wolneZamowienia.Count == 0)
+                        _lblLiczbaZamowien.ForeColor = Color.Gray;
+                    else if (_wolneZamowienia.Count > 15)
+                        _lblLiczbaZamowien.ForeColor = Color.OrangeRed;
+                    else
+                        _lblLiczbaZamowien.ForeColor = Color.FromArgb(52, 152, 219);
+                }
             }
             catch (Exception ex)
             {
@@ -1231,6 +1558,7 @@ Adres: {zamowienie.Adres}";
         {
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(int));
+            dt.Columns.Add("Data odbioru", typeof(DateTime));
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Godz.", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
@@ -1239,10 +1567,11 @@ Adres: {zamowienie.Adres}";
             dt.Columns.Add("Handlowiec", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
 
-            foreach (var zam in _wolneZamowienia.OrderBy(z => z.DataPrzyjazdu))
+            foreach (var zam in _wolneZamowienia.OrderBy(z => z.DataOdbioru).ThenBy(z => z.DataPrzyjazdu))
             {
                 dt.Rows.Add(
                     zam.ZamowienieId,
+                    zam.DataOdbioru,
                     zam.KlientNazwa,
                     zam.GodzinaStr,
                     zam.Palety,
@@ -1257,33 +1586,55 @@ Adres: {zamowienie.Adres}";
 
             if (dgvWolneZamowienia.Columns["ID"] != null)
                 dgvWolneZamowienia.Columns["ID"].Visible = false;
+            if (dgvWolneZamowienia.Columns["Data odbioru"] != null)
+            {
+                dgvWolneZamowienia.Columns["Data odbioru"].Width = 85;
+                dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Format = "yyyy-MM-dd";
+                dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvWolneZamowienia.Columns["Data odbioru"].DisplayIndex = 0; // Pierwsza kolumna
+            }
             if (dgvWolneZamowienia.Columns["Klient"] != null)
-                dgvWolneZamowienia.Columns["Klient"].Width = 150;
+            {
+                dgvWolneZamowienia.Columns["Klient"].Width = 140;
+                dgvWolneZamowienia.Columns["Klient"].DisplayIndex = 1;
+            }
             if (dgvWolneZamowienia.Columns["Godz."] != null)
+            {
                 dgvWolneZamowienia.Columns["Godz."].Width = 50;
+                dgvWolneZamowienia.Columns["Godz."].DisplayIndex = 2;
+            }
             if (dgvWolneZamowienia.Columns["Palety"] != null)
             {
                 dgvWolneZamowienia.Columns["Palety"].Width = 60;
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N1";
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvWolneZamowienia.Columns["Palety"].DisplayIndex = 3;
             }
             if (dgvWolneZamowienia.Columns["Pojemniki"] != null)
             {
                 dgvWolneZamowienia.Columns["Pojemniki"].Width = 70;
                 dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
+                dgvWolneZamowienia.Columns["Pojemniki"].DisplayIndex = 4;
             }
             if (dgvWolneZamowienia.Columns["Status"] != null)
+            {
                 dgvWolneZamowienia.Columns["Status"].Width = 100;
+                dgvWolneZamowienia.Columns["Status"].DisplayIndex = 5;
+            }
             if (dgvWolneZamowienia.Columns["Handlowiec"] != null)
+            {
                 dgvWolneZamowienia.Columns["Handlowiec"].Width = 100;
+                dgvWolneZamowienia.Columns["Handlowiec"].DisplayIndex = 6;
+            }
             if (dgvWolneZamowienia.Columns["Adres"] != null)
             {
-                dgvWolneZamowienia.Columns["Adres"].Width = 200;
+                dgvWolneZamowienia.Columns["Adres"].Width = 150;
                 dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvWolneZamowienia.Columns["Adres"].DisplayIndex = 7;
             }
 
-            // Kolorowanie według statusu i godzin
+            // Kolorowanie według daty odbioru i statusu
             foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
             {
                 var zamId = Convert.ToInt32(row.Cells["ID"].Value);
@@ -1291,15 +1642,53 @@ Adres: {zamowienie.Adres}";
 
                 if (zamowienie != null)
                 {
-                    // Kolorowanie według statusu
+                    var dataOdbioru = zamowienie.DataOdbioru.Date;
+                    var dzis = DateTime.Today;
+
+                    // Kolorowanie według daty odbioru
+                    if (dataOdbioru == dzis)
+                    {
+                        // Dzisiaj - standardowy kolor
+                        row.DefaultCellStyle.BackColor = Color.White;
+                    }
+                    else if (dataOdbioru == dzis.AddDays(1))
+                    {
+                        // Jutro - lekko żółty
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 230);
+                    }
+                    else if (dataOdbioru == dzis.AddDays(2))
+                    {
+                        // Pojutrze - lekko niebieski
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
+                    }
+                    else if (dataOdbioru < dzis)
+                    {
+                        // Przeterminowane - czerwony
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
+                        row.DefaultCellStyle.ForeColor = Color.DarkRed;
+                    }
+
+                    // Dodatkowe kolorowanie według statusu
                     if (zamowienie.Status == "Zrealizowane")
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
                         row.DefaultCellStyle.ForeColor = Color.DarkGreen;
                     }
-                    else if (zamowienie.Status == "Nowe")
+
+                    // Kolorowanie kolumny z datą
+                    if (row.Cells["Data odbioru"] != null)
                     {
-                        // Kolorowanie według godzin dla nowych zamówień
+                        if (dataOdbioru == dzis)
+                            row.Cells["Data odbioru"].Style.ForeColor = Color.DarkGreen;
+                        else if (dataOdbioru < dzis)
+                            row.Cells["Data odbioru"].Style.ForeColor = Color.Red;
+                        else
+                            row.Cells["Data odbioru"].Style.ForeColor = Color.DarkBlue;
+                    }
+
+                    // Kolorowanie według godzin dla dzisiejszych zamówień
+                    if (dataOdbioru == dzis && zamowienie.Status == "Nowe")
+                    {
                         var godzStr = row.Cells["Godz."].Value?.ToString();
                         if (!string.IsNullOrEmpty(godzStr) && TimeSpan.TryParse(godzStr, out var godz))
                         {
@@ -1408,6 +1797,28 @@ Adres: {zamowienie.Adres}";
 
             _ladunki = await LoadLadunkiFromDatabase(_kursId.Value);
 
+            // Sprawdź aktualne dane zamówień
+            foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true))
+            {
+                if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
+                {
+                    var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
+                    if (aktualneZamowienie != null)
+                    {
+                        // Aktualizuj dane jeśli się zmieniły
+                        if (ladunek.Palety != aktualneZamowienie.Palety ||
+                            ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
+                        {
+                            ladunek.PoprzedniePalety = ladunek.Palety;
+                            ladunek.PoprzedniePojemniki = ladunek.PojemnikiE2;
+                            ladunek.Palety = aktualneZamowienie.Palety;
+                            ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
+                            ladunek.ZmienionyWZamowieniu = true;
+                        }
+                    }
+                }
+            }
+
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(long));
             dt.Columns.Add("Lp.", typeof(int));
@@ -1416,6 +1827,7 @@ Adres: {zamowienie.Adres}";
             dt.Columns.Add("Pojemniki", typeof(int));
             dt.Columns.Add("Adres", typeof(string));
             dt.Columns.Add("Uwagi", typeof(string));
+            dt.Columns.Add("Status", typeof(string));
 
             foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
             {
@@ -1451,6 +1863,12 @@ Adres: {zamowienie.Adres}";
                     ladunek.Adres = adres;
                 }
 
+                string status = "";
+                if (ladunek.ZmienionyWZamowieniu)
+                {
+                    status = "📝 Zaktualizowano";
+                }
+
                 dt.Rows.Add(
                     ladunek.LadunekID,
                     ladunek.Kolejnosc,
@@ -1458,7 +1876,8 @@ Adres: {zamowienie.Adres}";
                     ladunek.Palety,
                     ladunek.PojemnikiE2,
                     adres,
-                    ladunek.Uwagi ?? ""
+                    ladunek.Uwagi ?? "",
+                    status
                 );
             }
 
@@ -1490,9 +1909,25 @@ Adres: {zamowienie.Adres}";
                 dgvLadunki.Columns["Adres"].DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
                 dgvLadunki.Columns["Adres"].DefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 100);
             }
+            if (dgvLadunki.Columns["Status"] != null)
+            {
+                dgvLadunki.Columns["Status"].Width = 120;
+                dgvLadunki.Columns["Status"].DefaultCellStyle.ForeColor = Color.Orange;
+                dgvLadunki.Columns["Status"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
             if (dgvLadunki.Columns["Uwagi"] != null)
             {
                 dgvLadunki.Columns["Uwagi"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            }
+
+            // Podświetl zmienione wiersze
+            foreach (DataGridViewRow row in dgvLadunki.Rows)
+            {
+                var statusCell = row.Cells["Status"];
+                if (statusCell?.Value?.ToString()?.Contains("Zaktualizowano") == true)
+                {
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 230);
+                }
             }
 
             UpdateTrasa();
@@ -1559,7 +1994,7 @@ Adres: {zamowienie.Adres}";
                 decimal procent = paletyPojazdu > 0 ? (sumaPalet / paletyPojazdu * 100m) : 0m;
 
                 progressWypelnienie.Value = Math.Min(100, (int)procent);
-                lblStatystyki.Text = $"{sumaPalet:N1} palet z {paletyPojazdu} dostępnych";
+                lblStatystyki.Text = $"{sumaPalet:N1} palet z {paletyPojazdu} dostępnych ({procent:N1}%)";
 
                 // Kolorowanie
                 if (procent > 100)
@@ -1683,6 +2118,10 @@ Adres: {zamowienie.Adres}";
             {
                 Cursor = Cursors.WaitCursor;
                 await SaveKurs();
+
+                _autoUpdateTimer?.Stop();
+                _autoUpdateTimer?.Dispose();
+
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -1732,6 +2171,9 @@ Adres: {zamowienie.Adres}";
                 _kursId = await _repozytorium.DodajKursAsync(kurs, _uzytkownik);
                 Text = "Edycja kursu";
             }
+
+            // Zapisz zaktualizowane ładunki
+            await SaveLadunkiChangesToDatabase();
         }
 
         private void BtnNowyKierowca_Click(object sender, EventArgs e)
@@ -1913,6 +2355,16 @@ Adres: {zamowienie.Adres}";
         }
 
         private string _connectionString => "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _autoUpdateTimer?.Stop();
+                _autoUpdateTimer?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 
     // Dialog do zmiany kolejności ładunków
