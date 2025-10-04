@@ -50,6 +50,12 @@ namespace Kalendarz1
         private readonly Color INFO_COLOR = Color.FromArgb(59, 130, 246);
         private readonly Color PURPLE_COLOR = Color.FromArgb(168, 85, 247);
 
+        // ===== Layout „pod gridem” =====
+        private TableLayoutPanel? _detailsLayout;
+        private Panel? _gridHost;
+        private Panel? _bottomPanelsContainer;
+
+
         // ===== Zmienne Stanu Formularza =====
         private string? _selectedKlientId;
         private bool _blokujObslugeZmian;
@@ -131,11 +137,12 @@ namespace Kalendarz1
             WireShortcuts();
             BuildDataTableSchema();
             InitDefaults();
-            CreateSummaryPanel();
-            CreateResponsiveTransportPanel();
-            CreateBottomPanels(); // Teraz pod gridem
+            CreateResponsiveTransportPanel();   // ten panel używa się w sekcji detali
             SetupOstatniOdbiorcyGrid();
             ConfigureResponsiveLayout();
+
+            // ZBUDUJ UKŁAD: GRID + (STAT/RECENT/TRANSPORT) + PODSUMOWANIE
+            BuildUnderGridLayout();
 
             dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
             dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
@@ -301,12 +308,11 @@ namespace Kalendarz1
 
         #region Panele Dolne - POPRAWIONE UMIEJSCOWIENIE
 
-        private void CreateBottomPanels()
+        private Panel CreateBottomPanels()
         {
-            // Główny kontener dla paneli - POPRAWKA: dodajemy do panelDetails zamiast do parenta grida
             var bottomContainer = new Panel
             {
-                Dock = DockStyle.Bottom,
+                Dock = DockStyle.Fill,        // UWAGA: teraz Fill (będzie w komórce TLP wysokości 180)
                 Height = 180,
                 BackColor = Color.FromArgb(245, 247, 250),
                 Name = "bottomPanelsContainer"
@@ -325,27 +331,18 @@ namespace Kalendarz1
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
 
-            // Panel 1: Statystyki
             panelStatystyki = CreateStatisticsPanel();
-            layout.Controls.Add(panelStatystyki, 0, 0);
-
-            // Panel 2: Ostatnie zamówienia
             panelOstatnichZamowien = CreateRecentOrdersPanel();
-            layout.Controls.Add(panelOstatnichZamowien, 1, 0);
-
-            // Panel 3: Info o transporcie (preferowane godziny)
             panelInfoTransport = CreateTransportInfoPanel();
+
+            layout.Controls.Add(panelStatystyki, 0, 0);
+            layout.Controls.Add(panelOstatnichZamowien, 1, 0);
             layout.Controls.Add(panelInfoTransport, 2, 0);
 
             bottomContainer.Controls.Add(layout);
-
-            // KRYTYCZNA POPRAWKA: Dodajemy do panelDetails, który jest rodzicem grida
-            if (panelDetails != null)
-            {
-                panelDetails.Controls.Add(bottomContainer);
-                bottomContainer.BringToFront();
-            }
+            return bottomContainer;
         }
+
 
         private Panel CreateStatisticsPanel()
         {
@@ -1315,14 +1312,13 @@ namespace Kalendarz1
 
         #region Panel Podsumowania
 
-        private void CreateSummaryPanel()
+        private Panel CreateSummaryPanel()
         {
             panelSummary = new Panel
             {
-                Dock = DockStyle.Bottom,
+                Dock = DockStyle.Fill,         // Fill w komórce TLP wysokości 70
                 Height = 70,
-                BackColor = Color.White,
-                Parent = panelDetails // Dodaj do panelDetails
+                BackColor = Color.White
             };
 
             panelSummary.Paint += (s, e) =>
@@ -1352,6 +1348,49 @@ namespace Kalendarz1
             flowPanel.Controls.Add(lblSumaKg);
 
             panelSummary.Controls.Add(flowPanel);
+            return panelSummary;
+        }
+        private void BuildUnderGridLayout()
+        {
+            if (panelDetails == null) return;
+
+            // Czyścimy dotychczasowe dzieci panelDetails
+            panelDetails.Controls.Clear();
+
+            _detailsLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                BackColor = panelDetails.BackColor,
+                Padding = new Padding(0)
+            };
+            _detailsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // GRID
+            _detailsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180f)); // STAT/RECENT/TRANSPORT
+            _detailsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70f));  // PODSUMOWANIE
+
+            // Host na grid (żeby mieć pełną kontrolę)
+            _gridHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            dataGridViewZamowienie.Parent = _gridHost;
+            dataGridViewZamowienie.Dock = DockStyle.Fill;
+
+            // Dolne panele + podsumowanie
+            _bottomPanelsContainer = CreateBottomPanels();
+            var summary = CreateSummaryPanel();
+
+            // Składamy całość
+            _detailsLayout.Controls.Add(_gridHost, 0, 0);
+            _detailsLayout.Controls.Add(_bottomPanelsContainer, 0, 1);
+            _detailsLayout.Controls.Add(summary, 0, 2);
+
+            panelDetails.Controls.Add(_detailsLayout);
+
+            // Lista podpowiedzi nadal nad gridem:
+            if (listaWynikowOdbiorcy != null)
+            {
+                _gridHost.Controls.Add(listaWynikowOdbiorcy);
+                listaWynikowOdbiorcy.BringToFront();
+            }
         }
 
         private Label CreateSummaryLabel(string title, string value, Color accentColor)
