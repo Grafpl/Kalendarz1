@@ -433,19 +433,20 @@ namespace Kalendarz1
         private void OdswiezWykresHandlowcow()
         {
             string query = @"
-                DECLARE @DataOd DATE = @pDataOd;
-                DECLARE @DataDo DATE = @pDataDo;
-                
-                SELECT 
-                    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                    SUM(DP.wartNetto) AS WartoscSprzedazy
-                FROM [HANDEL].[HM].[DK] DK
-                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                WHERE DK.data >= @DataOd 
-                  AND DK.data <= @DataDo
-                GROUP BY WYM.CDim_Handlowiec_Val
-                ORDER BY WartoscSprzedazy DESC;";
+        DECLARE @DataOd DATE = @pDataOd;
+        DECLARE @DataDo DATE = @pDataDo;
+        
+        SELECT 
+            WYM.CDim_Handlowiec_Val AS Handlowiec,
+            SUM(DP.wartNetto) AS WartoscSprzedazy
+        FROM [HANDEL].[HM].[DK] DK
+        INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+        INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+        WHERE DK.data >= @DataOd 
+          AND DK.data <= @DataDo
+          AND WYM.CDim_Handlowiec_Val IS NOT NULL
+        GROUP BY WYM.CDim_Handlowiec_Val
+        ORDER BY WartoscSprzedazy DESC;";
 
             try
             {
@@ -473,15 +474,15 @@ namespace Kalendarz1
                     }
 
                     Color[] colors = {
-                        ColorTranslator.FromHtml("#3498db"),
-                        ColorTranslator.FromHtml("#2ecc71"),
-                        ColorTranslator.FromHtml("#e74c3c"),
-                        ColorTranslator.FromHtml("#f39c12"),
-                        ColorTranslator.FromHtml("#9b59b6"),
-                        ColorTranslator.FromHtml("#1abc9c"),
-                        ColorTranslator.FromHtml("#e67e22"),
-                        ColorTranslator.FromHtml("#95a5a6")
-                    };
+                ColorTranslator.FromHtml("#3498db"),
+                ColorTranslator.FromHtml("#2ecc71"),
+                ColorTranslator.FromHtml("#e74c3c"),
+                ColorTranslator.FromHtml("#f39c12"),
+                ColorTranslator.FromHtml("#9b59b6"),
+                ColorTranslator.FromHtml("#1abc9c"),
+                ColorTranslator.FromHtml("#e67e22"),
+                ColorTranslator.FromHtml("#95a5a6")
+            };
 
                     int colorIdx = 0;
                     foreach (DataRow row in dt.Rows)
@@ -493,7 +494,7 @@ namespace Kalendarz1
                         var point = series.Points.AddXY(handlowiec, wartosc);
                         series.Points[point].Color = colors[colorIdx % colors.Length];
                         series.Points[point].Label = $"{procent:F1}%";
-                        series.Points[point].LegendText = $"{handlowiec} ({wartosc:N0} zł)";
+                        series.Points[point].LegendText = $"{handlowiec} ({procent:F1}%)";
                         colorIdx++;
                     }
 
@@ -505,7 +506,6 @@ namespace Kalendarz1
                 MessageBox.Show("Błąd podczas generowania wykresu handlowców: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void StylizujKomboBoxes()
         {
             comboBoxTowar.FlatStyle = FlatStyle.Flat;
