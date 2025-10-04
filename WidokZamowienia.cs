@@ -509,7 +509,7 @@ namespace Kalendarz1
 
         #region Aktualizacja Dynamicznych Paneli
 
-        private async void UpdateClientInfoPanels(string clientId)
+        private async Task UpdateClientInfoPanels(string clientId)
         {
             if (string.IsNullOrEmpty(clientId)) return;
 
