@@ -1,4 +1,7 @@
-﻿#nullable disable
+﻿// Plik: WidokZamowienia.Designer.cs
+// WERSJA 16.0 - DESIGNER DLA KOLOROWEGO UI - KOMPLETNY
+
+#nullable disable
 namespace Kalendarz1
 {
     partial class WidokZamowienia
@@ -36,7 +39,6 @@ namespace Kalendarz1
             gridOstatniOdbiorcy = new System.Windows.Forms.DataGridView();
             panelOdbiorca = new System.Windows.Forms.Panel();
             lblTytul = new System.Windows.Forms.Label();
-            label4 = new System.Windows.Forms.Label();
             cbHandlowiecFilter = new System.Windows.Forms.ComboBox();
             txtSzukajOdbiorcy = new System.Windows.Forms.TextBox();
             label1 = new System.Windows.Forms.Label();
@@ -96,7 +98,7 @@ namespace Kalendarz1
             // 
             // panelAkcji
             // 
-            panelAkcji.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            panelAkcji.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
             panelAkcji.Controls.Add(btnZapisz);
             panelAkcji.Controls.Add(btnAnuluj);
             panelAkcji.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -110,13 +112,13 @@ namespace Kalendarz1
             btnZapisz.BackColor = System.Drawing.Color.FromArgb(99, 102, 241);
             btnZapisz.FlatAppearance.BorderSize = 0;
             btnZapisz.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnZapisz.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
+            btnZapisz.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
             btnZapisz.ForeColor = System.Drawing.Color.White;
-            btnZapisz.Location = new System.Drawing.Point(275, 16);
+            btnZapisz.Location = new System.Drawing.Point(255, 14);
             btnZapisz.Name = "btnZapisz";
-            btnZapisz.Size = new System.Drawing.Size(140, 38);
+            btnZapisz.Size = new System.Drawing.Size(160, 42);
             btnZapisz.TabIndex = 0;
-            btnZapisz.Text = "Zapisz";
+            btnZapisz.Text = "💾 Zapisz";
             btnZapisz.UseVisualStyleBackColor = false;
             btnZapisz.Click += btnZapisz_Click;
             // 
@@ -128,15 +130,16 @@ namespace Kalendarz1
             btnAnuluj.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 10F);
             btnAnuluj.ForeColor = System.Drawing.Color.FromArgb(75, 85, 99);
-            btnAnuluj.Location = new System.Drawing.Point(125, 16);
+            btnAnuluj.Location = new System.Drawing.Point(85, 14);
             btnAnuluj.Name = "btnAnuluj";
-            btnAnuluj.Size = new System.Drawing.Size(140, 38);
+            btnAnuluj.Size = new System.Drawing.Size(160, 42);
             btnAnuluj.TabIndex = 1;
-            btnAnuluj.Text = "Anuluj";
+            btnAnuluj.Text = "❌ Anuluj";
             btnAnuluj.UseVisualStyleBackColor = false;
             // 
             // panelDetaleZamowienia
             // 
+            panelDetaleZamowienia.BackColor = System.Drawing.Color.White;
             panelDetaleZamowienia.Controls.Add(listaWynikowOdbiorcy);
             panelDetaleZamowienia.Controls.Add(label5);
             panelDetaleZamowienia.Controls.Add(textBoxUwagi);
@@ -146,16 +149,18 @@ namespace Kalendarz1
             panelDetaleZamowienia.Controls.Add(label2);
             panelDetaleZamowienia.Controls.Add(panelOstatniOdbiorcy);
             panelDetaleZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelDetaleZamowienia.Location = new System.Drawing.Point(0, 180);
+            panelDetaleZamowienia.Location = new System.Drawing.Point(0, 120);
             panelDetaleZamowienia.Name = "panelDetaleZamowienia";
-            panelDetaleZamowienia.Padding = new System.Windows.Forms.Padding(20, 5, 20, 5);
-            panelDetaleZamowienia.Size = new System.Drawing.Size(430, 470);
+            panelDetaleZamowienia.Padding = new System.Windows.Forms.Padding(10, 5, 10, 5);
+            panelDetaleZamowienia.Size = new System.Drawing.Size(430, 530);
             panelDetaleZamowienia.TabIndex = 2;
             // 
             // listaWynikowOdbiorcy
             // 
+            listaWynikowOdbiorcy.BackColor = System.Drawing.Color.White;
             listaWynikowOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             listaWynikowOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            listaWynikowOdbiorcy.ForeColor = System.Drawing.Color.FromArgb(31, 41, 55);
             listaWynikowOdbiorcy.FormattingEnabled = true;
             listaWynikowOdbiorcy.ItemHeight = 17;
             listaWynikowOdbiorcy.Location = new System.Drawing.Point(10, 30);
@@ -167,93 +172,97 @@ namespace Kalendarz1
             // label5
             // 
             label5.AutoSize = true;
-            label5.Font = new System.Drawing.Font("Segoe UI", 9F);
-            label5.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
-            label5.Location = new System.Drawing.Point(10, 365);
+            label5.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            label5.ForeColor = System.Drawing.Color.FromArgb(34, 197, 94);
+            label5.Location = new System.Drawing.Point(10, 425);
             label5.Name = "label5";
-            label5.Size = new System.Drawing.Size(48, 15);
+            label5.Size = new System.Drawing.Size(87, 19);
             label5.TabIndex = 5;
-            label5.Text = "Notatka";
+            label5.Text = "📝 Notatka";
             // 
             // textBoxUwagi
             // 
             textBoxUwagi.AcceptsReturn = true;
-            textBoxUwagi.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            textBoxUwagi.BackColor = System.Drawing.Color.FromArgb(250, 255, 250);
             textBoxUwagi.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             textBoxUwagi.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-            textBoxUwagi.Location = new System.Drawing.Point(10, 385);
+            textBoxUwagi.Location = new System.Drawing.Point(10, 447);
             textBoxUwagi.Multiline = true;
             textBoxUwagi.Name = "textBoxUwagi";
             textBoxUwagi.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            textBoxUwagi.Size = new System.Drawing.Size(410, 80);
+            textBoxUwagi.Size = new System.Drawing.Size(410, 75);
             textBoxUwagi.TabIndex = 4;
             // 
             // dateTimePickerGodzinaPrzyjazdu
             // 
-            dateTimePickerGodzinaPrzyjazdu.CalendarMonthBackground = System.Drawing.Color.FromArgb(249, 250, 251);
+            dateTimePickerGodzinaPrzyjazdu.CalendarMonthBackground = System.Drawing.Color.FromArgb(250, 250, 252);
+            dateTimePickerGodzinaPrzyjazdu.CalendarTitleBackColor = System.Drawing.Color.FromArgb(168, 85, 247);
+            dateTimePickerGodzinaPrzyjazdu.CalendarTitleForeColor = System.Drawing.Color.White;
             dateTimePickerGodzinaPrzyjazdu.CustomFormat = "HH:mm";
-            dateTimePickerGodzinaPrzyjazdu.Font = new System.Drawing.Font("Segoe UI", 10.5F);
+            dateTimePickerGodzinaPrzyjazdu.Font = new System.Drawing.Font("Segoe UI", 10F);
             dateTimePickerGodzinaPrzyjazdu.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-            dateTimePickerGodzinaPrzyjazdu.Location = new System.Drawing.Point(217, 320);
+            dateTimePickerGodzinaPrzyjazdu.Location = new System.Drawing.Point(217, 385);
             dateTimePickerGodzinaPrzyjazdu.Name = "dateTimePickerGodzinaPrzyjazdu";
             dateTimePickerGodzinaPrzyjazdu.ShowUpDown = true;
-            dateTimePickerGodzinaPrzyjazdu.Size = new System.Drawing.Size(203, 26);
+            dateTimePickerGodzinaPrzyjazdu.Size = new System.Drawing.Size(203, 25);
             dateTimePickerGodzinaPrzyjazdu.TabIndex = 3;
             // 
             // label3
             // 
             label3.AutoSize = true;
-            label3.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, System.Drawing.FontStyle.Bold);
-            label3.ForeColor = System.Drawing.Color.FromArgb(31, 41, 55);
-            label3.Location = new System.Drawing.Point(217, 295);
+            label3.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            label3.ForeColor = System.Drawing.Color.FromArgb(168, 85, 247);
+            label3.Location = new System.Drawing.Point(217, 360);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(126, 17);
+            label3.Size = new System.Drawing.Size(146, 19);
             label3.TabIndex = 2;
-            label3.Text = "🕐 Godzina odbioru";
+            label3.Text = "⏰ Godzina odbioru";
             // 
             // dateTimePickerSprzedaz
             // 
-            dateTimePickerSprzedaz.CalendarMonthBackground = System.Drawing.Color.FromArgb(249, 250, 251);
-            dateTimePickerSprzedaz.Font = new System.Drawing.Font("Segoe UI", 10.5F);
+            dateTimePickerSprzedaz.CalendarMonthBackground = System.Drawing.Color.FromArgb(250, 250, 252);
+            dateTimePickerSprzedaz.CalendarTitleBackColor = System.Drawing.Color.FromArgb(59, 130, 246);
+            dateTimePickerSprzedaz.CalendarTitleForeColor = System.Drawing.Color.White;
+            dateTimePickerSprzedaz.Font = new System.Drawing.Font("Segoe UI", 10F);
             dateTimePickerSprzedaz.Format = System.Windows.Forms.DateTimePickerFormat.Short;
-            dateTimePickerSprzedaz.Location = new System.Drawing.Point(10, 320);
+            dateTimePickerSprzedaz.Location = new System.Drawing.Point(10, 385);
             dateTimePickerSprzedaz.Name = "dateTimePickerSprzedaz";
-            dateTimePickerSprzedaz.Size = new System.Drawing.Size(203, 26);
+            dateTimePickerSprzedaz.Size = new System.Drawing.Size(203, 25);
             dateTimePickerSprzedaz.TabIndex = 1;
             // 
             // label2
             // 
             label2.AutoSize = true;
-            label2.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, System.Drawing.FontStyle.Bold);
-            label2.ForeColor = System.Drawing.Color.FromArgb(31, 41, 55);
-            label2.Location = new System.Drawing.Point(10, 295);
+            label2.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            label2.ForeColor = System.Drawing.Color.FromArgb(59, 130, 246);
+            label2.Location = new System.Drawing.Point(10, 360);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(108, 17);
+            label2.Size = new System.Drawing.Size(121, 19);
             label2.TabIndex = 0;
             label2.Text = "📅 Data odbioru";
             // 
             // panelOstatniOdbiorcy
             // 
-            panelOstatniOdbiorcy.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            panelOstatniOdbiorcy.BackColor = System.Drawing.Color.FromArgb(252, 252, 255);
             panelOstatniOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.None;
             panelOstatniOdbiorcy.Controls.Add(lblOstatniOdbiorcy);
             panelOstatniOdbiorcy.Controls.Add(gridOstatniOdbiorcy);
-            panelOstatniOdbiorcy.Location = new System.Drawing.Point(10, 20);
+            panelOstatniOdbiorcy.Location = new System.Drawing.Point(10, 10);
             panelOstatniOdbiorcy.Name = "panelOstatniOdbiorcy";
-            panelOstatniOdbiorcy.Size = new System.Drawing.Size(410, 260);
+            panelOstatniOdbiorcy.Size = new System.Drawing.Size(410, 340);
             panelOstatniOdbiorcy.TabIndex = 6;
             panelOstatniOdbiorcy.Visible = true;
             // 
             // lblOstatniOdbiorcy
             // 
             lblOstatniOdbiorcy.BackColor = System.Drawing.Color.Transparent;
-            lblOstatniOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9F);
-            lblOstatniOdbiorcy.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
+            lblOstatniOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            lblOstatniOdbiorcy.ForeColor = System.Drawing.Color.FromArgb(99, 102, 241);
             lblOstatniOdbiorcy.Location = new System.Drawing.Point(10, 8);
             lblOstatniOdbiorcy.Name = "lblOstatniOdbiorcy";
             lblOstatniOdbiorcy.Size = new System.Drawing.Size(390, 20);
             lblOstatniOdbiorcy.TabIndex = 0;
-            lblOstatniOdbiorcy.Text = "Wybierz odbiorcę:";
+            lblOstatniOdbiorcy.Text = "👥 Wybierz odbiorcę:";
             // 
             // gridOstatniOdbiorcy
             // 
@@ -265,87 +274,78 @@ namespace Kalendarz1
             gridOstatniOdbiorcy.BackgroundColor = System.Drawing.Color.White;
             gridOstatniOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.None;
             gridOstatniOdbiorcy.ColumnHeadersVisible = false;
+            gridOstatniOdbiorcy.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(99, 102, 241);
+            gridOstatniOdbiorcy.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.White;
             gridOstatniOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9F);
-            gridOstatniOdbiorcy.GridColor = System.Drawing.Color.FromArgb(243, 244, 246);
-            gridOstatniOdbiorcy.Location = new System.Drawing.Point(10, 30);
+            gridOstatniOdbiorcy.GridColor = System.Drawing.Color.FromArgb(230, 235, 245);
+            gridOstatniOdbiorcy.Location = new System.Drawing.Point(10, 35);
             gridOstatniOdbiorcy.MultiSelect = false;
             gridOstatniOdbiorcy.Name = "gridOstatniOdbiorcy";
             gridOstatniOdbiorcy.ReadOnly = true;
             gridOstatniOdbiorcy.RowHeadersVisible = false;
             gridOstatniOdbiorcy.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             gridOstatniOdbiorcy.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect;
-            gridOstatniOdbiorcy.Size = new System.Drawing.Size(390, 220);
+            gridOstatniOdbiorcy.Size = new System.Drawing.Size(390, 295);
             gridOstatniOdbiorcy.TabIndex = 1;
             // 
             // panelOdbiorca
             // 
+            panelOdbiorca.BackColor = System.Drawing.Color.White;
             panelOdbiorca.Controls.Add(lblTytul);
-            panelOdbiorca.Controls.Add(label4);
             panelOdbiorca.Controls.Add(cbHandlowiecFilter);
             panelOdbiorca.Controls.Add(txtSzukajOdbiorcy);
             panelOdbiorca.Controls.Add(label1);
             panelOdbiorca.Dock = System.Windows.Forms.DockStyle.Top;
             panelOdbiorca.Location = new System.Drawing.Point(0, 0);
             panelOdbiorca.Name = "panelOdbiorca";
-            panelOdbiorca.Padding = new System.Windows.Forms.Padding(20, 15, 20, 10);
-            panelOdbiorca.Size = new System.Drawing.Size(430, 180);
+            panelOdbiorca.Padding = new System.Windows.Forms.Padding(10, 10, 10, 5);
+            panelOdbiorca.Size = new System.Drawing.Size(430, 120);
             panelOdbiorca.TabIndex = 1;
             // 
             // lblTytul
             // 
             lblTytul.AutoSize = true;
-            lblTytul.Font = new System.Drawing.Font("Segoe UI Semibold", 16F, System.Drawing.FontStyle.Bold);
-            lblTytul.ForeColor = System.Drawing.Color.FromArgb(17, 24, 39);
-            lblTytul.Location = new System.Drawing.Point(10, 15);
+            lblTytul.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
+            lblTytul.ForeColor = System.Drawing.Color.FromArgb(99, 102, 241);
+            lblTytul.Location = new System.Drawing.Point(10, 10);
             lblTytul.Name = "lblTytul";
-            lblTytul.Size = new System.Drawing.Size(189, 30);
+            lblTytul.Size = new System.Drawing.Size(245, 32);
             lblTytul.TabIndex = 5;
-            lblTytul.Text = "Nowe zamówienie";
-            // 
-            // label4
-            // 
-            label4.AutoSize = true;
-            label4.Font = new System.Drawing.Font("Segoe UI", 9F);
-            label4.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
-            label4.Location = new System.Drawing.Point(10, 65);
-            label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(70, 15);
-            label4.TabIndex = 6;
-            label4.Text = "Handlowiec";
+            lblTytul.Text = "📦 Nowe zamówienie";
             // 
             // cbHandlowiecFilter
             // 
-            cbHandlowiecFilter.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            cbHandlowiecFilter.BackColor = System.Drawing.Color.FromArgb(250, 250, 252);
             cbHandlowiecFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             cbHandlowiecFilter.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            cbHandlowiecFilter.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            cbHandlowiecFilter.Font = new System.Drawing.Font("Segoe UI", 10F);
             cbHandlowiecFilter.FormattingEnabled = true;
-            cbHandlowiecFilter.Location = new System.Drawing.Point(10, 85);
+            cbHandlowiecFilter.Location = new System.Drawing.Point(215, 12);
             cbHandlowiecFilter.Name = "cbHandlowiecFilter";
-            cbHandlowiecFilter.Size = new System.Drawing.Size(410, 25);
+            cbHandlowiecFilter.Size = new System.Drawing.Size(140, 25);
             cbHandlowiecFilter.TabIndex = 2;
             // 
             // txtSzukajOdbiorcy
             // 
-            txtSzukajOdbiorcy.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            txtSzukajOdbiorcy.BackColor = System.Drawing.Color.FromArgb(250, 250, 252);
             txtSzukajOdbiorcy.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            txtSzukajOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 9.5F);
-            txtSzukajOdbiorcy.Location = new System.Drawing.Point(10, 140);
+            txtSzukajOdbiorcy.Font = new System.Drawing.Font("Segoe UI", 10F);
+            txtSzukajOdbiorcy.Location = new System.Drawing.Point(10, 70);
             txtSzukajOdbiorcy.Name = "txtSzukajOdbiorcy";
-            txtSzukajOdbiorcy.PlaceholderText = "Wpisz nazwę, NIP lub miasto...";
-            txtSzukajOdbiorcy.Size = new System.Drawing.Size(410, 24);
+            txtSzukajOdbiorcy.PlaceholderText = "🔍 Wpisz nazwę, NIP lub miasto...";
+            txtSzukajOdbiorcy.Size = new System.Drawing.Size(400, 25);
             txtSzukajOdbiorcy.TabIndex = 1;
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Font = new System.Drawing.Font("Segoe UI", 9F);
-            label1.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
-            label1.Location = new System.Drawing.Point(10, 120);
+            label1.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            label1.ForeColor = System.Drawing.Color.FromArgb(99, 102, 241);
+            label1.Location = new System.Drawing.Point(10, 50);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(54, 15);
+            label1.Size = new System.Drawing.Size(90, 19);
             label1.TabIndex = 0;
-            label1.Text = "Odbiorca";
+            label1.Text = "🏢 Odbiorca";
             // 
             // panelDetails
             // 
@@ -356,7 +356,7 @@ namespace Kalendarz1
             panelDetails.Location = new System.Drawing.Point(430, 0);
             panelDetails.Margin = new System.Windows.Forms.Padding(0);
             panelDetails.Name = "panelDetails";
-            panelDetails.Padding = new System.Windows.Forms.Padding(0, 0, 0, 60);
+            panelDetails.Padding = new System.Windows.Forms.Padding(0, 0, 0, 330);
             panelDetails.Size = new System.Drawing.Size(850, 720);
             panelDetails.TabIndex = 1;
             // 
@@ -366,10 +366,10 @@ namespace Kalendarz1
             dataGridViewZamowienie.BorderStyle = System.Windows.Forms.BorderStyle.None;
             dataGridViewZamowienie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewZamowienie.Dock = System.Windows.Forms.DockStyle.Fill;
-            dataGridViewZamowienie.GridColor = System.Drawing.Color.FromArgb(243, 244, 246);
+            dataGridViewZamowienie.GridColor = System.Drawing.Color.FromArgb(230, 235, 245);
             dataGridViewZamowienie.Location = new System.Drawing.Point(0, 60);
             dataGridViewZamowienie.Name = "dataGridViewZamowienie";
-            dataGridViewZamowienie.Size = new System.Drawing.Size(850, 600);
+            dataGridViewZamowienie.Size = new System.Drawing.Size(850, 330);
             dataGridViewZamowienie.TabIndex = 1;
             // 
             // panelDaneOdbiorcy
@@ -394,9 +394,9 @@ namespace Kalendarz1
             lblHandlowiec.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
             lblHandlowiec.Location = new System.Drawing.Point(650, 30);
             lblHandlowiec.Name = "lblHandlowiec";
-            lblHandlowiec.Size = new System.Drawing.Size(55, 15);
+            lblHandlowiec.Size = new System.Drawing.Size(85, 15);
             lblHandlowiec.TabIndex = 3;
-            lblHandlowiec.Text = "Opiekun:";
+            lblHandlowiec.Text = "👤 Opiekun:";
             // 
             // lblAdres
             // 
@@ -405,9 +405,9 @@ namespace Kalendarz1
             lblAdres.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128);
             lblAdres.Location = new System.Drawing.Point(450, 30);
             lblAdres.Name = "lblAdres";
-            lblAdres.Size = new System.Drawing.Size(40, 15);
+            lblAdres.Size = new System.Drawing.Size(65, 15);
             lblAdres.TabIndex = 2;
-            lblAdres.Text = "Adres:";
+            lblAdres.Text = "📍 Adres:";
             // 
             // lblNip
             // 
@@ -423,7 +423,7 @@ namespace Kalendarz1
             // lblWybranyOdbiorca
             // 
             lblWybranyOdbiorca.AutoSize = false;
-            lblWybranyOdbiorca.Font = new System.Drawing.Font("Segoe UI Semibold", 11F, System.Drawing.FontStyle.Bold);
+            lblWybranyOdbiorca.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             lblWybranyOdbiorca.ForeColor = System.Drawing.Color.FromArgb(17, 24, 39);
             lblWybranyOdbiorca.Location = new System.Drawing.Point(15, 8);
             lblWybranyOdbiorca.Name = "lblWybranyOdbiorca";
@@ -432,7 +432,7 @@ namespace Kalendarz1
             lblWybranyOdbiorca.Text = "Wybrany odbiorca";
             lblWybranyOdbiorca.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // panelSumaGrid
+            // panelSumaGrid (hidden - not used with new summary panel)
             // 
             panelSumaGrid.BackColor = System.Drawing.Color.FromArgb(17, 24, 39);
             panelSumaGrid.ColumnCount = 5;
@@ -510,13 +510,14 @@ namespace Kalendarz1
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
+            BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
             ClientSize = new System.Drawing.Size(1280, 720);
             Controls.Add(rootLayout);
-            MinimumSize = new System.Drawing.Size(1200, 680);
+            Font = new System.Drawing.Font("Segoe UI", 9F);
+            MinimumSize = new System.Drawing.Size(1024, 768);
             Name = "WidokZamowienia";
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            Text = "Zamówienie mięsa";
+            Text = "📦 Zamówienie mięsa - System Zarządzania";
             WindowState = System.Windows.Forms.FormWindowState.Maximized;
             rootLayout.ResumeLayout(false);
             panelMaster.ResumeLayout(false);
@@ -541,7 +542,6 @@ namespace Kalendarz1
         private System.Windows.Forms.TableLayoutPanel rootLayout;
         private System.Windows.Forms.Panel panelMaster;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label label4;
         private System.Windows.Forms.TextBox txtSzukajOdbiorcy;
         private System.Windows.Forms.ComboBox cbHandlowiecFilter;
         private System.Windows.Forms.Panel panelDetaleZamowienia;

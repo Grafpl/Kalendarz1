@@ -1,12 +1,11 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 15.1 - FINALNA Z WSZYSTKIMI POPRAWKAMI
-// Zmiany:
-// 1. Lista rozwijana 50px poniżej textboxa
-// 2. ComboBox handlowca 140px szerokości
-// 3. Zielony/czerwony dla limitów transportowych
-// 4. Kolumna "40 E2" zamiast "E2"
-// 5. Panel odbiorców 260-380px wysokości
-// 6. Wysokość wierszy grida 32px
+// WERSJA 17.0 - POPRAWIONE PANELE POD GRIDEM + DYNAMICZNE DANE
+// Główne zmiany:
+// 1. Panele STATYSTYKI, OSTATNIE ZAMÓWIENIA i INFO TRANSPORT są teraz POD tabelą
+// 2. Panel INFO TRANSPORT pokazuje preferowane godziny odbioru kontrahenta
+// 3. Panel OSTATNIE ZAMÓWIENIA pokazuje 4 ostatnie zamówienia od wybranego kontrahenta
+// 4. Dodano dynamiczne aktualizacje paneli przy zmianie kontrahenta
+// 5. Poprawiono strukturę UI i kolejność dodawania kontrolek
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -38,8 +37,18 @@ namespace Kalendarz1
         private const decimal POJEMNIKOW_NA_PALECIE = 36m;
         private const decimal POJEMNIKOW_NA_PALECIE_E2 = 40m;
         private const decimal KG_NA_POJEMNIKU = 15m;
-        private const decimal KG_NA_PALECIE = POJEMNIKOW_NA_PALECIE * KG_NA_POJEMNIKU; // 540
-        private const decimal KG_NA_PALECIE_E2 = POJEMNIKOW_NA_PALECIE_E2 * KG_NA_POJEMNIKU; // 600
+        private const decimal KG_NA_POJEMNIKU_SPECJALNY = 10m;
+        private const decimal KG_NA_PALECIE = POJEMNIKOW_NA_PALECIE * KG_NA_POJEMNIKU;
+        private const decimal KG_NA_PALECIE_E2 = POJEMNIKOW_NA_PALECIE_E2 * KG_NA_POJEMNIKU;
+
+        // ===== Kolory motywu =====
+        private readonly Color PRIMARY_COLOR = Color.FromArgb(99, 102, 241);
+        private readonly Color PRIMARY_DARK = Color.FromArgb(67, 56, 202);
+        private readonly Color SUCCESS_COLOR = Color.FromArgb(34, 197, 94);
+        private readonly Color WARNING_COLOR = Color.FromArgb(251, 146, 60);
+        private readonly Color DANGER_COLOR = Color.FromArgb(239, 68, 68);
+        private readonly Color INFO_COLOR = Color.FromArgb(59, 130, 246);
+        private readonly Color PURPLE_COLOR = Color.FromArgb(168, 85, 247);
 
         // ===== Zmienne Stanu Formularza =====
         private string? _selectedKlientId;
@@ -57,6 +66,15 @@ namespace Kalendarz1
             public string NIP { get; set; } = "";
             public string Handlowiec { get; set; } = "";
             public DateTime? OstatnieZamowienie { get; set; }
+            public string PreferredDeliveryTime { get; set; } = "";
+        }
+
+        private sealed class OrderInfo
+        {
+            public DateTime DataZamowienia { get; set; }
+            public decimal TotalKg { get; set; }
+            public int TotalPojemniki { get; set; }
+            public decimal TotalPalety { get; set; }
         }
 
         private readonly DataTable _dt = new();
@@ -64,20 +82,27 @@ namespace Kalendarz1
         private readonly List<KontrahentInfo> _kontrahenci = new();
         private readonly Dictionary<string, DateTime> _ostatnieZamowienia = new();
 
-        // ===== Panel podsumowania =====
+        // ===== Panele UI =====
         private Panel? panelSummary;
         private Label? lblSumaPalet;
         private Label? lblSumaPojemnikow;
         private Label? lblSumaKg;
-
-        // ===== Paski postępu transportu =====
         private Panel? panelTransport;
         private ProgressBar? progressSolowka;
         private ProgressBar? progressTir;
-        private Label? lblSolowka;
-        private Label? lblTir;
         private Label? lblSolowkaInfo;
         private Label? lblTirInfo;
+
+        // Panele dolne
+        private Panel? panelStatystyki;
+        private Panel? panelOstatnichZamowien;
+        private Panel? panelInfoTransport;
+        private Label? lblAvgOrder;
+        private Label? lblTopProduct;
+        private Label? lblTrend;
+        private ListBox? listRecentOrders;
+        private Label? lblPreferredTime;
+        private Label? lblDeliveryNotes;
 
         // ===== Konstruktory =====
         public WidokZamowienia() : this(App.UserID ?? string.Empty, null) { }
@@ -100,7 +125,7 @@ namespace Kalendarz1
         // ===== GŁÓWNA METODA ŁADUJĄCA =====
         private async void WidokZamowienia_Load(object? sender, EventArgs e)
         {
-            ApplyModernUIStyles();
+            ApplyColorfulUIStyles();
             CreateHeaderIcons();
             SzybkiGrid();
             WireShortcuts();
@@ -108,6 +133,7 @@ namespace Kalendarz1
             InitDefaults();
             CreateSummaryPanel();
             CreateResponsiveTransportPanel();
+            CreateBottomPanels(); // Teraz pod gridem
             SetupOstatniOdbiorcyGrid();
             ConfigureResponsiveLayout();
 
@@ -123,8 +149,8 @@ namespace Kalendarz1
                 if (_idZamowieniaDoEdycji.HasValue)
                 {
                     await LoadZamowienieAsync(_idZamowieniaDoEdycji.Value);
-                    lblTytul.Text = "Edycja zamówienia";
-                    btnZapisz.Text = "Zapisz zmiany";
+                    lblTytul.Text = "✏️ Edycja zamówienia";
+                    btnZapisz.Text = "💾 Zapisz zmiany";
                 }
             }
             catch (Exception ex)
@@ -138,38 +164,572 @@ namespace Kalendarz1
             }
         }
 
+        #region Kolorowy UI
+
+        private void ApplyColorfulUIStyles()
+        {
+            this.BackColor = Color.FromArgb(245, 247, 250);
+
+            if (lblTytul != null)
+            {
+                lblTytul.Font = new Font("Segoe UI", 18f, FontStyle.Bold);
+                lblTytul.ForeColor = PRIMARY_COLOR;
+                lblTytul.Text = "📦 Nowe zamówienie";
+            }
+
+            StyleGradientButton(btnZapisz, PRIMARY_COLOR, PRIMARY_DARK, Color.White);
+            btnZapisz.Text = "💾 Zapisz";
+
+            if (panelOdbiorca != null)
+            {
+                panelOdbiorca.BackColor = Color.White;
+                panelOdbiorca.Padding = new Padding(20, 15, 20, 10);
+                panelOdbiorca.Paint += (s, e) => DrawPanelWithShadow(e, panelOdbiorca);
+            }
+
+            if (panelDaneOdbiorcy != null)
+            {
+                panelDaneOdbiorcy.BackColor = Color.White;
+                panelDaneOdbiorcy.BorderStyle = BorderStyle.None;
+                panelDaneOdbiorcy.Paint += (s, e) => DrawGradientHeader(e, panelDaneOdbiorcy);
+            }
+
+            if (panelDetaleZamowienia != null)
+            {
+                panelDetaleZamowienia.BackColor = Color.White;
+                panelDetaleZamowienia.AutoScroll = true;
+            }
+
+            StyleColorfulDateTimePicker(dateTimePickerSprzedaz, INFO_COLOR);
+            StyleColorfulDateTimePicker(dateTimePickerGodzinaPrzyjazdu, PURPLE_COLOR);
+            StyleColorfulTextBox(txtSzukajOdbiorcy, PRIMARY_COLOR);
+            StyleColorfulTextBox(textBoxUwagi, SUCCESS_COLOR);
+            StyleColorfulComboBox(cbHandlowiecFilter, WARNING_COLOR);
+
+            if (summaryLabelPalety != null) summaryLabelPalety.Visible = false;
+            if (summaryLabelPojemniki != null) summaryLabelPojemniki.Visible = false;
+
+            foreach (Control c in panelDetaleZamowienia.Controls)
+            {
+                if (c is Label lbl && lbl.Font.Bold)
+                {
+                    lbl.Font = new Font("Segoe UI Semibold", 9.5f);
+                    lbl.ForeColor = Color.FromArgb(75, 85, 99);
+                }
+            }
+        }
+
+        private void DrawPanelWithShadow(PaintEventArgs e, Panel panel)
+        {
+            using var shadowBrush = new SolidBrush(Color.FromArgb(20, 0, 0, 0));
+            e.Graphics.FillRectangle(shadowBrush, new Rectangle(2, 2, panel.Width - 4, panel.Height - 4));
+
+            using var path = GetRoundedRectPath(new Rectangle(0, 0, panel.Width - 3, panel.Height - 3), 12);
+            using var brush = new SolidBrush(Color.White);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.FillPath(brush, path);
+        }
+
+        private void DrawGradientHeader(PaintEventArgs e, Panel panel)
+        {
+            var rect = new Rectangle(0, 0, panel.Width, 60);
+            using var brush = new LinearGradientBrush(rect, PRIMARY_COLOR, PURPLE_COLOR, 45f);
+            e.Graphics.FillRectangle(brush, rect);
+        }
+
+        private void StyleGradientButton(Button? btn, Color color1, Color color2, Color textColor)
+        {
+            if (btn == null) return;
+
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.ForeColor = textColor;
+            btn.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            btn.Cursor = Cursors.Hand;
+            btn.Height = 42;
+            btn.Width = 160;
+
+            btn.Paint += (s, e) =>
+            {
+                var rect = btn.ClientRectangle;
+                using var path = GetRoundedRectPath(rect, 8);
+                using var brush = new LinearGradientBrush(rect, color1, color2, 45f);
+
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.FillPath(brush, path);
+
+                btn.Region = new Region(path);
+
+                var textRect = new Rectangle(0, 0, rect.Width, rect.Height);
+                TextRenderer.DrawText(e.Graphics, btn.Text, btn.Font, textRect, textColor,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            };
+
+            btn.MouseEnter += (s, e) => btn.BackColor = ControlPaint.Light(color1, 0.1f);
+            btn.MouseLeave += (s, e) => btn.BackColor = color1;
+        }
+
+        private void StyleColorfulDateTimePicker(DateTimePicker? dtp, Color accentColor)
+        {
+            if (dtp == null) return;
+            dtp.Font = new Font("Segoe UI", 10f);
+            dtp.CalendarTitleBackColor = accentColor;
+            dtp.CalendarTitleForeColor = Color.White;
+            dtp.CalendarMonthBackground = Color.FromArgb(250, 250, 252);
+        }
+
+        private void StyleColorfulTextBox(TextBox? tb, Color borderColor)
+        {
+            if (tb == null) return;
+            tb.Font = new Font("Segoe UI", 10f);
+            tb.BorderStyle = BorderStyle.FixedSingle;
+            tb.BackColor = Color.FromArgb(250, 250, 252);
+
+            tb.Enter += (s, e) => tb.BackColor = Color.FromArgb(245, 245, 255);
+            tb.Leave += (s, e) => tb.BackColor = Color.FromArgb(250, 250, 252);
+        }
+
+        private void StyleColorfulComboBox(ComboBox? cb, Color accentColor)
+        {
+            if (cb == null) return;
+            cb.Font = new Font("Segoe UI", 10f);
+            cb.BackColor = Color.FromArgb(250, 250, 252);
+            cb.FlatStyle = FlatStyle.Flat;
+        }
+
+        #endregion
+
+        #region Panele Dolne - POPRAWIONE UMIEJSCOWIENIE
+
+        private void CreateBottomPanels()
+        {
+            // Główny kontener dla paneli - POPRAWKA: dodajemy do panelDetails zamiast do parenta grida
+            var bottomContainer = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 180,
+                BackColor = Color.FromArgb(245, 247, 250),
+                Name = "bottomPanelsContainer"
+            };
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1,
+                Padding = new Padding(10, 5, 10, 10),
+                BackColor = Color.Transparent
+            };
+
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+
+            // Panel 1: Statystyki
+            panelStatystyki = CreateStatisticsPanel();
+            layout.Controls.Add(panelStatystyki, 0, 0);
+
+            // Panel 2: Ostatnie zamówienia
+            panelOstatnichZamowien = CreateRecentOrdersPanel();
+            layout.Controls.Add(panelOstatnichZamowien, 1, 0);
+
+            // Panel 3: Info o transporcie (preferowane godziny)
+            panelInfoTransport = CreateTransportInfoPanel();
+            layout.Controls.Add(panelInfoTransport, 2, 0);
+
+            bottomContainer.Controls.Add(layout);
+
+            // KRYTYCZNA POPRAWKA: Dodajemy do panelDetails, który jest rodzicem grida
+            if (panelDetails != null)
+            {
+                panelDetails.Controls.Add(bottomContainer);
+                bottomContainer.BringToFront();
+            }
+        }
+
+        private Panel CreateStatisticsPanel()
+        {
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Margin = new Padding(5),
+                Padding = new Padding(15)
+            };
+
+            panel.Paint += (s, e) => DrawColorfulCard(e, panel, SUCCESS_COLOR);
+
+            var lblTitle = new Label
+            {
+                Text = "📊 STATYSTYKI",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = SUCCESS_COLOR,
+                Location = new Point(15, 10),
+                AutoSize = true
+            };
+
+            lblAvgOrder = new Label
+            {
+                Text = "Średnie zamówienie:\n0 kg",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Location = new Point(15, 40),
+                Size = new Size(200, 35)
+            };
+
+            lblTopProduct = new Label
+            {
+                Text = "Najczęściej zamawiany:\n-",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Location = new Point(15, 80),
+                Size = new Size(200, 35)
+            };
+
+            lblTrend = new Label
+            {
+                Text = "Trend: ➡️ wybierz klienta",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Location = new Point(15, 120),
+                AutoSize = true
+            };
+
+            panel.Controls.AddRange(new Control[] { lblTitle, lblAvgOrder, lblTopProduct, lblTrend });
+            return panel;
+        }
+
+        private Panel CreateRecentOrdersPanel()
+        {
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Margin = new Padding(5),
+                Padding = new Padding(15)
+            };
+
+            panel.Paint += (s, e) => DrawColorfulCard(e, panel, INFO_COLOR);
+
+            var lblTitle = new Label
+            {
+                Text = "🕐 OSTATNIE ZAMÓWIENIA",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = INFO_COLOR,
+                Location = new Point(15, 10),
+                AutoSize = true
+            };
+
+            listRecentOrders = new ListBox
+            {
+                Location = new Point(15, 40),
+                Size = new Size(panel.Width - 30, 110),
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.FromArgb(250, 252, 255),
+                Font = new Font("Segoe UI", 8.5f),
+                ForeColor = Color.FromArgb(55, 65, 81),
+                SelectionMode = SelectionMode.None
+            };
+
+            listRecentOrders.Items.Add("⚠️ Wybierz kontrahenta");
+
+            panel.Controls.AddRange(new Control[] { lblTitle, listRecentOrders });
+            return panel;
+        }
+
+        private Panel CreateTransportInfoPanel()
+        {
+            var panel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Margin = new Padding(5),
+                Padding = new Padding(15)
+            };
+
+            panel.Paint += (s, e) => DrawColorfulCard(e, panel, WARNING_COLOR);
+
+            var lblTitle = new Label
+            {
+                Text = "🚚 INFO TRANSPORT",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = WARNING_COLOR,
+                Location = new Point(15, 10),
+                AutoSize = true
+            };
+
+            lblPreferredTime = new Label
+            {
+                Text = "Preferowana godzina:\n⚠️ Wybierz kontrahenta",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Location = new Point(15, 45),
+                Size = new Size(220, 45),
+                TextAlign = ContentAlignment.TopLeft
+            };
+
+            lblDeliveryNotes = new Label
+            {
+                Text = "• Sprawdź dostępność kierowcy\n• Potwierdź godzinę z klientem\n• Zarezerwuj transport",
+                Font = new Font("Segoe UI", 8.5f),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Location = new Point(15, 95),
+                Size = new Size(220, 55),
+                TextAlign = ContentAlignment.TopLeft
+            };
+
+            panel.Controls.AddRange(new Control[] { lblTitle, lblPreferredTime, lblDeliveryNotes });
+            return panel;
+        }
+
+        private void DrawColorfulCard(PaintEventArgs e, Panel panel, Color accentColor)
+        {
+            var rect = panel.ClientRectangle;
+            rect.Inflate(-1, -1);
+
+            using var path = GetRoundedRectPath(rect, 12);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            using var bgBrush = new SolidBrush(Color.White);
+            e.Graphics.FillPath(bgBrush, path);
+
+            var topRect = new Rectangle(rect.X, rect.Y, rect.Width, 35);
+            using var topPath = GetRoundedRectPath(topRect, 12);
+            using var gradBrush = new LinearGradientBrush(topRect,
+                accentColor,
+                ControlPaint.Light(accentColor, 0.3f),
+                90f);
+            e.Graphics.FillPath(gradBrush, topPath);
+
+            using var pen = new Pen(Color.FromArgb(229, 231, 235), 1.5f);
+            e.Graphics.DrawPath(pen, path);
+        }
+
+        #endregion
+
+        #region Aktualizacja Dynamicznych Paneli
+
+        private async void UpdateClientInfoPanels(string clientId)
+        {
+            if (string.IsNullOrEmpty(clientId)) return;
+
+            var client = _kontrahenci.FirstOrDefault(k => k.Id == clientId);
+            if (client == null) return;
+
+            // Aktualizuj panel preferowanych godzin
+            UpdateTransportInfoPanel(client);
+
+            // Aktualizuj panel ostatnich zamówień
+            await UpdateRecentOrdersPanel(clientId);
+
+            // Aktualizuj panel statystyk
+            await UpdateStatisticsPanel(clientId);
+        }
+
+        private void UpdateTransportInfoPanel(KontrahentInfo client)
+        {
+            if (lblPreferredTime == null) return;
+
+            // Symulacja - w prawdziwej aplikacji pobierz z bazy danych
+            string preferredTime = GetPreferredDeliveryTime(client.Id);
+
+            if (string.IsNullOrEmpty(preferredTime))
+            {
+                lblPreferredTime.Text = "Preferowana godzina:\n⏰ 8:00 - 16:00 (standardowa)";
+                lblPreferredTime.ForeColor = Color.FromArgb(107, 114, 128);
+            }
+            else
+            {
+                lblPreferredTime.Text = $"Preferowana godzina:\n⏰ {preferredTime}";
+                lblPreferredTime.ForeColor = WARNING_COLOR;
+            }
+
+            if (lblDeliveryNotes != null)
+            {
+                lblDeliveryNotes.Text = $"Kontakt: {client.Handlowiec}\n" +
+                                       $"📍 {client.Miejscowosc}\n" +
+                                       $"📞 Potwierdź dostawę";
+            }
+        }
+
+        private string GetPreferredDeliveryTime(string clientId)
+        {
+            // Tutaj pobierz z bazy danych preferowaną godzinę
+            // Na razie zwracamy przykładowe wartości
+            var random = new Random(clientId.GetHashCode());
+            var hours = new[] { "7:00 - 9:00", "8:00 - 10:00", "10:00 - 12:00", "12:00 - 14:00", "14:00 - 16:00" };
+            return hours[random.Next(hours.Length)];
+        }
+
+        private async Task UpdateRecentOrdersPanel(string clientId)
+        {
+            if (listRecentOrders == null) return;
+
+            listRecentOrders.Items.Clear();
+
+            try
+            {
+                var orders = await GetLast4OrdersForClient(clientId);
+
+                if (orders.Count == 0)
+                {
+                    listRecentOrders.Items.Add("📭 Brak wcześniejszych zamówień");
+                    return;
+                }
+
+                foreach (var order in orders)
+                {
+                    string dateStr = order.DataZamowienia.ToString("yyyy-MM-dd");
+                    string orderStr = $"📅 {dateStr} - {order.TotalKg:N0} kg";
+                    listRecentOrders.Items.Add(orderStr);
+                    listRecentOrders.Items.Add($"   ({order.TotalPojemniki} poj., {order.TotalPalety:N1} pal.)");
+                }
+            }
+            catch (Exception ex)
+            {
+                listRecentOrders.Items.Add($"❌ Błąd: {ex.Message}");
+            }
+        }
+
+        private async Task<List<OrderInfo>> GetLast4OrdersForClient(string clientId)
+        {
+            var orders = new List<OrderInfo>();
+
+            const string sql = @"
+                SELECT TOP 4 
+                    z.DataZamowienia,
+                    ISNULL(SUM(t.Ilosc), 0) as TotalKg,
+                    ISNULL(SUM(t.Pojemniki), 0) as TotalPojemniki,
+                    ISNULL(SUM(t.Palety), 0) as TotalPalety
+                FROM [dbo].[ZamowieniaMieso] z
+                LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                WHERE z.KlientId = @KlientId
+                GROUP BY z.DataZamowienia, z.Id
+                ORDER BY z.DataZamowienia DESC";
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@KlientId", clientId);
+
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    orders.Add(new OrderInfo
+                    {
+                        DataZamowienia = rd.GetDateTime(0),
+                        TotalKg = rd.GetDecimal(1),
+                        TotalPojemniki = rd.GetInt32(2),
+                        TotalPalety = rd.GetDecimal(3)
+                    });
+                }
+            }
+            catch
+            {
+                // W przypadku błędu zwróć pustą listę
+            }
+
+            return orders;
+        }
+
+        private async Task UpdateStatisticsPanel(string clientId)
+        {
+            if (lblAvgOrder == null || lblTopProduct == null || lblTrend == null) return;
+
+            try
+            {
+                const string sql = @"
+                    SELECT 
+                        AVG(ISNULL(t.Ilosc, 0)) as AvgKg,
+                        COUNT(DISTINCT z.Id) as OrderCount
+                    FROM [dbo].[ZamowieniaMieso] z
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                    WHERE z.KlientId = @KlientId 
+                    AND z.DataZamowienia >= DATEADD(MONTH, -6, GETDATE())";
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@KlientId", clientId);
+
+                await using var rd = await cmd.ExecuteReaderAsync();
+                if (await rd.ReadAsync())
+                {
+                    decimal avgKg = await rd.IsDBNullAsync(0) ? 0m : rd.GetDecimal(0);
+                    int orderCount = rd.GetInt32(1);
+
+                    lblAvgOrder.Text = $"Średnie zamówienie:\n{avgKg:N0} kg";
+
+                    if (orderCount > 0)
+                    {
+                        lblTrend.Text = $"Zamówień (6 mies.): {orderCount}";
+                        lblTrend.ForeColor = SUCCESS_COLOR;
+                    }
+                }
+
+                // Pobierz najczęściej zamawiany produkt
+                const string sqlTop = @"
+                    SELECT TOP 1 tw.Kod, SUM(t.Ilosc) as TotalIlosc
+                    FROM [dbo].[ZamowieniaMieso] z
+                    INNER JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                    INNER JOIN [HANDEL].[HM].[TW] tw ON t.KodTowaru = tw.Id
+                    WHERE z.KlientId = @KlientId 
+                    AND z.DataZamowienia >= DATEADD(MONTH, -6, GETDATE())
+                    GROUP BY tw.Kod
+                    ORDER BY SUM(t.Ilosc) DESC";
+
+                await using var cmd2 = new SqlCommand(sqlTop, cn);
+                cmd2.Parameters.AddWithValue("@KlientId", clientId);
+
+                await using var rd2 = await cmd2.ExecuteReaderAsync();
+                if (await rd2.ReadAsync())
+                {
+                    string topProduct = rd2.GetString(0);
+                    decimal totalKg = rd2.GetDecimal(1);
+                    lblTopProduct.Text = $"Najczęściej:\n{topProduct} ({totalKg:N0} kg)";
+                }
+                else
+                {
+                    lblTopProduct.Text = "Najczęściej zamawiany:\n-";
+                }
+            }
+            catch
+            {
+                lblAvgOrder.Text = "Średnie zamówienie:\nBrak danych";
+                lblTopProduct.Text = "Najczęściej:\nBrak danych";
+                lblTrend.Text = "Trend: -";
+            }
+        }
+
+        #endregion
+
         #region Responsywny Layout
 
         private void ConfigureResponsiveLayout()
         {
-            // Ustaw minimalny rozmiar formularza
-            this.MinimumSize = new Size(1024, 600);
+            this.MinimumSize = new Size(1024, 768);
 
-            // Skonfiguruj responsywny layout dla głównego panelu
             if (panelDetaleZamowienia != null)
             {
                 panelDetaleZamowienia.AutoScroll = true;
                 panelDetaleZamowienia.Padding = new Padding(10, 5, 10, 5);
-
-                // Reorganizuj kontrolki w panelu detali używając TableLayoutPanel
                 ReorganizeDetailsPanel();
             }
 
-            // Reorganizuj panel nagłówka
             ReorganizeHeaderPanel();
 
-            // Ustaw anchor dla kontrolek w panelu odbiorcy
             if (txtSzukajOdbiorcy != null)
             {
                 txtSzukajOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             }
 
-            // Ustaw responsywność dla listy wyników
             if (listaWynikowOdbiorcy != null)
             {
                 listaWynikowOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 listaWynikowOdbiorcy.MaximumSize = new Size(0, 155);
-                listaWynikowOdbiorcy.BringToFront(); // Ważne - lista musi być na wierzchu
+                listaWynikowOdbiorcy.BringToFront();
             }
         }
 
@@ -177,33 +737,30 @@ namespace Kalendarz1
         {
             if (panelOdbiorca == null) return;
 
-            // Zmniejsz padding górnego panelu
             panelOdbiorca.Padding = new Padding(10, 10, 10, 5);
-            panelOdbiorca.Height = 120; // Zmniejszona wysokość
+            panelOdbiorca.Height = 120;
 
-            // Usuń starą etykietę handlowca jeśli istnieje
             var oldHandlowiecLabel = panelOdbiorca.Controls["label4"];
             if (oldHandlowiecLabel != null)
             {
                 panelOdbiorca.Controls.Remove(oldHandlowiecLabel);
             }
 
-            // Przenieś combobox handlowca obok tytułu - JESZCZE MNIEJSZA szerokość
             if (lblTytul != null && cbHandlowiecFilter != null)
             {
                 lblTytul.Location = new Point(10, 10);
-                lblTytul.Size = new Size(180, 30);
+                lblTytul.Size = new Size(200, 35);
 
-                cbHandlowiecFilter.Location = new Point(195, 10);
-                cbHandlowiecFilter.Size = new Size(140, 30);  // Zmniejszone z 170 na 140
-                cbHandlowiecFilter.Font = new Font("Segoe UI", 10f);  // Zmniejszona czcionka z 11f na 10f
+                cbHandlowiecFilter.Location = new Point(215, 12);
+                cbHandlowiecFilter.Size = new Size(140, 30);
+                cbHandlowiecFilter.Font = new Font("Segoe UI", 10f);
             }
 
-            // Przesuń pole szukania odbiorcy wyżej
             var lblOdbiorca = panelOdbiorca.Controls["label1"];
             if (lblOdbiorca != null)
             {
                 lblOdbiorca.Location = new Point(10, 50);
+                lblOdbiorca.Text = "🏢 Odbiorca";
             }
 
             if (txtSzukajOdbiorcy != null)
@@ -218,10 +775,8 @@ namespace Kalendarz1
         {
             if (panelDetaleZamowienia == null) return;
 
-            // Usuń wszystkie kontrolki i reorganizuj je
             panelDetaleZamowienia.SuspendLayout();
 
-            // Utworz główny TableLayoutPanel
             var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -229,46 +784,40 @@ namespace Kalendarz1
                 AutoScroll = true,
                 ColumnCount = 1,
                 RowCount = 5,
-                Padding = new Padding(5, 0, 5, 5) // Zmniejszony górny padding
+                Padding = new Padding(5, 0, 5, 5)
             };
 
-            // Konfiguracja wierszy - wszystko przesunięte wyżej
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Panel odbiorców
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Daty
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Notatka
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Transport
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Wypełnienie
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            // 1. Panel ostatnich odbiorców - jeszcze większy
             if (panelOstatniOdbiorcy != null)
             {
                 panelOstatniOdbiorcy.Dock = DockStyle.Top;
-                panelOstatniOdbiorcy.MinimumSize = new Size(0, 260);  // Zwiększone z 220
-                panelOstatniOdbiorcy.MaximumSize = new Size(0, 380);  // Zwiększone z 320
+                panelOstatniOdbiorcy.MinimumSize = new Size(0, 260);
+                panelOstatniOdbiorcy.MaximumSize = new Size(0, 380);
                 panelOstatniOdbiorcy.AutoSize = false;
                 panelOstatniOdbiorcy.Margin = new Padding(0, 0, 0, 5);
                 mainLayout.Controls.Add(panelOstatniOdbiorcy, 0, 0);
             }
 
-            // 2. Panel dat - kompaktowy
             var datesPanel = CreateDatesPanel();
-            datesPanel.Height = 70; // Zmniejszona wysokość
+            datesPanel.Height = 70;
             mainLayout.Controls.Add(datesPanel, 0, 1);
 
-            // 3. Panel notatki - kompaktowy
             var notesPanel = CreateNotesPanel();
-            notesPanel.Height = 100; // Zmniejszona wysokość
+            notesPanel.Height = 100;
             mainLayout.Controls.Add(notesPanel, 0, 2);
 
-            // 4. Panel transportu - poziomy układ
             if (panelTransport != null)
             {
                 panelTransport.Dock = DockStyle.Top;
-                panelTransport.Height = 100; // Zmniejszona wysokość dla poziomego układu
+                panelTransport.Height = 100;
                 mainLayout.Controls.Add(panelTransport, 0, 3);
             }
 
-            // Dodaj główny layout do panelu
             panelDetaleZamowienia.Controls.Clear();
             panelDetaleZamowienia.Controls.Add(mainLayout);
             panelDetaleZamowienia.Controls.Add(listaWynikowOdbiorcy);
@@ -282,7 +831,8 @@ namespace Kalendarz1
             {
                 Height = 80,
                 Dock = DockStyle.Top,
-                Padding = new Padding(5)
+                Padding = new Padding(5),
+                BackColor = Color.FromArgb(250, 251, 255)
             };
 
             var layout = new TableLayoutPanel
@@ -298,26 +848,24 @@ namespace Kalendarz1
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            // Etykiety
             var lblDate = new Label
             {
                 Text = "📅 Data odbioru",
-                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = INFO_COLOR,
                 AutoSize = true,
                 Padding = new Padding(0, 0, 0, 5)
             };
 
             var lblTime = new Label
             {
-                Text = "🕐 Godzina odbioru",
-                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
+                Text = "⏰ Godzina odbioru",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = PURPLE_COLOR,
                 AutoSize = true,
                 Padding = new Padding(5, 0, 0, 5)
             };
 
-            // DateTimePickers
             if (dateTimePickerSprzedaz != null)
             {
                 dateTimePickerSprzedaz.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -343,14 +891,15 @@ namespace Kalendarz1
             {
                 Height = 120,
                 Dock = DockStyle.Top,
-                Padding = new Padding(5)
+                Padding = new Padding(5),
+                BackColor = Color.FromArgb(250, 255, 250)
             };
 
             var lblNotes = new Label
             {
-                Text = "Notatka",
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(107, 114, 128),
+                Text = "📝 Notatka",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = SUCCESS_COLOR,
                 Location = new Point(5, 5),
                 AutoSize = true
             };
@@ -360,6 +909,7 @@ namespace Kalendarz1
                 textBoxUwagi.Location = new Point(5, 25);
                 textBoxUwagi.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
                 textBoxUwagi.Size = new Size(panel.Width - 10, 85);
+                textBoxUwagi.BackColor = Color.FromArgb(250, 255, 250);
             }
 
             panel.Controls.Add(lblNotes);
@@ -372,7 +922,7 @@ namespace Kalendarz1
         {
             panelTransport = new Panel
             {
-                Height = 100, // Zmniejszona wysokość dla poziomego układu
+                Height = 100,
                 Dock = DockStyle.Top,
                 BackColor = Color.White,
                 Padding = new Padding(5)
@@ -381,49 +931,42 @@ namespace Kalendarz1
             var layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2, // Dwie kolumny dla poziomego układu
+                ColumnCount = 2,
                 RowCount = 2,
                 AutoSize = false
             };
 
-            // Konfiguracja kolumn - równy podział
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
-            // Konfiguracja wierszy
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F)); // Nagłówek
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Paski postępu
-
-            // Nagłówek
             var lblTransportHeader = new Label
             {
-                Text = "LIMITY TRANSPORTOWE",
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(75, 85, 99),
+                Text = "🚛 LIMITY TRANSPORTOWE",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = WARNING_COLOR,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter
             };
             layout.Controls.Add(lblTransportHeader, 0, 0);
-            layout.SetColumnSpan(lblTransportHeader, 2); // Rozciągnij na 2 kolumny
+            layout.SetColumnSpan(lblTransportHeader, 2);
 
-            // Panel dla Solówki (lewa kolumna)
             var solowkaPanel = CreateCompactProgressPanel("Solówka (18 pal.)", 18, out progressSolowka, out lblSolowkaInfo);
             layout.Controls.Add(solowkaPanel, 0, 1);
 
-            // Panel dla TIRa (prawa kolumna)
             var tirPanel = CreateCompactProgressPanel("TIR (33 pal.)", 33, out progressTir, out lblTirInfo);
             layout.Controls.Add(tirPanel, 1, 1);
 
             panelTransport.Controls.Add(layout);
 
-            // Stylowanie panelu
             panelTransport.Paint += (s, e) =>
             {
                 using var path = GetRoundedRectPath(panelTransport.ClientRectangle, 8);
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using var brush = new SolidBrush(Color.FromArgb(249, 250, 251));
+                using var brush = new SolidBrush(Color.FromArgb(255, 251, 245));
                 e.Graphics.FillPath(brush, path);
-                using var pen = new Pen(Color.FromArgb(229, 231, 235), 1);
+                using var pen = new Pen(WARNING_COLOR.WithAlpha(50), 1);
                 e.Graphics.DrawPath(pen, path);
             };
         }
@@ -444,11 +987,8 @@ namespace Kalendarz1
                 AutoSize = false
             };
 
-            // Kolumny - pasek zajmuje więcej miejsca
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75F));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-
-            // Wiersze
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
 
@@ -473,7 +1013,7 @@ namespace Kalendarz1
             infoLabel = new Label
             {
                 Text = $"0 / {maxValue}",
-                Font = new Font("Segoe UI Semibold", 9f),
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(31, 41, 55),
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter
@@ -496,33 +1036,35 @@ namespace Kalendarz1
         {
             if (panelOstatniOdbiorcy == null || gridOstatniOdbiorcy == null) return;
 
-            // Ustaw responsywność panelu
             panelOstatniOdbiorcy.AutoSize = false;
             panelOstatniOdbiorcy.Dock = DockStyle.Top;
+            panelOstatniOdbiorcy.BackColor = Color.FromArgb(252, 252, 255);
 
-            // Ustaw responsywność grida
             gridOstatniOdbiorcy.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
             gridOstatniOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            // Stylowanie panelu
             panelOstatniOdbiorcy.Paint += (s, e) =>
             {
                 using var path = GetRoundedRectPath(panelOstatniOdbiorcy.ClientRectangle, 8);
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using var brush = new SolidBrush(Color.FromArgb(249, 250, 251));
-                e.Graphics.FillPath(brush, path);
-                using var pen = new Pen(Color.FromArgb(229, 231, 235), 1);
+
+                using var gradBrush = new LinearGradientBrush(
+                    panelOstatniOdbiorcy.ClientRectangle,
+                    Color.FromArgb(250, 250, 255),
+                    Color.FromArgb(245, 245, 255),
+                    90f);
+                e.Graphics.FillPath(gradBrush, path);
+
+                using var pen = new Pen(PRIMARY_COLOR.WithAlpha(50), 1);
                 e.Graphics.DrawPath(pen, path);
             };
 
-            // Stylowanie grida
-            gridOstatniOdbiorcy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(99, 102, 241);
+            gridOstatniOdbiorcy.DefaultCellStyle.SelectionBackColor = PRIMARY_COLOR;
             gridOstatniOdbiorcy.DefaultCellStyle.SelectionForeColor = Color.White;
             gridOstatniOdbiorcy.DefaultCellStyle.Padding = new Padding(8, 3, 8, 3);
             gridOstatniOdbiorcy.RowTemplate.Height = 28;
-            gridOstatniOdbiorcy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
+            gridOstatniOdbiorcy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 255);
 
-            // Obsługa zdarzeń
             gridOstatniOdbiorcy.CellClick -= GridOstatniOdbiorcy_CellClick;
             gridOstatniOdbiorcy.CellMouseEnter -= GridOstatniOdbiorcy_CellMouseEnter;
             gridOstatniOdbiorcy.CellMouseLeave -= GridOstatniOdbiorcy_CellMouseLeave;
@@ -532,14 +1074,14 @@ namespace Kalendarz1
             gridOstatniOdbiorcy.CellMouseLeave += GridOstatniOdbiorcy_CellMouseLeave;
         }
 
-        private void GridOstatniOdbiorcy_CellClick(object sender, DataGridViewCellEventArgs e)
+        private async void GridOstatniOdbiorcy_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
                 var value = gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
                 if (!string.IsNullOrEmpty(value))
                 {
-                    SelectOdbiorcaFromCell(value);
+                    await SelectOdbiorcaFromCell(value);
                 }
             }
         }
@@ -548,7 +1090,8 @@ namespace Kalendarz1
         {
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
-                gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = Color.FromArgb(238, 242, 255);
+                gridOstatniOdbiorcy.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = PRIMARY_COLOR.WithAlpha(30);
+                gridOstatniOdbiorcy.Cursor = Cursors.Hand;
             }
         }
 
@@ -558,11 +1101,12 @@ namespace Kalendarz1
             {
                 var row = gridOstatniOdbiorcy.Rows[e.RowIndex];
                 row.Cells[e.ColumnIndex].Style.BackColor =
-                    e.RowIndex % 2 == 0 ? Color.White : Color.FromArgb(249, 250, 251);
+                    e.RowIndex % 2 == 0 ? Color.White : Color.FromArgb(250, 250, 255);
+                gridOstatniOdbiorcy.Cursor = Cursors.Default;
             }
         }
 
-        private void SelectOdbiorcaFromCell(string nazwaOdbiorcy)
+        private async Task SelectOdbiorcaFromCell(string nazwaOdbiorcy)
         {
             var odbiorca = _kontrahenci.FirstOrDefault(k => k.Nazwa == nazwaOdbiorcy);
             if (odbiorca != null)
@@ -582,6 +1126,7 @@ namespace Kalendarz1
                 }
 
                 UstawOdbiorce(odbiorca.Id);
+                await UpdateClientInfoPanels(odbiorca.Id);
                 RecalcSum();
             }
         }
@@ -605,7 +1150,8 @@ namespace Kalendarz1
 
             if (string.IsNullOrEmpty(handlowiec) || handlowiec == "— Wszyscy —")
             {
-                lblOstatniOdbiorcy.Text = "Wybierz handlowca aby zobaczyć odbiorców";
+                lblOstatniOdbiorcy.Text = "⚠️ Wybierz handlowca aby zobaczyć odbiorców";
+                lblOstatniOdbiorcy.ForeColor = WARNING_COLOR;
                 gridOstatniOdbiorcy.DataSource = null;
                 return;
             }
@@ -619,7 +1165,8 @@ namespace Kalendarz1
 
             if (!odbiorcy.Any())
             {
-                lblOstatniOdbiorcy.Text = $"Brak odbiorców dla: {handlowiec}";
+                lblOstatniOdbiorcy.Text = $"❌ Brak odbiorców dla: {handlowiec}";
+                lblOstatniOdbiorcy.ForeColor = DANGER_COLOR;
                 gridOstatniOdbiorcy.DataSource = null;
                 return;
             }
@@ -638,21 +1185,18 @@ namespace Kalendarz1
 
             gridOstatniOdbiorcy.DataSource = dt;
 
-            // Ustaw grid aby wykorzystywał całą dostępną wysokość
             if (gridOstatniOdbiorcy.Parent != null)
             {
                 gridOstatniOdbiorcy.Location = new Point(10, 30);
-                gridOstatniOdbiorcy.Size = new Size(390, panelOstatniOdbiorcy.Height - 40);  // Wykorzystaj całą wysokość panelu
+                gridOstatniOdbiorcy.Size = new Size(390, panelOstatniOdbiorcy.Height - 40);
             }
 
-            // Ustaw automatyczne dopasowanie szerokości kolumn
             if (gridOstatniOdbiorcy.Columns.Count > 0)
             {
                 gridOstatniOdbiorcy.Columns["Kolumna1"].FillWeight = 50;
                 gridOstatniOdbiorcy.Columns["Kolumna2"].FillWeight = 50;
             }
 
-            // Zastosuj formatowanie do wierszy
             foreach (DataGridViewRow row in gridOstatniOdbiorcy.Rows)
             {
                 for (int col = 0; col < 2; col++)
@@ -665,13 +1209,14 @@ namespace Kalendarz1
                             kontrahent.OstatnieZamowienie >= DateTime.Now.AddMonths(-1))
                         {
                             row.Cells[col].Style.Font = new Font(gridOstatniOdbiorcy.Font, FontStyle.Bold);
-                            row.Cells[col].Style.ForeColor = Color.FromArgb(16, 185, 129);
+                            row.Cells[col].Style.ForeColor = SUCCESS_COLOR;
                         }
                     }
                 }
             }
 
-            lblOstatniOdbiorcy.Text = $"Odbiorcy ({odbiorcy.Count}):";
+            lblOstatniOdbiorcy.Text = $"👥 Odbiorcy ({odbiorcy.Count}):";
+            lblOstatniOdbiorcy.ForeColor = PRIMARY_COLOR;
         }
 
         private async Task LoadOstatnieZamowienia()
@@ -726,42 +1271,34 @@ namespace Kalendarz1
 
             int paletyInt = (int)Math.Ceiling(palety);
 
-            // Aktualizuj pasek solówki
             progressSolowka.Value = Math.Min(paletyInt, 18);
             lblSolowkaInfo!.Text = $"{paletyInt:N0} / 18";
 
-            // Zmień kolor paska w zależności od wypełnienia - SOLÓWKA
             if (paletyInt <= 18)
             {
-                // Zielony - mieści się w limicie
-                SetProgressBarColor(progressSolowka, Color.FromArgb(34, 197, 94));
-                lblSolowkaInfo.ForeColor = Color.FromArgb(34, 197, 94);
+                SetProgressBarColor(progressSolowka, SUCCESS_COLOR);
+                lblSolowkaInfo.ForeColor = SUCCESS_COLOR;
             }
             else
             {
-                // Czerwony - przekroczony limit
-                SetProgressBarColor(progressSolowka, Color.FromArgb(239, 68, 68));
-                lblSolowkaInfo.ForeColor = Color.FromArgb(239, 68, 68);
-                lblSolowkaInfo.Text = $"{paletyInt:N0} / 18 ⚠";
+                SetProgressBarColor(progressSolowka, DANGER_COLOR);
+                lblSolowkaInfo.ForeColor = DANGER_COLOR;
+                lblSolowkaInfo.Text = $"{paletyInt:N0} / 18 ⚠️";
             }
 
-            // Aktualizuj pasek TIRa
             progressTir.Value = Math.Min(paletyInt, 33);
             lblTirInfo!.Text = $"{paletyInt:N0} / 33";
 
-            // Zmień kolor paska TIR w zależności od wypełnienia
             if (paletyInt <= 33)
             {
-                // Zielony - mieści się w limicie
-                SetProgressBarColor(progressTir, Color.FromArgb(34, 197, 94));
-                lblTirInfo.ForeColor = Color.FromArgb(34, 197, 94);
+                SetProgressBarColor(progressTir, SUCCESS_COLOR);
+                lblTirInfo.ForeColor = SUCCESS_COLOR;
             }
             else
             {
-                // Czerwony - przekroczony limit
-                SetProgressBarColor(progressTir, Color.FromArgb(239, 68, 68));
-                lblTirInfo.ForeColor = Color.FromArgb(239, 68, 68);
-                lblTirInfo.Text = $"{paletyInt:N0} / 33 ⚠";
+                SetProgressBarColor(progressTir, DANGER_COLOR);
+                lblTirInfo.ForeColor = DANGER_COLOR;
+                lblTirInfo.Text = $"{paletyInt:N0} / 33 ⚠️";
             }
         }
 
@@ -783,9 +1320,16 @@ namespace Kalendarz1
             panelSummary = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 60,
-                BackColor = Color.FromArgb(17, 24, 39),
-                Parent = dataGridViewZamowienie.Parent
+                Height = 70,
+                BackColor = Color.White,
+                Parent = panelDetails // Dodaj do panelDetails
+            };
+
+            panelSummary.Paint += (s, e) =>
+            {
+                var rect = panelSummary.ClientRectangle;
+                using var brush = new LinearGradientBrush(rect, PRIMARY_COLOR, PURPLE_COLOR, 45f);
+                e.Graphics.FillRectangle(brush, rect);
             };
 
             var flowPanel = new FlowLayoutPanel
@@ -793,12 +1337,13 @@ namespace Kalendarz1
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                Padding = new Padding(30, 15, 30, 15)
+                Padding = new Padding(30, 15, 30, 15),
+                BackColor = Color.Transparent
             };
 
-            lblSumaPalet = CreateSummaryLabel("PALETY", "0");
-            lblSumaPojemnikow = CreateSummaryLabel("POJEMNIKI", "0");
-            lblSumaKg = CreateSummaryLabel("KILOGRAMY", "0");
+            lblSumaPalet = CreateSummaryLabel("📦 PALETY", "0", DANGER_COLOR);
+            lblSumaPojemnikow = CreateSummaryLabel("📋 POJEMNIKI", "0", INFO_COLOR);
+            lblSumaKg = CreateSummaryLabel("⚖️ KILOGRAMY", "0", SUCCESS_COLOR);
 
             flowPanel.Controls.Add(lblSumaPalet);
             flowPanel.Controls.Add(CreateSeparator());
@@ -807,27 +1352,23 @@ namespace Kalendarz1
             flowPanel.Controls.Add(lblSumaKg);
 
             panelSummary.Controls.Add(flowPanel);
-
-            if (dataGridViewZamowienie != null)
-            {
-                dataGridViewZamowienie.Height -= 60;
-            }
         }
 
-        private Label CreateSummaryLabel(string title, string value)
+        private Label CreateSummaryLabel(string title, string value, Color accentColor)
         {
             var panel = new Panel
             {
-                Width = 200,
-                Height = 30,
-                Margin = new Padding(15, 0, 15, 0)
+                Width = 220,
+                Height = 35,
+                Margin = new Padding(15, 0, 15, 0),
+                BackColor = Color.Transparent
             };
 
             var lblTitle = new Label
             {
                 Text = title,
-                Font = new Font("Segoe UI", 8f, FontStyle.Regular),
-                ForeColor = Color.FromArgb(156, 163, 175),
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(200, 255, 255, 255),
                 Location = new Point(0, 0),
                 AutoSize = true
             };
@@ -835,9 +1376,9 @@ namespace Kalendarz1
             var lblValue = new Label
             {
                 Text = value,
-                Font = new Font("Segoe UI Semibold", 16f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(0, 10),
+                Location = new Point(0, 12),
                 AutoSize = true,
                 Name = $"lbl{title}"
             };
@@ -853,8 +1394,8 @@ namespace Kalendarz1
             return new Panel
             {
                 Width = 1,
-                Height = 35,
-                BackColor = Color.FromArgb(55, 65, 81),
+                Height = 40,
+                BackColor = Color.FromArgb(100, 255, 255, 255),
                 Margin = new Padding(0, 0, 0, 0)
             };
         }
@@ -862,131 +1403,6 @@ namespace Kalendarz1
         #endregion
 
         #region Inicjalizacja i Ustawienia UI
-
-        private void ApplyModernUIStyles()
-        {
-            this.BackColor = Color.FromArgb(249, 250, 251);
-
-            if (lblTytul != null)
-            {
-                lblTytul.Font = new Font("Segoe UI Semibold", 16f, FontStyle.Bold);
-                lblTytul.ForeColor = Color.FromArgb(17, 24, 39);
-            }
-
-            StyleButton(btnZapisz, Color.FromArgb(99, 102, 241), Color.White);
-
-            if (panelDaneOdbiorcy != null)
-            {
-                panelDaneOdbiorcy.BackColor = Color.White;
-                panelDaneOdbiorcy.BorderStyle = BorderStyle.None;
-                panelDaneOdbiorcy.Paint += ModernPanel_Paint;
-            }
-
-            if (panelMaster != null)
-            {
-                panelMaster.BackColor = Color.White;
-                panelMaster.Padding = new Padding(0);
-            }
-
-            if (panelOdbiorca != null)
-            {
-                panelOdbiorca.BackColor = Color.White;
-                panelOdbiorca.Padding = new Padding(20, 15, 20, 10);
-            }
-
-            if (panelDetaleZamowienia != null)
-            {
-                panelDetaleZamowienia.BackColor = Color.White;
-                panelDetaleZamowienia.AutoScroll = true;
-            }
-
-            StyleDateTimePicker(dateTimePickerSprzedaz);
-            StyleDateTimePicker(dateTimePickerGodzinaPrzyjazdu);
-            StyleTextBox(txtSzukajOdbiorcy);
-            StyleTextBox(textBoxUwagi);
-            StyleComboBox(cbHandlowiecFilter);
-
-            if (summaryLabelPalety != null) summaryLabelPalety.Visible = false;
-            if (summaryLabelPojemniki != null) summaryLabelPojemniki.Visible = false;
-
-            // Ulepszenie etykiet
-            foreach (Control c in panelDetaleZamowienia.Controls)
-            {
-                if (c is Label lbl && lbl.Font.Bold)
-                {
-                    lbl.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
-                    lbl.ForeColor = Color.FromArgb(107, 114, 128);
-                }
-            }
-
-            foreach (Control c in panelOdbiorca.Controls)
-            {
-                if (c is Label lbl && lbl != lblTytul && lbl.Font.Bold)
-                {
-                    lbl.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
-                    lbl.ForeColor = Color.FromArgb(107, 114, 128);
-                }
-            }
-        }
-
-        private void StyleButton(Button? btn, Color bgColor, Color fgColor)
-        {
-            if (btn == null) return;
-
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-            btn.BackColor = bgColor;
-            btn.ForeColor = fgColor;
-            btn.Font = new Font("Segoe UI Semibold", 10f);
-            btn.Cursor = Cursors.Hand;
-            btn.Height = 38;
-            btn.Width = 140;
-
-            btn.Paint += (s, e) =>
-            {
-                var rect = btn.ClientRectangle;
-                using var path = GetRoundedRectPath(rect, 6);
-                btn.Region = new Region(path);
-            };
-
-            btn.MouseEnter += (s, e) => btn.BackColor = ControlPaint.Dark(bgColor, 0.1f);
-            btn.MouseLeave += (s, e) => btn.BackColor = bgColor;
-        }
-
-        private void StyleDateTimePicker(DateTimePicker? dtp)
-        {
-            if (dtp == null) return;
-            dtp.Font = new Font("Segoe UI", 9.5f);
-            dtp.CalendarTitleBackColor = Color.FromArgb(99, 102, 241);
-            dtp.CalendarTitleForeColor = Color.White;
-        }
-
-        private void StyleTextBox(TextBox? tb)
-        {
-            if (tb == null) return;
-            tb.Font = new Font("Segoe UI", 9.5f);
-            tb.BorderStyle = BorderStyle.FixedSingle;
-            tb.BackColor = Color.FromArgb(249, 250, 251);
-        }
-
-        private void StyleComboBox(ComboBox? cb)
-        {
-            if (cb == null) return;
-            cb.Font = new Font("Segoe UI", 9.5f);
-            cb.BackColor = Color.FromArgb(249, 250, 251);
-            cb.FlatStyle = FlatStyle.Flat;
-        }
-
-        private void ModernPanel_Paint(object? sender, PaintEventArgs e)
-        {
-            var panel = sender as Panel;
-            if (panel == null) return;
-
-            using var path = GetRoundedRectPath(panel.ClientRectangle, 8);
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using var pen = new Pen(Color.FromArgb(229, 231, 235), 1);
-            e.Graphics.DrawPath(pen, path);
-        }
 
         private void SzybkiGrid()
         {
@@ -999,23 +1415,23 @@ namespace Kalendarz1
             dataGridViewZamowienie.EditMode = DataGridViewEditMode.EditOnKeystroke;
             dataGridViewZamowienie.BackgroundColor = Color.White;
             dataGridViewZamowienie.BorderStyle = BorderStyle.None;
-            dataGridViewZamowienie.GridColor = Color.FromArgb(243, 244, 246);
+            dataGridViewZamowienie.GridColor = Color.FromArgb(230, 235, 245);
             dataGridViewZamowienie.Font = new Font("Segoe UI", 10f);
 
             dataGridViewZamowienie.EnableHeadersVisualStyles = false;
-            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
-            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
-            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(75, 85, 99);
-            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(249, 250, 251);
-            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.FromArgb(75, 85, 99);
-            dataGridViewZamowienie.ColumnHeadersHeight = 42;
+            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.BackColor = PRIMARY_COLOR;
+            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.SelectionBackColor = PRIMARY_COLOR;
+            dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.White;
+            dataGridViewZamowienie.ColumnHeadersHeight = 45;
             dataGridViewZamowienie.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             dataGridViewZamowienie.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
 
-            dataGridViewZamowienie.RowTemplate.Height = 32;  // Zmniejszone z 38 na 32
-            dataGridViewZamowienie.DefaultCellStyle.SelectionBackColor = Color.FromArgb(238, 242, 255);
+            dataGridViewZamowienie.RowTemplate.Height = 32;
+            dataGridViewZamowienie.DefaultCellStyle.SelectionBackColor = PRIMARY_COLOR.WithAlpha(50);
             dataGridViewZamowienie.DefaultCellStyle.SelectionForeColor = Color.FromArgb(55, 65, 81);
-            dataGridViewZamowienie.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
+            dataGridViewZamowienie.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 255);
             dataGridViewZamowienie.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
             TryEnableDoubleBuffer(dataGridViewZamowienie);
@@ -1072,15 +1488,15 @@ namespace Kalendarz1
             cKod.ReadOnly = true;
             cKod.FillWeight = 180;
             cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-            cKod.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
+            cKod.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             cKod.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
-            cKod.HeaderText = "Towar";
+            cKod.HeaderText = "🍖 Towar";
 
             var cE2 = dataGridViewZamowienie.Columns["E2"] as DataGridViewCheckBoxColumn;
             if (cE2 != null)
             {
-                cE2.HeaderText = "40 E2";  // Zmieniona nazwa kolumny
-                cE2.FillWeight = 50;  // Zwiększone z 40 dla dłuższej nazwy
+                cE2.HeaderText = "40 E2";
+                cE2.FillWeight = 50;
                 cE2.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 cE2.ToolTipText = "40 pojemników/paletę";
             }
@@ -1089,31 +1505,33 @@ namespace Kalendarz1
             cPalety.FillWeight = 80;
             cPalety.DefaultCellStyle.Format = "N0";
             cPalety.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cPalety.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
-            cPalety.DefaultCellStyle.ForeColor = Color.FromArgb(239, 68, 68);
+            cPalety.DefaultCellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            cPalety.DefaultCellStyle.ForeColor = DANGER_COLOR;
+            cPalety.HeaderText = "📦 Palety";
 
             var cPojemniki = dataGridViewZamowienie.Columns["Pojemniki"]!;
             cPojemniki.FillWeight = 100;
             cPojemniki.DefaultCellStyle.Format = "N0";
             cPojemniki.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cPojemniki.DefaultCellStyle.ForeColor = Color.FromArgb(59, 130, 246);
+            cPojemniki.DefaultCellStyle.ForeColor = INFO_COLOR;
+            cPojemniki.HeaderText = "📋 Pojemniki";
 
             var cIlosc = dataGridViewZamowienie.Columns["Ilosc"]!;
             cIlosc.FillWeight = 110;
             cIlosc.DefaultCellStyle.Format = "N0";
             cIlosc.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cIlosc.HeaderText = "Ilość (kg)";
-            cIlosc.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
-            cIlosc.DefaultCellStyle.ForeColor = Color.FromArgb(16, 185, 129);
+            cIlosc.HeaderText = "⚖️ Ilość (kg)";
+            cIlosc.DefaultCellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            cIlosc.DefaultCellStyle.ForeColor = SUCCESS_COLOR;
 
             var cKodKopia = dataGridViewZamowienie.Columns["KodKopia"]!;
             cKodKopia.ReadOnly = true;
             cKodKopia.FillWeight = 180;
             cKodKopia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            cKodKopia.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
+            cKodKopia.DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             cKodKopia.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
-            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
-            cKodKopia.HeaderText = "Towar";
+            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
+            cKodKopia.HeaderText = "🍖 Towar";
         }
 
         private void WireUpUIEvents()
@@ -1127,7 +1545,6 @@ namespace Kalendarz1
             txtSzukajOdbiorcy.TextChanged += TxtSzukajOdbiorcy_TextChanged;
             txtSzukajOdbiorcy.KeyDown += TxtSzukajOdbiorcy_KeyDown;
 
-            // Zmiana z DoubleClick na Click dla szybszego wyboru
             listaWynikowOdbiorcy.Click += ListaWynikowOdbiorcy_Click;
             listaWynikowOdbiorcy.KeyDown += ListaWynikowOdbiorcy_KeyDown;
 
@@ -1172,14 +1589,64 @@ namespace Kalendarz1
         private async Task LoadTowaryAsRowsAsync()
         {
             _dt.Clear();
+
+            var excludedProducts = new HashSet<string> { "KURCZAK B", "FILET C" };
+
+            var priorityOrder = new Dictionary<string, int>
+            {
+                { "KURCZAK A", 1 },
+                { "FILET A", 2 },
+                { "ĆWIARTKA", 3 },
+                { "SKRZYDŁO I", 4 },
+                { "NOGA", 5 },
+                { "PAŁKA", 6 },
+                { "KORPUS", 7 },
+                { "POLĘDWICZKI", 8 },
+                { "SERCE", 9 },
+                { "WĄTROBA", 10 },
+                { "ŻOŁĄDKI", 11 },
+                { "ĆWIARTKA II", 12 },
+                { "FILET II", 13 },
+                { "FILET II PP", 14 },
+                { "SKRZYDŁO II", 15 }
+            };
+
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
-            await using var cmd = new SqlCommand("SELECT Id, Kod FROM [HANDEL].[HM].[TW] WHERE katalog = '67095' ORDER BY Kod ASC", cn);
+            await using var cmd = new SqlCommand(
+                "SELECT Id, Kod FROM [HANDEL].[HM].[TW] WHERE katalog = '67095' ORDER BY Kod ASC", cn);
             await using var rd = await cmd.ExecuteReaderAsync();
+
+            var tempList = new List<(int Id, string Kod, int Priority)>();
+
             while (await rd.ReadAsync())
             {
                 var kod = rd.GetString(1);
-                _dt.Rows.Add(rd.GetInt32(0), kod, false, 0m, 0m, 0m, kod, kod);
+
+                if (excludedProducts.Any(excluded => kod.ToUpper().Contains(excluded)))
+                    continue;
+
+                int priority = int.MaxValue;
+                foreach (var kvp in priorityOrder)
+                {
+                    if (kod.ToUpper().Contains(kvp.Key))
+                    {
+                        priority = kvp.Value;
+                        break;
+                    }
+                }
+
+                tempList.Add((rd.GetInt32(0), kod, priority));
+            }
+
+            var sortedList = tempList
+                .OrderBy(x => x.Priority)
+                .ThenBy(x => x.Kod)
+                .ToList();
+
+            foreach (var item in sortedList)
+            {
+                _dt.Rows.Add(item.Id, item.Kod, false, 0m, 0m, 0m, item.Kod, item.Kod);
             }
         }
 
@@ -1255,13 +1722,12 @@ namespace Kalendarz1
 
             if (wyniki.Any())
             {
-                // Ustaw pozycję listy względem textboxa - BARDZO NISKO
                 var screenPoint = txtSzukajOdbiorcy.Parent.PointToScreen(txtSzukajOdbiorcy.Location);
                 var clientPoint = panelDetaleZamowienia.PointToClient(screenPoint);
 
                 listaWynikowOdbiorcy.Location = new Point(
                     clientPoint.X,
-                    clientPoint.Y + txtSzukajOdbiorcy.Height + 50  // Zwiększone z 35 na 50 pikseli - bardzo duży odstęp
+                    clientPoint.Y + txtSzukajOdbiorcy.Height + 50
                 );
                 listaWynikowOdbiorcy.Width = txtSzukajOdbiorcy.Width;
                 listaWynikowOdbiorcy.Height = Math.Min(180, wyniki.Count * 22 + 5);
@@ -1272,7 +1738,7 @@ namespace Kalendarz1
                 listaWynikowOdbiorcy.Font = new Font("Segoe UI", 9.5f);
 
                 listaWynikowOdbiorcy.Visible = true;
-                listaWynikowOdbiorcy.BringToFront(); // Upewnij się, że lista jest na wierzchu
+                listaWynikowOdbiorcy.BringToFront();
             }
             else
             {
@@ -1303,11 +1769,12 @@ namespace Kalendarz1
             }
         }
 
-        private void WybierzOdbiorceZListy()
+        private async void WybierzOdbiorceZListy()
         {
             if (listaWynikowOdbiorcy.SelectedItem is KontrahentInfo wybrany)
             {
                 UstawOdbiorce(wybrany.Id);
+                await UpdateClientInfoPanels(wybrany.Id);
             }
         }
 
@@ -1322,8 +1789,8 @@ namespace Kalendarz1
                 panelDaneOdbiorcy.Visible = true;
                 lblWybranyOdbiorca.Text = info.Nazwa;
                 lblNip.Text = $"NIP: {info.NIP}";
-                lblAdres.Text = $"{info.KodPocztowy} {info.Miejscowosc}";
-                lblHandlowiec.Text = $"Opiekun: {info.Handlowiec}";
+                lblAdres.Text = $"📍 {info.KodPocztowy} {info.Miejscowosc}";
+                lblHandlowiec.Text = $"👤 Opiekun: {info.Handlowiec}";
                 dataGridViewZamowienie.Focus();
             }
         }
@@ -1338,10 +1805,12 @@ namespace Kalendarz1
             _blokujObslugeZmian = true;
 
             string changedColumnName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
+            string kodTowaru = row.Field<string>("Kod") ?? "";
 
             bool useE2 = row.Field<bool>("E2");
             decimal pojemnikNaPalete = useE2 ? POJEMNIKOW_NA_PALECIE_E2 : POJEMNIKOW_NA_PALECIE;
-            decimal kgNaPalete = useE2 ? KG_NA_PALECIE_E2 : KG_NA_PALECIE;
+            decimal kgNaPojemnik = GetKgPerContainer(kodTowaru);
+            decimal kgNaPalete = pojemnikNaPalete * kgNaPojemnik;
 
             try
             {
@@ -1358,14 +1827,14 @@ namespace Kalendarz1
 
                     case "Ilosc":
                         decimal ilosc = ParseDec(row["Ilosc"]);
-                        row["Pojemniki"] = (ilosc > 0 && KG_NA_POJEMNIKU > 0) ? Math.Round(ilosc / KG_NA_POJEMNIKU, 0) : 0m;
+                        row["Pojemniki"] = (ilosc > 0 && kgNaPojemnik > 0) ? Math.Round(ilosc / kgNaPojemnik, 0) : 0m;
                         row["Palety"] = (ilosc > 0 && kgNaPalete > 0) ? ilosc / kgNaPalete : 0m;
                         MarkInvalid(dataGridViewZamowienie.Rows[e.RowIndex].Cells["Ilosc"], ilosc < 0);
                         break;
 
                     case "Pojemniki":
                         decimal pojemniki = ParseDec(row["Pojemniki"]);
-                        row["Ilosc"] = pojemniki * KG_NA_POJEMNIKU;
+                        row["Ilosc"] = pojemniki * kgNaPojemnik;
                         row["Palety"] = (pojemniki > 0 && pojemnikNaPalete > 0) ? pojemniki / pojemnikNaPalete : 0m;
                         break;
 
@@ -1410,60 +1879,7 @@ namespace Kalendarz1
 
         private void CreateHeaderIcons()
         {
-            _headerIcons["Kod"] = CreateIconForText("PROD");
-            _headerIcons["Palety"] = CreatePalletIcon();
-            _headerIcons["Pojemniki"] = CreateContainerIcon();
-            _headerIcons["Ilosc"] = CreateScaleIcon();
-            _headerIcons["KodTowaru"] = CreateIconForText("PROD");
-            _headerIcons["KodKopia"] = CreateIconForText("PROD");
-        }
-
-        private Image CreatePalletIcon()
-        {
-            var bmp = new Bitmap(16, 16);
-            using var g = Graphics.FromImage(bmp);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var brownPen = new Pen(Color.FromArgb(146, 64, 14), 1.5f);
-            g.DrawRectangle(brownPen, 2, 8, 12, 6);
-            g.DrawLine(brownPen, 2, 11, 14, 11);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(217, 119, 6)), 4, 3, 3, 5);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(217, 119, 6)), 9, 3, 3, 5);
-            return bmp;
-        }
-
-        private Image CreateContainerIcon()
-        {
-            var bmp = new Bitmap(16, 16);
-            using var g = Graphics.FromImage(bmp);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var grayBrush = new SolidBrush(Color.FromArgb(156, 163, 175));
-            g.FillRectangle(grayBrush, 2, 4, 12, 9);
-            using var darkPen = new Pen(Color.FromArgb(107, 114, 128), 1);
-            g.DrawRectangle(darkPen, 2, 4, 12, 9);
-            return bmp;
-        }
-
-        private Image CreateScaleIcon()
-        {
-            var bmp = new Bitmap(16, 16);
-            using var g = Graphics.FromImage(bmp);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var darkGrayPen = new Pen(Color.FromArgb(75, 85, 99), 1.5f);
-            g.DrawLine(darkGrayPen, 2, 14, 14, 14);
-            g.DrawLine(darkGrayPen, 8, 14, 8, 4);
-            g.DrawLine(darkGrayPen, 2, 5, 14, 5);
-            return bmp;
-        }
-
-        private Image CreateIconForText(string text)
-        {
-            var bmp = new Bitmap(16, 16);
-            using var g = Graphics.FromImage(bmp);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-            using var font = new Font("Segoe UI", 6.5f, FontStyle.Bold);
-            TextRenderer.DrawText(g, text, font, new Point(0, 2), Color.FromArgb(107, 114, 128));
-            return bmp;
+            // Ikony są teraz emoji, nie trzeba ich tworzyć
         }
 
         private void RecalcSum()
@@ -1511,29 +1927,7 @@ namespace Kalendarz1
 
         private void DataGridViewZamowienie_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
         {
-            if (e.RowIndex != -1 || e.ColumnIndex < 0) return;
-
-            string colName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
-            if (!_headerIcons.ContainsKey(colName)) return;
-
-            e.PaintBackground(e.CellBounds, true);
-
-            var g = e.Graphics;
-            var icon = _headerIcons[colName];
-
-            int y = e.CellBounds.Y + (e.CellBounds.Height - icon.Height) / 2;
-            g.DrawImage(icon, e.CellBounds.X + 6, y);
-
-            var textBounds = new Rectangle(
-                e.CellBounds.X + icon.Width + 12,
-                e.CellBounds.Y,
-                e.CellBounds.Width - icon.Width - 18,
-                e.CellBounds.Height);
-
-            TextRenderer.DrawText(g, e.Value?.ToString(), e.CellStyle.Font, textBounds,
-                e.CellStyle.ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
-
-            e.Handled = true;
+            // Emoji są już w nagłówkach kolumn
         }
 
         private void ClearFormForNewOrder()
@@ -1563,13 +1957,48 @@ namespace Kalendarz1
             dateTimePickerSprzedaz.Value = (dzis.DayOfWeek == DayOfWeek.Friday) ? dzis.AddDays(3) : dzis.AddDays(1);
             dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
 
-            lblTytul.Text = "Nowe zamówienie";
-            btnZapisz.Text = "Zapisz";
+            lblTytul.Text = "📦 Nowe zamówienie";
+            btnZapisz.Text = "💾 Zapisz";
 
             cbHandlowiecFilter.SelectedItem = selectedHandlowiec;
 
+            // Reset paneli dolnych
+            if (listRecentOrders != null)
+            {
+                listRecentOrders.Items.Clear();
+                listRecentOrders.Items.Add("⚠️ Wybierz kontrahenta");
+            }
+
+            if (lblPreferredTime != null)
+            {
+                lblPreferredTime.Text = "Preferowana godzina:\n⚠️ Wybierz kontrahenta";
+            }
+
+            if (lblAvgOrder != null) lblAvgOrder.Text = "Średnie zamówienie:\n0 kg";
+            if (lblTopProduct != null) lblTopProduct.Text = "Najczęściej zamawiany:\n-";
+            if (lblTrend != null)
+            {
+                lblTrend.Text = "Trend: ➡️ wybierz klienta";
+                lblTrend.ForeColor = Color.FromArgb(107, 114, 128);
+            }
+
             RecalcSum();
             txtSzukajOdbiorcy.Focus();
+        }
+
+        private bool IsSpecialProduct(string kod)
+        {
+            if (string.IsNullOrEmpty(kod)) return false;
+
+            var kodUpper = kod.ToUpper();
+            return kodUpper.Contains("WĄTROBA") ||
+                   kodUpper.Contains("ŻOŁĄDKI") ||
+                   kodUpper.Contains("SERCE");
+        }
+
+        private decimal GetKgPerContainer(string kod)
+        {
+            return IsSpecialProduct(kod) ? KG_NA_POJEMNIKU_SPECJALNY : KG_NA_POJEMNIKU;
         }
 
         #endregion
@@ -1581,6 +2010,8 @@ namespace Kalendarz1
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
 
+            string klientId = "";
+
             await using (var cmdZ = new SqlCommand("SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id", cn))
             {
                 cmdZ.Parameters.AddWithValue("@Id", id);
@@ -1588,7 +2019,8 @@ namespace Kalendarz1
                 if (await rd.ReadAsync())
                 {
                     dateTimePickerSprzedaz.Value = rd.GetDateTime(0);
-                    UstawOdbiorce(rd.GetInt32(1).ToString());
+                    klientId = rd.GetInt32(1).ToString();
+                    UstawOdbiorce(klientId);
                     textBoxUwagi.Text = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
                     dateTimePickerGodzinaPrzyjazdu.Value = rd.GetDateTime(3);
                 }
@@ -1626,6 +2058,13 @@ namespace Kalendarz1
                 }
             }
             _blokujObslugeZmian = false;
+
+            // Aktualizuj panele dla załadowanego kontrahenta
+            if (!string.IsNullOrEmpty(klientId))
+            {
+                await UpdateClientInfoPanels(klientId);
+            }
+
             RecalcSum();
         }
 
@@ -1665,7 +2104,7 @@ namespace Kalendarz1
             {
                 await SaveOrderAsync();
                 string summary = BuildOrderSummary();
-                string title = _idZamowieniaDoEdycji.HasValue ? "Zamówienie zaktualizowane" : "Zamówienie zapisane";
+                string title = _idZamowieniaDoEdycji.HasValue ? "✅ Zamówienie zaktualizowane" : "✅ Zamówienie zapisane";
 
                 MessageBox.Show(summary, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -1675,7 +2114,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("❌ Błąd zapisu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -1691,16 +2130,16 @@ namespace Kalendarz1
                 .Where(r => r.Field<decimal?>("Ilosc") > 0m)
                 .ToList();
 
-            sb.AppendLine($"Odbiorca: {lblWybranyOdbiorca.Text}");
-            sb.AppendLine($"Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd}");
+            sb.AppendLine($"🏢 Odbiorca: {lblWybranyOdbiorca.Text}");
+            sb.AppendLine($"📅 Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd}");
 
             var e2Items = orderedItems.Where(r => r.Field<bool>("E2")).ToList();
             if (e2Items.Any())
             {
-                sb.AppendLine($"Towary E2 (40 poj./pal.): {e2Items.Count}");
+                sb.AppendLine($"📦 Towary E2 (40 poj./pal.): {e2Items.Count}");
             }
 
-            sb.AppendLine("\nZamówione towary:");
+            sb.AppendLine("\n🍖 Zamówione towary:");
 
             decimal totalPojemniki = 0;
             decimal totalPalety = 0;
@@ -1714,15 +2153,15 @@ namespace Kalendarz1
                 totalPojemniki += pojemniki;
                 totalPalety += palety;
 
-                sb.AppendLine($"  {item.Field<string>("Kod")}{e2Marker}: {item.Field<decimal>("Ilosc"):N0} kg " +
+                sb.AppendLine($"  • {item.Field<string>("Kod")}{e2Marker}: {item.Field<decimal>("Ilosc"):N0} kg " +
                             $"({pojemniki:N0} poj., {palety:N1} pal.)");
             }
 
             decimal totalKg = orderedItems.Sum(r => r.Field<decimal>("Ilosc"));
-            sb.AppendLine($"\nPodsumowanie:");
-            sb.AppendLine($"  Łącznie: {totalKg:N0} kg");
-            sb.AppendLine($"  Pojemników: {totalPojemniki:N0}");
-            sb.AppendLine($"  Palet: {totalPalety:N1}");
+            sb.AppendLine($"\n📊 Podsumowanie:");
+            sb.AppendLine($"  ⚖️ Łącznie: {totalKg:N0} kg");
+            sb.AppendLine($"  📋 Pojemników: {totalPojemniki:N0}");
+            sb.AppendLine($"  📦 Palet: {totalPalety:N1}");
 
             return sb.ToString();
         }
@@ -1827,7 +2266,14 @@ namespace Kalendarz1
             await tr.CommitAsync();
         }
 
-
         #endregion
+    }
+
+    public static class ColorExtensions
+    {
+        public static Color WithAlpha(this Color color, int alpha)
+        {
+            return Color.FromArgb(alpha, color.R, color.G, color.B);
+        }
     }
 }

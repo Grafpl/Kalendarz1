@@ -554,47 +554,69 @@ namespace Kalendarz1
         {
             if (originalData == null || isLoading) return;
 
-            DataView dv = new DataView(originalData);
-            List<string> filters = new List<string>();
-
-            // Filtr tekstowy
-            if (!string.IsNullOrWhiteSpace(textBox1.Text))
+            try
             {
-                string searchText = textBox1.Text.Trim().Replace("'", "''");
-                filters.Add($"(Dostawca LIKE '%{searchText}%' OR UWAGI LIKE '%{searchText}%' OR Kurnik LIKE '%{searchText}%')");
-            }
+                IEnumerable<DataRow> filteredRows = originalData.AsEnumerable();
 
-            // Filtr dostawcy
-            if (comboBoxDostawca.SelectedIndex > 0 && comboBoxDostawca.SelectedItem != null)
+                // Filtr tekstowy
+                if (!string.IsNullOrWhiteSpace(textBox1.Text))
+                {
+                    string searchText = textBox1.Text.Trim().ToLower();
+                    filteredRows = filteredRows.Where(r =>
+                    {
+                        // Kolumny tekstowe
+                        bool matchText =
+                            (r["Dostawca"] != DBNull.Value && r["Dostawca"].ToString().ToLower().Contains(searchText)) ||
+                            (r["UWAGI"] != DBNull.Value && r["UWAGI"].ToString().ToLower().Contains(searchText)) ||
+                            (r["Kurnik"] != DBNull.Value && r["Kurnik"].ToString().ToLower().Contains(searchText)) ||
+                            (r["TypUmowy"] != DBNull.Value && r["TypUmowy"].ToString().ToLower().Contains(searchText)) ||
+                            (r["TypCeny"] != DBNull.Value && r["TypCeny"].ToString().ToLower().Contains(searchText)) ||
+                            (r["Bufor"] != DBNull.Value && r["Bufor"].ToString().ToLower().Contains(searchText));
+
+                        // Kolumny numeryczne
+                        bool matchNumeric =
+                            (r["DostawcaID"] != DBNull.Value && r["DostawcaID"].ToString().Contains(searchText)) ||
+                            (r["Auta"] != DBNull.Value && r["Auta"].ToString().Contains(searchText)) ||
+                            (r["SztukiDek"] != DBNull.Value && r["SztukiDek"].ToString().Contains(searchText)) ||
+                            (r["LP"] != DBNull.Value && r["LP"].ToString().Contains(searchText));
+
+                        return matchText || matchNumeric;
+                    });
+                }
+
+                // Filtr dostawcy
+                if (comboBoxDostawca.SelectedIndex > 0 && comboBoxDostawca.SelectedItem != null)
+                {
+                    string supplier = comboBoxDostawca.SelectedItem.ToString();
+                    filteredRows = filteredRows.Where(r =>
+                        r["Dostawca"] != DBNull.Value && r["Dostawca"].ToString() == supplier);
+                }
+
+                // Filtr statusu
+                if (comboBoxStatus.SelectedIndex > 0 && comboBoxStatus.SelectedItem != null)
+                {
+                    string status = comboBoxStatus.SelectedItem.ToString();
+                    filteredRows = filteredRows.Where(r =>
+                        r["Bufor"] != DBNull.Value && r["Bufor"].ToString() == status);
+                }
+
+                // Tworzenie nowej tabeli z przefiltrowanymi danymi
+                DataTable filteredTable = originalData.Clone();
+                foreach (var row in filteredRows)
+                {
+                    filteredTable.ImportRow(row);
+                }
+
+                dataGridView1.DataSource = filteredTable;
+                ColorRows();
+                UpdateStatistics(filteredTable);
+            }
+            catch (Exception ex)
             {
-                string supplier = comboBoxDostawca.SelectedItem.ToString().Replace("'", "''");
-                filters.Add($"Dostawca = '{supplier}'");
+                MessageBox.Show($"Błąd filtrowania: {ex.Message}\n\n{ex.StackTrace}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            // Filtr statusu
-            if (comboBoxStatus.SelectedIndex > 0 && comboBoxStatus.SelectedItem != null)
-            {
-                string status = comboBoxStatus.SelectedItem.ToString().Replace("'", "''");
-                filters.Add($"Bufor = '{status}'");
-            }
-
-            // Zastosuj filtry jeśli są
-            if (filters.Count > 0)
-            {
-                dv.RowFilter = string.Join(" AND ", filters);
-            }
-            else
-            {
-                dv.RowFilter = "";
-            }
-
-            DataTable filteredTable = dv.ToTable();
-
-            dataGridView1.DataSource = filteredTable;
-            ColorRows();
-            UpdateStatistics(filteredTable);
         }
-
         private void ClearFilters()
         {
             isLoading = true;

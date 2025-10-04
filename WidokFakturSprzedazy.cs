@@ -5,6 +5,8 @@ using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+using System.Linq;
 
 namespace Kalendarz1
 {
@@ -13,69 +15,622 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private bool isDataLoading = true;
 
-        // Właściwość do ustawienia ID zalogowanego użytkownika z zewnątrz
+        private TabControl tabControl;
+        private Chart chartSprzedaz;
+        private Chart chartTop10;
+        private Chart chartHandlowcy;
+
         public string UserID { get; set; }
 
-        // Mapa UserID na nazwę handlowca w bazie danych
         private readonly Dictionary<string, string> mapaHandlowcow = new Dictionary<string, string>
         {
             { "9991", "Dawid" },
             { "9998", "Daniel, Jola" },
             { "871231", "Radek" },
             { "432143", "Ania" }
-            // Można tu dodać więcej mapowań
         };
 
-        // Przechowuje nazwę handlowca do filtrowania. null oznacza brak filtru (admin)
         private string? _docelowyHandlowiec;
 
         public WidokFakturSprzedazy()
         {
             InitializeComponent();
+            UserID = "11111";
+            ApplyModernTheme();
+            this.Resize += WidokFakturSprzedazy_Resize;
+        }
 
-            UserID = "11111"; // Przykładowa wartość domyślna dla testów - admin
+        private void ApplyModernTheme()
+        {
+            this.BackColor = ColorTranslator.FromHtml("#f5f7fa");
+            this.Font = new Font("Segoe UI", 9F);
+        }
+
+        private void WidokFakturSprzedazy_Resize(object? sender, EventArgs e)
+        {
+            AktualizujRozmiaryCzcionek();
+            AktualizujRozmiaryKontrolek();
+        }
+
+        private void AktualizujRozmiaryCzcionek()
+        {
+            float skala = Math.Min(this.Width / 1477f, this.Height / 657f);
+            float bazowyCzcionki = 9f * skala;
+
+            this.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki));
+
+            if (dataGridViewOdbiorcy != null)
+            {
+                dataGridViewOdbiorcy.DefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki));
+                dataGridViewOdbiorcy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki), FontStyle.Bold);
+            }
+
+            if (dataGridViewNotatki != null)
+            {
+                dataGridViewNotatki.DefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki));
+                dataGridViewNotatki.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki), FontStyle.Bold);
+            }
+
+            if (dataGridViewPlatnosci != null)
+            {
+                dataGridViewPlatnosci.DefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki));
+                dataGridViewPlatnosci.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki), FontStyle.Bold);
+            }
+
+            if (btnShowAnalysis != null)
+                btnShowAnalysis.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki), FontStyle.Bold);
+
+            if (btnRefresh != null)
+                btnRefresh.Font = new Font("Segoe UI", Math.Max(8f, bazowyCzcionki), FontStyle.Bold);
+        }
+
+        private void AktualizujRozmiaryKontrolek()
+        {
+            if (this.Width < 100 || this.Height < 100) return;
+
+            int margines = 12;
+            int gorniePasek = 45;
+
+            int szerokoscLewej = (int)(this.ClientSize.Width * 0.48);
+            int szerokoscPrawej = this.ClientSize.Width - szerokoscLewej - margines * 3;
+            int wysokosc = this.ClientSize.Height - gorniePasek - margines;
+
+            if (dataGridViewOdbiorcy != null)
+            {
+                dataGridViewOdbiorcy.Location = new Point(margines, gorniePasek);
+                dataGridViewOdbiorcy.Size = new Size(szerokoscLewej, wysokosc);
+            }
+
+            if (tabControl != null)
+            {
+                tabControl.Location = new Point(szerokoscLewej + margines * 2, gorniePasek);
+                tabControl.Size = new Size(szerokoscPrawej, wysokosc);
+
+                if (dataGridViewNotatki != null && dataGridViewNotatki.Parent != null)
+                    dataGridViewNotatki.Size = new Size(szerokoscPrawej - 20, wysokosc - 40);
+
+                if (dataGridViewPlatnosci != null && dataGridViewPlatnosci.Parent != null)
+                    dataGridViewPlatnosci.Size = new Size(szerokoscPrawej - 20, wysokosc - 40);
+
+                if (chartSprzedaz != null && chartSprzedaz.Parent != null)
+                    chartSprzedaz.Size = new Size(szerokoscPrawej - 20, wysokosc - 40);
+
+                if (chartTop10 != null && chartTop10.Parent != null)
+                    chartTop10.Size = new Size(szerokoscPrawej - 20, wysokosc - 40);
+
+                if (chartHandlowcy != null && chartHandlowcy.Parent != null)
+                    chartHandlowcy.Size = new Size(szerokoscPrawej - 20, wysokosc - 40);
+            }
         }
 
         private void WidokFakturSprzedazy_Load(object? sender, EventArgs e)
         {
-            // === NOWA LOGIKA USTAWIANIA FILTRU NA PODSTAWIE USERID ===
-            if (UserID == "11111") // Specjalny UserID dla administratora
+            if (UserID == "11111")
             {
-                _docelowyHandlowiec = null; // null oznacza "pokaż wszystkich"
+                _docelowyHandlowiec = null;
+                this.Text = "System Zarządzania Fakturami Sprzedaży - [ADMINISTRATOR]";
             }
             else if (mapaHandlowcow.ContainsKey(UserID))
             {
                 _docelowyHandlowiec = mapaHandlowcow[UserID];
+                this.Text = $"System Zarządzania Fakturami Sprzedaży - [{_docelowyHandlowiec}]";
             }
             else
             {
-                // Jeśli UserID nie pasuje, nie pokazuj niczego i zablokuj formularz
                 MessageBox.Show("Nieznany lub nieprawidłowy identyfikator użytkownika.", "Błąd logowania", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                _docelowyHandlowiec = "____BRAK_UPRAWNIEN____"; // Wartość, która na pewno nic nie znajdzie
+                _docelowyHandlowiec = "____BRAK_UPRAWNIEN____";
             }
-            // ==========================================================
+
+            dateTimePickerDo.Value = DateTime.Today;
+            dateTimePickerOd.Value = DateTime.Today.AddMonths(-3);
 
             KonfigurujDataGridViewDokumenty();
             KonfigurujDataGridViewPozycje();
-            KonfigurujDataGridViewAnalizy();
             KonfigurujDataGridViewPlatnosci();
 
-            WczytajPlatnosciPerKontrahent(_docelowyHandlowiec);
+            StworzZakladkiAnalityczne();
 
+            WczytajPlatnosciPerKontrahent(_docelowyHandlowiec);
             ZaladujTowary();
             ZaladujKontrahentow();
 
             dataGridViewNotatki.RowHeadersVisible = false;
             dataGridViewOdbiorcy.RowHeadersVisible = false;
-            dataGridViewAnaliza.RowHeadersVisible = false;
             dataGridViewPlatnosci.RowHeadersVisible = false;
+
+            StylizujPrzyciski();
+            StylizujKomboBoxes();
+            StylizujDataGridViews();
+
             isDataLoading = false;
             OdswiezDaneGlownejSiatki();
+
+            AktualizujRozmiaryCzcionek();
+            AktualizujRozmiaryKontrolek();
         }
 
-        // =================================================================
-        // METODY KONFIGURACYJNE
-        // =================================================================
+        private void StworzZakladkiAnalityczne()
+        {
+            tabControl = new TabControl();
+            tabControl.Location = new Point(733, 45);
+            tabControl.Size = new Size(732, 600);
+            tabControl.Font = new Font("Segoe UI", 9F);
+
+            TabPage tabSzczegoly = new TabPage("Szczegóły dokumentu");
+            dataGridViewNotatki.Parent = tabSzczegoly;
+            dataGridViewNotatki.Location = new Point(10, 10);
+            dataGridViewNotatki.Size = new Size(710, 560);
+
+            TabPage tabPlatnosci = new TabPage("Płatności");
+            dataGridViewPlatnosci.Parent = tabPlatnosci;
+            dataGridViewPlatnosci.Location = new Point(10, 10);
+            dataGridViewPlatnosci.Size = new Size(710, 560);
+
+            TabPage tabWykres = new TabPage("Sprzedaż miesięczna");
+            chartSprzedaz = new Chart();
+            chartSprzedaz.Parent = tabWykres;
+            chartSprzedaz.Location = new Point(10, 10);
+            chartSprzedaz.Size = new Size(710, 560);
+            chartSprzedaz.BackColor = Color.White;
+            KonfigurujWykresSprzedazy();
+
+            TabPage tabTop10 = new TabPage("Top 10 - ilości");
+            chartTop10 = new Chart();
+            chartTop10.Parent = tabTop10;
+            chartTop10.Location = new Point(10, 10);
+            chartTop10.Size = new Size(710, 560);
+            chartTop10.BackColor = Color.White;
+            KonfigurujWykresTop10();
+
+            TabPage tabHandlowcy = new TabPage("Udział handlowców");
+            chartHandlowcy = new Chart();
+            chartHandlowcy.Parent = tabHandlowcy;
+            chartHandlowcy.Location = new Point(10, 10);
+            chartHandlowcy.Size = new Size(710, 560);
+            chartHandlowcy.BackColor = Color.White;
+            KonfigurujWykresHandlowcow();
+
+            tabControl.TabPages.Add(tabSzczegoly);
+            tabControl.TabPages.Add(tabPlatnosci);
+            tabControl.TabPages.Add(tabWykres);
+            tabControl.TabPages.Add(tabTop10);
+            tabControl.TabPages.Add(tabHandlowcy);
+
+            this.Controls.Add(tabControl);
+
+            tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged;
+        }
+
+        private void TabControl_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (tabControl.SelectedIndex == 2)
+            {
+                OdswiezWykresSprzedazy();
+            }
+            else if (tabControl.SelectedIndex == 3)
+            {
+                OdswiezWykresTop10();
+            }
+            else if (tabControl.SelectedIndex == 4)
+            {
+                OdswiezWykresHandlowcow();
+            }
+        }
+
+        private void KonfigurujWykresSprzedazy()
+        {
+            chartSprzedaz.ChartAreas.Clear();
+            ChartArea area = new ChartArea("MainArea");
+            area.AxisX.Title = "Miesiąc";
+            area.AxisX.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            area.AxisY.Title = "Wartość sprzedaży (zł)";
+            area.AxisY.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            area.BackColor = Color.WhiteSmoke;
+            chartSprzedaz.ChartAreas.Add(area);
+
+            chartSprzedaz.Titles.Clear();
+            Title title = new Title("Miesięczna wartość sprzedaży");
+            title.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            chartSprzedaz.Titles.Add(title);
+
+            chartSprzedaz.Legends.Clear();
+            Legend legend = new Legend("Legend");
+            legend.Docking = Docking.Bottom;
+            chartSprzedaz.Legends.Add(legend);
+        }
+
+        private void KonfigurujWykresTop10()
+        {
+            chartTop10.ChartAreas.Clear();
+            ChartArea area = new ChartArea("MainArea");
+            area.AxisX.Title = "Kontrahent";
+            area.AxisX.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            area.AxisY.Title = "Ilość (kg)";
+            area.AxisY.TitleFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+            area.BackColor = Color.WhiteSmoke;
+            chartTop10.ChartAreas.Add(area);
+
+            chartTop10.Titles.Clear();
+            Title title = new Title("Top 10 kontrahentów według ilości (kg)");
+            title.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            chartTop10.Titles.Add(title);
+        }
+
+        private void KonfigurujWykresHandlowcow()
+        {
+            chartHandlowcy.ChartAreas.Clear();
+            ChartArea area = new ChartArea("MainArea");
+            area.BackColor = Color.WhiteSmoke;
+            chartHandlowcy.ChartAreas.Add(area);
+
+            chartHandlowcy.Titles.Clear();
+            Title title = new Title("Procentowy udział handlowców w sprzedaży");
+            title.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            chartHandlowcy.Titles.Add(title);
+
+            chartHandlowcy.Legends.Clear();
+            Legend legend = new Legend("Legend");
+            legend.Docking = Docking.Right;
+            legend.Font = new Font("Segoe UI", 10F);
+            chartHandlowcy.Legends.Add(legend);
+        }
+
+        private void OdswiezWykresSprzedazy()
+        {
+            string query = @"
+                DECLARE @DataOd DATE = @pDataOd;
+                DECLARE @DataDo DATE = @pDataDo;
+                DECLARE @NazwaHandlowca NVARCHAR(100) = @pNazwaHandlowca;
+                
+                SELECT 
+                    YEAR(DK.data) AS Rok,
+                    MONTH(DK.data) AS Miesiac,
+                    SUM(DP.wartNetto) AS WartoscSprzedazy
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @DataOd 
+                  AND DK.data <= @DataDo
+                  AND (@NazwaHandlowca IS NULL OR WYM.CDim_Handlowiec_Val = @NazwaHandlowca)
+                GROUP BY YEAR(DK.data), MONTH(DK.data)
+                ORDER BY Rok, Miesiac;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@pDataOd", dateTimePickerOd.Value.Date);
+                    cmd.Parameters.AddWithValue("@pDataDo", dateTimePickerDo.Value.Date);
+                    cmd.Parameters.AddWithValue("@pNazwaHandlowca", (object)_docelowyHandlowiec ?? DBNull.Value);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+
+                    chartSprzedaz.Series.Clear();
+                    Series series = new Series("Wartość sprzedaży");
+                    series.ChartType = SeriesChartType.Column;
+                    series.Color = ColorTranslator.FromHtml("#3498db");
+                    series.BorderWidth = 2;
+                    series.IsValueShownAsLabel = true;
+                    series.LabelFormat = "#,##0";
+
+                    var polskieKultura = new CultureInfo("pl-PL");
+
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        int rok = Convert.ToInt32(row["Rok"]);
+                        int miesiac = Convert.ToInt32(row["Miesiac"]);
+                        decimal wartosc = Convert.ToDecimal(row["WartoscSprzedazy"]);
+
+                        string etykieta = new DateTime(rok, miesiac, 1).ToString("MMMM yyyy", polskieKultura);
+                        var point = series.Points.AddXY(etykieta, wartosc);
+                        series.Points[point].AxisLabel = etykieta;
+                    }
+
+                    chartSprzedaz.Series.Add(series);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas generowania wykresu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OdswiezWykresTop10()
+        {
+            string query = @"
+                DECLARE @DataOd DATE = @pDataOd;
+                DECLARE @DataDo DATE = @pDataDo;
+                DECLARE @NazwaHandlowca NVARCHAR(100) = @pNazwaHandlowca;
+                
+                SELECT TOP 10
+                       C.shortcut AS Kontrahent,
+                       SUM(DP.ilosc) AS IloscKG
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @DataOd 
+                  AND DK.data <= @DataDo
+                  AND (@NazwaHandlowca IS NULL OR WYM.CDim_Handlowiec_Val = @NazwaHandlowca)
+                GROUP BY C.shortcut
+                ORDER BY IloscKG DESC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@pDataOd", dateTimePickerOd.Value.Date);
+                    cmd.Parameters.AddWithValue("@pDataDo", dateTimePickerDo.Value.Date);
+                    cmd.Parameters.AddWithValue("@pNazwaHandlowca", (object)_docelowyHandlowiec ?? DBNull.Value);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+
+                    chartTop10.Series.Clear();
+                    Series series = new Series("Ilość");
+                    series.ChartType = SeriesChartType.Column;
+                    series.IsValueShownAsLabel = true;
+                    series.LabelFormat = "#,##0";
+
+                    Color[] colors = {
+                        ColorTranslator.FromHtml("#e74c3c"),
+                        ColorTranslator.FromHtml("#e67e22"),
+                        ColorTranslator.FromHtml("#f39c12"),
+                        ColorTranslator.FromHtml("#f1c40f"),
+                        ColorTranslator.FromHtml("#2ecc71"),
+                        ColorTranslator.FromHtml("#1abc9c"),
+                        ColorTranslator.FromHtml("#3498db"),
+                        ColorTranslator.FromHtml("#9b59b6"),
+                        ColorTranslator.FromHtml("#95a5a6"),
+                        ColorTranslator.FromHtml("#7f8c8d")
+                    };
+
+                    int colorIdx = 0;
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        string kontrahent = row["Kontrahent"].ToString();
+                        decimal ilosc = Convert.ToDecimal(row["IloscKG"]);
+
+                        var point = series.Points.AddXY(kontrahent, ilosc);
+                        series.Points[point].Color = colors[colorIdx % colors.Length];
+                        colorIdx++;
+                    }
+
+                    chartTop10.Series.Add(series);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas generowania wykresu Top 10: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OdswiezWykresHandlowcow()
+        {
+            string query = @"
+                DECLARE @DataOd DATE = @pDataOd;
+                DECLARE @DataDo DATE = @pDataDo;
+                
+                SELECT 
+                    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                    SUM(DP.wartNetto) AS WartoscSprzedazy
+                FROM [HANDEL].[HM].[DK] DK
+                INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                WHERE DK.data >= @DataOd 
+                  AND DK.data <= @DataDo
+                GROUP BY WYM.CDim_Handlowiec_Val
+                ORDER BY WartoscSprzedazy DESC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@pDataOd", dateTimePickerOd.Value.Date);
+                    cmd.Parameters.AddWithValue("@pDataDo", dateTimePickerDo.Value.Date);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+
+                    chartHandlowcy.Series.Clear();
+                    Series series = new Series("Udział");
+                    series.ChartType = SeriesChartType.Pie;
+                    series.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                    series["PieLabelStyle"] = "Outside";
+                    series["PieLineColor"] = "Black";
+
+                    decimal suma = 0;
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        suma += Convert.ToDecimal(row["WartoscSprzedazy"]);
+                    }
+
+                    Color[] colors = {
+                        ColorTranslator.FromHtml("#3498db"),
+                        ColorTranslator.FromHtml("#2ecc71"),
+                        ColorTranslator.FromHtml("#e74c3c"),
+                        ColorTranslator.FromHtml("#f39c12"),
+                        ColorTranslator.FromHtml("#9b59b6"),
+                        ColorTranslator.FromHtml("#1abc9c"),
+                        ColorTranslator.FromHtml("#e67e22"),
+                        ColorTranslator.FromHtml("#95a5a6")
+                    };
+
+                    int colorIdx = 0;
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        string handlowiec = row["Handlowiec"].ToString();
+                        decimal wartosc = Convert.ToDecimal(row["WartoscSprzedazy"]);
+                        decimal procent = (wartosc / suma) * 100;
+
+                        var point = series.Points.AddXY(handlowiec, wartosc);
+                        series.Points[point].Color = colors[colorIdx % colors.Length];
+                        series.Points[point].Label = $"{procent:F1}%";
+                        series.Points[point].LegendText = $"{handlowiec} ({wartosc:N0} zł)";
+                        colorIdx++;
+                    }
+
+                    chartHandlowcy.Series.Add(series);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas generowania wykresu handlowców: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void StylizujKomboBoxes()
+        {
+            comboBoxTowar.FlatStyle = FlatStyle.Flat;
+            comboBoxTowar.BackColor = Color.White;
+
+            comboBoxKontrahent.FlatStyle = FlatStyle.Flat;
+            comboBoxKontrahent.BackColor = Color.White;
+        }
+
+        private void StylizujDataGridViews()
+        {
+            dataGridViewOdbiorcy.EnableHeadersVisualStyles = false;
+            dataGridViewOdbiorcy.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#34495e");
+            dataGridViewOdbiorcy.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridViewOdbiorcy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dataGridViewOdbiorcy.ColumnHeadersHeight = 35;
+            dataGridViewOdbiorcy.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#ecf0f1");
+            dataGridViewOdbiorcy.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#3498db");
+            dataGridViewOdbiorcy.DefaultCellStyle.SelectionForeColor = Color.White;
+            dataGridViewOdbiorcy.GridColor = ColorTranslator.FromHtml("#bdc3c7");
+            dataGridViewOdbiorcy.BorderStyle = BorderStyle.None;
+            dataGridViewOdbiorcy.AllowUserToResizeRows = false;
+            dataGridViewOdbiorcy.RowTemplate.Resizable = DataGridViewTriState.False;
+
+            dataGridViewNotatki.EnableHeadersVisualStyles = false;
+            dataGridViewNotatki.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#16a085");
+            dataGridViewNotatki.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridViewNotatki.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dataGridViewNotatki.ColumnHeadersHeight = 35;
+            dataGridViewNotatki.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#e8f8f5");
+            dataGridViewNotatki.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#1abc9c");
+            dataGridViewNotatki.GridColor = ColorTranslator.FromHtml("#bdc3c7");
+            dataGridViewNotatki.BorderStyle = BorderStyle.None;
+            dataGridViewNotatki.AllowUserToResizeRows = false;
+            dataGridViewNotatki.RowTemplate.Resizable = DataGridViewTriState.False;
+
+            dataGridViewPlatnosci.EnableHeadersVisualStyles = false;
+            dataGridViewPlatnosci.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#c0392b");
+            dataGridViewPlatnosci.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridViewPlatnosci.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dataGridViewPlatnosci.ColumnHeadersHeight = 35;
+            dataGridViewPlatnosci.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#fadbd8");
+            dataGridViewPlatnosci.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#e74c3c");
+            dataGridViewPlatnosci.GridColor = ColorTranslator.FromHtml("#bdc3c7");
+            dataGridViewPlatnosci.BorderStyle = BorderStyle.None;
+            dataGridViewPlatnosci.AllowUserToResizeRows = false;
+            dataGridViewPlatnosci.RowTemplate.Resizable = DataGridViewTriState.False;
+        }
+
+        private void StylizujPrzyciski()
+        {
+            if (btnShowAnalysis != null)
+            {
+                btnShowAnalysis.FlatStyle = FlatStyle.Flat;
+                btnShowAnalysis.FlatAppearance.BorderSize = 0;
+                btnShowAnalysis.Cursor = Cursors.Hand;
+                btnShowAnalysis.BackColor = ColorTranslator.FromHtml("#9b59b6");
+                btnShowAnalysis.ForeColor = Color.White;
+                btnShowAnalysis.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+                var tooltip = new ToolTip();
+                tooltip.SetToolTip(btnShowAnalysis, "Wybierz kontrahenta z listy dokumentów, aby wyświetlić analizę tygodniową");
+            }
+
+            if (btnRefresh != null)
+            {
+                btnRefresh.FlatStyle = FlatStyle.Flat;
+                btnRefresh.FlatAppearance.BorderSize = 0;
+                btnRefresh.Cursor = Cursors.Hand;
+                btnRefresh.BackColor = ColorTranslator.FromHtml("#3498db");
+                btnRefresh.ForeColor = Color.White;
+                btnRefresh.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            }
+        }
+
+        private void btnRefresh_Click(object? sender, EventArgs e)
+        {
+            if (dateTimePickerOd.Value > dateTimePickerDo.Value)
+            {
+                MessageBox.Show("Data początkowa nie może być późniejsza niż data końcowa!",
+                    "Błąd zakresu dat", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            OdswiezDaneGlownejSiatki();
+
+            if (tabControl.SelectedIndex == 2)
+                OdswiezWykresSprzedazy();
+            else if (tabControl.SelectedIndex == 3)
+                OdswiezWykresTop10();
+            else if (tabControl.SelectedIndex == 4)
+                OdswiezWykresHandlowcow();
+        }
+
+        private void btnShowAnalysis_Click(object? sender, EventArgs e)
+        {
+            if (dataGridViewOdbiorcy.SelectedRows.Count > 0)
+            {
+                var selectedRow = dataGridViewOdbiorcy.SelectedRows[0];
+                if (!Convert.ToBoolean(selectedRow.Cells["IsGroupRow"].Value) &&
+                    selectedRow.Cells["khid"].Value != DBNull.Value)
+                {
+                    int idKontrahenta = Convert.ToInt32(selectedRow.Cells["khid"].Value);
+                    string nazwaKontrahenta = selectedRow.Cells["NazwaFirmy"].Value?.ToString() ?? "Nieznany";
+                    int? towarId = (comboBoxTowar.SelectedValue != null && (int)comboBoxTowar.SelectedValue != 0)
+                        ? (int?)comboBoxTowar.SelectedValue : null;
+                    string nazwaTowaru = towarId.HasValue ? comboBoxTowar.Text : "Wszystkie towary";
+
+                    using (var analizaForm = new AnalizaTygodniowaForm(
+                        connectionString,
+                        idKontrahenta,
+                        towarId,
+                        nazwaKontrahenta,
+                        nazwaTowaru))
+                    {
+                        analizaForm.ShowDialog(this);
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Proszę wybrać kontrahenta z listy dokumentów.",
+                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
 
         private void KonfigurujDataGridViewDokumenty()
         {
@@ -85,6 +640,7 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.MultiSelect = false;
             dataGridViewOdbiorcy.ReadOnly = true;
             dataGridViewOdbiorcy.AllowUserToAddRows = false;
+
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "khid", DataPropertyName = "khid", Visible = false });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID", DataPropertyName = "ID", Visible = false });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "IsGroupRow", DataPropertyName = "IsGroupRow", Visible = false });
@@ -94,6 +650,7 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "IloscKG", DataPropertyName = "IloscKG", HeaderText = "Ilość KG", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "SredniaCena", DataPropertyName = "SredniaCena", HeaderText = "Śr. Cena KG", Width = 110, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", DataPropertyName = "Handlowiec", HeaderText = "Handlowiec", Width = 120 });
+
             dataGridViewOdbiorcy.SelectionChanged += new EventHandler(this.dataGridViewDokumenty_SelectionChanged);
             dataGridViewOdbiorcy.RowPrePaint += new DataGridViewRowPrePaintEventHandler(this.dataGridViewOdbiorcy_RowPrePaint);
             dataGridViewOdbiorcy.CellFormatting += new DataGridViewCellFormattingEventHandler(this.dataGridViewOdbiorcy_CellFormatting);
@@ -110,7 +667,6 @@ namespace Kalendarz1
             dataGridViewPlatnosci.AllowUserToDeleteRows = false;
             dataGridViewPlatnosci.RowHeadersVisible = false;
 
-            // Kontrahent (tekst)
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Kontrahent",
@@ -119,7 +675,6 @@ namespace Kalendarz1
                 Width = 200,
             });
 
-            // Limit (z bazy, bez modyfikacji wartości)
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Limit",
@@ -129,7 +684,6 @@ namespace Kalendarz1
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
-            // DoZaplacenia
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "DoZaplacenia",
@@ -139,7 +693,6 @@ namespace Kalendarz1
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
-            // Terminowe
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Terminowe",
@@ -149,7 +702,6 @@ namespace Kalendarz1
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
-            // Przeterminowane
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Przeterminowane",
@@ -158,13 +710,7 @@ namespace Kalendarz1
                 Width = 140,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
-
-            // (opcjonalnie) zdarzenia – jeśli te metody istnieją i mają sens dla tego grida:
-            // dataGridViewPlatnosci.SelectionChanged += dataGridViewPlatnosci_SelectionChanged;
-            // dataGridViewPlatnosci.RowPrePaint += dataGridViewPlatnosci_RowPrePaint;
-            // dataGridViewPlatnosci.CellFormatting += dataGridViewPlatnosci_CellFormatting;
         }
-
 
         private void KonfigurujDataGridViewPozycje()
         {
@@ -176,30 +722,6 @@ namespace Kalendarz1
             dataGridViewNotatki.Columns.Add(new DataGridViewTextBoxColumn { Name = "Cena", DataPropertyName = "Cena", HeaderText = "Cena Netto", Width = 60, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
             dataGridViewNotatki.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wartosc", DataPropertyName = "Wartosc", HeaderText = "Wartość Netto", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
         }
-
-        private void KonfigurujDataGridViewAnalizy()
-        {
-            dataGridViewAnaliza.AutoGenerateColumns = false;
-            dataGridViewAnaliza.Columns.Clear();
-            dataGridViewAnaliza.ReadOnly = true;
-            dataGridViewAnaliza.Columns.Add(new DataGridViewTextBoxColumn { Name = "NazwaTowaru", DataPropertyName = "NazwaTowaru", HeaderText = "Nazwa Towaru", Frozen = true, AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells });
-            for (int i = 9; i >= 0; i--) { dataGridViewAnaliza.Columns.Add(new DataGridViewTextBoxColumn { Name = $"Tydzien_{i}", DataPropertyName = $"Tydzien_{i}", HeaderText = $"Tydzień {-i}\n{PobierzDatyTygodnia(i)}", Width = 110, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } }); }
-        }
-
-        private string PobierzDatyTygodnia(int tygodniWstecz)
-        {
-            DateTime dzis = DateTime.Today;
-            int przesuniecieDni = (int)dzis.DayOfWeek - (int)DayOfWeek.Monday;
-            if (przesuniecieDni < 0) { przesuniecieDni += 7; }
-            DateTime poczatekTygodnia = dzis.AddDays(-przesuniecieDni - (tygodniWstecz * 7));
-            DateTime koniecTygodnia = poczatekTygodnia.AddDays(6);
-            return $"({poczatekTygodnia:dd.MM}-{koniecTygodnia:dd.MM})";
-        }
-
-        // =================================================================
-        // METODY WCZYTYWANIA DANYCH
-        // =================================================================
-
 
         private void ZaladujTowary()
         {
@@ -260,9 +782,9 @@ Saldo AS (
 SELECT 
     C.Shortcut AS Kontrahent,
     C.LimitAmount AS Limit,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))                                    AS DoZaplacenia,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))  AS Terminowe,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() >  S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2))  AS Przeterminowane
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS DoZaplacenia,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() >  S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane
 FROM Saldo S
 JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
 GROUP BY C.Shortcut, C.LimitAmount
@@ -280,7 +802,6 @@ ORDER BY DoZaplacenia DESC;";
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
 
-                    // --- SUMA na górze ---
                     if (dt.Rows.Count > 0)
                     {
                         decimal sumaLimit = 0m, sumaDoZap = 0m, sumaTerm = 0m, sumaPrzet = 0m;
@@ -305,7 +826,6 @@ ORDER BY DoZaplacenia DESC;";
 
                     dataGridViewPlatnosci.DataSource = dt;
 
-                    // Format liczbowy
                     foreach (var col in new[] { "Limit", "DoZaplacenia", "Terminowe", "Przeterminowane" })
                     {
                         if (dataGridViewPlatnosci.Columns.Contains(col))
@@ -314,11 +834,9 @@ ORDER BY DoZaplacenia DESC;";
                         }
                     }
 
-                    // Dodaj formatowanie – przedrostek "zł "
                     dataGridViewPlatnosci.CellFormatting -= DataGridViewPlatnosci_CellFormatting;
                     dataGridViewPlatnosci.CellFormatting += DataGridViewPlatnosci_CellFormatting;
 
-                    // Podświetl SUMĘ
                     if (dataGridViewPlatnosci.Rows.Count > 0)
                     {
                         var row0 = dataGridViewPlatnosci.Rows[0];
@@ -350,12 +868,10 @@ ORDER BY DoZaplacenia DESC;";
             }
         }
 
-
         private void ZaladujKontrahentow()
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                // Zapytanie filtruje kontrahentów na podstawie zalogowanego handlowca
                 string query = @"
                     DECLARE @NazwaHandlowca NVARCHAR(100) = @pNazwaHandlowca;
                     SELECT DISTINCT C.id, C.shortcut AS nazwa
@@ -388,6 +904,8 @@ ORDER BY DoZaplacenia DESC;";
 DECLARE @TowarID INT = @pTowarID;
 DECLARE @KontrahentID INT = @pKontrahentID;
 DECLARE @NazwaHandlowca NVARCHAR(100) = @pNazwaHandlowca;
+DECLARE @DataOd DATE = @pDataOd;
+DECLARE @DataDo DATE = @pDataDo;
 
 WITH AgregatyDokumentu AS (
     SELECT super AS id_dk, SUM(ilosc) AS SumaKG, SUM(wartNetto) / NULLIF(SUM(ilosc), 0) AS SredniaCena
@@ -398,11 +916,12 @@ DokumentyFiltrowane AS (
     FROM [HANDEL].[HM].[DK] DK
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE 
-        (@NazwaHandlowca IS NULL OR WYM.CDim_Handlowiec_Val = @NazwaHandlowca) -- FILTR HANDLOWCA
+        (@NazwaHandlowca IS NULL OR WYM.CDim_Handlowiec_Val = @NazwaHandlowca)
         AND (@KontrahentID IS NULL OR DK.khid = @KontrahentID)
         AND (@TowarID IS NULL OR EXISTS (SELECT 1 FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id AND DP.idtw = @TowarID))
+        AND DK.data >= @DataOd
+        AND DK.data <= @DataDo
 )
--- Wiersze z danymi dokumentów
 SELECT 
     CONVERT(date, DF.data) AS SortDate, 1 AS SortOrder, 0 AS IsGroupRow,
     DF.kod AS NumerDokumentu, C.shortcut AS NazwaFirmy,
@@ -412,7 +931,6 @@ FROM DokumentyFiltrowane DF
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DF.khid = C.id
 INNER JOIN AgregatyDokumentu AD ON DF.id = AD.id_dk
 UNION ALL
--- Wiersze grupujące (daty) - również filtrowane
 SELECT DISTINCT
     CONVERT(date, data) AS SortDate, 0 AS SortOrder, 1 AS IsGroupRow,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL
@@ -427,6 +945,8 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;
                     cmd.Parameters.AddWithValue("@pTowarID", (object)towarId ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@pKontrahentID", (object)kontrahentId ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@pNazwaHandlowca", (object)_docelowyHandlowiec ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@pDataOd", dateTimePickerOd.Value.Date);
+                    cmd.Parameters.AddWithValue("@pDataDo", dateTimePickerDo.Value.Date.AddDays(1).AddSeconds(-1));
 
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
@@ -443,28 +963,23 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;
         private void WczytajPozycjeDokumentu(int idDokumentu)
         {
             string query = @"SELECT DP.kod AS KodTowaru, DP.ilosc AS Ilosc, DP.cena AS Cena, DP.wartNetto AS Wartosc FROM [HANDEL].[HM].[DP] DP WHERE DP.super = @idDokumentu ORDER BY DP.lp;";
-            try { using (var conn = new SqlConnection(connectionString)) { var cmd = new SqlCommand(query, conn); cmd.Parameters.AddWithValue("@idDokumentu", idDokumentu); var adapter = new SqlDataAdapter(cmd); var dt = new DataTable(); adapter.Fill(dt); dataGridViewNotatki.DataSource = dt; } } catch (Exception ex) { MessageBox.Show("Błąd podczas wczytywania pozycji dokumentu: " + ex.Message, "Błąd Bazy Danych", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@idDokumentu", idDokumentu);
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+                    dataGridViewNotatki.DataSource = dt;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas wczytywania pozycji dokumentu: " + ex.Message, "Błąd Bazy Danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
-
-        private void WczytajAnalizeTygodniowa(int kontrahentId, int? towarId)
-        {
-            string query = @"
-DECLARE @TowarID INT = @pTowarID;
-WITH DaneZrodlowe AS (
-    SELECT DP.kod AS NazwaTowaru, DP.ilosc, DATEDIFF(week, DK.data, GETDATE()) AS TydzienWstecz
-    FROM [HANDEL].[HM].[DP] DP INNER JOIN [HANDEL].[HM].[DK] DK ON DP.super = DK.id
-    WHERE DK.khid = @KontrahentID AND DATEDIFF(week, DK.data, GETDATE()) < 10 AND (@TowarID IS NULL OR DP.idtw = @TowarID)
-)
-SELECT NazwaTowaru,
-    SUM(CASE WHEN TydzienWstecz = 9 THEN ilosc ELSE 0 END) AS Tydzien_9, SUM(CASE WHEN TydzienWstecz = 8 THEN ilosc ELSE 0 END) AS Tydzien_8, SUM(CASE WHEN TydzienWstecz = 7 THEN ilosc ELSE 0 END) AS Tydzien_7, SUM(CASE WHEN TydzienWstecz = 6 THEN ilosc ELSE 0 END) AS Tydzien_6, SUM(CASE WHEN TydzienWstecz = 5 THEN ilosc ELSE 0 END) AS Tydzien_5,
-    SUM(CASE WHEN TydzienWstecz = 4 THEN ilosc ELSE 0 END) AS Tydzien_4, SUM(CASE WHEN TydzienWstecz = 3 THEN ilosc ELSE 0 END) AS Tydzien_3, SUM(CASE WHEN TydzienWstecz = 2 THEN ilosc ELSE 0 END) AS Tydzien_2, SUM(CASE WHEN TydzienWstecz = 1 THEN ilosc ELSE 0 END) AS Tydzien_1, SUM(CASE WHEN TydzienWstecz = 0 THEN ilosc ELSE 0 END) AS Tydzien_0
-FROM DaneZrodlowe GROUP BY NazwaTowaru HAVING SUM(ilosc) > 0 ORDER BY NazwaTowaru;";
-            try { using (var conn = new SqlConnection(connectionString)) { var cmd = new SqlCommand(query, conn); cmd.Parameters.AddWithValue("@KontrahentID", kontrahentId); cmd.Parameters.AddWithValue("@pTowarID", (object)towarId ?? DBNull.Value); var adapter = new SqlDataAdapter(cmd); var dt = new DataTable(); adapter.Fill(dt); dataGridViewAnaliza.DataSource = dt; } } catch (Exception ex) { MessageBox.Show("Błąd podczas wczytywania analizy tygodniowej: " + ex.Message, "Błąd Bazy Danych", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }
-
-        // =================================================================
-        // ZDARZENIA I METODY POMOCNICZE
-        // =================================================================
 
         private void OdswiezDaneGlownejSiatki()
         {
@@ -489,42 +1004,66 @@ FROM DaneZrodlowe GROUP BY NazwaTowaru HAVING SUM(ilosc) > 0 ORDER BY NazwaTowar
             if (dataGridViewOdbiorcy.SelectedRows.Count == 0 || Convert.ToBoolean(dataGridViewOdbiorcy.SelectedRows[0].Cells["IsGroupRow"].Value))
             {
                 dataGridViewNotatki.DataSource = null;
-                dataGridViewAnaliza.DataSource = null;
+                btnShowAnalysis.Enabled = false;
                 return;
             }
+
             DataGridViewRow selectedRow = dataGridViewOdbiorcy.SelectedRows[0];
+
+            btnShowAnalysis.Enabled = selectedRow.Cells["khid"].Value != DBNull.Value;
+
             if (selectedRow.Cells["ID"].Value != DBNull.Value)
             {
                 int idDokumentu = Convert.ToInt32(selectedRow.Cells["ID"].Value);
                 WczytajPozycjeDokumentu(idDokumentu);
-            }
-            if (selectedRow.Cells["khid"].Value != DBNull.Value)
-            {
-                int idKontrahenta = Convert.ToInt32(selectedRow.Cells["khid"].Value);
-                int? towarId = (comboBoxTowar.SelectedValue != null && (int)comboBoxTowar.SelectedValue != 0) ? (int?)comboBoxTowar.SelectedValue : null;
-                WczytajAnalizeTygodniowa(idKontrahenta, towarId);
             }
         }
 
         private void dataGridViewOdbiorcy_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value)) { var row = dataGridViewOdbiorcy.Rows[e.RowIndex]; row.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220); row.DefaultCellStyle.ForeColor = Color.Black; row.DefaultCellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold); row.Height = 30; row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor; row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor; }
+            if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value))
+            {
+                var row = dataGridViewOdbiorcy.Rows[e.RowIndex];
+                row.DefaultCellStyle.BackColor = Color.FromArgb(220, 220, 220);
+                row.DefaultCellStyle.ForeColor = Color.Black;
+                row.DefaultCellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                row.Height = 30;
+                row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
+                row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
+            }
         }
 
         private void dataGridViewOdbiorcy_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value)) { if (e.ColumnIndex == dataGridViewOdbiorcy.Columns["NumerDokumentu"].Index) { if (dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["SortDate"].Value is DateTime dateValue) { e.Value = dateValue.ToString("dddd, dd MMMM yyyy", new CultureInfo("pl-PL")); } } else { e.Value = ""; e.FormattingApplied = true; } }
+            if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value))
+            {
+                if (e.ColumnIndex == dataGridViewOdbiorcy.Columns["NumerDokumentu"].Index)
+                {
+                    if (dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["SortDate"].Value is DateTime dateValue)
+                    {
+                        e.Value = dateValue.ToString("dddd, dd MMMM yyyy", new CultureInfo("pl-PL"));
+                    }
+                }
+                else
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+            }
         }
 
         private void dataGridViewPlatnosci_RowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
         {
-            if (e.RowIndex == dataGridViewPlatnosci.Rows.Count - 1)
+            if (e.RowIndex == 0 && dataGridViewPlatnosci.Rows.Count > 0)
             {
                 var row = dataGridViewPlatnosci.Rows[e.RowIndex];
-                row.DefaultCellStyle.BackColor = Color.LightGray;
-                row.DefaultCellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                if (row.Cells["Kontrahent"].Value?.ToString() == "SUMA")
+                {
+                    row.DefaultCellStyle.BackColor = Color.LightGray;
+                    row.DefaultCellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                }
             }
         }
     }

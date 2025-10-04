@@ -1,5 +1,5 @@
 // Plik: Transport/EdytorKursuWithPalety.cs
-// Wersja z automatyczną aktualizacją danych zamówień w kursach
+// Wersja z transakcyjnym zapisem - wszystkie zmiany zapisują się tylko po kliknięciu "Zapisz"
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
@@ -28,6 +28,11 @@ namespace Kalendarz1.Transport.Formularze
         private List<Pojazd> _pojazdy;
         private List<ZamowienieDoTransportu> _wolneZamowienia = new List<ZamowienieDoTransportu>();
         private Timer _autoUpdateTimer;
+
+        // NOWE: Listy do śledzenia zmian (nie zapisujemy od razu do bazy)
+        private List<ZamowienieDoTransportu> _zamowieniaDoDodania = new List<ZamowienieDoTransportu>();
+        private List<int> _zamowieniaDoUsuniecia = new List<int>();
+        private bool _dataLoaded = false;
 
         // Kontrolki nagłówka
         private ComboBox cboKierowca;
@@ -86,9 +91,9 @@ namespace Kalendarz1.Transport.Formularze
             public string? Adres { get; set; }
             public bool TrybE2 { get; set; }
             public string? NazwaKlienta { get; set; }
-            public bool ZmienionyWZamowieniu { get; set; } // Flaga zmian
-            public decimal PoprzedniePalety { get; set; } // Do wykrywania zmian
-            public int PoprzedniePojemniki { get; set; } // Do wykrywania zmian
+            public bool ZmienionyWZamowieniu { get; set; }
+            public decimal PoprzedniePalety { get; set; }
+            public int PoprzedniePojemniki { get; set; }
         }
 
         // Dialog do dodawania kierowcy
@@ -236,7 +241,7 @@ namespace Kalendarz1.Transport.Formularze
             public int Pojemniki { get; set; }
             public bool TrybE2 { get; set; }
             public DateTime DataPrzyjazdu { get; set; }
-            public DateTime DataOdbioru { get; set; } // Data kiedy ma być odebrane
+            public DateTime DataOdbioru { get; set; }
             public string GodzinaStr => DataPrzyjazdu.ToString("HH:mm");
             public string Status { get; set; } = "Nowe";
             public string Handlowiec { get; set; } = "";
@@ -264,7 +269,6 @@ namespace Kalendarz1.Transport.Formularze
             InitializeComponent();
             dtpData.Value = data ?? DateTime.Today;
 
-            // Inicjalizacja timera automatycznej aktualizacji
             InitializeAutoUpdateTimer();
 
             _ = LoadDataAsync();
@@ -280,6 +284,8 @@ namespace Kalendarz1.Transport.Formularze
 
         private async Task CheckForZamowieniaUpdates()
         {
+            if (!_dataLoaded) return;
+
             try
             {
                 bool anyChanges = false;
@@ -293,7 +299,6 @@ namespace Kalendarz1.Transport.Formularze
 
                         if (aktualneZamowienie != null)
                         {
-                            // Sprawdź czy nastąpiły zmiany
                             if (ladunek.Palety != aktualneZamowienie.Palety ||
                                 ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
                             {
@@ -313,18 +318,15 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (anyChanges)
                 {
-                    // Aktualizuj widok
                     await LoadLadunki();
                     await UpdateWypelnienie();
 
-                    // Pokaż powiadomienie
                     if (lblAutoUpdate != null)
                     {
-                        lblAutoUpdate.Text = $"⚠️ Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień";
+                        lblAutoUpdate.Text = $"⚠️ Zaktualizowano {zmienioneLadunki.Count} pozycji z zamówień (nie zapisano)";
                         lblAutoUpdate.ForeColor = Color.Orange;
                         lblAutoUpdate.Visible = true;
 
-                        // Ukryj po 5 sekundach
                         var hideTimer = new Timer { Interval = 5000 };
                         hideTimer.Tick += (s, e) =>
                         {
@@ -333,12 +335,6 @@ namespace Kalendarz1.Transport.Formularze
                             hideTimer.Dispose();
                         };
                         hideTimer.Start();
-                    }
-
-                    // Automatyczny zapis do bazy
-                    if (_kursId.HasValue && _kursId.Value > 0)
-                    {
-                        await SaveLadunkiChangesToDatabase();
                     }
                 }
             }
@@ -399,37 +395,6 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
-        private async Task SaveLadunkiChangesToDatabase()
-        {
-            try
-            {
-                if (!_kursId.HasValue) return;
-
-                await using var cn = new SqlConnection(_connectionString);
-                await cn.OpenAsync();
-
-                foreach (var ladunek in _ladunki.Where(l => l.ZmienionyWZamowieniu))
-                {
-                    var sql = @"UPDATE dbo.Ladunek 
-                               SET PaletyH1 = @Palety, PojemnikiE2 = @Pojemniki 
-                               WHERE LadunekID = @LadunekID";
-
-                    using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@LadunekID", ladunek.LadunekID);
-                    cmd.Parameters.AddWithValue("@Palety", ladunek.Palety);
-                    cmd.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
-
-                    await cmd.ExecuteNonQueryAsync();
-
-                    ladunek.ZmienionyWZamowieniu = false;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd zapisywania zmian ładunków: {ex.Message}");
-            }
-        }
-
         private void InitializeComponent()
         {
             Text = _kursId.HasValue ? "Edycja kursu transportowego" : "Nowy kurs transportowy";
@@ -481,7 +446,6 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(15)
             };
 
-            // Pierwsza linia - kierowca i pojazd
             var lblKierowca = CreateLabel("KIEROWCA:", 20, 20, 90);
             lblKierowca.ForeColor = Color.FromArgb(173, 181, 189);
             lblKierowca.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -557,7 +521,6 @@ namespace Kalendarz1.Transport.Formularze
             };
             dtpData.ValueChanged += async (s, e) => await LoadWolneZamowienia();
 
-            // Label do pokazywania automatycznych aktualizacji
             lblAutoUpdate = new Label
             {
                 Location = new Point(850, 20),
@@ -568,7 +531,6 @@ namespace Kalendarz1.Transport.Formularze
                 Visible = false
             };
 
-            // Druga linia - godziny i trasa
             var lblGodziny = CreateLabel("GODZINY:", 20, 60, 90);
             lblGodziny.ForeColor = Color.FromArgb(173, 181, 189);
             lblGodziny.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -620,7 +582,6 @@ namespace Kalendarz1.Transport.Formularze
                 ReadOnly = true
             };
 
-            // Trzecia linia - wskaźnik wypełnienia
             var panelWypelnienie = new Panel
             {
                 Location = new Point(20, 110),
@@ -680,7 +641,6 @@ namespace Kalendarz1.Transport.Formularze
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            // Panel z nagłówkiem i DatePickerem
             var panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
@@ -699,7 +659,6 @@ namespace Kalendarz1.Transport.Formularze
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            // DatePicker dla zamówień
             var dtpZamowienia = new DateTimePicker
             {
                 Location = new Point(10, 35),
@@ -713,7 +672,6 @@ namespace Kalendarz1.Transport.Formularze
                 await LoadWolneZamowieniaForDate(dtpZamowienia.Value);
             };
 
-            // Przycisk odświeżenia
             var btnRefreshZamowienia = new Button
             {
                 Text = "🔄",
@@ -731,7 +689,6 @@ namespace Kalendarz1.Transport.Formularze
                 await LoadWolneZamowieniaForDate(dtpZamowienia.Value);
             };
 
-            // Przycisk "Dziś"
             var btnToday = new Button
             {
                 Text = "Dziś",
@@ -750,7 +707,6 @@ namespace Kalendarz1.Transport.Formularze
                 await LoadWolneZamowieniaForDate(DateTime.Today);
             };
 
-            // Label z liczbą zamówień
             var lblLiczbaZamowien = new Label
             {
                 Location = new Point(270, 35),
@@ -770,7 +726,6 @@ namespace Kalendarz1.Transport.Formularze
                 lblLiczbaZamowien
             });
 
-            // Przechowaj referencje do kontrolek jako pola klasy
             _dtpZamowienia = dtpZamowienia;
             _lblLiczbaZamowien = lblLiczbaZamowien;
 
@@ -805,18 +760,14 @@ namespace Kalendarz1.Transport.Formularze
 
             dgvWolneZamowienia.CellDoubleClick += async (s, e) => await DodajZamowienieDoKursu();
 
-            // Dodaj menu kontekstowe dla wolnych zamówień
             var contextMenuWolne = new ContextMenuStrip();
             var menuDodajDoKursu = new ToolStripMenuItem("➕ Dodaj do kursu", null, async (s, e) => await DodajZamowienieDoKursu());
             var menuEdytujZamowienie = new ToolStripMenuItem("✏️ Edytuj zamówienie", null, async (s, e) => await EdytujWolneZamowienie());
             var menuSzczegolyZamowienia = new ToolStripMenuItem("🔍 Szczegóły", null, async (s, e) => await PokazSzczegolyZamowienia());
-            var menuAnulujZamowienie = new ToolStripMenuItem("❌ Anuluj zamówienie", null, async (s, e) => await AnulujWolneZamowienie());
 
             contextMenuWolne.Items.Add(menuDodajDoKursu);
             contextMenuWolne.Items.Add(menuEdytujZamowienie);
             contextMenuWolne.Items.Add(menuSzczegolyZamowienia);
-            contextMenuWolne.Items.Add(new ToolStripSeparator());
-            contextMenuWolne.Items.Add(menuAnulujZamowienie);
 
             dgvWolneZamowienia.ContextMenuStrip = contextMenuWolne;
 
@@ -847,7 +798,6 @@ namespace Kalendarz1.Transport.Formularze
                 Padding = new Padding(0, 10, 0, 10)
             };
 
-            // Panel z przyciskami kolejności
             var panelKolejnosc = new Panel
             {
                 Dock = DockStyle.Top,
@@ -943,7 +893,6 @@ namespace Kalendarz1.Transport.Formularze
             dgvLadunki.RowTemplate.Height = 32;
             dgvLadunki.GridColor = Color.FromArgb(236, 240, 241);
 
-            // Menu kontekstowe dla ładunków
             var contextMenu = new ContextMenuStrip();
             var menuEdytuj = new ToolStripMenuItem("✏️ Edytuj pozycję", null, (s, e) => EdytujLadunek());
             var menuEdytujZamowienie = new ToolStripMenuItem("📝 Edytuj zamówienie", null, async (s, e) => await EdytujPrzypisaneZamowienie());
@@ -1071,6 +1020,19 @@ namespace Kalendarz1.Transport.Formularze
             btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
             btnAnuluj.Click += (s, e) =>
             {
+                // Sprawdź czy są niezapisane zmiany
+                if (_ladunki.Count > 0 || _zamowieniaDoDodania.Count > 0 || _zamowieniaDoUsuniecia.Count > 0)
+                {
+                    var result = MessageBox.Show(
+                        "Masz niezapisane zmiany. Czy na pewno chcesz zamknąć bez zapisywania?",
+                        "Niezapisane zmiany",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (result != DialogResult.Yes)
+                        return;
+                }
+
                 _autoUpdateTimer?.Stop();
                 _autoUpdateTimer?.Dispose();
                 Close();
@@ -1100,7 +1062,375 @@ namespace Kalendarz1.Transport.Formularze
             };
         }
 
-        // Nowa metoda do ręcznego odświeżania zamówienia
+        // GŁÓWNA ZMIANA: Metody operujące tylko na pamięci, bez zapisu do bazy
+
+        private async Task DodajZamowienieDoKursu()
+        {
+            if (dgvWolneZamowienia.CurrentRow == null) return;
+
+            var zamId = Convert.ToInt32(dgvWolneZamowienia.CurrentRow.Cells["ID"].Value);
+            var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
+            if (zamowienie == null) return;
+
+            // Dodaj do listy zmian (nie zapisuj od razu do bazy)
+            _zamowieniaDoDodania.Add(zamowienie);
+
+            // Usuń z listy usuniętych jeśli był tam wcześniej
+            _zamowieniaDoUsuniecia.Remove(zamId);
+
+            // Dodaj jako ładunek do lokalnej listy
+            var ladunek = new LadunekWithPalety
+            {
+                LadunekID = -(zamId + 1000), // Tymczasowe ujemne ID
+                KursID = _kursId ?? 0,
+                KodKlienta = $"ZAM_{zamowienie.ZamowienieId}",
+                Palety = zamowienie.Palety,
+                PojemnikiE2 = zamowienie.Pojemniki,
+                TrybE2 = zamowienie.TrybE2,
+                Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
+                Adres = zamowienie.Adres,
+                NazwaKlienta = zamowienie.KlientNazwa,
+                Kolejnosc = _ladunki.Count + 1
+            };
+
+            _ladunki.Add(ladunek);
+
+            // Przenieś między gridami (tylko wizualnie)
+            _wolneZamowienia.Remove(zamowienie);
+            ShowZamowieniaInGrid();
+            await LoadLadunki();
+        }
+
+        private async Task UsunLadunek()
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
+            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+            if (ladunek == null) return;
+
+            // Jeśli to zamówienie, dodaj do listy do usunięcia i przywróć do wolnych
+            if (ladunek.KodKlienta?.StartsWith("ZAM_") == true)
+            {
+                var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
+
+                // Usuń z listy do dodania jeśli był tam
+                var zamDoDodania = _zamowieniaDoDodania.FirstOrDefault(z => z.ZamowienieId == zamId);
+                if (zamDoDodania != null)
+                {
+                    _zamowieniaDoDodania.Remove(zamDoDodania);
+                }
+                else
+                {
+                    // Jeśli to było już zapisane zamówienie, dodaj do listy do usunięcia
+                    if (ladunekId > 0)
+                    {
+                        _zamowieniaDoUsuniecia.Add(zamId);
+                    }
+                }
+
+                // Przywróć do wolnych zamówień
+                var zamowienie = await PobierzAktualneZamowienie(zamId);
+                if (zamowienie != null)
+                {
+                    _wolneZamowienia.Add(zamowienie);
+                }
+            }
+
+            // Usuń z lokalnej listy ładunków
+            _ladunki.Remove(ladunek);
+
+            // Renumeruj kolejność
+            for (int i = 0; i < _ladunki.Count; i++)
+            {
+                _ladunki[i].Kolejnosc = i + 1;
+            }
+
+            // Odśwież widoki
+            ShowZamowieniaInGrid();
+            await LoadLadunki();
+        }
+
+        private async Task DodajLadunekReczny()
+        {
+            if (string.IsNullOrWhiteSpace(txtKlient.Text))
+            {
+                MessageBox.Show("Podaj nazwę klienta.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtKlient.Focus();
+                return;
+            }
+
+            if (nudPalety.Value <= 0)
+            {
+                MessageBox.Show("Podaj liczbę palet.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                nudPalety.Focus();
+                return;
+            }
+
+            // Dodaj do lokalnej listy (bez zapisu do bazy)
+            var ladunek = new LadunekWithPalety
+            {
+                LadunekID = -(_ladunki.Count + 1), // Tymczasowe ujemne ID
+                KursID = _kursId ?? 0,
+                KodKlienta = txtKlient.Text.Trim(),
+                NazwaKlienta = txtKlient.Text.Trim(),
+                Palety = nudPalety.Value,
+                PojemnikiE2 = (int)(nudPalety.Value * 36),
+                TrybE2 = false,
+                Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text) ? null : txtUwagi.Text.Trim(),
+                Kolejnosc = _ladunki.Count + 1
+            };
+
+            _ladunki.Add(ladunek);
+
+            txtKlient.Clear();
+            nudPalety.Value = 0;
+            txtUwagi.Clear();
+            txtKlient.Focus();
+
+            await LoadLadunki();
+        }
+
+        private async Task PrzesunLadunek(int kierunek)
+        {
+            if (dgvLadunki.CurrentRow == null) return;
+
+            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
+            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
+            if (ladunek == null) return;
+
+            int currentIndex = _ladunki.IndexOf(ladunek);
+            int newIndex = currentIndex + kierunek;
+
+            if (newIndex < 0 || newIndex >= _ladunki.Count) return;
+
+            // Zamień miejscami w liście (bez zapisu do bazy)
+            var temp = _ladunki[currentIndex];
+            _ladunki[currentIndex] = _ladunki[newIndex];
+            _ladunki[newIndex] = temp;
+
+            // Zaktualizuj kolejność
+            for (int i = 0; i < _ladunki.Count; i++)
+            {
+                _ladunki[i].Kolejnosc = i + 1;
+            }
+
+            // Odśwież widok
+            await LoadLadunki();
+
+            // Przywróć selekcję
+            foreach (DataGridViewRow row in dgvLadunki.Rows)
+            {
+                if (Convert.ToInt64(row.Cells["ID"].Value) == ladunekId)
+                {
+                    row.Selected = true;
+                    dgvLadunki.CurrentCell = row.Cells[1];
+                    break;
+                }
+            }
+        }
+
+        private async Task OtworzDialogKolejnosci()
+        {
+            using var dlg = new KolejnoscLadunkuDialog(_ladunki);
+
+            dlg.StartPosition = FormStartPosition.Manual;
+            var leftPanelWidth = this.Width * 0.55;
+            var centerX = this.Left + (int)(leftPanelWidth / 2) - (dlg.Width / 2);
+            var centerY = this.Top + 250;
+
+            var screen = Screen.FromControl(this);
+            if (centerX < 20) centerX = 20;
+            var maxRightPosition = this.Left + (int)leftPanelWidth - dlg.Width - 20;
+            if (centerX > maxRightPosition) centerX = maxRightPosition;
+            if (centerY < 20) centerY = 20;
+            if (centerY + dlg.Height > screen.WorkingArea.Bottom)
+                centerY = screen.WorkingArea.Bottom - dlg.Height - 20;
+
+            dlg.Location = new Point(centerX, centerY);
+
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.ZmienioneKolejnosci != null)
+            {
+                _ladunki = dlg.ZmienioneKolejnosci;
+                await LoadLadunki();
+            }
+        }
+
+        // GŁÓWNA METODA ZAPISU - zapisuje wszystko naraz
+        private async void BtnZapisz_Click(object sender, EventArgs e)
+        {
+            if (cboKierowca.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz kierowcę.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (cboPojazd.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz pojazd.", "Brak danych",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+
+                // 1. Zapisz nagłówek kursu
+                await SaveKurs();
+
+                if (!_kursId.HasValue || _kursId.Value <= 0)
+                {
+                    MessageBox.Show("Błąd podczas zapisu kursu.", "Błąd",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // 2. Zapisz wszystkie ładunki do bazy
+                await SaveAllLadunkiToDatabase();
+
+                // 3. Zaktualizuj statusy zamówień
+                await UpdateAllTransportStatuses();
+
+                _autoUpdateTimer?.Stop();
+                _autoUpdateTimer?.Dispose();
+
+                MessageBox.Show("Kurs został pomyślnie zapisany.", "Sukces",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+
+        private async Task SaveKurs()
+        {
+            var kierowca = cboKierowca.SelectedItem as Kierowca;
+            var pojazd = cboPojazd.SelectedItem as Pojazd;
+
+            TimeSpan? godzWyjazdu = null;
+            TimeSpan? godzPowrotu = null;
+
+            if (TimeSpan.TryParse(txtGodzWyjazdu.Text, out var gw))
+                godzWyjazdu = gw;
+            if (TimeSpan.TryParse(txtGodzPowrotu.Text, out var gp))
+                godzPowrotu = gp;
+
+            var kurs = new Kurs
+            {
+                KursID = _kursId ?? 0,
+                DataKursu = dtpData.Value.Date,
+                KierowcaID = kierowca.KierowcaID,
+                PojazdID = pojazd.PojazdID,
+                Trasa = string.IsNullOrWhiteSpace(txtTrasa.Text) ? null : txtTrasa.Text.Trim(),
+                GodzWyjazdu = godzWyjazdu,
+                GodzPowrotu = godzPowrotu,
+                Status = "Planowany",
+                PlanE2NaPalete = 36
+            };
+
+            if (_kursId.HasValue && _kursId.Value > 0)
+            {
+                // Aktualizacja istniejącego kursu
+                await _repozytorium.AktualizujNaglowekKursuAsync(kurs, _uzytkownik);
+            }
+            else
+            {
+                // Dodanie nowego kursu
+                _kursId = await _repozytorium.DodajKursAsync(kurs, _uzytkownik);
+                Text = "Edycja kursu transportowego";
+            }
+        }
+
+        private async Task SaveAllLadunkiToDatabase()
+        {
+            if (!_kursId.HasValue || _kursId.Value <= 0)
+                return;
+
+            await using var cn = new SqlConnection(_connectionString);
+            await cn.OpenAsync();
+
+            // Usuń wszystkie obecne ładunki
+            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
+            using var cmdDelete = new SqlCommand(sqlDelete, cn);
+            cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
+            await cmdDelete.ExecuteNonQueryAsync();
+
+            // Dodaj wszystkie ładunki z lokalnej listy
+            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                var sqlInsert = @"INSERT INTO dbo.Ladunek 
+                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
+                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
+
+                using var cmdInsert = new SqlCommand(sqlInsert, cn);
+                cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
+                cmdInsert.Parameters.AddWithValue("@Kolejnosc", ladunek.Kolejnosc);
+                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@Palety", ladunek.Palety);
+                cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
+                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
+                cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
+        }
+
+        private async Task UpdateAllTransportStatuses()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // 1. Przywróć status dla zamówień które zostały usunięte z kursu
+                foreach (var zamId in _zamowieniaDoUsuniecia)
+                {
+                    var sql = @"UPDATE dbo.ZamowieniaMieso 
+                               SET TransportStatus = 'Oczekuje', TransportKursId = NULL 
+                               WHERE Id = @ZamowienieId";
+
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ZamowienieId", zamId);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // 2. Ustaw status dla zamówień które zostały dodane do kursu
+                foreach (var zam in _zamowieniaDoDodania)
+                {
+                    var sql = @"UPDATE dbo.ZamowieniaMieso 
+                               SET TransportStatus = 'Przypisany', TransportKursId = @KursId 
+                               WHERE Id = @ZamowienieId";
+
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ZamowienieId", zam.ZamowienieId);
+                    cmd.Parameters.AddWithValue("@KursId", _kursId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // Wyczyść listy zmian
+                _zamowieniaDoDodania.Clear();
+                _zamowieniaDoUsuniecia.Clear();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd podczas aktualizacji statusów: {ex.Message}");
+            }
+        }
+
+        // Pozostałe metody pomocnicze (bez zmian w logice zapisu)
+
         private async Task OdswiezZamowienie()
         {
             if (dgvLadunki.CurrentRow == null) return;
@@ -1117,17 +1447,14 @@ namespace Kalendarz1.Transport.Formularze
                 {
                     ladunek.Palety = aktualneZamowienie.Palety;
                     ladunek.PojemnikiE2 = aktualneZamowienie.Pojemniki;
-
-                    await SaveLadunkiChangesToDatabase();
                     await LoadLadunki();
 
-                    MessageBox.Show("Dane zamówienia zostały zaktualizowane.", "Odświeżono",
+                    MessageBox.Show("Dane zamówienia zostały zaktualizowane (niezapisane).", "Odświeżono",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
 
-        // Metody obsługujące menu kontekstowe
         private async Task EdytujWolneZamowienie()
         {
             if (dgvWolneZamowienia.CurrentRow == null) return;
@@ -1140,39 +1467,6 @@ namespace Kalendarz1.Transport.Formularze
             if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
             {
                 await LoadWolneZamowienia();
-            }
-        }
-
-        private async Task AnulujWolneZamowienie()
-        {
-            if (dgvWolneZamowienia.CurrentRow == null) return;
-
-            var zamId = Convert.ToInt32(dgvWolneZamowienia.CurrentRow.Cells["ID"].Value);
-
-            if (MessageBox.Show("Czy na pewno chcesz anulować to zamówienie?",
-                "Potwierdzenie anulowania",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question) != DialogResult.Yes)
-                return;
-
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-
-                var sql = "UPDATE dbo.ZamowieniaMieso SET Status = 'Anulowane' WHERE Id = @Id";
-                using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Id", zamId);
-                await cmd.ExecuteNonQueryAsync();
-
-                await LoadWolneZamowienia();
-                MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas anulowania zamówienia: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1214,7 +1508,6 @@ Adres: {zamowienie.Adres}";
                 using var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamId);
                 if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
                 {
-                    // Odśwież dane
                     await CheckForZamowieniaUpdates();
                     await LoadWolneZamowienia();
                 }
@@ -1226,115 +1519,16 @@ Adres: {zamowienie.Adres}";
             }
         }
 
-        private async Task PrzesunLadunek(int kierunek)
+        private void EdytujLadunek()
         {
             if (dgvLadunki.CurrentRow == null) return;
 
-            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
-            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
-            if (ladunek == null) return;
+            var row = dgvLadunki.CurrentRow;
+            txtKlient.Text = row.Cells["Klient"].Value?.ToString() ?? "";
+            nudPalety.Value = Convert.ToDecimal(row.Cells["Palety"].Value ?? 0);
+            txtUwagi.Text = row.Cells["Uwagi"].Value?.ToString() ?? "";
 
-            int currentIndex = _ladunki.IndexOf(ladunek);
-            int newIndex = currentIndex + kierunek;
-
-            if (newIndex < 0 || newIndex >= _ladunki.Count) return;
-
-            // Zamień miejscami w liście
-            var temp = _ladunki[currentIndex];
-            _ladunki[currentIndex] = _ladunki[newIndex];
-            _ladunki[newIndex] = temp;
-
-            // Zaktualizuj kolejność
-            for (int i = 0; i < _ladunki.Count; i++)
-            {
-                _ladunki[i].Kolejnosc = i + 1;
-            }
-
-            // Zapisz do bazy
-            if (_kursId.HasValue)
-            {
-                await SaveKolejnoscToBaza();
-            }
-
-            // Odśwież widok zachowując selekcję
-            await LoadLadunki();
-
-            // Przywróć selekcję
-            foreach (DataGridViewRow row in dgvLadunki.Rows)
-            {
-                if (Convert.ToInt64(row.Cells["ID"].Value) == ladunekId)
-                {
-                    row.Selected = true;
-                    dgvLadunki.CurrentCell = row.Cells[1];
-                    break;
-                }
-            }
-        }
-
-        private async Task OtworzDialogKolejnosci()
-        {
-            using var dlg = new KolejnoscLadunkuDialog(_ladunki);
-
-            dlg.StartPosition = FormStartPosition.Manual;
-            var leftPanelWidth = this.Width * 0.55;
-            var centerX = this.Left + (int)(leftPanelWidth / 2) - (dlg.Width / 2);
-            var centerY = this.Top + 250;
-
-            var screen = Screen.FromControl(this);
-            if (centerX < 20) centerX = 20;
-            var maxRightPosition = this.Left + (int)leftPanelWidth - dlg.Width - 20;
-            if (centerX > maxRightPosition) centerX = maxRightPosition;
-            if (centerY < 20) centerY = 20;
-            if (centerY + dlg.Height > screen.WorkingArea.Bottom)
-                centerY = screen.WorkingArea.Bottom - dlg.Height - 20;
-
-            dlg.Location = new Point(centerX, centerY);
-
-            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.ZmienioneKolejnosci != null)
-            {
-                _ladunki = dlg.ZmienioneKolejnosci;
-                if (_kursId.HasValue)
-                {
-                    await SaveKolejnoscToBaza();
-                }
-                await LoadLadunki();
-            }
-        }
-
-        private async Task SaveKolejnoscToBaza()
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connectionString);
-                await cn.OpenAsync();
-
-                var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
-                using var cmdDelete = new SqlCommand(sqlDelete, cn);
-                cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
-                await cmdDelete.ExecuteNonQueryAsync();
-
-                foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
-                {
-                    var sqlInsert = @"INSERT INTO dbo.Ladunek 
-                        (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
-                        VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
-
-                    using var cmdInsert = new SqlCommand(sqlInsert, cn);
-                    cmdInsert.Parameters.AddWithValue("@KursID", _kursId.Value);
-                    cmdInsert.Parameters.AddWithValue("@Kolejnosc", ladunek.Kolejnosc);
-                    cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)ladunek.KodKlienta ?? DBNull.Value);
-                    cmdInsert.Parameters.AddWithValue("@Palety", ladunek.Palety);
-                    cmdInsert.Parameters.AddWithValue("@Pojemniki", ladunek.PojemnikiE2);
-                    cmdInsert.Parameters.AddWithValue("@Uwagi", (object)ladunek.Uwagi ?? DBNull.Value);
-                    cmdInsert.Parameters.AddWithValue("@TrybE2", ladunek.TrybE2);
-                    await cmdInsert.ExecuteNonQueryAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas zapisywania kolejności: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            _ = UsunLadunek();
         }
 
         private void UpdateTrasa()
@@ -1400,6 +1594,8 @@ Adres: {zamowienie.Adres}";
                 {
                     await LoadKursData();
                 }
+
+                _dataLoaded = true;
             }
             catch (Exception ex)
             {
@@ -1426,7 +1622,6 @@ Adres: {zamowienie.Adres}";
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Pobierz zamówienia z 3 dni (wybrana data + 2 dni do przodu)
                 var dataOd = data.Date;
                 var dataDo = data.Date.AddDays(2);
 
@@ -1459,13 +1654,18 @@ Adres: {zamowienie.Adres}";
                 while (await reader.ReadAsync())
                 {
                     var transportStatus = reader.GetString(9);
+                    var zamId = reader.GetInt32(0);
 
-                    // Dodaj tylko te które nie są jeszcze przypisane do żadnego kursu
-                    if (transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus))
+                    // Sprawdź czy to zamówienie nie jest w lokalnej liście do dodania
+                    bool jestWLiscieDoDodania = _zamowieniaDoDodania.Any(z => z.ZamowienieId == zamId);
+
+                    // Dodaj tylko te które nie są przypisane lub są w liście do usunięcia
+                    if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus) || _zamowieniaDoUsuniecia.Contains(zamId))
+                        && !jestWLiscieDoDodania)
                     {
                         var zamowienie = new ZamowienieDoTransportu
                         {
-                            ZamowienieId = reader.GetInt32(0),
+                            ZamowienieId = zamId,
                             KlientId = reader.GetInt32(1),
                             DataPrzyjazdu = reader.GetDateTime(2),
                             Status = reader.IsDBNull(3) ? "Nowe" : reader.GetString(3),
@@ -1473,13 +1673,12 @@ Adres: {zamowienie.Adres}";
                             Pojemniki = reader.GetInt32(6),
                             TrybE2 = reader.GetBoolean(7),
                             IloscKg = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
-                            DataOdbioru = reader.GetDateTime(10) // DataZamowienia jako DataOdbioru
+                            DataOdbioru = reader.GetDateTime(10)
                         };
                         _wolneZamowienia.Add(zamowienie);
                     }
                 }
 
-                // Pobierz dane klientów
                 if (_wolneZamowienia.Any())
                 {
                     await using var cnHandel = new SqlConnection(_connHandel);
@@ -1528,7 +1727,6 @@ Adres: {zamowienie.Adres}";
 
                 ShowZamowieniaInGrid();
 
-                // Aktualizuj nagłówek z liczbą zamówień i zakresem dat
                 if (lblZamowieniaInfo != null)
                 {
                     lblZamowieniaInfo.Text = $"ZAMÓWIENIA {dataOd:yyyy-MM-dd} - {dataDo:yyyy-MM-dd}:";
@@ -1538,7 +1736,6 @@ Adres: {zamowienie.Adres}";
                 {
                     _lblLiczbaZamowien.Text = $"{_wolneZamowienia.Count} zamówień";
 
-                    // Koloruj w zależności od liczby
                     if (_wolneZamowienia.Count == 0)
                         _lblLiczbaZamowien.ForeColor = Color.Gray;
                     else if (_wolneZamowienia.Count > 15)
@@ -1591,7 +1788,7 @@ Adres: {zamowienie.Adres}";
                 dgvWolneZamowienia.Columns["Data odbioru"].Width = 85;
                 dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Format = "yyyy-MM-dd";
                 dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Data odbioru"].DisplayIndex = 0; // Pierwsza kolumna
+                dgvWolneZamowienia.Columns["Data odbioru"].DisplayIndex = 0;
             }
             if (dgvWolneZamowienia.Columns["Klient"] != null)
             {
@@ -1634,7 +1831,6 @@ Adres: {zamowienie.Adres}";
                 dgvWolneZamowienia.Columns["Adres"].DisplayIndex = 7;
             }
 
-            // Kolorowanie według daty odbioru i statusu
             foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
             {
                 var zamId = Convert.ToInt32(row.Cells["ID"].Value);
@@ -1645,37 +1841,30 @@ Adres: {zamowienie.Adres}";
                     var dataOdbioru = zamowienie.DataOdbioru.Date;
                     var dzis = DateTime.Today;
 
-                    // Kolorowanie według daty odbioru
                     if (dataOdbioru == dzis)
                     {
-                        // Dzisiaj - standardowy kolor
                         row.DefaultCellStyle.BackColor = Color.White;
                     }
                     else if (dataOdbioru == dzis.AddDays(1))
                     {
-                        // Jutro - lekko żółty
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 230);
                     }
                     else if (dataOdbioru == dzis.AddDays(2))
                     {
-                        // Pojutrze - lekko niebieski
                         row.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
                     }
                     else if (dataOdbioru < dzis)
                     {
-                        // Przeterminowane - czerwony
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
                         row.DefaultCellStyle.ForeColor = Color.DarkRed;
                     }
 
-                    // Dodatkowe kolorowanie według statusu
                     if (zamowienie.Status == "Zrealizowane")
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
                         row.DefaultCellStyle.ForeColor = Color.DarkGreen;
                     }
 
-                    // Kolorowanie kolumny z datą
                     if (row.Cells["Data odbioru"] != null)
                     {
                         if (dataOdbioru == dzis)
@@ -1686,7 +1875,6 @@ Adres: {zamowienie.Adres}";
                             row.Cells["Data odbioru"].Style.ForeColor = Color.DarkBlue;
                     }
 
-                    // Kolorowanie według godzin dla dzisiejszych zamówień
                     if (dataOdbioru == dzis && zamowienie.Status == "Nowe")
                     {
                         var godzStr = row.Cells["Godz."].Value?.ToString();
@@ -1702,73 +1890,11 @@ Adres: {zamowienie.Adres}";
             }
         }
 
-        private async Task DodajZamowienieDoKursu()
-        {
-            if (dgvWolneZamowienia.CurrentRow == null) return;
-
-            var zamId = Convert.ToInt32(dgvWolneZamowienia.CurrentRow.Cells["ID"].Value);
-            var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
-            if (zamowienie == null) return;
-
-            if (!_kursId.HasValue || _kursId.Value <= 0)
-            {
-                await SaveKurs();
-                if (!_kursId.HasValue || _kursId.Value <= 0) return;
-            }
-
-            // Dodaj jako ładunek z dokładną liczbą palet
-            var ladunek = new LadunekWithPalety
-            {
-                KursID = _kursId.Value,
-                KodKlienta = $"ZAM_{zamowienie.ZamowienieId}",
-                Palety = zamowienie.Palety,
-                PojemnikiE2 = zamowienie.Pojemniki,
-                TrybE2 = zamowienie.TrybE2,
-                Uwagi = $"{zamowienie.KlientNazwa} ({zamowienie.GodzinaStr})",
-                Adres = zamowienie.Adres,
-                NazwaKlienta = zamowienie.KlientNazwa,
-                Kolejnosc = _ladunki.Count + 1
-            };
-
-            await SaveLadunekToDatabase(ladunek);
-
-            // Zaktualizuj status transportu w zamówieniu
-            await UpdateTransportStatus(zamowienie.ZamowienieId, "Przypisany");
-
-            _wolneZamowienia.Remove(zamowienie);
-            ShowZamowieniaInGrid();
-            await LoadLadunki();
-        }
-
-        private async Task UpdateTransportStatus(int zamowienieId, string status)
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-
-                var sql = @"UPDATE dbo.ZamowieniaMieso 
-                           SET TransportStatus = @Status, TransportKursId = @KursId 
-                           WHERE Id = @Id";
-
-                using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Status", status);
-                cmd.Parameters.AddWithValue("@KursId", _kursId ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@Id", zamowienieId);
-
-                await cmd.ExecuteNonQueryAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Błąd aktualizacji statusu transportu: {ex.Message}");
-            }
-        }
-
         private async Task LoadKursData()
         {
             if (!_kursId.HasValue) return;
 
-            _kurs = await PobierzKursAsync(_kursId.Value);
+            _kurs = await _repozytorium.PobierzKursAsync(_kursId.Value);
 
             if (_kurs == null)
             {
@@ -1793,11 +1919,15 @@ Adres: {zamowienie.Adres}";
 
         private async Task LoadLadunki()
         {
-            if (!_kursId.HasValue) return;
+            if (!_kursId.HasValue && _ladunki.Count == 0) return;
 
-            _ladunki = await LoadLadunkiFromDatabase(_kursId.Value);
+            // Jeśli jest kursId, wczytaj ładunki z bazy (tylko raz przy starcie)
+            if (_kursId.HasValue && _ladunki.Count == 0)
+            {
+                _ladunki = await LoadLadunkiFromDatabase(_kursId.Value);
+            }
 
-            // Sprawdź aktualne dane zamówień
+            // Aktualizuj dane z zamówień
             foreach (var ladunek in _ladunki.Where(l => l.KodKlienta?.StartsWith("ZAM_") == true))
             {
                 if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
@@ -1805,7 +1935,6 @@ Adres: {zamowienie.Adres}";
                     var aktualneZamowienie = await PobierzAktualneZamowienie(zamId);
                     if (aktualneZamowienie != null)
                     {
-                        // Aktualizuj dane jeśli się zmieniły
                         if (ladunek.Palety != aktualneZamowienie.Palety ||
                             ladunek.PojemnikiE2 != aktualneZamowienie.Pojemniki)
                         {
@@ -1866,7 +1995,7 @@ Adres: {zamowienie.Adres}";
                 string status = "";
                 if (ladunek.ZmienionyWZamowieniu)
                 {
-                    status = "📝 Zaktualizowano";
+                    status = "📝 Zaktualizowano (niezapisane)";
                 }
 
                 dt.Rows.Add(
@@ -1883,7 +2012,6 @@ Adres: {zamowienie.Adres}";
 
             dgvLadunki.DataSource = dt;
 
-            // Konfiguracja kolumn
             if (dgvLadunki.Columns["ID"] != null)
                 dgvLadunki.Columns["ID"].Visible = false;
             if (dgvLadunki.Columns["Lp."] != null)
@@ -1911,7 +2039,7 @@ Adres: {zamowienie.Adres}";
             }
             if (dgvLadunki.Columns["Status"] != null)
             {
-                dgvLadunki.Columns["Status"].Width = 120;
+                dgvLadunki.Columns["Status"].Width = 160;
                 dgvLadunki.Columns["Status"].DefaultCellStyle.ForeColor = Color.Orange;
                 dgvLadunki.Columns["Status"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
@@ -1920,11 +2048,10 @@ Adres: {zamowienie.Adres}";
                 dgvLadunki.Columns["Uwagi"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             }
 
-            // Podświetl zmienione wiersze
             foreach (DataGridViewRow row in dgvLadunki.Rows)
             {
                 var statusCell = row.Cells["Status"];
-                if (statusCell?.Value?.ToString()?.Contains("Zaktualizowano") == true)
+                if (statusCell?.Value?.ToString()?.Contains("niezapisane") == true)
                 {
                     row.DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 230);
                 }
@@ -1996,7 +2123,6 @@ Adres: {zamowienie.Adres}";
                 progressWypelnienie.Value = Math.Min(100, (int)procent);
                 lblStatystyki.Text = $"{sumaPalet:N1} palet z {paletyPojazdu} dostępnych ({procent:N1}%)";
 
-                // Kolorowanie
                 if (procent > 100)
                 {
                     progressWypelnienie.ForeColor = Color.Red;
@@ -2022,158 +2148,53 @@ Adres: {zamowienie.Adres}";
             }
         }
 
-        private async Task DodajLadunekReczny()
+        private async Task<List<LadunekWithPalety>> LoadLadunkiFromDatabase(long kursId)
         {
-            if (string.IsNullOrWhiteSpace(txtKlient.Text))
+            var ladunki = new List<LadunekWithPalety>();
+
+            await using var cn = new SqlConnection(_connectionString);
+            await cn.OpenAsync();
+
+            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, 
+                              ISNULL(PaletyH1, 0) AS Palety, 
+                              ISNULL(PojemnikiE2, 0) AS Pojemniki,
+                              Uwagi, ISNULL(TrybE2, 0) AS TrybE2
+                       FROM dbo.Ladunek 
+                       WHERE KursID = @KursID
+                       ORDER BY Kolejnosc";
+
+            using var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.AddWithValue("@KursID", kursId);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                MessageBox.Show("Podaj nazwę klienta.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtKlient.Focus();
-                return;
+                var ladunek = new LadunekWithPalety
+                {
+                    LadunekID = reader.GetInt64(0),
+                    KursID = reader.GetInt64(1),
+                    Kolejnosc = reader.GetInt32(2),
+                    KodKlienta = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Palety = reader.IsDBNull(4) ? 0 : Convert.ToDecimal(reader.GetInt32(4)),
+                    PojemnikiE2 = reader.GetInt32(5),
+                    Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    TrybE2 = reader.GetBoolean(7)
+                };
+
+                // Jeśli to zamówienie i jest w liście do usunięcia, pomiń
+                if (ladunek.KodKlienta?.StartsWith("ZAM_") == true)
+                {
+                    if (int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
+                    {
+                        if (_zamowieniaDoUsuniecia.Contains(zamId))
+                            continue;
+                    }
+                }
+
+                ladunki.Add(ladunek);
             }
 
-            if (nudPalety.Value <= 0)
-            {
-                MessageBox.Show("Podaj liczbę palet.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                nudPalety.Focus();
-                return;
-            }
-
-            if (!_kursId.HasValue || _kursId.Value <= 0)
-            {
-                await SaveKurs();
-                if (!_kursId.HasValue || _kursId.Value <= 0) return;
-            }
-
-            var ladunek = new LadunekWithPalety
-            {
-                KursID = _kursId.Value,
-                KodKlienta = txtKlient.Text.Trim(),
-                NazwaKlienta = txtKlient.Text.Trim(),
-                Palety = nudPalety.Value,
-                PojemnikiE2 = (int)(nudPalety.Value * 36),
-                TrybE2 = false,
-                Uwagi = string.IsNullOrWhiteSpace(txtUwagi.Text) ? null : txtUwagi.Text.Trim(),
-                Kolejnosc = _ladunki.Count + 1
-            };
-
-            await SaveLadunekToDatabase(ladunek);
-
-            txtKlient.Clear();
-            nudPalety.Value = 0;
-            txtUwagi.Clear();
-            txtKlient.Focus();
-
-            await LoadLadunki();
-        }
-
-        private async Task UsunLadunek()
-        {
-            if (dgvLadunki.CurrentRow == null) return;
-
-            var ladunekId = Convert.ToInt64(dgvLadunki.CurrentRow.Cells["ID"].Value);
-            var ladunek = _ladunki.FirstOrDefault(l => l.LadunekID == ladunekId);
-
-            if (ladunek?.KodKlienta?.StartsWith("ZAM_") == true)
-            {
-                var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
-                await UpdateTransportStatus(zamId, "Oczekuje");
-            }
-
-            await DeleteLadunekFromDatabase(ladunekId);
-            await LoadWolneZamowienia();
-            await LoadLadunki();
-        }
-
-        private void EdytujLadunek()
-        {
-            if (dgvLadunki.CurrentRow == null) return;
-
-            var row = dgvLadunki.CurrentRow;
-            txtKlient.Text = row.Cells["Klient"].Value?.ToString() ?? "";
-            nudPalety.Value = Convert.ToDecimal(row.Cells["Palety"].Value ?? 0);
-            txtUwagi.Text = row.Cells["Uwagi"].Value?.ToString() ?? "";
-
-            _ = UsunLadunek();
-        }
-
-        private async void BtnZapisz_Click(object sender, EventArgs e)
-        {
-            if (cboKierowca.SelectedItem == null)
-            {
-                MessageBox.Show("Wybierz kierowcę.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (cboPojazd.SelectedItem == null)
-            {
-                MessageBox.Show("Wybierz pojazd.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            try
-            {
-                Cursor = Cursors.WaitCursor;
-                await SaveKurs();
-
-                _autoUpdateTimer?.Stop();
-                _autoUpdateTimer?.Dispose();
-
-                DialogResult = DialogResult.OK;
-                Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-            }
-        }
-
-        private async Task SaveKurs()
-        {
-            var kierowca = cboKierowca.SelectedItem as Kierowca;
-            var pojazd = cboPojazd.SelectedItem as Pojazd;
-
-            TimeSpan? godzWyjazdu = null;
-            TimeSpan? godzPowrotu = null;
-
-            if (TimeSpan.TryParse(txtGodzWyjazdu.Text, out var gw))
-                godzWyjazdu = gw;
-            if (TimeSpan.TryParse(txtGodzPowrotu.Text, out var gp))
-                godzPowrotu = gp;
-
-            var kurs = new Kurs
-            {
-                KursID = _kursId ?? 0,
-                DataKursu = dtpData.Value.Date,
-                KierowcaID = kierowca.KierowcaID,
-                PojazdID = pojazd.PojazdID,
-                Trasa = string.IsNullOrWhiteSpace(txtTrasa.Text) ? null : txtTrasa.Text.Trim(),
-                GodzWyjazdu = godzWyjazdu,
-                GodzPowrotu = godzPowrotu,
-                Status = "Planowany",
-                PlanE2NaPalete = 36
-            };
-
-            if (_kursId.HasValue && _kursId.Value > 0)
-            {
-                await _repozytorium.AktualizujNaglowekKursuAsync(kurs, _uzytkownik);
-            }
-            else
-            {
-                _kursId = await _repozytorium.DodajKursAsync(kurs, _uzytkownik);
-                Text = "Edycja kursu";
-            }
-
-            // Zapisz zaktualizowane ładunki
-            await SaveLadunkiChangesToDatabase();
+            return ladunki;
         }
 
         private void BtnNowyKierowca_Click(object sender, EventArgs e)
@@ -2199,158 +2220,6 @@ Adres: {zamowienie.Adres}";
                     await _repozytorium.DodajPojazdAsync(dlg.NowyPojazd);
                     await LoadDataAsync();
                 });
-            }
-        }
-
-        // Metody do pracy z bazą danych
-        private async Task<List<LadunekWithPalety>> LoadLadunkiFromDatabase(long kursId)
-        {
-            var ladunki = new List<LadunekWithPalety>();
-
-            await using var cn = new SqlConnection(_connectionString);
-            await cn.OpenAsync();
-
-            var sql = @"SELECT LadunekID, KursID, Kolejnosc, KodKlienta, 
-                              ISNULL(PaletyH1, 0) AS Palety, 
-                              ISNULL(PojemnikiE2, 0) AS Pojemniki,
-                              Uwagi, ISNULL(TrybE2, 0) AS TrybE2
-                       FROM dbo.Ladunek 
-                       WHERE KursID = @KursID
-                       ORDER BY Kolejnosc";
-
-            using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@KursID", kursId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                ladunki.Add(new LadunekWithPalety
-                {
-                    LadunekID = reader.GetInt64(0),
-                    KursID = reader.GetInt64(1),
-                    Kolejnosc = reader.GetInt32(2),
-                    KodKlienta = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    Palety = reader.IsDBNull(4) ? 0 : Convert.ToDecimal(reader.GetInt32(4)),
-                    PojemnikiE2 = reader.GetInt32(5),
-                    Uwagi = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    TrybE2 = reader.GetBoolean(7)
-                });
-            }
-
-            return ladunki;
-        }
-
-        private async Task SaveLadunekToDatabase(LadunekWithPalety ladunek)
-        {
-            await using var cn = new SqlConnection(_connectionString);
-            await cn.OpenAsync();
-
-            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
-            using var cmdDelete = new SqlCommand(sqlDelete, cn);
-            cmdDelete.Parameters.AddWithValue("@KursID", ladunek.KursID);
-            await cmdDelete.ExecuteNonQueryAsync();
-
-            _ladunki.Add(ladunek);
-
-            foreach (var lad in _ladunki.OrderBy(l => l.Kolejnosc))
-            {
-                var sqlInsert = @"INSERT INTO dbo.Ladunek 
-                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
-                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
-
-                using var cmdInsert = new SqlCommand(sqlInsert, cn);
-                cmdInsert.Parameters.AddWithValue("@KursID", lad.KursID);
-                cmdInsert.Parameters.AddWithValue("@Kolejnosc", lad.Kolejnosc);
-                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)lad.KodKlienta ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@Palety", lad.Palety);
-                cmdInsert.Parameters.AddWithValue("@Pojemniki", lad.PojemnikiE2);
-                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)lad.Uwagi ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@TrybE2", lad.TrybE2);
-                await cmdInsert.ExecuteNonQueryAsync();
-            }
-        }
-
-        private async Task DeleteLadunekFromDatabase(long ladunekId)
-        {
-            _ladunki.RemoveAll(l => l.LadunekID == ladunekId);
-
-            for (int i = 0; i < _ladunki.Count; i++)
-            {
-                _ladunki[i].Kolejnosc = i + 1;
-            }
-
-            await using var cn = new SqlConnection(_connectionString);
-            await cn.OpenAsync();
-
-            var sqlDelete = "DELETE FROM dbo.Ladunek WHERE KursID = @KursID";
-            using var cmdDelete = new SqlCommand(sqlDelete, cn);
-            cmdDelete.Parameters.AddWithValue("@KursID", _kursId.Value);
-            await cmdDelete.ExecuteNonQueryAsync();
-
-            foreach (var lad in _ladunki.OrderBy(l => l.Kolejnosc))
-            {
-                var sqlInsert = @"INSERT INTO dbo.Ladunek 
-                    (KursID, Kolejnosc, KodKlienta, PaletyH1, PojemnikiE2, Uwagi, TrybE2) 
-                    VALUES (@KursID, @Kolejnosc, @KodKlienta, @Palety, @Pojemniki, @Uwagi, @TrybE2)";
-
-                using var cmdInsert = new SqlCommand(sqlInsert, cn);
-                cmdInsert.Parameters.AddWithValue("@KursID", lad.KursID);
-                cmdInsert.Parameters.AddWithValue("@Kolejnosc", lad.Kolejnosc);
-                cmdInsert.Parameters.AddWithValue("@KodKlienta", (object)lad.KodKlienta ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@Palety", lad.Palety);
-                cmdInsert.Parameters.AddWithValue("@Pojemniki", lad.PojemnikiE2);
-                cmdInsert.Parameters.AddWithValue("@Uwagi", (object)lad.Uwagi ?? DBNull.Value);
-                cmdInsert.Parameters.AddWithValue("@TrybE2", lad.TrybE2);
-                await cmdInsert.ExecuteNonQueryAsync();
-            }
-        }
-
-        private async Task<Kurs> PobierzKursAsync(long kursId)
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connectionString);
-                await cn.OpenAsync();
-
-                var sql = @"
-                    SELECT 
-                        k.KursID, k.DataKursu, k.KierowcaID, k.PojazdID, k.Trasa,
-                        k.GodzWyjazdu, k.GodzPowrotu, k.Status, k.PlanE2NaPalete,
-                        k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil
-                    FROM dbo.Kurs k
-                    WHERE k.KursID = @KursID";
-
-                using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@KursID", kursId);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return new Kurs
-                    {
-                        KursID = reader.GetInt64(0),
-                        DataKursu = reader.GetDateTime(1),
-                        KierowcaID = reader.GetInt32(2),
-                        PojazdID = reader.GetInt32(3),
-                        Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
-                        GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
-                        GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
-                        Status = reader.GetString(7),
-                        PlanE2NaPalete = reader.GetByte(8),
-                        UtworzonoUTC = reader.GetDateTime(9),
-                        Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
-                        ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                        Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12)
-                    };
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas pobierania kursu: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return null;
             }
         }
 
