@@ -384,7 +384,7 @@ namespace Kalendarz1
             DateTime dataOd = DateTime.Now.AddDays(-14);
 
             // Connection string do bazy LibraNet na innym serwerze
-            string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+            string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
             string query = @"
         SELECT 
