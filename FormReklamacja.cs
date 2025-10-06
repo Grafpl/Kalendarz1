@@ -22,6 +22,9 @@ namespace Kalendarz1
         private Label lblKontrahent;
         private Label lblNumerFaktury;
         private Label lblSumaKg;
+        private Label lblLicznikTowary;
+        private Label lblLicznikPartie;
+        private Label lblLicznikZdjecia;
         private CheckedListBox checkedListBoxTowary;
         private CheckedListBox checkedListBoxPartie;
         private ListBox listBoxZdjecia;
@@ -53,57 +56,66 @@ namespace Kalendarz1
         private void InitializeComponent()
         {
             this.Text = "⚠ Zgłoszenie reklamacji";
-            this.Size = new Size(1200, 800);
+            this.Size = new Size(1400, 850);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.MinimumSize = new Size(1000, 700);
-            this.BackColor = ColorTranslator.FromHtml("#ecf0f1");
+            this.MinimumSize = new Size(1200, 750);
+            this.BackColor = ColorTranslator.FromHtml("#f5f7fa");
 
-            // Panel nagłówka
+            // Panel nagłówka z gradientem
             Panel panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
-                BackColor = ColorTranslator.FromHtml("#e74c3c"),
-                Padding = new Padding(20, 10, 20, 10)
+                Height = 100,
+                BackColor = ColorTranslator.FromHtml("#c0392b"),
+                Padding = new Padding(25, 15, 25, 15)
             };
 
             Label lblTytul = new Label
             {
                 Text = "⚠ FORMULARZ ZGŁOSZENIA REKLAMACJI",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock = DockStyle.Top,
-                Height = 35
+                Height = 40,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            Panel panelInfoHeader = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 5, 0, 0)
             };
 
             lblKontrahent = new Label
             {
-                Text = $"Kontrahent: {nazwaKontrahenta}",
-                Font = new Font("Segoe UI", 10F),
-                ForeColor = Color.White,
-                Dock = DockStyle.Top,
-                Height = 25
+                Text = $"👤 Kontrahent: {nazwaKontrahenta}",
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#ecf0f1"),
+                AutoSize = true,
+                Location = new Point(0, 0)
             };
 
             lblNumerFaktury = new Label
             {
-                Text = $"Faktura: {numerDokumentu}",
-                Font = new Font("Segoe UI", 10F),
-                ForeColor = Color.White,
-                Dock = DockStyle.Bottom,
-                Height = 25
+                Text = $"📄 Faktura: {numerDokumentu}",
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#ecf0f1"),
+                AutoSize = true,
+                Location = new Point(0, 25)
             };
 
+            panelInfoHeader.Controls.Add(lblKontrahent);
+            panelInfoHeader.Controls.Add(lblNumerFaktury);
             panelHeader.Controls.Add(lblTytul);
-            panelHeader.Controls.Add(lblKontrahent);
-            panelHeader.Controls.Add(lblNumerFaktury);
+            panelHeader.Controls.Add(panelInfoHeader);
 
             // Panel główny z zawartością
             Panel panelMain = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10)
+                Padding = new Padding(15),
+                BackColor = ColorTranslator.FromHtml("#f5f7fa")
             };
 
             // SplitContainer - lewa/prawa strona
@@ -111,66 +123,159 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 700,
-                BackColor = ColorTranslator.FromHtml("#bdc3c7")
+                SplitterDistance = 780,
+                SplitterWidth = 8,
+                BackColor = ColorTranslator.FromHtml("#cbd5e0")
             };
 
             // === LEWA STRONA ===
-            Panel panelLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
+            Panel panelLeft = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(5),
+                BackColor = ColorTranslator.FromHtml("#f5f7fa")
+            };
 
             // 1. Sekcja: Towary do reklamacji
             GroupBox grpTowary = new GroupBox
             {
-                Text = "📦 Towary do reklamacji (zaznacz z faktury)",
+                Text = "",
                 Dock = DockStyle.Top,
-                Height = 180,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                Padding = new Padding(10)
+                Height = 200,
+                Font = new Font("Segoe UI", 10F),
+                Padding = new Padding(15),
+                BackColor = Color.White,
+                ForeColor = ColorTranslator.FromHtml("#2c3e50")
             };
+
+            Panel panelTowaryHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 35,
+                BackColor = Color.White
+            };
+
+            Label lblTowaryTytul = new Label
+            {
+                Text = "📦 Towary do reklamacji",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                AutoSize = true,
+                Location = new Point(0, 8)
+            };
+
+            lblLicznikTowary = new Label
+            {
+                Text = "Zaznaczono: 0",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                AutoSize = true,
+                Location = new Point(200, 10)
+            };
+
+            panelTowaryHeader.Controls.Add(lblTowaryTytul);
+            panelTowaryHeader.Controls.Add(lblLicznikTowary);
 
             checkedListBoxTowary = new CheckedListBox
             {
                 Dock = DockStyle.Fill,
                 CheckOnClick = true,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F),
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BorderStyle = BorderStyle.None,
+                ItemHeight = 22
             };
             checkedListBoxTowary.ItemCheck += CheckedListBoxTowary_ItemCheck;
 
+            ToolTip tooltipTowary = new ToolTip();
+            tooltipTowary.SetToolTip(checkedListBoxTowary, "Zaznacz towary, których dotyczy reklamacja");
+
             grpTowary.Controls.Add(checkedListBoxTowary);
+            grpTowary.Controls.Add(panelTowaryHeader);
 
             // 2. Sekcja: Partie
             GroupBox grpPartie = new GroupBox
             {
-                Text = "🔢 Numery partii (ostatnie 2 tygodnie)",
+                Text = "",
                 Dock = DockStyle.Top,
                 Height = 220,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                Padding = new Padding(10)
+                Font = new Font("Segoe UI", 10F),
+                Padding = new Padding(15),
+                BackColor = Color.White,
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                Margin = new Padding(0, 10, 0, 0)
             };
+
+            Panel panelPartieHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.White
+            };
+
+            Label lblPartieTytul = new Label
+            {
+                Text = "🔢 Numery partii",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                AutoSize = true,
+                Location = new Point(0, 8)
+            };
+
+            Label lblPartieInfo = new Label
+            {
+                Text = "Ostatnie 2 tygodnie (od najnowszych)",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                ForeColor = ColorTranslator.FromHtml("#95a5a6"),
+                AutoSize = true,
+                Location = new Point(0, 28)
+            };
+
+            lblLicznikPartie = new Label
+            {
+                Text = "Zaznaczono: 0",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                AutoSize = true,
+                Location = new Point(200, 10)
+            };
+
+            panelPartieHeader.Controls.Add(lblPartieTytul);
+            panelPartieHeader.Controls.Add(lblPartieInfo);
+            panelPartieHeader.Controls.Add(lblLicznikPartie);
 
             checkedListBoxPartie = new CheckedListBox
             {
                 Dock = DockStyle.Fill,
                 CheckOnClick = true,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F),
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BorderStyle = BorderStyle.None,
+                ItemHeight = 22
             };
+            checkedListBoxPartie.ItemCheck += CheckedListBoxPartie_ItemCheck;
+
+            ToolTip tooltipPartie = new ToolTip();
+            tooltipPartie.SetToolTip(checkedListBoxPartie, "Zaznacz partie produktów (opcjonalne)");
 
             grpPartie.Controls.Add(checkedListBoxPartie);
+            grpPartie.Controls.Add(panelPartieHeader);
 
-            // 3. Suma kg
+            // 3. Suma kg - bardziej widoczna
             Panel panelSumaKg = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
+                Height = 50,
                 BackColor = ColorTranslator.FromHtml("#d5f4e6"),
-                Padding = new Padding(10, 5, 10, 5)
+                Padding = new Padding(15, 10, 15, 10),
+                Margin = new Padding(0, 10, 0, 0)
             };
 
             lblSumaKg = new Label
             {
                 Text = "⚖ Łączna ilość zaznaczonych towarów: 0.00 kg",
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = ColorTranslator.FromHtml("#27ae60"),
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -180,22 +285,59 @@ namespace Kalendarz1
             // 4. Opis reklamacji
             GroupBox grpOpis = new GroupBox
             {
-                Text = "📝 Opis reklamacji",
+                Text = "",
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                Padding = new Padding(10),
-                Margin = new Padding(0, 5, 0, 0)
+                Font = new Font("Segoe UI", 10F),
+                Padding = new Padding(15),
+                BackColor = Color.White,
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                Margin = new Padding(0, 10, 0, 0)
             };
+
+            Panel panelOpisHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.White
+            };
+
+            Label lblOpisTytul = new Label
+            {
+                Text = "📝 Opis reklamacji",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                AutoSize = true,
+                Location = new Point(0, 8)
+            };
+
+            Label lblOpisInfo = new Label
+            {
+                Text = "Opisz dokładnie problem i jego charakter",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                ForeColor = ColorTranslator.FromHtml("#95a5a6"),
+                AutoSize = true,
+                Location = new Point(0, 28)
+            };
+
+            panelOpisHeader.Controls.Add(lblOpisTytul);
+            panelOpisHeader.Controls.Add(lblOpisInfo);
 
             txtOpis = new TextBox
             {
                 Multiline = true,
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 9.5F),
-                ScrollBars = ScrollBars.Vertical
+                Font = new Font("Segoe UI", 10F),
+                ScrollBars = ScrollBars.Vertical,
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(5)
             };
 
+            ToolTip tooltipOpis = new ToolTip();
+            tooltipOpis.SetToolTip(txtOpis, "Wprowadź szczegółowy opis reklamacji");
+
             grpOpis.Controls.Add(txtOpis);
+            grpOpis.Controls.Add(panelOpisHeader);
 
             panelLeft.Controls.Add(grpOpis);
             panelLeft.Controls.Add(panelSumaKg);
@@ -203,48 +345,100 @@ namespace Kalendarz1
             panelLeft.Controls.Add(grpTowary);
 
             // === PRAWA STRONA ===
-            Panel panelRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
+            Panel panelRight = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(5),
+                BackColor = ColorTranslator.FromHtml("#f5f7fa")
+            };
 
             // Sekcja: Zdjęcia
             GroupBox grpZdjecia = new GroupBox
             {
-                Text = "📷 Zdjęcia reklamacji",
+                Text = "",
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                Padding = new Padding(10)
+                Font = new Font("Segoe UI", 10F),
+                Padding = new Padding(15),
+                BackColor = Color.White,
+                ForeColor = ColorTranslator.FromHtml("#2c3e50")
             };
+
+            Panel panelZdjeciaHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.White
+            };
+
+            Label lblZdjeciaTytul = new Label
+            {
+                Text = "📷 Zdjęcia reklamacji",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                AutoSize = true,
+                Location = new Point(0, 8)
+            };
+
+            Label lblZdjeciaInfo = new Label
+            {
+                Text = "Dodaj zdjęcia dokumentujące problem",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Italic),
+                ForeColor = ColorTranslator.FromHtml("#95a5a6"),
+                AutoSize = true,
+                Location = new Point(0, 28)
+            };
+
+            lblLicznikZdjecia = new Label
+            {
+                Text = "Zdjęć: 0",
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                AutoSize = true,
+                Location = new Point(230, 10)
+            };
+
+            panelZdjeciaHeader.Controls.Add(lblZdjeciaTytul);
+            panelZdjeciaHeader.Controls.Add(lblZdjeciaInfo);
+            panelZdjeciaHeader.Controls.Add(lblLicznikZdjecia);
 
             Panel panelZdjeciaButtons = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
-                Padding = new Padding(0, 5, 0, 5)
+                Height = 50,
+                Padding = new Padding(0, 10, 0, 5),
+                BackColor = Color.White
             };
 
             btnDodajZdjecia = new Button
             {
                 Text = "➕ Dodaj zdjęcia",
-                Location = new Point(0, 5),
-                Size = new Size(120, 30),
+                Location = new Point(0, 10),
+                Size = new Size(140, 35),
                 BackColor = ColorTranslator.FromHtml("#3498db"),
                 ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnDodajZdjecia.FlatAppearance.BorderSize = 0;
+            btnDodajZdjecia.MouseEnter += (s, e) => btnDodajZdjecia.BackColor = ColorTranslator.FromHtml("#2980b9");
+            btnDodajZdjecia.MouseLeave += (s, e) => btnDodajZdjecia.BackColor = ColorTranslator.FromHtml("#3498db");
             btnDodajZdjecia.Click += BtnDodajZdjecia_Click;
 
             btnUsunZdjecie = new Button
             {
                 Text = "🗑 Usuń zaznaczone",
-                Location = new Point(130, 5),
-                Size = new Size(130, 30),
+                Location = new Point(150, 10),
+                Size = new Size(150, 35),
                 BackColor = ColorTranslator.FromHtml("#e74c3c"),
                 ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnUsunZdjecie.FlatAppearance.BorderSize = 0;
+            btnUsunZdjecie.MouseEnter += (s, e) => btnUsunZdjecie.BackColor = ColorTranslator.FromHtml("#c0392b");
+            btnUsunZdjecie.MouseLeave += (s, e) => btnUsunZdjecie.BackColor = ColorTranslator.FromHtml("#e74c3c");
             btnUsunZdjecie.Click += BtnUsunZdjecie_Click;
 
             panelZdjeciaButtons.Controls.Add(btnDodajZdjecia);
@@ -254,29 +448,53 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = 150
+                SplitterDistance = 180,
+                SplitterWidth = 6,
+                BackColor = ColorTranslator.FromHtml("#cbd5e0")
+            };
+
+            Panel panelListaZdjec = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                Padding = new Padding(5)
             };
 
             listBoxZdjecia = new ListBox
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9.5F),
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BorderStyle = BorderStyle.None,
+                ItemHeight = 20
             };
             listBoxZdjecia.SelectedIndexChanged += ListBoxZdjecia_SelectedIndexChanged;
+
+            panelListaZdjec.Controls.Add(listBoxZdjecia);
+
+            Panel panelPodglad = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
+                Padding = new Padding(5)
+            };
 
             pictureBoxPodglad = new PictureBox
             {
                 Dock = DockStyle.Fill,
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BorderStyle = BorderStyle.None
             };
 
-            splitZdjecia.Panel1.Controls.Add(listBoxZdjecia);
-            splitZdjecia.Panel2.Controls.Add(pictureBoxPodglad);
+            panelPodglad.Controls.Add(pictureBoxPodglad);
+
+            splitZdjecia.Panel1.Controls.Add(panelListaZdjec);
+            splitZdjecia.Panel2.Controls.Add(panelPodglad);
 
             grpZdjecia.Controls.Add(splitZdjecia);
             grpZdjecia.Controls.Add(panelZdjeciaButtons);
+            grpZdjecia.Controls.Add(panelZdjeciaHeader);
 
             panelRight.Controls.Add(grpZdjecia);
 
@@ -289,40 +507,44 @@ namespace Kalendarz1
             Panel panelButtons = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 60,
-                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
-                Padding = new Padding(10)
+                Height = 75,
+                BackColor = ColorTranslator.FromHtml("#f5f7fa"),
+                Padding = new Padding(15)
             };
 
             btnZapiszReklamacje = new Button
             {
                 Text = "✓ Zgłoś reklamację",
-                Size = new Size(150, 40),
-                Location = new Point(panelButtons.Width - 320, 10),
+                Size = new Size(180, 45),
+                Location = new Point(panelButtons.Width - 380, 15),
                 BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnZapiszReklamacje.FlatAppearance.BorderSize = 0;
+            btnZapiszReklamacje.MouseEnter += (s, e) => btnZapiszReklamacje.BackColor = ColorTranslator.FromHtml("#229954");
+            btnZapiszReklamacje.MouseLeave += (s, e) => btnZapiszReklamacje.BackColor = ColorTranslator.FromHtml("#27ae60");
             btnZapiszReklamacje.Click += BtnZapiszReklamacje_Click;
 
             btnAnuluj = new Button
             {
                 Text = "✗ Anuluj",
-                Size = new Size(150, 40),
-                Location = new Point(panelButtons.Width - 160, 10),
+                Size = new Size(180, 45),
+                Location = new Point(panelButtons.Width - 190, 15),
                 BackColor = ColorTranslator.FromHtml("#95a5a6"),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top,
                 DialogResult = DialogResult.Cancel
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
+            btnAnuluj.MouseEnter += (s, e) => btnAnuluj.BackColor = ColorTranslator.FromHtml("#7f8c8d");
+            btnAnuluj.MouseLeave += (s, e) => btnAnuluj.BackColor = ColorTranslator.FromHtml("#95a5a6");
 
             panelButtons.Controls.Add(btnZapiszReklamacje);
             panelButtons.Controls.Add(btnAnuluj);
@@ -380,10 +602,9 @@ namespace Kalendarz1
 
         private void WczytajPartie()
         {
-            // Partie z ostatnich 2 tygodni
+            // Partie z ostatnich 2 tygodni - OD NAJNOWSZYCH (DESC)
             DateTime dataOd = DateTime.Now.AddDays(-14);
 
-            // Connection string do bazy LibraNet na innym serwerze
             string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
             string query = @"
@@ -397,7 +618,7 @@ namespace Kalendarz1
             CAST([CustomerID] AS VARCHAR) + ' - ' + [Partia] AS DisplayText
         FROM [dbo].[PartiaDostawca]
         WHERE [CreateData] >= @DataOd
-        ORDER BY [CreateData] ASC, [CreateGodzina] ASC";
+        ORDER BY [CreateData] DESC, [CreateGodzina] DESC";
 
             try
             {
@@ -429,7 +650,6 @@ namespace Kalendarz1
             }
             catch (SqlException sqlEx)
             {
-                // Specjalna obsługa błędów SQL
                 if (sqlEx.Message.Contains("Invalid object name") ||
                     sqlEx.Message.Contains("Cannot open database"))
                 {
@@ -466,10 +686,19 @@ namespace Kalendarz1
                 dtPartie.Columns.Add("Partia", typeof(string));
             }
         }
+
         private void CheckedListBoxTowary_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-            // Opóźnienie aktualizacji, bo ItemCheck wykonuje się przed zmianą
-            BeginInvoke(new Action(() => ObliczSumeKg()));
+            BeginInvoke(new Action(() =>
+            {
+                ObliczSumeKg();
+                AktualizujLiczniki();
+            }));
+        }
+
+        private void CheckedListBoxPartie_ItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            BeginInvoke(new Action(() => AktualizujLiczniki()));
         }
 
         private void ObliczSumeKg()
@@ -486,6 +715,13 @@ namespace Kalendarz1
             }
 
             lblSumaKg.Text = $"⚖ Łączna ilość zaznaczonych towarów: {sumaKg:N2} kg";
+        }
+
+        private void AktualizujLiczniki()
+        {
+            lblLicznikTowary.Text = $"Zaznaczono: {checkedListBoxTowary.CheckedItems.Count}";
+            lblLicznikPartie.Text = $"Zaznaczono: {checkedListBoxPartie.CheckedItems.Count}";
+            lblLicznikZdjecia.Text = $"Zdjęć: {sciezkiZdjec.Count}";
         }
 
         private void BtnDodajZdjecia_Click(object sender, EventArgs e)
@@ -506,6 +742,7 @@ namespace Kalendarz1
                             listBoxZdjecia.Items.Add(Path.GetFileName(filePath));
                         }
                     }
+                    AktualizujLiczniki();
                 }
             }
         }
@@ -518,6 +755,7 @@ namespace Kalendarz1
                 sciezkiZdjec.RemoveAt(index);
                 listBoxZdjecia.Items.RemoveAt(index);
                 pictureBoxPodglad.Image = null;
+                AktualizujLiczniki();
             }
         }
 
@@ -541,7 +779,6 @@ namespace Kalendarz1
 
         private void BtnZapiszReklamacje_Click(object sender, EventArgs e)
         {
-            // Walidacja
             if (checkedListBoxTowary.CheckedItems.Count == 0)
             {
                 MessageBox.Show("Zaznacz przynajmniej jeden towar do reklamacji!", "Uwaga",
@@ -558,7 +795,6 @@ namespace Kalendarz1
 
             try
             {
-                // Zbierz dane reklamacji
                 var zaznaczoneTowary = new List<int>();
                 for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
                 {
@@ -568,7 +804,6 @@ namespace Kalendarz1
 
                 var zaznaczonePartie = new List<string>();
 
-                // POPRAWIONE - sprawdź czy partie są dostępne
                 if (checkedListBoxPartie.Enabled && dtPartie.Rows.Count > 0)
                 {
                     for (int i = 0; i < checkedListBoxPartie.CheckedIndices.Count; i++)
@@ -588,8 +823,10 @@ namespace Kalendarz1
                     sumaKg += Convert.ToDecimal(dtTowary.Rows[index]["Ilosc"]);
                 }
 
-                // Zapisz do bazy danych
                 ZapiszReklamacjeDoBAzy(zaznaczoneTowary, zaznaczonePartie, sumaKg);
+
+                MessageBox.Show("Reklamacja została pomyślnie zgłoszona!", "Sukces",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 this.DialogResult = DialogResult.OK;
                 this.Close();
@@ -610,7 +847,6 @@ namespace Kalendarz1
                 {
                     try
                     {
-                        // 1. Zapisz główny rekord reklamacji
                         string queryGlowna = @"
                             INSERT INTO [dbo].[Reklamacje]
                             ([DataZgloszenia], [UserID], [IdDokumentu], [NumerDokumentu], 
@@ -635,7 +871,6 @@ namespace Kalendarz1
                             idReklamacji = (int)cmd.ExecuteScalar();
                         }
 
-                        // 2. Zapisz towary Z NAZWAMI
                         for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
                         {
                             int index = checkedListBoxTowary.CheckedIndices[i];
@@ -657,7 +892,6 @@ namespace Kalendarz1
                             }
                         }
 
-                        // 3. Zapisz partie (TYLKO JEŚLI ISTNIEJĄ)
                         if (partie != null && partie.Count > 0)
                         {
                             foreach (string partia in partie)
@@ -676,7 +910,6 @@ namespace Kalendarz1
                             }
                         }
 
-                        // 4. Zapisz zdjęcia
                         string folderReklamacji = Path.Combine(
                             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                             "ReklamacjeZdjecia",
