@@ -309,7 +309,7 @@ namespace Kalendarz1.Transport.Formularze
         private void InitializeComponent()
         {
             Text = _kursId.HasValue ? "Edycja kursu transportowego" : "Nowy kurs transportowy";
-            Size = new Size(1600, 1000);
+            Size = new Size(1600, 1050); // Zwiększone z 1000 na 1050
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
             Font = new Font("Segoe UI", 10F);
@@ -329,7 +329,7 @@ namespace Kalendarz1.Transport.Formularze
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 65));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80)); // Zwiększone 
 
             var headerPanel = CreateHeaderPanel();
             mainLayout.Controls.Add(headerPanel, 0, 0);
@@ -945,7 +945,7 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(33, 37, 43),
-                Padding = new Padding(0, 10, 0, 0)
+                Padding = new Padding(0, 15, 0, 15) // Zwiększone padding
             };
 
             btnZapisz = new Button
@@ -960,7 +960,7 @@ namespace Kalendarz1.Transport.Formularze
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
             btnZapisz.FlatAppearance.BorderSize = 0;
-            btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 10);
+            btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 15); // Zmienione z 10 na 15
             btnZapisz.Click += BtnZapisz_Click;
 
             btnAnuluj = new Button
@@ -975,7 +975,7 @@ namespace Kalendarz1.Transport.Formularze
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
-            btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
+            btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 15); // Zmienione z 10 na 15
             btnAnuluj.Click += (s, e) =>
             {
                 if (_ladunki.Count > 0 || _zamowieniaDoDodania.Count > 0 || _zamowieniaDoUsuniecia.Count > 0)
@@ -999,13 +999,12 @@ namespace Kalendarz1.Transport.Formularze
 
             panel.Resize += (s, e) =>
             {
-                btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 10);
-                btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 10);
+                btnAnuluj.Location = new Point(panel.Width - btnAnuluj.Width - 20, 15); // Zmienione
+                btnZapisz.Location = new Point(panel.Width - btnZapisz.Width - 170, 15); // Zmienione
             };
 
             return panel;
         }
-
         private Label CreateLabel(string text, int x, int y, int width)
         {
             return new Label
