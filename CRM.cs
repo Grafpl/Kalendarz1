@@ -1,6 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
@@ -11,7 +10,7 @@ namespace Kalendarz1
     public partial class CRM : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private int handlowiecID = 1; // Przykładowe ID, powinno być ustawiane dynamicznie po logowaniu
+        private string operatorID = "";
         private int aktualnyOdbiorcaID = 0;
         private bool isDataLoading = false;
 
@@ -20,262 +19,106 @@ namespace Kalendarz1
         public CRM()
         {
             InitializeComponent();
+
+            // Zdarzenia są już podłączone w Designer.cs, więc NIE dodajemy ich ponownie tutaj
             dataGridViewOdbiorcy.EditMode = DataGridViewEditMode.EditOnEnter;
 
-            // Inicjalizacja filtra statusu
+            // Inicjalizacja filtrów
+            comboBoxStatusFilter.Items.Clear();
             comboBoxStatusFilter.Items.Add("Wszystkie statusy");
             comboBoxStatusFilter.Items.AddRange(new object[] {
-        "Nowy", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt",
-        "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)"
-    });
+                "Nowy", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt",
+                "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)"
+            });
             comboBoxStatusFilter.SelectedIndex = 0;
 
-            // Inicjalizacja filtra powiatu
-            comboBoxPowiatFilter.Items.Add("Wszystkie powiaty");
-            comboBoxPowiatFilter.SelectedIndex = 0;
-            comboBoxPKD.Items.Add("Wszystkie Rodzaje");
-            comboBoxPKD.SelectedIndex = 0;
-            comboBoxWoj.Items.Add("Wszystkie Woj.");
-            comboBoxWoj.SelectedIndex = 0;
-
-            // Podpięcie ZDARZEŃ do kontrolek
-            // Oba ComboBoxy wskazują na TĘ SAMĄ metodę filtrującą
-            this.comboBoxStatusFilter.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
-            this.comboBoxPowiatFilter.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
-            this.comboBoxPKD.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
-            this.comboBoxWoj.SelectedIndexChanged += new System.EventHandler(this.ZastosujFiltry);
-
-            // Pozostałe zdarzenia DataGridView
-            this.dataGridViewOdbiorcy.CurrentCellDirtyStateChanged += new System.EventHandler(this.dataGridViewOdbiorcy_CurrentCellDirtyStateChanged);
-            this.dataGridViewOdbiorcy.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.dataGridViewOdbiorcy_RowPrePaint);
-            this.dataGridViewOdbiorcy.CellEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewOdbiorcy_CellEnter);
-
-
-        }
-        // NOWA METODA DO WYPEŁNIANIA FILTRA POWIATÓW
-        private void WypelnijFiltrPowiatow()
-        {
-            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
-            if (dt == null) return;
-
-            // Używamy LINQ do wybrania unikalnych, niepustych wartości z kolumny "Powiat"
-            var powiaty = dt.AsEnumerable()
-                            .Select(row => row.Field<string>("Powiat"))
-                            .Where(p => !string.IsNullOrEmpty(p))
-                            .Distinct()
-                            .OrderBy(p => p)
-                            .ToArray();
-
-            // Czyścimy stare wartości (oprócz "Wszystkie powiaty") i dodajemy nowe
             comboBoxPowiatFilter.Items.Clear();
             comboBoxPowiatFilter.Items.Add("Wszystkie powiaty");
-            comboBoxPowiatFilter.Items.AddRange(powiaty);
-            comboBoxPowiatFilter.SelectedIndex = 0; // Ustawiamy domyślną wartość
-        }
-        private void WypelnijFiltrPKD()
-        {
-            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
-            if (dt == null) return;
-
-            var grupy = dt.AsEnumerable()
-                .Where(row => !string.IsNullOrWhiteSpace(row.Field<string>("PKD_Opis")))
-                .GroupBy(row => row.Field<string>("PKD_Opis"))
-                .Select(g => new
-                {
-                    Opis = g.Key,
-                    Liczba = g.Count()
-                })
-                .OrderByDescending(g => g.Liczba)
-                .ToList();
+            comboBoxPowiatFilter.SelectedIndex = 0;
 
             comboBoxPKD.Items.Clear();
             comboBoxPKD.Items.Add("Wszystkie Rodzaje");
-
-            foreach (var pkd in grupy)
-            {
-                comboBoxPKD.Items.Add($"{pkd.Opis}");
-            }
-
             comboBoxPKD.SelectedIndex = 0;
-        }
 
-
-        private void WypelnijFiltrWoj()
-        {
-            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
-            if (dt == null) return;
-
-            // Używamy LINQ do wybrania unikalnych, niepustych wartości z kolumny "Powiat"
-            var PKD = dt.AsEnumerable()
-                            .Select(row => row.Field<string>("Wojewodztwo"))
-                            .Where(p => !string.IsNullOrEmpty(p))
-                            .Distinct()
-                            .OrderBy(p => p)
-                            .ToArray();
-
-            // Czyścimy stare wartości (oprócz "Wszystkie powiaty") i dodajemy nowe
             comboBoxWoj.Items.Clear();
-            comboBoxWoj.Items.Add("Wszystkie Rodzaje");
-            comboBoxWoj.Items.AddRange(PKD);
-            comboBoxWoj.SelectedIndex = 0; // Ustawiamy domyślną wartość
+            comboBoxWoj.Items.Add("Wszystkie Woj.");
+            comboBoxWoj.SelectedIndex = 0;
         }
-        // NOWA METODA DO FILTROWANIA
-        private void comboBoxStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
+
+        private void CRM_Load(object sender, EventArgs e)
         {
-            // Pobieramy źródło danych z siatki i rzutujemy je na DataTable
-            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            operatorID = UserID;
 
-            if (dt == null) return; // Zabezpieczenie, jeśli dane nie są jeszcze załadowane
+            KonfigurujDataGridView();
+            WczytajOdbiorcow();
+            WczytajRankingHandlowcow();
 
-            // Pobieramy wybrany status z ComboBoxa
-            string wybranyStatus = comboBoxStatusFilter.SelectedItem.ToString();
-
-            // Sprawdzamy, czy wybrano opcję "Wszystkie statusy"
-            if (wybranyStatus == "Wszystkie statusy")
+            if (operatorID == "11111")
             {
-                // Jeśli tak, czyścimy filtr, aby pokazać wszystkie wiersze
-                dt.DefaultView.RowFilter = string.Empty;
+                DodajPrzyciskAdmin();
             }
-            else
-            {
-                // Jeśli wybrano konkretny status, tworzymy odpowiedni filtr
-                // Składnia [NazwaKolumny] = 'Wartość' jest podobna do SQL WHERE
-                dt.DefaultView.RowFilter = $"Status = '{wybranyStatus}'";
-            }
+
+            DodajPrzyciskZadania();
+            DodajPrzyciskDodajOdbiorcę();
         }
-        // ZASTĄP TĘ METODĘ W SWOIM KODZIE
-        private void KonfigurujDataGridView()
+
+        private void DodajPrzyciskAdmin()
         {
-            dataGridViewOdbiorcy.AutoGenerateColumns = false;
-            dataGridViewOdbiorcy.Columns.Clear();
-            dataGridViewOdbiorcy.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-            dataGridViewOdbiorcy.RowTemplate.Height = 45; // Dwie linijki
-            dataGridViewOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-            dataGridViewOdbiorcy.AllowUserToResizeColumns = false;
-
-
-
-            // ID – ukryte lub wąskie
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            var btnAdmin = new Button
             {
-                Name = "ID",
-                DataPropertyName = "ID",
-                HeaderText = "ID",
-                Width = 70,
-                ReadOnly = true
-            });
-
-            // Nazwa – może być długa
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Nazwa",
-                DataPropertyName = "Nazwa",
-                HeaderText = "Nazwa",
-                Width = 280,
-                ReadOnly = true,
-                DefaultCellStyle = { WrapMode = DataGridViewTriState.True }
-            });
-
-            // Status – combo box
-            var statusColumn = new DataGridViewComboBoxColumn
-            {
-                Name = "StatusColumn",
-                DataPropertyName = "Status",
-                HeaderText = "Status",
-                FlatStyle = FlatStyle.Flat,
-                Width = 120
+                Text = "⚙ Panel",
+                Location = new Point(1100, 227),
+                Size = new Size(90, 23),
+                BackColor = Color.DarkOrange,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
-            statusColumn.Items.AddRange("Nowy", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt", "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)");
-            dataGridViewOdbiorcy.Columns.Add(statusColumn);
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "KodPocztowy",
-                DataPropertyName = "KodPocztowy",
-                HeaderText = "Kod",
-                Width = 60,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "MIASTO",
-                DataPropertyName = "MIASTO",
-                HeaderText = "Miasto",
-                Width = 80,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Ulica",
-                DataPropertyName = "Ulica",
-                HeaderText = "Ulica",
-                Width = 80,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Telefon_K",
-                DataPropertyName = "Telefon_K",
-                HeaderText = "Telefon",
-                Width = 90,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Wojewodztwo",
-                DataPropertyName = "Wojewodztwo",
-                HeaderText = "Województwo",
-                Width = 120,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Powiat",
-                DataPropertyName = "Powiat",
-                HeaderText = "Powiat",
-                Width = 120,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "PKD_Opis",
-                DataPropertyName = "PKD_Opis",
-                HeaderText = "PKD",
-                Width = 200,
-                ReadOnly = true
-            });
-
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "DataOstatniejNotatki",
-                DataPropertyName = "DataOstatniejNotatki",
-                HeaderText = "Ost. Notatka",
-                Width = 100,
-                ReadOnly = true
-            });
-
-            // Styl ogólny (czcionka itd. możesz dostosować)
-            dataGridViewOdbiorcy.DefaultCellStyle.Font = new Font("Segoe UI", 10);
+            btnAdmin.Click += (s, e) => {
+                var panel = new PanelAdministracyjny(connectionString);
+                panel.ShowDialog();
+                WczytajOdbiorcow();
+            };
+            this.Controls.Add(btnAdmin);
         }
 
-        private readonly Dictionary<string, List<string>> mapaWojewodztw = new Dictionary<string, List<string>>
-{
-    { "9991", new List<string> { "Kujawsko-Pomorskie" } },
-    { "6521", new List<string> { "Kujawsko-Pomorskie" } },
-    { "9998", new List<string> { "Wielkopolskie" } },
-    { "98122", new List<string> { "Opolskie", "Lubelskie" } },
-    { "23231", new List<string> { "Mazowieckie" } },
-    { "23233", new List<string> { "Mazowieckie" } },
-    { "871231", new List<string> { "Śląskie" } },
-    { "432143", new List<string> { "Łódzkie", "Świętokrzyskie" } }
-};
+        private void DodajPrzyciskZadania()
+        {
+            var btnZadania = new Button
+            {
+                Text = "📋 Zadania",
+                Location = new Point(1195, 227),
+                Size = new Size(90, 23),
+                BackColor = Color.SteelBlue,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            btnZadania.Click += (s, e) => {
+                var formZadania = new FormZadania(connectionString, operatorID);
+                formZadania.ShowDialog();
+            };
+            this.Controls.Add(btnZadania);
+        }
 
+        private void DodajPrzyciskDodajOdbiorcę()
+        {
+            var btnDodaj = new Button
+            {
+                Text = "+ Dodaj",
+                Location = new Point(352, 1),
+                Size = new Size(80, 30),
+                BackColor = Color.Green,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            btnDodaj.Click += (s, e) => {
+                var formDodaj = new FormDodajOdbiorce(connectionString, operatorID);
+                if (formDodaj.ShowDialog() == DialogResult.OK)
+                {
+                    WczytajOdbiorcow();
+                }
+            };
+            this.Controls.Add(btnDodaj);
+        }
 
         private void WczytajOdbiorcow()
         {
@@ -283,74 +126,9 @@ namespace Kalendarz1
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-
-                string query;
-                SqlCommand cmd;
-
-                if (UserID == "11111")
-                {
-                    // Użytkownik 11111 widzi wszystkich odbiorców
-                    query = @"
-        SELECT 
-            O.ID, 
-            O.Nazwa, 
-            ISNULL(O.Status, 'Nowy') AS Status, 
-            O.KOD AS KodPocztowy, 
-            O.MIASTO, 
-            O.Ulica, 
-            O.Telefon_K, 
-            O.Wojewodztwo, 
-            O.Powiat, 
-            O.PKD_Opis, 
-            MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
-        FROM OdbiorcyCRM O 
-        LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
-        GROUP BY 
-            O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.PKD_opis 
-        ORDER BY O.Nazwa";
-                    cmd = new SqlCommand(query, conn);
-                }
-                else if (!string.IsNullOrEmpty(UserID) && mapaWojewodztw.TryGetValue(UserID, out var wojewodztwa))
-                {
-                    var clauses = wojewodztwa
-                        .Select((w, i) => $"LOWER(O.Wojewodztwo) = @Wojewodztwo{i}")
-                        .ToList();
-
-                    var whereClause = string.Join(" OR ", clauses);
-                    query = $@"
-        SELECT 
-            O.ID, 
-            O.Nazwa, 
-            ISNULL(O.Status, 'Nowy') AS Status, 
-            O.KOD AS KodPocztowy, 
-            O.MIASTO, 
-            O.Ulica, 
-            O.Telefon_K, 
-            O.Wojewodztwo, 
-            O.Powiat, 
-            O.PKD_Opis, 
-            MAX(N.DataUtworzenia) AS DataOstatniejNotatki 
-        FROM OdbiorcyCRM O 
-        LEFT JOIN NotatkiCRM N ON O.ID = N.IDOdbiorcy 
-        WHERE {whereClause} 
-        GROUP BY 
-            O.ID, O.Nazwa, O.Status, O.KOD, O.MIASTO, O.Ulica, O.Telefon_K, 
-            O.Wojewodztwo, O.Powiat, O.PKD_opis
-        ORDER BY O.Nazwa";
-
-                    cmd = new SqlCommand(query, conn);
-                    for (int i = 0; i < wojewodztwa.Count; i++)
-                    {
-                        string param = wojewodztwa[i].ToLower(); // ← dokładne dopasowanie
-                        cmd.Parameters.AddWithValue($"@Wojewodztwo{i}", param);
-                    }
-                }
-                else
-                {
-                    dataGridViewOdbiorcy.DataSource = null;
-                    return;
-                }
+                var cmd = new SqlCommand("sp_PobierzOdbiorcow", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("@OperatorID", operatorID);
 
                 var adapter = new SqlDataAdapter(cmd);
                 var dt = new DataTable();
@@ -364,54 +142,165 @@ namespace Kalendarz1
             WypelnijFiltrWoj();
         }
 
-        private void ZastosujFiltry(object sender, EventArgs e)
-        {
-            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
-            if (dt == null) return;
-
-            // Tworzymy listę aktywnych filtrów
-            var filtry = new System.Collections.Generic.List<string>();
-
-            // Sprawdzamy filtr statusu
-            if (comboBoxStatusFilter.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie statusy"
-            {
-                string wybranyStatus = comboBoxStatusFilter.SelectedItem.ToString();
-                filtry.Add($"Status = '{wybranyStatus}'");
-            }
-
-            // Sprawdzamy filtr powiatu
-            if (comboBoxPowiatFilter.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie powiaty"
-            {
-                string wybranyPowiat = comboBoxPowiatFilter.SelectedItem.ToString();
-                filtry.Add($"Powiat = '{wybranyPowiat}'");
-            }
-
-            // Sprawdzamy filtr powiatu
-            if (comboBoxPKD.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie powiaty"
-            {
-                string wybranyPKD = comboBoxPKD.SelectedItem.ToString();
-                filtry.Add($"PKD_Opis = '{wybranyPKD}'");
-            }
-
-
-            // Sprawdzamy filtr powiatu
-            if (comboBoxWoj.SelectedIndex > 0) // > 0, bo na indeksie 0 jest "Wszystkie powiaty"
-            {
-                string wybranyWoj = comboBoxWoj.SelectedItem.ToString();
-                filtry.Add($"Wojewodztwo = '{wybranyWoj}'");
-            }
-
-            // Łączymy wszystkie aktywne filtry za pomocą operatora AND
-            dt.DefaultView.RowFilter = string.Join(" AND ", filtry);
-        }
-        private void AktualizujStatusWBazie(int idOdbiorcy, string nowyStatus)
+        private void WczytajRankingHandlowcow()
         {
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn);
+                var cmd = new SqlCommand("sp_PobierzRankingHandlowcow", conn);
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                var adapter = new SqlDataAdapter(cmd);
+                var dt = new DataTable();
+                adapter.Fill(dt);
+                dataGridViewRanking.DataSource = dt;
+            }
+        }
+
+        private void KonfigurujDataGridView()
+        {
+            dataGridViewOdbiorcy.AutoGenerateColumns = false;
+            dataGridViewOdbiorcy.Columns.Clear();
+            dataGridViewOdbiorcy.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dataGridViewOdbiorcy.RowTemplate.Height = 45;
+            dataGridViewOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+            dataGridViewOdbiorcy.AllowUserToResizeColumns = false;
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CzyMoj",
+                DataPropertyName = "CzyMoj",
+                HeaderText = "★",
+                Width = 30,
+                ReadOnly = true,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ID",
+                DataPropertyName = "ID",
+                HeaderText = "ID",
+                Width = 50,
+                ReadOnly = true
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Nazwa",
+                DataPropertyName = "Nazwa",
+                HeaderText = "Nazwa",
+                Width = 280,
+                ReadOnly = true,
+                DefaultCellStyle = { WrapMode = DataGridViewTriState.True }
+            });
+
+            var statusColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "StatusColumn",
+                DataPropertyName = "Status",
+                HeaderText = "Status",
+                FlatStyle = FlatStyle.Flat,
+                Width = 120
+            };
+            statusColumn.Items.AddRange("Nowy", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt",
+                "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)");
+            dataGridViewOdbiorcy.Columns.Add(statusColumn);
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "KodPocztowy", DataPropertyName = "KodPocztowy", HeaderText = "Kod", Width = 60, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "MIASTO", DataPropertyName = "MIASTO", HeaderText = "Miasto", Width = 80, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ulica", DataPropertyName = "Ulica", HeaderText = "Ulica", Width = 80, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefon_K", DataPropertyName = "Telefon_K", HeaderText = "Telefon", Width = 90, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wojewodztwo", DataPropertyName = "Wojewodztwo", HeaderText = "Województwo", Width = 100, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Powiat", DataPropertyName = "Powiat", HeaderText = "Powiat", Width = 100, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "PKD_Opis", DataPropertyName = "PKD_Opis", HeaderText = "PKD", Width = 150, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Score", DataPropertyName = "Score", HeaderText = "Score", Width = 50, ReadOnly = true, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "DataOstatniejNotatki", DataPropertyName = "DataOstatniejNotatki", HeaderText = "Ost. Notatka", Width = 100, ReadOnly = true });
+
+            dataGridViewOdbiorcy.DefaultCellStyle.Font = new Font("Segoe UI", 10);
+        }
+
+        private void dataGridViewOdbiorcy_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (!isDataLoading && e.RowIndex >= 0 && dataGridViewOdbiorcy.Columns[e.ColumnIndex].Name == "StatusColumn")
+            {
+                int idOdbiorcy = Convert.ToInt32(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["ID"].Value);
+                string nowyStatus = dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["StatusColumn"].Value?.ToString() ?? "";
+                string staryStatus = PobierzAktualnyStatus(idOdbiorcy);
+
+                AktualizujStatusWBazie(idOdbiorcy, nowyStatus, staryStatus);
+                dataGridViewOdbiorcy.InvalidateRow(e.RowIndex);
+
+                var sugestia = ZaproponujNastepnyKrok(nowyStatus);
+                if (sugestia != null)
+                {
+                    var result = MessageBox.Show($"Sugestia: {sugestia.Opis}\n\nCzy zaplanować zadanie?", "Następny krok", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (result == DialogResult.Yes)
+                        UtworzZadanie(idOdbiorcy, sugestia);
+                }
+            }
+        }
+
+        private string PobierzAktualnyStatus(int idOdbiorcy)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                var cmd = new SqlCommand("SELECT Status FROM OdbiorcyCRM WHERE ID = @id", conn);
                 cmd.Parameters.AddWithValue("@id", idOdbiorcy);
-                cmd.Parameters.AddWithValue("@status", (object)nowyStatus ?? DBNull.Value);
+                return cmd.ExecuteScalar()?.ToString() ?? "Nowy";
+            }
+        }
+
+        private void AktualizujStatusWBazie(int idOdbiorcy, string nowyStatus, string staryStatus)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn, transaction);
+                        cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
+                        cmdUpdate.Parameters.AddWithValue("@status", (object)nowyStatus ?? DBNull.Value);
+                        cmdUpdate.ExecuteNonQuery();
+
+                        var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscStara, WartoscNowa, KtoWykonal) VALUES (@idOdbiorcy, @typ, @stara, @nowa, @kto)", conn, transaction);
+                        cmdLog.Parameters.AddWithValue("@idOdbiorcy", idOdbiorcy);
+                        cmdLog.Parameters.AddWithValue("@typ", "Zmiana statusu");
+                        cmdLog.Parameters.AddWithValue("@stara", (object)staryStatus ?? DBNull.Value);
+                        cmdLog.Parameters.AddWithValue("@nowa", (object)nowyStatus ?? DBNull.Value);
+                        cmdLog.Parameters.AddWithValue("@kto", operatorID);
+                        cmdLog.ExecuteNonQuery();
+
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); throw; }
+                }
+            }
+        }
+
+        private SugestiaKroku ZaproponujNastepnyKrok(string status) => status switch
+        {
+            "Próba kontaktu" => new SugestiaKroku { TypZadania = "Telefon", Opis = "Próba ponownego kontaktu", Termin = DateTime.Now.AddDays(2), Priorytet = 2 },
+            "Nawiązano kontakt" => new SugestiaKroku { TypZadania = "Email", Opis = "Wysłać prezentację firmy", Termin = DateTime.Now.AddDays(1), Priorytet = 3 },
+            "Zgoda na dalszy kontakt" => new SugestiaKroku { TypZadania = "Oferta", Opis = "Przygotować ofertę", Termin = DateTime.Now.AddHours(4), Priorytet = 3 },
+            _ => null
+        };
+
+        private void UtworzZadanie(int idOdbiorcy, SugestiaKroku sugestia)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                var cmd = new SqlCommand("INSERT INTO Zadania (IDOdbiorcy, OperatorID, TypZadania, Opis, TerminWykonania, Priorytet) VALUES (@odbiorca, @operator, @typ, @opis, @termin, @priorytet)", conn);
+                cmd.Parameters.AddWithValue("@odbiorca", idOdbiorcy);
+                cmd.Parameters.AddWithValue("@operator", operatorID);
+                cmd.Parameters.AddWithValue("@typ", sugestia.TypZadania);
+                cmd.Parameters.AddWithValue("@opis", sugestia.Opis);
+                cmd.Parameters.AddWithValue("@termin", sugestia.Termin);
+                cmd.Parameters.AddWithValue("@priorytet", sugestia.Priorytet);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -421,8 +310,7 @@ namespace Kalendarz1
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var query = "SELECT Tresc, DataUtworzenia FROM NotatkiCRM WHERE IDOdbiorcy = @id ORDER BY DataUtworzenia DESC";
-                var cmd = new SqlCommand(query, conn);
+                var cmd = new SqlCommand("SELECT Tresc, DataUtworzenia FROM NotatkiCRM WHERE IDOdbiorcy = @id ORDER BY DataUtworzenia DESC", conn);
                 cmd.Parameters.AddWithValue("@id", idOdbiorcy);
                 var adapter = new SqlDataAdapter(cmd);
                 var dt = new DataTable();
@@ -436,105 +324,111 @@ namespace Kalendarz1
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var cmd = new SqlCommand("INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal) VALUES (@id, @tresc, @kto)", conn);
-                cmd.Parameters.AddWithValue("@id", idOdbiorcy);
-                cmd.Parameters.AddWithValue("@tresc", tresc);
-                cmd.Parameters.AddWithValue("@kto", handlowiecID);
-                cmd.ExecuteNonQuery();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        var cmdNotatka = new SqlCommand("INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal) VALUES (@id, @tresc, @kto)", conn, transaction);
+                        cmdNotatka.Parameters.AddWithValue("@id", idOdbiorcy);
+                        cmdNotatka.Parameters.AddWithValue("@tresc", tresc);
+                        cmdNotatka.Parameters.AddWithValue("@kto", operatorID);
+                        cmdNotatka.ExecuteNonQuery();
+
+                        var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal) VALUES (@id, @typ, @wartosc, @kto)", conn, transaction);
+                        cmdLog.Parameters.AddWithValue("@id", idOdbiorcy);
+                        cmdLog.Parameters.AddWithValue("@typ", "Dodanie notatki");
+                        cmdLog.Parameters.AddWithValue("@wartosc", tresc.Length > 100 ? tresc.Substring(0, 100) + "..." : tresc);
+                        cmdLog.Parameters.AddWithValue("@kto", operatorID);
+                        cmdLog.ExecuteNonQuery();
+
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); throw; }
+                }
             }
             WczytajNotatki(idOdbiorcy);
         }
 
-        private void buttonDodajNotatke_Click(object sender, EventArgs e)
+        private void WypelnijFiltrPowiatow()
         {
-            if (aktualnyOdbiorcaID > 0 && !string.IsNullOrWhiteSpace(textBoxNotatka.Text))
-            {
-                DodajNotatke(aktualnyOdbiorcaID, textBoxNotatka.Text);
-                textBoxNotatka.Clear();
-            }
-            else
-            {
-                MessageBox.Show("Wybierz odbiorcę i wpisz treść notatki.");
-            }
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+            var powiaty = dt.AsEnumerable().Select(row => row.Field<string>("Powiat")).Where(p => !string.IsNullOrEmpty(p)).Distinct().OrderBy(p => p).ToArray();
+            comboBoxPowiatFilter.Items.Clear();
+            comboBoxPowiatFilter.Items.Add("Wszystkie powiaty");
+            comboBoxPowiatFilter.Items.AddRange(powiaty);
+            comboBoxPowiatFilter.SelectedIndex = 0;
         }
 
-        // ZASTĄP TĘ METODĘ W SWOIM KODZIE
-        private void dataGridViewOdbiorcy_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        private void WypelnijFiltrPKD()
         {
-            // Sprawdzamy, czy nazwa kolumny to "StatusColumn" - to jest nasz test
-            if (!isDataLoading && e.RowIndex >= 0 && dataGridViewOdbiorcy.Columns[e.ColumnIndex].Name == "StatusColumn")
-            {
-                // Jeśli ten komunikat się pojawi, to znaczy, że warunek jest spełniony
-                MessageBox.Show("Warunek spełniony! Rozpoczynam zapis do bazy.");
-
-                int idOdbiorcy = Convert.ToInt32(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["ID"].Value);
-                string nowyStatus = dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["StatusColumn"].Value?.ToString() ?? "";
-
-                AktualizujStatusWBazie(idOdbiorcy, nowyStatus);
-
-                dataGridViewOdbiorcy.InvalidateRow(e.RowIndex);
-            }
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+            var grupy = dt.AsEnumerable().Where(row => !string.IsNullOrWhiteSpace(row.Field<string>("PKD_Opis"))).GroupBy(row => row.Field<string>("PKD_Opis")).Select(g => g.Key).OrderBy(x => x).ToList();
+            comboBoxPKD.Items.Clear();
+            comboBoxPKD.Items.Add("Wszystkie Rodzaje");
+            foreach (var pkd in grupy) comboBoxPKD.Items.Add(pkd);
+            comboBoxPKD.SelectedIndex = 0;
         }
 
-        // ZASTĄP ISTNIEJĄCĄ METODĘ TĄ PONIŻEJ
+        private void WypelnijFiltrWoj()
+        {
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+            var woj = dt.AsEnumerable().Select(row => row.Field<string>("Wojewodztwo")).Where(p => !string.IsNullOrEmpty(p)).Distinct().OrderBy(p => p).ToArray();
+            comboBoxWoj.Items.Clear();
+            comboBoxWoj.Items.Add("Wszystkie Rodzaje");
+            comboBoxWoj.Items.AddRange(woj);
+            comboBoxWoj.SelectedIndex = 0;
+        }
+
+        private void comboBoxStatusFilter_SelectedIndexChanged(object sender, EventArgs e) => ZastosujFiltry(sender, e);
+
+        private void ZastosujFiltry(object sender, EventArgs e)
+        {
+            DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
+            if (dt == null) return;
+            var filtry = new System.Collections.Generic.List<string>();
+            if (comboBoxStatusFilter.SelectedIndex > 0) filtry.Add($"Status = '{comboBoxStatusFilter.SelectedItem}'");
+            if (comboBoxPowiatFilter.SelectedIndex > 0) filtry.Add($"Powiat = '{comboBoxPowiatFilter.SelectedItem}'");
+            if (comboBoxPKD.SelectedIndex > 0) filtry.Add($"PKD_Opis = '{comboBoxPKD.SelectedItem}'");
+            if (comboBoxWoj.SelectedIndex > 0) filtry.Add($"Wojewodztwo = '{comboBoxWoj.SelectedItem}'");
+            dt.DefaultView.RowFilter = string.Join(" AND ", filtry);
+        }
 
         private void dataGridViewOdbiorcy_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
-            if (e.RowIndex < 0 || e.RowIndex >= dataGridViewOdbiorcy.Rows.Count)
-            {
-                return;
-            }
-
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridViewOdbiorcy.Rows.Count) return;
             DataGridViewRow row = dataGridViewOdbiorcy.Rows[e.RowIndex];
-
-            // POPRAWKA JEST TUTAJ
             string status = row.Cells["StatusColumn"].Value?.ToString() ?? "Nowy";
-
-            Color kolorWiersza;
-            switch (status)
+            Color kolorWiersza = status switch
             {
-                case "Nowy": kolorWiersza = Color.White; break;
-                case "Próba kontaktu": kolorWiersza = Color.LightSkyBlue; break;
-                case "Nawiązano kontakt": kolorWiersza = Color.CornflowerBlue; break;
-                case "Zgoda na dalszy kontakt": kolorWiersza = Color.LightGreen; break;
-                case "Do wysłania oferta": kolorWiersza = Color.LightYellow; break;
-                case "Nie zainteresowany": kolorWiersza = Color.MistyRose; break;
-                case "Poprosił o usunięcie": kolorWiersza = Color.Salmon; break;
-                case "Błędny rekord (do raportu)": kolorWiersza = Color.Orange; break;
-                default: kolorWiersza = Color.White; break;
-            }
-
+                "Nowy" => Color.White,
+                "Próba kontaktu" => Color.LightSkyBlue,
+                "Nawiązano kontakt" => Color.CornflowerBlue,
+                "Zgoda na dalszy kontakt" => Color.LightGreen,
+                "Do wysłania oferta" => Color.LightYellow,
+                "Nie zainteresowany" => Color.MistyRose,
+                "Poprosił o usunięcie" => Color.Salmon,
+                "Błędny rekord (do raportu)" => Color.Orange,
+                _ => Color.White
+            };
             row.DefaultCellStyle.BackColor = kolorWiersza;
             row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(kolorWiersza.A, Math.Max(0, kolorWiersza.R - 25), Math.Max(0, kolorWiersza.G - 25), Math.Max(0, kolorWiersza.B - 25));
         }
+
         private void dataGridViewOdbiorcy_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
             if (dataGridViewOdbiorcy.IsCurrentCellDirty)
-            {
                 dataGridViewOdbiorcy.CommitEdit(DataGridViewDataErrorContexts.Commit);
-            }
         }
 
-        // ZASTĄP ISTNIEJĄCĄ METODĘ TĄ PONIŻEJ
-        // ZASTĄP ISTNIEJĄCĄ METODĘ TĄ PONIŻEJ
         private void dataGridViewOdbiorcy_CellEnter(object sender, DataGridViewCellEventArgs e)
         {
-            // Sprawdzenie, czy weszliśmy do prawidłowego wiersza
             if (e.RowIndex >= 0)
             {
                 var row = dataGridViewOdbiorcy.Rows[e.RowIndex];
-
-                // --- DODANE ZABEZPIECZENIE ---
-                // Sprawdzamy, czy to jest specjalny "nowy wiersz" na końcu tabeli.
-                if (row.IsNewRow)
-                {
-                    // Jeśli tak, to nic nie robimy i po prostu wychodzimy z metody,
-                    // aby uniknąć próby odczytania wartości z pustych komórek.
-                    return;
-                }
-                // -----------------------------
-
-                // Ten kod wykona się teraz tylko dla istniejących wierszy z danymi
+                if (row.IsNewRow) return;
                 int idOdbiorcy = Convert.ToInt32(row.Cells["ID"].Value);
                 if (aktualnyOdbiorcaID != idOdbiorcy)
                 {
@@ -544,68 +438,6 @@ namespace Kalendarz1
             }
         }
 
-        private void WczytajRankingHandlowcow()
-        {
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-
-                var query = @"
-WITH WojHandlowcy AS (
-    SELECT 
-        V.UserID,
-        V.NazwaHandlowca,
-        O.Status
-    FROM OdbiorcyCRM O
-    JOIN (
-        VALUES 
-            ('9991', 'Dawid'),
-            ('9998', 'Daniel'),
-            ('871231', 'Radek'),
-            ('98122', 'A'),
-            ('11111', 'Z'),
-            ('432143', 'Ania')
-    ) AS V(UserID, NazwaHandlowca)
-    ON (
-        (V.UserID = '9991' AND LOWER(O.Wojewodztwo) = 'kujawsko-pomorskie') OR
-        (V.UserID = '9998' AND LOWER(O.Wojewodztwo) = 'wielkopolskie') OR
-        (V.UserID = '98122' AND (LOWER(O.Wojewodztwo) = 'opolskie' OR LOWER(O.Wojewodztwo) = 'lubelskie')) OR
-        (V.UserID = '11111' AND LOWER(O.Wojewodztwo) = 'mazowieckie') OR
-        (V.UserID = '871231' AND LOWER(O.Wojewodztwo) = 'śląskie') OR
-        (V.UserID = '432143' AND (LOWER(O.Wojewodztwo) = 'łódzkie' OR LOWER(O.Wojewodztwo) = 'świętokrzyskie'))
-    )
-)
-
-SELECT 
-    NazwaHandlowca,
-    COUNT(CASE WHEN Status IS NULL OR Status = 'Nowy' THEN 1 END) AS [Nowy],
-    COUNT(CASE WHEN Status = 'Próba kontaktu' THEN 1 END) AS [Próba kontaktu],
-    COUNT(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 END) AS [Nawiązano kontakt],
-    COUNT(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 END) AS [Zgoda],
-    COUNT(CASE WHEN Status = 'Do wysłania oferta' THEN 1 END) AS [Do wysłania],
-    COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) AS [Nie zainteresowany],
-    COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) AS [Usunąć],
-    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Błędny],
-    -- Kolumna Aktywność (bez Nowy)
-    COUNT(CASE WHEN Status = 'Próba kontaktu' THEN 1 END) +
-    COUNT(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 END) +
-    COUNT(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 END) +
-    COUNT(CASE WHEN Status = 'Do wysłania oferta' THEN 1 END) +
-    COUNT(CASE WHEN Status = 'Nie zainteresowany' THEN 1 END) +
-    COUNT(CASE WHEN LOWER(Status) LIKE '%poprosił o usunięcie%' THEN 1 END) +
-    COUNT(CASE WHEN Status = 'Błędny rekord (do raportu)' THEN 1 END) AS [Suma]
-FROM WojHandlowcy 
-GROUP BY NazwaHandlowca
-ORDER BY NazwaHandlowca";
-
-                var cmd = new SqlCommand(query, conn);
-                var adapter = new SqlDataAdapter(cmd);
-                var dt = new DataTable();
-                adapter.Fill(dt);
-
-                dataGridViewRanking.DataSource = dt;
-            }
-        }
         private void DataGridViewRanking_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dataGridViewRanking.Columns[e.ColumnIndex].Name == "Suma" && e.Value != null)
@@ -615,50 +447,19 @@ ORDER BY NazwaHandlowca";
             }
         }
 
-
-
-        private void CRM_Load(object sender, EventArgs e)
-        {
-            // Wywołanie metod konfigurujących i wczytujących dane
-            KonfigurujDataGridView();
-            WczytajOdbiorcow();
-            WczytajRankingHandlowcow();
-
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            // Wywołanie metod konfigurujących i wczytujących dane
-            KonfigurujDataGridView();
-            WczytajOdbiorcow();
-            WczytajRankingHandlowcow();
-        }
-
-        private void comboBoxPowiatFilter_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
+        private void button1_Click(object sender, EventArgs e) { KonfigurujDataGridView(); WczytajOdbiorcow(); WczytajRankingHandlowcow(); }
 
         private void button2_Click(object sender, EventArgs e)
         {
             if (dataGridViewOdbiorcy.CurrentRow != null)
             {
                 string nazwaFirmy = dataGridViewOdbiorcy.CurrentRow.Cells["Nazwa"].Value?.ToString();
-
                 if (!string.IsNullOrWhiteSpace(nazwaFirmy))
                 {
-                    string query = Uri.EscapeDataString(nazwaFirmy);
-                    string url = $"https://www.google.com/search?q={query}";
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
+                    string url = $"https://www.google.com/search?q={Uri.EscapeDataString(nazwaFirmy)}";
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
                 }
-                else
-                {
-                    MessageBox.Show("Brak nazwy firmy w zaznaczonym wierszu.");
-                }
+                else MessageBox.Show("Brak nazwy firmy.");
             }
         }
 
@@ -666,47 +467,46 @@ ORDER BY NazwaHandlowca";
         {
             if (dataGridViewOdbiorcy.CurrentRow != null)
             {
-                // Dane adresowe odbiorcy
                 string ulica = dataGridViewOdbiorcy.CurrentRow.Cells["Ulica"].Value?.ToString() ?? "";
                 string miasto = dataGridViewOdbiorcy.CurrentRow.Cells["MIASTO"].Value?.ToString() ?? "";
                 string kodPocztowy = dataGridViewOdbiorcy.CurrentRow.Cells["KodPocztowy"].Value?.ToString() ?? "";
-
-                // Adres docelowy
                 string adresOdbiorcy = $"{ulica}, {kodPocztowy} {miasto}";
                 string adresStartowy = "Koziołki 40, 95-061 Dmosin";
-
                 if (!string.IsNullOrWhiteSpace(adresOdbiorcy))
                 {
                     string url = $"https://www.google.com/maps/dir/{Uri.EscapeDataString(adresStartowy)}/{Uri.EscapeDataString(adresOdbiorcy)}";
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
                 }
-                else
-                {
-                    MessageBox.Show("Nie można utworzyć adresu odbiorcy – brak danych.");
-                }
+                else MessageBox.Show("Brak danych adresowych.");
             }
+        }
+
+        private void buttonDodajNotatke_Click(object sender, EventArgs e)
+        {
+            if (aktualnyOdbiorcaID > 0 && !string.IsNullOrWhiteSpace(textBoxNotatka.Text))
+            {
+                DodajNotatke(aktualnyOdbiorcaID, textBoxNotatka.Text);
+                textBoxNotatka.Clear();
+            }
+            else MessageBox.Show("Wybierz odbiorcę i wpisz treść notatki.");
         }
 
         private void textBoxSzukaj_TextChanged(object sender, EventArgs e)
         {
             DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
             if (dt == null) return;
-
-            string szukanyTekst = textBoxSzukaj.Text.Trim().Replace("'", "''"); // zabezpieczenie apostrofów
-
-            if (string.IsNullOrEmpty(szukanyTekst))
-            {
-                dt.DefaultView.RowFilter = ""; // pokaż wszystko
-            }
-            else
-            {
-                // Filtruje tylko po kolumnie "Nazwa", ignorując wielkość liter
-                dt.DefaultView.RowFilter = $"Nazwa LIKE '%{szukanyTekst}%'";
-            }
+            string szukanyTekst = textBoxSzukaj.Text.Trim().Replace("'", "''");
+            dt.DefaultView.RowFilter = string.IsNullOrEmpty(szukanyTekst) ? "" : $"Nazwa LIKE '%{szukanyTekst}%'";
         }
+
+        private void comboBoxPowiatFilter_SelectedIndexChanged(object sender, EventArgs e) => ZastosujFiltry(sender, e);
+    }
+
+    public class SugestiaKroku
+    {
+        public string TypZadania { get; set; }
+        public string Opis { get; set; }
+        public DateTime Termin { get; set; }
+        public int Priorytet { get; set; }
     }
 }
