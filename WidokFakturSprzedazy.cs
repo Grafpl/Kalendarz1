@@ -2358,15 +2358,13 @@ namespace Kalendarz1
 
             contextMenuDokumenty.Items.Add(new ToolStripSeparator());
 
+            // NOWA OPCJA - Zgłoś reklamację
             var menuReklamacja = new ToolStripMenuItem
             {
                 Text = "⚠ Zgłoś reklamację",
-                Enabled = false,
-                ForeColor = ColorTranslator.FromHtml("#95a5a6")
+                ShortcutKeys = Keys.Control | Keys.R
             };
-            menuReklamacja.Click += (s, e) => MessageBox.Show(
-                "ℹ Funkcja zgłaszania reklamacji będzie dostępna wkrótce.",
-                "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            menuReklamacja.Click += MenuReklamacja_Click;
             contextMenuDokumenty.Items.Add(menuReklamacja);
 
             var menuDrukuj = new ToolStripMenuItem
@@ -2384,7 +2382,6 @@ namespace Kalendarz1
 
             dataGridViewOdbiorcy.ContextMenuStrip = contextMenuDokumenty;
         }
-
         private void ContextMenuDokumenty_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             bool czyZaznaczono = dataGridViewOdbiorcy.SelectedRows.Count > 0 &&
@@ -2395,14 +2392,46 @@ namespace Kalendarz1
             {
                 if (item is ToolStripMenuItem menuItem)
                 {
-                    if (menuItem.Text.Contains("Podgląd") || menuItem.Text.Contains("analiza"))
+                    if (menuItem.Text.Contains("Podgląd") ||
+                        menuItem.Text.Contains("analiza") ||
+                        menuItem.Text.Contains("reklamację"))  // DODANE
                     {
                         menuItem.Enabled = czyZaznaczono;
                     }
                 }
             }
         }
+        private void MenuReklamacja_Click(object? sender, EventArgs e)
+        {
+            if (dataGridViewOdbiorcy.SelectedRows.Count > 0)
+            {
+                var selectedRow = dataGridViewOdbiorcy.SelectedRows[0];
 
+                if (!Convert.ToBoolean(selectedRow.Cells["IsGroupRow"].Value) &&
+                    selectedRow.Cells["ID"].Value != DBNull.Value)
+                {
+                    int idDokumentu = Convert.ToInt32(selectedRow.Cells["ID"].Value);
+                    int idKontrahenta = Convert.ToInt32(selectedRow.Cells["khid"].Value);
+                    string numerDokumentu = selectedRow.Cells["NumerDokumentu"].Value?.ToString() ?? "Nieznany";
+                    string nazwaKontrahenta = selectedRow.Cells["NazwaFirmy"].Value?.ToString() ?? "Nieznany";
+
+                    using (var formReklamacja = new FormReklamacja(
+                        connectionString,
+                        idDokumentu,
+                        idKontrahenta,
+                        numerDokumentu,
+                        nazwaKontrahenta,
+                        UserID))
+                    {
+                        if (formReklamacja.ShowDialog(this) == DialogResult.OK)
+                        {
+                            MessageBox.Show("✓ Reklamacja została pomyślnie zgłoszona!",
+                                "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+            }
+        }
         private void MenuPodglad_Click(object? sender, EventArgs e)
         {
             if (dataGridViewOdbiorcy.SelectedRows.Count > 0)

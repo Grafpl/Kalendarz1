@@ -1258,17 +1258,21 @@ namespace Kalendarz1
                 {
                     int idtw = reader.GetInt32(0);
                     string kod = AsString(reader, 1);
-
                     object katObj = reader.GetValue(2);
-                    bool w67095 = false;
+                    bool wKatalogu = false;
                     if (!(katObj is DBNull))
                     {
-                        if (katObj is int ki) w67095 = (ki == 67095);
-                        else w67095 = string.Equals(Convert.ToString(katObj), "67095", StringComparison.Ordinal);
+                        if (katObj is int ki)
+                            wKatalogu = (ki == 67095 || ki == 67153);
+                        else
+                        {
+                            string katStr = Convert.ToString(katObj);
+                            wKatalogu = (katStr == "67095" || katStr == "67153");
+                        }
                     }
 
                     _twKodCache[idtw] = kod;
-                    if (w67095)
+                    if (wKatalogu)
                         _twKatalogCache[idtw] = kod;
                 }
             }
@@ -1696,16 +1700,17 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
                     const string sql = @"
-                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                        FROM [HANDEL].[HM].[MZ] MZ 
-                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                        JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
-                        WHERE MG.seria IN ('sWZ','sWZ-W') 
-                          AND MG.aktywny = 1 
-                          AND MG.data = @Dzien 
-                          AND MG.khid = @Khid
-                          AND TW.katalog = 67095
-                        GROUP BY MZ.idtw";
+    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+    FROM [HANDEL].[HM].[MZ] MZ 
+    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+    JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
+    WHERE MG.seria IN ('sWZ','sWZ-W') 
+      AND MG.aktywny = 1 
+      AND MG.data = @Dzien 
+      AND MG.khid = @Khid
+      AND TW.katalog IN (67095, 67153)
+
+    GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
                     cmd.Parameters.AddWithValue("@Khid", khId);
@@ -1719,8 +1724,7 @@ namespace Kalendarz1
                     }
                 }
             }
-            txtNotatki.Text = "Wydanie bez zamówienia (tylko towary z katalogu 67095)";
-            dgvSzczegoly.DataSource = dt;
+            txtNotatki.Text = "Wydanie bez zamówienia (tylko towary z katalogów 67095 i 67153)"; dgvSzczegoly.DataSource = dt;
             if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
         }
 
