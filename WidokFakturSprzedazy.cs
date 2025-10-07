@@ -146,7 +146,6 @@ namespace Kalendarz1
 
             StworzZakladkiAnalityczne();
 
-            // INICJALIZUJ FILTRY HANDLOWCÓW PRZED WCZYTANIEM DANYCH
             InicjalizujFiltryHandlowcow();
 
             WczytajPlatnosciPerKontrahent(null);
@@ -166,6 +165,11 @@ namespace Kalendarz1
             isDataLoading = false;
             OdswiezDaneGlownejSiatki();
             AktualizujRozmiary();
+
+            // ===== DODAJ TO NA KOŃCU =====
+            // Zmniejsz szerokość lewego panelu z fakturami
+            splitContainerMain.SplitterDistance = 900;  // Zmień z 850 na 600 (lub inną wartość)
+                                                        // ==============================
         }
         private void InicjalizujFiltryHandlowcow()
         {
@@ -603,87 +607,112 @@ namespace Kalendarz1
             Panel mainPanel = new Panel { Dock = DockStyle.Fill };
             tab.Controls.Add(mainPanel);
 
+            // Panel z kontrolkami filtrów - ZWIĘKSZONA WYSOKOŚĆ dla 2 rzędów
             Panel panelControls = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 90,
+                Height = 80,  // ZMIANA: zwiększone dla 2 rzędów
                 BackColor = ColorTranslator.FromHtml("#ecf0f1"),
                 Padding = new Padding(10)
             };
 
-            Label lblTowar = new Label { Text = "📦 Towar:", Location = new Point(10, 15), AutoSize = true };
+            // PIERWSZY RZĄD - Filtry
+            Label lblTowar = new Label
+            {
+                Text = "📦 Towar:",
+                Location = new Point(10, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
             comboBoxTowarAnalizaCen = new ComboBox
             {
-                Location = new Point(75, 12),
+                Location = new Point(85, 10),
                 Size = new Size(250, 23),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F)
             };
             WypelnijTowaryAnalizaCen(comboBoxTowarAnalizaCen);
             comboBoxTowarAnalizaCen.SelectedIndexChanged += (s, e) => OdswiezAnalizeCen();
 
-            Label lblDataOd = new Label { Text = "📅 Od:", Location = new Point(345, 15), AutoSize = true };
+            Label lblDataOd = new Label
+            {
+                Text = "📅 Od:",
+                Location = new Point(355, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
             dateTimePickerAnalizaOd = new DateTimePicker
             {
-                Location = new Point(390, 12),
+                Location = new Point(430, 10),
                 Size = new Size(110, 23),
                 Format = DateTimePickerFormat.Short,
-                Value = DateTime.Today.AddMonths(-3)
+                Value = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1),
+                Font = new Font("Segoe UI", 9F)
             };
             dateTimePickerAnalizaOd.ValueChanged += (s, e) => OdswiezAnalizeCen();
 
-            Label lblDataDo = new Label { Text = "📅 Do:", Location = new Point(515, 15), AutoSize = true };
+            Label lblDataDo = new Label
+            {
+                Text = "📅 Do:",
+                Location = new Point(555, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+
             dateTimePickerAnalizaDo = new DateTimePicker
             {
-                Location = new Point(560, 12),
+                Location = new Point(630, 10),
                 Size = new Size(110, 23),
                 Format = DateTimePickerFormat.Short,
-                Value = DateTime.Today
+                Value = DateTime.Today,
+                Font = new Font("Segoe UI", 9F)
             };
             dateTimePickerAnalizaDo.ValueChanged += (s, e) => OdswiezAnalizeCen();
 
+            // DRUGI RZĄD - Przyciski
+            Button btnOdswiez = new Button
+            {
+                Text = "🔄 Odśwież",
+                Location = new Point(10, 45),  // ZMIANA: drugi rząd
+                Size = new Size(100, 28),
+                BackColor = ColorTranslator.FromHtml("#3498db"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btnOdswiez.FlatAppearance.BorderSize = 0;
+            btnOdswiez.Click += (s, e) => OdswiezAnalizeCen();
+
             Button btnEksportuj = new Button
             {
-                Text = "📊 Eksportuj CSV",
-                Location = new Point(685, 11),
-                Size = new Size(140, 25),
+                Text = "📊 Eksportuj",
+                Location = new Point(120, 45),  // ZMIANA: drugi rząd
+                Size = new Size(110, 28),
                 BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
             btnEksportuj.FlatAppearance.BorderSize = 0;
             btnEksportuj.Click += BtnEksportujAnalize_Click;
 
-            Label lblMinTransakcji = new Label { Text = "🔢 Min. transakcji:", Location = new Point(10, 50), AutoSize = true };
-            NumericUpDown numMinTransakcji = new NumericUpDown
+            Button btnInstrukcja = new Button
             {
-                Location = new Point(120, 47),
-                Size = new Size(60, 23),
-                Minimum = 1,
-                Maximum = 1000,
-                Value = 3,
-                Name = "numMinTransakcji"
+                Text = "📖 Instrukcja",
+                Location = new Point(240, 45),  // ZMIANA: drugi rząd
+                Size = new Size(110, 28),
+                BackColor = ColorTranslator.FromHtml("#9b59b6"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
-            numMinTransakcji.ValueChanged += (s, e) => OdswiezAnalizeCen();
-
-            CheckBox chkPokazAlertyCheck = new CheckBox
-            {
-                Text = "⚠ Tylko alerty cenowe",
-                Location = new Point(200, 49),
-                AutoSize = true,
-                Name = "chkPokazAlertyCheck"
-            };
-            chkPokazAlertyCheck.CheckedChanged += (s, e) => OdswiezAnalizeCen();
-
-            CheckBox chkPokazRekomendacje = new CheckBox
-            {
-                Text = "✓ Rekomendacje akcji",
-                Location = new Point(380, 49),
-                AutoSize = true,
-                Checked = true,
-                Name = "chkPokazRekomendacje"
-            };
-            chkPokazRekomendacje.CheckedChanged += (s, e) => OdswiezAnalizeCen();
+            btnInstrukcja.FlatAppearance.BorderSize = 0;
+            btnInstrukcja.Click += BtnInstrukcja_Click;
 
             panelControls.Controls.Add(lblTowar);
             panelControls.Controls.Add(comboBoxTowarAnalizaCen);
@@ -691,41 +720,28 @@ namespace Kalendarz1
             panelControls.Controls.Add(dateTimePickerAnalizaOd);
             panelControls.Controls.Add(lblDataDo);
             panelControls.Controls.Add(dateTimePickerAnalizaDo);
+            panelControls.Controls.Add(btnOdswiez);
             panelControls.Controls.Add(btnEksportuj);
-            panelControls.Controls.Add(lblMinTransakcji);
-            panelControls.Controls.Add(numMinTransakcji);
-            panelControls.Controls.Add(chkPokazAlertyCheck);
-            panelControls.Controls.Add(chkPokazRekomendacje);
+            panelControls.Controls.Add(btnInstrukcja);
 
-            mainPanel.Controls.Add(panelControls);
-
-            SplitContainer splitAnalizaCen = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Horizontal,
-                SplitterDistance = 300,
-                BackColor = ColorTranslator.FromHtml("#bdc3c7")
-            };
-
+            // Panel z informacją - ŻÓŁTY, porównanie dzień do dnia
             Panel panelTrend = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = ColorTranslator.FromHtml("#d5f4e6"),
+                Height = 70,  // ZMIANA: zwiększona wysokość
+                BackColor = ColorTranslator.FromHtml("#fff9c4"),  // ZMIANA: żółty kolor
                 Padding = new Padding(10)
             };
 
             lblTrendInfo = new Label
             {
                 Dock = DockStyle.Fill,
-                Text = "📊 Wybierz towar aby zobaczyć analizę trendów cenowych",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#27ae60"),
-                TextAlign = ContentAlignment.MiddleCenter
+                Text = "📊 Wybierz towar aby zobaczyć porównanie cen dzień do dnia",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),  // ZMIANA: większa czcionka
+                ForeColor = ColorTranslator.FromHtml("#f57f17"),  // ZMIANA: ciemny pomarańczowy
+                TextAlign = ContentAlignment.MiddleLeft  // ZMIANA: wyrównanie do lewej
             };
             panelTrend.Controls.Add(lblTrendInfo);
-
-            splitAnalizaCen.Panel1.Controls.Add(panelTrend);
 
             dataGridViewAnalizaCen = new DataGridView
             {
@@ -736,24 +752,103 @@ namespace Kalendarz1
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None,
+                RowTemplate = { Height = 32 }
             };
             KonfigurujDataGridViewAnalizaCen();
 
-            splitAnalizaCen.Panel1.Controls.Add(dataGridViewAnalizaCen);
+            dataGridViewAnalizaCen.CellDoubleClick += DataGridViewAnalizaCen_CellDoubleClick;
 
-            chartAnalizaCen = new Chart
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White
-            };
-            KonfigurujWykresAnalizaCen();
+            mainPanel.Controls.Add(dataGridViewAnalizaCen);
+            mainPanel.Controls.Add(panelTrend);
+            mainPanel.Controls.Add(panelControls);
+        }        // NOWA METODA: Obsługa przycisku instrukcji
+        private void BtnInstrukcja_Click(object? sender, EventArgs e)
+        {
+            string instrukcja = @"📖 INSTRUKCJA ODCZYTU ANALIZY CEN
 
-            splitAnalizaCen.Panel2.Controls.Add(chartAnalizaCen);
+👤 HANDLOWIEC
+   Nazwa handlowca odpowiedzialnego za sprzedaż
 
-            mainPanel.Controls.Add(splitAnalizaCen);
+📅 WCZORAJSZA ŚR. CENA
+   Średnia cena z wczorajszego dnia handlowego (zł/kg)
+
+📅 DZISIEJSZA ŚR. CENA
+   Średnia cena z dzisiejszego dnia (zł/kg)
+
+± ZMIANA
+   Różnica między dzisiejszą a wczorajszą ceną
+   🟢 Zielony = cena wzrosła (dobrze dla sprzedawcy)
+   🔴 Czerwony = cena spadła
+
+± ZMIANA %
+   Procentowa zmiana ceny względem wczoraj
+   Pokazuje skalę zmiany w procentach
+
+💵 ŚR. OKRES
+   Średnia cena w całym wybranym okresie
+
+⬇ MIN
+   Najniższa cena w okresie
+
+⬆ MAX
+   Najwyższa cena w okresie
+
+🔢 TRANS.
+   Liczba transakcji w okresie
+
+📊 TREND
+   Trend długoterminowy w okresie
+   🟢 Dodatni = ceny rosną
+   🔴 Ujemny = ceny spadają
+
+± ODCH.
+   Odchylenie od średniej rynkowej
+   >0% = drożej niż konkurencja
+   <0% = taniej niż konkurencja
+
+📊 ŚREDNIA RYNKOWA (pierwszy wiersz)
+   Zagregowane dane ze wszystkich handlowców
+
+💡 WSKAZÓWKI:
+   • Dwukrotnie kliknij wiersz aby zobaczyć szczegóły
+   • Żółty panel pokazuje porównanie dzień do dnia
+   • Zielone liczby = wzrost cen (korzystne)
+   • Czerwone liczby = spadek cen (uwaga!)";
+
+            MessageBox.Show(instrukcja, "📖 Instrukcja analizy cen",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+        private void DataGridViewAnalizaCen_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || comboBoxTowarAnalizaCen.SelectedValue == null)
+                return;
 
+            var row = dataGridViewAnalizaCen.Rows[e.RowIndex];
+
+            // Sprawdź czy to nie wiersz sumy
+            if (row.Cells["Handlowiec"].Value?.ToString() == "📊 ŚREDNIA RYNKOWA")
+                return;
+
+            string handlowiec = row.Cells["Handlowiec"].Value?.ToString();
+            if (string.IsNullOrEmpty(handlowiec))
+                return;
+
+            int towarId = (int)comboBoxTowarAnalizaCen.SelectedValue;
+            string nazwaTowaru = comboBoxTowarAnalizaCen.Text;
+
+            using (var historiaForm = new FormHistoriaCen(
+                connectionString,
+                towarId,
+                nazwaTowaru,
+                handlowiec,
+                dateTimePickerAnalizaOd.Value,
+                dateTimePickerAnalizaDo.Value))
+            {
+                historiaForm.ShowDialog(this);
+            }
+        }
         private void StworzZakladkePorownaniaSwiezeMrozone(TabPage tab)
         {
             Panel mainPanel = new Panel { Dock = DockStyle.Fill };
@@ -871,15 +966,67 @@ namespace Kalendarz1
                 Width = 120
             });
 
+            // NOWE KOLUMNY - wczoraj i dziś
+            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CenaWczoraj",
+                DataPropertyName = "CenaWczoraj",
+                HeaderText = "📅 Wczoraj\nśr. cena",
+                Width = 90,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    BackColor = ColorTranslator.FromHtml("#fff3e0")
+                }
+            });
+
+            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CenaDzisiaj",
+                DataPropertyName = "CenaDzisiaj",
+                HeaderText = "📅 Dziś\nśr. cena",
+                Width = 90,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    BackColor = ColorTranslator.FromHtml("#e8f5e9")
+                }
+            });
+
+            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ZmianaZl",
+                DataPropertyName = "ZmianaZl",
+                HeaderText = "± Zmiana",
+                Width = 85,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                }
+            });
+
+            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ZmianaProcent",
+                DataPropertyName = "ZmianaProcent",
+                HeaderText = "± Zmiana",
+                Width = 75,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                }
+            });
+
             dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "SredniaCena",
                 DataPropertyName = "SredniaCena",
-                HeaderText = "💵 Śr. cena",
-                Width = 100,
+                HeaderText = "💵 Śr. okres",
+                Width = 90,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Format = "N2",
                     Alignment = DataGridViewContentAlignment.MiddleRight
                 }
             });
@@ -889,10 +1036,9 @@ namespace Kalendarz1
                 Name = "MinCena",
                 DataPropertyName = "MinCena",
                 HeaderText = "⬇ Min",
-                Width = 90,
+                Width = 80,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Format = "N2",
                     Alignment = DataGridViewContentAlignment.MiddleRight
                 }
             });
@@ -902,10 +1048,9 @@ namespace Kalendarz1
                 Name = "MaxCena",
                 DataPropertyName = "MaxCena",
                 HeaderText = "⬆ Max",
-                Width = 90,
+                Width = 80,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Format = "N2",
                     Alignment = DataGridViewContentAlignment.MiddleRight
                 }
             });
@@ -915,7 +1060,7 @@ namespace Kalendarz1
                 Name = "LiczbaTransakcji",
                 DataPropertyName = "LiczbaTransakcji",
                 HeaderText = "🔢 Trans.",
-                Width = 80,
+                Width = 70,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
                     Alignment = DataGridViewContentAlignment.MiddleCenter
@@ -926,72 +1071,39 @@ namespace Kalendarz1
             {
                 Name = "TrendProcentowy",
                 DataPropertyName = "TrendProcentowy",
-                HeaderText = "📊 Trend %",
+                HeaderText = "📊 Trend",
                 Width = 80,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Format = "N1",
                     Alignment = DataGridViewContentAlignment.MiddleRight
                 }
-            });
-
-            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Trend",
-                DataPropertyName = "Trend",
-                HeaderText = "↗ Kierunek",
-                Width = 100
             });
 
             dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "OdchylenieOdSredniej",
                 DataPropertyName = "OdchylenieOdSredniej",
-                HeaderText = "± Odch. %",
+                HeaderText = "± Odch.",
                 Width = 80,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Format = "N1",
                     Alignment = DataGridViewContentAlignment.MiddleRight
                 }
-            });
-
-            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "RekomendowanaCena",
-                DataPropertyName = "RekomendowanaCena",
-                HeaderText = "✓ Rekom.",
-                Width = 110,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N2",
-                    Alignment = DataGridViewContentAlignment.MiddleRight,
-                    BackColor = ColorTranslator.FromHtml("#fff3cd"),
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-                }
-            });
-
-            dataGridViewAnalizaCen.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "AkcjaRekomendowana",
-                DataPropertyName = "AkcjaRekomendowana",
-                HeaderText = "⚡ Akcja",
-                Width = 150
             });
 
             dataGridViewAnalizaCen.EnableHeadersVisualStyles = false;
             dataGridViewAnalizaCen.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#16a085");
             dataGridViewAnalizaCen.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dataGridViewAnalizaCen.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dataGridViewAnalizaCen.ColumnHeadersHeight = 40;
+            dataGridViewAnalizaCen.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            dataGridViewAnalizaCen.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.True;  // DODANE: zawijanie tekstu
+            dataGridViewAnalizaCen.ColumnHeadersHeight = 45;  // ZMIANA: wyższe nagłówki
             dataGridViewAnalizaCen.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#e8f8f5");
             dataGridViewAnalizaCen.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#1abc9c");
             dataGridViewAnalizaCen.GridColor = ColorTranslator.FromHtml("#bdc3c7");
-            dataGridViewAnalizaCen.RowTemplate.Height = 35;
+            dataGridViewAnalizaCen.RowTemplate.Height = 32;
 
             dataGridViewAnalizaCen.CellFormatting += DataGridViewAnalizaCen_CellFormatting;
         }
-
         private void KonfigurujDataGridViewPorownaniaSwiezeMrozone()
         {
             dataGridViewPorownaniaSwiezeMrozone.Columns.Clear();
@@ -1116,37 +1228,65 @@ namespace Kalendarz1
 
         private void DataGridViewAnalizaCen_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (dataGridViewAnalizaCen.Columns[e.ColumnIndex].Name == "Trend" && e.Value != null)
-            {
-                string trend = e.Value.ToString();
-                if (trend.Contains("wzrost"))
-                {
-                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
-                    e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
-                }
-                else if (trend.Contains("spadek"))
-                {
-                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
-                    e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
-                }
-                else
-                {
-                    e.CellStyle.ForeColor = ColorTranslator.FromHtml("#95a5a6");
-                }
-            }
+            var colName = dataGridViewAnalizaCen.Columns[e.ColumnIndex].Name;
 
-            if (dataGridViewAnalizaCen.Columns[e.ColumnIndex].Name == "TrendProcentowy" && e.Value != null)
+            // Formatowanie z końcówkami zł i %
+            if (e.Value != null && e.Value != DBNull.Value)
             {
-                if (decimal.TryParse(e.Value.ToString(), out decimal wartosc))
+                if (colName == "CenaWczoraj" || colName == "CenaDzisiaj" || colName == "SredniaCena" ||
+                    colName == "MinCena" || colName == "MaxCena")
                 {
-                    if (wartosc > 0)
-                        e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
-                    else if (wartosc < 0)
-                        e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                    if (decimal.TryParse(e.Value.ToString(), out decimal val))
+                    {
+                        e.Value = $"{val:N2} zł";
+                        e.FormattingApplied = true;
+                    }
+                }
+                else if (colName == "ZmianaZl")
+                {
+                    if (decimal.TryParse(e.Value.ToString(), out decimal val))
+                    {
+                        e.Value = $"{val:N2} zł";
+                        e.FormattingApplied = true;
+
+                        // ZMIANA: Zielony gdy wzrost, czerwony gdy spadek
+                        if (val > 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");  // zielony
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e8f5e9");
+                        }
+                        else if (val < 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");  // czerwony
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffebee");
+                        }
+                    }
+                }
+                else if (colName == "ZmianaProcent" || colName == "TrendProcentowy" || colName == "OdchylenieOdSredniej")
+                {
+                    if (decimal.TryParse(e.Value.ToString(), out decimal val))
+                    {
+                        e.Value = $"{val:N1}%";
+                        e.FormattingApplied = true;
+
+                        if (colName == "ZmianaProcent" || colName == "TrendProcentowy")
+                        {
+                            // ZMIANA: Zielony gdy wzrost, czerwony gdy spadek
+                            if (val > 0)
+                            {
+                                e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                                e.CellStyle.BackColor = ColorTranslator.FromHtml("#e8f5e9");
+                            }
+                            else if (val < 0)
+                            {
+                                e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                                e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffebee");
+                            }
+                        }
+                    }
                 }
             }
         }
-
         private void DataGridViewPorownaniaSwiezeMrozone_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dataGridViewPorownaniaSwiezeMrozone.Columns[e.ColumnIndex].Name == "RoznicaProcent" && e.Value != null)
@@ -1249,10 +1389,8 @@ namespace Kalendarz1
 
             if (comboBoxTowarAnalizaCen.SelectedValue == null || (int)comboBoxTowarAnalizaCen.SelectedValue == 0)
             {
-                lblTrendInfo.Text = "📊 Wybierz towar aby zobaczyć analizę trendów cenowych";
-                lblTrendInfo.BackColor = ColorTranslator.FromHtml("#d5f4e6");
+                lblTrendInfo.Text = "📊 Wybierz towar aby zobaczyć porównanie cen dzień do dnia\n💡 Panel pokazuje zmianę ceny między wczoraj a dziś dla każdego handlowca";
                 dataGridViewAnalizaCen.DataSource = null;
-                chartAnalizaCen.Series.Clear();
                 return;
             }
 
@@ -1260,48 +1398,83 @@ namespace Kalendarz1
             DateTime dataOd = dateTimePickerAnalizaOd.Value.Date;
             DateTime dataDo = dateTimePickerAnalizaDo.Value.Date;
 
+            // Wczorajszy dzień handlowy
+            DateTime wczoraj = dataDo.AddDays(-1);
+            while (wczoraj.DayOfWeek == DayOfWeek.Saturday || wczoraj.DayOfWeek == DayOfWeek.Sunday)
+            {
+                wczoraj = wczoraj.AddDays(-1);
+            }
+
             string query = @"
-        WITH CenyHandlowcow AS (
-            SELECT 
-                ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                DP.cena AS Cena,
-                DK.data AS Data
-            FROM [HANDEL].[HM].[DK] DK
-            INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-            WHERE DP.idtw = @TowarID
-              AND DK.data >= @DataOd
-              AND DK.data <= @DataDo
-              AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
-        ),
-        CenyPoczatek AS (
-            SELECT Handlowiec, AVG(Cena) AS CenaPoczatkowa
-            FROM CenyHandlowcow
-            WHERE Data < DATEADD(DAY, 14, @DataOd)
-            GROUP BY Handlowiec
-        ),
-        CenyKoniec AS (
-            SELECT Handlowiec, AVG(Cena) AS CenaKoncowa
-            FROM CenyHandlowcow
-            WHERE Data >= DATEADD(DAY, -14, @DataDo)
-            GROUP BY Handlowiec
-        )
-        SELECT 
-            CH.Handlowiec,
-            CAST(AVG(CH.Cena) AS DECIMAL(18,2)) AS SredniaCena,
-            CAST(MIN(CH.Cena) AS DECIMAL(18,2)) AS MinCena,
-            CAST(MAX(CH.Cena) AS DECIMAL(18,2)) AS MaxCena,
-            COUNT(*) AS LiczbaTransakcji,
-            CAST(CASE 
-                WHEN CP.CenaPoczatkowa IS NOT NULL AND CK.CenaKoncowa IS NOT NULL AND CP.CenaPoczatkowa > 0
-                THEN ((CK.CenaKoncowa - CP.CenaPoczatkowa) / CP.CenaPoczatkowa) * 100
-                ELSE 0
-            END AS DECIMAL(18,2)) AS TrendProcentowy
-        FROM CenyHandlowcow CH
-        LEFT JOIN CenyPoczatek CP ON CH.Handlowiec = CP.Handlowiec
-        LEFT JOIN CenyKoniec CK ON CH.Handlowiec = CK.Handlowiec
-        GROUP BY CH.Handlowiec, CP.CenaPoczatkowa, CK.CenaKoncowa
-        ORDER BY SredniaCena DESC;";
+WITH CenyHandlowcow AS (
+    SELECT 
+        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+        DP.cena AS Cena,
+        DK.data AS Data
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DP.idtw = @TowarID
+      AND DK.data >= @DataOd
+      AND DK.data <= @DataDo
+      AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
+),
+CenyWczoraj AS (
+    SELECT 
+        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+        AVG(DP.cena) AS CenaWczoraj
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DP.idtw = @TowarID
+      AND CONVERT(date, DK.data) = @Wczoraj
+      AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
+    GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+),
+CenyDzisiaj AS (
+    SELECT 
+        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+        AVG(DP.cena) AS CenaDzisiaj
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DP.idtw = @TowarID
+      AND CONVERT(date, DK.data) = @Dzisiaj
+      AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
+    GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+),
+CenyPoczatek AS (
+    SELECT Handlowiec, AVG(Cena) AS CenaPoczatkowa
+    FROM CenyHandlowcow
+    WHERE Data < DATEADD(DAY, 7, @DataOd)
+    GROUP BY Handlowiec
+),
+CenyKoniec AS (
+    SELECT Handlowiec, AVG(Cena) AS CenaKoncowa
+    FROM CenyHandlowcow
+    WHERE Data >= DATEADD(DAY, -7, @DataDo)
+    GROUP BY Handlowiec
+)
+SELECT 
+    CH.Handlowiec,
+    CAST(AVG(CH.Cena) AS DECIMAL(18,2)) AS SredniaCena,
+    CAST(CW.CenaWczoraj AS DECIMAL(18,2)) AS CenaWczoraj,
+    CAST(CD.CenaDzisiaj AS DECIMAL(18,2)) AS CenaDzisiaj,
+    CAST(MIN(CH.Cena) AS DECIMAL(18,2)) AS MinCena,
+    CAST(MAX(CH.Cena) AS DECIMAL(18,2)) AS MaxCena,
+    COUNT(*) AS LiczbaTransakcji,
+    CAST(CASE 
+        WHEN CP.CenaPoczatkowa IS NOT NULL AND CK.CenaKoncowa IS NOT NULL AND CP.CenaPoczatkowa > 0
+        THEN ((CK.CenaKoncowa - CP.CenaPoczatkowa) / CP.CenaPoczatkowa) * 100
+        ELSE 0
+    END AS DECIMAL(18,2)) AS TrendProcentowy
+FROM CenyHandlowcow CH
+LEFT JOIN CenyPoczatek CP ON CH.Handlowiec = CP.Handlowiec
+LEFT JOIN CenyKoniec CK ON CH.Handlowiec = CK.Handlowiec
+LEFT JOIN CenyWczoraj CW ON CH.Handlowiec = CW.Handlowiec
+LEFT JOIN CenyDzisiaj CD ON CH.Handlowiec = CD.Handlowiec
+GROUP BY CH.Handlowiec, CP.CenaPoczatkowa, CK.CenaKoncowa, CW.CenaWczoraj, CD.CenaDzisiaj
+ORDER BY SredniaCena DESC;";
 
             try
             {
@@ -1311,6 +1484,8 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@TowarID", towarId);
                     cmd.Parameters.AddWithValue("@DataOd", dataOd);
                     cmd.Parameters.AddWithValue("@DataDo", dataDo);
+                    cmd.Parameters.AddWithValue("@Wczoraj", wczoraj);
+                    cmd.Parameters.AddWithValue("@Dzisiaj", dataDo);
 
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
@@ -1318,10 +1493,9 @@ namespace Kalendarz1
 
                     if (dt.Rows.Count > 0)
                     {
-                        dt.Columns.Add("Trend", typeof(string));
-                        dt.Columns.Add("RekomendowanaCena", typeof(decimal));
+                        dt.Columns.Add("ZmianaZl", typeof(decimal));
+                        dt.Columns.Add("ZmianaProcent", typeof(decimal));
                         dt.Columns.Add("OdchylenieOdSredniej", typeof(decimal));
-                        dt.Columns.Add("AkcjaRekomendowana", typeof(string));
 
                         decimal sredniaRynkowa = 0;
                         foreach (DataRow row in dt.Rows)
@@ -1332,74 +1506,70 @@ namespace Kalendarz1
 
                         foreach (DataRow row in dt.Rows)
                         {
-                            decimal trendProc = Convert.ToDecimal(row["TrendProcentowy"]);
                             decimal sredniaCena = Convert.ToDecimal(row["SredniaCena"]);
                             decimal odchylenie = ((sredniaCena - sredniaRynkowa) / sredniaRynkowa) * 100;
-                            row["OdchylenieOdSredniej"] = odchylenie;
+                            row["OdchylenieOdSredniej"] = Math.Round(odchylenie, 1);
 
-                            if (trendProc > 5)
-                                row["Trend"] = "↗ Silny wzrost";
-                            else if (trendProc > 0)
-                                row["Trend"] = "↗ Wzrost";
-                            else if (trendProc < -5)
-                                row["Trend"] = "↘ Silny spadek";
-                            else if (trendProc < 0)
-                                row["Trend"] = "↘ Spadek";
-                            else
-                                row["Trend"] = "→ Stabilny";
+                            // Oblicz zmianę wczoraj -> dziś
+                            if (row["CenaWczoraj"] != DBNull.Value && row["CenaDzisiaj"] != DBNull.Value)
+                            {
+                                decimal cenaWczoraj = Convert.ToDecimal(row["CenaWczoraj"]);
+                                decimal cenaDzisiaj = Convert.ToDecimal(row["CenaDzisiaj"]);
+                                decimal zmianaZl = cenaDzisiaj - cenaWczoraj;
+                                decimal zmianaProcent = cenaWczoraj > 0 ? (zmianaZl / cenaWczoraj) * 100 : 0;
 
-                            decimal rekomendacja = sredniaRynkowa * 0.95m;
-
-                            if (trendProc > 5)
-                            {
-                                rekomendacja = sredniaRynkowa;
-                                row["AkcjaRekomendowana"] = "⚠ Utrzymaj cenę";
-                            }
-                            else if (trendProc < -5)
-                            {
-                                rekomendacja = sredniaRynkowa * 0.90m;
-                                row["AkcjaRekomendowana"] = "✓ Obniż cenę";
-                            }
-                            else if (odchylenie > 10)
-                            {
-                                row["AkcjaRekomendowana"] = "⬇ Rozważ obniżkę";
-                            }
-                            else if (odchylenie < -10)
-                            {
-                                row["AkcjaRekomendowana"] = "⬆ Możliwa podwyżka";
+                                row["ZmianaZl"] = Math.Round(zmianaZl, 2);
+                                row["ZmianaProcent"] = Math.Round(zmianaProcent, 1);
                             }
                             else
                             {
-                                row["AkcjaRekomendowana"] = "✓ Cena OK";
+                                row["ZmianaZl"] = 0;
+                                row["ZmianaProcent"] = 0;
                             }
-
-                            row["RekomendowanaCena"] = Math.Round(rekomendacja, 2);
                         }
 
+                        // Wiersz średniej rynkowej
                         var sumaRow = dt.NewRow();
                         sumaRow["Handlowiec"] = "📊 ŚREDNIA RYNKOWA";
-                        sumaRow["SredniaCena"] = sredniaRynkowa;
+                        sumaRow["SredniaCena"] = Math.Round(sredniaRynkowa, 2);
+
+                        decimal sredniaWczoraj = 0;
+                        decimal sredniaDzisiaj = 0;
+                        int countWczoraj = 0;
+                        int countDzisiaj = 0;
+
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            if (row["CenaWczoraj"] != DBNull.Value)
+                            {
+                                sredniaWczoraj += Convert.ToDecimal(row["CenaWczoraj"]);
+                                countWczoraj++;
+                            }
+                            if (row["CenaDzisiaj"] != DBNull.Value)
+                            {
+                                sredniaDzisiaj += Convert.ToDecimal(row["CenaDzisiaj"]);
+                                countDzisiaj++;
+                            }
+                        }
+
+                        if (countWczoraj > 0) sredniaWczoraj /= countWczoraj;
+                        if (countDzisiaj > 0) sredniaDzisiaj /= countDzisiaj;
+
+                        sumaRow["CenaWczoraj"] = countWczoraj > 0 ? Math.Round(sredniaWczoraj, 2) : (object)DBNull.Value;
+                        sumaRow["CenaDzisiaj"] = countDzisiaj > 0 ? Math.Round(sredniaDzisiaj, 2) : (object)DBNull.Value;
+
+                        if (countWczoraj > 0 && countDzisiaj > 0)
+                        {
+                            decimal zmianaZl = sredniaDzisiaj - sredniaWczoraj;
+                            sumaRow["ZmianaZl"] = Math.Round(zmianaZl, 2);
+                            sumaRow["ZmianaProcent"] = Math.Round((zmianaZl / sredniaWczoraj) * 100, 1);
+                        }
+
                         sumaRow["MinCena"] = dt.AsEnumerable().Min(r => r.Field<decimal>("MinCena"));
                         sumaRow["MaxCena"] = dt.AsEnumerable().Max(r => r.Field<decimal>("MaxCena"));
                         sumaRow["LiczbaTransakcji"] = dt.AsEnumerable().Sum(r => r.Field<int>("LiczbaTransakcji"));
-
-                        decimal avgTrend = dt.AsEnumerable().Average(r => r.Field<decimal>("TrendProcentowy"));
-                        sumaRow["TrendProcentowy"] = avgTrend;
-
-                        if (avgTrend > 5)
-                            sumaRow["Trend"] = "↗ Silny wzrost";
-                        else if (avgTrend > 0)
-                            sumaRow["Trend"] = "↗ Wzrost";
-                        else if (avgTrend < -5)
-                            sumaRow["Trend"] = "↘ Silny spadek";
-                        else if (avgTrend < 0)
-                            sumaRow["Trend"] = "↘ Spadek";
-                        else
-                            sumaRow["Trend"] = "→ Stabilny";
-
-                        sumaRow["RekomendowanaCena"] = Math.Round(sredniaRynkowa * 0.95m, 2);
+                        sumaRow["TrendProcentowy"] = Math.Round(dt.AsEnumerable().Average(r => r.Field<decimal>("TrendProcentowy")), 1);
                         sumaRow["OdchylenieOdSredniej"] = 0;
-                        sumaRow["AkcjaRekomendowana"] = "—";
 
                         dt.Rows.InsertAt(sumaRow, 0);
                     }
@@ -1412,24 +1582,58 @@ namespace Kalendarz1
                         dataGridViewAnalizaCen.Rows[0].DefaultCellStyle.Font = new Font(dataGridViewAnalizaCen.Font, FontStyle.Bold);
                     }
 
+                    // Aktualizacja żółtego panelu
                     if (dt.Rows.Count > 1)
                     {
-                        decimal avgTrendVal = Convert.ToDecimal(dt.Rows[0]["TrendProcentowy"]);
-                        string trendTekst = dt.Rows[0]["Trend"].ToString();
+                        var sumaRow = dt.Rows[0];
 
-                        lblTrendInfo.Text = $"📊 Trend: {trendTekst} ({avgTrendVal:F1}%) | " +
-                                          $"Śr. cena: {dt.Rows[0]["SredniaCena"]:N2} zł/kg | " +
-                                          $"Rekomendacja: {dt.Rows[0]["RekomendowanaCena"]:N2} zł/kg";
+                        string wczorajStr = sumaRow["CenaWczoraj"] != DBNull.Value ?
+                            $"{Convert.ToDecimal(sumaRow["CenaWczoraj"]):N2} zł" : "brak danych";
+                        string dzisiajStr = sumaRow["CenaDzisiaj"] != DBNull.Value ?
+                            $"{Convert.ToDecimal(sumaRow["CenaDzisiaj"]):N2} zł" : "brak danych";
 
-                        if (avgTrendVal > 5)
-                            lblTrendInfo.BackColor = ColorTranslator.FromHtml("#ffcccc");
-                        else if (avgTrendVal < -5)
-                            lblTrendInfo.BackColor = ColorTranslator.FromHtml("#ccffcc");
-                        else
-                            lblTrendInfo.BackColor = ColorTranslator.FromHtml("#fff3cd");
+                        string zmianaStr = "brak danych";
+                        string kierunek = "";
+                        Color backgroundColor = ColorTranslator.FromHtml("#fff9c4");
+
+                        if (sumaRow["ZmianaZl"] != DBNull.Value && sumaRow["ZmianaProcent"] != DBNull.Value)
+                        {
+                            decimal zmianaZl = Convert.ToDecimal(sumaRow["ZmianaZl"]);
+                            decimal zmianaProcent = Convert.ToDecimal(sumaRow["ZmianaProcent"]);
+
+                            if (zmianaZl > 0)
+                            {
+                                kierunek = "↗ WZROST";
+                                backgroundColor = ColorTranslator.FromHtml("#c8e6c9");  // jasny zielony
+                                zmianaStr = $"+{zmianaZl:N2} zł (+{zmianaProcent:N1}%)";
+                            }
+                            else if (zmianaZl < 0)
+                            {
+                                kierunek = "↘ SPADEK";
+                                backgroundColor = ColorTranslator.FromHtml("#ffcdd2");  // jasny czerwony
+                                zmianaStr = $"{zmianaZl:N2} zł ({zmianaProcent:N1}%)";
+                            }
+                            else
+                            {
+                                kierunek = "→ BEZ ZMIAN";
+                                zmianaStr = "0.00 zł (0.0%)";
+                            }
+                        }
+
+                        int liczbaHandlowcow = dt.Rows.Count - 1;
+                        decimal avgTrend = Convert.ToDecimal(sumaRow["TrendProcentowy"]);
+                        string trendInfo = avgTrend > 0 ? $"↗ +{avgTrend:N1}%" :
+                                          avgTrend < 0 ? $"↘ {avgTrend:N1}%" : "→ 0.0%";
+
+                        lblTrendInfo.Text =
+                            $"📊 PORÓWNANIE: {wczoraj:dd.MM.yyyy} ({wczorajStr}) ➜ {dataDo:dd.MM.yyyy} ({dzisiajStr})\n" +
+                            $"📈 {kierunek}: {zmianaStr} | " +
+                            $"📊 Trend okresu: {trendInfo} | " +
+                            $"👥 Handlowców: {liczbaHandlowcow} | " +
+                            $"🔢 Transakcji: {sumaRow["LiczbaTransakcji"]}";
+
+                        lblTrendInfo.Parent.BackColor = backgroundColor;
                     }
-
-                    GenerujWykresAnalizyCen(towarId, dataOd, dataDo);
                 }
             }
             catch (Exception ex)
@@ -1437,7 +1641,6 @@ namespace Kalendarz1
                 MessageBox.Show("❌ Błąd analizy cen: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void GenerujWykresAnalizyCen(int towarId, DateTime dataOd, DateTime dataDo)
         {
             string query = @"
@@ -3157,6 +3360,737 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
 
             this.AcceptButton = btnOK;
             this.CancelButton = btnAnuluj;
+        }
+    }
+    public class FormHistoriaCen : Form
+    {
+        private DataGridView dataGridView;
+        private Label lblStatystyki;
+        private string connectionString;
+        private int currentTowarId;
+        private string currentHandlowiec;
+        private DateTime currentDataOd;
+        private DateTime currentDataDo;
+
+        public FormHistoriaCen(string connString, int towarId, string nazwaTowaru,
+                               string handlowiec, DateTime dataOd, DateTime dataDo)
+        {
+            connectionString = connString;
+            currentTowarId = towarId;
+            currentHandlowiec = handlowiec;
+            currentDataOd = dataOd;
+            currentDataDo = dataDo;
+
+            this.Text = $"📊 Historia cen - {handlowiec} - {nazwaTowaru}";
+            this.WindowState = FormWindowState.Maximized;  // ZMIANA: Maksymalne okno
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.Font = new Font("Segoe UI", 9F);
+
+            Panel panelTop = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
+                Padding = new Padding(10)
+            };
+
+            Label lblInfo = new Label
+            {
+                Text = $"👤 Handlowiec: {handlowiec}\n📦 Towar: {nazwaTowaru}\n📅 Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2c3e50")
+            };
+            panelTop.Controls.Add(lblInfo);
+
+            Panel panelStats = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 60,
+                BackColor = ColorTranslator.FromHtml("#d5f4e6"),
+                Padding = new Padding(10)
+            };
+
+            lblStatystyki = new Label
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#27ae60"),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            panelStats.Controls.Add(lblStatystyki);
+
+            dataGridView = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AutoGenerateColumns = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = false,
+                AllowUserToOrderColumns = false,  // DODANE: Zakaz przestawiania kolumn
+                AllowUserToResizeRows = false
+            };
+            KonfigurujKolumny();
+
+            Panel panelBottom = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                Padding = new Padding(10, 7, 10, 7),
+                BackColor = ColorTranslator.FromHtml("#ecf0f1")
+            };
+
+            Button btnEksportuj = new Button
+            {
+                Text = "📊 Eksportuj CSV",
+                Size = new Size(130, 36),
+                Location = new Point(10, 7),
+                BackColor = ColorTranslator.FromHtml("#3498db"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btnEksportuj.FlatAppearance.BorderSize = 0;
+            btnEksportuj.Click += BtnEksportuj_Click;
+
+            Button btnInstrukcja = new Button
+            {
+                Text = "📖 Instrukcja",
+                Size = new Size(120, 36),
+                Location = new Point(150, 7),
+                BackColor = ColorTranslator.FromHtml("#9b59b6"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btnInstrukcja.FlatAppearance.BorderSize = 0;
+            btnInstrukcja.Click += BtnInstrukcja_Click;
+
+            Button btnZamknij = new Button
+            {
+                Text = "✗ Zamknij",
+                Size = new Size(110, 36),
+                Anchor = AnchorStyles.Right,
+                BackColor = ColorTranslator.FromHtml("#95a5a6"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btnZamknij.Location = new Point(this.ClientSize.Width - 130, 7);
+            btnZamknij.FlatAppearance.BorderSize = 0;
+            btnZamknij.Click += (s, e) => this.Close();
+
+            panelBottom.Controls.Add(btnEksportuj);
+            panelBottom.Controls.Add(btnInstrukcja);
+            panelBottom.Controls.Add(btnZamknij);
+
+            this.Controls.Add(dataGridView);
+            this.Controls.Add(panelStats);
+            this.Controls.Add(panelTop);
+            this.Controls.Add(panelBottom);
+
+            WczytajHistorie(towarId, handlowiec, dataOd, dataDo);
+        }
+
+        private void BtnInstrukcja_Click(object? sender, EventArgs e)
+        {
+            string instrukcja = @"📖 INSTRUKCJA HISTORII CEN
+
+📅 NAGŁÓWKI DAT (szare wiersze)
+   Grupują transakcje według dni
+   Pokazują podsumowanie w odpowiednich kolumnach:
+   • 🏢 Kontrahent → Data i dzień tygodnia
+   • 💵 Cena → Średnia cena dnia (zł/kg)
+   • ⚖ Ilość kg → Suma sprzedaży w dniu (kg)
+   • 💰 Wartość → Suma wartości transakcji (zł)
+   • ± Zmiana → Zmiana vs poprzedni dzień
+   • 🔢 Trans. → Liczba transakcji w dniu
+
+📊 SZCZEGÓŁOWE TRANSAKCJE (białe wiersze)
+
+🏢 KONTRAHENT
+   Nazwa firmy kupującej
+
+💵 CENA
+   Cena sprzedaży za kg (zł/kg)
+
+⚖ ILOŚĆ KG
+   Ilość sprzedanego towaru
+
+💰 WARTOŚĆ
+   Wartość transakcji (cena × ilość)
+
+± ZMIANA vs POPRZ.
+   Zmiana względem poprzedniej transakcji
+   🟢 Zielony = wzrost (korzystne)
+   🔴 Czerwony = spadek
+
+± ZMIANA %
+   Procentowa zmiana ceny
+
+± ODCH. OD ŚR. DNIA
+   Czy transakcja droższa/tańsza od średniej w dniu
+   🟡 Żółte tło = duże odchylenie (>10%)
+
+📊 POZYCJA CENY
+   Miejsce na tle innych transakcji w dniu
+   (np. 2/5 = druga najwyższa z pięciu)
+
+📄 DOKUMENT
+   Numer faktury
+
+💡 WSKAZÓWKI:
+   • Szare wiersze = podsumowania dni
+   • Średnie dzienne pokazują trendy
+   • Odchylenia pomagają znaleźć nietypowe ceny
+   • Sortowanie jest wyłączone dla przejrzystości";
+
+            MessageBox.Show(instrukcja, "📖 Instrukcja historii cen",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void KonfigurujKolumny()
+        {
+            dataGridView.Columns.Clear();
+
+            // Ukryte kolumny pomocnicze
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "IsGroupRow",
+                DataPropertyName = "IsGroupRow",
+                Visible = false
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DataSort",
+                DataPropertyName = "DataSort",
+                Visible = false
+            });
+
+            // ZMIANA: Tylko jedna kolumna - Kontrahent (zawiera datę w nagłówkach i nazwę w szczegółach)
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Kontrahent",
+                DataPropertyName = "Kontrahent",
+                HeaderText = "🏢 Kontrahent / 📅 Data",
+                Width = 280,
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE: Zakaz sortowania
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Cena",
+                DataPropertyName = "Cena",
+                HeaderText = "💵 Cena",
+                Width = 95,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Ilosc",
+                DataPropertyName = "Ilosc",
+                HeaderText = "⚖ Ilość kg",
+                Width = 95,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Wartosc",
+                DataPropertyName = "Wartosc",
+                HeaderText = "💰 Wartość",
+                Width = 105,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ZmianaCeny",
+                DataPropertyName = "ZmianaCeny",
+                HeaderText = "± Zmiana\nvs poprz.",
+                Width = 90,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "ZmianaProcent",
+                DataPropertyName = "ZmianaProcent",
+                HeaderText = "± Zmiana",
+                Width = 80,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "OdchylenieOdSredniej",
+                DataPropertyName = "OdchylenieOdSredniej",
+                HeaderText = "± Odch.\nod śr. dnia",
+                Width = 95,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "PozycjaCeny",
+                DataPropertyName = "PozycjaCeny",
+                HeaderText = "📊 Pozycja\nceny",
+                Width = 80,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleCenter
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "LiczbaTransakcji",
+                DataPropertyName = "LiczbaTransakcji",
+                HeaderText = "🔢 Trans.",
+                Width = 75,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleCenter
+                },
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "NumerDokumentu",
+                DataPropertyName = "NumerDokumentu",
+                HeaderText = "📄 Dokument",
+                Width = 140,
+                SortMode = DataGridViewColumnSortMode.NotSortable  // DODANE
+            });
+
+            dataGridView.EnableHeadersVisualStyles = false;
+            dataGridView.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#3498db");
+            dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dataGridView.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            dataGridView.ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dataGridView.ColumnHeadersHeight = 48;
+            dataGridView.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#ecf0f1");
+            dataGridView.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#3498db");
+            dataGridView.GridColor = ColorTranslator.FromHtml("#bdc3c7");
+            dataGridView.RowTemplate.Height = 32;
+
+            dataGridView.CellFormatting += DataGridView_CellFormatting;
+            dataGridView.RowPrePaint += DataGridView_RowPrePaint;
+        }
+
+        private void WczytajHistorie(int towarId, string handlowiec, DateTime dataOd, DateTime dataDo)
+        {
+            string query = @"
+WITH DaneTransakcji AS (
+    SELECT 
+        CONVERT(date, DK.data) AS Data,
+        DK.data AS DataCzas,
+        C.shortcut AS Kontrahent,
+        DP.cena AS Cena,
+        DP.ilosc AS Ilosc,
+        DP.wartNetto AS Wartosc,
+        DK.kod AS NumerDokumentu,
+        ROW_NUMBER() OVER (ORDER BY DK.data DESC) AS RowNum
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DP.idtw = @TowarID
+      AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') = @Handlowiec
+      AND DK.data >= @DataOd
+      AND DK.data <= @DataDo
+),
+SrednieDzienne AS (
+    SELECT 
+        Data,
+        AVG(Cena) AS SredniaCenaDnia,
+        SUM(Ilosc) AS SumaIloscDnia,
+        SUM(Wartosc) AS SumaWartoscDnia,
+        COUNT(*) AS LiczbaTransakcji
+    FROM DaneTransakcji
+    GROUP BY Data
+),
+SrednieDniaPrzed AS (
+    SELECT 
+        Data,
+        LAG(SredniaCenaDnia) OVER (ORDER BY Data) AS SredniaCenaPrzedDnia
+    FROM SrednieDzienne
+)
+SELECT 
+    DT.Data,
+    DT.DataCzas,
+    CASE DATEPART(WEEKDAY, DT.Data)
+        WHEN 1 THEN 'Niedziela'
+        WHEN 2 THEN 'Poniedziałek'
+        WHEN 3 THEN 'Wtorek'
+        WHEN 4 THEN 'Środa'
+        WHEN 5 THEN 'Czwartek'
+        WHEN 6 THEN 'Piątek'
+        WHEN 7 THEN 'Sobota'
+    END AS DzienTygodnia,
+    DT.Kontrahent,
+    DT.Cena,
+    DT.Ilosc,
+    DT.Wartosc,
+    DT.NumerDokumentu,
+    LAG(DT.Cena) OVER (ORDER BY DT.DataCzas) AS CenaPoprzednia,
+    SD.SredniaCenaDnia,
+    SD.SumaIloscDnia,
+    SD.SumaWartoscDnia,
+    SD.LiczbaTransakcji,
+    SDP.SredniaCenaPrzedDnia,
+    ROW_NUMBER() OVER (PARTITION BY DT.Data ORDER BY DT.Cena DESC) AS PozycjaCeny,
+    COUNT(*) OVER (PARTITION BY DT.Data) AS LiczbaTransakcjiDnia
+FROM DaneTransakcji DT
+INNER JOIN SrednieDzienne SD ON DT.Data = SD.Data
+LEFT JOIN SrednieDniaPrzed SDP ON DT.Data = SDP.Data
+ORDER BY DT.DataCzas DESC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@TowarID", towarId);
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+                    cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                    cmd.Parameters.AddWithValue("@DataDo", dataDo);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dtSource = new DataTable();
+                    adapter.Fill(dtSource);
+
+                    // Tworzenie DataTable z grupowaniem
+                    var dt = new DataTable();
+                    dt.Columns.Add("IsGroupRow", typeof(bool));
+                    dt.Columns.Add("DataSort", typeof(DateTime));
+                    dt.Columns.Add("Kontrahent", typeof(string));
+                    dt.Columns.Add("Cena", typeof(string));
+                    dt.Columns.Add("Ilosc", typeof(string));
+                    dt.Columns.Add("Wartosc", typeof(string));
+                    dt.Columns.Add("ZmianaCeny", typeof(string));
+                    dt.Columns.Add("ZmianaProcent", typeof(string));
+                    dt.Columns.Add("OdchylenieOdSredniej", typeof(string));
+                    dt.Columns.Add("PozycjaCeny", typeof(string));
+                    dt.Columns.Add("LiczbaTransakcji", typeof(string));
+                    dt.Columns.Add("NumerDokumentu", typeof(string));
+
+                    DateTime? ostatniaData = null;
+                    decimal? ostatniaSredniaCenaDnia = null;
+
+                    foreach (DataRow sourceRow in dtSource.Rows)
+                    {
+                        DateTime dataTransakcji = Convert.ToDateTime(sourceRow["Data"]);
+
+                        // Dodaj nagłówek grupy jeśli nowa data
+                        if (ostatniaData == null || ostatniaData.Value != dataTransakcji)
+                        {
+                            var groupRow = dt.NewRow();
+                            groupRow["IsGroupRow"] = true;
+                            groupRow["DataSort"] = dataTransakcji;
+
+                            decimal sredniaCena = Convert.ToDecimal(sourceRow["SredniaCenaDnia"]);
+                            decimal sumaIlosc = Convert.ToDecimal(sourceRow["SumaIloscDnia"]);
+                            decimal sumaWartosc = Convert.ToDecimal(sourceRow["SumaWartoscDnia"]);
+                            int liczbaTransakcji = Convert.ToInt32(sourceRow["LiczbaTransakcji"]);
+
+                            string dzienTygodnia = sourceRow["DzienTygodnia"].ToString();
+
+                            // ZMIANA: Data i dzień w kolumnie Kontrahent
+                            groupRow["Kontrahent"] = $"📅 {dataTransakcji:dd.MM.yyyy} - {dzienTygodnia}";
+
+                            // ZMIANA: Wartości w odpowiednich kolumnach
+                            groupRow["Cena"] = $"{sredniaCena:N2} zł";  // Średnia
+                            groupRow["Ilosc"] = $"{sumaIlosc:N2} kg";   // Suma
+                            groupRow["Wartosc"] = $"{sumaWartosc:N2} zł"; // Suma
+                            groupRow["LiczbaTransakcji"] = liczbaTransakcji.ToString();
+
+                            // Zmiana vs poprzedni dzień
+                            if (sourceRow["SredniaCenaPrzedDnia"] != DBNull.Value && ostatniaSredniaCenaDnia.HasValue)
+                            {
+                                decimal sredniaPrzedDnia = Convert.ToDecimal(sourceRow["SredniaCenaPrzedDnia"]);
+                                decimal zmiana = sredniaCena - sredniaPrzedDnia;
+                                decimal zmianaProcent = sredniaPrzedDnia > 0 ? (zmiana / sredniaPrzedDnia) * 100 : 0;
+
+                                groupRow["ZmianaCeny"] = $"{zmiana:N2} zł";
+                                groupRow["ZmianaProcent"] = $"{zmianaProcent:N1}%";
+                            }
+                            else
+                            {
+                                groupRow["ZmianaCeny"] = "—";
+                                groupRow["ZmianaProcent"] = "—";
+                            }
+
+                            groupRow["OdchylenieOdSredniej"] = "—";
+                            groupRow["PozycjaCeny"] = "—";
+                            groupRow["NumerDokumentu"] = "";
+
+                            dt.Rows.Add(groupRow);
+
+                            ostatniaData = dataTransakcji;
+                            ostatniaSredniaCenaDnia = sredniaCena;
+                        }
+
+                        // Dodaj wiersz szczegółowy
+                        var detailRow = dt.NewRow();
+                        detailRow["IsGroupRow"] = false;
+                        detailRow["DataSort"] = dataTransakcji;
+                        detailRow["Kontrahent"] = sourceRow["Kontrahent"].ToString();
+
+                        decimal cena = Convert.ToDecimal(sourceRow["Cena"]);
+                        decimal ilosc = Convert.ToDecimal(sourceRow["Ilosc"]);
+                        decimal wartosc = Convert.ToDecimal(sourceRow["Wartosc"]);
+
+                        detailRow["Cena"] = $"{cena:N2} zł";
+                        detailRow["Ilosc"] = $"{ilosc:N2} kg";
+                        detailRow["Wartosc"] = $"{wartosc:N2} zł";
+
+                        // Zmiana vs poprzednia transakcja
+                        if (sourceRow["CenaPoprzednia"] != DBNull.Value)
+                        {
+                            decimal cenaPoprzednia = Convert.ToDecimal(sourceRow["CenaPoprzednia"]);
+                            decimal zmiana = cena - cenaPoprzednia;
+                            decimal zmianaProcent = cenaPoprzednia > 0 ? (zmiana / cenaPoprzednia) * 100 : 0;
+
+                            detailRow["ZmianaCeny"] = $"{zmiana:N2} zł";
+                            detailRow["ZmianaProcent"] = $"{zmianaProcent:N1}%";
+                        }
+                        else
+                        {
+                            detailRow["ZmianaCeny"] = "—";
+                            detailRow["ZmianaProcent"] = "—";
+                        }
+
+                        // Odchylenie od średniej dnia
+                        decimal sredniaDnia = Convert.ToDecimal(sourceRow["SredniaCenaDnia"]);
+                        decimal odchylenie = ((cena - sredniaDnia) / sredniaDnia) * 100;
+                        detailRow["OdchylenieOdSredniej"] = $"{odchylenie:N1}%";
+
+                        // Pozycja ceny
+                        int pozycja = Convert.ToInt32(sourceRow["PozycjaCeny"]);
+                        int liczba = Convert.ToInt32(sourceRow["LiczbaTransakcjiDnia"]);
+                        detailRow["PozycjaCeny"] = $"{pozycja}/{liczba}";
+
+                        detailRow["LiczbaTransakcji"] = "";
+                        detailRow["NumerDokumentu"] = sourceRow["NumerDokumentu"].ToString();
+
+                        dt.Rows.Add(detailRow);
+                    }
+
+                    dataGridView.DataSource = dt;
+
+                    // Statystyki
+                    if (dtSource.Rows.Count > 0)
+                    {
+                        decimal minCena = dtSource.AsEnumerable().Min(r => r.Field<decimal>("Cena"));
+                        decimal maxCena = dtSource.AsEnumerable().Max(r => r.Field<decimal>("Cena"));
+                        decimal avgCena = dtSource.AsEnumerable().Average(r => r.Field<decimal>("Cena"));
+                        decimal sumaIlosc = dtSource.AsEnumerable().Sum(r => r.Field<decimal>("Ilosc"));
+                        decimal sumaWartosc = dtSource.AsEnumerable().Sum(r => r.Field<decimal>("Wartosc"));
+                        int liczbaTransakcji = dtSource.Rows.Count;
+                        int liczbaDni = dtSource.AsEnumerable().Select(r => r.Field<DateTime>("Data")).Distinct().Count();
+
+                        lblStatystyki.Text =
+                            $"📊 PODSUMOWANIE CAŁEGO OKRESU:\n" +
+                            $"💵 Cena: Min {minCena:N2} zł | Max {maxCena:N2} zł | Średnia {avgCena:N2} zł | " +
+                            $"⚖ Suma: {sumaIlosc:N2} kg | 💰 Wartość: {sumaWartosc:N2} zł | " +
+                            $"🔢 Transakcji: {liczbaTransakcji} | 📅 Dni handlowych: {liczbaDni}";
+                    }
+                    else
+                    {
+                        lblStatystyki.Text = "❌ Brak transakcji w wybranym okresie";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("❌ Błąd wczytywania historii: " + ex.Message, "Błąd",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DataGridView_RowPrePaint(object? sender, DataGridViewRowPrePaintEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridView.Rows.Count) return;
+
+            var row = dataGridView.Rows[e.RowIndex];
+            if (row.Cells["IsGroupRow"].Value != null && Convert.ToBoolean(row.Cells["IsGroupRow"].Value))
+            {
+                row.DefaultCellStyle.BackColor = ColorTranslator.FromHtml("#bdc3c7");
+                row.DefaultCellStyle.ForeColor = Color.Black;
+                row.DefaultCellStyle.Font = new Font(dataGridView.Font, FontStyle.Bold);
+                row.Height = 38;
+                row.DefaultCellStyle.SelectionBackColor = row.DefaultCellStyle.BackColor;
+                row.DefaultCellStyle.SelectionForeColor = row.DefaultCellStyle.ForeColor;
+            }
+        }
+
+        private void DataGridView_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridView.Rows.Count) return;
+
+            var row = dataGridView.Rows[e.RowIndex];
+            bool isGroupRow = row.Cells["IsGroupRow"].Value != null &&
+                             Convert.ToBoolean(row.Cells["IsGroupRow"].Value);
+
+            if (!isGroupRow)
+            {
+                // Kolorowanie zmian - tylko dla wierszy szczegółowych
+                var colName = dataGridView.Columns[e.ColumnIndex].Name;
+
+                if ((colName == "ZmianaCeny" || colName == "ZmianaProcent") &&
+                    e.Value != null && e.Value.ToString() != "—")
+                {
+                    string val = e.Value.ToString();
+                    decimal numVal = 0;
+                    string numStr = val.Replace("zł", "").Replace("%", "").Trim();
+
+                    if (decimal.TryParse(numStr, out numVal))
+                    {
+                        if (numVal > 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e8f5e9");
+                        }
+                        else if (numVal < 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffebee");
+                        }
+                    }
+                }
+
+                if (colName == "OdchylenieOdSredniej" && e.Value != null && e.Value.ToString() != "—")
+                {
+                    string val = e.Value.ToString().Replace("%", "").Trim();
+                    if (decimal.TryParse(val, out decimal numVal))
+                    {
+                        if (Math.Abs(numVal) > 10)
+                        {
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#fff3cd");
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Kolorowanie zmian w nagłówkach grup
+                var colName = dataGridView.Columns[e.ColumnIndex].Name;
+
+                if ((colName == "ZmianaCeny" || colName == "ZmianaProcent") &&
+                    e.Value != null && e.Value.ToString() != "—")
+                {
+                    string val = e.Value.ToString();
+                    decimal numVal = 0;
+                    string numStr = val.Replace("zł", "").Replace("%", "").Trim();
+
+                    if (decimal.TryParse(numStr, out numVal))
+                    {
+                        if (numVal > 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                        }
+                        else if (numVal < 0)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void BtnEksportuj_Click(object? sender, EventArgs e)
+        {
+            if (dataGridView.Rows.Count == 0)
+            {
+                MessageBox.Show("ℹ Brak danych do eksportu", "Informacja",
+                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (SaveFileDialog saveDialog = new SaveFileDialog())
+            {
+                saveDialog.Filter = "CSV files (*.csv)|*.csv";
+                saveDialog.FileName = $"Historia_Cen_{currentHandlowiec}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        var csv = new System.Text.StringBuilder();
+
+                        // Nagłówki
+                        var headers = new List<string>();
+                        foreach (DataGridViewColumn col in dataGridView.Columns)
+                        {
+                            if (col.Visible && col.Name != "IsGroupRow" && col.Name != "DataSort")
+                                headers.Add(col.HeaderText.Replace("\n", " "));
+                        }
+                        csv.AppendLine(string.Join(";", headers));
+
+                        // Dane
+                        foreach (DataGridViewRow row in dataGridView.Rows)
+                        {
+                            var cells = new List<string>();
+                            foreach (DataGridViewColumn col in dataGridView.Columns)
+                            {
+                                if (col.Visible && col.Name != "IsGroupRow" && col.Name != "DataSort")
+                                {
+                                    string cellValue = row.Cells[col.Name].Value?.ToString() ?? "";
+                                    cells.Add(cellValue);
+                                }
+                            }
+                            csv.AppendLine(string.Join(";", cells));
+                        }
+
+                        System.IO.File.WriteAllText(saveDialog.FileName, csv.ToString(), System.Text.Encoding.UTF8);
+                        MessageBox.Show("✓ Eksport zakończony pomyślnie!", "Sukces",
+                                      MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"❌ Błąd eksportu: {ex.Message}", "Błąd",
+                                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
         }
     }
 }
