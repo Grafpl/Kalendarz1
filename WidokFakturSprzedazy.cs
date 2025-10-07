@@ -2597,7 +2597,7 @@ ORDER BY SredniaCena DESC;";
                 {
                     if (menuItem.Text.Contains("Podgląd") ||
                         menuItem.Text.Contains("analiza") ||
-                        menuItem.Text.Contains("reklamację"))  // DODANE
+                        menuItem.Text.Contains("reklamację"))  // ← TUTAJ SPRAWDZA REKLAMACJĘ
                     {
                         menuItem.Enabled = czyZaznaczono;
                     }
