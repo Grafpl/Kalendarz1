@@ -34,6 +34,7 @@ namespace Kalendarz1
             panelOstatniOdbiorcy = new System.Windows.Forms.Panel();
             lblOstatniOdbiorcy = new System.Windows.Forms.Label();
             gridOstatniOdbiorcy = new System.Windows.Forms.DataGridView();
+            dateTimePickerProdukcji = new System.Windows.Forms.DateTimePicker();
             panelOdbiorca = new System.Windows.Forms.Panel();
             lblTytul = new System.Windows.Forms.Label();
             label4 = new System.Windows.Forms.Label();
@@ -96,6 +97,7 @@ namespace Kalendarz1
             // 
             // panelAkcji
             // 
+
             panelAkcji.BackColor = System.Drawing.Color.FromArgb(249, 250, 251);
             panelAkcji.Controls.Add(btnZapisz);
             panelAkcji.Controls.Add(btnAnuluj);
@@ -104,6 +106,18 @@ namespace Kalendarz1
             panelAkcji.Name = "panelAkcji";
             panelAkcji.Size = new System.Drawing.Size(430, 70);
             panelAkcji.TabIndex = 3;
+
+
+            // 
+// dateTimePickerProdukcji
+// 
+dateTimePickerProdukcji.CalendarMonthBackground = System.Drawing.Color.FromArgb(249, 250, 251);
+dateTimePickerProdukcji.Font = new System.Drawing.Font("Segoe UI", 10.5F);
+dateTimePickerProdukcji.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+dateTimePickerProdukcji.Location = new System.Drawing.Point(10, 35);
+dateTimePickerProdukcji.Name = "dateTimePickerProdukcji";
+dateTimePickerProdukcji.Size = new System.Drawing.Size(203, 26);
+dateTimePickerProdukcji.TabIndex = 0;
             // 
             // btnZapisz
             // 

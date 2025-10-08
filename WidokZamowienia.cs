@@ -1,5 +1,5 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 17.1 - Ikony Unicode + Panel odbiorców handlowca
+// WERSJA 18.1 - Poprawki DataProdukcji
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -75,6 +75,8 @@ namespace Kalendarz1
         private decimal _limitKredytowy = 0;
         private decimal _doZaplacenia = 0;
 
+        private DateTimePicker? dateTimePickerProdukcji;
+
         public WidokZamowienia() : this(App.UserID ?? string.Empty, null) { }
         public WidokZamowienia(int? idZamowienia) : this(App.UserID ?? string.Empty, idZamowienia) { }
 
@@ -148,7 +150,7 @@ namespace Kalendarz1
 
             if (panelOstatniOdbiorcy != null)
             {
-                panelOstatniOdbiorcy.Height = 190;  // było 280, teraz ~67%
+                panelOstatniOdbiorcy.Height = 190;
                 panelOstatniOdbiorcy.Padding = new Padding(15, 10, 15, 10);
             }
             if (txtSzukajOdbiorcy != null)
@@ -183,7 +185,6 @@ namespace Kalendarz1
                 lblTytul.Size = new Size(300, 30);
             }
 
-            // Label Odbiorca nad kontrolką
             var lblOdbiorca = panelOdbiorca.Controls["label1"];
             if (lblOdbiorca != null)
             {
@@ -192,7 +193,6 @@ namespace Kalendarz1
                 lblOdbiorca.Size = new Size(80, 16);
             }
 
-            // Label Handlowiec nad kontrolką
             var existingHandlowiecLabel = panelOdbiorca.Controls.OfType<Label>()
                 .FirstOrDefault(l => l.Text.Contains("Handlowiec"));
 
@@ -215,7 +215,6 @@ namespace Kalendarz1
                 existingHandlowiecLabel.Size = new Size(90, 16);
             }
 
-            // TextBox Odbiorca - zmniejszony o połowę (100px)
             if (txtSzukajOdbiorcy != null)
             {
                 txtSzukajOdbiorcy.Location = new Point(10, 63);
@@ -223,7 +222,6 @@ namespace Kalendarz1
                 txtSzukajOdbiorcy.Font = new Font("Segoe UI", 10f);
             }
 
-            // ComboBox Handlowiec - zmniejszony o połowę (100px)
             if (cbHandlowiecFilter != null)
             {
                 cbHandlowiecFilter.Location = new Point(120, 63);
@@ -233,6 +231,7 @@ namespace Kalendarz1
 
             CreateCompactRadioPanel();
         }
+
         private void CreateCompactRadioPanel()
         {
             if (panelOdbiorca == null) return;
@@ -246,7 +245,7 @@ namespace Kalendarz1
 
             var rbContainer = new Panel
             {
-                Location = new Point(230, 58),  // dostosowane do nowego layoutu
+                Location = new Point(230, 58),
                 Size = new Size(130, 32),
                 BackColor = Color.FromArgb(249, 250, 251),
                 BorderStyle = BorderStyle.None
@@ -288,6 +287,7 @@ namespace Kalendarz1
             rbContainer.Controls.Add(rbMrozony);
             panelOdbiorca.Controls.Add(rbContainer);
         }
+
         private void RbTypProduktu_CheckedChanged(object? sender, EventArgs e)
         {
             if (sender is RadioButton rb && !rb.Checked) return;
@@ -319,8 +319,8 @@ namespace Kalendarz1
                 Padding = new Padding(0)
             };
 
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));  // było 280
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 235));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 280));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -411,7 +411,7 @@ namespace Kalendarz1
                 Dock = DockStyle.Top,
                 BackColor = Color.White,
                 Padding = new Padding(12),
-                Height = 235
+                Height = 280
             };
 
             var lblHeader = new Label
@@ -426,16 +426,40 @@ namespace Kalendarz1
             var datesLayout = new TableLayoutPanel
             {
                 Location = new Point(10, 35),
-                Size = new Size(390, 110),
+                Size = new Size(390, 155),
                 ColumnCount = 2,
-                RowCount = 3
+                RowCount = 4
             };
 
             datesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             datesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-            datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+            datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+
+            // Data Produkcji
+            var lblProdukcja = new Label
+            {
+                Text = "🏭 Data produkcji",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(31, 41, 55),
+                AutoSize = true,
+                Padding = new Padding(0, 0, 0, 3)
+            };
+
+            dateTimePickerProdukcji = new DateTimePicker
+            {
+                Format = DateTimePickerFormat.Custom,
+                CustomFormat = "yyyy-MM-dd (dddd)",
+                Font = new Font("Segoe UI", 10.5f),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(0, 0, 5, 5),
+                Value = DateTime.Today
+            };
+            StyleDateTimePicker(dateTimePickerProdukcji);
+
+
 
             var lblDate = new Label
             {
@@ -477,16 +501,19 @@ namespace Kalendarz1
                 Padding = new Padding(0, 2, 0, 0)
             };
 
-            datesLayout.Controls.Add(lblDate, 0, 0);
-            datesLayout.Controls.Add(lblTime, 1, 0);
-            datesLayout.Controls.Add(dateTimePickerSprzedaz, 0, 1);
-            datesLayout.Controls.Add(dateTimePickerGodzinaPrzyjazdu, 1, 1);
-            datesLayout.Controls.Add(panelSugestieGodzin, 0, 2);
-            datesLayout.SetColumnSpan(panelSugestieGodzin, 2);
+            datesLayout.Controls.Add(lblProdukcja, 0, 0);
+            datesLayout.Controls.Add(dateTimePickerProdukcji, 0, 1);
+            datesLayout.SetColumnSpan(dateTimePickerProdukcji, 2);
+
+            datesLayout.Controls.Add(lblDate, 0, 2);
+            datesLayout.Controls.Add(lblTime, 1, 2);
+
+            datesLayout.Controls.Add(dateTimePickerSprzedaz, 0, 3);
+            datesLayout.Controls.Add(dateTimePickerGodzinaPrzyjazdu, 1, 3);
 
             panelTransport = new Panel
             {
-                Location = new Point(10, 155),
+                Location = new Point(10, 200),
                 Size = new Size(390, 50),
                 BackColor = Color.Transparent
             };
@@ -525,7 +552,6 @@ namespace Kalendarz1
 
             return panel;
         }
-
         private Panel CreateBetterProgressPanel(string labelText, int maxValue, out ProgressBar progressBar, out Label infoLabel)
         {
             var panel = new Panel
@@ -601,7 +627,7 @@ namespace Kalendarz1
             progressLimit = new ProgressBar
             {
                 Location = new Point(12, 58),
-                Size = new Size(250, 24),  // Zmniejszone z 380 na 250
+                Size = new Size(250, 24),
                 Maximum = 100,
                 Style = ProgressBarStyle.Continuous
             };
@@ -622,6 +648,7 @@ namespace Kalendarz1
 
             return panelPlatnosci;
         }
+
         private async Task LoadPlatnosciOdbiorcy(string klientId)
         {
             if (panelPlatnosci == null || lblLimitInfo == null || progressLimit == null) return;
@@ -655,8 +682,7 @@ namespace Kalendarz1
                 var zadluzenieObj = await cmdZadluzenie.ExecuteScalarAsync();
                 _doZaplacenia = zadluzenieObj != DBNull.Value ? Convert.ToDecimal(zadluzenieObj) : 0;
 
-                // Ustawienia labela obok progress bara
-                lblLimitInfo.Location = new Point(270, 58);  // Obok progress bara
+                lblLimitInfo.Location = new Point(270, 58);
                 lblLimitInfo.Size = new Size(120, 24);
                 lblLimitInfo.TextAlign = ContentAlignment.MiddleLeft;
 
@@ -706,6 +732,7 @@ namespace Kalendarz1
                 progressLimit.Value = 0;
             }
         }
+
         #endregion
 
         #region Grid Ostatnich Odbiorców
@@ -1454,6 +1481,12 @@ namespace Kalendarz1
             this.Cursor = Cursors.WaitCursor;
             btnZapisz.Enabled = false;
             var dzis = DateTime.Now.Date;
+
+            if (dateTimePickerProdukcji != null)
+            {
+                dateTimePickerProdukcji.Value = DateTime.Today;
+            }
+
             dateTimePickerSprzedaz.Value = (dzis.DayOfWeek == DayOfWeek.Friday) ? dzis.AddDays(3) : dzis.AddDays(1);
             dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
             RecalcSum();
@@ -2103,6 +2136,12 @@ namespace Kalendarz1
             textBoxUwagi.Text = "";
 
             var dzis = DateTime.Now.Date;
+
+            if (dateTimePickerProdukcji != null)
+            {
+                dateTimePickerProdukcji.Value = DateTime.Today;
+            }
+
             dateTimePickerSprzedaz.Value = (dzis.DayOfWeek == DayOfWeek.Friday) ? dzis.AddDays(3) : dzis.AddDays(1);
             dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
 
@@ -2138,7 +2177,26 @@ namespace Kalendarz1
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
 
-            await using (var cmdZ = new SqlCommand("SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id", cn))
+            // BEZPIECZNE SPRAWDZENIE CZY KOLUMNA ISTNIEJE
+            bool dataProdukcjiExists = false;
+            try
+            {
+                await using var cmdCheck = new SqlCommand(@"
+            SELECT COUNT(*) 
+            FROM sys.columns 
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+            AND name = 'DataProdukcji'", cn);
+                int count = (int)await cmdCheck.ExecuteScalarAsync();
+                dataProdukcjiExists = count > 0;
+            }
+            catch { }
+
+            // BUDUJ ZAPYTANIE DYNAMICZNIE
+            string sqlQuery = dataProdukcjiExists
+                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
+                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
+
+            await using (var cmdZ = new SqlCommand(sqlQuery, cn))
             {
                 cmdZ.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdZ.ExecuteReaderAsync();
@@ -2148,6 +2206,20 @@ namespace Kalendarz1
                     UstawOdbiorce(rd.GetInt32(1).ToString());
                     textBoxUwagi.Text = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
                     dateTimePickerGodzinaPrzyjazdu.Value = rd.GetDateTime(3);
+
+                    // POPRAWIONA OBSŁUGA DATY PRODUKCJI
+                    if (dateTimePickerProdukcji != null)
+                    {
+                        if (dataProdukcjiExists && rd.FieldCount > 4 && !await rd.IsDBNullAsync(4))
+                        {
+                            dateTimePickerProdukcji.Value = rd.GetDateTime(4);
+                        }
+                        else
+                        {
+                            // Jeśli brak kolumny lub NULL, ustaw dzisiejszą datę
+                            dateTimePickerProdukcji.Value = DateTime.Today;
+                        }
+                    }
                 }
             }
 
@@ -2164,11 +2236,11 @@ namespace Kalendarz1
             var zamowienieTowary = new List<(int TowarId, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia)>();
 
             await using (var cmdT = new SqlCommand(@"
-                SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
-                       ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
-                       ISNULL(Folia, 0) as Folia
-                FROM [dbo].[ZamowieniaMiesoTowar]
-                WHERE ZamowienieId=@Id", cn))
+        SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
+               ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
+               ISNULL(Folia, 0) as Folia
+        FROM [dbo].[ZamowieniaMiesoTowar]
+        WHERE ZamowienieId=@Id", cn))
             {
                 cmdT.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdT.ExecuteReaderAsync();
@@ -2222,7 +2294,6 @@ namespace Kalendarz1
             _blokujObslugeZmian = false;
             RecalcSum();
         }
-
         private bool ValidateBeforeSave(out string message)
         {
             if (string.IsNullOrWhiteSpace(_selectedKlientId))
@@ -2327,7 +2398,8 @@ namespace Kalendarz1
             var orderedItems = _dt.AsEnumerable().Where(r => r.Field<decimal?>("Ilosc") > 0m).ToList();
 
             sb.AppendLine($"👤 Odbiorca: {lblWybranyOdbiorca.Text.Replace("👤 ", "")}");
-            sb.AppendLine($"📅 Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd}");
+            sb.AppendLine($"🏭 Data produkcji: {dateTimePickerProdukcji?.Value:yyyy-MM-dd (dddd)}");
+            sb.AppendLine($"📅 Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd (dddd)}");
 
             var swiezeItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67095").ToList();
             var mrozoneItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67153").ToList();
@@ -2380,10 +2452,14 @@ namespace Kalendarz1
         {
             await using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
+
+            // **SPRAWDŹ CZY KOLUMNY ISTNIEJĄ PRZED TRANSAKCJĄ**
+            bool dataProdukcjiExists = await CheckIfColumnExists(cn, "DataProdukcji");
+            bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");  // NOWE
+
             await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
 
             int orderId;
-
             decimal sumaPojemnikow = 0;
             decimal sumaPalet = 0;
             bool czyJakikolwiekE2 = false;
@@ -2398,55 +2474,127 @@ namespace Kalendarz1
                 }
             }
 
+            // **JEDNA DATA DLA OBU KOLUMN**
+            DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+
             if (_idZamowieniaDoEdycji.HasValue)
             {
                 orderId = _idZamowieniaDoEdycji.Value;
-                var cmdUpdate = new SqlCommand(@"UPDATE [dbo].[ZamowieniaMieso] SET 
-                    DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, 
-                    KtoMod = @km, KiedyMod = SYSDATETIME(),
-                    LiczbaPojemnikow = @poj, LiczbaPalet = @pal, TrybE2 = @e2
-                    WHERE Id=@id", cn, tr);
+
+                string updateSql = @"UPDATE [dbo].[ZamowieniaMieso] SET 
+            DataZamowienia = @dz, 
+            DataPrzyjazdu = @dp, 
+            KlientId = @kid, 
+            Uwagi = @uw, 
+            KtoMod = @km, 
+            KiedyMod = SYSDATETIME(),
+            LiczbaPojemnikow = @poj, 
+            LiczbaPalet = @pal, 
+            TrybE2 = @e2";
+
+                if (dataProdukcjiExists)
+                {
+                    updateSql += ", DataProdukcji = @dprod";
+                }
+
+                // **DODAJ DataUboju**
+                if (dataUbojuExists)
+                {
+                    updateSql += ", DataUboju = @duboj";
+                }
+
+                updateSql += " WHERE Id = @id";
+
+                var cmdUpdate = new SqlCommand(updateSql, cn, tr);
                 cmdUpdate.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
+
                 var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
                 cmdUpdate.Parameters.AddWithValue("@dp", dataPrzyjazdu);
-                cmdUpdate.Parameters.AddWithValue("@kid", _selectedKlientId!);
-                cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
+
+                if (dataProdukcjiExists)
+                {
+                    cmdUpdate.Parameters.AddWithValue("@dprod", dataProdukcji);
+                }
+
+                // **TA SAMA DATA DO DataUboju**
+                if (dataUbojuExists)
+                {
+                    cmdUpdate.Parameters.AddWithValue("@duboj", dataProdukcji);
+                }
+
+                cmdUpdate.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
+                cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
                 cmdUpdate.Parameters.AddWithValue("@km", UserID);
                 cmdUpdate.Parameters.AddWithValue("@id", orderId);
                 cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdUpdate.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
+
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId=@id", cn, tr);
+                var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @id", cn, tr);
                 cmdDelete.Parameters.AddWithValue("@id", orderId);
                 await cmdDelete.ExecuteNonQueryAsync();
             }
             else
             {
-                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id),0)+1 FROM [dbo].[ZamowieniaMieso]", cn, tr);
+                // **NOWE ZAMÓWIENIE**
+                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id), 0) + 1 FROM [dbo].[ZamowieniaMieso]", cn, tr);
                 orderId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
-                var cmdInsert = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMieso] 
-                    (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
-                     LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
-                    VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
+                // **BUDUJ SQL DYNAMICZNIE Z OBIEMA KOLUMNAMI**
+                string insertColumns = "Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus";
+                string insertValues = "@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje'";
+
+                if (dataProdukcjiExists)
+                {
+                    insertColumns += ", DataProdukcji";
+                    insertValues += ", @dprod";
+                }
+
+                if (dataUbojuExists)
+                {
+                    insertColumns += ", DataUboju";
+                    insertValues += ", @duboj";
+                }
+
+                string insertSql = $@"INSERT INTO [dbo].[ZamowieniaMieso] 
+            ({insertColumns}) 
+            VALUES ({insertValues})";
+
+                var cmdInsert = new SqlCommand(insertSql, cn, tr);
                 cmdInsert.Parameters.AddWithValue("@id", orderId);
                 cmdInsert.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
+
                 var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
                 cmdInsert.Parameters.AddWithValue("@dp", dataPrzyjazdu);
-                cmdInsert.Parameters.AddWithValue("@kid", _selectedKlientId!);
-                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? DBNull.Value : textBoxUwagi.Text);
+
+                if (dataProdukcjiExists)
+                {
+                    cmdInsert.Parameters.AddWithValue("@dprod", dataProdukcji);
+                }
+
+                // **TA SAMA DATA DO DataUboju**
+                if (dataUbojuExists)
+                {
+                    cmdInsert.Parameters.AddWithValue("@duboj", dataProdukcji);
+                }
+
+                cmdInsert.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
+                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
                 cmdInsert.Parameters.AddWithValue("@u", UserID);
                 cmdInsert.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdInsert.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdInsert.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
+
                 await cmdInsert.ExecuteNonQueryAsync();
             }
 
+            // **ZAPISZ POZYCJE ZAMÓWIENIA**
             var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
-                (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
-                VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia)", cn, tr);
+        (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
+        VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia)", cn, tr);
+
             cmdInsertItem.Parameters.Add("@zid", SqlDbType.Int);
             cmdInsertItem.Parameters.Add("@kt", SqlDbType.Int);
             cmdInsertItem.Parameters.Add("@il", SqlDbType.Decimal);
@@ -2460,23 +2608,37 @@ namespace Kalendarz1
             {
                 if (r.Field<decimal>("Ilosc") <= 0m) continue;
 
-                decimal palety = r.Field<decimal>("Palety");
-                decimal pojemniki = r.Field<decimal>("Pojemniki");
-                bool e2 = r.Field<bool>("E2");
-                bool folia = r.Field<bool>("Folia");
-
                 cmdInsertItem.Parameters["@zid"].Value = orderId;
                 cmdInsertItem.Parameters["@kt"].Value = r.Field<int>("Id");
                 cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
                 cmdInsertItem.Parameters["@ce"].Value = 0m;
-                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(pojemniki);
-                cmdInsertItem.Parameters["@pal"].Value = palety;
-                cmdInsertItem.Parameters["@e2"].Value = e2;
-                cmdInsertItem.Parameters["@folia"].Value = folia;
+                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(r.Field<decimal>("Pojemniki"));
+                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal>("Palety");
+                cmdInsertItem.Parameters["@e2"].Value = r.Field<bool>("E2");
+                cmdInsertItem.Parameters["@folia"].Value = r.Field<bool>("Folia");
+
                 await cmdInsertItem.ExecuteNonQueryAsync();
             }
 
             await tr.CommitAsync();
+        }
+        private async Task<bool> CheckIfColumnExists(SqlConnection cn, string columnName)
+        {
+            try
+            {
+                await using var cmd = new SqlCommand(@"
+            SELECT COUNT(*) 
+            FROM sys.columns 
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+            AND name = @ColumnName", cn);
+                cmd.Parameters.AddWithValue("@ColumnName", columnName);
+                int count = (int)await cmd.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         #endregion

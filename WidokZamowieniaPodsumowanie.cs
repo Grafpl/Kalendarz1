@@ -1,11 +1,10 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 9.0 – Ulepszona skalowalność i UI
+// WERSJA 9.1 – Dodano tryb wyświetlania po dacie uboju i kolumnę DataUboju
 // Zmiany:
-// - Responsywny layout dla różnych rozdzielczości
-// - Automatyczne odświeżanie po operacjach
-// - Ulepszone duplikowanie (checkbox dla notatki)
-// - Przycisk "Cykliczne" widoczny dla wszystkich
-// - Poprawiony wygląd UI (ikony, kolory, cienie)
+// - Radio buttony do wyboru między datą odbioru a datą uboju
+// - Kolumna DataUboju z czerwonym "Brak informacji" gdy NULL
+// - Dynamiczne filtrowanie według wybranego trybu
+// - Automatyczne odświeżanie po zmianie trybu
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -455,6 +454,8 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke; // Deklaracja przycisku Notatka
+        private bool _pokazujPoDatachUboju = false; // Tryb wyświetlania: false = data odbioru, true = data uboju
+        private bool _dataUbojuKolumnaIstnieje = true; // Czy kolumna DataUboju istnieje w bazie
 
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
@@ -677,7 +678,7 @@ namespace Kalendarz1
             lblPodsumowanie.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
         }
 
-        private void StyleActionButton(Button btn, Color color, string text, int width = 95, int height = 40, Font font = null)
+        private void StyleActionButton(Button btn, Color color, string text, int width = 95, int height = 40, Font? font = null)
         {
             btn.Text = text;
             btn.BackColor = color;
@@ -724,7 +725,7 @@ namespace Kalendarz1
             btn.Tag = color;
         }
 
-        private void BtnMouseEnter(object sender, EventArgs e)
+        private void BtnMouseEnter(object? sender, EventArgs e)
         {
             if (sender is Button btn && btn.Tag is Color color)
             {
@@ -732,7 +733,7 @@ namespace Kalendarz1
             }
         }
 
-        private void BtnMouseLeave(object sender, EventArgs e)
+        private void BtnMouseLeave(object? sender, EventArgs e)
         {
             if (sender is Button btn && btn.Tag is Color color)
             {
@@ -838,6 +839,7 @@ namespace Kalendarz1
             if (dgv == dgvZamowienia)
             {
                 dgv.CellDoubleClick += dgvZamowienia_CellDoubleClick;
+                dgv.CellFormatting += dgvZamowienia_CellFormatting;
             }
 
             TryEnableDoubleBuffer(dgv);
@@ -1227,6 +1229,63 @@ namespace Kalendarz1
         }
         #endregion
 
+        #region Sprawdzanie i tworzenie kolumn bazy danych
+        private async Task SprawdzIUtworzKolumneDataUboju()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy kolumna istnieje
+                const string checkSql = @"
+                    SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'ZamowieniaMieso' 
+                    AND COLUMN_NAME = 'DataUboju'";
+
+                await using var cmdCheck = new SqlCommand(checkSql, cn);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    // Kolumna nie istnieje - spróbuj ją dodać
+                    const string alterSql = @"
+                        ALTER TABLE [dbo].[ZamowieniaMieso]
+                        ADD DataUboju DATE NULL";
+
+                    await using var cmdAlter = new SqlCommand(alterSql, cn);
+                    await cmdAlter.ExecuteNonQueryAsync();
+
+                    _dataUbojuKolumnaIstnieje = true;
+                    MessageBox.Show("Kolumna 'DataUboju' została dodana do bazy danych.",
+                        "Aktualizacja bazy", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    _dataUbojuKolumnaIstnieje = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _dataUbojuKolumnaIstnieje = false;
+                MessageBox.Show($"Nie można dodać kolumny DataUboju do bazy danych.\n" +
+                               $"Funkcja filtrowania po dacie uboju będzie niedostępna.\n\n" +
+                               $"Błąd: {ex.Message}\n\n" +
+                               $"Aby włączyć tę funkcję, wykonaj SQL:\n" +
+                               $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL",
+                    "Ostrzeżenie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                // Wyłącz radio button dla daty uboju jeśli kolumna nie istnieje
+                if (rbDataUboju != null)
+                {
+                    rbDataUboju.Enabled = false;
+                    rbDataUboju.Text = "Data uboju (niedostępne)";
+                }
+            }
+        }
+        #endregion
+
         #region Wczytywanie i przetwarzanie
         private async Task OdswiezWszystkieDaneAsync()
         {
@@ -1247,6 +1306,9 @@ namespace Kalendarz1
 
         private async Task ZaladujDanePoczatkoweAsync()
         {
+            // Sprawdź i dodaj kolumnę DataUboju jeśli nie istnieje
+            await SprawdzIUtworzKolumneDataUboju();
+
             _twKodCache.Clear();
             _twKatalogCache.Clear();
             await using (var cn = new SqlConnection(_connHandel))
@@ -1328,6 +1390,43 @@ namespace Kalendarz1
             cbFiltrujHandlowca.SelectedIndex = 0;
 
             txtFiltrujOdbiorce.TextChanged += Filtry_Changed;
+
+            // Dodaj obsługę radio buttonów do zmiany trybu wyświetlania
+            if (rbDataOdbioru != null && rbDataUboju != null)
+            {
+                rbDataOdbioru.CheckedChanged += async (s, e) =>
+                {
+                    if (rbDataOdbioru.Checked)
+                    {
+                        _pokazujPoDatachUboju = false;
+                        await OdswiezWszystkieDaneAsync();
+                    }
+                };
+
+                rbDataUboju.CheckedChanged += async (s, e) =>
+                {
+                    if (rbDataUboju.Checked && _dataUbojuKolumnaIstnieje)
+                    {
+                        _pokazujPoDatachUboju = true;
+                        await OdswiezWszystkieDaneAsync();
+                    }
+                    else if (rbDataUboju.Checked && !_dataUbojuKolumnaIstnieje)
+                    {
+                        // Wróć do daty odbioru jeśli kolumna nie istnieje
+                        rbDataOdbioru.Checked = true;
+                        MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" +
+                                      "Filtrowanie po dacie uboju jest niedostępne.",
+                            "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                };
+
+                // Ustaw początkowy stan radio buttonów
+                rbDataUboju.Enabled = _dataUbojuKolumnaIstnieje;
+                if (!_dataUbojuKolumnaIstnieje)
+                {
+                    rbDataUboju.Text = "Data uboju (niedostępne)";
+                }
+            }
         }
 
         private async Task WczytajZamowieniaDlaDniaAsync(DateTime dzien)
@@ -1347,6 +1446,9 @@ namespace Kalendarz1
                 var colDataUtw = new DataColumn("DataUtworzenia", typeof(DateTime));
                 colDataUtw.AllowDBNull = true;
                 _dtZamowienia.Columns.Add(colDataUtw);
+                var colDataUboju = new DataColumn("DataUboju", typeof(DateTime));
+                colDataUboju.AllowDBNull = true;
+                _dtZamowienia.Columns.Add(colDataUboju);
                 _dtZamowienia.Columns.Add("Utworzyl", typeof(string));
                 _dtZamowienia.Columns.Add("Status", typeof(string));
             }
@@ -1385,16 +1487,26 @@ namespace Kalendarz1
                 {
                     await cnLibra.OpenAsync();
                     var idwList = string.Join(",", _twKatalogCache.Keys);
+
+                    // Wybór kolumny do filtrowania w zależności od trybu i dostępności kolumny
+                    string dataKolumna = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje)
+                        ? "zm.DataUboju"
+                        : "zm.DataZamowienia";
+
+                    // Dodaj DataUboju do SELECT tylko jeśli kolumna istnieje
+                    string dataUbojuSelect = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
+                    string dataUbojuGroupBy = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
+
                     string sql = $@"
                         SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
                                zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                               zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2
+                               zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuSelect}
                         FROM [dbo].[ZamowieniaMieso] zm
                         JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-                        WHERE zm.DataZamowienia = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
+                        WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
                             (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
-                            @"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                                     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2
+                            $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                                     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuGroupBy}
                           ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -1417,6 +1529,14 @@ namespace Kalendarz1
                 decimal ilosc = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
                 DateTime? dataPrzyjazdu = (r["DataPrzyjazdu"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataPrzyjazdu"]);
                 DateTime? dataUtw = (r["DataUtworzenia"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
+
+                // Pobierz DataUboju tylko jeśli kolumna istnieje
+                DateTime? dataUboju = null;
+                if (_dataUbojuKolumnaIstnieje && temp.Columns.Contains("DataUboju"))
+                {
+                    dataUboju = (r["DataUboju"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUboju"]);
+                }
+
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
 
@@ -1447,6 +1567,7 @@ namespace Kalendarz1
                     dataPrzyjazdu?.Date ?? dzien,
                     dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
                     dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value,
+                    dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value,
                     _userCache.TryGetValue(idUser, out var user) ? user : "Brak",
                     status
                 );
@@ -1474,6 +1595,7 @@ namespace Kalendarz1
                 row["DataPrzyjecia"] = dzien;
                 row["GodzinaPrzyjecia"] = "";
                 row["DataUtworzenia"] = DBNull.Value;
+                row["DataUboju"] = DBNull.Value;
                 row["Utworzyl"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
                 wydaniaBezZamowien.Add(row);
@@ -1538,6 +1660,14 @@ namespace Kalendarz1
                 dgvZamowienia.Columns["DataUtworzenia"].HeaderText = "Utworzono";
                 dgvZamowienia.Columns["DataUtworzenia"].DefaultCellStyle.Format = "dd.MM HH:mm";
                 dgvZamowienia.Columns["DataUtworzenia"].Width = 100;
+            }
+            if (dgvZamowienia.Columns["DataUboju"] != null)
+            {
+                dgvZamowienia.Columns["DataUboju"].HeaderText = "Data uboju";
+                dgvZamowienia.Columns["DataUboju"].DefaultCellStyle.Format = "dd.MM.yyyy";
+                dgvZamowienia.Columns["DataUboju"].Width = 90;
+                dgvZamowienia.Columns["DataUboju"].DefaultCellStyle.NullValue = "Brak informacji";
+                dgvZamowienia.Columns["DataUboju"].Visible = _dataUbojuKolumnaIstnieje;
             }
             if (dgvZamowienia.Columns["Utworzyl"] != null)
                 dgvZamowienia.Columns["Utworzyl"].Width = 80;
@@ -1648,6 +1778,20 @@ namespace Kalendarz1
             }
         }
 
+        private void dgvZamowienia_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || dgvZamowienia.Columns[e.ColumnIndex].Name != "DataUboju")
+                return;
+
+            if (e.Value == null || e.Value == DBNull.Value)
+            {
+                e.Value = "Brak informacji";
+                e.CellStyle.ForeColor = Color.Red;
+                e.CellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Bold);
+                e.FormattingApplied = true;
+            }
+        }
+
         private async Task HandleGridSelection(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= dgvZamowienia.Rows.Count)
@@ -1709,7 +1853,6 @@ namespace Kalendarz1
       AND MG.data = @Dzien 
       AND MG.khid = @Khid
       AND TW.katalog IN (67095, 67153)
-
     GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);

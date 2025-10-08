@@ -14,6 +14,14 @@ namespace Kalendarz1
         private int aktualnyOdbiorcaID = 0;
         private bool isDataLoading = false;
 
+        private readonly string[] priorytetowePKD = new string[]
+        {
+            "Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach",
+            "Przetwarzanie i konserwowanie mięsa z drobiu",
+            "Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego",
+            "Ubój zwierząt, z wyłączeniem drobiu i królików"
+        };
+
         public string UserID { get; set; }
 
         public CRM()
@@ -22,7 +30,6 @@ namespace Kalendarz1
 
             dataGridViewOdbiorcy.EditMode = DataGridViewEditMode.EditOnEnter;
 
-            // Inicjalizacja filtrów
             comboBoxStatusFilter.Items.Clear();
             comboBoxStatusFilter.Items.Add("Wszystkie statusy");
             comboBoxStatusFilter.Items.AddRange(new object[] {
@@ -39,17 +46,36 @@ namespace Kalendarz1
             comboBoxPKD.Items.Add("Wszystkie Rodzaje");
             comboBoxPKD.SelectedIndex = 0;
 
+            comboBoxPKD.DrawMode = DrawMode.OwnerDrawFixed;
+            comboBoxPKD.DrawItem += ComboBoxPKD_DrawItem;
+
             comboBoxWoj.Items.Clear();
             comboBoxWoj.Items.Add("Wszystkie Woj.");
             comboBoxWoj.SelectedIndex = 0;
 
-            // Ustawienia splittera
             splitContainerMain.SplitterDistance = (int)(this.ClientSize.Width * 0.75);
 
-            // Dodaj efekty hover dla przycisków
             DodajHoverEffect(button2);
             DodajHoverEffect(button3);
             DodajHoverEffect(buttonDodajNotatke);
+        }
+
+        private void ComboBoxPKD_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+            e.DrawBackground();
+
+            string text = comboBoxPKD.Items[e.Index].ToString();
+            bool isPriorytetowy = priorytetowePKD.Any(p => text.Contains(p.Substring(0, Math.Min(30, p.Length))));
+
+            Font font = isPriorytetowy ? new Font(e.Font, FontStyle.Bold) : e.Font;
+            Color color = isPriorytetowy ? Color.DarkRed : e.ForeColor;
+
+            using (Brush brush = new SolidBrush(color))
+            {
+                e.Graphics.DrawString(text, font, brush, e.Bounds);
+            }
+            e.DrawFocusRectangle();
         }
 
         private void DodajHoverEffect(Button btn)
@@ -68,27 +94,60 @@ namespace Kalendarz1
         {
             operatorID = UserID;
 
+            SprawdzIUtworzTabeleHistorii();
+
             KonfigurujDataGridView();
             WczytajOdbiorcow();
             WczytajRankingHandlowcow();
 
-            // Dodaj przyciski w odpowiedniej kolejności
-            DodajPrzyciskOdswiez();
-            DodajPrzyciskMapa();  // ✅ DODAJ TĘ LINIĘ!
+            DodajPrzyciskHistoria();
+            DodajPrzyciskMapa();
+            DodajPrzyciskDodajOdbiorcę();
+            DodajPrzyciskZadania();
 
             if (operatorID == "11111")
             {
                 DodajPrzyciskAdmin();
             }
 
-            DodajPrzyciskZadania();
-            DodajPrzyciskDodajOdbiorcę();
+            DodajPrzyciskOdswiez();
         }
+
+        private void SprawdzIUtworzTabeleHistorii()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    var cmdCheck = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'HistoriaZmianCRM')
+                        BEGIN
+                            CREATE TABLE HistoriaZmianCRM (
+                                ID INT IDENTITY(1,1) PRIMARY KEY,
+                                IDOdbiorcy INT NOT NULL,
+                                TypZmiany NVARCHAR(100),
+                                WartoscStara NVARCHAR(500),
+                                WartoscNowa NVARCHAR(500),
+                                KtoWykonal NVARCHAR(50),
+                                DataZmiany DATETIME DEFAULT GETDATE()
+                            )
+                        END", conn);
+                    cmdCheck.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd tworzenia tabeli historii: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private void DodajPrzyciskOdswiez()
         {
             var btnOdswiez = new Button
             {
-                Text = "Odśwież",
+                Text = "🔄 Odśwież",
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(41, 128, 185),
                 ForeColor = Color.White,
@@ -106,7 +165,8 @@ namespace Kalendarz1
             };
 
             panelSearch.Controls.Add(btnOdswiez);
-            btnOdswiez.Location = new Point(panelSearch.Width - 754, 10);
+            int pozycja = operatorID == "11111" ? -710 : -590;
+            btnOdswiez.Location = new Point(panelSearch.Width + pozycja, 10);
             DodajHoverEffect(btnOdswiez);
         }
 
@@ -114,8 +174,8 @@ namespace Kalendarz1
         {
             var btnAdmin = new Button
             {
-                Text = "Panel Admin",
-                Size = new Size(110, 30),
+                Text = "⚙ Admin",
+                Size = new Size(100, 30),
                 BackColor = Color.FromArgb(243, 156, 18),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -131,7 +191,7 @@ namespace Kalendarz1
             };
 
             panelSearch.Controls.Add(btnAdmin);
-            btnAdmin.Location = new Point(panelSearch.Width - 542, 10); // zmieniona pozycja
+            btnAdmin.Location = new Point(panelSearch.Width - 590, 10);
             DodajHoverEffect(btnAdmin);
         }
 
@@ -139,7 +199,7 @@ namespace Kalendarz1
         {
             var btnZadania = new Button
             {
-                Text = "Zadania",
+                Text = "📋 Zadania",
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(52, 152, 219),
                 ForeColor = Color.White,
@@ -155,7 +215,7 @@ namespace Kalendarz1
             };
 
             panelSearch.Controls.Add(btnZadania);
-            btnZadania.Location = new Point(panelSearch.Width - 436, 10); // zmieniona pozycja
+            btnZadania.Location = new Point(panelSearch.Width - 470, 10);
             DodajHoverEffect(btnZadania);
         }
 
@@ -163,7 +223,7 @@ namespace Kalendarz1
         {
             var btnDodaj = new Button
             {
-                Text = "+ Dodaj",
+                Text = "➕ Dodaj",
                 Size = new Size(100, 30),
                 BackColor = Color.FromArgb(46, 204, 113),
                 ForeColor = Color.White,
@@ -182,10 +242,181 @@ namespace Kalendarz1
             };
 
             panelSearch.Controls.Add(btnDodaj);
-            btnDodaj.Location = new Point(panelSearch.Width - 330, 10); // zmieniona pozycja
+            btnDodaj.Location = new Point(panelSearch.Width - 350, 10);
             DodajHoverEffect(btnDodaj);
         }
 
+        private void DodajPrzyciskMapa()
+        {
+            var btnMapa = new Button
+            {
+                Text = "🗺 Mapa",
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(155, 89, 182),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnMapa.FlatAppearance.BorderSize = 0;
+            btnMapa.Click += (s, e) => {
+                var formMapa = new FormMapaWojewodztwa(connectionString, operatorID);
+                formMapa.ShowDialog();
+            };
+
+            panelSearch.Controls.Add(btnMapa);
+            btnMapa.Location = new Point(panelSearch.Width - 230, 10);
+            DodajHoverEffect(btnMapa);
+        }
+
+        private void DodajPrzyciskHistoria()
+        {
+            var btnHistoria = new Button
+            {
+                Text = "📜 Historia",
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(142, 68, 173),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnHistoria.FlatAppearance.BorderSize = 0;
+            btnHistoria.Click += (s, e) => {
+                if (aktualnyOdbiorcaID > 0)
+                {
+                    PokazHistorieZmianPelne(aktualnyOdbiorcaID);
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz odbiorce aby zobaczyc pelna historie zmian.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            };
+
+            panelSearch.Controls.Add(btnHistoria);
+            btnHistoria.Location = new Point(panelSearch.Width - 110, 10);
+            DodajHoverEffect(btnHistoria);
+        }
+
+        private void PokazHistorieZmianPelne(int idOdbiorcy)
+        {
+            var formHistoria = new Form
+            {
+                Text = "📜 Pełna Historia Zmian",
+                Size = new Size(1100, 650),
+                StartPosition = FormStartPosition.CenterScreen,
+                MinimizeBox = true,
+                MaximizeBox = true,
+                BackColor = Color.White
+            };
+
+            var dgv = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                RowTemplate = { Height = 40 },
+                AlternatingRowsDefaultCellStyle = { BackColor = Color.FromArgb(250, 250, 252) }
+            };
+
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(44, 62, 80);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgv.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.ColumnHeadersHeight = 35;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                SELECT 
+                    h.DataZmiany,
+                    h.TypZmiany,
+                    h.WartoscStara,
+                    h.WartoscNowa,
+                    ISNULL(
+                        CASE 
+                            WHEN CHARINDEX(' ', o.Name) > 0 
+                            THEN LEFT(o.Name, CHARINDEX(' ', o.Name) - 1) + ' ' + LEFT(SUBSTRING(o.Name, CHARINDEX(' ', o.Name) + 1, LEN(o.Name)), 1) + '.'
+                            ELSE o.Name
+                        END,
+                        'ID: ' + CAST(h.KtoWykonal AS NVARCHAR)
+                    ) as OperatorID
+                FROM HistoriaZmianCRM h
+                LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                WHERE h.IDOdbiorcy = @id
+                ORDER BY h.DataZmiany DESC", conn);
+                    cmd.Parameters.AddWithValue("@id", idOdbiorcy);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+
+                    dgv.DataSource = dt;
+
+                    if (dgv.Columns.Count > 0)
+                    {
+                        dgv.Columns[0].HeaderText = "Data i Czas";
+                        dgv.Columns[0].DefaultCellStyle.Format = "dd.MM.yyyy HH:mm:ss";
+                        dgv.Columns[0].FillWeight = 18;
+                        dgv.Columns[0].MinimumWidth = 150;
+
+                        dgv.Columns[1].HeaderText = "Typ Zmiany";
+                        dgv.Columns[1].FillWeight = 20;
+                        dgv.Columns[1].MinimumWidth = 140;
+
+                        dgv.Columns[2].HeaderText = "Wartość Stara";
+                        dgv.Columns[2].FillWeight = 28;
+                        dgv.Columns[2].MinimumWidth = 220;
+                        dgv.Columns[2].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+
+                        dgv.Columns[3].HeaderText = "Wartość Nowa";
+                        dgv.Columns[3].FillWeight = 28;
+                        dgv.Columns[3].MinimumWidth = 220;
+                        dgv.Columns[3].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+
+                        dgv.Columns[4].HeaderText = "Kto wykonał";
+                        dgv.Columns[4].FillWeight = 10;
+                        dgv.Columns[4].MinimumWidth = 80;
+                        dgv.Columns[4].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        dgv.Columns[4].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        dgv.Columns[4].DefaultCellStyle.ForeColor = Color.FromArgb(52, 152, 219);
+                    }
+
+                    var lblInfo = new Label
+                    {
+                        Text = $"📊 Liczba zmian: {dt.Rows.Count}",
+                        Dock = DockStyle.Bottom,
+                        Height = 35,
+                        TextAlign = ContentAlignment.MiddleLeft,
+                        Padding = new Padding(15, 0, 0, 0),
+                        BackColor = Color.FromArgb(248, 249, 252),
+                        Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(44, 62, 80)
+                    };
+                    formHistoria.Controls.Add(lblInfo);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wczytywania historii: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                formHistoria.Close();
+                return;
+            }
+
+            formHistoria.Controls.Add(dgv);
+            formHistoria.ShowDialog();
+        }
         private void WczytajOdbiorcow()
         {
             isDataLoading = true;
@@ -202,7 +433,6 @@ namespace Kalendarz1
                     var dt = new DataTable();
                     adapter.Fill(dt);
 
-                    // Zamień "Nowy" na "Do zadzwonienia"
                     foreach (DataRow row in dt.Rows)
                     {
                         if (row["Status"].ToString() == "Nowy")
@@ -233,36 +463,67 @@ namespace Kalendarz1
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    var cmd = new SqlCommand("sp_PobierzRankingHandlowcow", conn);
-                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    var cmd = new SqlCommand(@"
+                SELECT 
+                    ISNULL(
+                        CASE 
+                            WHEN CHARINDEX(' ', o.Name) > 0 
+                            THEN LEFT(o.Name, CHARINDEX(' ', o.Name) - 1) + ' ' + LEFT(SUBSTRING(o.Name, CHARINDEX(' ', o.Name) + 1, LEN(o.Name)), 1) + '.'
+                            ELSE o.Name
+                        END,
+                        'ID: ' + CAST(h.KtoWykonal AS NVARCHAR)
+                    ) as 'Operator',
+                    SUM(CASE WHEN h.WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as 'Próba kontaktu',
+                    SUM(CASE WHEN h.WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as 'Nawiązano kontakt',
+                    SUM(CASE WHEN h.WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as 'Zgoda na dalszy kontakt',
+                    SUM(CASE WHEN h.WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as 'Do wysłania oferta',
+                    SUM(CASE WHEN h.WartoscNowa = 'Nie zainteresowany' THEN 1 ELSE 0 END) as 'Nie zainteresowany',
+                    SUM(CASE WHEN h.WartoscNowa = 'Poprosił o usunięcie' THEN 1 ELSE 0 END) as 'Poprosił o usunięcie',
+                    SUM(CASE WHEN h.WartoscNowa = 'Błędny rekord (do raportu)' THEN 1 ELSE 0 END) as 'Błędny rekord',
+                    COUNT(*) as 'Suma',
+                    MAX(h.DataZmiany) as 'Ostatnia zmiana'
+                FROM HistoriaZmianCRM h
+                LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.WartoscStara != h.WartoscNowa
+                    AND h.WartoscNowa != 'Nowy'
+                GROUP BY h.KtoWykonal, o.Name
+                ORDER BY COUNT(*) DESC", conn);
 
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
                     adapter.Fill(dt);
 
-                    // Zamień nazwę kolumny "Nowy" na "Do zadzwonienia"
-                    if (dt.Columns.Contains("Nowy"))
-                    {
-                        dt.Columns["Nowy"].ColumnName = "Do zadzwonienia";
-                    }
-
                     dataGridViewRanking.DataSource = dt;
 
-                    // Konfiguracja kolumn z odpowiednimi wagami
                     if (dataGridViewRanking.Columns.Count > 0)
                     {
-                        // Pierwsza kolumna (Nazwa Handlowca) - większa waga, aby wyświetlić pełne nazwy
-                        dataGridViewRanking.Columns[0].FillWeight = 200;
-                        dataGridViewRanking.Columns[0].MinimumWidth = 150;
+                        dataGridViewRanking.Columns[0].FillWeight = 100;
+                        dataGridViewRanking.Columns[0].MinimumWidth = 80;
 
-                        // Pozostałe kolumny - równa waga
-                        for (int i = 1; i < dataGridViewRanking.Columns.Count; i++)
+                        for (int i = 1; i < dataGridViewRanking.Columns.Count - 2; i++)
                         {
-                            dataGridViewRanking.Columns[i].FillWeight = 80;
+                            dataGridViewRanking.Columns[i].FillWeight = 70;
+                            dataGridViewRanking.Columns[i].MinimumWidth = 60;
+                        }
+
+                        if (dataGridViewRanking.Columns.Contains("Suma"))
+                        {
+                            var sumaCol = dataGridViewRanking.Columns["Suma"];
+                            sumaCol.FillWeight = 50;
+                            sumaCol.MinimumWidth = 50;
+                        }
+
+                        if (dataGridViewRanking.Columns.Contains("Ostatnia zmiana"))
+                        {
+                            var dataCol = dataGridViewRanking.Columns["Ostatnia zmiana"];
+                            dataCol.FillWeight = 100;
+                            dataCol.MinimumWidth = 120;
+                            dataCol.DefaultCellStyle.Format = "dd.MM HH:mm";
                         }
                     }
 
-                    // Stylizacja pierwszego miejsca (złote tło)
                     if (dataGridViewRanking.Rows.Count > 0)
                     {
                         dataGridViewRanking.Rows[0].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
@@ -275,13 +536,12 @@ namespace Kalendarz1
                 MessageBox.Show($"Błąd wczytywania rankingu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void KonfigurujDataGridView()
         {
             dataGridViewOdbiorcy.AutoGenerateColumns = false;
             dataGridViewOdbiorcy.Columns.Clear();
             dataGridViewOdbiorcy.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-            dataGridViewOdbiorcy.RowTemplate.Height = 50;
+            dataGridViewOdbiorcy.RowTemplate.Height = 65;
             dataGridViewOdbiorcy.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dataGridViewOdbiorcy.AllowUserToResizeColumns = true;
             dataGridViewOdbiorcy.AllowUserToResizeRows = false;
@@ -304,14 +564,14 @@ namespace Kalendarz1
             };
             dataGridViewOdbiorcy.Columns.Add(colCzyMoj);
 
-            // Nazwa
+            // Nazwa - POPRAWIONA nazwa kolumny na NAZWA
             var colNazwa = new DataGridViewTextBoxColumn
             {
                 Name = "Nazwa",
-                DataPropertyName = "Nazwa",
+                DataPropertyName = "NAZWA",  // ✅ POPRAWIONE
                 HeaderText = "Nazwa Firmy",
-                FillWeight = 25,
-                MinimumWidth = 200,
+                FillWeight = 18,
+                MinimumWidth = 160,
                 ReadOnly = true,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -329,23 +589,42 @@ namespace Kalendarz1
                 DataPropertyName = "Status",
                 HeaderText = "Status",
                 FlatStyle = FlatStyle.Flat,
-                FillWeight = 15,
-                MinimumWidth = 140
+                FillWeight = 12,
+                MinimumWidth = 120
             };
             statusColumn.Items.AddRange("Do zadzwonienia", "Próba kontaktu", "Nawiązano kontakt", "Zgoda na dalszy kontakt",
                 "Do wysłania oferta", "Nie zainteresowany", "Poprosił o usunięcie", "Błędny rekord (do raportu)");
             dataGridViewOdbiorcy.Columns.Add(statusColumn);
 
-            // Dane kontaktowe i lokalizacyjne z odpowiednimi wagami
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "KodPocztowy", DataPropertyName = "KodPocztowy", HeaderText = "Kod", FillWeight = 5, MinimumWidth = 60, ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "MIASTO", DataPropertyName = "MIASTO", HeaderText = "Miasto", FillWeight = 8, MinimumWidth = 80, ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ulica", DataPropertyName = "Ulica", HeaderText = "Ulica", FillWeight = 10, MinimumWidth = 100, ReadOnly = true });
+            // Kod pocztowy - POPRAWIONA nazwa na KOD
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "KodPocztowy",
+                DataPropertyName = "KOD",  // ✅ POPRAWIONE
+                HeaderText = "Kod",
+                FillWeight = 5,
+                MinimumWidth = 60,
+                ReadOnly = true
+            });
 
-            // Telefon - pogrubiony i większa czcionka
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "MIASTO", DataPropertyName = "MIASTO", HeaderText = "Miasto", FillWeight = 8, MinimumWidth = 80, ReadOnly = true });
+
+            // Ulica - POPRAWIONA nazwa na ULICA
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Ulica",
+                DataPropertyName = "ULICA",  // ✅ POPRAWIONE
+                HeaderText = "Ulica",
+                FillWeight = 7,
+                MinimumWidth = 80,
+                ReadOnly = true
+            });
+
+            // Telefon - POPRAWIONA nazwa na TELEFON_K
             var colTelefon = new DataGridViewTextBoxColumn
             {
                 Name = "Telefon_K",
-                DataPropertyName = "Telefon_K",
+                DataPropertyName = "TELEFON_K",  // ✅ POPRAWIONE
                 HeaderText = "Telefon",
                 FillWeight = 8,
                 MinimumWidth = 90,
@@ -360,7 +639,25 @@ namespace Kalendarz1
 
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wojewodztwo", DataPropertyName = "Wojewodztwo", HeaderText = "Województwo", FillWeight = 9, MinimumWidth = 100, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Powiat", DataPropertyName = "Powiat", HeaderText = "Powiat", FillWeight = 9, MinimumWidth = 100, ReadOnly = true });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "PKD_Opis", DataPropertyName = "PKD_Opis", HeaderText = "Branza (PKD)", FillWeight = 15, MinimumWidth = 150, ReadOnly = true });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "PKD_Opis", DataPropertyName = "PKD_Opis", HeaderText = "Branza (PKD)", FillWeight = 12, MinimumWidth = 130, ReadOnly = true });
+
+            // NOWA KOLUMNA: Ostatnia Zmiana
+            var colOstatniaZmiana = new DataGridViewTextBoxColumn
+            {
+                Name = "OstatniaZmiana",
+                DataPropertyName = "OstatniaZmiana",
+                HeaderText = "Ostatnia Zmiana",
+                FillWeight = 11,
+                MinimumWidth = 120,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "dd.MM.yyyy HH:mm",
+                    ForeColor = Color.FromArgb(231, 76, 60),
+                    Font = new Font("Segoe UI", 8.5F, FontStyle.Regular)
+                }
+            };
+            dataGridViewOdbiorcy.Columns.Add(colOstatniaZmiana);
 
             // Data ostatniej notatki
             var colData = new DataGridViewTextBoxColumn
@@ -390,7 +687,6 @@ namespace Kalendarz1
         {
             if (!isDataLoading && e.RowIndex >= 0 && dataGridViewOdbiorcy.Columns[e.ColumnIndex].Name == "StatusColumn")
             {
-                // Pobierz ID z DataSource zamiast z kolumny (bo kolumna ID nie istnieje)
                 DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
                 if (dt == null) return;
 
@@ -400,12 +696,19 @@ namespace Kalendarz1
                 int idOdbiorcy = Convert.ToInt32(rowView["ID"]);
                 string nowyStatus = dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["StatusColumn"].Value?.ToString() ?? "";
 
-                // Konwersja "Do zadzwonienia" -> "Nowy" dla bazy danych
                 string statusDlaBazy = nowyStatus == "Do zadzwonienia" ? "Nowy" : nowyStatus;
                 string staryStatus = PobierzAktualnyStatus(idOdbiorcy);
 
                 AktualizujStatusWBazie(idOdbiorcy, statusDlaBazy, staryStatus);
                 dataGridViewOdbiorcy.InvalidateRow(e.RowIndex);
+
+                if (aktualnyOdbiorcaID == idOdbiorcy)
+                {
+                    WczytajHistorieZmian(idOdbiorcy);
+                }
+
+                // Odśwież ranking po zmianie statusu
+                WczytajRankingHandlowcow();
 
                 var sugestia = ZaproponujNastepnyKrok(nowyStatus);
                 if (sugestia != null)
@@ -457,7 +760,9 @@ namespace Kalendarz1
                             cmdUpdate.Parameters.AddWithValue("@status", (object)nowyStatus ?? DBNull.Value);
                             cmdUpdate.ExecuteNonQuery();
 
-                            var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscStara, WartoscNowa, KtoWykonal) VALUES (@idOdbiorcy, @typ, @stara, @nowa, @kto)", conn, transaction);
+                            var cmdLog = new SqlCommand(@"
+                                INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscStara, WartoscNowa, KtoWykonal, DataZmiany) 
+                                VALUES (@idOdbiorcy, @typ, @stara, @nowa, @kto, GETDATE())", conn, transaction);
                             cmdLog.Parameters.AddWithValue("@idOdbiorcy", idOdbiorcy);
                             cmdLog.Parameters.AddWithValue("@typ", "Zmiana statusu");
                             cmdLog.Parameters.AddWithValue("@stara", (object)staryStatus ?? DBNull.Value);
@@ -467,9 +772,10 @@ namespace Kalendarz1
 
                             transaction.Commit();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             transaction.Rollback();
+                            MessageBox.Show($"Błąd transakcji: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             throw;
                         }
                     }
@@ -521,27 +827,50 @@ namespace Kalendarz1
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    var cmd = new SqlCommand("SELECT Tresc, DataUtworzenia FROM NotatkiCRM WHERE IDOdbiorcy = @id ORDER BY DataUtworzenia DESC", conn);
+                    var cmd = new SqlCommand(@"
+                SELECT 
+                    n.Tresc, 
+                    n.DataUtworzenia,
+                    ISNULL(
+                        CASE 
+                            WHEN CHARINDEX(' ', o.Name) > 0 
+                            THEN LEFT(o.Name, CHARINDEX(' ', o.Name) - 1) + ' ' + LEFT(SUBSTRING(o.Name, CHARINDEX(' ', o.Name) + 1, LEN(o.Name)), 1) + '.'
+                            ELSE o.Name
+                        END,
+                        'ID: ' + CAST(n.KtoDodal AS NVARCHAR)
+                    ) as Operator
+                FROM NotatkiCRM n
+                LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                WHERE n.IDOdbiorcy = @id 
+                ORDER BY n.DataUtworzenia DESC", conn);
                     cmd.Parameters.AddWithValue("@id", idOdbiorcy);
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
                     adapter.Fill(dt);
                     dataGridViewNotatki.DataSource = dt;
 
-                    // Konfiguracja kolumn aby wypełniły całą szerokość
                     if (dataGridViewNotatki.Columns.Count > 0)
                     {
                         dataGridViewNotatki.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-                        dataGridViewNotatki.Columns[0].HeaderText = "Tresc";
-                        dataGridViewNotatki.Columns[0].FillWeight = 70;
+                        dataGridViewNotatki.Columns[0].HeaderText = "Treść notatki";
+                        dataGridViewNotatki.Columns[0].FillWeight = 60;
                         dataGridViewNotatki.Columns[0].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
                         if (dataGridViewNotatki.Columns.Count > 1)
                         {
                             dataGridViewNotatki.Columns[1].HeaderText = "Data";
-                            dataGridViewNotatki.Columns[1].FillWeight = 30;
+                            dataGridViewNotatki.Columns[1].FillWeight = 25;
                             dataGridViewNotatki.Columns[1].DefaultCellStyle.Format = "dd.MM HH:mm";
+                        }
+
+                        if (dataGridViewNotatki.Columns.Count > 2)
+                        {
+                            dataGridViewNotatki.Columns[2].HeaderText = "Kto dodał";
+                            dataGridViewNotatki.Columns[2].FillWeight = 15;
+                            dataGridViewNotatki.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                            dataGridViewNotatki.Columns[2].DefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+                            dataGridViewNotatki.Columns[2].DefaultCellStyle.ForeColor = Color.FromArgb(52, 152, 219);
                         }
                     }
                 }
@@ -551,7 +880,74 @@ namespace Kalendarz1
                 MessageBox.Show($"Błąd wczytywania notatek: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private void WczytajHistorieZmian(int idOdbiorcy)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                SELECT TOP 10
+                    h.DataZmiany,
+                    h.WartoscStara as 'Status PRZED',
+                    h.WartoscNowa as 'Status PO',
+                    ISNULL(
+                        CASE 
+                            WHEN CHARINDEX(' ', o.Name) > 0 
+                            THEN LEFT(o.Name, CHARINDEX(' ', o.Name) - 1) + ' ' + LEFT(SUBSTRING(o.Name, CHARINDEX(' ', o.Name) + 1, LEN(o.Name)), 1) + '.'
+                            ELSE o.Name
+                        END,
+                        'ID: ' + CAST(h.KtoWykonal AS NVARCHAR)
+                    ) as Operator
+                FROM HistoriaZmianCRM h
+                LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                WHERE h.IDOdbiorcy = @id
+                  AND h.TypZmiany = 'Zmiana statusu'
+                ORDER BY h.DataZmiany DESC", conn);
+                    cmd.Parameters.AddWithValue("@id", idOdbiorcy);
 
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+                    dataGridViewHistoria.DataSource = dt;
+
+                    if (dataGridViewHistoria.Columns.Count > 0)
+                    {
+                        dataGridViewHistoria.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
+                        dataGridViewHistoria.Columns[0].HeaderText = "Kiedy";
+                        dataGridViewHistoria.Columns[0].FillWeight = 25;
+                        dataGridViewHistoria.Columns[0].DefaultCellStyle.Format = "dd.MM HH:mm";
+                        dataGridViewHistoria.Columns[0].MinimumWidth = 90;
+
+                        dataGridViewHistoria.Columns[1].HeaderText = "Status PRZED";
+                        dataGridViewHistoria.Columns[1].FillWeight = 30;
+                        dataGridViewHistoria.Columns[1].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                        dataGridViewHistoria.Columns[1].DefaultCellStyle.ForeColor = Color.FromArgb(192, 57, 43);
+                        dataGridViewHistoria.Columns[1].MinimumWidth = 100;
+
+                        dataGridViewHistoria.Columns[2].HeaderText = "Status PO";
+                        dataGridViewHistoria.Columns[2].FillWeight = 30;
+                        dataGridViewHistoria.Columns[2].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                        dataGridViewHistoria.Columns[2].DefaultCellStyle.ForeColor = Color.FromArgb(39, 174, 96);
+                        dataGridViewHistoria.Columns[2].DefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+                        dataGridViewHistoria.Columns[2].MinimumWidth = 100;
+
+                        dataGridViewHistoria.Columns[3].HeaderText = "Kto zmienił";
+                        dataGridViewHistoria.Columns[3].FillWeight = 15;
+                        dataGridViewHistoria.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        dataGridViewHistoria.Columns[3].DefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+                        dataGridViewHistoria.Columns[3].DefaultCellStyle.ForeColor = Color.FromArgb(142, 68, 173);
+                        dataGridViewHistoria.Columns[3].MinimumWidth = 60;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wczytywania historii: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private void DodajNotatke(int idOdbiorcy, string tresc)
         {
             try
@@ -569,7 +965,9 @@ namespace Kalendarz1
                             cmdNotatka.Parameters.AddWithValue("@kto", operatorID);
                             cmdNotatka.ExecuteNonQuery();
 
-                            var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal) VALUES (@id, @typ, @wartosc, @kto)", conn, transaction);
+                            var cmdLog = new SqlCommand(@"
+                                INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) 
+                                VALUES (@id, @typ, @wartosc, @kto, GETDATE())", conn, transaction);
                             cmdLog.Parameters.AddWithValue("@id", idOdbiorcy);
                             cmdLog.Parameters.AddWithValue("@typ", "Dodanie notatki");
                             cmdLog.Parameters.AddWithValue("@wartosc", tresc.Length > 100 ? tresc.Substring(0, 100) + "..." : tresc);
@@ -588,6 +986,7 @@ namespace Kalendarz1
                     }
                 }
                 WczytajNotatki(idOdbiorcy);
+                WczytajHistorieZmian(idOdbiorcy);
             }
             catch (Exception ex)
             {
@@ -618,16 +1017,27 @@ namespace Kalendarz1
             DataTable dt = (DataTable)dataGridViewOdbiorcy.DataSource;
             if (dt == null) return;
 
-            var grupy = dt.AsEnumerable()
+            var wszystkiePKD = dt.AsEnumerable()
                 .Where(row => !string.IsNullOrWhiteSpace(row.Field<string>("PKD_Opis")))
-                .GroupBy(row => row.Field<string>("PKD_Opis"))
-                .Select(g => g.Key)
-                .OrderBy(x => x)
+                .Select(row => row.Field<string>("PKD_Opis"))
+                .Distinct()
                 .ToList();
+
+            var posortowane = new System.Collections.Generic.List<string>();
+
+            foreach (var priorytet in priorytetowePKD)
+            {
+                var znalezione = wszystkiePKD.Where(p => p.Contains(priorytet.Substring(0, Math.Min(30, priorytet.Length)))).ToList();
+                posortowane.AddRange(znalezione);
+                foreach (var z in znalezione)
+                    wszystkiePKD.Remove(z);
+            }
+
+            posortowane.AddRange(wszystkiePKD.OrderBy(x => x));
 
             comboBoxPKD.Items.Clear();
             comboBoxPKD.Items.Add("Wszystkie Rodzaje");
-            foreach (var pkd in grupy)
+            foreach (var pkd in posortowane)
                 comboBoxPKD.Items.Add(pkd);
             comboBoxPKD.SelectedIndex = 0;
         }
@@ -717,11 +1127,9 @@ namespace Kalendarz1
                 var row = dataGridViewOdbiorcy.Rows[e.RowIndex];
                 if (row.IsNewRow) return;
 
-                // Pobierz ID z DataSource zamiast z kolumny
                 DataRowView rowView = row.DataBoundItem as DataRowView;
                 if (rowView == null) return;
 
-                // Sprawdź czy wartość nie jest null
                 if (rowView["ID"] == null || rowView["ID"] == DBNull.Value)
                     return;
 
@@ -729,6 +1137,7 @@ namespace Kalendarz1
                 if (aktualnyOdbiorcaID != idOdbiorcy)
                 {
                     WczytajNotatki(idOdbiorcy);
+                    WczytajHistorieZmian(idOdbiorcy);
                     aktualnyOdbiorcaID = idOdbiorcy;
                 }
             }
@@ -738,8 +1147,7 @@ namespace Kalendarz1
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-            // Pogrubienie TYLKO dla kolumny "Nazwa Handlowca" (pierwsza kolumna) i "Suma"
-            if (e.ColumnIndex == 0) // Pierwsza kolumna - Nazwa Handlowca
+            if (e.ColumnIndex == 0) // Operator
             {
                 e.CellStyle.Font = new Font(dataGridViewRanking.Font, FontStyle.Bold);
             }
@@ -751,14 +1159,7 @@ namespace Kalendarz1
             }
             else
             {
-                // Wszystkie inne kolumny - normalna czcionka (bez pogrubienia)
                 e.CellStyle.Font = new Font(dataGridViewRanking.Font, FontStyle.Regular);
-            }
-
-            // Kolumna "Do zadzwonienia" na szaro
-            if (dataGridViewRanking.Columns[e.ColumnIndex].HeaderText == "Do zadzwonienia")
-            {
-                e.CellStyle.ForeColor = Color.FromArgb(149, 165, 166);
             }
         }
 
@@ -766,6 +1167,7 @@ namespace Kalendarz1
         {
             if (dataGridViewOdbiorcy.CurrentRow != null)
             {
+                // ✅ POPRAWIONE - używa "Nazwa" jako nazwa kolumny w DataGridView
                 string nazwaFirmy = dataGridViewOdbiorcy.CurrentRow.Cells["Nazwa"].Value?.ToString();
                 if (!string.IsNullOrWhiteSpace(nazwaFirmy))
                 {
@@ -781,6 +1183,7 @@ namespace Kalendarz1
         {
             if (dataGridViewOdbiorcy.CurrentRow != null)
             {
+                // ✅ POPRAWIONE - używa poprawnych nazw kolumn
                 string ulica = dataGridViewOdbiorcy.CurrentRow.Cells["Ulica"].Value?.ToString() ?? "";
                 string miasto = dataGridViewOdbiorcy.CurrentRow.Cells["MIASTO"].Value?.ToString() ?? "";
                 string kodPocztowy = dataGridViewOdbiorcy.CurrentRow.Cells["KodPocztowy"].Value?.ToString() ?? "";
@@ -796,29 +1199,7 @@ namespace Kalendarz1
                     MessageBox.Show("Brak danych adresowych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
-        private void DodajPrzyciskMapa()
-        {
-            var btnMapa = new Button
-            {
-                Text = "🗺 Mapa",
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(155, 89, 182),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnMapa.FlatAppearance.BorderSize = 0;
-            btnMapa.Click += (s, e) => {
-                var formMapa = new FormMapaWojewodztwa(connectionString, operatorID);
-                formMapa.ShowDialog();
-            };
 
-            panelSearch.Controls.Add(btnMapa);
-            btnMapa.Location = new Point(panelSearch.Width - 648, 10);
-            DodajHoverEffect(btnMapa);
-        }
         private void buttonDodajNotatke_Click(object sender, EventArgs e)
         {
             if (aktualnyOdbiorcaID > 0 && !string.IsNullOrWhiteSpace(textBoxNotatka.Text))
@@ -836,7 +1217,8 @@ namespace Kalendarz1
             if (dt == null) return;
 
             string szukanyTekst = textBoxSzukaj.Text.Trim().Replace("'", "''");
-            dt.DefaultView.RowFilter = string.IsNullOrEmpty(szukanyTekst) ? "" : $"Nazwa LIKE '%{szukanyTekst}%'";
+            // ✅ POPRAWIONE - używa "NAZWA" jako nazwa kolumny w DataTable
+            dt.DefaultView.RowFilter = string.IsNullOrEmpty(szukanyTekst) ? "" : $"NAZWA LIKE '%{szukanyTekst}%'";
         }
     }
 

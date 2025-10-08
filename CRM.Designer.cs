@@ -2,15 +2,8 @@
 {
     partial class CRM
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,15 +15,12 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
 
             this.mainTableLayout = new System.Windows.Forms.TableLayoutPanel();
             this.topPanel = new System.Windows.Forms.Panel();
@@ -62,12 +52,15 @@
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
             this.panelNotatki = new System.Windows.Forms.Panel();
+            this.splitContainerNotatki = new System.Windows.Forms.SplitContainer();
             this.groupBoxNotatki = new System.Windows.Forms.GroupBox();
             this.dataGridViewNotatki = new System.Windows.Forms.DataGridView();
             this.panelDodajNotatke = new System.Windows.Forms.Panel();
             this.label3 = new System.Windows.Forms.Label();
             this.textBoxNotatka = new System.Windows.Forms.TextBox();
             this.buttonDodajNotatke = new System.Windows.Forms.Button();
+            this.groupBoxHistoria = new System.Windows.Forms.GroupBox();
+            this.dataGridViewHistoria = new System.Windows.Forms.DataGridView();
 
             this.mainTableLayout.SuspendLayout();
             this.topPanel.SuspendLayout();
@@ -89,14 +82,18 @@
             ((System.ComponentModel.ISupportInitialize)this.dataGridViewOdbiorcy).BeginInit();
             this.panelSearch.SuspendLayout();
             this.panelNotatki.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)this.splitContainerNotatki).BeginInit();
+            this.splitContainerNotatki.Panel1.SuspendLayout();
+            this.splitContainerNotatki.Panel2.SuspendLayout();
+            this.splitContainerNotatki.SuspendLayout();
             this.groupBoxNotatki.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)this.dataGridViewNotatki).BeginInit();
             this.panelDodajNotatke.SuspendLayout();
+            this.groupBoxHistoria.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)this.dataGridViewHistoria).BeginInit();
             this.SuspendLayout();
 
-            // 
             // mainTableLayout
-            // 
             this.mainTableLayout.ColumnCount = 1;
             this.mainTableLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.mainTableLayout.Controls.Add(this.topPanel, 0, 0);
@@ -110,9 +107,7 @@
             this.mainTableLayout.Size = new System.Drawing.Size(1600, 900);
             this.mainTableLayout.TabIndex = 0;
 
-            // 
             // topPanel
-            // 
             this.topPanel.BackColor = System.Drawing.Color.FromArgb(248, 249, 252);
             this.topPanel.Controls.Add(this.groupBoxRanking);
             this.topPanel.Controls.Add(this.groupBoxFiltry);
@@ -123,9 +118,7 @@
             this.topPanel.Size = new System.Drawing.Size(1594, 224);
             this.topPanel.TabIndex = 0;
 
-            // 
             // groupBoxRanking
-            // 
             this.groupBoxRanking.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
@@ -140,9 +133,7 @@
             this.groupBoxRanking.TabStop = false;
             this.groupBoxRanking.Text = ">> Ranking Handlowcow";
 
-            // 
             // dataGridViewRanking
-            // 
             this.dataGridViewRanking.AllowUserToAddRows = false;
             this.dataGridViewRanking.AllowUserToDeleteRows = false;
             this.dataGridViewRanking.AllowUserToResizeRows = false;
@@ -173,9 +164,7 @@
             this.dataGridViewRanking.TabIndex = 0;
             this.dataGridViewRanking.CellFormatting += DataGridViewRanking_CellFormatting;
 
-            // 
             // groupBoxFiltry
-            // 
             this.groupBoxFiltry.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)));
             this.groupBoxFiltry.Controls.Add(this.flowLayoutFilters);
@@ -189,9 +178,7 @@
             this.groupBoxFiltry.TabStop = false;
             this.groupBoxFiltry.Text = ">> Filtry Wyszukiwania";
 
-            // 
             // flowLayoutFilters
-            // 
             this.flowLayoutFilters.Controls.Add(this.panelStatus);
             this.flowLayoutFilters.Controls.Add(this.panelPowiat);
             this.flowLayoutFilters.Controls.Add(this.panelWoj);
@@ -205,9 +192,7 @@
             this.flowLayoutFilters.Size = new System.Drawing.Size(611, 160);
             this.flowLayoutFilters.TabIndex = 0;
 
-            // 
             // panelStatus
-            // 
             this.panelStatus.Controls.Add(this.label1);
             this.panelStatus.Controls.Add(this.comboBoxStatusFilter);
             this.panelStatus.Location = new System.Drawing.Point(8, 8);
@@ -215,9 +200,7 @@
             this.panelStatus.Size = new System.Drawing.Size(290, 30);
             this.panelStatus.TabIndex = 0;
 
-            // 
             // label1
-            // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.label1.ForeColor = System.Drawing.Color.FromArgb(60, 70, 90);
@@ -227,9 +210,7 @@
             this.label1.TabIndex = 0;
             this.label1.Text = ">> Status:";
 
-            // 
             // comboBoxStatusFilter
-            // 
             this.comboBoxStatusFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxStatusFilter.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.comboBoxStatusFilter.FormattingEnabled = true;
@@ -239,9 +220,7 @@
             this.comboBoxStatusFilter.TabIndex = 1;
             this.comboBoxStatusFilter.SelectedIndexChanged += comboBoxStatusFilter_SelectedIndexChanged;
 
-            // 
             // panelPowiat
-            // 
             this.panelPowiat.Controls.Add(this.label2);
             this.panelPowiat.Controls.Add(this.comboBoxPowiatFilter);
             this.panelPowiat.Location = new System.Drawing.Point(8, 44);
@@ -249,9 +228,7 @@
             this.panelPowiat.Size = new System.Drawing.Size(290, 30);
             this.panelPowiat.TabIndex = 1;
 
-            // 
             // label2
-            // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.label2.ForeColor = System.Drawing.Color.FromArgb(60, 70, 90);
@@ -261,9 +238,7 @@
             this.label2.TabIndex = 0;
             this.label2.Text = ">> Powiat:";
 
-            // 
             // comboBoxPowiatFilter
-            // 
             this.comboBoxPowiatFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxPowiatFilter.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.comboBoxPowiatFilter.FormattingEnabled = true;
@@ -273,9 +248,7 @@
             this.comboBoxPowiatFilter.TabIndex = 1;
             this.comboBoxPowiatFilter.SelectedIndexChanged += comboBoxPowiatFilter_SelectedIndexChanged;
 
-            // 
             // panelWoj
-            // 
             this.panelWoj.Controls.Add(this.label5);
             this.panelWoj.Controls.Add(this.comboBoxWoj);
             this.panelWoj.Location = new System.Drawing.Point(8, 80);
@@ -283,43 +256,37 @@
             this.panelWoj.Size = new System.Drawing.Size(290, 30);
             this.panelWoj.TabIndex = 2;
 
-            // 
             // label5
-            // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.label5.ForeColor = System.Drawing.Color.FromArgb(60, 70, 90);
             this.label5.Location = new System.Drawing.Point(3, 6);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(90, 15);
+            this.label5.Size = new System.Drawing.Size(50, 15);
             this.label5.TabIndex = 0;
-            this.label5.Text = ">> Wojewodztwo:";
+            this.label5.Text = ">> Woj.:";
 
-            // 
             // comboBoxWoj
-            // 
             this.comboBoxWoj.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxWoj.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.comboBoxWoj.FormattingEnabled = true;
-            this.comboBoxWoj.Location = new System.Drawing.Point(100, 3);
+            this.comboBoxWoj.Location = new System.Drawing.Point(80, 3);
             this.comboBoxWoj.Name = "comboBoxWoj";
-            this.comboBoxWoj.Size = new System.Drawing.Size(180, 23);
+            this.comboBoxWoj.Size = new System.Drawing.Size(200, 23);
             this.comboBoxWoj.TabIndex = 1;
             this.comboBoxWoj.SelectedIndexChanged += ZastosujFiltry;
 
-            // 
             // panelPKD
-            // 
+            this.panelPKD.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.panelPKD.Controls.Add(this.label4);
             this.panelPKD.Controls.Add(this.comboBoxPKD);
             this.panelPKD.Location = new System.Drawing.Point(304, 8);
             this.panelPKD.Name = "panelPKD";
-            this.panelPKD.Size = new System.Drawing.Size(290, 30);
+            this.panelPKD.Size = new System.Drawing.Size(592, 30);
             this.panelPKD.TabIndex = 3;
 
-            // 
             // label4
-            // 
             this.label4.AutoSize = true;
             this.label4.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.label4.ForeColor = System.Drawing.Color.FromArgb(60, 70, 90);
@@ -329,32 +296,33 @@
             this.label4.TabIndex = 0;
             this.label4.Text = ">> Rodzaj:";
 
-            // 
             // comboBoxPKD
-            // 
+            this.comboBoxPKD.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.comboBoxPKD.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxPKD.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.comboBoxPKD.FormattingEnabled = true;
             this.comboBoxPKD.Location = new System.Drawing.Point(69, 3);
             this.comboBoxPKD.Name = "comboBoxPKD";
-            this.comboBoxPKD.Size = new System.Drawing.Size(215, 23);
+            this.comboBoxPKD.Size = new System.Drawing.Size(520, 23);
             this.comboBoxPKD.TabIndex = 1;
             this.comboBoxPKD.SelectedIndexChanged += ZastosujFiltry;
 
-            // 
             // panelButtons
-            // 
             this.panelButtons.Controls.Add(this.button1);
             this.panelButtons.Location = new System.Drawing.Point(304, 44);
             this.panelButtons.Name = "panelButtons";
-            this.panelButtons.Size = new System.Drawing.Size(290, 36);
+            this.panelButtons.Size = new System.Drawing.Size(592, 36);
             this.panelButtons.TabIndex = 4;
 
- 
+            // button1
+            this.button1.Location = new System.Drawing.Point(0, 0);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(0, 0);
+            this.button1.TabIndex = 0;
+            this.button1.Visible = false;
 
-            // 
             // bottomPanel
-            // 
             this.bottomPanel.BackColor = System.Drawing.Color.White;
             this.bottomPanel.Controls.Add(this.splitContainerMain);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -364,23 +332,13 @@
             this.bottomPanel.Size = new System.Drawing.Size(1594, 664);
             this.bottomPanel.TabIndex = 1;
 
-            // 
             // splitContainerMain
-            // 
             this.splitContainerMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitContainerMain.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
             this.splitContainerMain.Location = new System.Drawing.Point(10, 0);
             this.splitContainerMain.Name = "splitContainerMain";
-
-            // 
-            // splitContainerMain.Panel1
-            // 
             this.splitContainerMain.Panel1.Controls.Add(this.panelOdbiorcy);
             this.splitContainerMain.Panel1MinSize = 800;
-
-            // 
-            // splitContainerMain.Panel2
-            // 
             this.splitContainerMain.Panel2.Controls.Add(this.panelNotatki);
             this.splitContainerMain.Panel2MinSize = 350;
             this.splitContainerMain.Size = new System.Drawing.Size(1574, 654);
@@ -388,9 +346,7 @@
             this.splitContainerMain.SplitterWidth = 6;
             this.splitContainerMain.TabIndex = 0;
 
-            // 
             // panelOdbiorcy
-            // 
             this.panelOdbiorcy.Controls.Add(this.dataGridViewOdbiorcy);
             this.panelOdbiorcy.Controls.Add(this.panelSearch);
             this.panelOdbiorcy.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -399,9 +355,7 @@
             this.panelOdbiorcy.Size = new System.Drawing.Size(1210, 654);
             this.panelOdbiorcy.TabIndex = 0;
 
-            // 
             // dataGridViewOdbiorcy
-            // 
             this.dataGridViewOdbiorcy.AllowUserToAddRows = false;
             this.dataGridViewOdbiorcy.AllowUserToDeleteRows = false;
             this.dataGridViewOdbiorcy.AllowUserToResizeRows = false;
@@ -434,9 +388,7 @@
             this.dataGridViewOdbiorcy.CurrentCellDirtyStateChanged += dataGridViewOdbiorcy_CurrentCellDirtyStateChanged;
             this.dataGridViewOdbiorcy.RowPrePaint += dataGridViewOdbiorcy_RowPrePaint;
 
-            // 
             // panelSearch
-            // 
             this.panelSearch.BackColor = System.Drawing.Color.FromArgb(248, 249, 252);
             this.panelSearch.Controls.Add(this.textBoxSzukaj);
             this.panelSearch.Controls.Add(this.label6);
@@ -449,20 +401,16 @@
             this.panelSearch.Size = new System.Drawing.Size(1210, 48);
             this.panelSearch.TabIndex = 0;
 
-            // 
             // textBoxSzukaj
-            // 
             this.textBoxSzukaj.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.textBoxSzukaj.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.textBoxSzukaj.Location = new System.Drawing.Point(100, 12);
             this.textBoxSzukaj.Name = "textBoxSzukaj";
-            this.textBoxSzukaj.Size = new System.Drawing.Size(500, 25);
+            this.textBoxSzukaj.Size = new System.Drawing.Size(250, 25);
             this.textBoxSzukaj.TabIndex = 1;
             this.textBoxSzukaj.TextChanged += textBoxSzukaj_TextChanged;
 
-            // 
             // label6
-            // 
             this.label6.AutoSize = true;
             this.label6.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.label6.ForeColor = System.Drawing.Color.FromArgb(40, 60, 90);
@@ -472,46 +420,39 @@
             this.label6.TabIndex = 0;
             this.label6.Text = ">> Szukaj:";
 
-            // 
             // button2
-            // 
             this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.button2.BackColor = System.Drawing.Color.FromArgb(231, 76, 60);
             this.button2.FlatAppearance.BorderSize = 0;
             this.button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.button2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.button2.ForeColor = System.Drawing.Color.White;
-            this.button2.Location = new System.Drawing.Point(877, 10);
+            this.button2.Location = new System.Drawing.Point(370, 10);
             this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(110, 30);
+            this.button2.Size = new System.Drawing.Size(100, 30);
             this.button2.TabIndex = 2;
-            this.button2.Text = ">> Google";
+            this.button2.Text = "🔍 Google";
             this.button2.UseVisualStyleBackColor = false;
             this.button2.Click += button2_Click;
 
-            // 
             // button3
-            // 
             this.button3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.button3.BackColor = System.Drawing.Color.FromArgb(39, 174, 96);
             this.button3.FlatAppearance.BorderSize = 0;
             this.button3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.button3.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.button3.ForeColor = System.Drawing.Color.White;
-            this.button3.Location = new System.Drawing.Point(993, 10);
+            this.button3.Location = new System.Drawing.Point(480, 10);
             this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(110, 30);
+            this.button3.Size = new System.Drawing.Size(100, 30);
             this.button3.TabIndex = 3;
-            this.button3.Text = ">> Mapa";
+            this.button3.Text = "🗺 Trasa";
             this.button3.UseVisualStyleBackColor = false;
             this.button3.Click += button3_Click;
 
-            // 
             // panelNotatki
-            // 
             this.panelNotatki.BackColor = System.Drawing.Color.FromArgb(250, 251, 253);
-            this.panelNotatki.Controls.Add(this.groupBoxNotatki);
-            this.panelNotatki.Controls.Add(this.panelDodajNotatke);
+            this.panelNotatki.Controls.Add(this.splitContainerNotatki);
             this.panelNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelNotatki.Location = new System.Drawing.Point(0, 0);
             this.panelNotatki.Name = "panelNotatki";
@@ -519,24 +460,32 @@
             this.panelNotatki.Size = new System.Drawing.Size(358, 654);
             this.panelNotatki.TabIndex = 0;
 
-            // 
+            // splitContainerNotatki
+            this.splitContainerNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainerNotatki.Location = new System.Drawing.Point(5, 5);
+            this.splitContainerNotatki.Name = "splitContainerNotatki";
+            this.splitContainerNotatki.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            this.splitContainerNotatki.Panel1.Controls.Add(this.groupBoxNotatki);
+            this.splitContainerNotatki.Panel1.Controls.Add(this.panelDodajNotatke);
+            this.splitContainerNotatki.Panel2.Controls.Add(this.groupBoxHistoria);
+            this.splitContainerNotatki.Size = new System.Drawing.Size(348, 644);
+            this.splitContainerNotatki.SplitterDistance = 420;
+            this.splitContainerNotatki.TabIndex = 0;
+
             // groupBoxNotatki
-            // 
             this.groupBoxNotatki.Controls.Add(this.dataGridViewNotatki);
             this.groupBoxNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.groupBoxNotatki.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.groupBoxNotatki.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.groupBoxNotatki.ForeColor = System.Drawing.Color.FromArgb(40, 60, 90);
-            this.groupBoxNotatki.Location = new System.Drawing.Point(5, 5);
+            this.groupBoxNotatki.Location = new System.Drawing.Point(0, 0);
             this.groupBoxNotatki.Name = "groupBoxNotatki";
             this.groupBoxNotatki.Padding = new System.Windows.Forms.Padding(8);
-            this.groupBoxNotatki.Size = new System.Drawing.Size(348, 464);
+            this.groupBoxNotatki.Size = new System.Drawing.Size(348, 140);
             this.groupBoxNotatki.TabIndex = 0;
             this.groupBoxNotatki.TabStop = false;
-            this.groupBoxNotatki.Text = ">> Historia Notatek";
+            this.groupBoxNotatki.Text = "📝 Notatki";
 
-            // 
             // dataGridViewNotatki
-            // 
             this.dataGridViewNotatki.AllowUserToAddRows = false;
             this.dataGridViewNotatki.AllowUserToDeleteRows = false;
             this.dataGridViewNotatki.AllowUserToResizeRows = false;
@@ -546,13 +495,14 @@
             this.dataGridViewNotatki.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle3.BackColor = System.Drawing.Color.FromArgb(52, 73, 94);
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Segoe UI", 9F);
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
             dataGridViewCellStyle3.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle3.Padding = new System.Windows.Forms.Padding(3);
             dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
             dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dataGridViewNotatki.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
-            this.dataGridViewNotatki.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewNotatki.ColumnHeadersHeight = 28;
             this.dataGridViewNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridViewNotatki.EnableHeadersVisualStyles = false;
             this.dataGridViewNotatki.GridColor = System.Drawing.Color.FromArgb(230, 230, 235);
@@ -560,26 +510,22 @@
             this.dataGridViewNotatki.Name = "dataGridViewNotatki";
             this.dataGridViewNotatki.ReadOnly = true;
             this.dataGridViewNotatki.RowHeadersVisible = false;
-            this.dataGridViewNotatki.RowTemplate.Height = 28;
-            this.dataGridViewNotatki.Size = new System.Drawing.Size(332, 430);
+            this.dataGridViewNotatki.RowTemplate.Height = 35;
+            this.dataGridViewNotatki.Size = new System.Drawing.Size(332, 106);
             this.dataGridViewNotatki.TabIndex = 0;
 
-            // 
             // panelDodajNotatke
-            // 
             this.panelDodajNotatke.Controls.Add(this.label3);
             this.panelDodajNotatke.Controls.Add(this.textBoxNotatka);
             this.panelDodajNotatke.Controls.Add(this.buttonDodajNotatke);
             this.panelDodajNotatke.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDodajNotatke.Location = new System.Drawing.Point(5, 469);
+            this.panelDodajNotatke.Location = new System.Drawing.Point(0, 140);
             this.panelDodajNotatke.Name = "panelDodajNotatke";
             this.panelDodajNotatke.Padding = new System.Windows.Forms.Padding(8);
             this.panelDodajNotatke.Size = new System.Drawing.Size(348, 180);
             this.panelDodajNotatke.TabIndex = 1;
 
-            // 
             // label3
-            // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.label3.ForeColor = System.Drawing.Color.FromArgb(40, 60, 90);
@@ -587,11 +533,9 @@
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(106, 17);
             this.label3.TabIndex = 0;
-            this.label3.Text = ">> Nowa Notatka:";
+            this.label3.Text = "➕ Nowa Notatka";
 
-            // 
             // textBoxNotatka
-            // 
             this.textBoxNotatka.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
             | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
@@ -604,9 +548,7 @@
             this.textBoxNotatka.Size = new System.Drawing.Size(326, 95);
             this.textBoxNotatka.TabIndex = 1;
 
-            // 
             // buttonDodajNotatke
-            // 
             this.buttonDodajNotatke.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonDodajNotatke.BackColor = System.Drawing.Color.FromArgb(46, 204, 113);
@@ -618,13 +560,53 @@
             this.buttonDodajNotatke.Name = "buttonDodajNotatke";
             this.buttonDodajNotatke.Size = new System.Drawing.Size(326, 36);
             this.buttonDodajNotatke.TabIndex = 2;
-            this.buttonDodajNotatke.Text = ">> Dodaj Notatke";
+            this.buttonDodajNotatke.Text = "✅ Dodaj Notatke";
             this.buttonDodajNotatke.UseVisualStyleBackColor = false;
             this.buttonDodajNotatke.Click += buttonDodajNotatke_Click;
 
-            // 
+            // groupBoxHistoria
+            this.groupBoxHistoria.Controls.Add(this.dataGridViewHistoria);
+            this.groupBoxHistoria.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.groupBoxHistoria.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.groupBoxHistoria.ForeColor = System.Drawing.Color.FromArgb(40, 60, 90);
+            this.groupBoxHistoria.Location = new System.Drawing.Point(0, 0);
+            this.groupBoxHistoria.Name = "groupBoxHistoria";
+            this.groupBoxHistoria.Padding = new System.Windows.Forms.Padding(8);
+            this.groupBoxHistoria.Size = new System.Drawing.Size(348, 320);
+            this.groupBoxHistoria.TabIndex = 0;
+            this.groupBoxHistoria.TabStop = false;
+            this.groupBoxHistoria.Text = "📜 Historia Zmian Statusu (TOP 10)";
+
+            // dataGridViewHistoria
+            this.dataGridViewHistoria.AllowUserToAddRows = false;
+            this.dataGridViewHistoria.AllowUserToDeleteRows = false;
+            this.dataGridViewHistoria.AllowUserToResizeRows = false;
+            this.dataGridViewHistoria.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dataGridViewHistoria.BackgroundColor = System.Drawing.Color.White;
+            this.dataGridViewHistoria.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.dataGridViewHistoria.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
+            dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle4.BackColor = System.Drawing.Color.FromArgb(142, 68, 173);
+            dataGridViewCellStyle4.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+            dataGridViewCellStyle4.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle4.Padding = new System.Windows.Forms.Padding(3);
+            dataGridViewCellStyle4.SelectionBackColor = System.Drawing.Color.FromArgb(142, 68, 173);
+            dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dataGridViewHistoria.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle4;
+            this.dataGridViewHistoria.ColumnHeadersHeight = 28;
+            this.dataGridViewHistoria.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dataGridViewHistoria.EnableHeadersVisualStyles = false;
+            this.dataGridViewHistoria.GridColor = System.Drawing.Color.FromArgb(230, 230, 235);
+            this.dataGridViewHistoria.Location = new System.Drawing.Point(8, 26);
+            this.dataGridViewHistoria.Name = "dataGridViewHistoria";
+            this.dataGridViewHistoria.ReadOnly = true;
+            this.dataGridViewHistoria.RowHeadersVisible = false;
+            this.dataGridViewHistoria.RowTemplate.Height = 35;
+            this.dataGridViewHistoria.Size = new System.Drawing.Size(332, 286);
+            this.dataGridViewHistoria.TabIndex = 0;
+
             // CRM
-            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
@@ -662,10 +644,16 @@
             this.panelSearch.ResumeLayout(false);
             this.panelSearch.PerformLayout();
             this.panelNotatki.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)this.splitContainerNotatki).EndInit();
+            this.splitContainerNotatki.Panel1.ResumeLayout(false);
+            this.splitContainerNotatki.Panel2.ResumeLayout(false);
+            this.splitContainerNotatki.ResumeLayout(false);
             this.groupBoxNotatki.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)this.dataGridViewNotatki).EndInit();
             this.panelDodajNotatke.ResumeLayout(false);
             this.panelDodajNotatke.PerformLayout();
+            this.groupBoxHistoria.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)this.dataGridViewHistoria).EndInit();
             this.ResumeLayout(false);
         }
 
@@ -701,11 +689,14 @@
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.Panel panelNotatki;
+        private System.Windows.Forms.SplitContainer splitContainerNotatki;
         private System.Windows.Forms.GroupBox groupBoxNotatki;
         private System.Windows.Forms.DataGridView dataGridViewNotatki;
         private System.Windows.Forms.Panel panelDodajNotatke;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.TextBox textBoxNotatka;
         private System.Windows.Forms.Button buttonDodajNotatke;
+        private System.Windows.Forms.GroupBox groupBoxHistoria;
+        private System.Windows.Forms.DataGridView dataGridViewHistoria;
     }
 }

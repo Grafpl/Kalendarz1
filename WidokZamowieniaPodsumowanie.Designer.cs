@@ -45,6 +45,8 @@ namespace Kalendarz1
             cbFiltrujTowar = new System.Windows.Forms.ComboBox();
             cbFiltrujHandlowca = new System.Windows.Forms.ComboBox();
             txtFiltrujOdbiorce = new System.Windows.Forms.TextBox();
+            rbDataOdbioru = new System.Windows.Forms.RadioButton();
+            rbDataUboju = new System.Windows.Forms.RadioButton();
             panelPodsumowanie = new System.Windows.Forms.Panel();
             lblPodsumowanie = new System.Windows.Forms.Label();
             panelDetail = new System.Windows.Forms.TableLayoutPanel();
@@ -348,6 +350,8 @@ namespace Kalendarz1
             panelFiltry.Controls.Add(cbFiltrujTowar);
             panelFiltry.Controls.Add(cbFiltrujHandlowca);
             panelFiltry.Controls.Add(txtFiltrujOdbiorce);
+            panelFiltry.Controls.Add(rbDataOdbioru);
+            panelFiltry.Controls.Add(rbDataUboju);
             panelFiltry.Dock = System.Windows.Forms.DockStyle.Top;
             panelFiltry.Location = new System.Drawing.Point(0, 0);
             panelFiltry.Name = "panelFiltry";
@@ -380,6 +384,28 @@ namespace Kalendarz1
             txtFiltrujOdbiorce.PlaceholderText = "Filtruj po nazwie odbiorcy...";
             txtFiltrujOdbiorce.Size = new System.Drawing.Size(249, 23);
             txtFiltrujOdbiorce.TabIndex = 0;
+            // 
+            // rbDataOdbioru
+            // 
+            rbDataOdbioru.AutoSize = true;
+            rbDataOdbioru.Checked = true;
+            rbDataOdbioru.Location = new System.Drawing.Point(690, 13);
+            rbDataOdbioru.Name = "rbDataOdbioru";
+            rbDataOdbioru.Size = new System.Drawing.Size(95, 19);
+            rbDataOdbioru.TabIndex = 3;
+            rbDataOdbioru.TabStop = true;
+            rbDataOdbioru.Text = "Data odbioru";
+            rbDataOdbioru.UseVisualStyleBackColor = true;
+            // 
+            // rbDataUboju
+            // 
+            rbDataUboju.AutoSize = true;
+            rbDataUboju.Location = new System.Drawing.Point(790, 13);
+            rbDataUboju.Name = "rbDataUboju";
+            rbDataUboju.Size = new System.Drawing.Size(85, 19);
+            rbDataUboju.TabIndex = 4;
+            rbDataUboju.Text = "Data uboju";
+            rbDataUboju.UseVisualStyleBackColor = true;
             // 
             // panelPodsumowanie
             // 
@@ -628,5 +654,7 @@ namespace Kalendarz1
         private System.Windows.Forms.DataGridView dgvPojTuszki;
         // W sekcji deklaracji (na końcu pliku przed klasą)
         private System.Windows.Forms.Button btnCykliczne;
+        private System.Windows.Forms.RadioButton rbDataOdbioru;
+        private System.Windows.Forms.RadioButton rbDataUboju;
     }
 }
