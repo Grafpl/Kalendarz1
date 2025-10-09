@@ -23,12 +23,13 @@ namespace Kalendarz1
         private DataGridView dgvZamowienia;
         private DataGridView dgvPozycje;
         private TextBox txtUwagi;
-        private TextBox txtNotatkiTransportu; // Nowe pole dla notatek transportu
+        private TextBox txtNotatkiTransportu;
         private DataGridView dgvPojTuszki;
-        private DataGridView dgvIn0ESumy; // jeden widok przychodów
+        private DataGridView dgvIn0ESumy;
         private ComboBox cbFiltrProdukt;
         private Timer refreshTimer;
-        private Panel panelSzczegolyTransportu; // Nowy panel dla szczegółów transportu
+        private Panel panelSzczegolyTransportu;
+        private RadioButton rbDataUboju, rbDataZamowienia; // NOWE
 
         // Cache / state
         private readonly Dictionary<int, ZamowienieInfo> _zamowienia = new();
@@ -51,11 +52,10 @@ namespace Kalendarz1
             public bool IsShipmentOnly { get; set; } = false;
             public DateTime? DataUtworzenia { get; set; }
             public bool MaNotatke { get; set; } = false;
-            public TimeSpan? CzasWyjazdu { get; set; } = null; // NOWA WŁAŚCIWOŚĆ
-            public string StatusTransportu { get; set; } = ""; // Status kursu transportu
-
-            public DateTime? DataKursu { get; set; } = null; // DODANE
-
+            public TimeSpan? CzasWyjazdu { get; set; } = null;
+            public string StatusTransportu { get; set; } = "";
+            public DateTime? DataKursu { get; set; } = null;
+            public bool MaFolie { get; set; } = false; // NOWE
         }
         private sealed class ContractorInfo { public int Id; public string Shortcut = ""; public string Handlowiec = "(Brak)"; }
         private sealed class TowarInfo { public int Id; public string Kod = ""; }
@@ -75,17 +75,17 @@ namespace Kalendarz1
         #region UI
         private void BuildUi()
         {
-            BackColor = Color.FromArgb(28, 30, 38); // Ciemnoszary niebieski
+            BackColor = Color.FromArgb(28, 30, 38);
             ForeColor = Color.White;
             Font = new Font("Segoe UI", 11f);
 
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(10) }; // Zwiększony padding
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(10) };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             Controls.Add(root);
 
-            // TOP BAR (jedna poprawna instancja)
-            var top = new Panel { Dock = DockStyle.Top, Height = 150, BackColor = Color.FromArgb(40, 42, 50) }; // Ciemny panel
+            // TOP BAR
+            var top = new Panel { Dock = DockStyle.Top, Height = 150, BackColor = Color.FromArgb(40, 42, 50) };
             lblData = new Label { AutoSize = true, Left = 16, Top = 10, Font = new Font("Segoe UI Semibold", 30f, FontStyle.Bold) };
             lblUser = new Label { AutoSize = true, Left = 18, Top = 72, Font = new Font("Segoe UI", 11f, FontStyle.Italic), ForeColor = Color.LightGray };
             lblStats = new Label { AutoSize = true, Left = 320, Top = 76, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.Khaki };
@@ -94,7 +94,14 @@ namespace Kalendarz1
             cbFiltrProdukt = new ComboBox { Left = 380, Top = 14, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
             cbFiltrProdukt.SelectedIndexChanged += async (s, e) => { if (cbFiltrProdukt.SelectedItem is ComboItem it) { _filteredProductId = it.Value == 0 ? null : it.Value; await LoadOrdersAsync(); await LoadPozycjeForSelectedAsync(); } };
 
-            // Przyciski przesunięte na prawo
+            // RADIO BUTTONY - NOWE
+            var lblDataSource = new Label { Text = "Źródło daty:", Left = 320, Top = 106, AutoSize = true, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.LightBlue };
+            rbDataUboju = new RadioButton { Text = "Data uboju", Left = 420, Top = 104, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.White, Checked = true };
+            rbDataZamowienia = new RadioButton { Text = "Data zamówienia (stary)", Left = 550, Top = 104, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.LightGray };
+            rbDataUboju.CheckedChanged += async (s, e) => { if (rbDataUboju.Checked) await ReloadAllAsync(); };
+            rbDataZamowienia.CheckedChanged += async (s, e) => { if (rbDataZamowienia.Checked) await ReloadAllAsync(); };
+
+            // Przyciski
             int rightMargin = 15;
             btnClose = MakeTopButton("X", 0, (s, e) => Close(), Color.FromArgb(170, 40, 50));
             btnClose.Width = 70; btnClose.Height = 70; btnClose.Top = 28;
@@ -108,8 +115,8 @@ namespace Kalendarz1
 
             btnSaveNotes = MakeTopButton("Zapisz not.", 0, async (s, e) =>
             {
-                await SaveItemNotesAsync();  // Zapisz notatki pozycji
-                await SaveProductionNotesAsync();  // Zapisz notatkę produkcji
+                await SaveItemNotesAsync();
+                await SaveProductionNotesAsync();
             }, Color.FromArgb(95, 95, 95)); btnSaveNotes.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnSaveNotes.Left = btnZrealizowano.Left - btnSaveNotes.Width - rightMargin;
 
@@ -125,7 +132,6 @@ namespace Kalendarz1
             btnRefresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnRefresh.Left = btnLive.Left - btnRefresh.Width - rightMargin;
 
-            // Nowy przycisk "Dziś"
             Button btnToday = MakeTopButton("Dziś", 0, (s, e) => { _selectedDate = DateTime.Today; _ = ReloadAllAsync(); }, Color.FromArgb(60, 70, 110));
             btnToday.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnToday.Left = btnRefresh.Left - btnToday.Width - rightMargin;
@@ -138,21 +144,20 @@ namespace Kalendarz1
             btnPrev.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnPrev.Left = btnNext.Left - btnPrev.Width - rightMargin;
 
-            top.Controls.AddRange(new Control[] { lblData, lblUser, lblStats, lblFiltr, cbFiltrProdukt, btnPrev, btnNext, btnToday, btnRefresh, btnLive, btnUndo, btnSaveNotes, btnZrealizowano, btnClose });
+            top.Controls.AddRange(new Control[] { lblData, lblUser, lblStats, lblFiltr, cbFiltrProdukt, lblDataSource, rbDataUboju, rbDataZamowienia, btnPrev, btnNext, btnToday, btnRefresh, btnLive, btnUndo, btnSaveNotes, btnZrealizowano, btnClose });
             root.Controls.Add(top, 0, 0);
 
-            // MAIN – przychody, zamówienia, pozycje + notatki
-            // MAIN – przychody, zamówienia, pozycje + notatki
+            // MAIN
             var main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(4) };
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));  // Lewy panel - zmniejszony z 33%
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));  // Środkowy panel (zamówienia) - zwiększony z 47%
-            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));  // Prawy panel - bez zmian
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
             root.Controls.Add(main, 0, 1);
 
             // Kolumna 1: Przychody i panel tuszek
             var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(34, 36, 46), ColumnCount = 1, RowCount = 2 };
-            bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 60)); // Przychody
-            bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 40)); // Panel Poj tuszki
+            bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
+            bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
 
             dgvIn0ESumy = CreateGrid(true);
             dgvIn0ESumy.Dock = DockStyle.Fill;
@@ -160,7 +165,6 @@ namespace Kalendarz1
             dgvIn0ESumy.AllowUserToResizeRows = false;
             bottom.Controls.Add(dgvIn0ESumy, 0, 0);
 
-            // Panel Poj tuszki - przeniesiony tutaj
             var panelPoj = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(45, 47, 58), Padding = new Padding(4) };
             var lblPoj = new Label { Text = "Tuszek poj/palety", AutoSize = true, Left = 4, Top = 2, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold), ForeColor = Color.LightSkyBlue };
             dgvPojTuszki = new DataGridView { Left = 4, Top = 22, Width = panelPoj.Width - 8, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, ColumnHeadersVisible = true, RowHeadersVisible = false, BackgroundColor = Color.FromArgb(45, 47, 58), BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10f), ScrollBars = ScrollBars.Vertical, SelectionMode = DataGridViewSelectionMode.FullRowSelect, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom, EnableHeadersVisualStyles = false };
@@ -171,7 +175,7 @@ namespace Kalendarz1
             dgvPojTuszki.DefaultCellStyle.ForeColor = Color.White;
             dgvPojTuszki.DefaultCellStyle.SelectionBackColor = Color.FromArgb(90, 120, 200);
             dgvPojTuszki.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(55, 57, 70);
-            dgvPojTuszki.RowTemplate.Height = 22; // Zmniejszono wysokość wiersza
+            dgvPojTuszki.RowTemplate.Height = 22;
             dgvPojTuszki.AllowUserToResizeRows = false;
             panelPoj.Controls.Add(lblPoj);
             panelPoj.Controls.Add(dgvPojTuszki);
@@ -180,35 +184,20 @@ namespace Kalendarz1
 
             main.Controls.Add(bottom, 0, 0);
 
-            // Kolumna 2: Zamówienia (wcześniej pozycje)
+            // Kolumna 2: Zamówienia
             dgvZamowienia = CreateGrid(true);
             dgvZamowienia.SelectionChanged += async (s, e) => await LoadPozycjeForSelectedAsync();
             dgvZamowienia.AutoGenerateColumns = false;
-            dgvZamowienia.AllowUserToResizeRows = false; // Blokada zmiany wysokości wierszy
-            dgvZamowienia.RowTemplate.Height = 28; // Ustawienie wysokości wierszy
+            dgvZamowienia.AllowUserToResizeRows = false;
+            dgvZamowienia.RowTemplate.Height = 28;
 
-            // Kolumna z ikoną notatki - USUNIĘTA
-            /*
-            var colNotatka = new DataGridViewImageColumn
-            {
-                Name = "IkonaNotatki",
-                HeaderText = "",
-                Width = 30,
-                ReadOnly = true,
-                Image = CreateNotebookIcon(),
-                ImageLayout = DataGridViewImageCellLayout.Zoom
-            };
-            dgvZamowienia.Columns.Add(colNotatka);
-            */
-
-            // W sekcji tworzenia kolumn dgvZamowienia, dodaj nową kolumnę:
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Klient",
                 DataPropertyName = "Klient",
                 HeaderText = "Nazwa Klienta",
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-                FillWeight = 30 // zmniejszono z 35
+                FillWeight = 30
             });
 
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
@@ -220,7 +209,6 @@ namespace Kalendarz1
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             });
 
-            // NOWA KOLUMNA - CZAS WYJAZDU
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "CzasWyjazdu",
@@ -241,7 +229,7 @@ namespace Kalendarz1
                 DataPropertyName = "Handlowiec",
                 HeaderText = "Handlowiec",
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-                FillWeight = 18 // zmniejszono z 20
+                FillWeight = 18
             });
 
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
@@ -261,22 +249,23 @@ namespace Kalendarz1
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd HH:mm" }
             });
 
-            // Dodaj obsługę formatowania kolumny czasu wyjazdu
             dgvZamowienia.CellFormatting += (s, e) =>
             {
                 if (e.ColumnIndex == dgvZamowienia.Columns["Klient"].Index && e.RowIndex >= 0)
                 {
                     var row = dgvZamowienia.Rows[e.RowIndex];
-                    if (row.DataBoundItem is ZamowienieInfo info && info.MaNotatke)
+                    if (row.DataBoundItem is ZamowienieInfo info)
                     {
-                        e.Value = "📝 " + e.Value;
+                        string prefix = "";
+                        if (info.MaNotatke) prefix += "📝 ";
+                        if (info.MaFolie) prefix += "🎞️ "; // NOWE - ikonka folii
+                        if (!string.IsNullOrEmpty(prefix))
+                        {
+                            e.Value = prefix + e.Value;
+                        }
                     }
                 }
 
-                // NOWE: Formatowanie kolumny czasu wyjazdu
-                // NOWE: Formatowanie kolumny czasu wyjazdu
-                // NOWE: Formatowanie kolumny czasu wyjazdu
-                // NOWE: Formatowanie kolumny czasu wyjazdu
                 if (e.ColumnIndex == dgvZamowienia.Columns["CzasWyjazdu"]?.Index && e.RowIndex >= 0)
                 {
                     var row = dgvZamowienia.Rows[e.RowIndex];
@@ -286,18 +275,13 @@ namespace Kalendarz1
                         {
                             var dataKursu = info.DataKursu.Value;
                             var dzienTygodnia = dataKursu.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
-
                             e.Value = $"{info.CzasWyjazdu.Value:hh\\:mm} {dzienTygodnia}";
                             e.FormattingApplied = true;
-
-                            // USUŃ całe kolorowanie - zostaw tylko formatowanie tekstu
-                            // Kolorowanie będzie obsługiwane przez kolorowanie całego wiersza
                         }
                         else
                         {
                             e.Value = info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu";
                             e.FormattingApplied = true;
-                            // USUŃ ustawianie koloru - zostaw tylko tekst
                         }
                     }
                 }
@@ -305,39 +289,39 @@ namespace Kalendarz1
 
             main.Controls.Add(dgvZamowienia, 1, 0);
 
-            // Kolumna 3: Pozycje i notatki - zmieniony układ
+            // Kolumna 3: Pozycje i notatki
             var rightPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, BackColor = Color.FromArgb(38, 40, 50), Padding = new Padding(4) };
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 60)); // Pozycje - zwiększone
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Etykieta notatek zamówienia
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20)); // Notatki zamówienia - zmniejszone
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Etykieta notatek transportu
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20)); // Notatki transportu - zmniejszone
-            rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 0)); // Szczegóły transportu - ukryty panel
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
+            rightPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
 
             dgvPozycje = CreateGrid(false);
-            dgvPozycje.AllowUserToResizeRows = false; // Blokada zmiany wysokości wierszy
-            dgvPozycje.RowTemplate.Height = 30; // Zwiększona wysokość wierszy
+            dgvPozycje.AllowUserToResizeRows = false;
+            dgvPozycje.RowTemplate.Height = 30;
             rightPanel.Controls.Add(dgvPozycje, 0, 0);
 
             var lblUwagi = new Label
             {
                 Text = "Notatka zamówienia",
-                Font = new Font("Segoe UI Semibold", 12f, FontStyle.Bold), // Zmniejszono czcionkę
+                Font = new Font("Segoe UI Semibold", 12f, FontStyle.Bold),
                 Dock = DockStyle.Top,
                 Padding = new Padding(4),
                 BackColor = Color.FromArgb(50, 52, 64),
                 ForeColor = Color.Yellow,
-                AutoSize = true // Dodano AutoSize
+                AutoSize = true
             };
             txtUwagi = new TextBox
             {
                 Multiline = true,
                 Dock = DockStyle.Fill,
                 ScrollBars = ScrollBars.Vertical,
-                Font = new Font("Segoe UI", 10f), // Zmniejszono czcionkę
+                Font = new Font("Segoe UI", 10f),
                 BackColor = Color.FromArgb(52, 54, 66),
                 ForeColor = Color.White,
-                Height = 50 // Zmniejszona wysokość
+                Height = 50
             };
 
             var lblNotatkiTransportu = new Label
@@ -347,20 +331,20 @@ namespace Kalendarz1
                 Dock = DockStyle.Top,
                 Padding = new Padding(4),
                 BackColor = Color.FromArgb(50, 52, 64),
-                ForeColor = Color.LightBlue,  // Zmieniony kolor na niebieski dla produkcji
+                ForeColor = Color.LightBlue,
                 AutoSize = true
-            }; txtNotatkiTransportu = new TextBox
+            };
+            txtNotatkiTransportu = new TextBox
             {
                 Multiline = true,
                 Dock = DockStyle.Fill,
                 ScrollBars = ScrollBars.Vertical,
-                Font = new Font("Segoe UI", 10f), // Zmniejszono czcionkę
+                Font = new Font("Segoe UI", 10f),
                 BackColor = Color.FromArgb(52, 54, 66),
                 ForeColor = Color.White,
-                Height = 50 // Zmniejszona wysokość
+                Height = 50
             };
 
-            // Nowy panel dla szczegółów transportu
             panelSzczegolyTransportu = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -382,9 +366,9 @@ namespace Kalendarz1
             rightPanel.Controls.Add(txtUwagi, 0, 2);
             rightPanel.Controls.Add(lblNotatkiTransportu, 0, 3);
             rightPanel.Controls.Add(txtNotatkiTransportu, 0, 4);
-            // rightPanel.Controls.Add(panelSzczegolyTransportu, 0, 5); // Ukryto panel
             main.Controls.Add(rightPanel, 2, 0);
         }
+
         private async Task SaveProductionNotesAsync()
         {
             var orderId = GetSelectedOrderId();
@@ -395,7 +379,6 @@ namespace Kalendarz1
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
 
-            // Sprawdź czy istnieje już notatka
             var checkCmd = new SqlCommand(
                 "SELECT COUNT(*) FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cn);
             checkCmd.Parameters.AddWithValue("@Id", orderId.Value);
@@ -404,7 +387,6 @@ namespace Kalendarz1
             SqlCommand cmd;
             if (exists > 0)
             {
-                // Aktualizuj istniejącą
                 cmd = new SqlCommand(@"
             UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki 
             SET NotatkaProdukcja = @Notatka, 
@@ -414,7 +396,6 @@ namespace Kalendarz1
             }
             else
             {
-                // Wstaw nową
                 cmd = new SqlCommand(@"
             INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki 
             (ZamowienieId, NotatkaProdukcja, DataModyfikacji, Uzytkownik) 
@@ -428,23 +409,24 @@ namespace Kalendarz1
             await cmd.ExecuteNonQueryAsync();
             MessageBox.Show("Zapisano notatkę produkcji.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        // Metoda do tworzenia ikony notatnika
-        private Image CreateNotebookIcon()
+
+        // NOWA METODA - Tworzenie ikony folii
+        private Image CreateFoliaIcon()
         {
             var bitmap = new Bitmap(16, 16);
             using (var g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
-                // Rysowanie prostej ikony notatnika
-                using (var brush = new SolidBrush(Color.Gold))
-                using (var pen = new Pen(Color.DarkGoldenrod, 1))
+                using (var brush = new SolidBrush(Color.DeepSkyBlue))
+                using (var pen = new Pen(Color.DarkBlue, 1))
                 {
+                    // Prostokąt symbolizujący folię
                     g.FillRectangle(brush, 2, 2, 12, 12);
                     g.DrawRectangle(pen, 2, 2, 12, 12);
-                    g.DrawLine(pen, 4, 5, 12, 5);
-                    g.DrawLine(pen, 4, 7, 12, 7);
-                    g.DrawLine(pen, 4, 9, 12, 9);
-                    g.DrawLine(pen, 4, 11, 12, 11);
+                    // Linie poziome - symulacja zwojów folii
+                    g.DrawLine(new Pen(Color.LightBlue, 1), 4, 5, 12, 5);
+                    g.DrawLine(new Pen(Color.LightBlue, 1), 4, 8, 12, 8);
+                    g.DrawLine(new Pen(Color.LightBlue, 1), 4, 11, 12, 11);
                 }
             }
             return bitmap;
@@ -457,8 +439,8 @@ namespace Kalendarz1
                 Text = text,
                 Left = left,
                 Top = 30,
-                Width = 100, // Zwiększona szerokość z 90 na 100
-                Height = 70, // Zwiększona wysokość z 65 na 70
+                Width = 100,
+                Height = 70,
                 BackColor = baseColor,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -478,12 +460,11 @@ namespace Kalendarz1
                 b.BackColor = baseColor;
                 b.FlatAppearance.BorderColor = Color.FromArgb(120, 120, 120);
             };
-            // Zaokrąglone rogi
             b.Paint += (s, e) =>
             {
                 var rect = new Rectangle(0, 0, b.Width, b.Height);
                 var path = new System.Drawing.Drawing2D.GraphicsPath();
-                int radius = 12; // Zwiększone zaokrąglenie
+                int radius = 12;
                 path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
                 path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
                 path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
@@ -521,9 +502,22 @@ namespace Kalendarz1
 
         private async Task PopulateProductFilterAsync()
         {
+            // POPRAWKA - budujemy string SQL bez $@
+            string dateColumn = rbDataUboju.Checked ? "DataUboju" : "DataZamowienia";
+
             int? prev = _filteredProductId; var ids = new HashSet<int>();
             using (var cn = new SqlConnection(_connLibra))
-            { await cn.OpenAsync(); var cmd = new SqlCommand(@"SELECT DISTINCT zmt.KodTowaru FROM dbo.ZamowieniaMieso z JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id=zmt.ZamowienieId WHERE z.DataZamowienia=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')", cn); cmd.Parameters.AddWithValue("@D", _selectedDate.Date); using var rd = await cmd.ExecuteReaderAsync(); while (await rd.ReadAsync()) if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0)); }
+            {
+                await cn.OpenAsync();
+                // POPRAWIONE - używamy zwykłej konkatenacji
+                string sql = "SELECT DISTINCT zmt.KodTowaru FROM dbo.ZamowieniaMieso z " +
+                             "JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id=zmt.ZamowienieId " +
+                             $"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+                var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync()) if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0));
+            }
             using (var cn = new SqlConnection(_connHandel))
             { await cn.OpenAsync(); var cmd = new SqlCommand(@"SELECT DISTINCT MZ.idtw FROM HANDEL.HM.MZ MZ JOIN HANDEL.HM.MG ON MZ.super=MG.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data=@D", cn); cmd.Parameters.AddWithValue("@D", _selectedDate.Date); using var rd = await cmd.ExecuteReaderAsync(); while (await rd.ReadAsync()) if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0)); }
             _produktLookup.Clear();
@@ -533,34 +527,35 @@ namespace Kalendarz1
                 for (int i = 0; i < list.Count; i += batch)
                 {
                     using var cn = new SqlConnection(_connHandel); await cn.OpenAsync(); var slice = list.Skip(i).Take(batch).ToList(); var cmd = cn.CreateCommand(); var paramNames = new List<string>(); for (int k = 0; k < slice.Count; k++) { var pn = "@p" + k; cmd.Parameters.AddWithValue(pn, slice[k]); paramNames.Add(pn); }
-                    // Filtr katalog=67095
                     cmd.CommandText = $"SELECT ID,kod FROM HM.TW WHERE ID IN ({string.Join(",", paramNames)}) AND katalog=67095"; using var rd = await cmd.ExecuteReaderAsync(); while (await rd.ReadAsync()) { int id = rd.GetInt32(0); string kod = rd.IsDBNull(1) ? string.Empty : rd.GetString(1); _produktLookup[id] = kod; }
                 }
             }
             var items = new List<ComboItem> { new ComboItem(0, "— Wszystkie —") }; items.AddRange(_produktLookup.OrderBy(k => k.Value).Select(k => new ComboItem(k.Key, k.Value))); cbFiltrProdukt.DataSource = items; if (prev.HasValue && items.Any(i => i.Value == prev.Value)) cbFiltrProdukt.SelectedItem = items.First(i => i.Value == prev.Value); else cbFiltrProdukt.SelectedIndex = 0;
         }
-
         private async Task LoadOrdersAsync()
         {
+            string dateColumn = rbDataUboju.Checked ? "DataUboju" : "DataZamowienia";
+
             _zamowienia.Clear();
             var orderListForGrid = new List<ZamowienieInfo>();
             var klientIdsWithOrder = new HashSet<int>();
 
-            // 1. Load actual orders from LibraNet
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                string sql = @"
-        SELECT 
-            z.Id,
-            z.KlientId, 
-            ISNULL(z.Uwagi,'') AS Uwagi, 
-            ISNULL(z.Status,'Nowe') AS Status,
-            (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id " + (_filteredProductId.HasValue ? " AND t.KodTowaru=@P" : "") + @") AS TotalIlosc,
-            z.DataUtworzenia,
-            z.TransportKursID
-        FROM dbo.ZamowieniaMieso z 
-        WHERE z.DataZamowienia=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+                string sql = "SELECT " +
+                             "z.Id, " +
+                             "z.KlientId, " +
+                             "ISNULL(z.Uwagi,'') AS Uwagi, " +
+                             "ISNULL(z.Status,'Nowe') AS Status, " +
+                             "(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id " +
+                             (_filteredProductId.HasValue ? " AND t.KodTowaru=@P" : "") +
+                             ") AS TotalIlosc, " +
+                             "z.DataUtworzenia, " +
+                             "z.TransportKursID, " +
+                             "CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie " +
+                             "FROM dbo.ZamowieniaMieso z " +
+                             $"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
                 if (_filteredProductId.HasValue)
                 {
@@ -588,14 +583,13 @@ namespace Kalendarz1
                         IsShipmentOnly = false,
                         DataUtworzenia = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
                         MaNotatke = !string.IsNullOrWhiteSpace(uwagi),
-                        // Tymczasowo NULL - wypełnimy w następnym kroku
                         CzasWyjazdu = null,
-                        StatusTransportu = ""
+                        StatusTransportu = "",
+                        MaFolie = !rd.IsDBNull(7) && rd.GetBoolean(7) // POPRAWIONE - GetBoolean zamiast GetInt32
                     };
 
-                    // Zapisz ID kursu transportu jeśli istnieje
                     var transportKursId = rd.IsDBNull(6) ? (long?)null : rd.GetInt64(6);
-                    info.StatusTransportu = transportKursId?.ToString() ?? ""; // Tymczasowo przechowaj ID
+                    info.StatusTransportu = transportKursId?.ToString() ?? "";
 
                     _zamowienia[info.Id] = info;
                     orderListForGrid.Add(info);
@@ -603,7 +597,7 @@ namespace Kalendarz1
                 }
             }
 
-            // 2. Pobierz informacje o kursach z TransportPL - POPRAWIONE
+            // 2. Pobierz informacje o kursach z TransportPL
             var transportConn = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
             var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, string Status, DateTime DataKursu)>();
 
@@ -628,26 +622,26 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                // Jeśli nie można połączyć z bazą transportu, kontynuuj bez tych danych
                 System.Diagnostics.Debug.WriteLine($"Nie można pobrać danych transportu: {ex.Message}");
             }
+
             // 3. Przypisz informacje o kursach do zamówień
-            // 3. Przypisz informacje o kursach do zamówień - POPRAWIONE
             foreach (var orderInfo in orderListForGrid.Where(o => !o.IsShipmentOnly))
             {
                 if (long.TryParse(orderInfo.StatusTransportu, out var kursId) && kursyInfo.TryGetValue(kursId, out var kursInfo))
                 {
                     orderInfo.CzasWyjazdu = kursInfo.CzasWyjazdu;
                     orderInfo.StatusTransportu = kursInfo.Status;
-                    orderInfo.DataKursu = kursInfo.DataKursu; // DODANE
+                    orderInfo.DataKursu = kursInfo.DataKursu;
                 }
                 else
                 {
                     orderInfo.StatusTransportu = "";
-                    orderInfo.DataKursu = null; // DODANE
+                    orderInfo.DataKursu = null;
                 }
             }
-            // 4. Load shipments from Handel (bez zmian)
+
+            // 4. Load shipments from Handel
             var shipments = new List<(int KlientId, decimal Qty)>();
             using (var cn = new SqlConnection(_connHandel))
             {
@@ -685,10 +679,9 @@ namespace Kalendarz1
                         DataUtworzenia = null,
                         MaNotatke = false,
                         CzasWyjazdu = null,
-                        DataKursu = _selectedDate.Date, // DODAJ TO
-
-                        StatusTransportu = "Wydano"
-
+                        DataKursu = _selectedDate.Date,
+                        StatusTransportu = "Wydano",
+                        MaFolie = false
                     };
                     orderListForGrid.Add(info);
                 }
@@ -745,19 +738,16 @@ namespace Kalendarz1
             {
                 if (row.DataBoundItem is ZamowienieInfo info)
                 {
-                    // Jeśli zamówienie jest zrealizowane - standardowe zielone tło, bez dodatkowych kolorów
                     if (info.Status == "Zrealizowane")
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(32, 80, 44);
                         row.DefaultCellStyle.ForeColor = Color.LightGreen;
                     }
-                    // Jeśli to wydanie bez zamówienia - pomarańczowe tło
                     else if (info.IsShipmentOnly)
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(80, 58, 32);
                         row.DefaultCellStyle.ForeColor = Color.Gold;
                     }
-                    // Jeśli zamówienie ma przypisany czas wyjazdu - kolorowanie według terminów
                     else if (info.CzasWyjazdu.HasValue && info.DataKursu.HasValue)
                     {
                         var dataICzasWyjazdu = info.DataKursu.Value.Add(info.CzasWyjazdu.Value);
@@ -766,76 +756,29 @@ namespace Kalendarz1
 
                         if (roznicaCzasu.TotalMinutes < 0)
                         {
-                            // CZERWONY: Termin już minął (spóźnienie)
-                            row.DefaultCellStyle.BackColor = Color.FromArgb(139, 0, 0); // Ciemny czerwony
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(139, 0, 0);
                             row.DefaultCellStyle.ForeColor = Color.White;
                         }
                         else if (roznicaCzasu.TotalMinutes <= 30)
                         {
-                            // ŻÓŁTY: Zostało mniej niż 30 minut
-                            row.DefaultCellStyle.BackColor = Color.FromArgb(218, 165, 32); // Ciemno-żółty/złoty
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(218, 165, 32);
                             row.DefaultCellStyle.ForeColor = Color.Black;
                         }
                         else
                         {
-                            // ZIELONY: Jeszcze dużo czasu
-                            row.DefaultCellStyle.BackColor = Color.FromArgb(34, 139, 34); // Ciemno-zielony
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(34, 139, 34);
                             row.DefaultCellStyle.ForeColor = Color.White;
                         }
                     }
-                    // Standardowe tło dla zamówień bez przypisanego czasu
                     else
                     {
-                        row.DefaultCellStyle.BackColor = Color.FromArgb(55, 57, 70); // Standardowe ciemne tło
+                        row.DefaultCellStyle.BackColor = Color.FromArgb(55, 57, 70);
                         row.DefaultCellStyle.ForeColor = Color.White;
                     }
                 }
             }
 
             UpdateStatsLabel();
-        }
-        // 4. Opcjonalnie - dodaj metodę pomocniczą do pobierania informacji o transporcie
-        private async Task<Dictionary<int, (TimeSpan? CzasWyjazdu, string Status)>> PobierzInfoTransportuAsync(List<int> zamowieniaIds)
-        {
-            var transportInfo = new Dictionary<int, (TimeSpan?, string)>();
-
-            if (zamowieniaIds.Count == 0) return transportInfo;
-
-            try
-            {
-                using var cn = new SqlConnection("Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True");
-                await cn.OpenAsync();
-
-                var sql = @"
-            SELECT 
-                CAST(l.KodKlienta AS INT) as ZamowienieId,
-                k.GodzWyjazdu,
-                k.Status
-            FROM dbo.Ladunek l
-            JOIN dbo.Kurs k ON l.KursID = k.KursID
-            WHERE k.DataKursu = @Data 
-            AND l.KodKlienta IN (" + string.Join(",", zamowieniaIds.Select(id => $"'{id}'")) + ")";
-
-                var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
-
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                {
-                    int zamowienieId = rd.GetInt32(0);
-                    TimeSpan? czasWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
-                    string status = rd.IsDBNull(2) ? "" : rd.GetString(2);
-
-                    transportInfo[zamowienieId] = (czasWyjazdu, status);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log error but don't break the main functionality
-                System.Diagnostics.Debug.WriteLine($"Error loading transport info: {ex.Message}");
-            }
-
-            return transportInfo;
         }
         private async Task LoadPozycjeForSelectedAsync()
         {
@@ -854,7 +797,6 @@ namespace Kalendarz1
             }
 
             txtUwagi.Text = info.Uwagi;
-            // Załaduj notatkę produkcji
             try
             {
                 using var cnProd = new SqlConnection(_connLibra);
@@ -871,11 +813,16 @@ namespace Kalendarz1
             }
             await EnsureNotesTableAsync();
 
-            var orderPositions = new List<(int TowarId, decimal Ilosc, string Notatka)>();
+            // ZMIENIONE - dodano kolumnę Folia
+            var orderPositions = new List<(int TowarId, decimal Ilosc, string Notatka, bool Folia)>();
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                string sql = "SELECT zmt.KodTowaru,zmt.Ilosc, n.Notatka FROM dbo.ZamowieniaMiesoTowar zmt LEFT JOIN dbo.ZamowieniaMiesoTowarNotatki n ON n.ZamowienieId=zmt.ZamowienieId AND n.KodTowaru=zmt.KodTowaru WHERE zmt.ZamowienieId=@Id" + (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
+                string sql = "SELECT zmt.KodTowaru, zmt.Ilosc, n.Notatka, ISNULL(zmt.Folia, 0) AS Folia " +
+                             "FROM dbo.ZamowieniaMiesoTowar zmt " +
+                             "LEFT JOIN dbo.ZamowieniaMiesoTowarNotatki n ON n.ZamowienieId=zmt.ZamowienieId AND n.KodTowaru=zmt.KodTowaru " +
+                             "WHERE zmt.ZamowienieId=@Id" +
+                             (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", info.Id);
                 if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
@@ -885,7 +832,8 @@ namespace Kalendarz1
                     int id = rd.GetInt32(0);
                     decimal il = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
                     string note = rd.IsDBNull(2) ? string.Empty : rd.GetString(2);
-                    orderPositions.Add((id, il, note));
+                    bool folia = !rd.IsDBNull(3) && rd.GetBoolean(3);
+                    orderPositions.Add((id, il, note, folia));
                 }
             }
             var shipments = await GetShipmentsForClientAsync(info.KlientId);
@@ -899,20 +847,47 @@ namespace Kalendarz1
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
+            dt.Columns.Add("Folia", typeof(bool)); // Ukryta kolumna pomocnicza
 
-            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Notatka));
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Notatka, p.Folia));
 
             foreach (var id in ids)
             {
                 mapOrd.TryGetValue(id, out var ord);
                 shipments.TryGetValue(id, out var wyd);
                 string kod = towarMap.TryGetValue(id, out var t) ? t.Kod : $"ID:{id}";
-                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd);
+
+                // Dodaj emoji folii do nazwy produktu jeśli potrzebne
+                if (ord.Folia)
+                {
+                    kod = "🎞️ " + kod;
+                }
+
+                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd, ord.Folia);
             }
             dgvPozycje.DataSource = dt;
+
+            // Ukryj kolumnę Folia (to tylko helper)
+            if (dgvPozycje.Columns["Folia"] != null)
+            {
+                dgvPozycje.Columns["Folia"].Visible = false;
+            }
+
+            // Ustaw kolor wierszy dla pozycji z folią
+            foreach (DataGridViewRow row in dgvPozycje.Rows)
+            {
+                if (row.Cells["Folia"].Value is bool hasFolia && hasFolia)
+                {
+                    // Niebieski wiersz
+                    row.DefaultCellStyle.BackColor = Color.FromArgb(30, 60, 120);
+                    row.DefaultCellStyle.ForeColor = Color.LightCyan;
+                    row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(50, 90, 160);
+                    row.DefaultCellStyle.SelectionForeColor = Color.White;
+                }
+            }
+
             FormatOrderGrid();
         }
-
         private async Task LoadShipmentOnlyAsync(int klientId)
         {
             txtUwagi.Text = "(Wydanie bez zamówienia)";
@@ -988,9 +963,6 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
 
         private async Task AddShipmentsWithoutOrdersAsync(Dictionary<string, TreeNode> handlowiecNodes, List<int> klientIdsZamowien, Dictionary<int, ContractorInfo> loaded)
         {
-            // This method was populating the TreeView. Since we are not using it for shipments without orders in a grid,
-            // I will leave it empty for now to avoid confusion. If you want to see "shipments without orders"
-            // in the new grid, we would need to adjust the logic here.
             await Task.CompletedTask;
         }
 
@@ -1041,7 +1013,6 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
                     }
                 }
 
-                // Separator
                 if (pojData.Any())
                 {
                     dt.Rows.Add("", DBNull.Value, "");
@@ -1062,7 +1033,6 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
 
                 dgvPojTuszki.DataSource = dt;
 
-                // Styling
                 dgvPojTuszki.Columns["Typ"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 dgvPojTuszki.Columns["Typ"].FillWeight = 50;
                 dgvPojTuszki.Columns["Palety"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -1110,7 +1080,6 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
 
             dgvIn0ESumy.DataSource = dt;
             FormatIn0EGrid(dgvIn0ESumy);
-            // lblIn0ERefresh.Text = "Ostatnie odświeżenie: " + DateTime.Now.ToString("HH:mm:ss"); // Usunięto
         }
         private void FormatIn0EGrid(DataGridView g) { if (g.Columns["Kg"] != null) g.Columns["Kg"]!.DefaultCellStyle.Format = "N0"; if (g.Columns["Pal"] != null) g.Columns["Pal"]!.DefaultCellStyle.Format = "N2"; }
         #endregion

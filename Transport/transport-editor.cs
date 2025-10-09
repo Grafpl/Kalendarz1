@@ -30,6 +30,10 @@ namespace Kalendarz1.Transport.Formularze
         private List<KontrahentInfo> _kontrahenci = new List<KontrahentInfo>();
         private Timer _autoUpdateTimer;
 
+        private RadioButton rbDataUboju;
+        private RadioButton rbDataOdbioru;
+        private bool UzywajDataUboju => rbDataUboju?.Checked ?? true;
+
         // Listy do śledzenia zmian
         private List<ZamowienieDoTransportu> _zamowieniaDoDodania = new List<ZamowienieDoTransportu>();
         private List<int> _zamowieniaDoUsuniecia = new List<int>();
@@ -97,8 +101,8 @@ namespace Kalendarz1.Transport.Formularze
             public bool ZmienionyWZamowieniu { get; set; }
             public decimal PoprzedniePalety { get; set; }
             public int PoprzedniePojemniki { get; set; }
+            public DateTime? DataUboju { get; set; }  // NOWE
         }
-
         public class KontrahentInfo
         {
             public int Id { get; set; }
@@ -115,6 +119,7 @@ namespace Kalendarz1.Transport.Formularze
                     : $"{Nazwa} ({Handlowiec}) - {Adres}";
         }
 
+        // 2. Zmodyfikuj klasę ZamowienieDoTransportu - dodaj właściwość:
         public class ZamowienieDoTransportu
         {
             public int ZamowienieId { get; set; }
@@ -126,12 +131,12 @@ namespace Kalendarz1.Transport.Formularze
             public bool TrybE2 { get; set; }
             public DateTime DataPrzyjazdu { get; set; }
             public DateTime DataOdbioru { get; set; }
+            public DateTime? DataUboju { get; set; }  // NOWE
             public string GodzinaStr => DataPrzyjazdu.ToString("HH:mm");
             public string Status { get; set; } = "Nowe";
             public string Handlowiec { get; set; } = "";
             public string Adres { get; set; } = "";
         }
-
         public class DodajKierowceDialog : Form
         {
             public Kierowca NowyKierowca { get; private set; }
@@ -793,14 +798,14 @@ namespace Kalendarz1.Transport.Formularze
             var panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 70,
+                Height = 110,  // Zwiększone z 70 na 110
                 BackColor = Color.FromArgb(248, 249, 252),
                 Padding = new Padding(10, 5, 10, 5)
             };
 
             lblZamowieniaInfo = new Label
             {
-                Text = "WOLNE ZAMÓWIENIA NA DZIEŃ:",
+                Text = "WOLNE ZAMÓWIENIA:",
                 Location = new Point(10, 10),
                 Size = new Size(250, 25),
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -808,9 +813,52 @@ namespace Kalendarz1.Transport.Formularze
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
+            // NOWE: RadioButtony
+            var lblFiltrujPoData = new Label
+            {
+                Text = "Filtruj wg:",
+                Location = new Point(10, 40),
+                Size = new Size(70, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
+            };
+
+            rbDataUboju = new RadioButton
+            {
+                Text = "Data uboju",
+                Location = new Point(85, 40),
+                Size = new Size(100, 20),
+                Checked = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94)
+            };
+            rbDataUboju.CheckedChanged += async (s, e) =>
+            {
+                if (rbDataUboju.Checked && _dataLoaded)
+                {
+                    await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
+                }
+            };
+
+            rbDataOdbioru = new RadioButton
+            {
+                Text = "Data odbioru (stary system)",
+                Location = new Point(195, 40),
+                Size = new Size(180, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            rbDataOdbioru.CheckedChanged += async (s, e) =>
+            {
+                if (rbDataOdbioru.Checked && _dataLoaded)
+                {
+                    await LoadWolneZamowieniaForDate(_dtpZamowienia?.Value ?? dtpData.Value);
+                }
+            };
+
             var dtpZamowienia = new DateTimePicker
             {
-                Location = new Point(10, 35),
+                Location = new Point(10, 70),
                 Size = new Size(150, 26),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
@@ -824,7 +872,7 @@ namespace Kalendarz1.Transport.Formularze
             var btnRefreshZamowienia = new Button
             {
                 Text = "Odśwież",
-                Location = new Point(170, 35),
+                Location = new Point(170, 70),
                 Size = new Size(70, 26),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(52, 152, 219),
@@ -841,7 +889,7 @@ namespace Kalendarz1.Transport.Formularze
             var btnToday = new Button
             {
                 Text = "Dziś",
-                Location = new Point(250, 35),
+                Location = new Point(250, 70),
                 Size = new Size(50, 26),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(108, 117, 125),
@@ -858,7 +906,7 @@ namespace Kalendarz1.Transport.Formularze
 
             var lblLiczbaZamowien = new Label
             {
-                Location = new Point(310, 35),
+                Location = new Point(310, 70),
                 Size = new Size(120, 26),
                 Text = "0 zamówień",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -868,20 +916,21 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             panelHeader.Controls.AddRange(new Control[] {
-                lblZamowieniaInfo,
-                dtpZamowienia,
-                btnRefreshZamowienia,
-                btnToday,
-                lblLiczbaZamowien
-            });
+        lblZamowieniaInfo,
+        lblFiltrujPoData, rbDataUboju, rbDataOdbioru,  // NOWE
+        dtpZamowienia,
+        btnRefreshZamowienia,
+        btnToday,
+        lblLiczbaZamowien
+    });
 
             _dtpZamowienia = dtpZamowienia;
             _lblLiczbaZamowien = lblLiczbaZamowien;
 
             dgvWolneZamowienia = new DataGridView
             {
-                Location = new Point(10, 80),
-                Size = new Size(panel.Width - 20, panel.Height - 140),
+                Location = new Point(10, 120),  // Zmienione z 80 na 120
+                Size = new Size(panel.Width - 20, panel.Height - 180),  // Dostosowane
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -1219,6 +1268,7 @@ namespace Kalendarz1.Transport.Formularze
             dt.Columns.Add("ID", typeof(long));
             dt.Columns.Add("Lp.", typeof(int));
             dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Data uboju", typeof(string));  // NOWE
             dt.Columns.Add("Palety", typeof(decimal));
             dt.Columns.Add("Pojemniki", typeof(int));
             dt.Columns.Add("Adres", typeof(string));
@@ -1259,6 +1309,21 @@ namespace Kalendarz1.Transport.Formularze
                     ladunek.Adres = adres;
                 }
 
+                // NOWE: Pobierz datę uboju dla zamówienia
+                string dataUbojuStr = "---";
+                if (ladunek.KodKlienta?.StartsWith("ZAM_") == true &&
+                    int.TryParse(ladunek.KodKlienta.Substring(4), out int zamId))
+                {
+                    if (!ladunek.DataUboju.HasValue)
+                    {
+                        ladunek.DataUboju = await PobierzDateUbojuAsync(zamId);
+                    }
+                    if (ladunek.DataUboju.HasValue)
+                    {
+                        dataUbojuStr = ladunek.DataUboju.Value.ToString("yyyy-MM-dd");
+                    }
+                }
+
                 string status = "";
                 if (ladunek.ZmienionyWZamowieniu)
                 {
@@ -1269,6 +1334,7 @@ namespace Kalendarz1.Transport.Formularze
                     ladunek.LadunekID,
                     ladunek.Kolejnosc,
                     klientNazwa,
+                    dataUbojuStr,  // NOWE
                     ladunek.Palety,
                     ladunek.PojemnikiE2,
                     adres,
@@ -1285,12 +1351,23 @@ namespace Kalendarz1.Transport.Formularze
                 dgvLadunki.Columns["Lp."].Width = 40;
             if (dgvLadunki.Columns["Klient"] != null)
                 dgvLadunki.Columns["Klient"].Width = 150;
+
+            // NOWE: Kolumna Data uboju
+            if (dgvLadunki.Columns["Data uboju"] != null)
+            {
+                dgvLadunki.Columns["Data uboju"].Width = 85;
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.ForeColor = Color.DarkBlue;
+                dgvLadunki.Columns["Data uboju"].DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
+            }
+
             if (dgvLadunki.Columns["Palety"] != null)
             {
                 dgvLadunki.Columns["Palety"].Width = 70;
                 dgvLadunki.Columns["Palety"].DefaultCellStyle.Format = "N1";
                 dgvLadunki.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             }
+
             if (dgvLadunki.Columns["Pojemniki"] != null)
             {
                 dgvLadunki.Columns["Pojemniki"].Width = 80;
@@ -1326,7 +1403,30 @@ namespace Kalendarz1.Transport.Formularze
             UpdateTrasa();
             await UpdateWypelnienie();
         }
+        // 8. DODAJ nową metodę pomocniczą:
+            private async Task<DateTime?> PobierzDateUbojuAsync(int zamowienieId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
 
+                var sql = "SELECT DataUboju FROM dbo.ZamowieniaMieso WHERE Id = @ZamId";
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+
+                var result = await cmd.ExecuteScalarAsync();
+                if (result != null && result != DBNull.Value)
+                {
+                    return Convert.ToDateTime(result);
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
         private async Task<List<LadunekWithPalety>> LoadLadunkiFromDatabase(long kursId)
         {
             var ladunki = new List<LadunekWithPalety>();
@@ -1392,26 +1492,31 @@ namespace Kalendarz1.Transport.Formularze
                 var dataOd = data.Date;
                 var dataDo = data.Date.AddDays(2);
 
-                var sql = @"
-                    SELECT DISTINCT
-                        zm.Id AS ZamowienieId,
-                        zm.KlientId,
-                        zm.DataPrzyjazdu,
-                        zm.Status,
-                        zm.Uwagi,
-                        ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
-                        ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
-                        ISNULL(zm.TrybE2, 0) AS TrybE2,
-                        SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg,
-                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
-                        zm.DataZamowienia
-                    FROM dbo.ZamowieniaMieso zm
-                    LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
-                    WHERE zm.DataZamowienia >= @DataOd AND zm.DataZamowienia <= @DataDo
-                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                    GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, zm.Uwagi,
-                             zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus, zm.DataZamowienia
-                    ORDER BY zm.DataZamowienia, zm.DataPrzyjazdu";
+                // ZMIENIONE: Dynamiczne wybieranie kolumny
+                string dataKolumna = UzywajDataUboju ? "zm.DataUboju" : "zm.DataZamowienia";
+
+                var sql = $@"
+            SELECT DISTINCT
+                zm.Id AS ZamowienieId,
+                zm.KlientId,
+                zm.DataPrzyjazdu,
+                zm.Status,
+                zm.Uwagi,
+                ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
+                ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
+                ISNULL(zm.TrybE2, 0) AS TrybE2,
+                SUM(ISNULL(zmt.Ilosc, 0)) AS IloscKg,
+                ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
+                zm.DataZamowienia,
+                zm.DataUboju
+            FROM dbo.ZamowieniaMieso zm
+            LEFT JOIN dbo.ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
+            WHERE {dataKolumna} >= @DataOd AND {dataKolumna} <= @DataDo
+              AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
+            GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.Status, zm.Uwagi,
+                     zm.LiczbaPalet, zm.LiczbaPojemnikow, zm.TrybE2, zm.TransportStatus, 
+                     zm.DataZamowienia, zm.DataUboju
+            ORDER BY {dataKolumna}, zm.DataPrzyjazdu";
 
                 using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@DataOd", dataOd);
@@ -1438,7 +1543,8 @@ namespace Kalendarz1.Transport.Formularze
                             Pojemniki = reader.GetInt32(6),
                             TrybE2 = reader.GetBoolean(7),
                             IloscKg = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
-                            DataOdbioru = reader.GetDateTime(10)
+                            DataOdbioru = reader.GetDateTime(10),
+                            DataUboju = reader.IsDBNull(11) ? null : reader.GetDateTime(11)  // NOWE
                         };
                         _wolneZamowienia.Add(zamowienie);
                     }
@@ -1494,7 +1600,8 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (lblZamowieniaInfo != null)
                 {
-                    lblZamowieniaInfo.Text = $"ZAMÓWIENIA {dataOd:yyyy-MM-dd} - {dataDo:yyyy-MM-dd}:";
+                    string tryb = UzywajDataUboju ? "Data uboju" : "Data odbioru";
+                    lblZamowieniaInfo.Text = $"ZAMÓWIENIA ({tryb}):";
                 }
 
                 if (_lblLiczbaZamowien != null)
@@ -1516,11 +1623,13 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
+
         private void ShowZamowieniaInGrid()
         {
             var dt = new DataTable();
             dt.Columns.Add("ID", typeof(int));
             dt.Columns.Add("Data odbioru", typeof(DateTime));
+            dt.Columns.Add("Data uboju", typeof(string));  // NOWE
             dt.Columns.Add("Klient", typeof(string));
             dt.Columns.Add("Godz.", typeof(string));
             dt.Columns.Add("Palety", typeof(decimal));
@@ -1531,9 +1640,14 @@ namespace Kalendarz1.Transport.Formularze
 
             foreach (var zam in _wolneZamowienia.OrderBy(z => z.DataOdbioru).ThenBy(z => z.DataPrzyjazdu))
             {
+                string dataUbojuStr = zam.DataUboju.HasValue
+                    ? zam.DataUboju.Value.ToString("yyyy-MM-dd")
+                    : "---";
+
                 dt.Rows.Add(
                     zam.ZamowienieId,
                     zam.DataOdbioru,
+                    dataUbojuStr,  // NOWE
                     zam.KlientNazwa,
                     zam.GodzinaStr,
                     zam.Palety,
@@ -1548,6 +1662,7 @@ namespace Kalendarz1.Transport.Formularze
 
             if (dgvWolneZamowienia.Columns["ID"] != null)
                 dgvWolneZamowienia.Columns["ID"].Visible = false;
+
             if (dgvWolneZamowienia.Columns["Data odbioru"] != null)
             {
                 dgvWolneZamowienia.Columns["Data odbioru"].Width = 85;
@@ -1555,47 +1670,61 @@ namespace Kalendarz1.Transport.Formularze
                 dgvWolneZamowienia.Columns["Data odbioru"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 dgvWolneZamowienia.Columns["Data odbioru"].DisplayIndex = 0;
             }
+
+            // NOWE: Kolumna Data uboju
+            if (dgvWolneZamowienia.Columns["Data uboju"] != null)
+            {
+                dgvWolneZamowienia.Columns["Data uboju"].Width = 85;
+                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.ForeColor = Color.DarkBlue;
+                dgvWolneZamowienia.Columns["Data uboju"].DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
+                dgvWolneZamowienia.Columns["Data uboju"].DisplayIndex = 1;
+            }
+
             if (dgvWolneZamowienia.Columns["Klient"] != null)
             {
                 dgvWolneZamowienia.Columns["Klient"].Width = 140;
-                dgvWolneZamowienia.Columns["Klient"].DisplayIndex = 1;
+                dgvWolneZamowienia.Columns["Klient"].DisplayIndex = 2;
             }
+
+            // ... reszta konfiguracji kolumn bez zmian, tylko zmień DisplayIndex o +1
             if (dgvWolneZamowienia.Columns["Godz."] != null)
             {
                 dgvWolneZamowienia.Columns["Godz."].Width = 50;
-                dgvWolneZamowienia.Columns["Godz."].DisplayIndex = 2;
+                dgvWolneZamowienia.Columns["Godz."].DisplayIndex = 3;
             }
             if (dgvWolneZamowienia.Columns["Palety"] != null)
             {
                 dgvWolneZamowienia.Columns["Palety"].Width = 60;
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N1";
                 dgvWolneZamowienia.Columns["Palety"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                dgvWolneZamowienia.Columns["Palety"].DisplayIndex = 3;
+                dgvWolneZamowienia.Columns["Palety"].DisplayIndex = 4;
             }
             if (dgvWolneZamowienia.Columns["Pojemniki"] != null)
             {
                 dgvWolneZamowienia.Columns["Pojemniki"].Width = 70;
                 dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                 dgvWolneZamowienia.Columns["Pojemniki"].DefaultCellStyle.ForeColor = Color.Blue;
-                dgvWolneZamowienia.Columns["Pojemniki"].DisplayIndex = 4;
+                dgvWolneZamowienia.Columns["Pojemniki"].DisplayIndex = 5;
             }
             if (dgvWolneZamowienia.Columns["Status"] != null)
             {
                 dgvWolneZamowienia.Columns["Status"].Width = 100;
-                dgvWolneZamowienia.Columns["Status"].DisplayIndex = 5;
+                dgvWolneZamowienia.Columns["Status"].DisplayIndex = 6;
             }
             if (dgvWolneZamowienia.Columns["Handlowiec"] != null)
             {
                 dgvWolneZamowienia.Columns["Handlowiec"].Width = 100;
-                dgvWolneZamowienia.Columns["Handlowiec"].DisplayIndex = 6;
+                dgvWolneZamowienia.Columns["Handlowiec"].DisplayIndex = 7;
             }
             if (dgvWolneZamowienia.Columns["Adres"] != null)
             {
                 dgvWolneZamowienia.Columns["Adres"].Width = 150;
                 dgvWolneZamowienia.Columns["Adres"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                dgvWolneZamowienia.Columns["Adres"].DisplayIndex = 7;
+                dgvWolneZamowienia.Columns["Adres"].DisplayIndex = 8;
             }
 
+            // Kolorowanie wierszy - użyj DataUboju gdy dostępna
             foreach (DataGridViewRow row in dgvWolneZamowienia.Rows)
             {
                 var zamId = Convert.ToInt32(row.Cells["ID"].Value);
@@ -1603,22 +1732,25 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (zamowienie != null)
                 {
-                    var dataOdbioru = zamowienie.DataOdbioru.Date;
+                    var dataDoPorownan = UzywajDataUboju && zamowienie.DataUboju.HasValue
+                        ? zamowienie.DataUboju.Value.Date
+                        : zamowienie.DataOdbioru.Date;
+
                     var dzis = DateTime.Today;
 
-                    if (dataOdbioru == dzis)
+                    if (dataDoPorownan == dzis)
                     {
                         row.DefaultCellStyle.BackColor = Color.White;
                     }
-                    else if (dataOdbioru == dzis.AddDays(1))
+                    else if (dataDoPorownan == dzis.AddDays(1))
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 230);
                     }
-                    else if (dataOdbioru == dzis.AddDays(2))
+                    else if (dataDoPorownan == dzis.AddDays(2))
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(230, 240, 255);
                     }
-                    else if (dataOdbioru < dzis)
+                    else if (dataDoPorownan < dzis)
                     {
                         row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
                         row.DefaultCellStyle.ForeColor = Color.DarkRed;
@@ -1629,20 +1761,9 @@ namespace Kalendarz1.Transport.Formularze
                         row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
                         row.DefaultCellStyle.ForeColor = Color.DarkGreen;
                     }
-
-                    if (row.Cells["Data odbioru"] != null)
-                    {
-                        if (dataOdbioru == dzis)
-                            row.Cells["Data odbioru"].Style.ForeColor = Color.DarkGreen;
-                        else if (dataOdbioru < dzis)
-                            row.Cells["Data odbioru"].Style.ForeColor = Color.Red;
-                        else
-                            row.Cells["Data odbioru"].Style.ForeColor = Color.DarkBlue;
-                    }
                 }
             }
         }
-
         #endregion
 
         #region Operacje na ładunkach
