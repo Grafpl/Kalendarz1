@@ -71,6 +71,8 @@
             checkBoxGroupBySupplier.TabIndex = 120;
             checkBoxGroupBySupplier.Text = "Grupuj";
             checkBoxGroupBySupplier.UseVisualStyleBackColor = true;
+
+
             // 
             // WidokWszystkichDostaw
             // 

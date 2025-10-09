@@ -3169,7 +3169,14 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
         {
             OdswiezDaneGlownejSiatki();
         }
-
+        // Dodaj handler:
+        private void BtnMapa_Click(object? sender, EventArgs e)
+        {
+            using (var mapaForm = new MapaOdbiorcowForm(connectionString, UserID, zaznaczeniHandlowcy))
+            {
+                mapaForm.ShowDialog(this);
+            }
+        }
         private void DataGridViewDokumenty_SelectionChanged(object? sender, EventArgs e)
         {
             if (dataGridViewOdbiorcy.SelectedRows.Count == 0 ||

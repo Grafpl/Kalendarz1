@@ -7,6 +7,10 @@ using System.Data.SqlClient; // Jeśli kompilator nie widzi tych typów – doin
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using SqlConnection = Microsoft.Data.SqlClient.SqlConnection;
+using SqlCommand = Microsoft.Data.SqlClient.SqlCommand;
+using SqlDataAdapter = Microsoft.Data.SqlClient.SqlDataAdapter;
+using SqlDataReader = Microsoft.Data.SqlClient.SqlDataReader;
 
 namespace Kalendarz1
 {

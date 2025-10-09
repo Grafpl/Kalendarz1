@@ -1,4 +1,7 @@
-﻿namespace Kalendarz1
+﻿using System.Drawing;
+using System.Windows.Forms;
+
+namespace Kalendarz1
 {
     partial class WidokFakturSprzedazy
     {
@@ -50,6 +53,22 @@
             panelFilters.SuspendLayout();
             panelPozycjeHeader.SuspendLayout();
             SuspendLayout();
+
+            // W panelFilters dodaj nowy przycisk obok btnRefresh:
+            Button btnMapa = new Button
+            {
+                Text = "🗺 Mapa odbiorców",
+                Location = new Point(1240, 11),  // obok btnRefresh
+                Size = new Size(130, 27),
+                BackColor = ColorTranslator.FromHtml("#e67e22"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnMapa.FlatAppearance.BorderSize = 0;
+            btnMapa.Click += BtnMapa_Click;
+            panelFilters.Controls.Add(btnMapa);
 
             // 
             // panelFilters - Panel górny z filtrami

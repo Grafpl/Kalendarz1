@@ -5,7 +5,10 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
-
+using SqlConnection = Microsoft.Data.SqlClient.SqlConnection;
+using SqlCommand = Microsoft.Data.SqlClient.SqlCommand;
+using SqlDataAdapter = Microsoft.Data.SqlClient.SqlDataAdapter;
+using SqlDataReader = Microsoft.Data.SqlClient.SqlDataReader;
 
 
 namespace Kalendarz1

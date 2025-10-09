@@ -435,7 +435,9 @@ namespace Kalendarz1
 
                     foreach (DataRow row in dt.Rows)
                     {
-                        if (row["Status"].ToString() == "Nowy")
+                        string status = row["Status"]?.ToString() ?? "";
+                        // Zmień pusty, NULL lub "Nowy" na "Do zadzwonienia"
+                        if (string.IsNullOrWhiteSpace(status) || status == "Nowy")
                             row["Status"] = "Do zadzwonienia";
                     }
 
@@ -455,7 +457,6 @@ namespace Kalendarz1
                 WypelnijFiltrWoj();
             }
         }
-
         private void WczytajRankingHandlowcow()
         {
             try
