@@ -1,18 +1,33 @@
-﻿using System;
+﻿using Microsoft.Data.SqlClient;
+using System;
 using System.Windows;
-using Microsoft.Data.SqlClient;
-using System.Windows.Input;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+// USUŃ: using System.Windows.Forms;
 
 namespace Kalendarz1
 {
     public partial class Menu1 : Window
     {
-        private string connectionPermission = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public Menu1()
         {
             InitializeComponent();
+            ApplyModernStyle();
+
+            // Ustaw fokus na pole hasła po załadowaniu
+            this.Loaded += (s, e) => PasswordBox.Focus();
+        }
+
+        private void ApplyModernStyle()
+        {
+            // Nowoczesny styl dla okna logowania
+            this.Background = new LinearGradientBrush(
+                Color.FromRgb(41, 53, 65),
+                Color.FromRgb(31, 43, 55),
+                90);
         }
 
         private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
@@ -25,77 +40,109 @@ namespace Kalendarz1
 
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            NazwaZiD databaseManager = new NazwaZiD();
-            string username = PasswordBox.Password; // Pobierz hasło z PasswordBox
+            string username = PasswordBox.Password;
 
-            // Ensure that the username field is not empty
+            // Sprawdź czy pole nie jest puste
             if (string.IsNullOrWhiteSpace(username))
             {
-                MessageBox.Show("Please enter a username.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowError("Wprowadź ID użytkownika");
                 return;
             }
 
-            // Check the username in the database
-            using (SqlConnection connection = new SqlConnection(connectionPermission))
+            // Sprawdź użytkownika w bazie
+            if (ValidateUser(username))
             {
-                connection.Open();
-                string query = "SELECT COUNT(*) FROM operators WHERE ID = @username";
-                using (SqlCommand command = new SqlCommand(query, connection))
+                // Ustaw ID użytkownika
+                App.UserID = username;
+
+                try
                 {
-                    command.Parameters.AddWithValue("@username", username);
-                    int count = Convert.ToInt32(command.ExecuteScalar());
-                    if (count > 0)
-                    {
-                        // Set the user ID
-                        App.UserID = username;
+                    // WAŻNE: Najpierw ukryj okno logowania
+                    this.Hide();
 
-                        // Wybór menu na podstawie loginu
-                        if (username == "11111")
-                        {
-                            MENU menuWindow = new MENU();
-                            menuWindow.Show();
-                        }
-                        else if (username == "2121" || username == "1122" || username == "2322" )
-                        {
-                            MenuZakup menuZakup = new MenuZakup();
-                            menuZakup.Show();
-                        }
-                        else if (username == "2020")
-                        {
-                            MenuPojemniki menuPojemniki = new MenuPojemniki();
-                            menuPojemniki.Show();
-                        }
-                        else if (username == "51991")
-                        {
-                            MenuTransport menuTransport = new MenuTransport();
-                            menuTransport.Show();
-                        }
-                        else if (username == "6900" || username == "9741" || username == "1199" || username == "1199" || username == "6622" || username == "9911") 
-                        {
-                            MenuProdukcja menuprodukcja = new MenuProdukcja();
-                            menuprodukcja.Show(); 
-                        }
-                        else
-                        {
-                            MenuSprzedaz menuSprzedaz = new MenuSprzedaz();
-                            menuSprzedaz.Show();
-                        }
+                    // Utwórz okno MENU
+                    MENU menuWindow = new MENU();
 
-                        // Ukryj obecne okno Menu1
-                        this.Hide();
-                    }
-                    else
+                    // Obsłuż zamknięcie menu - wtedy zamknij aplikację
+                    menuWindow.FormClosed += (s, args) =>
                     {
-                        MessageBox.Show("Błędny login.", "Login Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        Application.Current.Shutdown();
+                    };
+
+                    // Pokaż menu
+                    menuWindow.Show();
+                }
+                catch (Exception ex)
+                {
+                    this.Show(); // Pokaż z powrotem okno logowania jeśli błąd
+                    MessageBox.Show($"Błąd podczas otwierania menu:\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                ShowError("Nieprawidłowy ID użytkownika");
+                PasswordBox.Clear();
+                PasswordBox.Focus();
+            }
+        }
+        private bool ValidateUser(string userId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT COUNT(*) FROM operators WHERE ID = @username";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@username", userId);
+                        int count = Convert.ToInt32(command.ExecuteScalar());
+                        return count > 0;
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                ShowError($"Błąd połączenia z bazą danych:\n{ex.Message}");
+                return false;
+            }
+        }
+
+        private void ShowError(string message)
+        {
+            MessageBox.Show(message, "Błąd logowania",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            // Close the login window without setting DialogResult
-            Close();
+            // Potwierdź zamknięcie
+            var result = MessageBox.Show(
+                "Czy na pewno chcesz zamknąć aplikację?",
+                "Potwierdzenie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                Application.Current.Shutdown();
+            }
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Umożliwia przesuwanie okna
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
         }
     }
 }

@@ -5,18 +5,265 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Kalendarz1"
         mc:Ignorable="d"
-        Title="Menu1" Height="223" Width="299"
-        WindowStartupLocation="CenterScreen">
-    <Grid>
-        <!-- Zamieniono TextBox na PasswordBox -->
-        <PasswordBox x:Name="PasswordBox" HorizontalAlignment="Center" Margin="0,122,0,0" VerticalAlignment="Top" Width="120" KeyDown="PasswordBox_KeyDown"/>
+        Title="System Zarządzania - Logowanie" 
+        Height="500" 
+        Width="420"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
 
-        <Label Content="Login" HorizontalAlignment="Center" Margin="0,98,0,0" VerticalAlignment="Top"/>
+    <Border CornerRadius="15" Background="White">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" Direction="0" RenderingBias="Quality" 
+                            ShadowDepth="0" Color="Black" Opacity="0.3"/>
+        </Border.Effect>
 
-        <Button Content="Zaloguj" HorizontalAlignment="Left" Margin="56,156,0,0" VerticalAlignment="Top" Width="74" Click="LoginButton_Click" x:Name="LoginButton"/>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <Button Content="Anuluj" HorizontalAlignment="Left" Margin="175,156,0,0" VerticalAlignment="Top" Width="74" Click="CancelButton_Click"/>
+            <!-- Pasek tytułu -->
+            <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="15,15,0,0" 
+                    MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="System Zarządzania ProNova" 
+                              Foreground="#333333" 
+                              FontFamily="Segoe UI" 
+                              FontSize="13" 
+                              FontWeight="SemiBold"
+                              VerticalAlignment="Center" 
+                              Margin="20,0,0,0"/>
 
-        <Image HorizontalAlignment="Center" Height="100" VerticalAlignment="Top" Width="100" Source="/Screenshot_8.jpg"/>
-    </Grid>
+                    <!-- Przycisk zamknięcia -->
+                    <Button x:Name="CloseButton" 
+                           Content="✕" 
+                           Click="CloseButton_Click"
+                           HorizontalAlignment="Right" 
+                           VerticalAlignment="Center"
+                           Margin="0,0,15,0"
+                           Width="30" 
+                           Height="30"
+                           Background="Transparent"
+                           Foreground="#666666"
+                           BorderThickness="0"
+                           FontSize="18"
+                           FontFamily="Segoe UI Light"
+                           Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" 
+                                                   CornerRadius="5">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#FFE5E5"/>
+                                        <Setter Property="Foreground" Value="#E53935"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Główna zawartość -->
+            <Grid Grid.Row="1" Margin="50,30,50,40">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Logo -->
+                <Border Grid.Row="0" 
+                       Width="100" 
+                       Height="100" 
+                       CornerRadius="50"
+                       Background="#F0F0F0"
+                       Margin="0,0,0,25"
+                       HorizontalAlignment="Center">
+                    <Image Source="/Screenshot_8.jpg" 
+                          Margin="20"
+                          RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Border>
+
+                <!-- Tytuł -->
+                <TextBlock Grid.Row="1" 
+                          Text="Witaj w systemie" 
+                          HorizontalAlignment="Center" 
+                          FontSize="26" 
+                          FontWeight="Light"
+                          FontFamily="Segoe UI Light"
+                          Foreground="#333333"
+                          Margin="0,0,0,5"/>
+
+                <TextBlock Grid.Row="2" 
+                          Text="Zaloguj się do swojego konta" 
+                          HorizontalAlignment="Center" 
+                          FontSize="13"
+                          FontFamily="Segoe UI"
+                          Foreground="#999999"
+                          Margin="0,0,0,30"/>
+
+                <!-- Pole ID użytkownika -->
+                <TextBlock Grid.Row="3" 
+                          Text="ID UŻYTKOWNIKA" 
+                          FontFamily="Segoe UI" 
+                          FontSize="11"
+                          FontWeight="SemiBold"
+                          Foreground="#666666"
+                          Margin="0,0,0,8"/>
+
+                <Border Grid.Row="4" 
+                       BorderBrush="#E0E0E0" 
+                       BorderThickness="1"
+                       CornerRadius="8"
+                       Height="48"
+                       Margin="0,0,0,25">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="#2196F3"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" 
+                                  Text="👤" 
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center"
+                                  FontSize="18"
+                                  Foreground="#999999"/>
+
+                        <PasswordBox Grid.Column="1" 
+                                    x:Name="PasswordBox" 
+                                    FontSize="14"
+                                    FontFamily="Segoe UI"
+                                    Foreground="#333333"
+                                    VerticalContentAlignment="Center"
+                                    BorderThickness="0"
+                                    Background="Transparent"
+                                    KeyDown="PasswordBox_KeyDown"/>
+                    </Grid>
+                </Border>
+
+                <!-- Przyciski -->
+                <Grid Grid.Row="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="15"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Przycisk Zaloguj -->
+                    <Button Grid.Column="0" 
+                           Content="ZALOGUJ" 
+                           Height="48" 
+                           Click="LoginButton_Click" 
+                           x:Name="LoginButton"
+                           Background="#2196F3"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           FontFamily="Segoe UI"
+                           FontSize="13"
+                           BorderThickness="0"
+                           Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" 
+                                                   CornerRadius="8">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#1E88E5"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter Property="Background" Value="#1976D2"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Przycisk Anuluj -->
+                    <Button Grid.Column="2" 
+                           Content="ANULUJ" 
+                           Height="48" 
+                           Click="CancelButton_Click"
+                           Background="#F5F5F5"
+                           Foreground="#666666"
+                           FontWeight="SemiBold"
+                           FontFamily="Segoe UI"
+                           FontSize="13"
+                           BorderThickness="0"
+                           Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" 
+                                                   CornerRadius="8">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#EEEEEE"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter Property="Background" Value="#E0E0E0"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <!-- Footer -->
+                <TextBlock Grid.Row="6" 
+                          Text="© 2025 ProNova System" 
+                          HorizontalAlignment="Center" 
+                          VerticalAlignment="Bottom"
+                          Foreground="#CCCCCC"
+                          FontFamily="Segoe UI"
+                          FontSize="10"/>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

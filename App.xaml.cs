@@ -6,6 +6,12 @@ namespace Kalendarz1
     {
         public static string UserID { get; set; }
 
-        // Reszta kodu klasy App...
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
+
+            Menu1 loginWindow = new Menu1();
+            loginWindow.Show();
+        }
     }
 }
