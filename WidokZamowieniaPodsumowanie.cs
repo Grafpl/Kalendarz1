@@ -1,10 +1,13 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 9.1 – Dodano tryb wyświetlania po dacie uboju i kolumnę DataUboju
+// WERSJA 9.2 – Pełna refaktoryzacja widoku i logiki podsumowań
 // Zmiany:
-// - Radio buttony do wyboru między datą odbioru a datą uboju
-// - Kolumna DataUboju z czerwonym "Brak informacji" gdy NULL
-// - Dynamiczne filtrowanie według wybranego trybu
-// - Automatyczne odświeżanie po zmianie trybu
+// - Zmiana domyślnego sortowania na Handlowiec -> Ilość
+// - Usunięcie wiersza 'PLAN' z głównej tabeli
+// - Przebudowa tabeli agregacji (Podsumowanie produktów)
+// - Dodanie kolumny 'Folia' w szczegółach zamówienia
+// - Usunięcie panelu 'Przychody towaru'
+// - Automatyczne odświeżanie po zmianie towaru
+// - Domyślne zaznaczenie 'Data uboju'
 
 #nullable enable
 using Microsoft.Data.SqlClient;
@@ -108,7 +111,6 @@ namespace Kalendarz1
                     clbDays.SetItemChecked(i, false);
             };
 
-            // Nowy checkbox dla kopiowania notatek
             chkCopyNotes = new CheckBox
             {
                 Text = "Kopiuj notatkę z oryginalnego zamówienia",
@@ -174,14 +176,12 @@ namespace Kalendarz1
             var current = dtpStartDate.Value.Date;
             while (current <= dtpEndDate.Value.Date)
             {
-                // Domyślnie ODZNACZONE
                 clbDays.Items.Add(current, false);
                 current = current.AddDays(1);
             }
         }
     }
 
-    // Pozostałe dialogi bez zmian (CykliczneZamowieniaDialog, NotatkiDialog)
     public class CykliczneZamowieniaDialog : Form
     {
         public List<DateTime> SelectedDays { get; private set; } = new();
@@ -453,9 +453,9 @@ namespace Kalendarz1
         private DateTime _selectedDate;
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
-        private Button btnDodajNotatke; // Deklaracja przycisku Notatka
-        private bool _pokazujPoDatachUboju = false; // Tryb wyświetlania: false = data odbioru, true = data uboju
-        private bool _dataUbojuKolumnaIstnieje = true; // Czy kolumna DataUboju istnieje w bazie
+        private Button btnDodajNotatke;
+        private bool _pokazujPoDatachUboju = true; // Zmieniono domyślny tryb na true
+        private bool _dataUbojuKolumnaIstnieje = true;
 
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
@@ -477,7 +477,6 @@ namespace Kalendarz1
             InitializeComponent();
             Load += WidokZamowieniaPodsumowanie_Load;
 
-            // Utwórz przycisk Notatka jeśli nie istnieje
             if (btnDodajNotatke == null)
             {
                 btnDodajNotatke = new Button();
@@ -487,16 +486,10 @@ namespace Kalendarz1
                 panelNawigacja.Controls.Add(btnDodajNotatke);
             }
 
-            // Przycisk Usuń widoczny tylko dla admina
             btnUsun.Visible = false;
-
-            // Przycisk Cykliczne widoczny dla wszystkich
             btnCykliczne.Visible = true;
 
-            if (dgvPojTuszki != null)
-            {
-                nazwaZiD.PokazPojTuszki(dgvPojTuszki);
-            }
+         
         }
 
         private async void WidokZamowieniaPodsumowanie_Load(object? sender, EventArgs e)
@@ -505,32 +498,19 @@ namespace Kalendarz1
             UstawPrzyciskiDniTygodnia();
             ApplyModernUI();
 
-            // Dodaj obsługę zmiany rozmiaru okna
             this.SizeChanged += (s, ev) => ApplyModernUI();
 
-            if (dgvPojTuszki == null)
-            {
-                dgvPojTuszki = new DataGridView();
-                dgvPojTuszki.Name = "dgvPojTuszki";
-                dgvPojTuszki.Height = 110;
-                dgvPojTuszki.Dock = DockStyle.Bottom;
-                dgvPojTuszki.ReadOnly = true;
-                dgvPojTuszki.AllowUserToAddRows = false;
-                dgvPojTuszki.AllowUserToDeleteRows = false;
-                dgvPojTuszki.RowHeadersVisible = false;
-                panelPrzychody.Controls.Add(dgvPojTuszki);
-                panelPrzychody.Controls.SetChildIndex(dgvPojTuszki, 0);
-            }
+         
 
             SzybkiGrid(dgvZamowienia);
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
-            SzybkiGrid(dgvPrzychody);
-            SzybkiGrid(dgvPojTuszki);
+            // SzybkiGrid(dgvPrzychody); // Usunięto
+
 
             btnUsun.Visible = (UserID == "11111");
-            btnCykliczne.Visible = true; // Widoczny dla wszystkich
-            nazwaZiD.PokazPojTuszki(dgvPojTuszki);
+            btnCykliczne.Visible = true;
+
 
             await ZaladujDanePoczatkoweAsync();
             await OdswiezWszystkieDaneAsync();
@@ -538,14 +518,11 @@ namespace Kalendarz1
 
         private void ApplyModernUI()
         {
-            // Tło formularza
             this.BackColor = Color.FromArgb(245, 247, 250);
 
-            // Panel nawigacji
             panelNawigacja.BackColor = Color.White;
             panelNawigacja.Paint += (s, e) =>
             {
-                // Cień na dole panelu
                 using (var brush = new LinearGradientBrush(
                     new Rectangle(0, panelNawigacja.Height - 3, panelNawigacja.Width, 3),
                     Color.FromArgb(40, Color.Black),
@@ -556,59 +533,44 @@ namespace Kalendarz1
                 }
             };
 
-            // Ustawienia responsywne
             bool isCompact = this.Width < 1400;
             int btnWidth = isCompact ? 75 : 95;
             int btnHeight = isCompact ? 35 : 40;
             Font btnFont = new Font("Segoe UI", isCompact ? 8f : 9f, FontStyle.Bold);
 
-            // Stylizacja przycisków akcji - używamy TEKSTU zamiast emoji
-            StyleActionButton(btnNoweZamowienie, Color.FromArgb(46, 204, 113),
-                isCompact ? "+ Nowe" : "+ Nowe", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnModyfikuj, Color.FromArgb(52, 152, 219),
-                isCompact ? "Modyfikuj" : "✏ Modyfikuj", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnDuplikuj, Color.FromArgb(155, 89, 182),
-                isCompact ? "Duplikuj" : "⧉ Duplikuj", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnCykliczne, Color.FromArgb(230, 126, 34),
-                isCompact ? "Cykliczne" : "⟲ Cykliczne", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnDodajNotatke, Color.FromArgb(241, 196, 15),
-                isCompact ? "Notatka" : "✎ Notatka", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnAnuluj, Color.FromArgb(231, 76, 60),
-                isCompact ? "Anuluj" : "✕ Anuluj", btnWidth, btnHeight, btnFont);
-            StyleActionButton(btnOdswiez, Color.FromArgb(149, 165, 166),
-                isCompact ? "Odśwież" : "⟲ Odśwież", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnNoweZamowienie, Color.FromArgb(46, 204, 113), isCompact ? "+ Nowe" : "+ Nowe", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnModyfikuj, Color.FromArgb(52, 152, 219), isCompact ? "Modyfikuj" : "✏ Modyfikuj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnDuplikuj, Color.FromArgb(155, 89, 182), isCompact ? "Duplikuj" : "⧉ Duplikuj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnCykliczne, Color.FromArgb(230, 126, 34), isCompact ? "Cykliczne" : "⟲ Cykliczne", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnDodajNotatke, Color.FromArgb(241, 196, 15), isCompact ? "Notatka" : "✎ Notatka", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnAnuluj, Color.FromArgb(231, 76, 60), isCompact ? "Anuluj" : "✕ Anuluj", btnWidth, btnHeight, btnFont);
+            StyleActionButton(btnOdswiez, Color.FromArgb(149, 165, 166), isCompact ? "Odśwież" : "⟲ Odśwież", btnWidth, btnHeight, btnFont);
 
             if (btnUsun.Visible)
             {
-                StyleActionButton(btnUsun, Color.FromArgb(44, 62, 80),
-                    isCompact ? "Usuń" : "✕ Usuń", btnWidth, btnHeight, btnFont);
+                StyleActionButton(btnUsun, Color.FromArgb(44, 62, 80), isCompact ? "Usuń" : "✕ Usuń", btnWidth, btnHeight, btnFont);
             }
 
-            // NOWY UKŁAD - nawigacja tygodnia po LEWEJ stronie
-            // Pozycja strzałek i etykiety daty (lewy róg)
             btnTydzienPrev.Location = new Point(10, 12);
             btnTydzienPrev.Size = new Size(40, 40);
 
             lblZakresDat.Location = new Point(55, 9);
             lblZakresDat.Size = new Size(90, 49);
             lblZakresDat.TextAlign = ContentAlignment.MiddleCenter;
-            lblZakresDat.Font = new Font("Segoe UI", 8f, FontStyle.Regular); // Mniejsza czcionka dla dat
+            lblZakresDat.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
 
             btnTydzienNext.Location = new Point(150, 12);
             btnTydzienNext.Size = new Size(40, 40);
 
-            // Panel dni tygodnia - ZWIĘKSZONA SZEROKOŚĆ dla 7 dni
-            panelDni.Width = 560; // Zwiększone z 490 na 560 (7 dni x 80px)
+            panelDni.Width = 560;
             panelDni.Height = 52;
             panelDni.Location = new Point(200, 6);
             panelDni.AutoSize = false;
 
-            // Stylizacja przycisków dni tygodnia - upewnij się że wszystkie 7 jest widocznych
             int dayButtonWidth = 75;
             int dayButtonHeight = 45;
             int daySpacing = 5;
 
-            // Ustaw przyciski dni ręcznie aby mieć pewność że wszystkie są widoczne
             if (_dayButtons.Count >= 7)
             {
                 for (int i = 0; i < 7; i++)
@@ -620,15 +582,13 @@ namespace Kalendarz1
                     btn.FlatAppearance.BorderSize = 0;
                     btn.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
                     btn.Cursor = Cursors.Hand;
-                    btn.Visible = true; // Upewnij się że jest widoczny
+                    btn.Visible = true;
                 }
             }
 
-            // Układanie przycisków akcji po PRAWEJ stronie (od prawej do lewej)
             int spacing = 5;
             int currentX = panelNawigacja.Width - btnWidth - 10;
 
-            // Układaj od prawej do lewej
             btnOdswiez.Location = new Point(currentX, 12);
             btnOdswiez.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             currentX -= (btnWidth + spacing);
@@ -666,13 +626,11 @@ namespace Kalendarz1
                 btnUsun.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             }
 
-            // Stylizacja filtrów
             panelFiltry.BackColor = Color.FromArgb(236, 240, 241);
             txtFiltrujOdbiorce.BorderStyle = BorderStyle.FixedSingle;
             cbFiltrujHandlowca.FlatStyle = FlatStyle.Flat;
             cbFiltrujTowar.FlatStyle = FlatStyle.Flat;
 
-            // Stylizacja podsumowania
             panelPodsumowanie.BackColor = Color.FromArgb(44, 62, 80);
             lblPodsumowanie.ForeColor = Color.White;
             lblPodsumowanie.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
@@ -689,22 +647,17 @@ namespace Kalendarz1
             btn.Cursor = Cursors.Hand;
             btn.Size = new Size(width, height);
 
-            // Efekt hover
-            var handlers = btn.GetType().GetProperty("Events",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var handlers = btn.GetType().GetProperty("Events", BindingFlags.NonPublic | BindingFlags.Instance);
             if (handlers != null)
             {
                 var eventList = handlers.GetValue(btn, null);
                 if (eventList != null)
                 {
-                    var mouseEnterField = btn.GetType().GetField("EventMouseEnter",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                    var mouseLeaveField = btn.GetType().GetField("EventMouseLeave",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                    var mouseEnterField = btn.GetType().GetField("EventMouseEnter", BindingFlags.NonPublic | BindingFlags.Static);
+                    var mouseLeaveField = btn.GetType().GetField("EventMouseLeave", BindingFlags.NonPublic | BindingFlags.Static);
 
                     if (mouseEnterField != null && mouseLeaveField != null)
                     {
-                        // Usuń istniejące handlery
                         var mouseEnterKey = mouseEnterField.GetValue(null);
                         var mouseLeaveKey = mouseLeaveField.GetValue(null);
                         var removeMethod = eventList.GetType().GetMethod("RemoveHandler");
@@ -717,7 +670,6 @@ namespace Kalendarz1
                 }
             }
 
-            // Dodaj nowe handlery
             btn.MouseEnter -= BtnMouseEnter;
             btn.MouseLeave -= BtnMouseLeave;
             btn.MouseEnter += BtnMouseEnter;
@@ -742,53 +694,24 @@ namespace Kalendarz1
         }
 
         #region Helpers
-        private static string SafeString(IDataRecord r, int i)
-            => r.IsDBNull(i) ? string.Empty : Convert.ToString(r.GetValue(i)) ?? string.Empty;
-
-        private static int? SafeInt32N(IDataRecord r, int i)
-            => r.IsDBNull(i) ? (int?)null : Convert.ToInt32(r.GetValue(i));
-
-        private static DateTime? SafeDateTimeN(IDataRecord r, int i)
-            => r.IsDBNull(i) ? (DateTime?)null : Convert.ToDateTime(r.GetValue(i));
-
-        private static decimal SafeDecimal(IDataRecord r, int i)
-        {
-            if (r.IsDBNull(i)) return 0m;
-            return Convert.ToDecimal(r.GetValue(i));
-        }
-
+        private static string SafeString(IDataRecord r, int i) => r.IsDBNull(i) ? string.Empty : Convert.ToString(r.GetValue(i)) ?? string.Empty;
+        private static int? SafeInt32N(IDataRecord r, int i) => r.IsDBNull(i) ? (int?)null : Convert.ToInt32(r.GetValue(i));
+        private static DateTime? SafeDateTimeN(IDataRecord r, int i) => r.IsDBNull(i) ? (DateTime?)null : Convert.ToDateTime(r.GetValue(i));
+        private static decimal SafeDecimal(IDataRecord r, int i) => r.IsDBNull(i) ? 0m : Convert.ToDecimal(r.GetValue(i));
         private static object DbOrNull(DateTime? dt) => dt.HasValue ? dt.Value : DBNull.Value;
         private static object DbOrNull(object? v) => v ?? DBNull.Value;
-
-        private static decimal ReadDecimal(IDataRecord r, int i)
-        {
-            if (r.IsDBNull(i)) return 0m;
-            return Convert.ToDecimal(r.GetValue(i));
-        }
-
-        private static string AsString(IDataRecord r, int i)
-        {
-            if (r.IsDBNull(i)) return "";
-            return Convert.ToString(r.GetValue(i)) ?? "";
-        }
-
-        private static bool IsKurczakB(string kod)
-            => kod.IndexOf("Kurczak B", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        private static bool IsKurczakA(string kod)
-            => kod.IndexOf("Kurczak A", StringComparison.OrdinalIgnoreCase) >= 0;
+        private static decimal ReadDecimal(IDataRecord r, int i) => r.IsDBNull(i) ? 0m : Convert.ToDecimal(r.GetValue(i));
+        private static string AsString(IDataRecord r, int i) => r.IsDBNull(i) ? "" : Convert.ToString(r.GetValue(i)) ?? "";
+        private static bool IsKurczakB(string kod) => kod.IndexOf("Kurczak B", StringComparison.OrdinalIgnoreCase) >= 0;
+        private static bool IsKurczakA(string kod) => kod.IndexOf("Kurczak A", StringComparison.OrdinalIgnoreCase) >= 0;
         #endregion
 
         #region Inicjalizacja i UI
         private void UstawPrzyciskiDniTygodnia()
         {
-            // Upewnij się, że lista jest pusta przed dodaniem
             _dayButtons.Clear();
-
-            // Dodaj wszystkie 7 przycisków dni tygodnia
             _dayButtons.AddRange(new[] { btnPon, btnWt, btnSr, btnCzw, btnPt, btnSo, btnNd });
 
-            // Sprawdź czy wszystkie przyciski istnieją
             for (int i = 0; i < _dayButtons.Count; i++)
             {
                 if (_dayButtons[i] == null)
@@ -797,7 +720,6 @@ namespace Kalendarz1
                 }
             }
 
-            // Dodaj event handler dla każdego przycisku
             foreach (var btn in _dayButtons)
             {
                 if (btn != null)
@@ -830,12 +752,10 @@ namespace Kalendarz1
             dgv.EnableHeadersVisualStyles = false;
             dgv.ReadOnly = true;
 
-            // Alternating row colors
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
 
-            // Dodaj obsługę podwójnego kliknięcia dla dgvZamowienia
             if (dgv == dgvZamowienia)
             {
                 dgv.CellDoubleClick += dgvZamowienia_CellDoubleClick;
@@ -849,8 +769,7 @@ namespace Kalendarz1
         {
             try
             {
-                var pi = c.GetType().GetProperty("DoubleBuffered",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var pi = c.GetType().GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
                 pi?.SetValue(c, true, null);
             }
             catch { }
@@ -871,7 +790,6 @@ namespace Kalendarz1
         private async void btnTydzienPrev_Click(object? sender, EventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(-7);
-            // Ustaw poniedziałek jako domyślny dzień przy zmianie tygodnia
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             _selectedDate = _selectedDate.AddDays(-delta);
             AktualizujDatyPrzyciskow();
@@ -881,7 +799,6 @@ namespace Kalendarz1
         private async void btnTydzienNext_Click(object? sender, EventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(7);
-            // Ustaw poniedziałek jako domyślny dzień przy zmianie tygodnia
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             _selectedDate = _selectedDate.AddDays(-delta);
             AktualizujDatyPrzyciskow();
@@ -893,18 +810,14 @@ namespace Kalendarz1
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             DateTime startOfWeek = _selectedDate.AddDays(-delta);
 
-            // Wyświetl zakres dat w dwóch liniach
             lblZakresDat.Text = $"{startOfWeek:dd.MM.yyyy}\n{startOfWeek.AddDays(6):dd.MM.yyyy}";
             lblZakresDat.TextAlign = ContentAlignment.MiddleCenter;
 
-            // Debug - sprawdź ile przycisków mamy
             if (_dayButtons.Count != 7)
             {
-                MessageBox.Show($"Uwaga: Mamy tylko {_dayButtons.Count} przycisków dni zamiast 7!",
-                    "Problem z przyciskami dni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Uwaga: Mamy tylko {_dayButtons.Count} przycisków dni zamiast 7!", "Problem z przyciskami dni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
-            // Nazwy dni
             string[] dniNazwy = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
             for (int i = 0; i < Math.Min(7, _dayButtons.Count); i++)
@@ -912,14 +825,11 @@ namespace Kalendarz1
                 var dt = startOfWeek.AddDays(i);
                 var btn = _dayButtons[i];
 
-                if (btn == null)
-                {
-                    continue;
-                }
+                if (btn == null) continue;
 
                 btn.Tag = dt;
                 btn.Text = $"{dniNazwy[i]}\n{dt:dd.MM}";
-                btn.Visible = true; // Upewnij się, że przycisk jest widoczny
+                btn.Visible = true;
 
                 if (dt.Date == _selectedDate.Date)
                 {
@@ -938,7 +848,6 @@ namespace Kalendarz1
                 }
             }
 
-            // Jeśli mamy mniej niż 7 przycisków, spróbuj utworzyć brakujące
             if (_dayButtons.Count < 7)
             {
                 CreateMissingDayButtons();
@@ -986,8 +895,7 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, aby je wybrać.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, aby je wybrać.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -1002,8 +910,7 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -1029,15 +936,13 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dlg.Notatka) ? DBNull.Value : dlg.Notatka);
                     await cmd.ExecuteNonQueryAsync();
 
-                    MessageBox.Show("Notatka została zapisana.", "Sukces",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Notatka została zapisana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     await WyswietlSzczegolyZamowieniaAsync(id);
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}", "Błąd",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -1046,13 +951,11 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, które chcesz anulować.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, które chcesz anulować.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.",
-                "Potwierdź anulowanie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź anulowanie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 try
@@ -1068,14 +971,20 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
 
-        private void Filtry_Changed(object? sender, EventArgs e)
+        private async void Filtry_Changed(object? sender, EventArgs e)
         {
+            // Natychmiastowe odświeżenie po zmianie towaru w ComboBox
+            if (sender == cbFiltrujTowar)
+            {
+                await OdswiezWszystkieDaneAsync();
+                return;
+            }
+
             ZastosujFiltry();
             AktualizujPodsumowanieDnia();
         }
@@ -1084,8 +993,7 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie do duplikacji.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie do duplikacji.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -1111,8 +1019,7 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}", "Błąd",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -1132,10 +1039,7 @@ namespace Kalendarz1
                 decimal liczbaPalet = 0m;
                 bool trybE2 = false;
 
-                // Pobierz dane źródłowego zamówienia
-                using (var cmd = new SqlCommand(
-                    @"SELECT KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2 
-                      FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
+                using (var cmd = new SqlCommand(@"SELECT KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2 FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
                 {
                     cmd.Parameters.AddWithValue("@Id", sourceId);
                     using var reader = await cmd.ExecuteReaderAsync();
@@ -1154,17 +1058,12 @@ namespace Kalendarz1
                 var cmdGetId = new SqlCommand("SELECT ISNULL(MAX(Id),0)+1 FROM ZamowieniaMieso", cn, tr);
                 int newId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
-                // Dodaj nowe zamówienie
-                var cmdInsert = new SqlCommand(
-                    @"INSERT INTO ZamowieniaMieso (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
-                      LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
-                      VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
+                var cmdInsert = new SqlCommand(@"INSERT INTO ZamowieniaMieso (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
                 cmdInsert.Parameters.AddWithValue("@id", newId);
                 cmdInsert.Parameters.AddWithValue("@dz", targetDate.Date);
                 cmdInsert.Parameters.AddWithValue("@dp", godzinaPrzyjazdu);
                 cmdInsert.Parameters.AddWithValue("@kid", klientId);
 
-                // Kopiuj notatkę tylko jeśli użytkownik tego chce
                 string finalNotes = copyNotes && !string.IsNullOrEmpty(uwagi) ? uwagi : "";
                 cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrEmpty(finalNotes) ? DBNull.Value : finalNotes);
 
@@ -1174,12 +1073,7 @@ namespace Kalendarz1
                 cmdInsert.Parameters.AddWithValue("@e2", trybE2);
                 await cmdInsert.ExecuteNonQueryAsync();
 
-                // Kopiuj towary
-                var cmdCopyItems = new SqlCommand(
-                    @"INSERT INTO ZamowieniaMiesoTowar (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2)
-                      SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2 
-                      FROM ZamowieniaMiesoTowar 
-                      WHERE ZamowienieId = @sourceId", cn, tr);
+                var cmdCopyItems = new SqlCommand(@"INSERT INTO ZamowieniaMiesoTowar (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2) SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2 FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
                 cmdCopyItems.Parameters.AddWithValue("@newId", newId);
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
                 await cmdCopyItems.ExecuteNonQueryAsync();
@@ -1197,8 +1091,7 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie wzorcowe dla cyklu.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie wzorcowe dla cyklu.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
@@ -1222,8 +1115,7 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}",
-                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -1237,29 +1129,20 @@ namespace Kalendarz1
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Sprawdź czy kolumna istnieje
-                const string checkSql = @"
-                    SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_NAME = 'ZamowieniaMieso' 
-                    AND COLUMN_NAME = 'DataUboju'";
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'DataUboju'";
 
                 await using var cmdCheck = new SqlCommand(checkSql, cn);
                 int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
 
                 if (count == 0)
                 {
-                    // Kolumna nie istnieje - spróbuj ją dodać
-                    const string alterSql = @"
-                        ALTER TABLE [dbo].[ZamowieniaMieso]
-                        ADD DataUboju DATE NULL";
+                    const string alterSql = @"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL";
 
                     await using var cmdAlter = new SqlCommand(alterSql, cn);
                     await cmdAlter.ExecuteNonQueryAsync();
 
                     _dataUbojuKolumnaIstnieje = true;
-                    MessageBox.Show("Kolumna 'DataUboju' została dodana do bazy danych.",
-                        "Aktualizacja bazy", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Kolumna 'DataUboju' została dodana do bazy danych.", "Aktualizacja bazy", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
@@ -1276,7 +1159,6 @@ namespace Kalendarz1
                                $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL",
                     "Ostrzeżenie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-                // Wyłącz radio button dla daty uboju jeśli kolumna nie istnieje
                 if (rbDataUboju != null)
                 {
                     rbDataUboju.Enabled = false;
@@ -1292,21 +1174,19 @@ namespace Kalendarz1
             try
             {
                 await WczytajZamowieniaDlaDniaAsync(_selectedDate);
-                await WczytajDanePrzychodowAsync(_selectedDate);
+                // await WczytajDanePrzychodowAsync(_selectedDate); // Usunięte
                 await WyswietlAgregacjeProduktowAsync(_selectedDate);
                 AktualizujPodsumowanieDnia();
                 WyczyscSzczegoly();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}",
-                    "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}", "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private async Task ZaladujDanePoczatkoweAsync()
         {
-            // Sprawdź i dodaj kolumnę DataUboju jeśli nie istnieje
             await SprawdzIUtworzKolumneDataUboju();
 
             _twKodCache.Clear();
@@ -1339,10 +1219,7 @@ namespace Kalendarz1
                 }
             }
 
-            var listaTowarow = _twKatalogCache
-                .OrderBy(x => x.Value)
-                .Select(k => new KeyValuePair<int, string>(k.Key, k.Value))
-                .ToList();
+            var listaTowarow = _twKatalogCache.OrderBy(x => x.Value).Select(k => new KeyValuePair<int, string>(k.Key, k.Value)).ToList();
             listaTowarow.Insert(0, new KeyValuePair<int, string>(0, "— Wszystkie towary —"));
             cbFiltrujTowar.DataSource = new BindingSource(listaTowarow, null);
             cbFiltrujTowar.DisplayMember = "Value";
@@ -1369,11 +1246,7 @@ namespace Kalendarz1
             await using (var cn3 = new SqlConnection(_connHandel))
             {
                 await cn3.OpenAsync();
-                await using var cmd = new SqlCommand(@"
-                    SELECT DISTINCT CDim_Handlowiec_Val 
-                    FROM [HANDEL].[SSCommon].[ContractorClassification] 
-                    WHERE CDim_Handlowiec_Val IS NOT NULL
-                    ORDER BY 1", cn3);
+                await using var cmd = new SqlCommand(@"SELECT DISTINCT CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[ContractorClassification] WHERE CDim_Handlowiec_Val IS NOT NULL ORDER BY 1", cn3);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1391,7 +1264,6 @@ namespace Kalendarz1
 
             txtFiltrujOdbiorce.TextChanged += Filtry_Changed;
 
-            // Dodaj obsługę radio buttonów do zmiany trybu wyświetlania
             if (rbDataOdbioru != null && rbDataUboju != null)
             {
                 rbDataOdbioru.CheckedChanged += async (s, e) =>
@@ -1412,19 +1284,21 @@ namespace Kalendarz1
                     }
                     else if (rbDataUboju.Checked && !_dataUbojuKolumnaIstnieje)
                     {
-                        // Wróć do daty odbioru jeśli kolumna nie istnieje
                         rbDataOdbioru.Checked = true;
-                        MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" +
-                                      "Filtrowanie po dacie uboju jest niedostępne.",
-                            "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" + "Filtrowanie po dacie uboju jest niedostępne.", "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 };
 
-                // Ustaw początkowy stan radio buttonów
                 rbDataUboju.Enabled = _dataUbojuKolumnaIstnieje;
                 if (!_dataUbojuKolumnaIstnieje)
                 {
                     rbDataUboju.Text = "Data uboju (niedostępne)";
+                    rbDataOdbioru.Checked = true;
+                }
+                else
+                {
+                    // Ustawienie domyślne na Data Uboju
+                    rbDataUboju.Checked = true;
                 }
             }
         }
@@ -1443,12 +1317,8 @@ namespace Kalendarz1
                 _dtZamowienia.Columns.Add("TrybE2", typeof(string));
                 _dtZamowienia.Columns.Add("DataPrzyjecia", typeof(DateTime));
                 _dtZamowienia.Columns.Add("GodzinaPrzyjecia", typeof(string));
-                var colDataUtw = new DataColumn("DataUtworzenia", typeof(DateTime));
-                colDataUtw.AllowDBNull = true;
-                _dtZamowienia.Columns.Add(colDataUtw);
-                var colDataUboju = new DataColumn("DataUboju", typeof(DateTime));
-                colDataUboju.AllowDBNull = true;
-                _dtZamowienia.Columns.Add(colDataUboju);
+                _dtZamowienia.Columns.Add(new DataColumn("DataUtworzenia", typeof(DateTime)) { AllowDBNull = true });
+                _dtZamowienia.Columns.Add(new DataColumn("DataUboju", typeof(DateTime)) { AllowDBNull = true });
                 _dtZamowienia.Columns.Add("Utworzyl", typeof(string));
                 _dtZamowienia.Columns.Add("Status", typeof(string));
             }
@@ -1461,10 +1331,7 @@ namespace Kalendarz1
             await using (var cnHandel = new SqlConnection(_connHandel))
             {
                 await cnHandel.OpenAsync();
-                const string sqlKontr = @"
-                    SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val 
-                    FROM [HANDEL].[SSCommon].[STContractors] c
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
+                const string sqlKontr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[STContractors] c LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
                 await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
                 await using var rd = await cmdKontr.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
@@ -1487,13 +1354,7 @@ namespace Kalendarz1
                 {
                     await cnLibra.OpenAsync();
                     var idwList = string.Join(",", _twKatalogCache.Keys);
-
-                    // Wybór kolumny do filtrowania w zależności od trybu i dostępności kolumny
-                    string dataKolumna = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje)
-                        ? "zm.DataUboju"
-                        : "zm.DataZamowienia";
-
-                    // Dodaj DataUboju do SELECT tylko jeśli kolumna istnieje
+                    string dataKolumna = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje) ? "zm.DataUboju" : "zm.DataZamowienia";
                     string dataUbojuSelect = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
                     string dataUbojuGroupBy = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
 
@@ -1503,7 +1364,7 @@ namespace Kalendarz1
                                zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuSelect}
                         FROM [dbo].[ZamowieniaMieso] zm
                         JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-                        WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) " +
+                        WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
                             (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
                             $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
                                      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuGroupBy}
@@ -1519,70 +1380,44 @@ namespace Kalendarz1
             }
 
             var wydaniaPerKhidIdtw = await PobierzWydaniaPerKhidIdtwAsync(dzien);
-            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>()
-                .Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
+            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>().Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
 
             foreach (DataRow r in temp.Rows)
             {
                 int id = r["Id"] == DBNull.Value ? 0 : Convert.ToInt32(r["Id"]);
                 int klientId = r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"]);
                 decimal ilosc = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
-                DateTime? dataPrzyjazdu = (r["DataPrzyjazdu"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataPrzyjazdu"]);
-                DateTime? dataUtw = (r["DataUtworzenia"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
-
-                // Pobierz DataUboju tylko jeśli kolumna istnieje
+                DateTime? dataPrzyjazdu = r["DataPrzyjazdu"] is DBNull or null ? (DateTime?)null : Convert.ToDateTime(r["DataPrzyjazdu"]);
+                DateTime? dataUtw = r["DataUtworzenia"] is DBNull or null ? (DateTime?)null : Convert.ToDateTime(r["DataUtworzenia"]);
                 DateTime? dataUboju = null;
                 if (_dataUbojuKolumnaIstnieje && temp.Columns.Contains("DataUboju"))
                 {
-                    dataUboju = (r["DataUboju"] is DBNull or null) ? (DateTime?)null : Convert.ToDateTime(r["DataUboju"]);
+                    dataUboju = r["DataUboju"] is DBNull or null ? (DateTime?)null : Convert.ToDateTime(r["DataUboju"]);
                 }
-
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
-
                 int pojemniki = r["LiczbaPojemnikow"] == DBNull.Value ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
                 decimal palety = r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]);
-                bool trybE2 = r["TrybE2"] == DBNull.Value ? false : Convert.ToBoolean(r["TrybE2"]);
+                bool trybE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
                 string trybText = trybE2 ? "E2 (40)" : "STD (36)";
-
-                var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh)
-                    ? kh
-                    : ($"Nieznany ({klientId})", "");
-
+                var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh) ? kh : ($"Nieznany ({klientId})", "");
                 decimal wydane = 0m;
                 if (wydaniaPerKhidIdtw.TryGetValue(klientId, out var perIdtw))
                 {
-                    wydane = perIdtw.Values.Sum();
+                    wydane = selectedProductId.HasValue ? perIdtw.TryGetValue(selectedProductId.Value, out var w) ? w : 0m : perIdtw.Values.Sum();
                 }
 
-                _dtZamowienia.Rows.Add(
-                    id,
-                    nazwa,
-                    handlowiec,
-                    ilosc,
-                    wydane,
-                    pojemniki,
-                    palety,
-                    trybText,
-                    dataPrzyjazdu?.Date ?? dzien,
-                    dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
-                    dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value,
-                    dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value,
-                    _userCache.TryGetValue(idUser, out var user) ? user : "Brak",
-                    status
-                );
+                _dtZamowienia.Rows.Add(id, nazwa, handlowiec, ilosc, wydane, pojemniki, palety, trybText, dataPrzyjazdu?.Date ?? dzien, dataPrzyjazdu?.ToString("HH:mm") ?? "08:00", dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value, dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value, _userCache.TryGetValue(idUser, out var user) ? user : "Brak", status);
             }
 
-            // Wydania bez zamówień
             var wydaniaBezZamowien = new List<DataRow>();
             foreach (var kv in wydaniaPerKhidIdtw)
             {
                 int khid = kv.Key;
                 if (klienciZamowien.Contains(khid)) continue;
-                decimal wydane = kv.Value.Values.Sum();
-                var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh)
-                    ? kh
-                    : ($"Nieznany ({khid})", "");
+                decimal wydane = selectedProductId.HasValue ? kv.Value.TryGetValue(selectedProductId.Value, out var w) ? w : 0m : kv.Value.Values.Sum();
+                if (wydane == 0) continue;
+                var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh) ? kh : ($"Nieznany ({khid})", "");
                 var row = _dtZamowienia.NewRow();
                 row["Id"] = 0;
                 row["Odbiorca"] = nazwa;
@@ -1606,105 +1441,15 @@ namespace Kalendarz1
 
             _bsZamowienia.DataSource = _dtZamowienia;
             dgvZamowienia.DataSource = _bsZamowienia;
-            _bsZamowienia.Sort = "Status ASC, IloscZamowiona DESC";
+            _bsZamowienia.Sort = "Handlowiec ASC, IloscZamowiona DESC";
             dgvZamowienia.ClearSelection();
 
-            // Ustawienia kolumn
             if (dgvZamowienia.Columns["Id"] != null) dgvZamowienia.Columns["Id"].Visible = false;
-            if (dgvZamowienia.Columns["Odbiorca"] != null)
-                dgvZamowienia.Columns["Odbiorca"].Width = 140;
-            if (dgvZamowienia.Columns["Handlowiec"] != null)
-                dgvZamowienia.Columns["Handlowiec"].Width = 100;
-            if (dgvZamowienia.Columns["IloscZamowiona"] != null)
-            {
-                dgvZamowienia.Columns["IloscZamowiona"].DefaultCellStyle.Format = "N0";
-                dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono";
-                dgvZamowienia.Columns["IloscZamowiona"].Width = 80;
-            }
-            if (dgvZamowienia.Columns["IloscFaktyczna"] != null)
-            {
-                dgvZamowienia.Columns["IloscFaktyczna"].DefaultCellStyle.Format = "N0";
-                dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano";
-                dgvZamowienia.Columns["IloscFaktyczna"].Width = 80;
-            }
-            if (dgvZamowienia.Columns["Pojemniki"] != null)
-            {
-                dgvZamowienia.Columns["Pojemniki"].HeaderText = "Pojemn.";
-                dgvZamowienia.Columns["Pojemniki"].DefaultCellStyle.Format = "N0";
-                dgvZamowienia.Columns["Pojemniki"].Width = 60;
-            }
-            if (dgvZamowienia.Columns["Palety"] != null)
-            {
-                dgvZamowienia.Columns["Palety"].HeaderText = "Palety";
-                dgvZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N1";
-                dgvZamowienia.Columns["Palety"].Width = 60;
-            }
-            if (dgvZamowienia.Columns["TrybE2"] != null)
-            {
-                dgvZamowienia.Columns["TrybE2"].HeaderText = "Tryb";
-                dgvZamowienia.Columns["TrybE2"].Width = 70;
-            }
-            if (dgvZamowienia.Columns["DataPrzyjecia"] != null)
-            {
-                dgvZamowienia.Columns["DataPrzyjecia"].HeaderText = "Data odbioru";
-                dgvZamowienia.Columns["DataPrzyjecia"].DefaultCellStyle.Format = "dd.MM";
-                dgvZamowienia.Columns["DataPrzyjecia"].Width = 80;
-            }
-            if (dgvZamowienia.Columns["GodzinaPrzyjecia"] != null)
-            {
-                dgvZamowienia.Columns["GodzinaPrzyjecia"].HeaderText = "Godz.";
-                dgvZamowienia.Columns["GodzinaPrzyjecia"].Width = 50;
-            }
-            if (dgvZamowienia.Columns["DataUtworzenia"] != null)
-            {
-                dgvZamowienia.Columns["DataUtworzenia"].HeaderText = "Utworzono";
-                dgvZamowienia.Columns["DataUtworzenia"].DefaultCellStyle.Format = "dd.MM HH:mm";
-                dgvZamowienia.Columns["DataUtworzenia"].Width = 100;
-            }
-            if (dgvZamowienia.Columns["DataUboju"] != null)
-            {
-                dgvZamowienia.Columns["DataUboju"].HeaderText = "Data uboju";
-                dgvZamowienia.Columns["DataUboju"].DefaultCellStyle.Format = "dd.MM.yyyy";
-                dgvZamowienia.Columns["DataUboju"].Width = 90;
-                dgvZamowienia.Columns["DataUboju"].DefaultCellStyle.NullValue = "Brak informacji";
-                dgvZamowienia.Columns["DataUboju"].Visible = _dataUbojuKolumnaIstnieje;
-            }
-            if (dgvZamowienia.Columns["Utworzyl"] != null)
-                dgvZamowienia.Columns["Utworzyl"].Width = 80;
-            if (dgvZamowienia.Columns["Status"] != null)
-            {
-                dgvZamowienia.Columns["Status"].Width = 120;
-                dgvZamowienia.Columns["Status"].DisplayIndex = dgvZamowienia.Columns.Count - 1;
-            }
+            if (dgvZamowienia.Columns["IloscZamowiona"] != null) dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono";
+            if (dgvZamowienia.Columns["IloscFaktyczna"] != null) dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano";
+            if (dgvZamowienia.Columns["Pojemniki"] != null) dgvZamowienia.Columns["Pojemniki"].HeaderText = "Pojemn.";
 
             ZastosujFiltry();
-        }
-
-        private async Task<Dictionary<int, decimal>> PobierzFaktyczneWydaniaAsync(DateTime dzien, int? towarId = null)
-        {
-            var wynik = new Dictionary<int, decimal>();
-            await using var cn = new SqlConnection(_connHandel);
-            await cn.OpenAsync();
-            string sqlWz = @"
-                SELECT DK.khid, SUM(ABS(MZ.ilosc))
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[DK] ON MZ.super = DK.id
-                WHERE DK.seria IN ('sWZ', 'sWZ-W') AND DK.data = @Dzien " +
-                    (towarId.HasValue ? "AND MZ.idtw = @TowarId " : "") +
-                    "GROUP BY DK.khid";
-
-            await using var cmd = new SqlCommand(sqlWz, cn);
-            cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
-            if (towarId.HasValue) cmd.Parameters.AddWithValue("@TowarId", towarId.Value);
-
-            await using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync())
-            {
-                int khid = rd.GetInt32(0);
-                decimal ilosc = SafeDecimal(rd, 1);
-                wynik[khid] = ilosc;
-            }
-            return wynik;
         }
 
         private async Task<Dictionary<int, Dictionary<int, decimal>>> PobierzWydaniaPerKhidIdtwAsync(DateTime dzien)
@@ -1715,13 +1460,7 @@ namespace Kalendarz1
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
             var idwList = string.Join(",", _twKatalogCache.Keys);
-            string sql = $@"
-                SELECT MG.khid, MZ.idtw, SUM(ABS(MZ.ilosc)) AS qty
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid IS NOT NULL
-                AND MZ.idtw IN ({idwList})
-                GROUP BY MG.khid, MZ.idtw";
+            string sql = $@"SELECT MG.khid, MZ.idtw, SUM(ABS(MZ.ilosc)) AS qty FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid IS NOT NULL AND MZ.idtw IN ({idwList}) GROUP BY MG.khid, MZ.idtw";
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -1765,11 +1504,7 @@ namespace Kalendarz1
         {
             if (e.RowIndex >= 0)
             {
-                if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
-                {
-                    return;
-                }
-
+                if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0) return;
                 using var widokZamowienia = new WidokZamowienia(UserID, id);
                 if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
                 {
@@ -1780,9 +1515,7 @@ namespace Kalendarz1
 
         private void dgvZamowienia_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0 || dgvZamowienia.Columns[e.ColumnIndex].Name != "DataUboju")
-                return;
-
+            if (e.RowIndex < 0 || dgvZamowienia.Columns[e.ColumnIndex].Name != "DataUboju") return;
             if (e.Value == null || e.Value == DBNull.Value)
             {
                 e.Value = "Brak informacji";
@@ -1843,17 +1576,7 @@ namespace Kalendarz1
                 await using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"
-    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-    FROM [HANDEL].[HM].[MZ] MZ 
-    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-    JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
-    WHERE MG.seria IN ('sWZ','sWZ-W') 
-      AND MG.aktywny = 1 
-      AND MG.data = @Dzien 
-      AND MG.khid = @Khid
-      AND TW.katalog IN (67095, 67153)
-    GROUP BY MZ.idtw";
+                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid AND TW.katalog IN (67095, 67153) GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
                     cmd.Parameters.AddWithValue("@Khid", khId);
@@ -1875,40 +1598,16 @@ namespace Kalendarz1
         {
             var dtAg = new DataTable();
             dtAg.Columns.Add("Produkt", typeof(string));
-            dtAg.Columns.Add("Zamówiono", typeof(decimal));
-            dtAg.Columns.Add("Wydano", typeof(decimal));
-            dtAg.Columns.Add("Różnica", typeof(decimal));
-            dtAg.Columns.Add("Pojemniki", typeof(int));
-            dtAg.Columns.Add("Palety", typeof(decimal));
             dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
-            dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
+            dtAg.Columns.Add("PoczątkowyStan", typeof(decimal)); // Miejsce na przyszłą funkcjonalność
+            dtAg.Columns.Add("Zamówienia", typeof(decimal));
+            dtAg.Columns.Add("Różnica", typeof(decimal));
 
-            var sumaWydan = await PobierzSumeWydanPoProdukcieAsync(dzien);
+            // Tabela dla faktycznych danych
+            var dtAgFakt = dtAg.Clone(); // Kopiujemy strukturę
+            dtAgFakt.Columns["PlanowanyPrzychód"].ColumnName = "FaktycznyPrzychód";
+
             var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
-
-            var agregacjaPojemnikowPalet = new Dictionary<int, (int pojemniki, decimal palety)>();
-            await using (var cn = new SqlConnection(_connLibra))
-            {
-                await cn.OpenAsync();
-                const string sql = @"
-                    SELECT zmt.KodTowaru, 
-                           SUM(ISNULL(zmt.Pojemniki, 0)) as SumaPojemnikow,
-                           SUM(ISNULL(zmt.Palety, 0)) as SumaPalet
-                    FROM [dbo].[ZamowieniaMiesoTowar] zmt
-                    INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId
-                    WHERE zm.DataZamowienia = @Dzien AND zm.Status NOT IN ('Anulowane')
-                    GROUP BY zmt.KodTowaru";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    int kodTowaru = reader.GetInt32(0);
-                    int pojemniki = reader.GetInt32(1);
-                    decimal palety = reader.GetDecimal(2);
-                    agregacjaPojemnikowPalet[kodTowaru] = (pojemniki, palety);
-                }
-            }
 
             var sumaZamowien = new Dictionary<int, decimal>();
             var zamowieniaIds = _dtZamowienia.AsEnumerable()
@@ -1931,39 +1630,32 @@ namespace Kalendarz1
                 if (IsKurczakB(kod)) continue;
 
                 var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
-                var wyd = sumaWydan.TryGetValue(towar.Key, out var w) ? w : 0m;
-                var diff = zam - wyd;
-
-                var (pojemniki, palety) = agregacjaPojemnikowPalet.TryGetValue(towar.Key, out var pp)
-                    ? pp
-                    : (0, 0m);
-
+                var poczatkowyStan = 0m; // Wartość tymczasowa
                 var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
                 var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
 
-                dtAg.Rows.Add(kod, zam, wyd, diff, pojemniki, palety, plan, fakt);
+                var roznicaPlan = plan + poczatkowyStan - zam;
+                var roznicaFakt = fakt + poczatkowyStan - zam;
+
+                dtAg.Rows.Add(kod, plan, poczatkowyStan, zam, roznicaPlan);
+                dtAgFakt.Rows.Add(kod, fakt, poczatkowyStan, zam, roznicaFakt);
+            }
+
+            // Łączymy tabele, dodając pusty wiersz jako separator
+            dtAg.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value);
+            foreach (DataRow r in dtAgFakt.Rows)
+            {
+                dtAg.Rows.Add(r.ItemArray);
             }
 
             dgvAgregacja.DataSource = dtAg;
+            dgvAgregacja.Sort(dgvAgregacja.Columns["PlanowanyPrzychód"], System.ComponentModel.ListSortDirection.Descending);
+
             foreach (DataGridViewColumn col in dgvAgregacja.Columns)
             {
-                if (col.Name == "Pojemniki")
-                {
-                    col.HeaderText = "Pojemn.";
-                    col.DefaultCellStyle.Format = "N0";
-                    col.Width = 60;
-                }
-                else if (col.Name == "Palety")
-                {
-                    col.HeaderText = "Palety";
-                    col.DefaultCellStyle.Format = "N1";
-                    col.Width = 60;
-                }
-                else if (col.Name != "Produkt")
-                {
-                    col.DefaultCellStyle.Format = "N0";
-                }
+                if (col.Name != "Produkt") col.DefaultCellStyle.Format = "N0";
             }
+            if (dgvAgregacja.Columns["PoczątkowyStan"] != null) dgvAgregacja.Columns["PoczątkowyStan"].HeaderText = "Stan Początkowy";
         }
 
         private void AktualizujPodsumowanieDnia()
@@ -1983,6 +1675,8 @@ namespace Kalendarz1
                     if (item is DataRowView drv)
                     {
                         var status = drv.Row.Field<string>("Status") ?? "";
+                        if (status == "Anulowane") continue;
+
                         var handlowiec = drv.Row.Field<string>("Handlowiec") ?? "BRAK";
                         var iloscZam = drv.Row.Field<decimal?>("IloscZamowiona") ?? 0m;
                         var iloscWyd = drv.Row.Field<decimal?>("IloscFaktyczna") ?? 0m;
@@ -1996,33 +1690,23 @@ namespace Kalendarz1
                         {
                             liczbaWydanBezZamowien++;
                             sumaKgWydano += iloscWyd;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam,
-                                handlowiecStat[handlowiec].bezZam + 1,
-                                handlowiecStat[handlowiec].kgZam,
-                                handlowiecStat[handlowiec].kgWyd + iloscWyd);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam, handlowiecStat[handlowiec].bezZam + 1, handlowiecStat[handlowiec].kgZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
-                        else if (status != "Anulowane")
+                        else
                         {
                             liczbaZamowien++;
                             sumaKgZamowiono += iloscZam;
                             sumaKgWydano += iloscWyd;
                             sumaPojemnikow += pojemniki;
                             sumaPalet += palety;
-                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1,
-                                handlowiecStat[handlowiec].bezZam,
-                                handlowiecStat[handlowiec].kgZam + iloscZam,
-                                handlowiecStat[handlowiec].kgWyd + iloscWyd);
+                            handlowiecStat[handlowiec] = (handlowiecStat[handlowiec].zZam + 1, handlowiecStat[handlowiec].bezZam, handlowiecStat[handlowiec].kgZam + iloscZam, handlowiecStat[handlowiec].kgWyd + iloscWyd);
                         }
                     }
                 }
             }
             int suma = liczbaZamowien + liczbaWydanBezZamowien;
-            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key)
-                .Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
-
-            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | " +
-                                  $"Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | " +
-                                  $"Pojemn.: {sumaPojemnikow:N0} | Palet: {sumaPalet:N1} | {perHandlowiec}";
+            string perHandlowiec = string.Join(" | ", handlowiecStat.OrderBy(h => h.Key).Select(h => $"{h.Key}: {h.Value.zZam}/{h.Value.bezZam} ({h.Value.kgZam:N0}/{h.Value.kgWyd:N0}kg)"));
+            lblPodsumowanie.Text = $"Suma: {suma} ({liczbaZamowien} zam. / {liczbaWydanBezZamowien} wyd.) | " + $"Zamówiono: {sumaKgZamowiono:N0} kg | Wydano: {sumaKgWydano:N0} kg | " + $"Pojemn.: {sumaPojemnikow:N0} | Palet: {sumaPalet:N1} | {perHandlowiec}";
         }
 
         private void WyczyscSzczegoly()
@@ -2032,43 +1716,12 @@ namespace Kalendarz1
             _aktualneIdZamowienia = null;
         }
 
-        private async Task WczytajDanePrzychodowAsync(DateTime dzien)
-        {
-            var dtP = new DataTable();
-            dtP.Columns.Add("Produkt", typeof(string));
-            dtP.Columns.Add("Plan (kg)", typeof(decimal));
-            dtP.Columns.Add("Fakt (kg)", typeof(decimal));
-            dtP.Columns.Add("Różnica", typeof(decimal));
-
-            var (plan, fakt) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
-
-            foreach (var p in _twKatalogCache.OrderBy(x => x.Value))
-            {
-                var kod = p.Value;
-                var planKg = plan.TryGetValue(p.Key, out var v1) ? v1 : 0m;
-                var faktKg = fakt.TryGetValue(p.Key, out var v2) ? v2 : 0m;
-                var roznica = planKg - faktKg;
-
-                dtP.Rows.Add(kod, planKg, faktKg, roznica);
-            }
-
-            dgvPrzychody.DataSource = dtP;
-            if (dgvPrzychody.Columns["Plan (kg)"] != null) dgvPrzychody.Columns["Plan (kg)"].DefaultCellStyle.Format = "N0";
-            if (dgvPrzychody.Columns["Fakt (kg)"] != null) dgvPrzychody.Columns["Fakt (kg)"].DefaultCellStyle.Format = "N0";
-            if (dgvPrzychody.Columns["Różnica"] != null) dgvPrzychody.Columns["Różnica"].DefaultCellStyle.Format = "N0";
-        }
-
         private async Task<Dictionary<int, decimal>> PobierzSumeWydanPoProdukcieAsync(DateTime dzien)
         {
             var sumaWydan = new Dictionary<int, decimal>();
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
-            const string sql = @"
-                SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
-                FROM [HANDEL].[HM].[MZ] MZ 
-                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                WHERE MG.seria IN ('sWZ', 'sWZ-W') AND MG.aktywny=1 AND MG.data = @Dzien 
-                GROUP BY MZ.idtw";
+            const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id WHERE MG.seria IN ('sWZ', 'sWZ-W') AND MG.aktywny=1 AND MG.data = @Dzien GROUP BY MZ.idtw";
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -2083,10 +1736,7 @@ namespace Kalendarz1
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                const string sql = @"
-                    SELECT WagaDek, SztukiDek 
-                    FROM dbo.HarmonogramDostaw 
-                    WHERE DataOdbioru = @Dzien AND Bufor = 'Potwierdzony'";
+                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @Dzien AND Bufor = 'Potwierdzony'";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2111,21 +1761,12 @@ namespace Kalendarz1
             {
                 var idtw = kv.Key;
                 var kod = kv.Value;
-
-                if (IsKurczakA(kod))
-                {
-                    plan[idtw] = pulaA;
-                }
-                else if (IsKurczakB(kod))
-                {
-                    plan[idtw] = pulaB;
-                }
+                if (IsKurczakA(kod)) plan[idtw] = pulaA;
+                else if (IsKurczakB(kod)) plan[idtw] = pulaB;
                 else
                 {
-                    if (YieldByKod.TryGetValue(kod, out var share) && share > 0m)
-                        plan[idtw] = Math.Max(0m, pulaB * share);
-                    else
-                        plan[idtw] = 0m;
+                    if (YieldByKod.TryGetValue(kod, out var share) && share > 0m) plan[idtw] = Math.Max(0m, pulaB * share);
+                    else plan[idtw] = 0m;
                 }
             }
 
@@ -2133,12 +1774,7 @@ namespace Kalendarz1
             await using (var cn = new SqlConnection(_connHandel))
             {
                 await cn.OpenAsync();
-                const string sql = @"
-                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                    FROM [HANDEL].[HM].[MZ] MZ 
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                    WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Dzien 
-                    GROUP BY MZ.idtw";
+                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Dzien GROUP BY MZ.idtw";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2154,17 +1790,7 @@ namespace Kalendarz1
             var rowObj = dgvZamowienia.Rows[e.RowIndex].DataBoundItem as DataRowView;
             if (rowObj == null) return;
 
-            var status = rowObj.Row.Table.Columns.Contains("Status")
-                ? rowObj.Row["Status"]?.ToString()
-                : null;
-
-            DateTime? dataUtw = null;
-            if (rowObj.Row.Table.Columns.Contains("DataUtworzenia"))
-            {
-                var val = rowObj.Row["DataUtworzenia"];
-                if (val != DBNull.Value && val != null)
-                    dataUtw = (DateTime)val;
-            }
+            var status = rowObj.Row.Table.Columns.Contains("Status") ? rowObj.Row["Status"]?.ToString() : null;
 
             var row = dgvZamowienia.Rows[e.RowIndex];
             if (status == "Wydanie bez zamówienia")
@@ -2198,9 +1824,7 @@ namespace Kalendarz1
             id = 0;
             if (dgvZamowienia.CurrentRow == null) return false;
 
-            if (dgvZamowienia.CurrentRow.DataBoundItem is DataRowView rv &&
-                rv.Row.Table.Columns.Contains("Id") &&
-                rv.Row["Id"] != DBNull.Value)
+            if (dgvZamowienia.CurrentRow.DataBoundItem is DataRowView rv && rv.Row.Table.Columns.Contains("Id") && rv.Row["Id"] != DBNull.Value)
             {
                 id = Convert.ToInt32(rv.Row["Id"]);
                 if (id > 0) { _aktualneIdZamowienia = id; return true; }
@@ -2228,11 +1852,8 @@ namespace Kalendarz1
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                const string sql = @"
-            SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId
-            FROM [dbo].[ZamowieniaMiesoTowar] zmt
-            INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId
-            WHERE zmt.ZamowienieId = @Id";
+                // Dodano pobieranie kolumny Folia
+                const string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId, zmt.Folia FROM [dbo].[ZamowieniaMiesoTowar] zmt INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId WHERE zmt.ZamowienieId = @Id";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamowienieId);
                 using var da = new SqlDataAdapter(cmd);
@@ -2247,12 +1868,7 @@ namespace Kalendarz1
                 await using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"
-                SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
-                FROM [HANDEL].[HM].[MZ] MZ
-                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid
-                GROUP BY MZ.idtw";
+                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", _selectedDate.Date);
                     cmd.Parameters.AddWithValue("@Khid", klientId);
@@ -2270,6 +1886,7 @@ namespace Kalendarz1
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Zamówiono", typeof(decimal));
             dt.Columns.Add("Wydano", typeof(decimal));
+            dt.Columns.Add("Folia", typeof(string));
 
             foreach (DataRow r in dtZam.Rows)
             {
@@ -2279,7 +1896,8 @@ namespace Kalendarz1
                 string produkt = _twKatalogCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
                 decimal zamowiono = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
                 decimal wydano = wydania.TryGetValue(idTowaru, out var w) ? w : 0m;
-                dt.Rows.Add(produkt, zamowiono, wydano);
+                bool jestFolia = r["Folia"] != DBNull.Value && Convert.ToBoolean(r["Folia"]);
+                dt.Rows.Add(produkt, zamowiono, wydano, jestFolia ? "TAK" : "NIE");
                 wydania.Remove(idTowaru);
             }
 
@@ -2287,43 +1905,32 @@ namespace Kalendarz1
             {
                 if (!_twKatalogCache.ContainsKey(kv.Key)) continue;
                 string produkt = _twKatalogCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
-                dt.Rows.Add(produkt, 0m, kv.Value);
+                dt.Rows.Add(produkt, 0m, kv.Value, "B/D");
             }
 
             string notatki = dtZam.Rows.Count > 0 ? (dtZam.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
             txtNotatki.Text = notatki;
             dgvSzczegoly.DataSource = dt;
 
-            if (dgvSzczegoly.Columns["Zamówiono"] != null)
-            {
-                dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
-                dgvSzczegoly.Columns["Zamówiono"].HeaderText = "Zamówiono (kg)";
-            }
-            if (dgvSzczegoly.Columns["Wydano"] != null)
-            {
-                dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
-                dgvSzczegoly.Columns["Wydano"].HeaderText = "Wydano (kg)";
-            }
+            if (dgvSzczegoly.Columns["Zamówiono"] != null) dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
+            if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
+            if (dgvSzczegoly.Columns["Folia"] != null) dgvSzczegoly.Columns["Folia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         }
 
         #region Filtrowanie
         private void ZastosujFiltry()
         {
             if (_dtZamowienia.DefaultView == null) return;
-
             var warunki = new List<string>();
-
             var txt = txtFiltrujOdbiorce.Text?.Trim().Replace("'", "''");
             if (!string.IsNullOrEmpty(txt))
                 warunki.Add($"Odbiorca LIKE '%{txt}%'");
-
             if (cbFiltrujHandlowca.SelectedIndex > 0)
             {
                 var hand = cbFiltrujHandlowca.SelectedItem?.ToString()?.Replace("'", "''");
                 if (!string.IsNullOrEmpty(hand))
                     warunki.Add($"Handlowiec = '{hand}'");
             }
-
             _dtZamowienia.DefaultView.RowFilter = string.Join(" AND ", warunki);
         }
         #endregion
@@ -2332,13 +1939,11 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.",
-                "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (result == DialogResult.Yes)
             {
                 try
@@ -2355,14 +1960,12 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@Id", id);
                         await cmd.ExecuteNonQueryAsync();
                     }
-                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }

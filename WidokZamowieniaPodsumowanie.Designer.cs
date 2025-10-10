@@ -19,595 +19,533 @@ namespace Kalendarz1
 
         private void InitializeComponent()
         {
-            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            panelNawigacja = new System.Windows.Forms.Panel();
-            btnAnuluj = new System.Windows.Forms.Button();
-            lblZakresDat = new System.Windows.Forms.Label();
-            btnTydzienNext = new System.Windows.Forms.Button();
-            btnTydzienPrev = new System.Windows.Forms.Button();
-            btnNoweZamowienie = new System.Windows.Forms.Button();
-            btnModyfikuj = new System.Windows.Forms.Button();
-            btnOdswiez = new System.Windows.Forms.Button();
-            panelDni = new System.Windows.Forms.FlowLayoutPanel();
-            btnPon = new System.Windows.Forms.Button();
-            btnWt = new System.Windows.Forms.Button();
-            btnSr = new System.Windows.Forms.Button();
-            btnCzw = new System.Windows.Forms.Button();
-            btnPt = new System.Windows.Forms.Button();
-            btnSo = new System.Windows.Forms.Button();
-            btnNd = new System.Windows.Forms.Button();
-            btnDuplikuj = new System.Windows.Forms.Button();
-            btnUsun = new System.Windows.Forms.Button();
-            panelGlowny = new System.Windows.Forms.TableLayoutPanel();
-            panelMaster = new System.Windows.Forms.Panel();
-            dgvZamowienia = new System.Windows.Forms.DataGridView();
-            panelFiltry = new System.Windows.Forms.Panel();
-            cbFiltrujTowar = new System.Windows.Forms.ComboBox();
-            cbFiltrujHandlowca = new System.Windows.Forms.ComboBox();
-            txtFiltrujOdbiorce = new System.Windows.Forms.TextBox();
-            rbDataOdbioru = new System.Windows.Forms.RadioButton();
-            rbDataUboju = new System.Windows.Forms.RadioButton();
-            panelPodsumowanie = new System.Windows.Forms.Panel();
-            lblPodsumowanie = new System.Windows.Forms.Label();
-            panelDetail = new System.Windows.Forms.TableLayoutPanel();
-            dgvAgregacja = new System.Windows.Forms.DataGridView();
-            label2 = new System.Windows.Forms.Label();
-            panelSzczegolyTop = new System.Windows.Forms.TableLayoutPanel();
-            panelNotatki = new System.Windows.Forms.Panel();
-            dgvSzczegoly = new System.Windows.Forms.DataGridView();
-            txtNotatki = new System.Windows.Forms.TextBox();
-            label3 = new System.Windows.Forms.Label();
-            panelPrzychody = new System.Windows.Forms.Panel();
-            dgvPrzychody = new System.Windows.Forms.DataGridView();
-            label1 = new System.Windows.Forms.Label();
-            tableLayoutPanel1.SuspendLayout();
-            panelNawigacja.SuspendLayout();
-            panelDni.SuspendLayout();
-            panelGlowny.SuspendLayout();
-            panelMaster.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvZamowienia).BeginInit();
-            panelFiltry.SuspendLayout();
-            panelPodsumowanie.SuspendLayout();
-            panelDetail.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvAgregacja).BeginInit();
-            panelSzczegolyTop.SuspendLayout();
-            panelNotatki.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).BeginInit();
-            panelPrzychody.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvPrzychody).BeginInit();
-            SuspendLayout();
+            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            this.panelNawigacja = new System.Windows.Forms.Panel();
+            this.btnCykliczne = new System.Windows.Forms.Button();
+            this.btnAnuluj = new System.Windows.Forms.Button();
+            this.lblZakresDat = new System.Windows.Forms.Label();
+            this.btnTydzienNext = new System.Windows.Forms.Button();
+            this.btnTydzienPrev = new System.Windows.Forms.Button();
+            this.btnNoweZamowienie = new System.Windows.Forms.Button();
+            this.btnModyfikuj = new System.Windows.Forms.Button();
+            this.btnOdswiez = new System.Windows.Forms.Button();
+            this.panelDni = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnPon = new System.Windows.Forms.Button();
+            this.btnWt = new System.Windows.Forms.Button();
+            this.btnSr = new System.Windows.Forms.Button();
+            this.btnCzw = new System.Windows.Forms.Button();
+            this.btnPt = new System.Windows.Forms.Button();
+            this.btnSo = new System.Windows.Forms.Button();
+            this.btnNd = new System.Windows.Forms.Button();
+            this.btnDuplikuj = new System.Windows.Forms.Button();
+            this.btnUsun = new System.Windows.Forms.Button();
+            this.panelGlowny = new System.Windows.Forms.TableLayoutPanel();
+            this.panelMaster = new System.Windows.Forms.Panel();
+            this.dgvZamowienia = new System.Windows.Forms.DataGridView();
+            this.panelFiltry = new System.Windows.Forms.Panel();
+            this.rbDataUboju = new System.Windows.Forms.RadioButton();
+            this.rbDataOdbioru = new System.Windows.Forms.RadioButton();
+            this.cbFiltrujTowar = new System.Windows.Forms.ComboBox();
+            this.cbFiltrujHandlowca = new System.Windows.Forms.ComboBox();
+            this.txtFiltrujOdbiorce = new System.Windows.Forms.TextBox();
+            this.panelPodsumowanie = new System.Windows.Forms.Panel();
+            this.lblPodsumowanie = new System.Windows.Forms.Label();
+            this.panelDetail = new System.Windows.Forms.TableLayoutPanel();
+            this.dgvAgregacja = new System.Windows.Forms.DataGridView();
+            this.label2 = new System.Windows.Forms.Label();
+            this.panelSzczegolyTop = new System.Windows.Forms.Panel();
+            this.dgvSzczegoly = new System.Windows.Forms.DataGridView();
+            this.txtNotatki = new System.Windows.Forms.TextBox();
+            this.label3 = new System.Windows.Forms.Label();
+            this.tableLayoutPanel1.SuspendLayout();
+            this.panelNawigacja.SuspendLayout();
+            this.panelDni.SuspendLayout();
+            this.panelGlowny.SuspendLayout();
+            this.panelMaster.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvZamowienia)).BeginInit();
+            this.panelFiltry.SuspendLayout();
+            this.panelPodsumowanie.SuspendLayout();
+            this.panelDetail.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAgregacja)).BeginInit();
+            this.panelSzczegolyTop.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvSzczegoly)).BeginInit();
+            this.SuspendLayout();
             // 
             // tableLayoutPanel1
             // 
-            tableLayoutPanel1.ColumnCount = 1;
-            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            tableLayoutPanel1.Controls.Add(panelNawigacja, 0, 0);
-            tableLayoutPanel1.Controls.Add(panelGlowny, 0, 1);
-            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
-            tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 2;
-            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
-            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new System.Drawing.Size(1264, 681);
-            tableLayoutPanel1.TabIndex = 0;
+            this.tableLayoutPanel1.ColumnCount = 1;
+            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel1.Controls.Add(this.panelNawigacja, 0, 0);
+            this.tableLayoutPanel1.Controls.Add(this.panelGlowny, 0, 1);
+            this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
+            this.tableLayoutPanel1.RowCount = 2;
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(1264, 681);
+            this.tableLayoutPanel1.TabIndex = 0;
             // 
             // panelNawigacja
             // 
-            panelNawigacja.Controls.Add(btnAnuluj);
-            panelNawigacja.Controls.Add(lblZakresDat);
-            panelNawigacja.Controls.Add(btnTydzienNext);
-            panelNawigacja.Controls.Add(btnTydzienPrev);
-            panelNawigacja.Controls.Add(btnNoweZamowienie);
-            panelNawigacja.Controls.Add(btnModyfikuj);
-            panelNawigacja.Controls.Add(btnOdswiez);
-            panelNawigacja.Controls.Add(panelDni);
-            panelNawigacja.Controls.Add(btnDuplikuj);
-            panelNawigacja.Controls.Add(btnUsun);
-            panelNawigacja.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelNawigacja.Location = new System.Drawing.Point(3, 3);
-            panelNawigacja.Name = "panelNawigacja";
-            panelNawigacja.Size = new System.Drawing.Size(1258, 64);
-            panelNawigacja.TabIndex = 0;
+            this.panelNawigacja.Controls.Add(this.btnCykliczne);
+            this.panelNawigacja.Controls.Add(this.btnAnuluj);
+            this.panelNawigacja.Controls.Add(this.lblZakresDat);
+            this.panelNawigacja.Controls.Add(this.btnTydzienNext);
+            this.panelNawigacja.Controls.Add(this.btnTydzienPrev);
+            this.panelNawigacja.Controls.Add(this.btnNoweZamowienie);
+            this.panelNawigacja.Controls.Add(this.btnModyfikuj);
+            this.panelNawigacja.Controls.Add(this.btnOdswiez);
+            this.panelNawigacja.Controls.Add(this.panelDni);
+            this.panelNawigacja.Controls.Add(this.btnDuplikuj);
+            this.panelNawigacja.Controls.Add(this.btnUsun);
+            this.panelNawigacja.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelNawigacja.Location = new System.Drawing.Point(3, 3);
+            this.panelNawigacja.Name = "panelNawigacja";
+            this.panelNawigacja.Size = new System.Drawing.Size(1258, 64);
+            this.panelNawigacja.TabIndex = 0;
+            // 
+            // btnCykliczne
+            // 
+            this.btnCykliczne.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCykliczne.BackColor = System.Drawing.Color.DarkOrange;
+            this.btnCykliczne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnCykliczne.ForeColor = System.Drawing.Color.White;
+            this.btnCykliczne.Location = new System.Drawing.Point(556, 12);
+            this.btnCykliczne.Name = "btnCykliczne";
+            this.btnCykliczne.Size = new System.Drawing.Size(110, 40);
+            this.btnCykliczne.TabIndex = 10;
+            this.btnCykliczne.Text = "Cykliczne";
+            this.btnCykliczne.UseVisualStyleBackColor = false;
+            this.btnCykliczne.Click += new System.EventHandler(this.btnCykliczne_Click);
             // 
             // btnAnuluj
             // 
-            btnAnuluj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnAnuluj.BackColor = System.Drawing.Color.IndianRed;
-            btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            btnAnuluj.ForeColor = System.Drawing.Color.White;
-            btnAnuluj.Location = new System.Drawing.Point(1020, 12);
-            btnAnuluj.Name = "btnAnuluj";
-            btnAnuluj.Size = new System.Drawing.Size(110, 40);
-            btnAnuluj.TabIndex = 7;
-            btnAnuluj.Text = "Anuluj";
-            btnAnuluj.UseVisualStyleBackColor = false;
-            btnAnuluj.Click += btnAnuluj_Click;
+            this.btnAnuluj.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnAnuluj.BackColor = System.Drawing.Color.IndianRed;
+            this.btnAnuluj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnAnuluj.ForeColor = System.Drawing.Color.White;
+            this.btnAnuluj.Location = new System.Drawing.Point(1020, 12);
+            this.btnAnuluj.Name = "btnAnuluj";
+            this.btnAnuluj.Size = new System.Drawing.Size(110, 40);
+            this.btnAnuluj.TabIndex = 7;
+            this.btnAnuluj.Text = "Anuluj";
+            this.btnAnuluj.UseVisualStyleBackColor = false;
+            this.btnAnuluj.Click += new System.EventHandler(this.btnAnuluj_Click);
             // 
             // lblZakresDat
             // 
-            lblZakresDat.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            lblZakresDat.Location = new System.Drawing.Point(82, 9);
-            lblZakresDat.Name = "lblZakresDat";
-            lblZakresDat.Size = new System.Drawing.Size(200, 49);
-            lblZakresDat.TabIndex = 6;
-            lblZakresDat.Text = "dd.MM.yyyy - dd.MM.yyyy";
-            lblZakresDat.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.lblZakresDat.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.lblZakresDat.Location = new System.Drawing.Point(82, 9);
+            this.lblZakresDat.Name = "lblZakresDat";
+            this.lblZakresDat.Size = new System.Drawing.Size(200, 49);
+            this.lblZakresDat.TabIndex = 6;
+            this.lblZakresDat.Text = "dd.MM.yyyy - dd.MM.yyyy";
+            this.lblZakresDat.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // btnTydzienNext
             // 
-            btnTydzienNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            btnTydzienNext.Location = new System.Drawing.Point(288, 12);
-            btnTydzienNext.Name = "btnTydzienNext";
-            btnTydzienNext.Size = new System.Drawing.Size(40, 40);
-            btnTydzienNext.TabIndex = 5;
-            btnTydzienNext.Text = ">";
-            btnTydzienNext.UseVisualStyleBackColor = true;
-            btnTydzienNext.Click += btnTydzienNext_Click;
+            this.btnTydzienNext.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.btnTydzienNext.Location = new System.Drawing.Point(288, 12);
+            this.btnTydzienNext.Name = "btnTydzienNext";
+            this.btnTydzienNext.Size = new System.Drawing.Size(40, 40);
+            this.btnTydzienNext.TabIndex = 5;
+            this.btnTydzienNext.Text = ">";
+            this.btnTydzienNext.UseVisualStyleBackColor = true;
+            this.btnTydzienNext.Click += new System.EventHandler(this.btnTydzienNext_Click);
             // 
             // btnTydzienPrev
             // 
-            btnTydzienPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            btnTydzienPrev.Location = new System.Drawing.Point(36, 12);
-            btnTydzienPrev.Name = "btnTydzienPrev";
-            btnTydzienPrev.Size = new System.Drawing.Size(40, 40);
-            btnTydzienPrev.TabIndex = 4;
-            btnTydzienPrev.Text = "<";
-            btnTydzienPrev.UseVisualStyleBackColor = true;
-            btnTydzienPrev.Click += btnTydzienPrev_Click;
+            this.btnTydzienPrev.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.btnTydzienPrev.Location = new System.Drawing.Point(36, 12);
+            this.btnTydzienPrev.Name = "btnTydzienPrev";
+            this.btnTydzienPrev.Size = new System.Drawing.Size(40, 40);
+            this.btnTydzienPrev.TabIndex = 4;
+            this.btnTydzienPrev.Text = "<";
+            this.btnTydzienPrev.UseVisualStyleBackColor = true;
+            this.btnTydzienPrev.Click += new System.EventHandler(this.btnTydzienPrev_Click);
             // 
             // btnNoweZamowienie
             // 
-            btnNoweZamowienie.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnNoweZamowienie.BackColor = System.Drawing.Color.SeaGreen;
-            btnNoweZamowienie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            btnNoweZamowienie.ForeColor = System.Drawing.Color.White;
-            btnNoweZamowienie.Location = new System.Drawing.Point(788, 12);
-            btnNoweZamowienie.Name = "btnNoweZamowienie";
-            btnNoweZamowienie.Size = new System.Drawing.Size(110, 40);
-            btnNoweZamowienie.TabIndex = 3;
-            btnNoweZamowienie.Text = "Nowe";
-            btnNoweZamowienie.UseVisualStyleBackColor = false;
-            btnNoweZamowienie.Click += btnNoweZamowienie_Click;
+            this.btnNoweZamowienie.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnNoweZamowienie.BackColor = System.Drawing.Color.SeaGreen;
+            this.btnNoweZamowienie.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnNoweZamowienie.ForeColor = System.Drawing.Color.White;
+            this.btnNoweZamowienie.Location = new System.Drawing.Point(788, 12);
+            this.btnNoweZamowienie.Name = "btnNoweZamowienie";
+            this.btnNoweZamowienie.Size = new System.Drawing.Size(110, 40);
+            this.btnNoweZamowienie.TabIndex = 3;
+            this.btnNoweZamowienie.Text = "Nowe";
+            this.btnNoweZamowienie.UseVisualStyleBackColor = false;
+            this.btnNoweZamowienie.Click += new System.EventHandler(this.btnNoweZamowienie_Click);
             // 
             // btnModyfikuj
             // 
-            btnModyfikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnModyfikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            btnModyfikuj.Location = new System.Drawing.Point(904, 12);
-            btnModyfikuj.Name = "btnModyfikuj";
-            btnModyfikuj.Size = new System.Drawing.Size(110, 40);
-            btnModyfikuj.TabIndex = 2;
-            btnModyfikuj.Text = "Modyfikuj";
-            btnModyfikuj.UseVisualStyleBackColor = true;
-            btnModyfikuj.Click += btnModyfikuj_Click;
+            this.btnModyfikuj.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnModyfikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.btnModyfikuj.Location = new System.Drawing.Point(904, 12);
+            this.btnModyfikuj.Name = "btnModyfikuj";
+            this.btnModyfikuj.Size = new System.Drawing.Size(110, 40);
+            this.btnModyfikuj.TabIndex = 2;
+            this.btnModyfikuj.Text = "Modyfikuj";
+            this.btnModyfikuj.UseVisualStyleBackColor = true;
+            this.btnModyfikuj.Click += new System.EventHandler(this.btnModyfikuj_Click);
             // 
             // btnOdswiez
             // 
-            btnOdswiez.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnOdswiez.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            btnOdswiez.Location = new System.Drawing.Point(1136, 12);
-            btnOdswiez.Name = "btnOdswiez";
-            btnOdswiez.Size = new System.Drawing.Size(110, 40);
-            btnOdswiez.TabIndex = 1;
-            btnOdswiez.Text = "Odśwież";
-            btnOdswiez.UseVisualStyleBackColor = true;
-            btnOdswiez.Click += btnOdswiez_Click;
+            this.btnOdswiez.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnOdswiez.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.btnOdswiez.Location = new System.Drawing.Point(1136, 12);
+            this.btnOdswiez.Name = "btnOdswiez";
+            this.btnOdswiez.Size = new System.Drawing.Size(110, 40);
+            this.btnOdswiez.TabIndex = 1;
+            this.btnOdswiez.Text = "Odśwież";
+            this.btnOdswiez.UseVisualStyleBackColor = true;
+            this.btnOdswiez.Click += new System.EventHandler(this.btnOdswiez_Click);
             // 
             // panelDni
             // 
-            panelDni.Controls.Add(btnPon);
-            panelDni.Controls.Add(btnWt);
-            panelDni.Controls.Add(btnSr);
-            panelDni.Controls.Add(btnCzw);
-            panelDni.Controls.Add(btnPt);
-            panelDni.Controls.Add(btnSo);
-            panelDni.Controls.Add(btnNd);
-            panelDni.Location = new System.Drawing.Point(344, 6);
-            panelDni.Name = "panelDni";
-            panelDni.Size = new System.Drawing.Size(670, 52);
-            panelDni.TabIndex = 0;
+            this.panelDni.Controls.Add(this.btnPon);
+            this.panelDni.Controls.Add(this.btnWt);
+            this.panelDni.Controls.Add(this.btnSr);
+            this.panelDni.Controls.Add(this.btnCzw);
+            this.panelDni.Controls.Add(this.btnPt);
+            this.panelDni.Controls.Add(this.btnSo);
+            this.panelDni.Controls.Add(this.btnNd);
+            this.panelDni.Location = new System.Drawing.Point(344, 6);
+            this.panelDni.Name = "panelDni";
+            this.panelDni.Size = new System.Drawing.Size(670, 52);
+            this.panelDni.TabIndex = 0;
             // 
             // btnPon
             // 
-            btnPon.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnPon.Location = new System.Drawing.Point(3, 3);
-            btnPon.Name = "btnPon";
-            btnPon.Size = new System.Drawing.Size(70, 45);
-            btnPon.TabIndex = 0;
-            btnPon.Text = "Pon";
-            btnPon.UseVisualStyleBackColor = true;
+            this.btnPon.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnPon.Location = new System.Drawing.Point(3, 3);
+            this.btnPon.Name = "btnPon";
+            this.btnPon.Size = new System.Drawing.Size(70, 45);
+            this.btnPon.TabIndex = 0;
+            this.btnPon.Text = "Pon";
+            this.btnPon.UseVisualStyleBackColor = true;
             // 
             // btnWt
             // 
-            btnWt.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnWt.Location = new System.Drawing.Point(79, 3);
-            btnWt.Name = "btnWt";
-            btnWt.Size = new System.Drawing.Size(70, 45);
-            btnWt.TabIndex = 1;
-            btnWt.Text = "Wt";
-            btnWt.UseVisualStyleBackColor = true;
+            this.btnWt.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnWt.Location = new System.Drawing.Point(79, 3);
+            this.btnWt.Name = "btnWt";
+            this.btnWt.Size = new System.Drawing.Size(70, 45);
+            this.btnWt.TabIndex = 1;
+            this.btnWt.Text = "Wt";
+            this.btnWt.UseVisualStyleBackColor = true;
             // 
             // btnSr
             // 
-            btnSr.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnSr.Location = new System.Drawing.Point(155, 3);
-            btnSr.Name = "btnSr";
-            btnSr.Size = new System.Drawing.Size(70, 45);
-            btnSr.TabIndex = 2;
-            btnSr.Text = "Śr";
-            btnSr.UseVisualStyleBackColor = true;
+            this.btnSr.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnSr.Location = new System.Drawing.Point(155, 3);
+            this.btnSr.Name = "btnSr";
+            this.btnSr.Size = new System.Drawing.Size(70, 45);
+            this.btnSr.TabIndex = 2;
+            this.btnSr.Text = "Śr";
+            this.btnSr.UseVisualStyleBackColor = true;
             // 
             // btnCzw
             // 
-            btnCzw.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnCzw.Location = new System.Drawing.Point(231, 3);
-            btnCzw.Name = "btnCzw";
-            btnCzw.Size = new System.Drawing.Size(70, 45);
-            btnCzw.TabIndex = 3;
-            btnCzw.Text = "Czw";
-            btnCzw.UseVisualStyleBackColor = true;
+            this.btnCzw.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnCzw.Location = new System.Drawing.Point(231, 3);
+            this.btnCzw.Name = "btnCzw";
+            this.btnCzw.Size = new System.Drawing.Size(70, 45);
+            this.btnCzw.TabIndex = 3;
+            this.btnCzw.Text = "Czw";
+            this.btnCzw.UseVisualStyleBackColor = true;
             // 
             // btnPt
             // 
-            btnPt.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnPt.Location = new System.Drawing.Point(307, 3);
-            btnPt.Name = "btnPt";
-            btnPt.Size = new System.Drawing.Size(70, 45);
-            btnPt.TabIndex = 4;
-            btnPt.Text = "Pt";
-            btnPt.UseVisualStyleBackColor = true;
+            this.btnPt.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnPt.Location = new System.Drawing.Point(307, 3);
+            this.btnPt.Name = "btnPt";
+            this.btnPt.Size = new System.Drawing.Size(70, 45);
+            this.btnPt.TabIndex = 4;
+            this.btnPt.Text = "Pt";
+            this.btnPt.UseVisualStyleBackColor = true;
             // 
             // btnSo
             // 
-            btnSo.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnSo.Location = new System.Drawing.Point(383, 3);
-            btnSo.Name = "btnSo";
-            btnSo.Size = new System.Drawing.Size(70, 45);
-            btnSo.TabIndex = 5;
-            btnSo.Text = "So";
-            btnSo.UseVisualStyleBackColor = true;
+            this.btnSo.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnSo.Location = new System.Drawing.Point(383, 3);
+            this.btnSo.Name = "btnSo";
+            this.btnSo.Size = new System.Drawing.Size(70, 45);
+            this.btnSo.TabIndex = 5;
+            this.btnSo.Text = "So";
+            this.btnSo.UseVisualStyleBackColor = true;
             // 
             // btnNd
             // 
-            btnNd.Font = new System.Drawing.Font("Segoe UI", 9F);
-            btnNd.Location = new System.Drawing.Point(459, 3);
-            btnNd.Name = "btnNd";
-            btnNd.Size = new System.Drawing.Size(70, 45);
-            btnNd.TabIndex = 6;
-            btnNd.Text = "Nd";
-            btnNd.UseVisualStyleBackColor = true;
+            this.btnNd.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnNd.Location = new System.Drawing.Point(459, 3);
+            this.btnNd.Name = "btnNd";
+            this.btnNd.Size = new System.Drawing.Size(70, 45);
+            this.btnNd.TabIndex = 6;
+            this.btnNd.Text = "Nd";
+            this.btnNd.UseVisualStyleBackColor = true;
             // 
             // btnDuplikuj
             // 
-            btnDuplikuj.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnDuplikuj.BackColor = System.Drawing.Color.RoyalBlue;
-            btnDuplikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            btnDuplikuj.ForeColor = System.Drawing.Color.White;
-            btnDuplikuj.Location = new System.Drawing.Point(672, 12);
-            btnDuplikuj.Name = "btnDuplikuj";
-            btnDuplikuj.Size = new System.Drawing.Size(110, 40);
-            btnDuplikuj.TabIndex = 8;
-            btnDuplikuj.Text = "Duplikuj";
-            btnDuplikuj.UseVisualStyleBackColor = false;
-            btnDuplikuj.Click += btnDuplikuj_Click;
+            this.btnDuplikuj.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnDuplikuj.BackColor = System.Drawing.Color.RoyalBlue;
+            this.btnDuplikuj.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnDuplikuj.ForeColor = System.Drawing.Color.White;
+            this.btnDuplikuj.Location = new System.Drawing.Point(672, 12);
+            this.btnDuplikuj.Name = "btnDuplikuj";
+            this.btnDuplikuj.Size = new System.Drawing.Size(110, 40);
+            this.btnDuplikuj.TabIndex = 8;
+            this.btnDuplikuj.Text = "Duplikuj";
+            this.btnDuplikuj.UseVisualStyleBackColor = false;
+            this.btnDuplikuj.Click += new System.EventHandler(this.btnDuplikuj_Click);
             // 
             // btnUsun
             // 
-            btnUsun.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnUsun.BackColor = System.Drawing.Color.Black;
-            btnUsun.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            btnUsun.ForeColor = System.Drawing.Color.White;
-            btnUsun.Location = new System.Drawing.Point(560, 12);
-            btnUsun.Name = "btnUsun";
-            btnUsun.Size = new System.Drawing.Size(110, 40);
-            btnUsun.TabIndex = 9;
-            btnUsun.Text = "Usuń";
-            btnUsun.UseVisualStyleBackColor = false;
-            btnUsun.Visible = false;
-            btnUsun.Click += btnUsun_Click;
+            this.btnUsun.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnUsun.BackColor = System.Drawing.Color.Black;
+            this.btnUsun.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnUsun.ForeColor = System.Drawing.Color.White;
+            this.btnUsun.Location = new System.Drawing.Point(440, 12);
+            this.btnUsun.Name = "btnUsun";
+            this.btnUsun.Size = new System.Drawing.Size(110, 40);
+            this.btnUsun.TabIndex = 9;
+            this.btnUsun.Text = "Usuń";
+            this.btnUsun.UseVisualStyleBackColor = false;
+            this.btnUsun.Visible = false;
+            this.btnUsun.Click += new System.EventHandler(this.btnUsun_Click);
             // 
             // panelGlowny
             // 
-            panelGlowny.ColumnCount = 2;
-            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 70F));
-            panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 30F));
-            panelGlowny.Controls.Add(panelMaster, 0, 0);
-            panelGlowny.Controls.Add(panelDetail, 1, 0);
-            panelGlowny.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelGlowny.Location = new System.Drawing.Point(3, 73);
-            panelGlowny.Name = "panelGlowny";
-            panelGlowny.RowCount = 1;
-            panelGlowny.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            panelGlowny.Size = new System.Drawing.Size(1258, 605);
-            panelGlowny.TabIndex = 1;
+            this.panelGlowny.ColumnCount = 2;
+            this.panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 70F));
+            this.panelGlowny.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 30F));
+            this.panelGlowny.Controls.Add(this.panelMaster, 0, 0);
+            this.panelGlowny.Controls.Add(this.panelDetail, 1, 0);
+            this.panelGlowny.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelGlowny.Location = new System.Drawing.Point(3, 73);
+            this.panelGlowny.Name = "panelGlowny";
+            this.panelGlowny.RowCount = 1;
+            this.panelGlowny.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.panelGlowny.Size = new System.Drawing.Size(1258, 605);
+            this.panelGlowny.TabIndex = 1;
             // 
             // panelMaster
             // 
-            panelMaster.Controls.Add(dgvZamowienia);
-            panelMaster.Controls.Add(panelFiltry);
-            panelMaster.Controls.Add(panelPodsumowanie);
-            panelMaster.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelMaster.Location = new System.Drawing.Point(3, 3);
-            panelMaster.Name = "panelMaster";
-            panelMaster.Size = new System.Drawing.Size(874, 599);
-            panelMaster.TabIndex = 0;
+            this.panelMaster.Controls.Add(this.dgvZamowienia);
+            this.panelMaster.Controls.Add(this.panelFiltry);
+            this.panelMaster.Controls.Add(this.panelPodsumowanie);
+            this.panelMaster.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelMaster.Location = new System.Drawing.Point(3, 3);
+            this.panelMaster.Name = "panelMaster";
+            this.panelMaster.Size = new System.Drawing.Size(874, 599);
+            this.panelMaster.TabIndex = 0;
             // 
             // dgvZamowienia
             // 
-            dgvZamowienia.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvZamowienia.Location = new System.Drawing.Point(0, 45);
-            dgvZamowienia.Name = "dgvZamowienia";
-            dgvZamowienia.Size = new System.Drawing.Size(874, 514);
-            dgvZamowienia.TabIndex = 1;
-            dgvZamowienia.CellClick += dgvZamowienia_CellClick;
-            dgvZamowienia.RowPrePaint += dgvZamowienia_RowPrePaint;
-            dgvZamowienia.SelectionChanged += dgvZamowienia_SelectionChanged;
+            this.dgvZamowienia.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvZamowienia.Location = new System.Drawing.Point(0, 45);
+            this.dgvZamowienia.Name = "dgvZamowienia";
+            this.dgvZamowienia.Size = new System.Drawing.Size(874, 514);
+            this.dgvZamowienia.TabIndex = 1;
+            this.dgvZamowienia.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvZamowienia_CellClick);
+            this.dgvZamowienia.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.dgvZamowienia_RowPrePaint);
+            this.dgvZamowienia.SelectionChanged += new System.EventHandler(this.dgvZamowienia_SelectionChanged);
             // 
             // panelFiltry
             // 
-            panelFiltry.Controls.Add(cbFiltrujTowar);
-            panelFiltry.Controls.Add(cbFiltrujHandlowca);
-            panelFiltry.Controls.Add(txtFiltrujOdbiorce);
-            panelFiltry.Controls.Add(rbDataOdbioru);
-            panelFiltry.Controls.Add(rbDataUboju);
-            panelFiltry.Dock = System.Windows.Forms.DockStyle.Top;
-            panelFiltry.Location = new System.Drawing.Point(0, 0);
-            panelFiltry.Name = "panelFiltry";
-            panelFiltry.Padding = new System.Windows.Forms.Padding(5);
-            panelFiltry.Size = new System.Drawing.Size(874, 45);
-            panelFiltry.TabIndex = 2;
-            // 
-            // cbFiltrujTowar
-            // 
-            cbFiltrujTowar.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            cbFiltrujTowar.FormattingEnabled = true;
-            cbFiltrujTowar.Location = new System.Drawing.Point(453, 11);
-            cbFiltrujTowar.Name = "cbFiltrujTowar";
-            cbFiltrujTowar.Size = new System.Drawing.Size(220, 23);
-            cbFiltrujTowar.TabIndex = 2;
-            // 
-            // cbFiltrujHandlowca
-            // 
-            cbFiltrujHandlowca.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            cbFiltrujHandlowca.FormattingEnabled = true;
-            cbFiltrujHandlowca.Location = new System.Drawing.Point(267, 11);
-            cbFiltrujHandlowca.Name = "cbFiltrujHandlowca";
-            cbFiltrujHandlowca.Size = new System.Drawing.Size(180, 23);
-            cbFiltrujHandlowca.TabIndex = 1;
-            // 
-            // txtFiltrujOdbiorce
-            // 
-            txtFiltrujOdbiorce.Location = new System.Drawing.Point(12, 11);
-            txtFiltrujOdbiorce.Name = "txtFiltrujOdbiorce";
-            txtFiltrujOdbiorce.PlaceholderText = "Filtruj po nazwie odbiorcy...";
-            txtFiltrujOdbiorce.Size = new System.Drawing.Size(249, 23);
-            txtFiltrujOdbiorce.TabIndex = 0;
-            // 
-            // rbDataOdbioru
-            // 
-            rbDataOdbioru.AutoSize = true;
-            rbDataOdbioru.Checked = true;
-            rbDataOdbioru.Location = new System.Drawing.Point(690, 13);
-            rbDataOdbioru.Name = "rbDataOdbioru";
-            rbDataOdbioru.Size = new System.Drawing.Size(95, 19);
-            rbDataOdbioru.TabIndex = 3;
-            rbDataOdbioru.TabStop = true;
-            rbDataOdbioru.Text = "Data odbioru";
-            rbDataOdbioru.UseVisualStyleBackColor = true;
+            this.panelFiltry.Controls.Add(this.rbDataUboju);
+            this.panelFiltry.Controls.Add(this.rbDataOdbioru);
+            this.panelFiltry.Controls.Add(this.cbFiltrujTowar);
+            this.panelFiltry.Controls.Add(this.cbFiltrujHandlowca);
+            this.panelFiltry.Controls.Add(this.txtFiltrujOdbiorce);
+            this.panelFiltry.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelFiltry.Location = new System.Drawing.Point(0, 0);
+            this.panelFiltry.Name = "panelFiltry";
+            this.panelFiltry.Padding = new System.Windows.Forms.Padding(5);
+            this.panelFiltry.Size = new System.Drawing.Size(874, 45);
+            this.panelFiltry.TabIndex = 2;
             // 
             // rbDataUboju
             // 
-            rbDataUboju.AutoSize = true;
-            rbDataUboju.Location = new System.Drawing.Point(790, 13);
-            rbDataUboju.Name = "rbDataUboju";
-            rbDataUboju.Size = new System.Drawing.Size(85, 19);
-            rbDataUboju.TabIndex = 4;
-            rbDataUboju.Text = "Data uboju";
-            rbDataUboju.UseVisualStyleBackColor = true;
+            this.rbDataUboju.AutoSize = true;
+            this.rbDataUboju.Location = new System.Drawing.Point(784, 13);
+            this.rbDataUboju.Name = "rbDataUboju";
+            this.rbDataUboju.Size = new System.Drawing.Size(85, 19);
+            this.rbDataUboju.TabIndex = 4;
+            this.rbDataUboju.Text = "Data uboju";
+            this.rbDataUboju.UseVisualStyleBackColor = true;
+            // 
+            // rbDataOdbioru
+            // 
+            this.rbDataOdbioru.AutoSize = true;
+            this.rbDataOdbioru.Checked = true;
+            this.rbDataOdbioru.Location = new System.Drawing.Point(679, 13);
+            this.rbDataOdbioru.Name = "rbDataOdbioru";
+            this.rbDataOdbioru.Size = new System.Drawing.Size(95, 19);
+            this.rbDataOdbioru.TabIndex = 3;
+            this.rbDataOdbioru.TabStop = true;
+            this.rbDataOdbioru.Text = "Data odbioru";
+            this.rbDataOdbioru.UseVisualStyleBackColor = true;
+            // 
+            // cbFiltrujTowar
+            // 
+            this.cbFiltrujTowar.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbFiltrujTowar.FormattingEnabled = true;
+            this.cbFiltrujTowar.Location = new System.Drawing.Point(453, 11);
+            this.cbFiltrujTowar.Name = "cbFiltrujTowar";
+            this.cbFiltrujTowar.Size = new System.Drawing.Size(220, 23);
+            this.cbFiltrujTowar.TabIndex = 2;
+            // 
+            // cbFiltrujHandlowca
+            // 
+            this.cbFiltrujHandlowca.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbFiltrujHandlowca.FormattingEnabled = true;
+            this.cbFiltrujHandlowca.Location = new System.Drawing.Point(267, 11);
+            this.cbFiltrujHandlowca.Name = "cbFiltrujHandlowca";
+            this.cbFiltrujHandlowca.Size = new System.Drawing.Size(180, 23);
+            this.cbFiltrujHandlowca.TabIndex = 1;
+            // 
+            // txtFiltrujOdbiorce
+            // 
+            this.txtFiltrujOdbiorce.Location = new System.Drawing.Point(12, 11);
+            this.txtFiltrujOdbiorce.Name = "txtFiltrujOdbiorce";
+            this.txtFiltrujOdbiorce.PlaceholderText = "Filtruj po nazwie odbiorcy...";
+            this.txtFiltrujOdbiorce.Size = new System.Drawing.Size(249, 23);
+            this.txtFiltrujOdbiorce.TabIndex = 0;
             // 
             // panelPodsumowanie
             // 
-            panelPodsumowanie.BackColor = System.Drawing.SystemColors.Control;
-            panelPodsumowanie.Controls.Add(lblPodsumowanie);
-            panelPodsumowanie.Dock = System.Windows.Forms.DockStyle.Bottom;
-            panelPodsumowanie.Location = new System.Drawing.Point(0, 559);
-            panelPodsumowanie.Name = "panelPodsumowanie";
-            panelPodsumowanie.Size = new System.Drawing.Size(874, 40);
-            panelPodsumowanie.TabIndex = 0;
+            this.panelPodsumowanie.BackColor = System.Drawing.SystemColors.Control;
+            this.panelPodsumowanie.Controls.Add(this.lblPodsumowanie);
+            this.panelPodsumowanie.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelPodsumowanie.Location = new System.Drawing.Point(0, 559);
+            this.panelPodsumowanie.Name = "panelPodsumowanie";
+            this.panelPodsumowanie.Size = new System.Drawing.Size(874, 40);
+            this.panelPodsumowanie.TabIndex = 0;
             // 
             // lblPodsumowanie
             // 
-            lblPodsumowanie.AutoEllipsis = true;
-            lblPodsumowanie.Dock = System.Windows.Forms.DockStyle.Fill;
-            lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            lblPodsumowanie.Location = new System.Drawing.Point(0, 0);
-            lblPodsumowanie.Name = "lblPodsumowanie";
-            lblPodsumowanie.Padding = new System.Windows.Forms.Padding(12, 0, 0, 0);
-            lblPodsumowanie.Size = new System.Drawing.Size(874, 40);
-            lblPodsumowanie.TabIndex = 0;
-            lblPodsumowanie.Text = "-";
-            lblPodsumowanie.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblPodsumowanie.AutoEllipsis = true;
+            this.lblPodsumowanie.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblPodsumowanie.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            this.lblPodsumowanie.Location = new System.Drawing.Point(0, 0);
+            this.lblPodsumowanie.Name = "lblPodsumowanie";
+            this.lblPodsumowanie.Padding = new System.Windows.Forms.Padding(12, 0, 0, 0);
+            this.lblPodsumowanie.Size = new System.Drawing.Size(874, 40);
+            this.lblPodsumowanie.TabIndex = 0;
+            this.lblPodsumowanie.Text = "-";
+            this.lblPodsumowanie.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // panelDetail
             // 
-            panelDetail.ColumnCount = 1;
-            panelDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            panelDetail.Controls.Add(dgvAgregacja, 0, 2);
-            panelDetail.Controls.Add(label2, 0, 1);
-            panelDetail.Controls.Add(panelSzczegolyTop, 0, 0);
-            panelDetail.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelDetail.Location = new System.Drawing.Point(883, 3);
-            panelDetail.Name = "panelDetail";
-            panelDetail.RowCount = 3;
-            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 40F));
-            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
-            panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 60F));
-            panelDetail.Size = new System.Drawing.Size(372, 599);
-            panelDetail.TabIndex = 1;
+            this.panelDetail.ColumnCount = 1;
+            this.panelDetail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.panelDetail.Controls.Add(this.dgvAgregacja, 0, 2);
+            this.panelDetail.Controls.Add(this.label2, 0, 1);
+            this.panelDetail.Controls.Add(this.panelSzczegolyTop, 0, 0);
+            this.panelDetail.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelDetail.Location = new System.Drawing.Point(883, 3);
+            this.panelDetail.Name = "panelDetail";
+            this.panelDetail.RowCount = 3;
+            this.panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 40F));
+            this.panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            this.panelDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 60F));
+            this.panelDetail.Size = new System.Drawing.Size(372, 599);
+            this.panelDetail.TabIndex = 1;
             // 
             // dgvAgregacja
             // 
-            dgvAgregacja.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvAgregacja.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvAgregacja.Location = new System.Drawing.Point(3, 260);
-            dgvAgregacja.Name = "dgvAgregacja";
-            dgvAgregacja.Size = new System.Drawing.Size(366, 336);
-            dgvAgregacja.TabIndex = 1;
+            this.dgvAgregacja.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvAgregacja.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvAgregacja.Location = new System.Drawing.Point(3, 260);
+            this.dgvAgregacja.Name = "dgvAgregacja";
+            this.dgvAgregacja.Size = new System.Drawing.Size(366, 336);
+            this.dgvAgregacja.TabIndex = 1;
             // 
             // label2
             // 
-            label2.AutoSize = true;
-            label2.Dock = System.Windows.Forms.DockStyle.Fill;
-            label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            label2.Location = new System.Drawing.Point(3, 227);
-            label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(366, 30);
-            label2.TabIndex = 3;
-            label2.Text = "Podsumowanie produktów dla wybranego dnia";
-            label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.label2.AutoSize = true;
+            this.label2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.label2.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.label2.Location = new System.Drawing.Point(3, 227);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(366, 30);
+            this.label2.TabIndex = 3;
+            this.label2.Text = "Podsumowanie produktów dla wybranego dnia";
+            this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // panelSzczegolyTop
             // 
-            panelSzczegolyTop.ColumnCount = 2;
-            panelSzczegolyTop.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            panelSzczegolyTop.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            panelSzczegolyTop.Controls.Add(panelNotatki, 0, 0);
-            panelSzczegolyTop.Controls.Add(panelPrzychody, 1, 0);
-            panelSzczegolyTop.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelSzczegolyTop.Location = new System.Drawing.Point(3, 3);
-            panelSzczegolyTop.Name = "panelSzczegolyTop";
-            panelSzczegolyTop.RowCount = 1;
-            panelSzczegolyTop.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            panelSzczegolyTop.Size = new System.Drawing.Size(366, 221);
-            panelSzczegolyTop.TabIndex = 4;
-            // 
-            // panelNotatki
-            // 
-            panelNotatki.Controls.Add(dgvSzczegoly);
-            panelNotatki.Controls.Add(txtNotatki);
-            panelNotatki.Controls.Add(label3);
-            panelNotatki.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelNotatki.Location = new System.Drawing.Point(3, 3);
-            panelNotatki.Name = "panelNotatki";
-            panelNotatki.Size = new System.Drawing.Size(177, 215);
-            panelNotatki.TabIndex = 0;
+            this.panelSzczegolyTop.Controls.Add(this.dgvSzczegoly);
+            this.panelSzczegolyTop.Controls.Add(this.txtNotatki);
+            this.panelSzczegolyTop.Controls.Add(this.label3);
+            this.panelSzczegolyTop.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelSzczegolyTop.Location = new System.Drawing.Point(3, 3);
+            this.panelSzczegolyTop.Name = "panelSzczegolyTop";
+            this.panelSzczegolyTop.Size = new System.Drawing.Size(366, 221);
+            this.panelSzczegolyTop.TabIndex = 4;
             // 
             // dgvSzczegoly
             // 
-            dgvSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvSzczegoly.Location = new System.Drawing.Point(0, 23);
-            dgvSzczegoly.Name = "dgvSzczegoly";
-            dgvSzczegoly.Size = new System.Drawing.Size(177, 92);
-            dgvSzczegoly.TabIndex = 2;
+            this.dgvSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvSzczegoly.Location = new System.Drawing.Point(0, 23);
+            this.dgvSzczegoly.Name = "dgvSzczegoly";
+            this.dgvSzczegoly.Size = new System.Drawing.Size(366, 98);
+            this.dgvSzczegoly.TabIndex = 2;
             // 
             // txtNotatki
             // 
-            txtNotatki.Dock = System.Windows.Forms.DockStyle.Bottom;
-            txtNotatki.Location = new System.Drawing.Point(0, 115);
-            txtNotatki.Multiline = true;
-            txtNotatki.Name = "txtNotatki";
-            txtNotatki.ReadOnly = true;
-            txtNotatki.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            txtNotatki.Size = new System.Drawing.Size(177, 100);
-            txtNotatki.TabIndex = 1;
+            this.txtNotatki.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.txtNotatki.Location = new System.Drawing.Point(0, 121);
+            this.txtNotatki.Multiline = true;
+            this.txtNotatki.Name = "txtNotatki";
+            this.txtNotatki.ReadOnly = true;
+            this.txtNotatki.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtNotatki.Size = new System.Drawing.Size(366, 100);
+            this.txtNotatki.TabIndex = 1;
             // 
             // label3
             // 
-            label3.AutoSize = true;
-            label3.Dock = System.Windows.Forms.DockStyle.Top;
-            label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            label3.Location = new System.Drawing.Point(0, 0);
-            label3.Name = "label3";
-            label3.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
-            label3.Size = new System.Drawing.Size(208, 23);
-            label3.TabIndex = 0;
-            label3.Text = "Szczegóły / Notatki zamówienia:";
-            // 
-            // panelPrzychody
-            // 
-            panelPrzychody.Controls.Add(dgvPrzychody);
-            panelPrzychody.Controls.Add(label1);
-            panelPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
-            panelPrzychody.Location = new System.Drawing.Point(186, 3);
-            panelPrzychody.Name = "panelPrzychody";
-            panelPrzychody.Size = new System.Drawing.Size(177, 215);
-            panelPrzychody.TabIndex = 1;
-            // 
-            // dgvPrzychody
-            // 
-            dgvPrzychody.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvPrzychody.Dock = System.Windows.Forms.DockStyle.Fill;
-            dgvPrzychody.Location = new System.Drawing.Point(0, 23);
-            dgvPrzychody.Name = "dgvPrzychody";
-            dgvPrzychody.Size = new System.Drawing.Size(177, 192);
-            dgvPrzychody.TabIndex = 1;
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Dock = System.Windows.Forms.DockStyle.Top;
-            label1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            label1.Location = new System.Drawing.Point(0, 0);
-            label1.Name = "label1";
-            label1.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
-            label1.Size = new System.Drawing.Size(122, 23);
-            label1.TabIndex = 0;
-            label1.Text = "Przychody towaru:";
+            this.label3.AutoSize = true;
+            this.label3.Dock = System.Windows.Forms.DockStyle.Top;
+            this.label3.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.label3.Location = new System.Drawing.Point(0, 0);
+            this.label3.Name = "label3";
+            this.label3.Padding = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.label3.Size = new System.Drawing.Size(208, 23);
+            this.label3.TabIndex = 0;
+            this.label3.Text = "Szczegóły / Notatki zamówienia:";
             // 
             // WidokZamowieniaPodsumowanie
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1264, 681);
-            Controls.Add(tableLayoutPanel1);
-            MinimumSize = new System.Drawing.Size(1280, 720);
-            Name = "WidokZamowieniaPodsumowanie";
-            Text = "Podsumowanie Tygodniowe Zamówień";
-            WindowState = System.Windows.Forms.FormWindowState.Maximized;
-            tableLayoutPanel1.ResumeLayout(false);
-            panelNawigacja.ResumeLayout(false);
-            panelDni.ResumeLayout(false);
-            panelGlowny.ResumeLayout(false);
-            panelMaster.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)dgvZamowienia).EndInit();
-            panelFiltry.ResumeLayout(false);
-            panelFiltry.PerformLayout();
-            panelPodsumowanie.ResumeLayout(false);
-            panelDetail.ResumeLayout(false);
-            panelDetail.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvAgregacja).EndInit();
-            panelSzczegolyTop.ResumeLayout(false);
-            panelNotatki.ResumeLayout(false);
-            panelNotatki.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvSzczegoly).EndInit();
-            panelPrzychody.ResumeLayout(false);
-            panelPrzychody.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)dgvPrzychody).EndInit();
-            ResumeLayout(false);
-            // btnCykliczne
-            // 
-            btnCykliczne = new System.Windows.Forms.Button();
-            btnCykliczne.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            btnCykliczne.BackColor = System.Drawing.Color.DarkOrange;
-            btnCykliczne.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            btnCykliczne.ForeColor = System.Drawing.Color.White;
-            btnCykliczne.Location = new System.Drawing.Point(556, 12);
-            btnCykliczne.Name = "btnCykliczne";
-            btnCykliczne.Size = new System.Drawing.Size(110, 40);
-            btnCykliczne.TabIndex = 10;
-            btnCykliczne.Text = "Cykliczne";
-            btnCykliczne.UseVisualStyleBackColor = false;
-            btnCykliczne.Click += btnCykliczne_Click;
-
-            // Dodaj do panelu nawigacyjnego (po btnDuplikuj)
-            panelNawigacja.Controls.Add(btnCykliczne);
-
-            // Przesuń przycisk Usuń bardziej w lewo
-            btnUsun.Location = new System.Drawing.Point(440, 12);
-
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(1264, 681);
+            this.Controls.Add(this.tableLayoutPanel1);
+            this.MinimumSize = new System.Drawing.Size(1280, 720);
+            this.Name = "WidokZamowieniaPodsumowanie";
+            this.Text = "Podsumowanie Tygodniowe Zamówień";
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            this.tableLayoutPanel1.ResumeLayout(false);
+            this.panelNawigacja.ResumeLayout(false);
+            this.panelDni.ResumeLayout(false);
+            this.panelGlowny.ResumeLayout(false);
+            this.panelMaster.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dgvZamowienia)).EndInit();
+            this.panelFiltry.ResumeLayout(false);
+            this.panelFiltry.PerformLayout();
+            this.panelPodsumowanie.ResumeLayout(false);
+            this.panelDetail.ResumeLayout(false);
+            this.panelDetail.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAgregacja)).EndInit();
+            this.panelSzczegolyTop.ResumeLayout(false);
+            this.panelSzczegolyTop.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvSzczegoly)).EndInit();
+            this.ResumeLayout(false);
         }
 
         #endregion
@@ -631,13 +569,11 @@ namespace Kalendarz1
         private System.Windows.Forms.TableLayoutPanel panelDetail;
         private System.Windows.Forms.DataGridView dgvSzczegoly;
         private System.Windows.Forms.DataGridView dgvAgregacja;
-        private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Panel panelFiltry;
         private System.Windows.Forms.ComboBox cbFiltrujHandlowca;
         private System.Windows.Forms.TextBox txtFiltrujOdbiorce;
-        private System.Windows.Forms.TableLayoutPanel panelSzczegolyTop;
-        private System.Windows.Forms.Panel panelNotatki;
+        private System.Windows.Forms.Panel panelSzczegolyTop;
         private System.Windows.Forms.TextBox txtNotatki;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Panel panelPrzychody;
@@ -652,7 +588,6 @@ namespace Kalendarz1
         private System.Windows.Forms.Button btnDuplikuj;
         private System.Windows.Forms.Button btnUsun;
         private System.Windows.Forms.DataGridView dgvPojTuszki;
-        // W sekcji deklaracji (na końcu pliku przed klasą)
         private System.Windows.Forms.Button btnCykliczne;
         private System.Windows.Forms.RadioButton rbDataOdbioru;
         private System.Windows.Forms.RadioButton rbDataUboju;

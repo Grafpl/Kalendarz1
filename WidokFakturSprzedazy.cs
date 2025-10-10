@@ -23,12 +23,12 @@ namespace Kalendarz1
         public string UserID { get; set; }
 
         private readonly Dictionary<string, string> mapaHandlowcow = new Dictionary<string, string>
-{
-    { "9991", "Dawid" },
-    { "9998", "Daniel" },
-    { "871231", "Radek" },
-    { "432143", "Ania" }
-};
+        {
+            { "9991", "Dawid" },
+            { "9998", "Daniel" },
+            { "871231", "Radek" },
+            { "432143", "Ania" }
+        };
 
         private string? _docelowyHandlowiec;
         private Button btnWybierzHandlowcow;
@@ -2806,6 +2806,9 @@ ORDER BY SredniaCena DESC;";
                 Width = 120,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
+
+            // NOWA LINIA: Dodanie obsługi podwójnego kliknięcia
+            dataGridViewPlatnosci.CellDoubleClick += DataGridViewPlatnosci_CellDoubleClick;
         }
 
         private void ZaladujTowary()
@@ -3226,6 +3229,31 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                 {
                     e.Value = "";
                     e.FormattingApplied = true;
+                }
+            }
+        }
+
+        // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności
+        private void DataGridViewPlatnosci_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Sprawdzenie, czy kliknięto prawidłowy wiersz (nie nagłówek)
+            if (e.RowIndex < 0)
+            {
+                return;
+            }
+
+            var row = dataGridViewPlatnosci.Rows[e.RowIndex];
+            var kontrahentCellValue = row.Cells["Kontrahent"].Value;
+
+            // Sprawdzenie, czy to nie jest wiersz sumy
+            if (kontrahentCellValue != null && kontrahentCellValue.ToString() != "📊 SUMA")
+            {
+                string nazwaKontrahenta = kontrahentCellValue.ToString();
+
+                // Utworzenie i wyświetlenie nowego okna ze szczegółami
+                using (var formSzczegoly = new FormSzczegolyPlatnosci(connectionString, nazwaKontrahenta))
+                {
+                    formSzczegoly.ShowDialog(this);
                 }
             }
         }
@@ -4097,6 +4125,189 @@ ORDER BY DT.DataCzas DESC;";
                                       MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
+            }
+        }
+    }
+
+    public class FormSzczegolyPlatnosci : Form
+    {
+        private DataGridView dataGridViewSzczegoly;
+        private string connectionString;
+        private string nazwaKontrahenta;
+
+        public FormSzczegolyPlatnosci(string connString, string kontrahent)
+        {
+            this.connectionString = connString;
+            this.nazwaKontrahenta = kontrahent;
+            InitializeComponent();
+            this.Load += FormSzczegolyPlatnosci_Load;
+        }
+
+        private void InitializeComponent()
+        {
+            this.dataGridViewSzczegoly = new System.Windows.Forms.DataGridView();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewSzczegoly)).BeginInit();
+            this.SuspendLayout();
+            // 
+            // dataGridViewSzczegoly
+            // 
+            this.dataGridViewSzczegoly.AllowUserToAddRows = false;
+            this.dataGridViewSzczegoly.AllowUserToDeleteRows = false;
+            this.dataGridViewSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dataGridViewSzczegoly.Location = new System.Drawing.Point(0, 0);
+            this.dataGridViewSzczegoly.Name = "dataGridViewSzczegoly";
+            this.dataGridViewSzczegoly.ReadOnly = true;
+            this.dataGridViewSzczegoly.RowTemplate.Height = 25;
+            this.dataGridViewSzczegoly.Size = new System.Drawing.Size(1184, 561);
+            this.dataGridViewSzczegoly.TabIndex = 0;
+            this.dataGridViewSzczegoly.RowPrePaint += DataGridViewSzczegoly_RowPrePaint;
+            // 
+            // FormSzczegolyPlatnosci
+            // 
+            this.ClientSize = new System.Drawing.Size(1184, 561);
+            this.Controls.Add(this.dataGridViewSzczegoly);
+            this.Name = "FormSzczegolyPlatnosci";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            this.Text = "Szczegóły płatności dla: " + this.nazwaKontrahenta;
+            this.Font = new Font("Segoe UI", 9F);
+            this.MinimumSize = new System.Drawing.Size(900, 400);
+
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewSzczegoly)).EndInit();
+            this.ResumeLayout(false);
+        }
+
+        private void FormSzczegolyPlatnosci_Load(object sender, EventArgs e)
+        {
+            WczytajSzczegoly();
+            KonfigurujWygladDataGridView();
+        }
+
+        private void WczytajSzczegoly()
+        {
+            string query = @"
+            WITH PNAgg AS (
+                SELECT
+                    PN.dkid,
+                    SUM(ISNULL(PN.kwotarozl, 0)) AS KwotaRozliczona
+                FROM [HANDEL].[HM].[PN] AS PN
+                GROUP BY PN.dkid
+            )
+            SELECT
+                DK.kod AS NumerDokumentu,
+                CONVERT(date, DK.data) AS DataDokumentu,
+                DK.walbrutto AS WartoscBrutto,
+                ISNULL(PA.KwotaRozliczona, 0) AS Zaplacono,
+                (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS PozostaloDoZaplaty,
+                CONVERT(date, DK.plattermin) AS TerminPlatnosci,
+                CASE
+                    WHEN GETDATE() > DK.plattermin THEN DATEDIFF(day, DK.plattermin, GETDATE())
+                    ELSE 0
+                END AS DniPoTerminie
+            FROM [HANDEL].[HM].[DK] AS DK
+            JOIN [HANDEL].[SSCommon].[STContractors] AS C ON DK.khid = C.id
+            LEFT JOIN PNAgg AS PA ON DK.id = PA.dkid
+            WHERE
+                DK.anulowany = 0
+                AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0.01
+                AND C.Shortcut = @NazwaKontrahenta
+            ORDER BY
+                TerminPlatnosci ASC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    var cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@NazwaKontrahenta", this.nazwaKontrahenta);
+
+                    var adapter = new SqlDataAdapter(cmd);
+                    var dt = new DataTable();
+                    adapter.Fill(dt);
+
+                    // Dodanie wiersza podsumowującego
+                    if (dt.Rows.Count > 0)
+                    {
+                        decimal sumaWartoscBrutto = dt.AsEnumerable().Sum(row => row.Field<decimal>("WartoscBrutto"));
+                        decimal sumaZaplacono = dt.AsEnumerable().Sum(row => row.Field<decimal>("Zaplacono"));
+                        decimal sumaPozostalo = dt.AsEnumerable().Sum(row => row.Field<decimal>("PozostaloDoZaplaty"));
+
+                        DataRow sumaRow = dt.NewRow();
+                        sumaRow["NumerDokumentu"] = "📊 RAZEM:";
+                        sumaRow["WartoscBrutto"] = sumaWartoscBrutto;
+                        sumaRow["Zaplacono"] = sumaZaplacono;
+                        sumaRow["PozostaloDoZaplaty"] = sumaPozostalo;
+                        dt.Rows.Add(sumaRow);
+                    }
+
+                    dataGridViewSzczegoly.DataSource = dt;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Błąd podczas wczytywania szczegółów płatności: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void KonfigurujWygladDataGridView()
+        {
+            dataGridViewSzczegoly.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridViewSzczegoly.RowHeadersVisible = false;
+            dataGridViewSzczegoly.EnableHeadersVisualStyles = false;
+
+            var headerStyle = dataGridViewSzczegoly.ColumnHeadersDefaultCellStyle;
+            headerStyle.BackColor = ColorTranslator.FromHtml("#2c3e50");
+            headerStyle.ForeColor = Color.White;
+            headerStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dataGridViewSzczegoly.ColumnHeadersHeight = 35;
+
+            dataGridViewSzczegoly.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#ecf0f1");
+            dataGridViewSzczegoly.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#3498db");
+            dataGridViewSzczegoly.GridColor = ColorTranslator.FromHtml("#bdc3c7");
+
+            // Formatowanie i nazewnictwo kolumn
+            if (dataGridViewSzczegoly.Columns.Contains("WartoscBrutto"))
+            {
+                dataGridViewSzczegoly.Columns["WartoscBrutto"].DefaultCellStyle.Format = "c2";
+                dataGridViewSzczegoly.Columns["WartoscBrutto"].HeaderText = "Wartość Brutto";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("Zaplacono"))
+            {
+                dataGridViewSzczegoly.Columns["Zaplacono"].DefaultCellStyle.Format = "c2";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("PozostaloDoZaplaty"))
+            {
+                dataGridViewSzczegoly.Columns["PozostaloDoZaplaty"].DefaultCellStyle.Format = "c2";
+                dataGridViewSzczegoly.Columns["PozostaloDoZaplaty"].HeaderText = "Pozostało do zapłaty";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("DataDokumentu"))
+            {
+                dataGridViewSzczegoly.Columns["DataDokumentu"].HeaderText = "Data Dokumentu";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("NumerDokumentu"))
+            {
+                dataGridViewSzczegoly.Columns["NumerDokumentu"].HeaderText = "Numer Dokumentu";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("TerminPlatnosci"))
+            {
+                dataGridViewSzczegoly.Columns["TerminPlatnosci"].HeaderText = "Termin Płatności";
+            }
+            if (dataGridViewSzczegoly.Columns.Contains("DniPoTerminie"))
+            {
+                dataGridViewSzczegoly.Columns["DniPoTerminie"].HeaderText = "Dni po terminie";
+            }
+        }
+
+        // Metoda do stylizacji wiersza podsumowania
+        private void DataGridViewSzczegoly_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= dataGridViewSzczegoly.Rows.Count) return;
+
+            var row = dataGridViewSzczegoly.Rows[e.RowIndex];
+            if (row.Cells["NumerDokumentu"].Value?.ToString() == "📊 RAZEM:")
+            {
+                row.DefaultCellStyle.BackColor = ColorTranslator.FromHtml("#d5dbdb");
+                row.DefaultCellStyle.Font = new Font(dataGridViewSzczegoly.Font, FontStyle.Bold);
             }
         }
     }
