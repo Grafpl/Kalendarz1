@@ -1,11 +1,20 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.Designer.cs
+// WERSJA 9.7 – Oczyszczona i z oficjalnie dodanym przełącznikiem filtrów
 #nullable disable
+
 namespace Kalendarz1
 {
     partial class WidokZamowieniaPodsumowanie
     {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -17,6 +26,10 @@ namespace Kalendarz1
 
         #region Windows Form Designer generated code
 
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
         private void InitializeComponent()
         {
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
@@ -43,6 +56,7 @@ namespace Kalendarz1
             this.panelMaster = new System.Windows.Forms.Panel();
             this.dgvZamowienia = new System.Windows.Forms.DataGridView();
             this.panelFiltry = new System.Windows.Forms.Panel();
+            this.chkPokazWydaniaBezZamowien = new System.Windows.Forms.CheckBox();
             this.rbDataUboju = new System.Windows.Forms.RadioButton();
             this.rbDataOdbioru = new System.Windows.Forms.RadioButton();
             this.cbFiltrujTowar = new System.Windows.Forms.ComboBox();
@@ -214,7 +228,7 @@ namespace Kalendarz1
             this.panelDni.Controls.Add(this.btnNd);
             this.panelDni.Location = new System.Drawing.Point(344, 6);
             this.panelDni.Name = "panelDni";
-            this.panelDni.Size = new System.Drawing.Size(670, 52);
+            this.panelDni.Size = new System.Drawing.Size(532, 52);
             this.panelDni.TabIndex = 0;
             // 
             // btnPon
@@ -344,18 +358,20 @@ namespace Kalendarz1
             // 
             // dgvZamowienia
             // 
+            this.dgvZamowienia.AllowUserToAddRows = false;
+            this.dgvZamowienia.AllowUserToDeleteRows = false;
             this.dgvZamowienia.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvZamowienia.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgvZamowienia.Location = new System.Drawing.Point(0, 45);
             this.dgvZamowienia.Name = "dgvZamowienia";
+            this.dgvZamowienia.ReadOnly = true;
+            this.dgvZamowienia.RowTemplate.Height = 25;
             this.dgvZamowienia.Size = new System.Drawing.Size(874, 514);
             this.dgvZamowienia.TabIndex = 1;
-            this.dgvZamowienia.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvZamowienia_CellClick);
-            this.dgvZamowienia.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.dgvZamowienia_RowPrePaint);
-            this.dgvZamowienia.SelectionChanged += new System.EventHandler(this.dgvZamowienia_SelectionChanged);
             // 
             // panelFiltry
             // 
+            this.panelFiltry.Controls.Add(this.chkPokazWydaniaBezZamowien);
             this.panelFiltry.Controls.Add(this.rbDataUboju);
             this.panelFiltry.Controls.Add(this.rbDataOdbioru);
             this.panelFiltry.Controls.Add(this.cbFiltrujTowar);
@@ -367,6 +383,17 @@ namespace Kalendarz1
             this.panelFiltry.Padding = new System.Windows.Forms.Padding(5);
             this.panelFiltry.Size = new System.Drawing.Size(874, 45);
             this.panelFiltry.TabIndex = 2;
+            // 
+            // chkPokazWydaniaBezZamowien
+            // 
+            this.chkPokazWydaniaBezZamowien.AutoSize = true;
+            this.chkPokazWydaniaBezZamowien.Location = new System.Drawing.Point(515, 13);
+            this.chkPokazWydaniaBezZamowien.Name = "chkPokazWydaniaBezZamowien";
+            this.chkPokazWydaniaBezZamowien.Size = new System.Drawing.Size(158, 19);
+            this.chkPokazWydaniaBezZamowien.TabIndex = 5;
+            this.chkPokazWydaniaBezZamowien.Text = "Pokaż wydania bez zam.";
+            this.chkPokazWydaniaBezZamowien.UseVisualStyleBackColor = true;
+            this.chkPokazWydaniaBezZamowien.CheckedChanged += new System.EventHandler(this.ChkPokazWydaniaBezZamowien_CheckedChanged);
             // 
             // rbDataUboju
             // 
@@ -394,26 +421,26 @@ namespace Kalendarz1
             // 
             this.cbFiltrujTowar.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbFiltrujTowar.FormattingEnabled = true;
-            this.cbFiltrujTowar.Location = new System.Drawing.Point(453, 11);
+            this.cbFiltrujTowar.Location = new System.Drawing.Point(344, 11);
             this.cbFiltrujTowar.Name = "cbFiltrujTowar";
-            this.cbFiltrujTowar.Size = new System.Drawing.Size(220, 23);
+            this.cbFiltrujTowar.Size = new System.Drawing.Size(165, 23);
             this.cbFiltrujTowar.TabIndex = 2;
             // 
             // cbFiltrujHandlowca
             // 
             this.cbFiltrujHandlowca.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbFiltrujHandlowca.FormattingEnabled = true;
-            this.cbFiltrujHandlowca.Location = new System.Drawing.Point(267, 11);
+            this.cbFiltrujHandlowca.Location = new System.Drawing.Point(188, 11);
             this.cbFiltrujHandlowca.Name = "cbFiltrujHandlowca";
-            this.cbFiltrujHandlowca.Size = new System.Drawing.Size(180, 23);
+            this.cbFiltrujHandlowca.Size = new System.Drawing.Size(150, 23);
             this.cbFiltrujHandlowca.TabIndex = 1;
             // 
             // txtFiltrujOdbiorce
             // 
             this.txtFiltrujOdbiorce.Location = new System.Drawing.Point(12, 11);
             this.txtFiltrujOdbiorce.Name = "txtFiltrujOdbiorce";
-            this.txtFiltrujOdbiorce.PlaceholderText = "Filtruj po nazwie odbiorcy...";
-            this.txtFiltrujOdbiorce.Size = new System.Drawing.Size(249, 23);
+            this.txtFiltrujOdbiorce.PlaceholderText = "Filtruj odbiorcę...";
+            this.txtFiltrujOdbiorce.Size = new System.Drawing.Size(170, 23);
             this.txtFiltrujOdbiorce.TabIndex = 0;
             // 
             // panelPodsumowanie
@@ -458,10 +485,14 @@ namespace Kalendarz1
             // 
             // dgvAgregacja
             // 
+            this.dgvAgregacja.AllowUserToAddRows = false;
+            this.dgvAgregacja.AllowUserToDeleteRows = false;
             this.dgvAgregacja.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvAgregacja.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgvAgregacja.Location = new System.Drawing.Point(3, 260);
             this.dgvAgregacja.Name = "dgvAgregacja";
+            this.dgvAgregacja.ReadOnly = true;
+            this.dgvAgregacja.RowTemplate.Height = 25;
             this.dgvAgregacja.Size = new System.Drawing.Size(366, 336);
             this.dgvAgregacja.TabIndex = 1;
             // 
@@ -490,10 +521,14 @@ namespace Kalendarz1
             // 
             // dgvSzczegoly
             // 
+            this.dgvSzczegoly.AllowUserToAddRows = false;
+            this.dgvSzczegoly.AllowUserToDeleteRows = false;
             this.dgvSzczegoly.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvSzczegoly.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgvSzczegoly.Location = new System.Drawing.Point(0, 23);
             this.dgvSzczegoly.Name = "dgvSzczegoly";
+            this.dgvSzczegoly.ReadOnly = true;
+            this.dgvSzczegoly.RowTemplate.Height = 25;
             this.dgvSzczegoly.Size = new System.Drawing.Size(366, 98);
             this.dgvSzczegoly.TabIndex = 2;
             // 
@@ -576,8 +611,6 @@ namespace Kalendarz1
         private System.Windows.Forms.Panel panelSzczegolyTop;
         private System.Windows.Forms.TextBox txtNotatki;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Panel panelPrzychody;
-        private System.Windows.Forms.DataGridView dgvPrzychody;
         private System.Windows.Forms.Button btnSo;
         private System.Windows.Forms.Button btnNd;
         private System.Windows.Forms.Button btnTydzienNext;
@@ -587,9 +620,9 @@ namespace Kalendarz1
         private System.Windows.Forms.ComboBox cbFiltrujTowar;
         private System.Windows.Forms.Button btnDuplikuj;
         private System.Windows.Forms.Button btnUsun;
-        private System.Windows.Forms.DataGridView dgvPojTuszki;
         private System.Windows.Forms.Button btnCykliczne;
         private System.Windows.Forms.RadioButton rbDataOdbioru;
         private System.Windows.Forms.RadioButton rbDataUboju;
+        private System.Windows.Forms.CheckBox chkPokazWydaniaBezZamowien;
     }
 }

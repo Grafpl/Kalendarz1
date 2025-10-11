@@ -7,6 +7,8 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using System.Globalization;
+using System.Windows.Forms.DataVisualization.Charting;
 
 namespace Kalendarz1
 {
@@ -39,6 +41,9 @@ namespace Kalendarz1
         private ComboBox comboBoxRokTop10;
         private ComboBox comboBoxMiesiacTop10;
         private ComboBox comboBoxTowarTop10;
+
+        private Chart? chartRoznicaCen;
+
 
         private RadioButton radioTowarSwieze;
         private RadioButton radioTowarMrozone;
@@ -849,6 +854,7 @@ namespace Kalendarz1
                 historiaForm.ShowDialog(this);
             }
         }
+        // === FRAGMENT TWORZĄCY ZAKŁADKĘ (JEŚLI JUŻ MASZ - ZAMIEŃ NA TO) ===
         private void StworzZakladkePorownaniaSwiezeMrozone(TabPage tab)
         {
             Panel mainPanel = new Panel { Dock = DockStyle.Fill };
@@ -857,74 +863,54 @@ namespace Kalendarz1
             Panel panelControls = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
+                Height = 46,
                 BackColor = ColorTranslator.FromHtml("#ecf0f1"),
-                Padding = new Padding(10)
+                Padding = new Padding(8)
             };
 
-            Label lblTowar1 = new Label
+            var lblTowar1 = new Label { Text = "📦 Towar 1:", AutoSize = true, Location = new Point(8, 12) };
+            var comboBoxTowar1 = new ComboBox
             {
-                Text = "📦 Towar 1:",
-                Location = new Point(10, 15),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-
-            ComboBox comboBoxTowar1 = new ComboBox
-            {
-                Location = new Point(85, 12),
-                Size = new Size(250, 23),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Name = "comboBoxTowar1"
+                Name = "comboBoxTowar1",
+                Location = new Point(80, 8),
+                Size = new Size(230, 24),
+                DropDownStyle = ComboBoxStyle.DropDownList
             };
             WypelnijWszystkieTowaryPorown(comboBoxTowar1);
             comboBoxTowar1.SelectedIndexChanged += (s, e) => OdswiezPorownanieTowarow();
 
-            Label lblTowar2 = new Label
+            var lblTowar2 = new Label { Text = "📦 Towar 2:", AutoSize = true, Location = new Point(324, 12) };
+            var comboBoxTowar2 = new ComboBox
             {
-                Text = "📦 Towar 2:",
-                Location = new Point(355, 15),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-
-            ComboBox comboBoxTowar2 = new ComboBox
-            {
-                Location = new Point(430, 12),
-                Size = new Size(250, 23),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Name = "comboBoxTowar2"
+                Name = "comboBoxTowar2",
+                Location = new Point(396, 8),
+                Size = new Size(230, 24),
+                DropDownStyle = ComboBoxStyle.DropDownList
             };
             WypelnijWszystkieTowaryPorown(comboBoxTowar2);
             comboBoxTowar2.SelectedIndexChanged += (s, e) => OdswiezPorownanieTowarow();
 
-            Button btnEksportuj = new Button
+            var btnEksport = new Button
             {
                 Text = "📊 Eksportuj",
-                Location = new Point(700, 11),
-                Size = new Size(110, 25),
+                Location = new Point(640, 8),
+                Size = new Size(110, 24),
                 BackColor = ColorTranslator.FromHtml("#3498db"),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat
             };
-            btnEksportuj.FlatAppearance.BorderSize = 0;
-            btnEksportuj.Click += BtnEksportujPorownanieClick;
+            btnEksport.FlatAppearance.BorderSize = 0;
+            btnEksport.Click += BtnEksportujPorownanieClick;
 
-            panelControls.Controls.Add(lblTowar1);
-            panelControls.Controls.Add(comboBoxTowar1);
-            panelControls.Controls.Add(lblTowar2);
-            panelControls.Controls.Add(comboBoxTowar2);
-            panelControls.Controls.Add(btnEksportuj);
+            panelControls.Controls.AddRange(new Control[] { lblTowar1, comboBoxTowar1, lblTowar2, comboBoxTowar2, btnEksport });
 
-            Panel panelStatystyki = new Panel
+            Panel panelStat = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 60,
+                Height = 42,
                 BackColor = ColorTranslator.FromHtml("#d5f4e6"),
-                Padding = new Padding(5)
+                Padding = new Padding(6)
             };
-
             lblStatystykiPorown = new Label
             {
                 Dock = DockStyle.Fill,
@@ -933,25 +919,138 @@ namespace Kalendarz1
                 ForeColor = ColorTranslator.FromHtml("#27ae60"),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            panelStatystyki.Controls.Add(lblStatystykiPorown);
+            panelStat.Controls.Add(lblStatystykiPorown);
 
-            dataGridViewPorownaniaSwiezeMrozone = new DataGridView
+            // ✅ CheckBox: ukryj dni z zerową sprzedażą
+            var chkUkryjZerowe = new CheckBox
             {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AutoGenerateColumns = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                RowHeadersVisible = false,
-                Margin = new Padding(0, 5, 0, 0)
+                Name = "chkUkryjZerowePorownanie",
+                Text = "Ukryj dni z zerową sprzedażą",
+                AutoSize = true,
+                Location = new Point(760, 12),
+                Checked = true,
+                Cursor = Cursors.Hand
             };
+
+            var chkUkryj = new CheckBox
+            {
+                Name = "chkUkryjZerowePorownanie",
+                Text = "Ukryj wiersze z 0 kg",
+                AutoSize = true,
+                Location = new Point(760, 12)
+            };
+            chkUkryj.CheckedChanged += (s, e) => ZastosujFiltrZerowychWPorownaniu();
+            chkUkryjZerowe.CheckedChanged += (s, e) =>
+            {
+                ZastosujFiltrZerowychWPorownaniu();   // filtruj dane siatki
+                AktualizujWykresRoznicy();            // przerysuj wykres
+            };
+            panelControls.Controls.Add(chkUkryjZerowe);
+
+
+            dataGridViewPorownaniaSwiezeMrozone = new DataGridView { Dock = DockStyle.Fill };
             KonfigurujDataGridViewPorownaniaSwiezeMrozone();
 
+            // === WYKRES RÓŻNICY CEN (zł/kg) ===
+            var panelChart = new Panel { Dock = DockStyle.Bottom, Height = 220, Padding = new Padding(8, 4, 8, 8), BackColor = Color.White };
+            chartRoznicaCen = new Chart { Dock = DockStyle.Fill, BorderlineDashStyle = ChartDashStyle.Solid, BorderlineColor = Color.Gainsboro };
+
+            var ca = new ChartArea("ca");
+            ca.AxisX.MajorGrid.LineColor = Color.Gainsboro;
+            ca.AxisY.MajorGrid.LineColor = Color.Gainsboro;
+            ca.AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
+            ca.AxisX.LabelStyle.Angle = -15;
+            ca.AxisX.LabelStyle.Format = "yyyy-MMMM-dd dddd"; // 👈 format jak w siatce
+            ca.AxisX.IsMarginVisible = true;
+            ca.AxisY.Title = "Różnica (zł/kg)";
+
+            var zero = new StripLine { Interval = 0, StripWidth = 0, BorderWidth = 1, BorderColor = Color.Gray, BorderDashStyle = ChartDashStyle.Dash };
+            ca.AxisY.StripLines.Add(zero);
+
+            chartRoznicaCen.ChartAreas.Add(ca);
+
+            var s = new Series("Różnica zł/kg")
+            {
+                ChartType = SeriesChartType.Line,
+                XValueType = ChartValueType.DateTime,
+                YValueType = ChartValueType.Double,
+                MarkerStyle = MarkerStyle.Circle,
+                MarkerSize = 5,
+                IsValueShownAsLabel = false,
+            };
+            chartRoznicaCen.Series.Add(s);
+
+            panelChart.Controls.Add(chartRoznicaCen);
+            tab.Controls.Add(panelChart);
+
             mainPanel.Controls.Add(dataGridViewPorownaniaSwiezeMrozone);
-            mainPanel.Controls.Add(panelStatystyki);
+            mainPanel.Controls.Add(panelStat);
             mainPanel.Controls.Add(panelControls);
+        }
+
+        private void AktualizujWykresRoznicy()
+        {
+            if (chartRoznicaCen == null) return;
+
+            // Pobierz aktualne dane z grida (po filtrze)
+            DataTable? dt = null;
+
+            // Grid może trzymać DataTable po ToTable(); zrób bezpieczny cast
+            if (dataGridViewPorownaniaSwiezeMrozone.DataSource is DataTable t)
+                dt = t;
+            else if (dataGridViewPorownaniaSwiezeMrozone.DataSource is DataView dv)
+                dt = dv.ToTable();
+
+            var series = chartRoznicaCen.Series[0];
+            series.Points.Clear();
+
+            if (dt == null || dt.Rows.Count == 0) return;
+
+            // Upewnij się o sortowaniu rosnącym
+            var rows = dt.AsEnumerable()
+                         .Where(r => r["Data"] != DBNull.Value && r["RoznicaZl"] != DBNull.Value)
+                         .OrderBy(r => r.Field<DateTime>("Data"));
+
+            foreach (var r in rows)
+            {
+                var d = r.Field<DateTime>("Data");
+                var y = Convert.ToDouble(r.Field<decimal>("RoznicaZl"));
+                series.Points.AddXY(d, y);
+            }
+
+            // Auto-zoom osi Y według danych
+            var ca = chartRoznicaCen.ChartAreas[0];
+            if (series.Points.Count > 0)
+            {
+                var ys = series.Points.Select(p => p.YValues[0]);
+                double min = ys.Min(), max = ys.Max();
+                if (Math.Abs(max - min) < 0.01) { min -= 0.5; max += 0.5; }
+                ca.AxisY.Minimum = Math.Floor(min * 10) / 10.0;
+                ca.AxisY.Maximum = Math.Ceiling(max * 10) / 10.0;
+            }
+            else
+            {
+                ca.AxisY.Minimum = double.NaN;
+                ca.AxisY.Maximum = double.NaN;
+            }
+        }
+
+        private void BtnEksportujPorownanieClick(object? sender, EventArgs e)
+        {
+            if (dataGridViewPorownaniaSwiezeMrozone.DataSource is DataTable dt && dt.Rows.Count > 0)
+            {
+                using var sfd = new SaveFileDialog { Filter = "CSV|*.csv", FileName = $"Porownanie_{DateTime.Now:yyyyMMdd}.csv" };
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    var lines = new List<string>();
+                    var headers = string.Join(";", dt.Columns.Cast<DataColumn>().Select(c => c.ColumnName));
+                    lines.Add(headers);
+                    foreach (DataRow r in dt.Rows)
+                        lines.Add(string.Join(";", r.ItemArray.Select(v => v?.ToString())));
+                    System.IO.File.WriteAllLines(sfd.FileName, lines, System.Text.Encoding.UTF8);
+                    MessageBox.Show("Zapisano plik CSV.");
+                }
+            }
         }
 
         private void KonfigurujDataGridViewAnalizaCen()
@@ -1104,127 +1203,357 @@ namespace Kalendarz1
 
             dataGridViewAnalizaCen.CellFormatting += DataGridViewAnalizaCen_CellFormatting;
         }
+        // === KOMPAKTOWE KOLUMNY I WYGLĄD (ZAMIANA DOTYCHCZASOWEJ METODY) ===
+        // === PORÓWNANIE ŚWIEŻE vs MROŻONE — KONFIGURACJA GRIDU (KOMPAKT) ===
         private void KonfigurujDataGridViewPorownaniaSwiezeMrozone()
         {
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Clear();
+            var dgv = dataGridViewPorownaniaSwiezeMrozone;
+            dgv.Columns.Clear();
 
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.RowHeadersVisible = false;
+            dgv.AutoGenerateColumns = false;
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv.ReadOnly = true;
+            dgv.BackgroundColor = Color.White;
+            dgv.BorderStyle = BorderStyle.None;
+
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            dgv.DataBindingComplete -= Dgv_DataBindingComplete_AutoSize;
+            dgv.DataBindingComplete += Dgv_DataBindingComplete_AutoSize;
+
+            dgv.RowTemplate.Height = 26;
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgv.ColumnHeadersHeight = 34;
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#6c5ce7");
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f4f6fa");
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Data",
                 DataPropertyName = "Data",
                 HeaderText = "📅 Data",
-                Width = 85,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "dd.MM.yyyy" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "CenaMrozone",
-                DataPropertyName = "CenaMrozone",
-                HeaderText = "💵 Cena T1",
-                Width = 75,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N2",
-                    Alignment = DataGridViewContentAlignment.MiddleRight
-                }
+                Name = "CenaT1",
+                DataPropertyName = "CenaT1",
+                HeaderText = "Cena T1 (zł/kg)",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "IloscMrozone",
-                DataPropertyName = "IloscMrozone",
-                HeaderText = "⚖ kg T1",
-                Width = 65,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N1",
-                    Alignment = DataGridViewContentAlignment.MiddleRight
-                }
+                Name = "KgT1",
+                DataPropertyName = "KgT1",
+                HeaderText = "Ilość T1 (kg)",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "CenaSwieze",
-                DataPropertyName = "CenaSwieze",
-                HeaderText = "💵 Cena T2",
-                Width = 75,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N2",
-                    Alignment = DataGridViewContentAlignment.MiddleRight
-                }
+                Name = "CenaT2",
+                DataPropertyName = "CenaT2",
+                HeaderText = "Cena T2 (zł/kg)",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "IloscSwieze",
-                DataPropertyName = "IloscSwieze",
-                HeaderText = "⚖ kg T2",
-                Width = 65,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N1",
-                    Alignment = DataGridViewContentAlignment.MiddleRight
-                }
+                Name = "KgT2",
+                DataPropertyName = "KgT2",
+                HeaderText = "Ilość T2 (kg)",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "RoznicaZl",
                 DataPropertyName = "RoznicaZl",
-                HeaderText = "± Różn. zł",
-                Width = 75,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N2",
-                    Alignment = DataGridViewContentAlignment.MiddleRight
-                }
+                HeaderText = "± zł",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
             });
-
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = "RoznicaProcent",
-                DataPropertyName = "RoznicaProcent",
-                HeaderText = "📊 Różn. %",
-                Width = 70,
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    Format = "N1",
-                    Alignment = DataGridViewContentAlignment.MiddleRight,
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-                }
+                Name = "RoznicaProc",
+                DataPropertyName = "RoznicaProc",
+                HeaderText = "± %",
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N1" }
             });
 
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "KtoryDrozszy",
-                DataPropertyName = "KtoryDrozszy",
-                HeaderText = "⬆ Droższy",
-                Width = 90
-            });
+            // Jednolite końcówki: data / zł / kg / %
+            dgv.CellFormatting -= DataGridViewPorownaniaSwiezeMrozone_CellFormatting_Custom;
+            dgv.CellFormatting += DataGridViewPorownaniaSwiezeMrozone_CellFormatting_Custom;
 
-            dataGridViewPorownaniaSwiezeMrozone.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "Kontrahent",
-                DataPropertyName = "Kontrahent",
-                HeaderText = "🏢 Kontrahenci",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-                MinimumWidth = 150
-            });
-
-            dataGridViewPorownaniaSwiezeMrozone.EnableHeadersVisualStyles = false;
-            dataGridViewPorownaniaSwiezeMrozone.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#8e44ad");
-            dataGridViewPorownaniaSwiezeMrozone.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dataGridViewPorownaniaSwiezeMrozone.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            dataGridViewPorownaniaSwiezeMrozone.ColumnHeadersHeight = 35;
-            dataGridViewPorownaniaSwiezeMrozone.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f4ecf7");
-            dataGridViewPorownaniaSwiezeMrozone.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#9b59b6");
-            dataGridViewPorownaniaSwiezeMrozone.GridColor = ColorTranslator.FromHtml("#bdc3c7");
-            dataGridViewPorownaniaSwiezeMrozone.RowTemplate.Height = 30;
-
-            dataGridViewPorownaniaSwiezeMrozone.CellFormatting += DataGridViewPorownaniaSwiezeMrozone_CellFormatting;
+            // Dwuklik -> okno dokumentów dnia
+            dgv.CellDoubleClick -= DataGridViewPorownaniaSwiezeMrozone_CellDoubleClick;
+            dgv.CellDoubleClick += DataGridViewPorownaniaSwiezeMrozone_CellDoubleClick;
         }
+
+        private void Dgv_DataBindingComplete_AutoSize(object? s, DataGridViewBindingCompleteEventArgs e)
+        {
+            var dgv = s as DataGridView;
+            dgv?.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);
+        }        // Jednolite formatowanie: zł/kg, kg, %
+                 // Jednolite formatowanie: zł/kg, kg, %
+        private void DataGridViewPorownaniaSwiezeMrozone_CellFormatting_Custom(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            var dgv = (DataGridView)sender!;
+            var col = dgv.Columns[e.ColumnIndex].Name;
+            if (e.Value == null || e.Value == DBNull.Value) return;
+            var pl = new CultureInfo("pl-PL");
+
+            if (col == "Data" && e.Value is DateTime dt)
+            {
+                e.Value = dt.ToString("yyyy-MMMM-dd dddd", pl); // RRRR-MMMM-DD DDDD
+                e.FormattingApplied = true;
+            }
+            else if (col is "CenaT1" or "CenaT2" or "RoznicaZl")
+            {
+                if (decimal.TryParse(e.Value.ToString(), NumberStyles.Any, pl, out var v))
+                {
+                    e.Value = $"{v:N2} zł/kg";
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    e.FormattingApplied = true;
+                    if (col == "RoznicaZl")
+                    {
+                        if (v > 0) e.CellStyle.ForeColor = Color.DarkGreen;
+                        else if (v < 0) e.CellStyle.ForeColor = Color.Firebrick;
+                    }
+                }
+            }
+            else if (col is "KgT1" or "KgT2")
+            {
+                if (decimal.TryParse(e.Value.ToString(), NumberStyles.Any, pl, out var kg))
+                {
+                    e.Value = $"{kg:N0} kg";
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    e.FormattingApplied = true;
+                }
+            }
+            else if (col == "RoznicaProc")
+            {
+                if (decimal.TryParse(e.Value.ToString(), NumberStyles.Any, pl, out var p))
+                {
+                    e.Value = $"{p:N1}%";
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    if (p > 0) e.CellStyle.ForeColor = Color.DarkGreen;
+                    else if (p < 0) e.CellStyle.ForeColor = Color.Firebrick;
+                    e.FormattingApplied = true;
+                }
+            }
+        }
+        private CheckBox? ZnajdzChkUkryjZerowe()
+        {
+            return tabControl.Controls.Find("chkUkryjZerowePorownanie", true).FirstOrDefault() as CheckBox;
+        }
+
+        private void ZastosujFiltrZerowychWPorownaniu()
+        {
+            var chk = ZnajdzChkUkryjZerowe();
+
+            if (dataGridViewPorownaniaSwiezeMrozone.DataSource is DataTable src)
+            {
+                var dv = new DataView(src);
+                if (chk != null && chk.Checked)
+                    dv.RowFilter = "(ISNULL(KgT1,0) > 0) AND (ISNULL(KgT2,0) > 0)";
+
+                dv.Sort = "[Data] ASC"; // najwcześniej → najpóźniej
+                dataGridViewPorownaniaSwiezeMrozone.DataSource = dv.ToTable();
+                dataGridViewPorownaniaSwiezeMrozone.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.DisplayedCells);
+            }
+        }
+       
+
+        private void KonfigurujDataGridViewSwiezeMrozone()
+        {
+            var dgv = dataGridViewPorownaniaSwiezeMrozone;
+            dgv.Columns.Clear();
+
+            dgv.RowHeadersVisible = false;
+            dgv.AutoGenerateColumns = false;
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv.ReadOnly = true;
+            dgv.BackgroundColor = Color.White;
+            dgv.BorderStyle = BorderStyle.None;
+            dgv.RowTemplate.Height = 26;
+            dgv.GridColor = Color.LightGray;
+
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgv.ColumnHeadersHeight = 34;
+
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#34495e");
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f8f9fa");
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Data",
+                DataPropertyName = "Data",
+                HeaderText = "📅 Data",
+                Width = 95,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "dd.MM.yyyy" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CenaT1",
+                DataPropertyName = "CenaT1",
+                HeaderText = "Cena T1 (zł/kg)",
+                Width = 115,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "KgT1",
+                DataPropertyName = "KgT1",
+                HeaderText = "Ilość T1 (kg)",
+                Width = 105,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CenaT2",
+                DataPropertyName = "CenaT2",
+                HeaderText = "Cena T2 (zł/kg)",
+                Width = 115,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "KgT2",
+                DataPropertyName = "KgT2",
+                HeaderText = "Ilość T2 (kg)",
+                Width = 105,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N0" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "RoznicaZl",
+                DataPropertyName = "RoznicaZl",
+                HeaderText = "Różnica (zł/kg)",
+                Width = 125,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" }
+            });
+
+            dgv.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "RoznicaProc",
+                DataPropertyName = "RoznicaProc",
+                HeaderText = "Różnica (%)",
+                Width = 105,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N1" }
+            });
+
+            // 🎨 Kolorowanie różnic
+            dgv.CellFormatting += (s, e) =>
+            {
+                if (e.Value == null) return;
+                var col = dgv.Columns[e.ColumnIndex].Name;
+                if (col == "RoznicaZl" || col == "RoznicaProc")
+                {
+                    if (decimal.TryParse(e.Value.ToString(), out decimal val))
+                    {
+                        if (val > 0) e.CellStyle.ForeColor = Color.DarkGreen;
+                        else if (val < 0) e.CellStyle.ForeColor = Color.Firebrick;
+                    }
+                }
+            };
+
+            // 🔄 Dwuklik -> okno dokumentów dnia
+            dgv.CellDoubleClick -= DataGridViewPorownaniaSwiezeMrozone_CellDoubleClick;
+            dgv.CellDoubleClick += DataGridViewPorownaniaSwiezeMrozone_CellDoubleClick;
+        }
+
+        // === OBSŁUGA DWUKLIKU W WIERSZ – OKNO DOKUMENTÓW DNIA DLA OBU TOWARÓW ===
+        // === DWUKLIK W WIERSZ – DOKUMENTY DNIA ===
+        private void DataGridViewPorownaniaSwiezeMrozone_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            var combo1 = tabControl.Controls.Find("comboBoxTowar1", true).FirstOrDefault() as ComboBox;
+            var combo2 = tabControl.Controls.Find("comboBoxTowar2", true).FirstOrDefault() as ComboBox;
+            if (!(combo1?.SelectedValue is int t1) || !(combo2?.SelectedValue is int t2)) return;
+
+            var row = dataGridViewPorownaniaSwiezeMrozone.Rows[e.RowIndex];
+            if (!(row.Cells["Data"].Value is DateTime dzien)) return;
+
+            using var f = new FormDokumentyTowarowDnia(connectionString, dzien, t1, combo1.Text, t2, combo2.Text);
+            f.ShowDialog(this);
+        }        // === LEKKIE, SAMOWYSTARCZALNE OKNO Z LISTĄ DOKUMENTÓW ===
+private sealed class FormDokumentyTowarowDnia : Form
+{
+    private readonly string _conn;
+    private readonly DateTime _dzien;
+    private readonly int _t1, _t2;
+    private readonly string _n1, _n2;
+    private readonly DataGridView _grid = new DataGridView { Dock = DockStyle.Fill, ReadOnly = true, RowHeadersVisible = false };
+
+    public FormDokumentyTowarowDnia(string conn, DateTime dzien, int t1, string n1, int t2, string n2)
+    {
+        _conn = conn; _dzien = dzien; _t1 = t1; _t2 = t2; _n1 = n1; _n2 = n2;
+
+        Text = $"Dokumenty {_dzien:dd.MM.yyyy} – {_n1} + {_n2}";
+        Width = 950; Height = 580;
+        StartPosition = FormStartPosition.CenterParent;
+        Controls.Add(_grid);
+
+        KonfigurujGrid();
+        Zaladuj();
+    }
+
+    private void KonfigurujGrid()
+    {
+        _grid.AutoGenerateColumns = false;
+        _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        _grid.RowTemplate.Height = 25;
+        _grid.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+        _grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _grid.ColumnHeadersHeight = 32;
+        _grid.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f4f6f7");
+
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Numer", DataPropertyName="Numer", HeaderText="Kod dokumentu", Width=160 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Data", DataPropertyName="Data", HeaderText="Data", Width=95, DefaultCellStyle=new DataGridViewCellStyle{ Format="yyyy-MM-dd"} });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Kontrahent", DataPropertyName="Kontrahent", HeaderText="Kontrahent", Width=300 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Cena", DataPropertyName="Cena", HeaderText="Cena (zł/kg)", Width=110, DefaultCellStyle=new DataGridViewCellStyle{ Alignment=DataGridViewContentAlignment.MiddleRight, Format="N2"} });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Ilosc", DataPropertyName="Ilosc", HeaderText="Ilość (kg)", Width=100, DefaultCellStyle=new DataGridViewCellStyle{ Alignment=DataGridViewContentAlignment.MiddleRight, Format="N2"} });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name="Netto", DataPropertyName="Netto", HeaderText="Wartość (zł)", Width=120, DefaultCellStyle=new DataGridViewCellStyle{ Alignment=DataGridViewContentAlignment.MiddleRight, Format="N2"} });
+    }
+
+    private void Zaladuj()
+    {
+        string sql = @"
+SELECT 
+    DK.kod AS Numer,                          -- dokładny kod z bazy
+    CAST(DK.data AS date) AS Data,
+    KH.Name AS Kontrahent,
+    CAST(DP.cena AS decimal(18,4)) AS Cena,
+    CAST(DP.ilosc AS decimal(18,3)) AS Ilosc,
+    CAST(DP.cena * DP.ilosc AS decimal(18,2)) AS Netto
+FROM HANDEL.HM.DK DK
+JOIN HANDEL.HM.DP DP ON DP.super = DK.id
+LEFT JOIN HANDEL.SSCommon.STContractors KH ON KH.Id = DP.idkh
+WHERE CAST(DK.data AS date) = @d
+  AND DP.idtw IN (@t1,@t2)
+  AND DK.anulowany = 0
+ORDER BY DK.kod;";
+
+        using var cn = new SqlConnection(_conn);
+        using var cmd = new SqlCommand(sql, cn);
+        cmd.Parameters.AddWithValue("@d", _dzien);
+        cmd.Parameters.AddWithValue("@t1", _t1);
+        cmd.Parameters.AddWithValue("@t2", _t2);
+
+        var dt = new DataTable();
+        new SqlDataAdapter(cmd).Fill(dt);
+        _grid.DataSource = dt;
+    }
+}
 
         private void DataGridViewAnalizaCen_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -2161,165 +2490,93 @@ ORDER BY SredniaCena DESC;";
             }
         }
 
+        // === LICZENIE CEN JAK W SYMFONII: SUM(cena * ilość) / SUM(ilość) (ZAMIANA DOTYCHCZASOWEJ METODY) ===
+        // === LICZENIE CEN JAK W SYMFONII: SUM(cena*ilosc)/SUM(ilosc) ===
         private void OdswiezPorownanieTowarow()
         {
-            var combo1 = dataGridViewPorownaniaSwiezeMrozone?.Parent?.Controls.Find("comboBoxTowar1", true).FirstOrDefault() as ComboBox;
-            var combo2 = dataGridViewPorownaniaSwiezeMrozone?.Parent?.Controls.Find("comboBoxTowar2", true).FirstOrDefault() as ComboBox;
+            var combo1 = tabControl.Controls.Find("comboBoxTowar1", true).FirstOrDefault() as ComboBox;
+            var combo2 = tabControl.Controls.Find("comboBoxTowar2", true).FirstOrDefault() as ComboBox;
+            if (combo1 == null || combo2 == null) return;
 
-            if (combo1 == null || combo2 == null || combo1.SelectedValue == null || combo2.SelectedValue == null)
-                return;
-
-            int towar1Id = (int)combo1.SelectedValue;
-            int towar2Id = (int)combo2.SelectedValue;
-
-            if (towar1Id == 0 || towar2Id == 0)
+            if (!(combo1.SelectedValue is int t1) || t1 == 0 ||
+                !(combo2.SelectedValue is int t2) || t2 == 0)
             {
+                dataGridViewPorownaniaSwiezeMrozone.DataSource = null;
                 lblStatystykiPorown.Text = "⚖ Wybierz dwa towary aby zobaczyć porównanie cen";
-                lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#d5f4e6");
-                dataGridViewPorownaniaSwiezeMrozone.DataSource = null;
                 return;
             }
 
-            if (towar1Id == towar2Id)
-            {
-                lblStatystykiPorown.Text = "⚠ Wybierz różne towary do porównania";
-                lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#ffcccc");
-                dataGridViewPorownaniaSwiezeMrozone.DataSource = null;
-                return;
-            }
+            var dOd = dateTimePickerOd.Value.Date;
+            var dDo = dateTimePickerDo.Value.Date;
 
-            string query = @"
-        WITH Towar1 AS (
-            SELECT 
-                CONVERT(date, DK.data) AS Data,
-                AVG(DP.cena) AS CenaTowar1,
-                SUM(DP.ilosc) AS IloscTowar1,
-                STUFF((
-                    SELECT DISTINCT ', ' + C2.shortcut
-                    FROM [HANDEL].[HM].[DK] DK2
-                    INNER JOIN [HANDEL].[HM].[DP] DP2 ON DK2.id = DP2.super
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C2 ON DK2.khid = C2.id
-                    WHERE DP2.idtw = @Towar1ID
-                      AND CONVERT(date, DK2.data) = CONVERT(date, DK.data)
-                      AND DP2.cena > 0
-                    FOR XML PATH('')
-                ), 1, 2, '') AS KontrahenciTowar1
-            FROM [HANDEL].[HM].[DK] DK
-            INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-            INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-            WHERE DP.idtw = @Towar1ID
-              AND DK.data >= DATEADD(MONTH, -6, GETDATE())
-              AND DP.cena > 0
-            GROUP BY CONVERT(date, DK.data)
-        ),
-        Towar2 AS (
-            SELECT 
-                CONVERT(date, DK.data) AS Data,
-                AVG(DP.cena) AS CenaTowar2,
-                SUM(DP.ilosc) AS IloscTowar2,
-                STUFF((
-                    SELECT DISTINCT ', ' + C2.shortcut
-                    FROM [HANDEL].[HM].[DK] DK2
-                    INNER JOIN [HANDEL].[HM].[DP] DP2 ON DK2.id = DP2.super
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C2 ON DK2.khid = C2.id
-                    WHERE DP2.idtw = @Towar2ID
-                      AND CONVERT(date, DK2.data) = CONVERT(date, DK.data)
-                      AND DP2.cena > 0
-                    FOR XML PATH('')
-                ), 1, 2, '') AS KontrahenciTowar2
-            FROM [HANDEL].[HM].[DK] DK
-            INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-            INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-            WHERE DP.idtw = @Towar2ID
-              AND DK.data >= DATEADD(MONTH, -6, GETDATE())
-              AND DP.cena > 0
-            GROUP BY CONVERT(date, DK.data)
-        )
-        SELECT 
-            T1.Data,
-            T1.CenaTowar1 AS CenaMrozone,
-            T1.IloscTowar1 AS IloscMrozone,
-            T2.CenaTowar2 AS CenaSwieze,
-            T2.IloscTowar2 AS IloscSwieze,
-            ISNULL(T1.KontrahenciTowar1, '') + 
-            CASE 
-                WHEN T1.KontrahenciTowar1 IS NOT NULL AND T2.KontrahenciTowar2 IS NOT NULL 
-                THEN ' | ' 
-                ELSE '' 
-            END + 
-            ISNULL(T2.KontrahenciTowar2, '') AS Kontrahent,
-            ABS(T1.CenaTowar1 - T2.CenaTowar2) AS RoznicaZl,
-            CASE 
-                WHEN T1.CenaTowar1 > T2.CenaTowar2
-                THEN ((T1.CenaTowar1 - T2.CenaTowar2) / T1.CenaTowar1) * 100
-                ELSE ((T2.CenaTowar2 - T1.CenaTowar1) / T2.CenaTowar2) * 100
-            END AS RoznicaProcent,
-            CASE 
-                WHEN T1.CenaTowar1 > T2.CenaTowar2 THEN 'Towar 1'
-                WHEN T2.CenaTowar2 > T1.CenaTowar1 THEN 'Towar 2'
-                ELSE 'Równe'
-            END AS KtoryDrozszy
-        FROM Towar1 T1
-        INNER JOIN Towar2 T2 ON T1.Data = T2.Data
-        WHERE T1.CenaTowar1 > 0 AND T2.CenaTowar2 > 0
-        ORDER BY T1.Data DESC;";
+            string sql = @"
+;WITH Sprz AS (
+    SELECT 
+        CAST(DK.data AS date) AS Dzien,
+        DP.idtw AS TowarId,
+        SUM(CAST(DP.ilosc AS decimal(18,3))) AS Kg,
+        SUM(CAST(DP.cena AS decimal(18,4)) * CAST(DP.ilosc AS decimal(18,3))) AS Wartosc
+    FROM HANDEL.HM.DK DK
+    JOIN HANDEL.HM.DP DP ON DP.super = DK.id
+    WHERE CAST(DK.data AS date) BETWEEN @dOd AND @dDo
+      AND DP.idtw IN (@T1, @T2)
+      AND DK.anulowany = 0
+    GROUP BY CAST(DK.data AS date), DP.idtw
+),
+Pivoted AS (
+    SELECT 
+        Dzien,
+        MAX(CASE WHEN TowarId = @T1 THEN Kg END)      AS KgT1,
+        MAX(CASE WHEN TowarId = @T1 THEN Wartosc END) AS WartT1,
+        MAX(CASE WHEN TowarId = @T2 THEN Kg END)      AS KgT2,
+        MAX(CASE WHEN TowarId = @T2 THEN Wartosc END) AS WartT2
+    FROM Sprz
+    GROUP BY Dzien
+)
+SELECT
+    Dzien AS Data,
+    CASE WHEN KgT1 > 0 THEN WartT1 / KgT1 END AS CenaT1,
+    KgT1,
+    CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END AS CenaT2,
+    KgT2,
+    (CASE WHEN KgT1 > 0 THEN WartT1 / KgT1 END) - (CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END) AS RoznicaZl,
+    CASE 
+        WHEN (CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END) IS NULL OR (CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END) = 0 
+            THEN NULL
+        ELSE 100.0 * (
+            (CASE WHEN KgT1 > 0 THEN WartT1 / KgT1 END)
+            - (CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END)
+        ) / (CASE WHEN KgT2 > 0 THEN WartT2 / KgT2 END)
+    END AS RoznicaProc
+FROM Pivoted
+ORDER BY Dzien ASC;";
 
             try
             {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    var cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@Towar1ID", towar1Id);
-                    cmd.Parameters.AddWithValue("@Towar2ID", towar2Id);
+                using var conn = new SqlConnection(connectionString);
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@dOd", dOd);
+                cmd.Parameters.AddWithValue("@dDo", dDo);
+                cmd.Parameters.AddWithValue("@T1", t1);
+                cmd.Parameters.AddWithValue("@T2", t2);
 
-                    var adapter = new SqlDataAdapter(cmd);
-                    var dt = new DataTable();
-                    adapter.Fill(dt);
+                using var da = new SqlDataAdapter(cmd);
+                var dt = new DataTable();
+                da.Fill(dt);
 
-                    dataGridViewPorownaniaSwiezeMrozone.DataSource = dt;
+                // 1) Najpierw bind źródło
+                dataGridViewPorownaniaSwiezeMrozone.DataSource = dt;
 
-                    if (dt.Rows.Count > 0)
-                    {
-                        decimal sredniaRoznicaProcent = 0;
-                        decimal sredniaRoznicaZl = 0;
-                        decimal sumaOszczednosci = 0;
+                // 2) Następnie filtr + sort (checkbox)
+                ZastosujFiltrZerowychWPorownaniu();
 
-                        foreach (DataRow row in dt.Rows)
-                        {
-                            decimal roznicaProcent = Convert.ToDecimal(row["RoznicaProcent"]);
-                            decimal roznicaZl = Convert.ToDecimal(row["RoznicaZl"]);
-                            decimal ilosc1 = Convert.ToDecimal(row["IloscMrozone"]);
-                            decimal ilosc2 = Convert.ToDecimal(row["IloscSwieze"]);
+                // 3) Statystyki panelu
+                decimal sr1 = dt.AsEnumerable().Where(r => r["CenaT1"] != DBNull.Value).Select(r => r.Field<decimal>("CenaT1")).DefaultIfEmpty().Average();
+                decimal sr2 = dt.AsEnumerable().Where(r => r["CenaT2"] != DBNull.Value).Select(r => r.Field<decimal>("CenaT2")).DefaultIfEmpty().Average();
+                decimal diff = sr1 - sr2;
+                lblStatystykiPorown.Text = $"Śr T1: {sr1:N2} zł/kg   |   Śr T2: {sr2:N2} zł/kg   |   Różnica: {diff:N2} zł/kg";
 
-                            sredniaRoznicaProcent += roznicaProcent;
-                            sredniaRoznicaZl += roznicaZl;
-                            sumaOszczednosci += roznicaZl * Math.Min(ilosc1, ilosc2);
-                        }
-
-                        sredniaRoznicaProcent /= dt.Rows.Count;
-                        sredniaRoznicaZl /= dt.Rows.Count;
-
-                        string t1 = combo1.Text.Length > 30 ? combo1.Text.Substring(0, 27) + "..." : combo1.Text;
-                        string t2 = combo2.Text.Length > 30 ? combo2.Text.Substring(0, 27) + "..." : combo2.Text;
-
-                        lblStatystykiPorown.Text = $"📊 {dt.Rows.Count} wspólnych dat | " +
-                                                  $"Śr. różnica: {sredniaRoznicaProcent:F1}% ({sredniaRoznicaZl:N2} zł/kg) | " +
-                                                  $"💰 Potencjalne oszczędności: {sumaOszczednosci:N2} zł\n" +
-                                                  $"T1: {t1} ⚖ T2: {t2}";
-
-                        if (sredniaRoznicaProcent >= 30)
-                            lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#ccffcc");
-                        else if (sredniaRoznicaProcent >= 15)
-                            lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#fff3cd");
-                        else
-                            lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#ffe6e6");
-                    }
-                    else
-                    {
-                        lblStatystykiPorown.Text = "❌ Brak wspólnych dat sprzedaży dla wybranych towarów";
-                        lblStatystykiPorown.BackColor = ColorTranslator.FromHtml("#ffcccc");
-                    }
-                }
+                // Wykres pokazujemy dopiero z guzika (nic tu nie wywołujemy)
             }
             catch (Exception ex)
             {
@@ -2366,44 +2623,6 @@ ORDER BY SredniaCena DESC;";
             }
         }
 
-        private void BtnEksportujPorownanieClick(object? sender, EventArgs e)
-        {
-            if (dataGridViewPorownaniaSwiezeMrozone.Rows.Count == 0)
-            {
-                MessageBox.Show("ℹ Brak danych do eksportu", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            using (SaveFileDialog saveDialog = new SaveFileDialog())
-            {
-                saveDialog.Filter = "CSV files (*.csv)|*.csv";
-                saveDialog.FileName = $"Porownanie_Swieze_Mrozone_{DateTime.Now:yyyyMMdd}.csv";
-
-                if (saveDialog.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        var csv = new System.Text.StringBuilder();
-
-                        var headers = dataGridViewPorownaniaSwiezeMrozone.Columns.Cast<DataGridViewColumn>();
-                        csv.AppendLine(string.Join(";", headers.Select(column => column.HeaderText)));
-
-                        foreach (DataGridViewRow row in dataGridViewPorownaniaSwiezeMrozone.Rows)
-                        {
-                            var cells = row.Cells.Cast<DataGridViewCell>();
-                            csv.AppendLine(string.Join(";", cells.Select(cell => cell.Value?.ToString() ?? "")));
-                        }
-
-                        System.IO.File.WriteAllText(saveDialog.FileName, csv.ToString(), System.Text.Encoding.UTF8);
-                        MessageBox.Show("✓ Eksport zakończony pomyślnie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"❌ Błąd eksportu: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-        }
 
         private void StylizujKomboBoxes()
         {
@@ -2502,6 +2721,7 @@ ORDER BY SredniaCena DESC;";
                 OdswiezPorownanieTowarow();
         }
 
+        // 1. ZMIANA W METODZIE KonfigurujDataGridViewDokumenty() - dodanie nowych kolumn
         private void KonfigurujDataGridViewDokumenty()
         {
             dataGridViewOdbiorcy.AutoGenerateColumns = false;
@@ -2519,13 +2739,32 @@ ORDER BY SredniaCena DESC;";
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "NazwaFirmy", DataPropertyName = "NazwaFirmy", HeaderText = "🏢 Nazwa Firmy", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "IloscKG", DataPropertyName = "IloscKG", HeaderText = "⚖ Ilosc KG", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "SredniaCena", DataPropertyName = "SredniaCena", HeaderText = "💵 Sr. Cena KG", Width = 110, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
+
+            // NOWE KOLUMNY
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DniTerminu",
+                DataPropertyName = "DniTerminu",
+                HeaderText = "📅 Dni terminu",
+                Width = 90,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "DniDoTerminu",
+                DataPropertyName = "DniDoTerminu",
+                HeaderText = "⏰ Do terminu",
+                Width = 90,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", DataPropertyName = "Handlowiec", HeaderText = "👤 Handlowiec", Width = 120 });
 
             dataGridViewOdbiorcy.SelectionChanged += DataGridViewDokumenty_SelectionChanged;
             dataGridViewOdbiorcy.RowPrePaint += DataGridViewOdbiorcy_RowPrePaint;
             dataGridViewOdbiorcy.CellFormatting += DataGridViewOdbiorcy_CellFormatting;
         }
-
         private ContextMenuStrip contextMenuDokumenty;
 
         private void KonfigurujMenuKontekstowe()
@@ -2807,10 +3046,140 @@ ORDER BY SredniaCena DESC;";
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
-            // NOWA LINIA: Dodanie obsługi podwójnego kliknięcia
+            // NOWA KOLUMNA
+            dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "NajpozniejszaPlatnosc",
+                DataPropertyName = "NajpozniejszaPlatnosc",
+                HeaderText = "📅 Najpóźniejsza płatność",
+                Width = 140,
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+
             dataGridViewPlatnosci.CellDoubleClick += DataGridViewPlatnosci_CellDoubleClick;
         }
 
+        private void WczytajPlatnosciPerKontrahent(string? handlowiec)
+        {
+            var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
+
+            string sql = @"
+WITH PNAgg AS (
+    SELECT PN.dkid,
+           SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona,
+           MAX(PN.Termin)              AS TerminPrawdziwy
+    FROM [HANDEL].[HM].[PN] PN
+    GROUP BY PN.dkid
+),
+Dokumenty AS (
+    SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    WHERE DK.anulowany = 0
+      AND C.Shortcut NOT LIKE '%Centrum Drobiu%'
+      AND C.Shortcut NOT LIKE '%Sd/Kozio%'
+      AND C.Shortcut NOT LIKE '%Piórkowski%'";
+
+            if (zaznaczeniHandlowcy.Count > 0)
+            {
+                var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
+                sql += $@"
+      AND EXISTS (
+          SELECT 1
+          FROM [HANDEL].[SSCommon].[ContractorClassification] W
+          WHERE W.ElementId = DK.khid
+            AND W.CDim_Handlowiec_Val IN ('{handlowcyLista}')
+      )";
+            }
+
+            sql += @"
+),
+Saldo AS (
+    SELECT D.khid,
+           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
+           ISNULL(PA.TerminPrawdziwy, D.plattermin)     AS TerminPlatnosci,
+           CASE 
+               WHEN (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01 AND GETDATE() > ISNULL(PA.TerminPrawdziwy, D.plattermin)
+               THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, D.plattermin), GETDATE())
+               ELSE 0
+           END AS DniPrzeterminowania
+    FROM Dokumenty D
+    LEFT JOIN PNAgg PA ON PA.dkid = D.id
+),
+MaxPrzeterminowania AS (
+    SELECT 
+        khid,
+        MAX(CASE WHEN DniPrzeterminowania > 0 THEN DniPrzeterminowania ELSE NULL END) AS MaxDniPrzeterminowania
+    FROM Saldo
+    GROUP BY khid
+)
+SELECT 
+    C.Shortcut AS Kontrahent,
+    C.LimitAmount AS Limit,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS DoZaplacenia,
+    CAST(C.LimitAmount - SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS PrzekroczonyLimit,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() >  S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
+    MP.MaxDniPrzeterminowania AS NajpozniejszaPlatnosc
+FROM Saldo S
+JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
+LEFT JOIN MaxPrzeterminowania MP ON MP.khid = S.khid
+WHERE C.Shortcut NOT LIKE '%Centrum Drobiu%'
+  AND C.Shortcut NOT LIKE '%Sd/Kozio%'
+  AND C.Shortcut NOT LIKE '%Piórkowski%'
+GROUP BY C.Shortcut, C.LimitAmount, MP.MaxDniPrzeterminowania
+HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
+ORDER BY DoZaplacenia DESC;";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pHandlowiec", DBNull.Value);
+
+                    var dt = new DataTable();
+                    new SqlDataAdapter(cmd).Fill(dt);
+
+                    if (dt.Rows.Count > 0)
+                    {
+                        decimal sumaLimit = 0m, sumaDoZap = 0m, sumaPrzekr = 0m, sumaTerm = 0m, sumaPrzet = 0m;
+
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (r["Limit"] != DBNull.Value) sumaLimit += Convert.ToDecimal(r["Limit"]);
+                            if (r["DoZaplacenia"] != DBNull.Value) sumaDoZap += Convert.ToDecimal(r["DoZaplacenia"]);
+                            if (r["PrzekroczonyLimit"] != DBNull.Value) sumaPrzekr += Convert.ToDecimal(r["PrzekroczonyLimit"]);
+                            if (r["Terminowe"] != DBNull.Value) sumaTerm += Convert.ToDecimal(r["Terminowe"]);
+                            if (r["Przeterminowane"] != DBNull.Value) sumaPrzet += Convert.ToDecimal(r["Przeterminowane"]);
+                        }
+
+                        var sumaRow = dt.NewRow();
+                        sumaRow["Kontrahent"] = "📊 SUMA";
+                        sumaRow["Limit"] = Math.Round(sumaLimit, 2);
+                        sumaRow["DoZaplacenia"] = Math.Round(sumaDoZap, 2);
+                        sumaRow["PrzekroczonyLimit"] = Math.Round(sumaPrzekr, 2);
+                        sumaRow["Terminowe"] = Math.Round(sumaTerm, 2);
+                        sumaRow["Przeterminowane"] = Math.Round(sumaPrzet, 2);
+                        sumaRow["NajpozniejszaPlatnosc"] = DBNull.Value;
+
+                        dt.Rows.InsertAt(sumaRow, 0);
+                    }
+
+                    dataGridViewPlatnosci.DataSource = dt;
+
+                    dataGridViewPlatnosci.CellFormatting -= DataGridViewPlatnosci_CellFormatting;
+                    dataGridViewPlatnosci.CellFormatting += DataGridViewPlatnosci_CellFormatting;
+                    dataGridViewPlatnosci.RowPrePaint -= DataGridViewPlatnosci_RowPrePaint;
+                    dataGridViewPlatnosci.RowPrePaint += DataGridViewPlatnosci_RowPrePaint;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("❌ Błąd podczas wczytywania płatności: " + ex.Message,
+                                "Błąd bazy danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         private void ZaladujTowary()
         {
             try
@@ -2851,105 +3220,6 @@ ORDER BY SredniaCena DESC;";
             }
         }
 
-        private void WczytajPlatnosciPerKontrahent(string? handlowiec)
-        {
-            var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
-
-            string sql = @"
-WITH PNAgg AS (
-    SELECT PN.dkid,
-           SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona,
-           MAX(PN.Termin)              AS TerminPrawdziwy
-    FROM [HANDEL].[HM].[PN] PN
-    GROUP BY PN.dkid
-),
-Dokumenty AS (
-    SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
-    FROM [HANDEL].[HM].[DK] DK
-    WHERE DK.anulowany = 0";
-
-            if (zaznaczeniHandlowcy.Count > 0)
-            {
-                var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
-                sql += $@"
-      AND EXISTS (
-          SELECT 1
-          FROM [HANDEL].[SSCommon].[ContractorClassification] W
-          WHERE W.ElementId = DK.khid
-            AND W.CDim_Handlowiec_Val IN ('{handlowcyLista}')
-      )";
-            }
-
-            sql += @"
-),
-Saldo AS (
-    SELECT D.khid,
-           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
-           ISNULL(PA.TerminPrawdziwy, D.plattermin)     AS TerminPlatnosci
-    FROM Dokumenty D
-    LEFT JOIN PNAgg PA ON PA.dkid = D.id
-)
-SELECT 
-    C.Shortcut AS Kontrahent,
-    C.LimitAmount AS Limit,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS DoZaplacenia,
-    CAST(C.LimitAmount - SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS PrzekroczonyLimit,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
-    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() >  S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane
-FROM Saldo S
-JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
-GROUP BY C.Shortcut, C.LimitAmount
-HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
-ORDER BY DoZaplacenia DESC;";
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@pHandlowiec", DBNull.Value);
-
-                    var dt = new DataTable();
-                    new SqlDataAdapter(cmd).Fill(dt);
-
-                    if (dt.Rows.Count > 0)
-                    {
-                        decimal sumaLimit = 0m, sumaDoZap = 0m, sumaPrzekr = 0m, sumaTerm = 0m, sumaPrzet = 0m;
-
-                        foreach (DataRow r in dt.Rows)
-                        {
-                            if (r["Limit"] != DBNull.Value) sumaLimit += Convert.ToDecimal(r["Limit"]);
-                            if (r["DoZaplacenia"] != DBNull.Value) sumaDoZap += Convert.ToDecimal(r["DoZaplacenia"]);
-                            if (r["PrzekroczonyLimit"] != DBNull.Value) sumaPrzekr += Convert.ToDecimal(r["PrzekroczonyLimit"]);
-                            if (r["Terminowe"] != DBNull.Value) sumaTerm += Convert.ToDecimal(r["Terminowe"]);
-                            if (r["Przeterminowane"] != DBNull.Value) sumaPrzet += Convert.ToDecimal(r["Przeterminowane"]);
-                        }
-
-                        var sumaRow = dt.NewRow();
-                        sumaRow["Kontrahent"] = "📊 SUMA";
-                        sumaRow["Limit"] = Math.Round(sumaLimit, 2);
-                        sumaRow["DoZaplacenia"] = Math.Round(sumaDoZap, 2);
-                        sumaRow["PrzekroczonyLimit"] = Math.Round(sumaPrzekr, 2);
-                        sumaRow["Terminowe"] = Math.Round(sumaTerm, 2);
-                        sumaRow["Przeterminowane"] = Math.Round(sumaPrzet, 2);
-
-                        dt.Rows.InsertAt(sumaRow, 0);
-                    }
-
-                    dataGridViewPlatnosci.DataSource = dt;
-
-                    dataGridViewPlatnosci.CellFormatting -= DataGridViewPlatnosci_CellFormatting;
-                    dataGridViewPlatnosci.CellFormatting += DataGridViewPlatnosci_CellFormatting;
-                    dataGridViewPlatnosci.RowPrePaint -= DataGridViewPlatnosci_RowPrePaint;
-                    dataGridViewPlatnosci.RowPrePaint += DataGridViewPlatnosci_RowPrePaint;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("❌ Błąd podczas wczytywania płatności: " + ex.Message,
-                                "Błąd bazy danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
 
         private void DataGridViewPlatnosci_RowPrePaint(object? sender, DataGridViewRowPrePaintEventArgs e)
         {
@@ -2976,9 +3246,12 @@ ORDER BY DoZaplacenia DESC;";
 
         private void DataGridViewPlatnosci_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.Value != null && e.ColumnIndex >= 0)
+            if (e.Value != null && e.ColumnIndex >= 0 && e.RowIndex >= 0)
             {
+                var row = dataGridViewPlatnosci.Rows[e.RowIndex];
                 var colName = dataGridViewPlatnosci.Columns[e.ColumnIndex].Name;
+
+                // Formatowanie kwot
                 if (colName == "Limit" || colName == "DoZaplacenia" || colName == "PrzekroczonyLimit" ||
                     colName == "Terminowe" || colName == "Przeterminowane")
                 {
@@ -2988,9 +3261,67 @@ ORDER BY DoZaplacenia DESC;";
                         e.FormattingApplied = true;
                     }
                 }
+
+                // Formatowanie kolumny NajpozniejszaPlatnosc
+                if (colName == "NajpozniejszaPlatnosc")
+                {
+                    if (e.Value != null && e.Value != DBNull.Value)
+                    {
+                        int dni = Convert.ToInt32(e.Value);
+                        if (dni > 0)
+                        {
+                            e.Value = $"⚠ {dni} dni po terminie";
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                            e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                        }
+                        else
+                        {
+                            e.Value = "";
+                        }
+                    }
+                    else
+                    {
+                        e.Value = "";
+                    }
+                    e.FormattingApplied = true;
+                }
+
+                // Kolorowanie gdy przekroczony limit między -150 000 a -2 000 000
+                if (row.Cells["PrzekroczonyLimit"].Value != null &&
+                    row.Cells["PrzekroczonyLimit"].Value != DBNull.Value &&
+                    row.Cells["Kontrahent"].Value?.ToString() != "📊 SUMA")
+                {
+                    decimal przekroczony = Convert.ToDecimal(row.Cells["PrzekroczonyLimit"].Value);
+
+                    if (przekroczony <= -2000 && przekroczony >= -2000000)
+                    {
+                        if (colName == "Kontrahent" || colName == "Limit" ||
+                            colName == "DoZaplacenia" || colName == "PrzekroczonyLimit")
+                        {
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffcdd2");
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#b71c1c");
+                            e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                        }
+                    }
+                }
+
+                // Kolorowanie kolumny Przeterminowane gdy wartość > 30 000
+                if (colName == "Przeterminowane" &&
+                    row.Cells["Przeterminowane"].Value != null &&
+                    row.Cells["Przeterminowane"].Value != DBNull.Value &&
+                    row.Cells["Kontrahent"].Value?.ToString() != "📊 SUMA")
+                {
+                    decimal przeterminowane = Convert.ToDecimal(row.Cells["Przeterminowane"].Value);
+
+                    if (przeterminowane > 30000)
+                    {
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#ff5252");
+                        e.CellStyle.ForeColor = Color.White;
+                        e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                    }
+                }
             }
         }
-
         private void ZaladujKontrahentow()
         {
             var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
@@ -3041,10 +3372,29 @@ WITH AgregatyDokumentu AS (
     SELECT super AS id_dk, SUM(ilosc) AS SumaKG, SUM(wartNetto) / NULLIF(SUM(ilosc), 0) AS SredniaCena
     FROM [HANDEL].[HM].[DP] WHERE @TowarID IS NULL OR idtw = @TowarID GROUP BY super
 ),
+PlatnosciInfo AS (
+    SELECT 
+        DK.id,
+        SUM(ISNULL(PN.kwotarozl, 0)) AS KwotaRozliczona
+    FROM [HANDEL].[HM].[DK] DK
+    LEFT JOIN [HANDEL].[HM].[PN] PN ON DK.id = PN.dkid
+    GROUP BY DK.id
+),
 DokumentyFiltrowane AS (
-    SELECT DISTINCT DK.*, WYM.CDim_Handlowiec_Val 
+    SELECT DISTINCT 
+        DK.*, 
+        WYM.CDim_Handlowiec_Val,
+        DATEDIFF(day, DK.data, DK.plattermin) AS DniTerminu,
+        CASE 
+            WHEN (DK.walbrutto - ISNULL(PI.KwotaRozliczona, 0)) <= 0.01 THEN NULL
+            WHEN DK.plattermin > GETDATE() THEN DATEDIFF(day, GETDATE(), DK.plattermin)
+            WHEN DK.plattermin <= GETDATE() THEN -DATEDIFF(day, DK.plattermin, GETDATE())
+            ELSE NULL
+        END AS DniDoTerminu,
+        (DK.walbrutto - ISNULL(PI.KwotaRozliczona, 0)) AS DoZaplaty
     FROM [HANDEL].[HM].[DK] DK
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    LEFT JOIN PlatnosciInfo PI ON DK.id = PI.id
     WHERE (@KontrahentID IS NULL OR DK.khid = @KontrahentID)
         AND (@TowarID IS NULL OR EXISTS (SELECT 1 FROM [HANDEL].[HM].[DP] DP WHERE DP.super = DK.id AND DP.idtw = @TowarID))
         AND DK.data >= @DataOd
@@ -3062,14 +3412,17 @@ SELECT
     CONVERT(date, DF.data) AS SortDate, 1 AS SortOrder, 0 AS IsGroupRow,
     DF.kod AS NumerDokumentu, C.shortcut AS NazwaFirmy,
     ISNULL(AD.SumaKG, 0) AS IloscKG, ISNULL(AD.SredniaCena, 0) AS SredniaCena,
-    ISNULL(DF.CDim_Handlowiec_Val, '-') AS Handlowiec, DF.khid, DF.id
+    ISNULL(DF.CDim_Handlowiec_Val, '-') AS Handlowiec, DF.khid, DF.id,
+    DF.DniTerminu,
+    DF.DniDoTerminu,
+    DF.DoZaplaty
 FROM DokumentyFiltrowane DF
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DF.khid = C.id
 INNER JOIN AgregatyDokumentu AD ON DF.id = AD.id_dk
 UNION ALL
 SELECT DISTINCT
     CONVERT(date, data) AS SortDate, 0 AS SortOrder, 1 AS IsGroupRow,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 FROM DokumentyFiltrowane
 ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
 
@@ -3216,6 +3569,7 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
         private void DataGridViewOdbiorcy_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
+
             if (Convert.ToBoolean(dataGridViewOdbiorcy.Rows[e.RowIndex].Cells["IsGroupRow"].Value))
             {
                 if (e.ColumnIndex == dataGridViewOdbiorcy.Columns["NumerDokumentu"].Index)
@@ -3231,8 +3585,53 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                     e.FormattingApplied = true;
                 }
             }
-        }
+            else
+            {
+                var colName = dataGridViewOdbiorcy.Columns[e.ColumnIndex].Name;
 
+                // Formatowanie kolumny DniTerminu
+                if (colName == "DniTerminu" && e.Value != null && e.Value != DBNull.Value)
+                {
+                    int dni = Convert.ToInt32(e.Value);
+                    e.Value = $"{dni} dni";
+                    e.FormattingApplied = true;
+                }
+
+                // Formatowanie kolumny DniDoTerminu
+                if (colName == "DniDoTerminu")
+                {
+                    if (e.Value == null || e.Value == DBNull.Value)
+                    {
+                        e.Value = "✓ Zapłacone";
+                        e.CellStyle.ForeColor = ColorTranslator.FromHtml("#27ae60");
+                        e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                    }
+                    else
+                    {
+                        int dni = Convert.ToInt32(e.Value);
+                        if (dni > 0)
+                        {
+                            e.Value = $"{dni} dni";
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#3498db");
+                        }
+                        else if (dni == 0)
+                        {
+                            e.Value = "Dziś";
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#f39c12");
+                            e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                        }
+                        else
+                        {
+                            e.Value = $"Po terminie ({Math.Abs(dni)} dni)";
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffebee");
+                            e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
+                        }
+                    }
+                    e.FormattingApplied = true;
+                }
+            }
+        }
         // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności
         private void DataGridViewPlatnosci_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -3491,6 +3890,8 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
             };
             btnEksportuj.FlatAppearance.BorderSize = 0;
             btnEksportuj.Click += BtnEksportuj_Click;
+
+
 
             Button btnInstrukcja = new Button
             {
@@ -4129,6 +4530,7 @@ ORDER BY DT.DataCzas DESC;";
         }
     }
 
+    // NOWA KLASA: Formularz do wyświetlania szczegółów płatności kontrahenta
     public class FormSzczegolyPlatnosci : Form
     {
         private DataGridView dataGridViewSzczegoly;
@@ -4185,6 +4587,7 @@ ORDER BY DT.DataCzas DESC;";
 
         private void WczytajSzczegoly()
         {
+            // ZMODYFIKOWANE ZAPYTANIE: Dodano kolumnę DniTerminu
             string query = @"
             WITH PNAgg AS (
                 SELECT
@@ -4196,10 +4599,11 @@ ORDER BY DT.DataCzas DESC;";
             SELECT
                 DK.kod AS NumerDokumentu,
                 CONVERT(date, DK.data) AS DataDokumentu,
-                DK.walbrutto AS WartoscBrutto,
-                ISNULL(PA.KwotaRozliczona, 0) AS Zaplacono,
-                (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS PozostaloDoZaplaty,
+                CAST(DK.walbrutto AS DECIMAL(18, 2)) AS WartoscBrutto,
+                CAST(ISNULL(PA.KwotaRozliczona, 0) AS DECIMAL(18, 2)) AS Zaplacono,
+                CAST((DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS DECIMAL(18, 2)) AS PozostaloDoZaplaty,
                 CONVERT(date, DK.plattermin) AS TerminPlatnosci,
+                DATEDIFF(day, CONVERT(date, DK.data), CONVERT(date, DK.plattermin)) AS DniTerminu,
                 CASE
                     WHEN GETDATE() > DK.plattermin THEN DATEDIFF(day, DK.plattermin, GETDATE())
                     ELSE 0
@@ -4292,9 +4696,17 @@ ORDER BY DT.DataCzas DESC;";
             {
                 dataGridViewSzczegoly.Columns["TerminPlatnosci"].HeaderText = "Termin Płatności";
             }
+            // NOWA SEKCJA: Konfiguracja nowej kolumny
+            if (dataGridViewSzczegoly.Columns.Contains("DniTerminu"))
+            {
+                dataGridViewSzczegoly.Columns["DniTerminu"].HeaderText = "Termin (dni)";
+                dataGridViewSzczegoly.Columns["DniTerminu"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
             if (dataGridViewSzczegoly.Columns.Contains("DniPoTerminie"))
             {
                 dataGridViewSzczegoly.Columns["DniPoTerminie"].HeaderText = "Dni po terminie";
+                dataGridViewSzczegoly.Columns["DniPoTerminie"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
             }
         }
 
@@ -4308,6 +4720,15 @@ ORDER BY DT.DataCzas DESC;";
             {
                 row.DefaultCellStyle.BackColor = ColorTranslator.FromHtml("#d5dbdb");
                 row.DefaultCellStyle.Font = new Font(dataGridViewSzczegoly.Font, FontStyle.Bold);
+            }
+            else
+            {
+                // Kolorowanie wierszy z przekroczonym terminem
+                if (dataGridViewSzczegoly.Columns.Contains("DniPoTerminie") && row.Cells["DniPoTerminie"].Value is int dniPoTerminie && dniPoTerminie > 0)
+                {
+                    row.DefaultCellStyle.BackColor = ColorTranslator.FromHtml("#ffebee"); // Jasnoczerwone tło
+                    row.DefaultCellStyle.ForeColor = ColorTranslator.FromHtml("#c62828"); // Ciemnoczerwony tekst
+                }
             }
         }
     }

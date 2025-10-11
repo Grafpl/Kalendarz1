@@ -2374,8 +2374,8 @@ namespace Kalendarz1.Transport.Formularze
             var zamowienie = _wolneZamowienia.FirstOrDefault(z => z.ZamowienieId == zamId);
             if (zamowienie == null) return;
 
-            using var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamowienie.ZamowienieId);
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamowienie.ZamowienieId);
+            if (widokZamowienia.ShowDialog() == true)
             {
                 await LoadWolneZamowienia();
             }
@@ -2416,8 +2416,8 @@ Adres: {zamowienie.Adres}";
             {
                 var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
 
-                using var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamId);
-                if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+                var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamId);
+                if (widokZamowienia.ShowDialog() == true)
                 {
                     await CheckForZamowieniaUpdates();
                     await LoadWolneZamowienia();
@@ -2429,7 +2429,6 @@ Adres: {zamowienie.Adres}";
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
-
         #endregion
 
         #region Zapis

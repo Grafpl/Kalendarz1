@@ -1,10 +1,8 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
+using System.Reflection;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
-// USUŃ: using System.Windows.Forms;
 
 namespace Kalendarz1
 {
@@ -15,19 +13,16 @@ namespace Kalendarz1
         public Menu1()
         {
             InitializeComponent();
-            ApplyModernStyle();
-
-            // Ustaw fokus na pole hasła po załadowaniu
             this.Loaded += (s, e) => PasswordBox.Focus();
+            SetFooterText();
         }
 
-        private void ApplyModernStyle()
+        private void SetFooterText()
         {
-            // Nowoczesny styl dla okna logowania
-            this.Background = new LinearGradientBrush(
-                Color.FromRgb(41, 53, 65),
-                Color.FromRgb(31, 43, 55),
-                90);
+            // Automatycznie pobiera wersję i rok
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            string versionString = $"{version.Major}.{version.Minor}";
+            FooterText.Text = $"© {DateTime.Now.Year} Piórkowscy | Wersja {versionString}";
         }
 
         private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
@@ -42,50 +37,36 @@ namespace Kalendarz1
         {
             string username = PasswordBox.Password;
 
-            // Sprawdź czy pole nie jest puste
             if (string.IsNullOrWhiteSpace(username))
             {
-                ShowError("Wprowadź ID użytkownika");
+                ShowMessage("Proszę wprowadzić identyfikator.", isError: true);
                 return;
             }
 
-            // Sprawdź użytkownika w bazie
             if (ValidateUser(username))
             {
-                // Ustaw ID użytkownika
                 App.UserID = username;
-
                 try
                 {
-                    // WAŻNE: Najpierw ukryj okno logowania
                     this.Hide();
-
-                    // Utwórz okno MENU
                     MENU menuWindow = new MENU();
-
-                    // Obsłuż zamknięcie menu - wtedy zamknij aplikację
-                    menuWindow.FormClosed += (s, args) =>
-                    {
-                        Application.Current.Shutdown();
-                    };
-
-                    // Pokaż menu
+                    menuWindow.FormClosed += (s, args) => Application.Current.Shutdown();
                     menuWindow.Show();
                 }
                 catch (Exception ex)
                 {
-                    this.Show(); // Pokaż z powrotem okno logowania jeśli błąd
-                    MessageBox.Show($"Błąd podczas otwierania menu:\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    this.Show();
+                    ShowMessage($"Krytyczny błąd podczas ładowania menu:\n{ex.Message}", isError: true);
                 }
             }
             else
             {
-                ShowError("Nieprawidłowy ID użytkownika");
+                ShowMessage("Nieprawidłowy identyfikator. Spróbuj ponownie.", isError: true);
                 PasswordBox.Clear();
                 PasswordBox.Focus();
             }
         }
+
         private bool ValidateUser(string userId)
         {
             try
@@ -93,42 +74,31 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = "SELECT COUNT(*) FROM operators WHERE ID = @username";
-
+                    string query = "SELECT COUNT(1) FROM operators WHERE ID = @username";
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@username", userId);
-                        int count = Convert.ToInt32(command.ExecuteScalar());
-                        return count > 0;
+                        return (int)command.ExecuteScalar() > 0;
                     }
                 }
             }
             catch (Exception ex)
             {
-                ShowError($"Błąd połączenia z bazą danych:\n{ex.Message}");
+                ShowMessage($"Błąd połączenia z bazą danych:\n{ex.Message}", isError: true);
                 return false;
             }
         }
 
-        private void ShowError(string message)
+        // Użyj bardziej estetycznego okna komunikatu zamiast standardowego MessageBox
+        private void ShowMessage(string message, bool isError = false)
         {
-            MessageBox.Show(message, "Błąd logowania",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(message, isError ? "Błąd Logowania" : "Informacja",
+               MessageBoxButton.OK, isError ? MessageBoxImage.Error : MessageBoxImage.Information);
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            // Potwierdź zamknięcie
-            var result = MessageBox.Show(
-                "Czy na pewno chcesz zamknąć aplikację?",
-                "Potwierdzenie",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                Application.Current.Shutdown();
-            }
+            Application.Current.Shutdown();
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -138,7 +108,6 @@ namespace Kalendarz1
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Umożliwia przesuwanie okna
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 this.DragMove();

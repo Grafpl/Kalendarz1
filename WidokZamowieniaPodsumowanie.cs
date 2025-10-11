@@ -1,25 +1,17 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 9.2 – Pełna refaktoryzacja widoku i logiki podsumowań
-// Zmiany:
-// - Zmiana domyślnego sortowania na Handlowiec -> Ilość
-// - Usunięcie wiersza 'PLAN' z głównej tabeli
-// - Przebudowa tabeli agregacji (Podsumowanie produktów)
-// - Dodanie kolumny 'Folia' w szczegółach zamówienia
-// - Usunięcie panelu 'Przychody towaru'
-// - Automatyczne odświeżanie po zmianie towaru
-// - Domyślne zaznaczenie 'Data uboju'
-
+// WERSJA 9.9 – Uproszczone szczegóły dla wydań bez zamówień
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Reflection;
-using System.Drawing.Drawing2D;
 
 namespace Kalendarz1
 {
@@ -444,7 +436,6 @@ namespace Kalendarz1
 
     public partial class WidokZamowieniaPodsumowanie : Form
     {
-        // ====== Połączenia ======
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
@@ -454,8 +445,9 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke;
-        private bool _pokazujPoDatachUboju = true; // Zmieniono domyślny tryb na true
+        private bool _pokazujPoDatachUboju = true;
         private bool _dataUbojuKolumnaIstnieje = true;
+        private bool _isInitialized = false;
 
         // ====== Dane i Cache ======
         private readonly DataTable _dtZamowienia = new();
@@ -465,12 +457,24 @@ namespace Kalendarz1
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _handlowcyCache = new();
 
+        // ====== Kolorowanie Handlowców ======
+        private readonly Dictionary<string, Color> _handlowiecColors = new Dictionary<string, Color>();
+        private readonly List<Color> _palette = new List<Color>
+        {
+            Color.FromArgb(230, 255, 230), Color.FromArgb(230, 242, 255), Color.FromArgb(255, 240, 230),
+            Color.FromArgb(230, 255, 247), Color.FromArgb(255, 230, 242), Color.FromArgb(245, 245, 220),
+            Color.FromArgb(255, 228, 225), Color.FromArgb(240, 255, 255), Color.FromArgb(240, 248, 255)
+        };
+        private int _colorIndex = 0;
+
         private readonly Dictionary<string, decimal> YieldByKod = new(StringComparer.OrdinalIgnoreCase)
         {
             // {"Filet", 0.32m}, {"Ćwiartka", 0.22m}, {"Skrzydło", 0.09m}, ...
         };
 
         private NazwaZiD nazwaZiD = new NazwaZiD();
+
+        private bool _pokazujWydaniaBezZamowien = true;
 
         public WidokZamowieniaPodsumowanie()
         {
@@ -486,34 +490,62 @@ namespace Kalendarz1
                 panelNawigacja.Controls.Add(btnDodajNotatke);
             }
 
+            chkPokazWydaniaBezZamowien.Checked = _pokazujWydaniaBezZamowien;
+
             btnUsun.Visible = false;
             btnCykliczne.Visible = true;
-
-         
         }
 
         private async void WidokZamowieniaPodsumowanie_Load(object? sender, EventArgs e)
         {
-            _selectedDate = DateTime.Today;
+            if (_isInitialized) return;
+            _isInitialized = true;
+
             UstawPrzyciskiDniTygodnia();
             ApplyModernUI();
 
             this.SizeChanged += (s, ev) => ApplyModernUI();
 
-         
-
             SzybkiGrid(dgvZamowienia);
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
-            // SzybkiGrid(dgvPrzychody); // Usunięto
 
+            AttachGridEventHandlers();
 
             btnUsun.Visible = (UserID == "11111");
             btnCykliczne.Visible = true;
 
-
             await ZaladujDanePoczatkoweAsync();
+
+            _selectedDate = DateTime.Today;
+            AktualizujDatyPrzyciskow();
             await OdswiezWszystkieDaneAsync();
+        }
+
+        private void ChkPokazWydaniaBezZamowien_CheckedChanged(object sender, EventArgs e)
+        {
+            _pokazujWydaniaBezZamowien = chkPokazWydaniaBezZamowien.Checked;
+            ZastosujFiltry();
+            AktualizujPodsumowanieDnia();
+        }
+
+        private void AttachGridEventHandlers()
+        {
+            dgvZamowienia.SelectionChanged -= dgvZamowienia_SelectionChanged;
+            dgvZamowienia.CellClick -= dgvZamowienia_CellClick;
+            dgvZamowienia.CellDoubleClick -= dgvZamowienia_CellDoubleClick;
+            dgvZamowienia.CellFormatting -= dgvZamowienia_CellFormatting;
+            dgvZamowienia.RowPrePaint -= dgvZamowienia_RowPrePaint;
+
+            dgvSzczegoly.CellFormatting -= dgvSzczegoly_CellFormatting;
+
+            dgvZamowienia.SelectionChanged += dgvZamowienia_SelectionChanged;
+            dgvZamowienia.CellClick += dgvZamowienia_CellClick;
+            dgvZamowienia.CellDoubleClick += dgvZamowienia_CellDoubleClick;
+            dgvZamowienia.CellFormatting += dgvZamowienia_CellFormatting;
+            dgvZamowienia.RowPrePaint += dgvZamowienia_RowPrePaint;
+
+            dgvSzczegoly.CellFormatting += dgvSzczegoly_CellFormatting;
         }
 
         private void ApplyModernUI()
@@ -634,6 +666,8 @@ namespace Kalendarz1
             panelPodsumowanie.BackColor = Color.FromArgb(44, 62, 80);
             lblPodsumowanie.ForeColor = Color.White;
             lblPodsumowanie.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+
+            txtNotatki.Font = new Font("Segoe UI", 14f, FontStyle.Regular);
         }
 
         private void StyleActionButton(Button btn, Color color, string text, int width = 95, int height = 40, Font? font = null)
@@ -647,31 +681,9 @@ namespace Kalendarz1
             btn.Cursor = Cursors.Hand;
             btn.Size = new Size(width, height);
 
-            var handlers = btn.GetType().GetProperty("Events", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (handlers != null)
-            {
-                var eventList = handlers.GetValue(btn, null);
-                if (eventList != null)
-                {
-                    var mouseEnterField = btn.GetType().GetField("EventMouseEnter", BindingFlags.NonPublic | BindingFlags.Static);
-                    var mouseLeaveField = btn.GetType().GetField("EventMouseLeave", BindingFlags.NonPublic | BindingFlags.Static);
-
-                    if (mouseEnterField != null && mouseLeaveField != null)
-                    {
-                        var mouseEnterKey = mouseEnterField.GetValue(null);
-                        var mouseLeaveKey = mouseLeaveField.GetValue(null);
-                        var removeMethod = eventList.GetType().GetMethod("RemoveHandler");
-                        if (removeMethod != null && mouseEnterKey != null && mouseLeaveKey != null)
-                        {
-                            removeMethod.Invoke(eventList, new[] { mouseEnterKey, null });
-                            removeMethod.Invoke(eventList, new[] { mouseLeaveKey, null });
-                        }
-                    }
-                }
-            }
-
             btn.MouseEnter -= BtnMouseEnter;
             btn.MouseLeave -= BtnMouseLeave;
+
             btn.MouseEnter += BtnMouseEnter;
             btn.MouseLeave += BtnMouseLeave;
             btn.Tag = color;
@@ -704,6 +716,19 @@ namespace Kalendarz1
         private static string AsString(IDataRecord r, int i) => r.IsDBNull(i) ? "" : Convert.ToString(r.GetValue(i)) ?? "";
         private static bool IsKurczakB(string kod) => kod.IndexOf("Kurczak B", StringComparison.OrdinalIgnoreCase) >= 0;
         private static bool IsKurczakA(string kod) => kod.IndexOf("Kurczak A", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private Color GetColorForHandlowiec(string handlowiec)
+        {
+            if (string.IsNullOrEmpty(handlowiec))
+                return Color.White;
+
+            if (!_handlowiecColors.ContainsKey(handlowiec))
+            {
+                _handlowiecColors[handlowiec] = _palette[_colorIndex % _palette.Count];
+                _colorIndex++;
+            }
+            return _handlowiecColors[handlowiec];
+        }
         #endregion
 
         #region Inicjalizacja i UI
@@ -712,18 +737,11 @@ namespace Kalendarz1
             _dayButtons.Clear();
             _dayButtons.AddRange(new[] { btnPon, btnWt, btnSr, btnCzw, btnPt, btnSo, btnNd });
 
-            for (int i = 0; i < _dayButtons.Count; i++)
-            {
-                if (_dayButtons[i] == null)
-                {
-                    MessageBox.Show($"Brak przycisku dnia {i}!", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-
             foreach (var btn in _dayButtons)
             {
                 if (btn != null)
                 {
+                    btn.Click -= DzienButton_Click;
                     btn.Click += DzienButton_Click;
                 }
             }
@@ -734,6 +752,7 @@ namespace Kalendarz1
         private void SzybkiGrid(DataGridView dgv)
         {
             if (dgv == null) return;
+
             dgv.AllowUserToAddRows = false;
             dgv.AllowUserToDeleteRows = false;
             dgv.AllowUserToResizeRows = false;
@@ -741,7 +760,6 @@ namespace Kalendarz1
             dgv.RowHeadersVisible = false;
             dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgv.MultiSelect = false;
-            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.BackgroundColor = Color.White;
             dgv.BorderStyle = BorderStyle.None;
             dgv.RowTemplate.Height = 30;
@@ -755,12 +773,6 @@ namespace Kalendarz1
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
             dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-
-            if (dgv == dgvZamowienia)
-            {
-                dgv.CellDoubleClick += dgvZamowienia_CellDoubleClick;
-                dgv.CellFormatting += dgvZamowienia_CellFormatting;
-            }
 
             TryEnableDoubleBuffer(dgv);
         }
@@ -813,11 +825,6 @@ namespace Kalendarz1
             lblZakresDat.Text = $"{startOfWeek:dd.MM.yyyy}\n{startOfWeek.AddDays(6):dd.MM.yyyy}";
             lblZakresDat.TextAlign = ContentAlignment.MiddleCenter;
 
-            if (_dayButtons.Count != 7)
-            {
-                MessageBox.Show($"Uwaga: Mamy tylko {_dayButtons.Count} przycisków dni zamiast 7!", "Problem z przyciskami dni", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-
             string[] dniNazwy = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
             for (int i = 0; i < Math.Min(7, _dayButtons.Count); i++)
@@ -847,34 +854,6 @@ namespace Kalendarz1
                     btn.ForeColor = Color.FromArgb(44, 62, 80);
                 }
             }
-
-            if (_dayButtons.Count < 7)
-            {
-                CreateMissingDayButtons();
-            }
-        }
-
-        private void CreateMissingDayButtons()
-        {
-            string[] dniNazwy = { "btnPon", "btnWt", "btnSr", "btnCzw", "btnPt", "btnSo", "btnNd" };
-
-            while (_dayButtons.Count < 7)
-            {
-                int index = _dayButtons.Count;
-                var newBtn = new Button
-                {
-                    Name = dniNazwy[index],
-                    Size = new Size(65, 45),
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Segoe UI", 9f),
-                    Cursor = Cursors.Hand
-                };
-                newBtn.FlatAppearance.BorderSize = 0;
-                newBtn.Click += DzienButton_Click;
-
-                panelDni.Controls.Add(newBtn);
-                _dayButtons.Add(newBtn);
-            }
         }
 
         private async void btnOdswiez_Click(object? sender, EventArgs e)
@@ -884,12 +863,13 @@ namespace Kalendarz1
 
         private async void btnNoweZamowienie_Click(object? sender, EventArgs e)
         {
-            using var widokZamowienia = new WidokZamowienia(UserID, null);
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            var widokZamowienia = new WidokZamowienia(UserID, null);
+            if (widokZamowienia.ShowDialog() == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }
         }
+
 
         private async void btnModyfikuj_Click(object? sender, EventArgs e)
         {
@@ -899,8 +879,8 @@ namespace Kalendarz1
                 return;
             }
 
-            using var widokZamowienia = new WidokZamowienia(UserID, id);
-            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+            var widokZamowienia = new WidokZamowienia(UserID, id);
+            if (widokZamowienia.ShowDialog() == true)
             {
                 await OdswiezWszystkieDaneAsync();
             }
@@ -978,7 +958,6 @@ namespace Kalendarz1
 
         private async void Filtry_Changed(object? sender, EventArgs e)
         {
-            // Natychmiastowe odświeżenie po zmianie towaru w ComboBox
             if (sender == cbFiltrujTowar)
             {
                 await OdswiezWszystkieDaneAsync();
@@ -1174,10 +1153,17 @@ namespace Kalendarz1
             try
             {
                 await WczytajZamowieniaDlaDniaAsync(_selectedDate);
-                // await WczytajDanePrzychodowAsync(_selectedDate); // Usunięte
                 await WyswietlAgregacjeProduktowAsync(_selectedDate);
                 AktualizujPodsumowanieDnia();
-                WyczyscSzczegoly();
+
+                if (_aktualneIdZamowienia.HasValue && _aktualneIdZamowienia.Value > 0)
+                {
+                    await WyswietlSzczegolyZamowieniaAsync(_aktualneIdZamowienia.Value);
+                }
+                else
+                {
+                    WyczyscSzczegoly();
+                }
             }
             catch (Exception ex)
             {
@@ -1212,7 +1198,6 @@ namespace Kalendarz1
                             wKatalogu = (katStr == "67095" || katStr == "67153");
                         }
                     }
-
                     _twKodCache[idtw] = kod;
                     if (wKatalogu)
                         _twKatalogCache[idtw] = kod;
@@ -1221,11 +1206,13 @@ namespace Kalendarz1
 
             var listaTowarow = _twKatalogCache.OrderBy(x => x.Value).Select(k => new KeyValuePair<int, string>(k.Key, k.Value)).ToList();
             listaTowarow.Insert(0, new KeyValuePair<int, string>(0, "— Wszystkie towary —"));
+
+            cbFiltrujTowar.SelectedIndexChanged -= Filtry_Changed;
             cbFiltrujTowar.DataSource = new BindingSource(listaTowarow, null);
             cbFiltrujTowar.DisplayMember = "Value";
             cbFiltrujTowar.ValueMember = "Key";
-            cbFiltrujTowar.SelectedIndexChanged += Filtry_Changed;
             cbFiltrujTowar.SelectedIndex = 0;
+            cbFiltrujTowar.SelectedIndexChanged += Filtry_Changed;
 
             _userCache.Clear();
             await using (var cn2 = new SqlConnection(_connLibra))
@@ -1256,38 +1243,20 @@ namespace Kalendarz1
                 }
             }
 
+            cbFiltrujHandlowca.SelectedIndexChanged -= Filtry_Changed;
             cbFiltrujHandlowca.Items.Clear();
             cbFiltrujHandlowca.Items.Add("— Wszyscy —");
             cbFiltrujHandlowca.Items.AddRange(_handlowcyCache.ToArray());
-            cbFiltrujHandlowca.SelectedIndexChanged += Filtry_Changed;
             cbFiltrujHandlowca.SelectedIndex = 0;
+            cbFiltrujHandlowca.SelectedIndexChanged += Filtry_Changed;
 
+            txtFiltrujOdbiorce.TextChanged -= Filtry_Changed;
             txtFiltrujOdbiorce.TextChanged += Filtry_Changed;
 
             if (rbDataOdbioru != null && rbDataUboju != null)
             {
-                rbDataOdbioru.CheckedChanged += async (s, e) =>
-                {
-                    if (rbDataOdbioru.Checked)
-                    {
-                        _pokazujPoDatachUboju = false;
-                        await OdswiezWszystkieDaneAsync();
-                    }
-                };
-
-                rbDataUboju.CheckedChanged += async (s, e) =>
-                {
-                    if (rbDataUboju.Checked && _dataUbojuKolumnaIstnieje)
-                    {
-                        _pokazujPoDatachUboju = true;
-                        await OdswiezWszystkieDaneAsync();
-                    }
-                    else if (rbDataUboju.Checked && !_dataUbojuKolumnaIstnieje)
-                    {
-                        rbDataOdbioru.Checked = true;
-                        MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" + "Filtrowanie po dacie uboju jest niedostępne.", "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                };
+                rbDataOdbioru.CheckedChanged -= RbDataOdbioru_CheckedChanged;
+                rbDataUboju.CheckedChanged -= RbDataUboju_CheckedChanged;
 
                 rbDataUboju.Enabled = _dataUbojuKolumnaIstnieje;
                 if (!_dataUbojuKolumnaIstnieje)
@@ -1297,9 +1266,36 @@ namespace Kalendarz1
                 }
                 else
                 {
-                    // Ustawienie domyślne na Data Uboju
                     rbDataUboju.Checked = true;
                 }
+
+                rbDataOdbioru.CheckedChanged += RbDataOdbioru_CheckedChanged;
+                rbDataUboju.CheckedChanged += RbDataUboju_CheckedChanged;
+            }
+        }
+
+        private async void RbDataOdbioru_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (rbDataOdbioru.Checked)
+            {
+                _pokazujPoDatachUboju = false;
+                await OdswiezWszystkieDaneAsync();
+            }
+        }
+
+        private async void RbDataUboju_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (rbDataUboju.Checked && _dataUbojuKolumnaIstnieje)
+            {
+                _pokazujPoDatachUboju = true;
+                await OdswiezWszystkieDaneAsync();
+            }
+            else if (rbDataUboju.Checked && !_dataUbojuKolumnaIstnieje)
+            {
+                rbDataOdbioru.Checked = true;
+                MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" +
+                               "Filtrowanie po dacie uboju jest niedostępne.",
+                               "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -1308,6 +1304,7 @@ namespace Kalendarz1
             if (_dtZamowienia.Columns.Count == 0)
             {
                 _dtZamowienia.Columns.Add("Id", typeof(int));
+                _dtZamowienia.Columns.Add("KlientId", typeof(int));  // <-- DODANE
                 _dtZamowienia.Columns.Add("Odbiorca", typeof(string));
                 _dtZamowienia.Columns.Add("Handlowiec", typeof(string));
                 _dtZamowienia.Columns.Add("IloscZamowiona", typeof(decimal));
@@ -1317,10 +1314,11 @@ namespace Kalendarz1
                 _dtZamowienia.Columns.Add("TrybE2", typeof(string));
                 _dtZamowienia.Columns.Add("DataPrzyjecia", typeof(DateTime));
                 _dtZamowienia.Columns.Add("GodzinaPrzyjecia", typeof(string));
-                _dtZamowienia.Columns.Add(new DataColumn("DataUtworzenia", typeof(DateTime)) { AllowDBNull = true });
-                _dtZamowienia.Columns.Add(new DataColumn("DataUboju", typeof(DateTime)) { AllowDBNull = true });
-                _dtZamowienia.Columns.Add("Utworzyl", typeof(string));
+                _dtZamowienia.Columns.Add("TerminOdbioru", typeof(string));
+                _dtZamowienia.Columns.Add("DataUboju", typeof(DateTime));
+                _dtZamowienia.Columns.Add("UtworzonePrzez", typeof(string));
                 _dtZamowienia.Columns.Add("Status", typeof(string));
+                _dtZamowienia.Columns.Add("MaNotatke", typeof(bool));
             }
             else
             {
@@ -1331,7 +1329,9 @@ namespace Kalendarz1
             await using (var cnHandel = new SqlConnection(_connHandel))
             {
                 await cnHandel.OpenAsync();
-                const string sqlKontr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val FROM [HANDEL].[SSCommon].[STContractors] c LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
+                const string sqlKontr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val 
+                                FROM [HANDEL].[SSCommon].[STContractors] c 
+                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId";
                 await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
                 await using var rd = await cmdKontr.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
@@ -1348,6 +1348,22 @@ namespace Kalendarz1
                 selectedProductId = selectedTowarId;
 
             var temp = new DataTable();
+
+            var klienciZamowien = new HashSet<int>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dataKolumnaDoSprawdzenia = (_pokazujPoDatachUboju && _dataUbojuKolumnaIstnieje) ? "DataUboju" : "DataZamowienia";
+                string sqlKlienci = $"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso] WHERE {dataKolumnaDoSprawdzenia} = @Dzien AND Status <> 'Anulowane' AND KlientId IS NOT NULL";
+                await using var cmdKlienci = new SqlCommand(sqlKlienci, cnLibra);
+                cmdKlienci.Parameters.AddWithValue("@Dzien", dzien.Date);
+                await using var readerKlienci = await cmdKlienci.ExecuteReaderAsync();
+                while (await readerKlienci.ReadAsync())
+                {
+                    klienciZamowien.Add(readerKlienci.GetInt32(0));
+                }
+            }
+
             if (_twKatalogCache.Keys.Any())
             {
                 await using (var cnLibra = new SqlConnection(_connLibra))
@@ -1359,16 +1375,16 @@ namespace Kalendarz1
                     string dataUbojuGroupBy = _dataUbojuKolumnaIstnieje ? ", zm.DataUboju" : "";
 
                     string sql = $@"
-                        SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
-                               zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                               zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuSelect}
-                        FROM [dbo].[ZamowieniaMieso] zm
-                        JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-                        WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
-                            (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
-                            $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-                                     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2{dataUbojuGroupBy}
-                          ORDER BY zm.Id";
+                SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
+                       zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                       zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuSelect}
+                FROM [dbo].[ZamowieniaMieso] zm
+                JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                WHERE {dataKolumna} = @Dzien AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
+                        (selectedProductId.HasValue ? "AND zmt.KodTowaru = @TowarId " : "") +
+                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                         zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{dataUbojuGroupBy}
+                  ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
@@ -1380,7 +1396,8 @@ namespace Kalendarz1
             }
 
             var wydaniaPerKhidIdtw = await PobierzWydaniaPerKhidIdtwAsync(dzien);
-            var klienciZamowien = new HashSet<int>(temp.Rows.Cast<DataRow>().Select(r => r["KlientId"] == DBNull.Value ? 0 : Convert.ToInt32(r["KlientId"])));
+
+            var cultureInfo = new CultureInfo("pl-PL");
 
             foreach (DataRow r in temp.Rows)
             {
@@ -1396,30 +1413,71 @@ namespace Kalendarz1
                 }
                 string idUser = r["IdUser"]?.ToString() ?? "";
                 string status = r["Status"]?.ToString() ?? "Nowe";
+                string uwagi = r["Uwagi"]?.ToString() ?? "";
+                bool maNotatke = !string.IsNullOrWhiteSpace(uwagi);
+
                 int pojemniki = r["LiczbaPojemnikow"] == DBNull.Value ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
-                decimal palety = r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]);
+                decimal palety = Math.Ceiling(r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
                 bool trybE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
                 string trybText = trybE2 ? "E2 (40)" : "STD (36)";
+
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(klientId, out var kh) ? kh : ($"Nieznany ({klientId})", "");
+
+                if (maNotatke)
+                {
+                    nazwa = "📝 " + nazwa;
+                }
+
                 decimal wydane = 0m;
                 if (wydaniaPerKhidIdtw.TryGetValue(klientId, out var perIdtw))
                 {
-                    wydane = selectedProductId.HasValue ? perIdtw.TryGetValue(selectedProductId.Value, out var w) ? w : 0m : perIdtw.Values.Sum();
+                    wydane = selectedProductId.HasValue ?
+                        perIdtw.TryGetValue(selectedProductId.Value, out var w) ? w : 0m :
+                        perIdtw.Values.Sum();
                 }
 
-                _dtZamowienia.Rows.Add(id, nazwa, handlowiec, ilosc, wydane, pojemniki, palety, trybText, dataPrzyjazdu?.Date ?? dzien, dataPrzyjazdu?.ToString("HH:mm") ?? "08:00", dataUtw.HasValue ? (object)dataUtw.Value : DBNull.Value, dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value, _userCache.TryGetValue(idUser, out var user) ? user : "Brak", status);
+                string terminOdbioru = dataPrzyjazdu.HasValue ?
+                    dataPrzyjazdu.Value.ToString("yyyy-MM-dd dddd HH:mm", cultureInfo) :
+                    dzien.ToString("yyyy-MM-dd dddd", cultureInfo);
+
+                string utworzonePrzez = "";
+                if (dataUtw.HasValue)
+                {
+                    string userName = _userCache.TryGetValue(idUser, out var user) ? user : "Brak";
+                    utworzonePrzez = $"{dataUtw.Value:yyyy-MM-dd HH:mm} ({userName})";
+                }
+                else
+                {
+                    string userName = _userCache.TryGetValue(idUser, out var user) ? user : "Brak";
+                    utworzonePrzez = userName;
+                }
+
+                _dtZamowienia.Rows.Add(
+           id,
+           klientId,  // <-- DODANE
+           nazwa, handlowiec, ilosc, wydane, pojemniki, palety, trybText,
+           dataPrzyjazdu?.Date ?? dzien, dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
+           terminOdbioru, dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value,
+           utworzonePrzez, status, maNotatke
+       );
             }
 
+            // Wydania bez zamówień
+            // POPRAWIONY FRAGMENT - Wydania bez zamówień
             var wydaniaBezZamowien = new List<DataRow>();
             foreach (var kv in wydaniaPerKhidIdtw)
             {
                 int khid = kv.Key;
                 if (klienciZamowien.Contains(khid)) continue;
-                decimal wydane = selectedProductId.HasValue ? kv.Value.TryGetValue(selectedProductId.Value, out var w) ? w : 0m : kv.Value.Values.Sum();
+                decimal wydane = selectedProductId.HasValue ?
+                    kv.Value.TryGetValue(selectedProductId.Value, out var w) ? w : 0m :
+                    kv.Value.Values.Sum();
                 if (wydane == 0) continue;
+
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh) ? kh : ($"Nieznany ({khid})", "");
                 var row = _dtZamowienia.NewRow();
                 row["Id"] = 0;
+                row["KlientId"] = khid;  // <-- DODANE - tu jest klucz!
                 row["Odbiorca"] = nazwa;
                 row["Handlowiec"] = handlowiec;
                 row["IloscZamowiona"] = 0m;
@@ -1429,10 +1487,11 @@ namespace Kalendarz1
                 row["TrybE2"] = "";
                 row["DataPrzyjecia"] = dzien;
                 row["GodzinaPrzyjecia"] = "";
-                row["DataUtworzenia"] = DBNull.Value;
+                row["TerminOdbioru"] = dzien.ToString("yyyy-MM-dd dddd", cultureInfo);
                 row["DataUboju"] = DBNull.Value;
-                row["Utworzyl"] = "";
+                row["UtworzonePrzez"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
+                row["MaNotatke"] = false;
                 wydaniaBezZamowien.Add(row);
             }
 
@@ -1445,9 +1504,62 @@ namespace Kalendarz1
             dgvZamowienia.ClearSelection();
 
             if (dgvZamowienia.Columns["Id"] != null) dgvZamowienia.Columns["Id"].Visible = false;
-            if (dgvZamowienia.Columns["IloscZamowiona"] != null) dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono";
-            if (dgvZamowienia.Columns["IloscFaktyczna"] != null) dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano";
-            if (dgvZamowienia.Columns["Pojemniki"] != null) dgvZamowienia.Columns["Pojemniki"].HeaderText = "Pojemn.";
+            if (dgvZamowienia.Columns["KlientId"] != null) dgvZamowienia.Columns["KlientId"].Visible = false;  // <-- DODANE
+            if (dgvZamowienia.Columns["MaNotatke"] != null) dgvZamowienia.Columns["MaNotatke"].Visible = false;
+            if (dgvZamowienia.Columns["TrybE2"] != null) dgvZamowienia.Columns["TrybE2"].Visible = false;
+            if (dgvZamowienia.Columns["DataUboju"] != null) dgvZamowienia.Columns["DataUboju"].Visible = false;
+            if (dgvZamowienia.Columns["Pojemniki"] != null) dgvZamowienia.Columns["Pojemniki"].Visible = false;
+            if (dgvZamowienia.Columns["DataPrzyjecia"] != null) dgvZamowienia.Columns["DataPrzyjecia"].Visible = false;
+            if (dgvZamowienia.Columns["GodzinaPrzyjecia"] != null) dgvZamowienia.Columns["GodzinaPrzyjecia"].Visible = false;
+
+            if (dgvZamowienia.Columns["Odbiorca"] != null)
+            {
+                dgvZamowienia.Columns["Odbiorca"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvZamowienia.Columns["Odbiorca"].DefaultCellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+                dgvZamowienia.Columns["Odbiorca"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvZamowienia.Columns["Odbiorca"].FillWeight = 180;
+            }
+
+            if (dgvZamowienia.Columns["Handlowiec"] != null)
+            {
+                dgvZamowienia.Columns["Handlowiec"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
+                dgvZamowienia.Columns["Handlowiec"].DefaultCellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            }
+
+            if (dgvZamowienia.Columns["IloscZamowiona"] != null)
+            {
+                dgvZamowienia.Columns["IloscZamowiona"].HeaderText = "Zamówiono";
+                dgvZamowienia.Columns["IloscZamowiona"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["IloscZamowiona"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            if (dgvZamowienia.Columns["IloscFaktyczna"] != null)
+            {
+                dgvZamowienia.Columns["IloscFaktyczna"].HeaderText = "Wydano";
+                dgvZamowienia.Columns["IloscFaktyczna"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["IloscFaktyczna"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            }
+
+            if (dgvZamowienia.Columns["Palety"] != null)
+            {
+                dgvZamowienia.Columns["Palety"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["Palety"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dgvZamowienia.Columns["Palety"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                dgvZamowienia.Columns["Palety"].Width = 50;
+            }
+
+            if (dgvZamowienia.Columns["TerminOdbioru"] != null)
+            {
+                dgvZamowienia.Columns["TerminOdbioru"].HeaderText = "Termin Odbioru";
+                dgvZamowienia.Columns["TerminOdbioru"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                dgvZamowienia.Columns["TerminOdbioru"].Width = 200;
+            }
+
+            if (dgvZamowienia.Columns["UtworzonePrzez"] != null)
+            {
+                dgvZamowienia.Columns["UtworzonePrzez"].HeaderText = "Utworzone przez";
+                dgvZamowienia.Columns["UtworzonePrzez"].AutoSizeMode = DataGridViewAutoSizeColumnMode.DisplayedCells;
+            }
 
             ZastosujFiltry();
         }
@@ -1505,8 +1617,8 @@ namespace Kalendarz1
             if (e.RowIndex >= 0)
             {
                 if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0) return;
-                using var widokZamowienia = new WidokZamowienia(UserID, id);
-                if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
+                var widokZamowienia = new WidokZamowienia(UserID, id);
+                if (widokZamowienia.ShowDialog() == true)
                 {
                     await OdswiezWszystkieDaneAsync();
                 }
@@ -1515,13 +1627,66 @@ namespace Kalendarz1
 
         private void dgvZamowienia_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0 || dgvZamowienia.Columns[e.ColumnIndex].Name != "DataUboju") return;
-            if (e.Value == null || e.Value == DBNull.Value)
+            if (e.RowIndex < 0) return;
+
+            if (dgvZamowienia.Columns[e.ColumnIndex].Name == "Palety")
             {
-                e.Value = "Brak informacji";
-                e.CellStyle.ForeColor = Color.Red;
-                e.CellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Bold);
-                e.FormattingApplied = true;
+                if (e.Value is decimal val && val > 34)
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(255, 100, 100);
+                    e.CellStyle.ForeColor = Color.White;
+                    e.CellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Bold);
+                    e.FormattingApplied = true;
+                }
+            }
+        }
+
+        private void dgvSzczegoly_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            if (dgvSzczegoly.Columns[e.ColumnIndex].Name == "Folia" && e.Value != null)
+            {
+                string value = e.Value.ToString() ?? "";
+
+                if (value.Equals("TAK", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "✔";
+                    e.CellStyle.Font = new Font("Segoe UI Symbol", 12f, FontStyle.Bold);
+                    e.CellStyle.ForeColor = Color.Green;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("NIE", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (value.Equals("B/D", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "?";
+                    e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Regular);
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.FormattingApplied = true;
+                }
+            }
+
+            if (dgvSzczegoly.Columns[e.ColumnIndex].Name == "Różnica" && e.Value != null)
+            {
+                if (e.Value is decimal roznica)
+                {
+                    if (roznica < 0)
+                    {
+                        e.CellStyle.ForeColor = Color.Red;
+                        e.CellStyle.Font = new Font(dgvSzczegoly.Font, FontStyle.Bold);
+                    }
+                    else if (roznica > 0)
+                    {
+                        e.CellStyle.ForeColor = Color.Green;
+                        e.CellStyle.Font = new Font(dgvSzczegoly.Font, FontStyle.Bold);
+                    }
+                }
             }
         }
 
@@ -1534,49 +1699,71 @@ namespace Kalendarz1
             }
 
             var row = dgvZamowienia.Rows[rowIndex];
+
             if (row.DataBoundItem is DataRowView drv)
             {
                 var status = drv.Row.Field<string>("Status") ?? "";
+
                 if (status == "Wydanie bez zamówienia")
                 {
-                    var odbiorca = drv.Row.Field<string>("Odbiorca") ?? "";
-                    await WyswietlSzczegolyWydaniaBezZamowieniaAsync(odbiorca, _selectedDate);
+                    // POPRAWKA: używamy KlientId zamiast nazwy Odbiorca
+                    var klientId = drv.Row.Field<int>("KlientId");
+                    _aktualneIdZamowienia = null;
+                    await WyswietlSzczegolyWydaniaBezZamowieniaAsync(klientId, _selectedDate);
+                    return;
+                }
+
+                var id = drv.Row.Field<int>("Id");
+
+                if (id > 0)
+                {
+                    _aktualneIdZamowienia = id;
+                    await WyswietlSzczegolyZamowieniaAsync(id);
                     return;
                 }
             }
 
-            if (TrySetAktualneIdZamowieniaFromGrid(out var id))
-            {
-                await WyswietlSzczegolyZamowieniaAsync(id);
-            }
-            else
-            {
-                WyczyscSzczegoly();
-            }
+            WyczyscSzczegoly();
         }
-
-        private async Task WyswietlSzczegolyWydaniaBezZamowieniaAsync(string odbiorca, DateTime dzien)
+        // ===== POPRAWIONA METODA - TYLKO 2 KOLUMNY DLA WYDAŃ BEZ ZAMÓWIEŃ =====
+        private async Task WyswietlSzczegolyWydaniaBezZamowieniaAsync(int khId, DateTime dzien)
         {
+            // Tworzymy prostą tabelę z tylko dwoma kolumnami
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Wydano", typeof(decimal));
 
-            var khId = 0;
+            // Pobieramy nazwę odbiorcy dla wyświetlenia
+            string odbiorcaNazwa = "Nieznany";
             await using (var cn = new SqlConnection(_connHandel))
             {
                 await cn.OpenAsync();
-                var cmdKh = new SqlCommand("SELECT Id FROM [HANDEL].[SSCommon].[STContractors] WHERE Shortcut = @Odbiorca", cn);
-                cmdKh.Parameters.AddWithValue("@Odbiorca", odbiorca);
-                var result = await cmdKh.ExecuteScalarAsync();
-                if (result != null) khId = Convert.ToInt32(result);
+                var cmdNazwa = new SqlCommand("SELECT Shortcut FROM [HANDEL].[SSCommon].[STContractors] WHERE Id = @Id", cn);
+                cmdNazwa.Parameters.AddWithValue("@Id", khId);
+                var result = await cmdNazwa.ExecuteScalarAsync();
+                if (result != null)
+                    odbiorcaNazwa = result.ToString() ?? $"KH {khId}";
             }
 
+            // Teraz używamy khId bezpośrednio - nie ma problemu z wyszukiwaniem
             if (khId > 0)
             {
                 await using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid AND TW.katalog IN (67095, 67153) GROUP BY MZ.idtw";
+                    const string sql = @"
+                SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                FROM [HANDEL].[HM].[MZ] MZ 
+                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+                JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id 
+                WHERE MG.seria IN ('sWZ','sWZ-W') 
+                AND MG.aktywny = 1 
+                AND MG.data = @Dzien 
+                AND MG.khid = @Khid 
+                AND TW.katalog IN (67095, 67153) 
+                GROUP BY MZ.idtw
+                ORDER BY SUM(ABS(MZ.ilosc)) DESC";
+
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Dzien", dzien.Date);
                     cmd.Parameters.AddWithValue("@Khid", khId);
@@ -1590,8 +1777,56 @@ namespace Kalendarz1
                     }
                 }
             }
-            txtNotatki.Text = "Wydanie bez zamówienia (tylko towary z katalogów 67095 i 67153)"; dgvSzczegoly.DataSource = dt;
-            if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
+
+            // Wyświetlamy informację w polu notatek
+            txtNotatki.Text = $"📦 Wydanie bez zamówienia\n\nOdbiorca: {odbiorcaNazwa} (ID: {khId})\nData: {dzien:yyyy-MM-dd dddd}\n\nPoniżej lista wydanych produktów (tylko towary z katalogów 67095 i 67153)";
+
+            // Bindujemy tabelę do grida
+            dgvSzczegoly.DataSource = dt;
+
+            // Formatowanie kolumn
+            if (dgvSzczegoly.Columns["Produkt"] != null)
+            {
+                dgvSzczegoly.Columns["Produkt"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                dgvSzczegoly.Columns["Produkt"].HeaderText = "Produkt";
+            }
+
+            if (dgvSzczegoly.Columns["Wydano"] != null)
+            {
+                dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
+                dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvSzczegoly.Columns["Wydano"].HeaderText = "Wydano (kg)";
+                dgvSzczegoly.Columns["Wydano"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                dgvSzczegoly.Columns["Wydano"].Width = 120;
+            }
+        }
+        private async Task<Dictionary<int, decimal>> PobierzStanyMagazynowe(DateTime dzien)
+        {
+            var stany = new Dictionary<int, decimal>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                string sql = @"SELECT idtw, 0 as ilosc FROM [HANDEL].[HM].[TW] WHERE katalog IN (67095, 67153)";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    int idtw = reader.GetInt32(0);
+                    decimal ilosc = SafeDecimal(reader, 1);
+                    stany[idtw] = ilosc;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Nie przerywaj działania aplikacji
+            }
+
+            return stany;
         }
 
         private async Task WyswietlAgregacjeProduktowAsync(DateTime dzien)
@@ -1599,20 +1834,19 @@ namespace Kalendarz1
             var dtAg = new DataTable();
             dtAg.Columns.Add("Produkt", typeof(string));
             dtAg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
-            dtAg.Columns.Add("PoczątkowyStan", typeof(decimal)); // Miejsce na przyszłą funkcjonalność
+            dtAg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
             dtAg.Columns.Add("Zamówienia", typeof(decimal));
-            dtAg.Columns.Add("Różnica", typeof(decimal));
-
-            // Tabela dla faktycznych danych
-            var dtAgFakt = dtAg.Clone(); // Kopiujemy strukturę
-            dtAgFakt.Columns["PlanowanyPrzychód"].ColumnName = "FaktycznyPrzychód";
+            dtAg.Columns.Add("Bilans", typeof(decimal));
 
             var (planPrzychodu, faktPrzychodu) = await PrognozaIFaktPrzychoduPerProduktAsync(dzien);
 
             var sumaZamowien = new Dictionary<int, decimal>();
             var zamowieniaIds = _dtZamowienia.AsEnumerable()
                 .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                .Select(r => r.Field<int>("Id")).ToList();
+                .Select(r => r.Field<int>("Id"))
+                .Where(id => id > 0)
+                .ToList();
+
             if (zamowieniaIds.Any())
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -1629,33 +1863,28 @@ namespace Kalendarz1
                 var kod = towar.Value;
                 if (IsKurczakB(kod)) continue;
 
-                var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
-                var poczatkowyStan = 0m; // Wartość tymczasowa
                 var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
                 var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
+                var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
+                var bilans = fakt - zam;
 
-                var roznicaPlan = plan + poczatkowyStan - zam;
-                var roznicaFakt = fakt + poczatkowyStan - zam;
-
-                dtAg.Rows.Add(kod, plan, poczatkowyStan, zam, roznicaPlan);
-                dtAgFakt.Rows.Add(kod, fakt, poczatkowyStan, zam, roznicaFakt);
-            }
-
-            // Łączymy tabele, dodając pusty wiersz jako separator
-            dtAg.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value);
-            foreach (DataRow r in dtAgFakt.Rows)
-            {
-                dtAg.Rows.Add(r.ItemArray);
+                dtAg.Rows.Add(kod, plan, fakt, zam, bilans);
             }
 
             dgvAgregacja.DataSource = dtAg;
+
             dgvAgregacja.Sort(dgvAgregacja.Columns["PlanowanyPrzychód"], System.ComponentModel.ListSortDirection.Descending);
 
             foreach (DataGridViewColumn col in dgvAgregacja.Columns)
             {
-                if (col.Name != "Produkt") col.DefaultCellStyle.Format = "N0";
+                if (col.Name != "Produkt")
+                    col.DefaultCellStyle.Format = "N0";
             }
-            if (dgvAgregacja.Columns["PoczątkowyStan"] != null) dgvAgregacja.Columns["PoczątkowyStan"].HeaderText = "Stan Początkowy";
+
+            if (dgvAgregacja.Columns["PlanowanyPrzychód"] != null)
+                dgvAgregacja.Columns["PlanowanyPrzychód"].HeaderText = "Plan przychód";
+            if (dgvAgregacja.Columns["FaktycznyPrzychód"] != null)
+                dgvAgregacja.Columns["FaktycznyPrzychód"].HeaderText = "Fakt przychód";
         }
 
         private void AktualizujPodsumowanieDnia()
@@ -1791,8 +2020,12 @@ namespace Kalendarz1
             if (rowObj == null) return;
 
             var status = rowObj.Row.Table.Columns.Contains("Status") ? rowObj.Row["Status"]?.ToString() : null;
-
             var row = dgvZamowienia.Rows[e.RowIndex];
+
+            row.DefaultCellStyle.BackColor = SystemColors.Window;
+            row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
+            row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
+
             if (status == "Wydanie bez zamówienia")
             {
                 row.DefaultCellStyle.BackColor = Color.FromArgb(255, 240, 200);
@@ -1805,18 +2038,6 @@ namespace Kalendarz1
                 row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Strikeout);
                 row.DefaultCellStyle.BackColor = Color.FromArgb(255, 230, 230);
             }
-            else if (status == "Zrealizowane")
-            {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(220, 255, 220);
-                row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
-                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
-            }
-            else
-            {
-                row.DefaultCellStyle.ForeColor = SystemColors.ControlText;
-                row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : Color.FromArgb(248, 248, 248);
-                row.DefaultCellStyle.Font = new Font(dgvZamowienia.Font, FontStyle.Regular);
-            }
         }
 
         private bool TrySetAktualneIdZamowieniaFromGrid(out int id)
@@ -1824,16 +2045,29 @@ namespace Kalendarz1
             id = 0;
             if (dgvZamowienia.CurrentRow == null) return false;
 
-            if (dgvZamowienia.CurrentRow.DataBoundItem is DataRowView rv && rv.Row.Table.Columns.Contains("Id") && rv.Row["Id"] != DBNull.Value)
+            if (dgvZamowienia.CurrentRow.DataBoundItem is DataRowView rv &&
+                rv.Row.Table.Columns.Contains("Id") &&
+                rv.Row["Id"] != DBNull.Value)
             {
                 id = Convert.ToInt32(rv.Row["Id"]);
-                if (id > 0) { _aktualneIdZamowienia = id; return true; }
+
+                if (id > 0)
+                {
+                    _aktualneIdZamowienia = id;
+                    return true;
+                }
+                else
+                {
+                    _aktualneIdZamowienia = null;
+                    return false;
+                }
             }
 
             if (dgvZamowienia.Columns.Contains("Id"))
             {
                 var cellVal = dgvZamowienia.CurrentRow.Cells["Id"]?.Value;
-                if (cellVal != null && cellVal != DBNull.Value && int.TryParse(cellVal.ToString(), out id) && id > 0)
+                if (cellVal != null && cellVal != DBNull.Value &&
+                    int.TryParse(cellVal.ToString(), out id) && id > 0)
                 {
                     _aktualneIdZamowienia = id;
                     return true;
@@ -1847,93 +2081,209 @@ namespace Kalendarz1
 
         private async Task WyswietlSzczegolyZamowieniaAsync(int zamowienieId)
         {
-            var dtZam = new DataTable();
-            int klientId = 0;
-            await using (var cn = new SqlConnection(_connLibra))
+            try
             {
-                await cn.OpenAsync();
-                // Dodano pobieranie kolumny Folia
-                const string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, zm.Uwagi, zm.KlientId, zmt.Folia FROM [dbo].[ZamowieniaMiesoTowar] zmt INNER JOIN [dbo].[ZamowieniaMieso] zm ON zm.Id = zmt.ZamowienieId WHERE zmt.ZamowienieId = @Id";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Id", zamowienieId);
-                using var da = new SqlDataAdapter(cmd);
-                da.Fill(dtZam);
-                if (dtZam.Rows.Count > 0 && dtZam.Columns.Contains("KlientId"))
-                    klientId = dtZam.Rows[0]["KlientId"] is DBNull ? 0 : Convert.ToInt32(dtZam.Rows[0]["KlientId"]);
-            }
+                dgvSzczegoly.DataSource = null;
+                txtNotatki.Clear();
 
-            var wydania = new Dictionary<int, decimal>();
-            if (klientId > 0)
-            {
-                await using (var cn = new SqlConnection(_connHandel))
+                int klientId = 0;
+                string notatki = "";
+                var pozycjeZamowienia = new List<(int KodTowaru, decimal Ilosc, bool Folia)>();
+
+                DateTime dataDoWyszukaniaWydan = _selectedDate.Date;
+
+                await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny = 1 AND MG.data = @Dzien AND MG.khid = @Khid GROUP BY MZ.idtw";
-                    await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Dzien", _selectedDate.Date);
-                    cmd.Parameters.AddWithValue("@Khid", klientId);
-                    using var rd = await cmd.ExecuteReaderAsync();
-                    while (await rd.ReadAsync())
+
+                    string dataUbojuSelect = _dataUbojuKolumnaIstnieje ? ", DataUboju" : "";
+                    using (var cmdInfo = new SqlCommand($@"
+                        SELECT KlientId, Uwagi, DataZamowienia{dataUbojuSelect} 
+                        FROM dbo.ZamowieniaMieso 
+                        WHERE Id = @Id", cn))
                     {
-                        int idtw = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
-                        decimal ilosc = SafeDecimal(rd, 1);
-                        wydania[idtw] = ilosc;
+                        cmdInfo.Parameters.AddWithValue("@Id", zamowienieId);
+                        using var readerInfo = await cmdInfo.ExecuteReaderAsync();
+                        if (await readerInfo.ReadAsync())
+                        {
+                            klientId = readerInfo.IsDBNull(0) ? 0 : readerInfo.GetInt32(0);
+                            notatki = readerInfo.IsDBNull(1) ? "" : readerInfo.GetString(1);
+
+                            var dataZamowienia = readerInfo.GetDateTime(2);
+                            DateTime? dataUboju = null;
+                            if (_dataUbojuKolumnaIstnieje && !readerInfo.IsDBNull(3))
+                            {
+                                dataUboju = readerInfo.GetDateTime(3);
+                            }
+
+                            dataDoWyszukaniaWydan = (_pokazujPoDatachUboju && dataUboju.HasValue) ? dataUboju.Value : dataZamowienia;
+                        }
+                    }
+
+                    using (var cmdPozycje = new SqlCommand(@"
+                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia
+                FROM dbo.ZamowieniaMiesoTowar
+                WHERE ZamowienieId = @Id", cn))
+                    {
+                        cmdPozycje.Parameters.AddWithValue("@Id", zamowienieId);
+                        using var readerPozycje = await cmdPozycje.ExecuteReaderAsync();
+                        while (await readerPozycje.ReadAsync())
+                        {
+                            int kodTowaru = readerPozycje.GetInt32(0);
+                            decimal ilosc = readerPozycje.IsDBNull(1) ? 0m : readerPozycje.GetDecimal(1);
+                            bool folia = readerPozycje.GetBoolean(2);
+
+                            pozycjeZamowienia.Add((kodTowaru, ilosc, folia));
+                        }
                     }
                 }
+
+                var wydania = new Dictionary<int, decimal>();
+                if (klientId > 0)
+                {
+                    await using (var cn = new SqlConnection(_connHandel))
+                    {
+                        await cn.OpenAsync();
+                        const string sql = @"
+                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                    FROM [HANDEL].[HM].[MZ] MZ 
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+                    WHERE MG.seria IN ('sWZ','sWZ-W') 
+                    AND MG.aktywny = 1 
+                    AND MG.data = @Dzien 
+                    AND MG.khid = @Khid 
+                    GROUP BY MZ.idtw";
+
+                        await using var cmd = new SqlCommand(sql, cn);
+                        cmd.Parameters.AddWithValue("@Dzien", dataDoWyszukaniaWydan.Date);
+                        cmd.Parameters.AddWithValue("@Khid", klientId);
+                        using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                        {
+                            int idtw = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
+                            decimal ilosc = SafeDecimal(rd, 1);
+                            wydania[idtw] = ilosc;
+                        }
+                    }
+                }
+
+                var dt = new DataTable();
+                dt.Columns.Add("Produkt", typeof(string));
+                dt.Columns.Add("Zamówiono", typeof(decimal));
+                dt.Columns.Add("Wydano", typeof(decimal));
+                dt.Columns.Add("Różnica", typeof(decimal));
+                dt.Columns.Add("Folia", typeof(string));
+
+                foreach (var pozycja in pozycjeZamowienia)
+                {
+                    if (!_twKatalogCache.ContainsKey(pozycja.KodTowaru))
+                        continue;
+
+                    string produkt = _twKatalogCache.TryGetValue(pozycja.KodTowaru, out var kod) ?
+                        kod : $"Nieznany ({pozycja.KodTowaru})";
+                    decimal zamowiono = pozycja.Ilosc;
+                    decimal wydano = wydania.TryGetValue(pozycja.KodTowaru, out var w) ? w : 0m;
+                    decimal roznica = wydano - zamowiono;
+
+                    dt.Rows.Add(
+                        produkt,
+                        zamowiono,
+                        wydano,
+                        roznica,
+                        pozycja.Folia ? "TAK" : "NIE"
+                    );
+
+                    wydania.Remove(pozycja.KodTowaru);
+                }
+
+                foreach (var kv in wydania)
+                {
+                    if (!_twKatalogCache.ContainsKey(kv.Key))
+                        continue;
+
+                    string produkt = _twKatalogCache.TryGetValue(kv.Key, out var kod) ?
+                        kod : $"Nieznany ({kv.Key})";
+                    dt.Rows.Add(
+                        produkt,
+                        0m,
+                        kv.Value,
+                        kv.Value,
+                        "B/D"
+                    );
+                }
+
+                txtNotatki.Text = notatki;
+
+                if (dt.Rows.Count > 0)
+                {
+                    dgvSzczegoly.DataSource = dt;
+
+                    if (dgvSzczegoly.Columns["Zamówiono"] != null)
+                    {
+                        dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
+                        dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                    if (dgvSzczegoly.Columns["Wydano"] != null)
+                    {
+                        dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
+                        dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                    if (dgvSzczegoly.Columns["Różnica"] != null)
+                    {
+                        dgvSzczegoly.Columns["Różnica"].DefaultCellStyle.Format = "N0";
+                        dgvSzczegoly.Columns["Różnica"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                    if (dgvSzczegoly.Columns["Folia"] != null)
+                    {
+                        dgvSzczegoly.Columns["Folia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                        dgvSzczegoly.Columns["Folia"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
+                    if (dgvSzczegoly.Columns["Produkt"] != null)
+                    {
+                        dgvSzczegoly.Columns["Produkt"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    }
+                }
+                else
+                {
+                    var dtEmpty = new DataTable();
+                    dtEmpty.Columns.Add("Info", typeof(string));
+                    dtEmpty.Rows.Add("Brak pozycji w zamówieniu");
+                    dgvSzczegoly.DataSource = dtEmpty;
+                }
             }
-
-            var dt = new DataTable();
-            dt.Columns.Add("Produkt", typeof(string));
-            dt.Columns.Add("Zamówiono", typeof(decimal));
-            dt.Columns.Add("Wydano", typeof(decimal));
-            dt.Columns.Add("Folia", typeof(string));
-
-            foreach (DataRow r in dtZam.Rows)
+            catch (Exception ex)
             {
-                int idTowaru = r["KodTowaru"] == DBNull.Value ? 0 : Convert.ToInt32(r["KodTowaru"]);
-                if (!_twKatalogCache.ContainsKey(idTowaru)) continue;
+                MessageBox.Show($"Błąd podczas wczytywania szczegółów zamówienia:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                string produkt = _twKatalogCache.TryGetValue(idTowaru, out var kod) ? kod : $"Nieznany ({idTowaru})";
-                decimal zamowiono = r["Ilosc"] == DBNull.Value ? 0m : Convert.ToDecimal(r["Ilosc"]);
-                decimal wydano = wydania.TryGetValue(idTowaru, out var w) ? w : 0m;
-                bool jestFolia = r["Folia"] != DBNull.Value && Convert.ToBoolean(r["Folia"]);
-                dt.Rows.Add(produkt, zamowiono, wydano, jestFolia ? "TAK" : "NIE");
-                wydania.Remove(idTowaru);
+                dgvSzczegoly.DataSource = null;
+                txtNotatki.Clear();
             }
-
-            foreach (var kv in wydania)
-            {
-                if (!_twKatalogCache.ContainsKey(kv.Key)) continue;
-                string produkt = _twKatalogCache.TryGetValue(kv.Key, out var kod) ? kod : $"Nieznany ({kv.Key})";
-                dt.Rows.Add(produkt, 0m, kv.Value, "B/D");
-            }
-
-            string notatki = dtZam.Rows.Count > 0 ? (dtZam.Rows[0]["Uwagi"]?.ToString() ?? "") : "";
-            txtNotatki.Text = notatki;
-            dgvSzczegoly.DataSource = dt;
-
-            if (dgvSzczegoly.Columns["Zamówiono"] != null) dgvSzczegoly.Columns["Zamówiono"].DefaultCellStyle.Format = "N0";
-            if (dgvSzczegoly.Columns["Wydano"] != null) dgvSzczegoly.Columns["Wydano"].DefaultCellStyle.Format = "N0";
-            if (dgvSzczegoly.Columns["Folia"] != null) dgvSzczegoly.Columns["Folia"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
         }
 
-        #region Filtrowanie
         private void ZastosujFiltry()
         {
             if (_dtZamowienia.DefaultView == null) return;
             var warunki = new List<string>();
+
             var txt = txtFiltrujOdbiorce.Text?.Trim().Replace("'", "''");
             if (!string.IsNullOrEmpty(txt))
                 warunki.Add($"Odbiorca LIKE '%{txt}%'");
+
             if (cbFiltrujHandlowca.SelectedIndex > 0)
             {
                 var hand = cbFiltrujHandlowca.SelectedItem?.ToString()?.Replace("'", "''");
                 if (!string.IsNullOrEmpty(hand))
                     warunki.Add($"Handlowiec = '{hand}'");
             }
+
+            if (!_pokazujWydaniaBezZamowien)
+            {
+                warunki.Add("Status <> 'Wydanie bez zamówienia'");
+            }
+
             _dtZamowienia.DefaultView.RowFilter = string.Join(" AND ", warunki);
         }
-        #endregion
 
         private async void btnUsun_Click(object? sender, EventArgs e)
         {

@@ -7,6 +7,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
     <StartupObject>Kalendarz1.App</StartupObject>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="background_video.mp4" />
+    <None Remove="logo-2-green.png" />
+    <None Remove="logo-2-white.png" />
+    <None Remove="logo2white.png" />
     <None Remove="Resources\Screenshot_4.ico" />
     <None Remove="Screenshot_8.jpg" />
   </ItemGroup>
@@ -25,7 +30,7 @@
     <EmbeddedResource Include="Resources\Screenshot_4.ico" />
   </ItemGroup>
 
-  <ItemGroup>    <PackageReference Include="DocumentFormat.OpenXml" Version="3.0.2" />    <PackageReference Include="GMap.NET.Core" Version="2.1.7" />    <PackageReference Include="GMap.NET.WindowsForms" Version="1.7.5" />    <PackageReference Include="GMap.NET.WinForms" Version="2.1.7" />    <PackageReference Include="itext7" Version="9.0.0" />
+  <ItemGroup>    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />    <PackageReference Include="DocumentFormat.OpenXml" Version="3.0.2" />    <PackageReference Include="GMap.NET.Core" Version="2.1.7" />    <PackageReference Include="GMap.NET.WindowsForms" Version="1.7.5" />    <PackageReference Include="GMap.NET.WinForms" Version="2.1.7" />    <PackageReference Include="itext7" Version="9.0.0" />
     <PackageReference Include="itext7.pdfhtml" Version="5.0.4" />
     
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
@@ -34,9 +39,13 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="OpenAI" Version="2.3.0" />
     <PackageReference Include="PDFsharp" Version="6.0.0" />
+    <PackageReference Include="QuestPDF" Version="2025.7.2" />
     <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
     <PackageReference Include="Twilio" Version="7.1.0" />
     <PackageReference Include="WinForms.DataVisualization" Version="1.9.2" />
+    <PackageReference Include="itext7" Version="8.0.2" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +55,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="background_video.mp4">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="logo-2-green.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="logo2white.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Screenshot_8.jpg" />
   </ItemGroup>
 

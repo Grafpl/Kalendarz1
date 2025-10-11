@@ -3,266 +3,161 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Kalendarz1"
         mc:Ignorable="d"
-        Title="System Zarządzania - Logowanie" 
-        Height="500" 
-        Width="420"
+        Title="System Zarządzania Piórkowscy"
+        Height="650" Width="1050"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent">
+        ResizeMode="NoResize" WindowStyle="None"
+        AllowsTransparency="True" Background="Transparent"
+        FontFamily="Segoe UI">
 
-    <Border CornerRadius="15" Background="White">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="30" Direction="0" RenderingBias="Quality" 
-                            ShadowDepth="0" Color="Black" Opacity="0.3"/>
-        </Border.Effect>
-
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="40"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- Pasek tytułu -->
-            <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="15,15,0,0" 
-                    MouseLeftButtonDown="Window_MouseLeftButtonDown">
-                <Grid>
-                    <TextBlock Text="System Zarządzania ProNova" 
-                              Foreground="#333333" 
-                              FontFamily="Segoe UI" 
-                              FontSize="13" 
-                              FontWeight="SemiBold"
-                              VerticalAlignment="Center" 
-                              Margin="20,0,0,0"/>
-
-                    <!-- Przycisk zamknięcia -->
-                    <Button x:Name="CloseButton" 
-                           Content="✕" 
-                           Click="CloseButton_Click"
-                           HorizontalAlignment="Right" 
-                           VerticalAlignment="Center"
-                           Margin="0,0,15,0"
-                           Width="30" 
-                           Height="30"
-                           Background="Transparent"
-                           Foreground="#666666"
-                           BorderThickness="0"
-                           FontSize="18"
-                           FontFamily="Segoe UI Light"
-                           Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
+    <Window.Resources>
+        <Style x:Key="FloatingLabelPasswordBoxStyle" TargetType="PasswordBox">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Padding" Value="8,0,8,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Grid>
+                            <Border x:Name="border" Background="Transparent" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <TextBlock x:Name="Label" Text="{TemplateBinding Tag}" FontSize="16" Foreground="#7F8C8D" Margin="8,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                        <TextBlock.RenderTransform>
+                                            <TranslateTransform/>
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+                                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#5C8A3A"/>
+                            </Trigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsFocused, RelativeSource={RelativeSource Self}}" Value="False"/>
+                                    <Condition Binding="{Binding Password.Length, RelativeSource={RelativeSource Self}}" Value="0"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="Label" Property="RenderTransform" >
                                     <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" 
-                                                   CornerRadius="5">
-                                                <ContentPresenter HorizontalAlignment="Center" 
-                                                                VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
+                                        <TranslateTransform Y="0"/>
                                     </Setter.Value>
                                 </Setter>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#FFE5E5"/>
-                                        <Setter Property="Foreground" Value="#E53935"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                                <Setter TargetName="Label" Property="FontSize" Value="16"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsFocused, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="Label" Property="RenderTransform" >
+                                    <Setter.Value>
+                                        <TranslateTransform Y="-24"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Label" Property="FontSize" Value="12"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Password.Length, RelativeSource={RelativeSource Self}}" Value="0" />
+                                </MultiDataTrigger.Conditions>
+                                <MultiDataTrigger.Setters></MultiDataTrigger.Setters>
+                                <MultiDataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Label" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" To="-24" Duration="0:0:0.01"/>
+                                            <DoubleAnimation Storyboard.TargetName="Label" Storyboard.TargetProperty="FontSize" To="12" Duration="0:0:0.01"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </MultiDataTrigger.ExitActions>
+                            </MultiDataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="15" Background="#FFFFFF">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.2" BlurRadius="20"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" CornerRadius="15,0,0,15" ClipToBounds="True">
+                <Grid>
+                    <Border Name="AnimatedBackground" Background="#5C8A3A">
+                        <Border.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                      From="#5C8A3A" To="#4B732F" Duration="0:0:10"
+                                                      AutoReverse="True" RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Border.Triggers>
+                    </Border>
+
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="30">
+                        <Image Source="pack://application:,,,/logo2white.png" Height="80" Margin="0,0,0,25" RenderOptions.BitmapScalingMode="Fant"/>
+                        <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="White" FontSize="18" Margin="0,15,0,10">
+                            <Run FontWeight="SemiBold">Szanowni Pracownicy,</Run>
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap" Foreground="#E0F0D6" TextAlignment="Center" FontSize="14" LineHeight="22">
+                            <Run>Ten system to nasze wspólne narzędzie do budowania przyszłości firmy. Powstał, by uprościć i usprawnić naszą codzienną pracę.</Run>
+                            <LineBreak/>
+                            <Run>Zrobię wszystko, co w mojej mocy, aby był dla Was realnym wsparciem.</Run>
+                        </TextBlock>
+                        <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold" 
+                                   TextAlignment="Center" FontSize="15" Margin="0,30,0,0" Opacity="0.8"/>
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- Główna zawartość -->
-            <Grid Grid.Row="1" Margin="50,30,50,40">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <!-- Logo -->
-                <Border Grid.Row="0" 
-                       Width="100" 
-                       Height="100" 
-                       CornerRadius="50"
-                       Background="#F0F0F0"
-                       Margin="0,0,0,25"
-                       HorizontalAlignment="Center">
-                    <Image Source="/Screenshot_8.jpg" 
-                          Margin="20"
-                          RenderOptions.BitmapScalingMode="HighQuality"/>
-                </Border>
-
-                <!-- Tytuł -->
-                <TextBlock Grid.Row="1" 
-                          Text="Witaj w systemie" 
-                          HorizontalAlignment="Center" 
-                          FontSize="26" 
-                          FontWeight="Light"
-                          FontFamily="Segoe UI Light"
-                          Foreground="#333333"
-                          Margin="0,0,0,5"/>
-
-                <TextBlock Grid.Row="2" 
-                          Text="Zaloguj się do swojego konta" 
-                          HorizontalAlignment="Center" 
-                          FontSize="13"
-                          FontFamily="Segoe UI"
-                          Foreground="#999999"
-                          Margin="0,0,0,30"/>
-
-                <!-- Pole ID użytkownika -->
-                <TextBlock Grid.Row="3" 
-                          Text="ID UŻYTKOWNIKA" 
-                          FontFamily="Segoe UI" 
-                          FontSize="11"
-                          FontWeight="SemiBold"
-                          Foreground="#666666"
-                          Margin="0,0,0,8"/>
-
-                <Border Grid.Row="4" 
-                       BorderBrush="#E0E0E0" 
-                       BorderThickness="1"
-                       CornerRadius="8"
-                       Height="48"
-                       Margin="0,0,0,25">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="BorderBrush" Value="#2196F3"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0" 
-                                  Text="👤" 
-                                  VerticalAlignment="Center"
-                                  HorizontalAlignment="Center"
-                                  FontSize="18"
-                                  Foreground="#999999"/>
-
-                        <PasswordBox Grid.Column="1" 
-                                    x:Name="PasswordBox" 
-                                    FontSize="14"
-                                    FontFamily="Segoe UI"
-                                    Foreground="#333333"
-                                    VerticalContentAlignment="Center"
-                                    BorderThickness="0"
-                                    Background="Transparent"
-                                    KeyDown="PasswordBox_KeyDown"/>
-                    </Grid>
-                </Border>
-
-                <!-- Przyciski -->
-                <Grid Grid.Row="5">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="15"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Przycisk Zaloguj -->
-                    <Button Grid.Column="0" 
-                           Content="ZALOGUJ" 
-                           Height="48" 
-                           Click="LoginButton_Click" 
-                           x:Name="LoginButton"
-                           Background="#2196F3"
-                           Foreground="White"
-                           FontWeight="SemiBold"
-                           FontFamily="Segoe UI"
-                           FontSize="13"
-                           BorderThickness="0"
-                           Cursor="Hand">
+            <Grid Grid.Column="1">
+                <Button x:Name="CloseButton" Content="✕" Click="CloseButton_Click" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,15,20,0" Width="35" Height="35" Background="Transparent" Foreground="#A0A0A0" BorderThickness="0" FontSize="16" Cursor="Hand" ToolTip="Zamknij aplikację"/>
+                <StackPanel VerticalAlignment="Center" Margin="80,0">
+                    <TextBlock Text="Witaj w Systemie" HorizontalAlignment="Left" FontSize="36" FontWeight="Light" Foreground="#2C3E50" Margin="0,0,0,10"/>
+                    <TextBlock Text="Zaloguj się, aby rozpocząć pracę." HorizontalAlignment="Left" FontSize="18" Foreground="#7F8C8D" Margin="0,0,0,50"/>
+                    <PasswordBox x:Name="PasswordBox" Tag="Identyfikator pracownika" Margin="0,10" Style="{StaticResource FloatingLabelPasswordBoxStyle}" KeyDown="PasswordBox_KeyDown"/>
+                    <Button x:Name="LoginButton" Content="ZALOGUJ SIĘ" Height="50" Click="LoginButton_Click" FontWeight="Bold" FontFamily="Segoe UI" FontSize="14" Margin="0,40,0,0" Foreground="White" Background="#5C8A3A">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" 
-                                                   CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" 
-                                                                VerticalAlignment="Center"/>
+                                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.2" BlurRadius="10"/>
+                                                </Border.Effect>
                                             </Border>
                                         </ControlTemplate>
                                     </Setter.Value>
                                 </Setter>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#1E88E5"/>
+                                        <Setter Property="Background" Value="#4B732F"/>
                                     </Trigger>
                                     <Trigger Property="IsPressed" Value="True">
-                                        <Setter Property="Background" Value="#1976D2"/>
+                                        <Setter Property="Background" Value="#3A5C24"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
                     </Button>
-
-                    <!-- Przycisk Anuluj -->
-                    <Button Grid.Column="2" 
-                           Content="ANULUJ" 
-                           Height="48" 
-                           Click="CancelButton_Click"
-                           Background="#F5F5F5"
-                           Foreground="#666666"
-                           FontWeight="SemiBold"
-                           FontFamily="Segoe UI"
-                           FontSize="13"
-                           BorderThickness="0"
-                           Cursor="Hand">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" 
-                                                   CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" 
-                                                                VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#EEEEEE"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter Property="Background" Value="#E0E0E0"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                </Grid>
-
-                <!-- Footer -->
-                <TextBlock Grid.Row="6" 
-                          Text="© 2025 ProNova System" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Bottom"
-                          Foreground="#CCCCCC"
-                          FontFamily="Segoe UI"
-                          FontSize="10"/>
+                </StackPanel>
+                <TextBlock x:Name="FooterText" Text="© 2025 Piórkowscy - Sergiusz Piórkowski" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="#CFD8DC" FontSize="12" Margin="20"/>
             </Grid>
         </Grid>
     </Border>

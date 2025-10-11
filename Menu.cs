@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Kalendarz1.OfertaCenowa;
+using Microsoft.Data.SqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
+
 
 namespace Kalendarz1
 {
@@ -13,11 +15,11 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private Dictionary<string, bool> userPermissions = new Dictionary<string, bool>();
         private bool isAdmin = false;
-        private FlowLayoutPanel menuFlowPanel;
         private Panel headerPanel;
         private Panel sidePanel;
         private Label welcomeLabel;
-        private Button adminPanelButton;
+
+        private TableLayoutPanel mainLayout;
 
         public MENU()
         {
@@ -30,106 +32,45 @@ namespace Kalendarz1
 
         private void InitializeCustomComponents()
         {
-            // Główny layout
             this.WindowState = FormWindowState.Maximized;
-            this.Text = "System Zarządzania - Menu Główne";
+            this.Text = "System Zarządzania - Piórkowscy";
 
-            // Panel górny
-            headerPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 100, // Zmniejszone z 120
-                BackColor = Color.FromArgb(41, 53, 65)
-            };
+            headerPanel = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(45, 57, 69) };
 
-            // Logo - próba załadowania z zasobów
             try
             {
-                PictureBox logo = new PictureBox
-                {
-                    Image = Properties.Resources.pm, // Jeśli masz zasób
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Size = new Size(250, 70), // Zmniejszone
-                    Location = new Point(20, 15)
-                };
-                headerPanel.Controls.Add(logo);
-            }
-            catch
-            {
-                // Jeśli brak zasobu, użyj tekstu
-                Label logoLabel = new Label
-                {
-                    Text = "🏢 SYSTEM ZARZĄDZANIA",
-                    Font = new Font("Segoe UI", 20, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Size = new Size(300, 40),
-                    Location = new Point(20, 30)
-                };
+                Label logoLabel = new Label { Text = "PIÓRKOWSCY", Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = Color.White, AutoSize = true, Location = new Point(20, 25) };
                 headerPanel.Controls.Add(logoLabel);
             }
+            catch { }
 
-            // Label powitalny
-            welcomeLabel = new Label
-            {
-                Text = $"👤 Zalogowany jako: {App.UserID}",
-                Font = new Font("Segoe UI", 12, FontStyle.Regular),
-                ForeColor = Color.White,
-                AutoSize = true,
-                Location = new Point(this.Width - 300, 40)
-            };
+            welcomeLabel = new Label { Text = $"👤 Zalogowany jako: {App.UserID}", Font = new Font("Segoe UI", 12), ForeColor = Color.White, AutoSize = true };
             headerPanel.Controls.Add(welcomeLabel);
 
-            // Panel boczny dla admina
-            sidePanel = new Panel
-            {
-                Dock = DockStyle.Left,
-                Width = 200, // Zmniejszone z 250
-                BackColor = Color.FromArgb(31, 43, 55),
-                Visible = false
-            };
+            sidePanel = new Panel { Dock = DockStyle.Left, Width = 220, BackColor = Color.FromArgb(35, 45, 55), Visible = false };
 
-            // Przycisk panelu administracyjnego
-            adminPanelButton = new Button
-            {
-                Text = "⚙ Panel Admin",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(229, 57, 53),
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(180, 40), // Zmniejszone
-                Location = new Point(10, 15),
-                Cursor = Cursors.Hand
-            };
+            var adminPanelButton = new Button { Text = "⚙ Panel Administracyjny", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(229, 57, 53), FlatStyle = FlatStyle.Flat, Size = new Size(190, 45), Location = new Point(15, 20), Cursor = Cursors.Hand };
             adminPanelButton.FlatAppearance.BorderSize = 0;
             adminPanelButton.Click += AdminPanelButton_Click;
             sidePanel.Controls.Add(adminPanelButton);
 
-            // Przycisk wylogowania
-            Button logoutButton = new Button
-            {
-                Text = "🚪 Wyloguj",
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(76, 88, 100),
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(180, 35), // Zmniejszone
-                Location = new Point(10, 60),
-                Cursor = Cursors.Hand
-            };
+            var logoutButton = new Button { Text = "🚪 Wyloguj", Font = new Font("Segoe UI", 10), ForeColor = Color.White, BackColor = Color.FromArgb(76, 88, 100), FlatStyle = FlatStyle.Flat, Size = new Size(190, 40), Location = new Point(15, 75), Cursor = Cursors.Hand };
             logoutButton.FlatAppearance.BorderSize = 0;
             logoutButton.Click += LogoutButton_Click;
             sidePanel.Controls.Add(logoutButton);
 
-            // Panel główny z menu
-            menuFlowPanel = new FlowLayoutPanel
+            mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                AutoScroll = true,
-                Padding = new Padding(15), // Zmniejszone z 30
-                BackColor = Color.FromArgb(236, 239, 241)
+                BackColor = Color.FromArgb(236, 239, 241),
+                Padding = new Padding(10),
+                ColumnCount = 2,
+                RowCount = 1,
             };
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            this.Controls.Add(menuFlowPanel);
+            this.Controls.Add(mainLayout);
             this.Controls.Add(sidePanel);
             this.Controls.Add(headerPanel);
         }
@@ -139,15 +80,18 @@ namespace Kalendarz1
             string userId = App.UserID;
             isAdmin = (userId == "11111");
 
+            // First, reset all permissions to false. This is a failsafe.
+            LoadAllPermissions(false);
+
             if (isAdmin)
             {
                 sidePanel.Visible = true;
-                // Admin ma dostęp do wszystkiego
+                // Grant all permissions only if the user is an admin
                 LoadAllPermissions(true);
             }
             else
             {
-                // Załaduj uprawnienia z kolumny Access w bazie
+                // Otherwise, load specific permissions from the database
                 LoadUserAccessFromDatabase(userId);
             }
         }
@@ -160,87 +104,85 @@ namespace Kalendarz1
                 {
                     conn.Open();
                     string query = "SELECT Access FROM operators WHERE ID = @userId";
-
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@userId", userId);
                         var result = cmd.ExecuteScalar();
 
-                        if (result != null && result.ToString().Length > 0)
+                        if (result != null && result != DBNull.Value && !string.IsNullOrEmpty(result.ToString()))
                         {
-                            string accessString = result.ToString();
-                            ParseAccessString(accessString);
+                            ParseAccessString(result.ToString());
                         }
                         else
                         {
-                            // Brak uprawnień - wszystko false
-                            LoadAllPermissions(false);
+                            // If user has no permissions string, LoadAllPermissions(false) has already been called.
+                            MessageBox.Show("Użytkownik nie ma zdefiniowanych uprawnień. Dostęp został zablokowany.", "Brak uprawnień", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania uprawnień: {ex.Message}", "Błąd",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"Błąd podczas ładowania uprawnień: {ex.Message}\n\nDostęp został zablokowany z powodu błędu.", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // Ensure no permissions are granted on error
                 LoadAllPermissions(false);
             }
         }
 
         private void ParseAccessString(string accessString)
         {
-            // Mapowanie pozycji w stringu Access na moduły
-            // Na podstawie starego systemu
             var accessMap = new Dictionary<int, string>
             {
-                [0] = "DaneHodowcy",           // Pozycja 0
-                [1] = "ZakupPaszyPisklak",     // Pozycja 1
-                [2] = "WstawieniaHodowcy",     // Pozycja 2
-                [3] = "TerminyDostawyZywca",   // Pozycja 3
-                [4] = "PlachtyAviloga",        // Pozycja 4
-                [5] = "DokumentyZakupu",       // Pozycja 5
-                [6] = "Specyfikacje",          // Pozycja 6
-                [7] = "PlatnosciHodowcy",      // Pozycja 7
-                [8] = "CRM",                   // Pozycja 8
-                [9] = "ZamowieniaOdbiorcow",   // Pozycja 9
-                [10] = "KalkulacjaKrojenia",   // Pozycja 10
-                [11] = "PrzychodMrozni",       // Pozycja 11
-                [12] = "DokumentySprzedazy",   // Pozycja 12
-                [13] = "PodsumowanieSaldOpak", // Pozycja 13
-                [14] = "SaldaOdbiorcowOpak",   // Pozycja 14
-                [15] = "DaneFinansowe",        // Pozycja 15
-                [16] = "UstalanieTranportu",   // Pozycja 16
-                [17] = "ZmianyUHodowcow",      // Pozycja 17
-                [18] = "ProdukcjaPodglad",     // Pozycja 18
-                [19] = "OfertaCenowa"          // Pozycja 19
+                [0] = "DaneHodowcy",
+                [1] = "ZakupPaszyPisklak",
+                [2] = "WstawieniaHodowcy",
+                [3] = "TerminyDostawyZywca",
+                [4] = "PlachtyAviloga",
+                [5] = "DokumentyZakupu",
+                [6] = "Specyfikacje",
+                [7] = "PlatnosciHodowcy",
+                [8] = "CRM",
+                [9] = "ZamowieniaOdbiorcow",
+                [10] = "KalkulacjaKrojenia",
+                [11] = "PrzychodMrozni",
+                [12] = "DokumentySprzedazy",
+                [13] = "PodsumowanieSaldOpak",
+                [14] = "SaldaOdbiorcowOpak",
+                [15] = "DaneFinansowe",
+                [16] = "UstalanieTranportu",
+                [17] = "ZmianyUHodowcow",
+                [18] = "ProdukcjaPodglad",
+                [19] = "OfertaCenowa"
             };
 
-            // Najpierw ustaw wszystkie na false
-            LoadAllPermissions(false);
-
-            // Parsuj string i ustaw uprawnienia
-            for (int i = 0; i < accessString.Length && i < 20; i++)
+            // The initial reset is now in LoadUserPermissions, so we just apply the grants here
+            for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
             {
-                if (accessMap.ContainsKey(i))
+                if (accessMap.ContainsKey(i) && accessString[i] == '1')
                 {
-                    userPermissions[accessMap[i]] = (accessString[i] == '1');
+                    userPermissions[accessMap[i]] = true;
                 }
             }
         }
 
-        // USUŃ metodę AssignDefaultPermissions - nie będzie już potrzebna
-
-        private void LoadUserSpecificPermissions(string userId)
-        {
-            // Zastąp całą metodę tą prostszą wersją
-            LoadUserAccessFromDatabase(userId);
-        }
         private void LoadAllPermissions(bool grantAll)
         {
             var allModules = GetAllModules();
-            foreach (var module in allModules)
+            if (userPermissions.Count == 0)
             {
-                userPermissions[module] = grantAll;
+                // Initialize dictionary if it's empty
+                foreach (var module in allModules)
+                {
+                    userPermissions.Add(module, grantAll);
+                }
+            }
+            else
+            {
+                // Otherwise, just update values
+                foreach (var module in allModules)
+                {
+                    userPermissions[module] = grantAll;
+                }
             }
         }
 
@@ -256,209 +198,168 @@ namespace Kalendarz1
             };
         }
 
-        
-      
         private void SetupMenuItems()
         {
-            menuFlowPanel.Controls.Clear();
+            mainLayout.Controls.Clear();
 
-            // Główny panel z tabelą przycisków
-            TableLayoutPanel mainTable = new TableLayoutPanel
+            var leftColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
-                ColumnCount = 6, // 6 kolumn dla kompaktowego układu
-                AutoSize = true,
-                Padding = new Padding(10),
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-
-            // Ustawienie szerokości kolumn
-            for (int i = 0; i < 6; i++)
-            {
-                mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
-            }
-
-            // Mapa obrazków dla modułów
-            var moduleImages = GetModuleImages();
-
-            // Kategorie menu
-            var categories = new Dictionary<string, List<MenuItemConfig>>
-            {
-                ["📦 ZAKUP"] = new List<MenuItemConfig>
+                ["ZAOPATRZENIE I ZAKUPY"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("DaneHodowcy", "Dane Hodowcy", Color.FromArgb(46, 125, 50), () => new WidokKontrahenci(), "📋"),
-                    new MenuItemConfig("ZakupPaszyPisklak", "Zakup paszy", Color.FromArgb(67, 160, 71), null, "🌾"),
-                    new MenuItemConfig("WstawieniaHodowcy", "Wstawienia", Color.FromArgb(76, 175, 80), () => new WidokWstawienia(), "🐣"),
-                    new MenuItemConfig("TerminyDostawyZywca", "Terminy dostaw", Color.FromArgb(102, 187, 106),
-                        () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅"),
-                    new MenuItemConfig("DokumentyZakupu", "Dokumenty", Color.FromArgb(129, 199, 132),
-                        () => new SprawdzalkaUmow { UserID = App.UserID }, "📄"),
-                    new MenuItemConfig("PlatnosciHodowcy", "Płatności", Color.FromArgb(156, 204, 101), () => new Platnosci(), "💰"),
-                    new MenuItemConfig("ZmianyUHodowcow", "Zmiany", Color.FromArgb(139, 195, 74),
-                        () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️")
+                    new MenuItemConfig("DaneHodowcy", "Dane Hodowcy", "Zarządzaj bazą hodowców", Color.FromArgb(46, 125, 50), () => new WidokKontrahenci(), "📋"),
+                    new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy", "Rejestruj zakupy paszy i piskląt", Color.FromArgb(67, 160, 71), null, "🌾"),
+                    new MenuItemConfig("WstawieniaHodowcy", "Wstawienia", "Zarządzaj cyklami wstawień", Color.FromArgb(76, 175, 80), () => new WidokWstawienia(), "🐣"),
+                    new MenuItemConfig("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", Color.FromArgb(102, 187, 106), () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅"),
+                    new MenuItemConfig("DokumentyZakupu", "Dokumenty Zakupu", "Archiwizuj dokumenty i umowy", Color.FromArgb(129, 199, 132), () => new SprawdzalkaUmow { UserID = App.UserID }, "📄"),
+                    new MenuItemConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", Color.FromArgb(156, 204, 101), () => new Platnosci(), "💰"),
+                    new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", Color.FromArgb(139, 195, 74), () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
+                    new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca", "Definiuj specyfikacje produktów", Color.FromArgb(120, 144, 156), () => new WidokSpecyfikacje(), "📝"),
+                    new MenuItemConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", Color.FromArgb(120, 144, 156), () => new WidokMatryca(), "🎯")
                 },
-                ["💼 SPRZEDAŻ"] = new List<MenuItemConfig>
+                ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("CRM", "CRM", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
-                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia", Color.FromArgb(30, 136, 229),
-                        () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
-                    new MenuItemConfig("KalkulacjaKrojenia", "Krojenie", Color.FromArgb(25, 118, 210),
-                        () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
-                    new MenuItemConfig("DokumentySprzedazy", "Faktury", Color.FromArgb(21, 101, 192),
-                        () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-                    new MenuItemConfig("OfertaCenowa", "Oferty", Color.FromArgb(13, 71, 161), () => new WidokOfertyHandlowej(), "💵")
-                },
-                ["🏭 MAGAZYN"] = new List<MenuItemConfig>
-                {
-                    new MenuItemConfig("PrzychodMrozni", "Mroźnia", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
-                    new MenuItemConfig("PodsumowanieSaldOpak", "Salda zbiorcze", Color.FromArgb(0, 151, 167),
-                        () => new WidokPojemnikiZestawienie(), "📊"),
-                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda odbiorcy", Color.FromArgb(0, 131, 143), () => new WidokPojemniki(), "📈"),
-                    new MenuItemConfig("Specyfikacje", "Specyfikacje", Color.FromArgb(0, 96, 100), () => new WidokSpecyfikacje(), "📝")
-                },
-                ["⚙️ POZOSTAŁE"] = new List<MenuItemConfig>
-                {
-                    new MenuItemConfig("PlachtyAviloga", "Aviloga", Color.FromArgb(255, 152, 0), () => new WidokMatryca(), "🎯"),
-                    new MenuItemConfig("DaneFinansowe", "Finanse", Color.FromArgb(251, 140, 0), () => new WidokSprzeZakup(), "💼"),
-                    new MenuItemConfig("UstalanieTranportu", "Transport", Color.FromArgb(245, 124, 0),
-                        () => {
-                            var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                            var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
-                            return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
-                        }, "🚚"),
-                    new MenuItemConfig("ProdukcjaPodglad", "Produkcja", Color.FromArgb(230, 81, 0),
-                        () => new WidokPanelProdukcjaNowy { UserID = App.UserID }, "🏭")
+                    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
+                    new MenuItemConfig("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", Color.FromArgb(245, 124, 0), () => new WidokPanelProdukcjaNowy { UserID = App.UserID }, "🏭"),
+                    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
                 }
             };
 
-            int currentRow = 0;
-            int currentCol = 0;
+            var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
+            {
+                ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
+                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
+                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+                    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+                },
+                ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", Color.FromArgb(0, 151, 167), () => new WidokPojemnikiZestawienie(), "📊"),
+                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", Color.FromArgb(0, 131, 143), () => new WidokPojemniki(), "📈"),
+                    new MenuItemConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", Color.FromArgb(255, 111, 0), () => { var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True"; var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString); return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID); }, "🚚")
+                },
+                ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", Color.FromArgb(96, 125, 139), () => new WidokSprzeZakup(), "💼")
+                }
+            };
 
+            var leftPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, AutoScroll = true, WrapContents = false };
+            PopulateColumn(leftPanel, leftColumnCategories);
+            mainLayout.Controls.Add(leftPanel, 0, 0);
+
+            var rightPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, AutoScroll = true, WrapContents = false };
+            PopulateColumn(rightPanel, rightColumnCategories);
+            mainLayout.Controls.Add(rightPanel, 1, 0);
+        }
+
+        // --- KLUCZOWA POPRAWKA LOGIKI ---
+        private void PopulateColumn(FlowLayoutPanel columnPanel, Dictionary<string, List<MenuItemConfig>> categories)
+        {
             foreach (var category in categories)
             {
-                var hasAnyPermission = category.Value.Any(item =>
-                    userPermissions.ContainsKey(item.ModuleName) && userPermissions[item.ModuleName]);
+                // 1. Znajdź wszystkie moduły w tej kategorii, do których użytkownik FAKTYCZNIE ma dostęp.
+                var permittedItems = category.Value.Where(item =>
+                    (userPermissions.ContainsKey(item.ModuleName) && userPermissions[item.ModuleName])
+                ).ToList();
 
-                if (hasAnyPermission || isAdmin)
+                // 2. Jeśli istnieje chociaż jeden taki moduł (LUB jeśli użytkownik jest adminem), wyświetl całą kategorię.
+                if (permittedItems.Any() || isAdmin)
                 {
-                    // Nagłówek kategorii
                     var categoryLabel = new Label
                     {
-                        Text = category.Key,
-                        Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                        ForeColor = Color.FromArgb(55, 71, 79),
+                        Text = "▎" + category.Key,
+                        Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(45, 57, 69),
                         AutoSize = false,
-                        Size = new Size(1080, 30),
+                        Width = columnPanel.Width - 40,
+                        Height = 40,
                         TextAlign = ContentAlignment.MiddleLeft,
-                        BackColor = Color.FromArgb(220, 220, 220),
-                        Padding = new Padding(5)
+                        Margin = new Padding(10, 20, 10, 5)
+                    };
+                    columnPanel.Controls.Add(categoryLabel);
+
+                    var buttonsPanel = new FlowLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        AutoSize = true,
+                        Padding = new Padding(5, 0, 5, 10)
                     };
 
-                    mainTable.Controls.Add(categoryLabel, 0, currentRow);
-                    mainTable.SetColumnSpan(categoryLabel, 6);
-                    currentRow++;
-                    currentCol = 0;
-
-                    foreach (var item in category.Value)
+                    // 3. Wyświetl przyciski TYLKO dla dozwolonych modułów (lub wszystkich, jeśli to admin).
+                    var itemsToDisplay = isAdmin ? category.Value : permittedItems;
+                    foreach (var item in itemsToDisplay)
                     {
-                        if (userPermissions.ContainsKey(item.ModuleName) && userPermissions[item.ModuleName] || isAdmin)
-                        {
-                            var button = CreateCompactMenuButton(item, moduleImages);
-                            mainTable.Controls.Add(button, currentCol, currentRow);
-
-                            currentCol++;
-                            if (currentCol >= 6)
-                            {
-                                currentCol = 0;
-                                currentRow++;
-                            }
-                        }
+                        var buttonPanel = CreateMenuButton(item);
+                        buttonsPanel.Controls.Add(buttonPanel);
                     }
-
-                    // Przejście do nowego wiersza po kategorii
-                    if (currentCol != 0)
-                    {
-                        currentRow++;
-                        currentCol = 0;
-                    }
-                    currentRow++; // Dodatkowy odstęp między kategoriami
+                    columnPanel.Controls.Add(buttonsPanel);
                 }
             }
-
-            menuFlowPanel.Controls.Add(mainTable);
         }
 
-        private Dictionary<string, Image> GetModuleImages()
+        private Panel CreateMenuButton(MenuItemConfig config)
         {
-            var images = new Dictionary<string, Image>();
-
-            // Spróbuj załadować obrazki z zasobów
-            // Jeśli masz obrazki w Resources, odkomentuj odpowiednie linie
-            try
-            {
-                // images["DaneHodowcy"] = Properties.Resources.kontrahenci;
-                // images["WstawieniaHodowcy"] = Properties.Resources.wstawienia;
-                // images["TerminyDostawyZywca"] = Properties.Resources.kalendarz;
-                // images["PlatnosciHodowcy"] = Properties.Resources.platnosci;
-                // images["CRM"] = Properties.Resources.crm;
-                // images["ZamowieniaOdbiorcow"] = Properties.Resources.odbiorcy;
-                // images["KalkulacjaKrojenia"] = Properties.Resources.krojenie;
-                // images["DokumentySprzedazy"] = Properties.Resources.faktury;
-                // images["PrzychodMrozni"] = Properties.Resources.mroznia;
-                // images["PodsumowanieSaldOpak"] = Properties.Resources.pojemniki;
-                // images["DaneFinansowe"] = Properties.Resources.finanse;
-                // images["UstalanieTranportu"] = Properties.Resources.transport;
-                // images["ProdukcjaPodglad"] = Properties.Resources.produkcja;
-            }
-            catch { }
-
-            return images;
-        }
-
-        private Button CreateCompactMenuButton(MenuItemConfig config, Dictionary<string, Image> moduleImages)
-        {
-            var button = new Button
-            {
-                Size = new Size(170, 100), // Kompaktowy rozmiar
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = config.Color,
-                FlatStyle = FlatStyle.Flat,
-                Margin = new Padding(5),
-                Cursor = Cursors.Hand,
-                TextAlign = ContentAlignment.BottomCenter,
-                ImageAlign = ContentAlignment.TopCenter,
-                Padding = new Padding(0, 10, 0, 5)
+            var panel = new Panel { Size = new Size(180, 120), BackColor = Color.White, Margin = new Padding(10), Cursor = Cursors.Hand, Tag = config };
+            var bottomBorder = new Panel { Height = 5, Dock = DockStyle.Bottom, BackColor = config.Color };
+            var iconLabel = new Label { Text = config.IconText, Font = new Font("Segoe UI Emoji", 24), Size = new Size(50, 50), Location = new Point(15, 15), ForeColor = config.Color };
+            var titleLabel = new Label { Text = config.DisplayName, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.FromArgb(55, 71, 79), Location = new Point(15, 65), AutoSize = true };
+            var descriptionLabel = new Label { Text = config.Description, Font = new Font("Segoe UI", 8), ForeColor = Color.Gray, Location = new Point(15, 85), Size = new Size(150, 30) };
+            panel.Controls.Add(titleLabel);
+            panel.Controls.Add(descriptionLabel);
+            panel.Controls.Add(iconLabel);
+            panel.Controls.Add(bottomBorder);
+            panel.Paint += (sender, e) => {
+                ControlPaint.DrawBorder(e.Graphics, panel.ClientRectangle,
+                    Color.FromArgb(220, 220, 220), 1, ButtonBorderStyle.Solid,
+                    Color.FromArgb(220, 220, 220), 1, ButtonBorderStyle.Solid,
+                    Color.FromArgb(220, 220, 220), 1, ButtonBorderStyle.Solid,
+                    Color.FromArgb(220, 220, 220), 1, ButtonBorderStyle.Solid);
             };
 
-            // Dodaj emoji lub obrazek
-            if (moduleImages.ContainsKey(config.ModuleName) && moduleImages[config.ModuleName] != null)
+            Action<Control> attachClickEvent = null;
+            attachClickEvent = (control) =>
             {
-                button.Image = ResizeImage(moduleImages[config.ModuleName], 32, 32);
-                button.Text = config.DisplayName;
-            }
-            else if (!string.IsNullOrEmpty(config.IconText))
-            {
-                // Użyj emoji jako tekstu
-                button.Text = $"{config.IconText}\n{config.DisplayName}";
-                button.Font = new Font("Segoe UI", 9, FontStyle.Regular);
-            }
-            else
-            {
-                button.Text = config.DisplayName;
-            }
+                control.Click += Panel_Click;
+                foreach (Control child in control.Controls)
+                {
+                    attachClickEvent(child);
+                }
+            };
+            panel.MouseEnter += (s, e) => panel.BackColor = Color.FromArgb(248, 249, 250);
+            panel.MouseLeave += (s, e) => panel.BackColor = Color.White;
+            attachClickEvent(panel);
+            return panel;
+        }
 
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(config.Color, 0.1f);
-            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(config.Color, 0.2f);
-
-            button.Click += (sender, e) =>
+        private void Panel_Click(object sender, EventArgs e)
+        {
+            Control control = sender as Control;
+            Panel panel = control as Panel ?? control.Parent as Panel;
+            if (panel?.Tag is MenuItemConfig config)
             {
                 try
                 {
                     if (config.FormFactory != null)
                     {
-                        var form = config.FormFactory();
-                        form?.Show();
+                        var formularz = config.FormFactory();
+
+                        // Obsługa okna WPF
+                        if (formularz is System.Windows.Window wpfWindow)
+                        {
+                            wpfWindow.ShowDialog(); // lub .Show()
+                        }
+                        // Obsługa formularza WinForms
+                        else if (formularz is System.Windows.Forms.Form winForm)
+                        {
+                            winForm.Show();
+                        }
+                        else if (formularz != null)
+                        {
+                            MessageBox.Show($"Nieobsługiwany typ okna: {formularz.GetType().Name}",
+                                "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
                     else
                     {
@@ -468,43 +369,15 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas otwierania modułu: {ex.Message}",
+                    MessageBox.Show($"Błąd podczas otwierania modułu: {ex.Message}\n\nSzczegóły: {ex.StackTrace}",
                         "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-            };
-
-            return button;
-        }
-
-        private Image ResizeImage(Image image, int width, int height)
-        {
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
-
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-            using (var graphics = Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new System.Drawing.Imaging.ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-                }
             }
-
-            return destImage;
         }
-
         private void ApplyModernStyle()
         {
             this.BackColor = Color.FromArgb(236, 239, 241);
-            this.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+            this.Font = new Font("Segoe UI", 10);
         }
 
         private void AdminPanelButton_Click(object sender, EventArgs e)
@@ -517,26 +390,25 @@ namespace Kalendarz1
 
         private void LogoutButton_Click(object sender, EventArgs e)
         {
-            var result = MessageBox.Show("Czy na pewno chcesz się wylogować?", "Potwierdzenie",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result == DialogResult.Yes)
+            if (MessageBox.Show("Czy na pewno chcesz się wylogować?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                System.Windows.Application.Current.Shutdown();
+                Application.Restart();
             }
         }
 
-        private void MENU_Load(object sender, EventArgs e)
-        {
-            welcomeLabel.Location = new Point(this.Width - 350, 40);
-        }
+        private void MENU_Load(object sender, EventArgs e) => HandleResize();
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
+            HandleResize();
+        }
+
+        private void HandleResize()
+        {
             if (welcomeLabel != null)
             {
-                welcomeLabel.Location = new Point(this.Width - 350, 40);
+                welcomeLabel.Location = new Point(this.Width - welcomeLabel.Width - 40, (headerPanel.Height - welcomeLabel.Height) / 2);
             }
         }
     }
@@ -545,14 +417,17 @@ namespace Kalendarz1
     {
         public string ModuleName { get; set; }
         public string DisplayName { get; set; }
+        public string Description { get; set; }
         public Color Color { get; set; }
-        public Func<Form> FormFactory { get; set; }
+        public Func<object> FormFactory { get; set; } // ← ZMIANA: Form → object
         public string IconText { get; set; }
 
-        public MenuItemConfig(string moduleName, string displayName, Color color, Func<Form> formFactory, string iconText = null)
+        public MenuItemConfig(string moduleName, string displayName, string description,
+            Color color, Func<object> formFactory, string iconText = null) // ← ZMIANA
         {
             ModuleName = moduleName;
             DisplayName = displayName;
+            Description = description;
             Color = color;
             FormFactory = formFactory;
             IconText = iconText;
