@@ -1,5 +1,5 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 19.0 - Zielona kolorystyka + sortowanie + preferowane godziny + POPRAWKI OKIEN DIALOGOWYCH
+// WERSJA 20.0 - Sprawdzanie duplikatów + nowe dialogi po zapisie + kolorystyka Menu1
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -117,13 +117,11 @@ namespace Kalendarz1
                 if (_idZamowieniaDoEdycji.HasValue)
                 {
                     await LoadZamowienieAsync(_idZamowieniaDoEdycji.Value);
-                    lblTytul.Text = "Edycja zamówienia";
                     btnZapisz.Text = "Zapisz zmiany";
                 }
             }
             catch (Exception ex)
             {
-                // POPRAWKA 1: Użycie metody pomocniczej
                 ShowError($"Wystąpił błąd: {ex.Message}");
             }
             finally
@@ -132,362 +130,397 @@ namespace Kalendarz1
                 btnZapisz.Enabled = true;
             }
         }
-        private void ShowOrderSuccessDialog(string title, string orderDetails)
+
+        // Nowy dialog sprawdzający duplikaty
+        private class DuplicateOrderDialog : Form
         {
-            var dialog = new Form
+            public bool ProceedWithSave { get; private set; } = false;
+
+            public DuplicateOrderDialog(string odbiorcaNazwa, DateTime dataProdukcji, string existingOrderDetails)
             {
-                Text = title,
-                Size = new Size(650, 700),
-                StartPosition = FormStartPosition.CenterScreen,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox = false,
-                MinimizeBox = false,
-                TopMost = true,  // ZAWSZE NA WIERZCHU
-                BackColor = Color.White,
-                Font = new Font("Segoe UI", 9.5f)
-            };
+                Text = "⚠ Ostrzeżenie - Znaleziono istniejące zamówienie";
+                Size = new Size(650, 520);
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9.5f);
 
-            // Panel główny z auto-scroll
-            var mainPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                AutoScroll = true,
-                Padding = new Padding(0)
-            };
+                var headerPanel = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 80,
+                    BackColor = Color.FromArgb(231, 76, 60)
+                };
 
-            // Nagłówek sukcesu - duży, zielony
-            var headerPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 80,
-                BackColor = Color.FromArgb(92, 138, 58)
-            };
+                var iconLabel = new Label
+                {
+                    Text = "⚠",
+                    Font = new Font("Segoe UI", 36f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(20, 15),
+                    Size = new Size(50, 50),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
 
-            var iconLabel = new Label
-            {
-                Text = "✓",
-                Font = new Font("Segoe UI", 32f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(20, 15),
-                Size = new Size(50, 50),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
+                var titleLabel = new Label
+                {
+                    Text = "UWAGA - DUPLIKAT ZAMÓWIENIA",
+                    Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(80, 25),
+                    AutoSize = true
+                };
 
-            var titleLabel = new Label
-            {
-                Text = title.ToUpper(),
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(80, 25),
-                AutoSize = true
-            };
+                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
 
-            headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
+                var infoPanel = new Panel
+                {
+                    Location = new Point(20, 100),
+                    Size = new Size(610, 280),
+                    BackColor = Color.FromArgb(255, 243, 224),
+                    BorderStyle = BorderStyle.FixedSingle
+                };
 
-            // Główna zawartość
-            var contentPanel = new Panel
-            {
-                Location = new Point(0, 80),
-                Size = new Size(634, 520),
-                AutoScroll = true,
-                Padding = new Padding(20)
-            };
+                var lblInfo = new Label
+                {
+                    Text = $"⚠ ZNALEZIONO ISTNIEJĄCE ZAMÓWIENIE\n\n" +
+                           $"Dla odbiorcy: {odbiorcaNazwa}\n" +
+                           $"Z datą produkcji: {dataProdukcji:yyyy-MM-dd (dddd)}\n\n" +
+                           $"Czy na pewno chcesz utworzyć kolejne zamówienie na ten sam dzień?\n\n" +
+                           $"Szczegóły istniejącego zamówienia:",
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(120, 53, 15),
+                    Location = new Point(15, 15),
+                    Size = new Size(580, 120),
+                    TextAlign = ContentAlignment.TopLeft
+                };
 
-            int yPos = 20;
+                var txtDetails = new TextBox
+                {
+                    Text = existingOrderDetails,
+                    Location = new Point(15, 140),
+                    Size = new Size(580, 125),
+                    Multiline = true,
+                    ReadOnly = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Font = new Font("Segoe UI", 9f),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
 
-            // Parsowanie danych zamówienia
-            var lines = orderDetails.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                infoPanel.Controls.AddRange(new Control[] { lblInfo, txtDetails });
 
-            // Odbiorca - najważniejsza informacja
-            var odbiorcy = lines.FirstOrDefault(l => l.StartsWith("Odbiorca:"))?.Replace("Odbiorca:", "").Trim();
-            if (!string.IsNullOrEmpty(odbiorcy))
-            {
-                var odbPanel = CreateInfoBox("ODBIORCA", odbiorcy, Color.FromArgb(59, 130, 246), yPos);
-                contentPanel.Controls.Add(odbPanel);
-                yPos += 75;
+                var btnYes = new Button
+                {
+                    Text = "TAK - Utwórz nowe zamówienie",
+                    Size = new Size(200, 45),
+                    Location = new Point(120, 405),
+                    BackColor = Color.FromArgb(231, 76, 60),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnYes.FlatAppearance.BorderSize = 0;
+                btnYes.Click += (s, e) => { ProceedWithSave = true; DialogResult = DialogResult.OK; Close(); };
+
+                var btnNo = new Button
+                {
+                    Text = "NIE - Anuluj",
+                    Size = new Size(160, 45),
+                    Location = new Point(330, 405),
+                    BackColor = Color.FromArgb(149, 165, 166),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnNo.FlatAppearance.BorderSize = 0;
+                btnNo.Click += (s, e) => { ProceedWithSave = false; DialogResult = DialogResult.Cancel; Close(); };
+
+                Controls.AddRange(new Control[] { headerPanel, infoPanel, btnYes, btnNo });
             }
+        }
 
-            // Daty
-            var dataProdukcji = lines.FirstOrDefault(l => l.StartsWith("Data produkcji:"))?.Replace("Data produkcji:", "").Trim();
-            var dataSprzedazy = lines.FirstOrDefault(l => l.StartsWith("Data sprzedaży:"))?.Replace("Data sprzedaży:", "").Trim();
+        // Nowy dialog po zapisie
+        private class AfterSaveDialog : Form
+        {
+            public bool CreateAnother { get; private set; } = false;
 
-            if (!string.IsNullOrEmpty(dataProdukcji))
+            public AfterSaveDialog(string orderSummary, bool isEdit)
             {
-                var prodPanel = CreateInfoBox("DATA PRODUKCJI", dataProdukcji, Color.FromArgb(168, 85, 247), yPos);
-                contentPanel.Controls.Add(prodPanel);
-                yPos += 75;
-            }
+                Text = isEdit ? "✓ Zamówienie zaktualizowane" : "✓ Zamówienie zapisane";
+                Size = new Size(700, 750);
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                TopMost = true;
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9.5f);
 
-            if (!string.IsNullOrEmpty(dataSprzedazy))
-            {
-                var sprzPanel = CreateInfoBox("DATA ODBIORU", dataSprzedazy, Color.FromArgb(234, 88, 12), yPos);
-                contentPanel.Controls.Add(sprzPanel);
-                yPos += 75;
-            }
+                var mainPanel = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoScroll = true,
+                    Padding = new Padding(0)
+                };
 
-            // Informacje o typie zamówienia
-            var typZamowienia = lines.FirstOrDefault(l => l.Contains("ZAMÓWIENIE") || l.Contains("Produkty"));
-            if (!string.IsNullOrEmpty(typZamowienia))
-            {
-                var typePanel = CreateWarningBox(typZamowienia.Trim(), yPos);
-                contentPanel.Controls.Add(typePanel);
-                yPos += 70;
-            }
+                var headerPanel = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 90,
+                    BackColor = Color.FromArgb(92, 138, 58)
+                };
 
-            // Specjalne oznaczenia (E2, Folia)
-            var e2Info = lines.FirstOrDefault(l => l.Contains("E2"));
-            var foliaInfo = lines.FirstOrDefault(l => l.Contains("Folia"));
+                var iconLabel = new Label
+                {
+                    Text = "✓",
+                    Font = new Font("Segoe UI", 40f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(20, 20),
+                    Size = new Size(60, 50),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
 
-            if (!string.IsNullOrEmpty(e2Info) || !string.IsNullOrEmpty(foliaInfo))
-            {
-                var specPanel = new Panel
+                var titleLabel = new Label
+                {
+                    Text = (isEdit ? "ZAMÓWIENIE ZAKTUALIZOWANE" : "ZAMÓWIENIE ZAPISANE").ToUpper(),
+                    Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(90, 30),
+                    AutoSize = true
+                };
+
+                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
+
+                var contentPanel = new Panel
+                {
+                    Location = new Point(0, 90),
+                    Size = new Size(684, 560),
+                    AutoScroll = true,
+                    Padding = new Padding(20)
+                };
+
+                int yPos = 20;
+
+                var lines = orderSummary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                var odbiorcy = lines.FirstOrDefault(l => l.StartsWith("Odbiorca:"))?.Replace("Odbiorca:", "").Trim();
+                if (!string.IsNullOrEmpty(odbiorcy))
+                {
+                    var odbPanel = CreateInfoBox("📦 ODBIORCA", odbiorcy, Color.FromArgb(52, 152, 219), yPos);
+                    contentPanel.Controls.Add(odbPanel);
+                    yPos += 80;
+                }
+
+                var dataProdukcji = lines.FirstOrDefault(l => l.StartsWith("Data produkcji:"))?.Replace("Data produkcji:", "").Trim();
+                var dataSprzedazy = lines.FirstOrDefault(l => l.StartsWith("Data sprzedaży:"))?.Replace("Data sprzedaży:", "").Trim();
+
+                if (!string.IsNullOrEmpty(dataProdukcji))
+                {
+                    var prodPanel = CreateInfoBox("🏭 DATA PRODUKCJI", dataProdukcji, Color.FromArgb(155, 89, 182), yPos);
+                    contentPanel.Controls.Add(prodPanel);
+                    yPos += 80;
+                }
+
+                if (!string.IsNullOrEmpty(dataSprzedazy))
+                {
+                    var sprzPanel = CreateInfoBox("🚚 DATA ODBIORU", dataSprzedazy, Color.FromArgb(230, 126, 34), yPos);
+                    contentPanel.Controls.Add(sprzPanel);
+                    yPos += 80;
+                }
+
+                var towarStartIndex = Array.FindIndex(lines, l => l.Contains("Zamówione towary:"));
+                var podsumowanieIndex = Array.FindIndex(lines, l => l.Contains("Podsumowanie:"));
+
+                if (towarStartIndex >= 0 && podsumowanieIndex > towarStartIndex)
+                {
+                    var towaryPanel = new Panel
+                    {
+                        Location = new Point(20, yPos),
+                        Size = new Size(640, 200),
+                        BackColor = Color.FromArgb(240, 247, 237),
+                        BorderStyle = BorderStyle.FixedSingle,
+                        AutoScroll = true
+                    };
+
+                    var towaryLabel = new Label
+                    {
+                        Text = "📋 ZAMÓWIONE TOWARY",
+                        Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(31, 41, 55),
+                        Location = new Point(10, 10),
+                        AutoSize = true
+                    };
+                    towaryPanel.Controls.Add(towaryLabel);
+
+                    int towYPos = 40;
+                    for (int i = towarStartIndex + 1; i < podsumowanieIndex; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (string.IsNullOrEmpty(line)) continue;
+
+                        var itemLabel = new Label
+                        {
+                            Text = line,
+                            Font = new Font("Segoe UI", 9f),
+                            ForeColor = Color.FromArgb(55, 65, 81),
+                            Location = new Point(15, towYPos),
+                            Size = new Size(600, 22)
+                        };
+                        towaryPanel.Controls.Add(itemLabel);
+                        towYPos += 24;
+                    }
+
+                    contentPanel.Controls.Add(towaryPanel);
+                    yPos += 210;
+                }
+
+                var podsumowanie = lines.Skip(podsumowanieIndex + 1).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+
+                var summaryPanel = new Panel
                 {
                     Location = new Point(20, yPos),
-                    Size = new Size(574, 60),
-                    BackColor = Color.FromArgb(254, 242, 242),
-                    BorderStyle = BorderStyle.None
+                    Size = new Size(640, 120),
+                    BackColor = Color.FromArgb(224, 242, 215),
+                    BorderStyle = BorderStyle.FixedSingle
                 };
 
-                specPanel.Paint += (s, e) =>
+                var summTitle = new Label
                 {
-                    using var pen = new Pen(Color.FromArgb(239, 68, 68), 2);
-                    e.Graphics.DrawRectangle(pen, 0, 0, specPanel.Width - 1, specPanel.Height - 1);
-                };
-
-                var specLabel = new Label
-                {
-                    Text = "⚠ UWAGA",
-                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(239, 68, 68),
+                    Text = "✓ PODSUMOWANIE",
+                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(92, 138, 58),
                     Location = new Point(15, 10),
                     AutoSize = true
                 };
+                summaryPanel.Controls.Add(summTitle);
 
-                var specText = new Label
+                int summYPos = 45;
+                foreach (var summLine in podsumowanie)
                 {
-                    Text = string.Join(" | ", new[] { e2Info, foliaInfo }.Where(s => !string.IsNullOrEmpty(s))),
-                    Font = new Font("Segoe UI", 9f),
-                    ForeColor = Color.FromArgb(127, 29, 29),
-                    Location = new Point(15, 30),
-                    Size = new Size(544, 20)
+                    var parts = summLine.Split(':');
+                    if (parts.Length == 2)
+                    {
+                        var summLabel = new Label
+                        {
+                            Text = parts[0].Trim() + ":",
+                            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                            ForeColor = Color.FromArgb(55, 65, 81),
+                            Location = new Point(20, summYPos),
+                            Size = new Size(150, 20)
+                        };
+
+                        var summValue = new Label
+                        {
+                            Text = parts[1].Trim(),
+                            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                            ForeColor = Color.FromArgb(92, 138, 58),
+                            Location = new Point(180, summYPos - 2),
+                            AutoSize = true
+                        };
+
+                        summaryPanel.Controls.AddRange(new Control[] { summLabel, summValue });
+                        summYPos += 25;
+                    }
+                }
+
+                contentPanel.Controls.Add(summaryPanel);
+
+                var questionPanel = new Panel
+                {
+                    Location = new Point(0, 655),
+                    Size = new Size(700, 95),
+                    BackColor = Color.FromArgb(236, 240, 241),
+                    Dock = DockStyle.Bottom
                 };
 
-                specPanel.Controls.AddRange(new Control[] { specLabel, specText });
-                contentPanel.Controls.Add(specPanel);
-                yPos += 70;
+                var lblQuestion = new Label
+                {
+                    Text = "Co chcesz zrobić teraz?",
+                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(44, 62, 80),
+                    Location = new Point(0, 15),
+                    Size = new Size(700, 25),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                var btnNewOrder = new Button
+                {
+                    Text = "➕ UTWÓRZ KOLEJNE ZAMÓWIENIE",
+                    Size = new Size(280, 48),
+                    Location = new Point(80, 45),
+                    BackColor = Color.FromArgb(92, 138, 58),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnNewOrder.FlatAppearance.BorderSize = 0;
+                btnNewOrder.Click += (s, e) => { CreateAnother = true; DialogResult = DialogResult.OK; Close(); };
+
+                var btnBackToSummary = new Button
+                {
+                    Text = "◀ WRÓĆ DO PODSUMOWANIA",
+                    Size = new Size(280, 48),
+                    Location = new Point(370, 45),
+                    BackColor = Color.FromArgb(52, 152, 219),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnBackToSummary.FlatAppearance.BorderSize = 0;
+                btnBackToSummary.Click += (s, e) => { CreateAnother = false; DialogResult = DialogResult.OK; Close(); };
+
+                questionPanel.Controls.AddRange(new Control[] { lblQuestion, btnNewOrder, btnBackToSummary });
+
+                mainPanel.Controls.Add(contentPanel);
+                Controls.Add(headerPanel);
+                Controls.Add(mainPanel);
+                Controls.Add(questionPanel);
             }
 
-            // Lista towarów
-            var towarStartIndex = Array.FindIndex(lines, l => l.Contains("Zamówione towary:"));
-            var podsumowanieIndex = Array.FindIndex(lines, l => l.Contains("Podsumowanie:"));
-
-            if (towarStartIndex >= 0 && podsumowanieIndex > towarStartIndex)
+            private static Panel CreateInfoBox(string title, string value, Color accentColor, int yPos)
             {
-                var towaryPanel = new Panel
+                var panel = new Panel
                 {
                     Location = new Point(20, yPos),
-                    Size = new Size(574, 200),
-                    BackColor = Color.FromArgb(249, 250, 251),
-                    BorderStyle = BorderStyle.FixedSingle,
-                    AutoScroll = true
+                    Size = new Size(640, 70),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
                 };
 
-                var towaryLabel = new Label
+                panel.Paint += (s, e) =>
                 {
-                    Text = "📦 ZAMÓWIONE TOWARY",
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(31, 41, 55),
-                    Location = new Point(10, 10),
+                    using var brush = new SolidBrush(accentColor);
+                    e.Graphics.FillRectangle(brush, 0, 0, 6, panel.Height);
+                };
+
+                var titleLabel = new Label
+                {
+                    Text = title,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    ForeColor = accentColor,
+                    Location = new Point(15, 12),
                     AutoSize = true
                 };
-                towaryPanel.Controls.Add(towaryLabel);
 
-                int towYPos = 40;
-                for (int i = towarStartIndex + 1; i < podsumowanieIndex; i++)
+                var valueLabel = new Label
                 {
-                    var line = lines[i].Trim();
-                    if (string.IsNullOrEmpty(line)) continue;
+                    Text = value,
+                    Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(31, 41, 55),
+                    Location = new Point(15, 35),
+                    Size = new Size(610, 28)
+                };
 
-                    var itemLabel = new Label
-                    {
-                        Text = line,
-                        Font = new Font("Segoe UI", 8.5f),
-                        ForeColor = Color.FromArgb(55, 65, 81),
-                        Location = new Point(15, towYPos),
-                        Size = new Size(540, 20)
-                    };
-                    towaryPanel.Controls.Add(itemLabel);
-                    towYPos += 22;
-                }
-
-                contentPanel.Controls.Add(towaryPanel);
-                yPos += 210;
+                panel.Controls.AddRange(new Control[] { titleLabel, valueLabel });
+                return panel;
             }
-
-            // Podsumowanie - duże liczby
-            var podsumowanie = lines.Skip(podsumowanieIndex + 1).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
-
-            var summaryPanel = new Panel
-            {
-                Location = new Point(20, yPos),
-                Size = new Size(574, 120),
-                BackColor = Color.FromArgb(240, 253, 244)
-            };
-
-            summaryPanel.Paint += (s, e) =>
-            {
-                using var pen = new Pen(Color.FromArgb(92, 138, 58), 3);
-                e.Graphics.DrawRectangle(pen, 0, 0, summaryPanel.Width - 1, summaryPanel.Height - 1);
-            };
-
-            var summTitle = new Label
-            {
-                Text = "RAZEM",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(92, 138, 58),
-                Location = new Point(15, 10),
-                AutoSize = true
-            };
-            summaryPanel.Controls.Add(summTitle);
-
-            int summYPos = 40;
-            foreach (var summLine in podsumowanie)
-            {
-                var parts = summLine.Split(':');
-                if (parts.Length == 2)
-                {
-                    var summLabel = new Label
-                    {
-                        Text = parts[0].Trim() + ":",
-                        Font = new Font("Segoe UI", 9f),
-                        ForeColor = Color.FromArgb(55, 65, 81),
-                        Location = new Point(20, summYPos),
-                        Size = new Size(150, 20)
-                    };
-
-                    var summValue = new Label
-                    {
-                        Text = parts[1].Trim(),
-                        Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                        ForeColor = Color.FromArgb(92, 138, 58),
-                        Location = new Point(180, summYPos - 2),
-                        AutoSize = true
-                    };
-
-                    summaryPanel.Controls.AddRange(new Control[] { summLabel, summValue });
-                    summYPos += 25;
-                }
-            }
-
-            contentPanel.Controls.Add(summaryPanel);
-
-            // Przycisk OK
-            var btnOK = new Button
-            {
-                Text = "OK - ROZUMIEM",
-                Size = new Size(200, 45),
-                Location = new Point(217, 615),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(92, 138, 58),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                DialogResult = DialogResult.OK
-            };
-
-            btnOK.FlatAppearance.BorderSize = 0;
-            btnOK.Paint += (s, e) =>
-            {
-                var rect = btnOK.ClientRectangle;
-                using var path = GetRoundedRectPath(rect, 8);
-                btnOK.Region = new Region(path);
-            };
-
-            dialog.Controls.Add(headerPanel);
-            dialog.Controls.Add(contentPanel);
-            dialog.Controls.Add(mainPanel);
-            dialog.Controls.Add(btnOK);
-
-            dialog.AcceptButton = btnOK;
-            dialog.ShowDialog(this);
-        }
-
-        private Panel CreateInfoBox(string title, string value, Color accentColor, int yPos)
-        {
-            var panel = new Panel
-            {
-                Location = new Point(20, yPos),
-                Size = new Size(574, 65),
-                BackColor = Color.White
-            };
-
-            panel.Paint += (s, e) =>
-            {
-                using var pen = new Pen(accentColor, 2);
-                e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
-
-                // Lewy pasek kolorowy
-                using var brush = new SolidBrush(accentColor);
-                e.Graphics.FillRectangle(brush, 0, 0, 5, panel.Height);
-            };
-
-            var titleLabel = new Label
-            {
-                Text = title,
-                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-                ForeColor = accentColor,
-                Location = new Point(15, 10),
-                AutoSize = true
-            };
-
-            var valueLabel = new Label
-            {
-                Text = value,
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
-                Location = new Point(15, 30),
-                Size = new Size(544, 25)
-            };
-
-            panel.Controls.AddRange(new Control[] { titleLabel, valueLabel });
-            return panel;
-        }
-
-        private Panel CreateWarningBox(string text, int yPos)
-        {
-            var panel = new Panel
-            {
-                Location = new Point(20, yPos),
-                Size = new Size(574, 60),
-                BackColor = Color.FromArgb(255, 251, 235)
-            };
-
-            panel.Paint += (s, e) =>
-            {
-                using var pen = new Pen(Color.FromArgb(251, 191, 36), 2);
-                e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
-            };
-
-            var iconLabel = new Label
-            {
-                Text = "⚡",
-                Font = new Font("Segoe UI", 20f),
-                ForeColor = Color.FromArgb(217, 119, 6),
-                Location = new Point(15, 15),
-                Size = new Size(30, 30)
-            };
-
-            var textLabel = new Label
-            {
-                Text = text,
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(120, 53, 15),
-                Location = new Point(55, 20),
-                Size = new Size(504, 25)
-            };
-
-            panel.Controls.AddRange(new Control[] { iconLabel, textLabel });
-            return panel;
         }
 
         #region Responsywny Layout
@@ -527,31 +560,26 @@ namespace Kalendarz1
         {
             if (panelOdbiorca == null) return;
 
-            panelOdbiorca.Padding = new Padding(10, 10, 10, 5);
-            panelOdbiorca.Height = 95;
+            panelOdbiorca.Padding = new Padding(10, 5, 10, 5);
+            panelOdbiorca.Height = 70;
 
-            var oldHandlowiecLabel = panelOdbiorca.Controls["label4"];
-            if (oldHandlowiecLabel != null)
+            // Usuwamy lblTytul całkowicie
+            var oldTitle = panelOdbiorca.Controls.OfType<Label>().FirstOrDefault(l => l == lblTytul);
+            if (oldTitle != null)
             {
-                panelOdbiorca.Controls.Remove(oldHandlowiecLabel);
-            }
-
-            if (lblTytul != null)
-            {
-                lblTytul.Location = new Point(10, 10);
-                lblTytul.Size = new Size(300, 30);
+                panelOdbiorca.Controls.Remove(oldTitle);
             }
 
             var lblOdbiorca = panelOdbiorca.Controls.OfType<Label>().FirstOrDefault(l => l.Name == "label1");
             if (lblOdbiorca != null)
             {
                 lblOdbiorca.Text = "Odbiorca:";
-                lblOdbiorca.Location = new Point(10, 45);
+                lblOdbiorca.Location = new Point(10, 10);
                 lblOdbiorca.Size = new Size(80, 16);
             }
             else
             {
-                lblOdbiorca = new Label { Name = "label1", Text = "Odbiorca:", Location = new Point(10, 45), Size = new Size(80, 16) };
+                lblOdbiorca = new Label { Name = "label1", Text = "Odbiorca:", Location = new Point(10, 10), Size = new Size(80, 16) };
                 panelOdbiorca.Controls.Add(lblOdbiorca);
             }
 
@@ -565,7 +593,7 @@ namespace Kalendarz1
                     Text = "Handlowiec:",
                     Font = new Font("Segoe UI", 9f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(107, 114, 128),
-                    Location = new Point(120, 45),
+                    Location = new Point(120, 10),
                     Size = new Size(90, 16)
                 };
                 panelOdbiorca.Controls.Add(lblHandlowiec);
@@ -573,20 +601,20 @@ namespace Kalendarz1
             else
             {
                 existingHandlowiecLabel.Text = "Handlowiec:";
-                existingHandlowiecLabel.Location = new Point(120, 45);
+                existingHandlowiecLabel.Location = new Point(120, 10);
                 existingHandlowiecLabel.Size = new Size(90, 16);
             }
 
             if (txtSzukajOdbiorcy != null)
             {
-                txtSzukajOdbiorcy.Location = new Point(10, 63);
+                txtSzukajOdbiorcy.Location = new Point(10, 28);
                 txtSzukajOdbiorcy.Size = new Size(100, 28);
                 txtSzukajOdbiorcy.Font = new Font("Segoe UI", 10f);
             }
 
             if (cbHandlowiecFilter != null)
             {
-                cbHandlowiecFilter.Location = new Point(120, 63);
+                cbHandlowiecFilter.Location = new Point(120, 28);
                 cbHandlowiecFilter.Size = new Size(100, 28);
                 cbHandlowiecFilter.Font = new Font("Segoe UI", 10f);
             }
@@ -607,9 +635,9 @@ namespace Kalendarz1
 
             var rbContainer = new Panel
             {
-                Location = new Point(230, 58),
+                Location = new Point(230, 23),
                 Size = new Size(130, 32),
-                BackColor = Color.FromArgb(240, 247, 237),
+                BackColor = Color.FromArgb(224, 242, 215),
                 BorderStyle = BorderStyle.None
             };
 
@@ -683,7 +711,7 @@ namespace Kalendarz1
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 270));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Zwiększone z 70 na 100
             mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             if (panelOstatniOdbiorcy != null)
@@ -729,7 +757,7 @@ namespace Kalendarz1
             {
                 Text = "NOTATKA",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(217, 119, 6),
+                ForeColor = Color.FromArgb(230, 126, 34),
                 Location = new Point(35, 8),
                 AutoSize = true
             };
@@ -980,7 +1008,7 @@ namespace Kalendarz1
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 Padding = new Padding(12),
-                Height = 70
+                Height = 100 // Zwiększone z 70 na 100
             };
 
             var lblHeader = new Label
@@ -995,16 +1023,16 @@ namespace Kalendarz1
             lblLimitInfo = new Label
             {
                 Text = "Wybierz odbiorcę",
-                Font = new Font("Segoe UI", 8f),
+                Font = new Font("Segoe UI", 9f),
                 ForeColor = Color.FromArgb(107, 114, 128),
-                Location = new Point(12, 30),
-                Size = new Size(200, 16)
+                Location = new Point(12, 35),
+                Size = new Size(370, 20)
             };
 
             progressLimit = new ProgressBar
             {
-                Location = new Point(12, 48),
-                Size = new Size(180, 16),
+                Location = new Point(12, 58),
+                Size = new Size(370, 20),
                 Maximum = 100,
                 Style = ProgressBarStyle.Continuous
             };
@@ -1063,8 +1091,8 @@ namespace Kalendarz1
                 var zadluzenieObj = await cmdZadluzenie.ExecuteScalarAsync();
                 _doZaplacenia = zadluzenieObj != DBNull.Value ? Convert.ToDecimal(zadluzenieObj) : 0;
 
-                lblLimitInfo.Location = new Point(200, 48);
-                lblLimitInfo.Size = new Size(100, 16);
+                lblLimitInfo.Location = new Point(12, 35);
+                lblLimitInfo.Size = new Size(370, 20);
                 lblLimitInfo.TextAlign = ContentAlignment.MiddleLeft;
 
                 if (_limitKredytowy > 0)
@@ -1072,35 +1100,35 @@ namespace Kalendarz1
                     decimal procentWykorzystania = (_doZaplacenia / _limitKredytowy) * 100;
                     progressLimit.Value = Math.Min((int)procentWykorzystania, 100);
 
-                    lblLimitInfo.Text = $"{_doZaplacenia:N0} / {_limitKredytowy:N0} zł";
+                    lblLimitInfo.Text = $"Wykorzystano: {_doZaplacenia:N0} zł / {_limitKredytowy:N0} zł (dostępne: {(_limitKredytowy - _doZaplacenia):N0} zł)";
 
                     decimal dostepny = _limitKredytowy - _doZaplacenia;
 
                     if (dostepny < 0)
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(220, 38, 38);
-                        lblLimitInfo.Font = new Font("Segoe UI", 8f, FontStyle.Bold);
+                        lblLimitInfo.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                         progressLimit.ForeColor = Color.FromArgb(220, 38, 38);
                         panelPlatnosci.BackColor = Color.FromArgb(254, 242, 242);
                     }
                     else if (procentWykorzystania > 80)
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(217, 119, 6);
-                        lblLimitInfo.Font = new Font("Segoe UI", 8f);
+                        lblLimitInfo.Font = new Font("Segoe UI", 9f);
                         progressLimit.ForeColor = Color.FromArgb(251, 191, 36);
                         panelPlatnosci.BackColor = Color.FromArgb(255, 251, 235);
                     }
                     else
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(92, 138, 58);
-                        lblLimitInfo.Font = new Font("Segoe UI", 8f);
+                        lblLimitInfo.Font = new Font("Segoe UI", 9f);
                         progressLimit.ForeColor = Color.FromArgb(92, 138, 58);
                         panelPlatnosci.BackColor = Color.White;
                     }
                 }
                 else
                 {
-                    lblLimitInfo.Text = $"{_doZaplacenia:N0} / brak";
+                    lblLimitInfo.Text = $"Zadłużenie: {_doZaplacenia:N0} zł (brak limitu kredytowego)";
                     lblLimitInfo.ForeColor = Color.FromArgb(107, 114, 128);
                     progressLimit.Value = 0;
                     panelPlatnosci.BackColor = Color.White;
@@ -1108,7 +1136,7 @@ namespace Kalendarz1
             }
             catch
             {
-                lblLimitInfo.Text = "Błąd danych";
+                lblLimitInfo.Text = "Błąd pobierania danych płatności";
                 lblLimitInfo.ForeColor = Color.FromArgb(107, 114, 128);
                 progressLimit.Value = 0;
             }
@@ -1338,7 +1366,6 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                // POPRAWKA 2: Użycie metody pomocniczej
                 ShowWarning($"Błąd pobierania ostatnich zamówień: {ex.Message}");
             }
 
@@ -1570,13 +1597,6 @@ namespace Kalendarz1
         {
             this.BackColor = Color.FromArgb(249, 250, 251);
 
-            if (lblTytul != null)
-            {
-                lblTytul.Text = "Nowe zamówienie";
-                lblTytul.Font = new Font("Segoe UI Semibold", 16f, FontStyle.Bold);
-                lblTytul.ForeColor = Color.FromArgb(17, 24, 39);
-            }
-
             if (btnZapisz != null)
             {
                 btnZapisz.Text = "Zapisz";
@@ -1598,7 +1618,7 @@ namespace Kalendarz1
             if (panelOdbiorca != null)
             {
                 panelOdbiorca.BackColor = Color.White;
-                panelOdbiorca.Padding = new Padding(20, 15, 20, 10);
+                panelOdbiorca.Padding = new Padding(10, 5, 10, 5);
             }
 
             if (panelDetaleZamowienia != null)
@@ -1624,7 +1644,7 @@ namespace Kalendarz1
 
             foreach (Control c in panelOdbiorca.Controls)
             {
-                if (c is Label lbl && lbl != lblTytul && lbl.Font.Bold)
+                if (c is Label lbl && lbl.Font.Bold)
                 {
                     lbl.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
                     lbl.ForeColor = Color.FromArgb(107, 114, 128);
@@ -2429,7 +2449,6 @@ namespace Kalendarz1
                 dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
             }
 
-            lblTytul.Text = "Nowe zamówienie";
             btnZapisz.Text = "Zapisz";
 
             cbHandlowiecFilter.SelectedItem = selectedHandlowiec;
@@ -2442,7 +2461,7 @@ namespace Kalendarz1
             {
                 lblLimitInfo.Text = "Wybierz odbiorcę";
                 lblLimitInfo.ForeColor = Color.FromArgb(107, 114, 128);
-                lblLimitInfo.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
+                lblLimitInfo.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             }
             if (progressLimit != null) progressLimit.Value = 0;
             if (panelPlatnosci != null) panelPlatnosci.BackColor = Color.White;
@@ -2513,7 +2532,7 @@ namespace Kalendarz1
                 r["MaWartosci"] = 1;
             }
 
-            var zamowienieTowary = new List<(int TowarId, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia)>();
+            var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia)>();
 
             await using (var cmdT = new SqlCommand(@"
         SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
@@ -2542,7 +2561,7 @@ namespace Kalendarz1
 
             foreach (var towar in zamowienieTowary)
             {
-                var rows = _dt.Select($"Id = {towar.TowarId}");
+                var rows = _dt.Select($"Id = {towar.KodTowaru}");
                 if (rows.Any())
                 {
                     var row = rows[0];
@@ -2626,7 +2645,6 @@ namespace Kalendarz1
         {
             if (!ValidateBeforeSave(out var msg))
             {
-                // POPRAWKA 3a: Użycie metody pomocniczej
                 ShowWarning(msg, "Błąd danych");
                 return;
             }
@@ -2639,13 +2657,30 @@ namespace Kalendarz1
 
             if (sumaPaletCalkowita > LIMIT_PALET_OSTRZEZENIE)
             {
-                // POPRAWKA 3b: Użycie metody pomocniczej
                 var result = ShowWarningQuestion(
                     $"Łączna liczba palet ({sumaPaletCalkowita:N1}) przekracza limit TIR ({LIMIT_PALET_OSTRZEZENIE}).\n\n" +
                     "Czy na pewno chcesz zapisać to zamówienie?",
                     "Uwaga - przekroczenie limitu");
 
                 if (result == DialogResult.No) return;
+            }
+
+            // NOWE: Sprawdzanie duplikatów
+            if (!_idZamowieniaDoEdycji.HasValue && !string.IsNullOrEmpty(_selectedKlientId))
+            {
+                DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+                var existingOrder = await CheckForExistingOrder(_selectedKlientId, dataProdukcji);
+
+                if (existingOrder != null)
+                {
+                    var odbiorcaNazwa = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId)?.Nazwa ?? "Nieznany";
+
+                    using var duplicateDialog = new DuplicateOrderDialog(odbiorcaNazwa, dataProdukcji, existingOrder);
+                    if (duplicateDialog.ShowDialog(this) != DialogResult.OK || !duplicateDialog.ProceedWithSave)
+                    {
+                        return; // Użytkownik anulował
+                    }
+                }
             }
 
             Cursor = Cursors.WaitCursor;
@@ -2655,18 +2690,26 @@ namespace Kalendarz1
             {
                 await SaveOrderAsync();
                 string summary = BuildOrderSummary();
-                string title = _idZamowieniaDoEdycji.HasValue ? "Zamówienie zaktualizowane" : "Zamówienie zapisane";
+                bool isEdit = _idZamowieniaDoEdycji.HasValue;
 
-                // NOWY DIALOG ZAMIAST MessageBox.Show
-                ShowOrderSuccessDialog(title, summary);
+                // NOWY DIALOG
+                using var afterSaveDialog = new AfterSaveDialog(summary, isEdit);
+                afterSaveDialog.ShowDialog(this);
 
-                await LoadOstatnieZamowienia();
-                UpdateOstatniOdbiorcyGrid(cbHandlowiecFilter.SelectedItem?.ToString());
-                ClearFormForNewOrder();
+                if (afterSaveDialog.CreateAnother)
+                {
+                    // Użytkownik chce utworzyć kolejne zamówienie
+                    ClearFormForNewOrder();
+                }
+                else
+                {
+                    // Użytkownik chce wrócić do podsumowania
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                }
             }
             catch (Exception ex)
             {
-                // POPRAWKA 3c: Użycie metody pomocniczej
                 ShowError("Błąd zapisu: " + ex.Message);
             }
             finally
@@ -2675,7 +2718,94 @@ namespace Kalendarz1
                 btnZapisz.Enabled = true;
             }
         }
-        // Dodaj te metody pomocnicze na końcu klasy WidokZamowienia i WidokZamowieniaPodsumowanie
+
+        // NOWA METODA: Sprawdzanie istniejącego zamówienia
+        private async Task<string?> CheckForExistingOrder(string klientId, DateTime dataProdukcji)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdzamy czy kolumna DataProdukcji istnieje
+                bool dataProdukcjiExists = false;
+                try
+                {
+                    await using var cmdCheck = new SqlCommand(@"
+                        SELECT COUNT(*) 
+                        FROM sys.columns 
+                        WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+                        AND name = 'DataProdukcji'", cn);
+                    int count = (int)await cmdCheck.ExecuteScalarAsync();
+                    dataProdukcjiExists = count > 0;
+                }
+                catch { }
+
+                string whereClause = dataProdukcjiExists
+                    ? "DataProdukcji = @DataProdukcji"
+                    : "DataZamowienia = @DataProdukcji";
+
+                string sql = $@"
+                    SELECT TOP 1 zm.Id, zm.DataZamowienia, zm.DataPrzyjazdu, zm.LiczbaPalet, zm.LiczbaPojemnikow
+                    FROM [dbo].[ZamowieniaMieso] zm
+                    WHERE zm.KlientId = @KlientId 
+                    AND {whereClause}
+                    AND zm.Status <> 'Anulowane'
+                    ORDER BY zm.DataUtworzenia DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@KlientId", int.Parse(klientId));
+                cmd.Parameters.AddWithValue("@DataProdukcji", dataProdukcji.Date);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    int existingId = reader.GetInt32(0);
+                    DateTime dataZam = reader.GetDateTime(1);
+                    DateTime dataPrzyjazdu = reader.GetDateTime(2);
+                    decimal palety = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
+                    int pojemniki = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"ID Zamówienia: {existingId}");
+                    sb.AppendLine($"Data zamówienia: {dataZam:yyyy-MM-dd}");
+                    sb.AppendLine($"Termin odbioru: {dataPrzyjazdu:yyyy-MM-dd HH:mm}");
+                    sb.AppendLine($"Liczba palet: {palety:N1}");
+                    sb.AppendLine($"Liczba pojemników: {pojemniki}");
+                    sb.AppendLine();
+                    sb.AppendLine("Lista produktów:");
+
+                    // Pobierz szczegóły towarów
+                    reader.Close();
+
+                    var cmdItems = new SqlCommand(@"
+                        SELECT tw.Kod, zmt.Ilosc, zmt.Pojemniki, zmt.Palety
+                        FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                        JOIN [HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.Id
+                        WHERE zmt.ZamowienieId = @Id", cn);
+                    cmdItems.Parameters.AddWithValue("@Id", existingId);
+
+                    await using var readerItems = await cmdItems.ExecuteReaderAsync();
+                    while (await readerItems.ReadAsync())
+                    {
+                        string kod = readerItems.GetString(0);
+                        decimal ilosc = readerItems.IsDBNull(1) ? 0 : readerItems.GetDecimal(1);
+                        int poj = readerItems.IsDBNull(2) ? 0 : readerItems.GetInt32(2);
+                        decimal pal = readerItems.IsDBNull(3) ? 0 : readerItems.GetDecimal(3);
+
+                        sb.AppendLine($"  • {kod}: {ilosc:N0} kg ({poj} poj., {pal:N1} pal.)");
+                    }
+
+                    return sb.ToString();
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null; // W razie błędu nie blokujemy zapisu
+            }
+        }
 
         #region MessageBox Helpers
         private void ShowInfo(string message, string title = "Informacja")
@@ -2703,6 +2833,7 @@ namespace Kalendarz1
             return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
         }
         #endregion
+
         private string BuildOrderSummary()
         {
             var sb = new StringBuilder();
