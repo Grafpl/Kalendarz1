@@ -1,5 +1,4 @@
-﻿// Plik: WidokZamowienia.cs
-// WERSJA 19.0 - Zielona kolorystyka + sortowanie + preferowane godziny
+﻿
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -13,7 +12,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
 namespace Kalendarz1
 {
     public partial class WidokZamowienia : Form
@@ -22,7 +20,6 @@ namespace Kalendarz1
         private int? _idZamowieniaDoEdycji;
         private readonly string _connLibra;
         private readonly string _connHandel;
-
         private const decimal POJEMNIKOW_NA_PALECIE = 36m;
         private const decimal POJEMNIKOW_NA_PALECIE_E2 = 40m;
         private const decimal KG_NA_POJEMNIKU = 15m;
@@ -93,6 +90,33 @@ namespace Kalendarz1
             this.Load += WidokZamowienia_Load;
         }
 
+        #region MessageBox Helpers
+        private void ShowInfo(string message, string title = "Informacja")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void ShowWarning(string message, string title = "Ostrzeżenie")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        private void ShowError(string message, string title = "Błąd")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private DialogResult ShowQuestion(string message, string title = "Pytanie")
+        {
+            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        }
+
+        private DialogResult ShowWarningQuestion(string message, string title = "Uwaga")
+        {
+            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        }
+        #endregion
+
         private async void WidokZamowienia_Load(object? sender, EventArgs e)
         {
             ApplyModernUIStyles();
@@ -123,7 +147,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Wystąpił błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowError($"Wystąpił błąd: {ex.Message}");
             }
             finally
             {
@@ -131,6 +155,7 @@ namespace Kalendarz1
                 btnZapisz.Enabled = true;
             }
         }
+
         private void ShowOrderSuccessDialog(string title, string orderDetails)
         {
             var dialog = new Form
@@ -141,12 +166,12 @@ namespace Kalendarz1
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                TopMost = true,  // ZAWSZE NA WIERZCHU
+                TopMost = true,
                 BackColor = Color.White,
-                Font = new Font("Segoe UI", 9.5f)
+                Font = new Font("Segoe UI", 9.5f),
+                Owner = this
             };
 
-            // Panel główny z auto-scroll
             var mainPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -154,7 +179,6 @@ namespace Kalendarz1
                 Padding = new Padding(0)
             };
 
-            // Nagłówek sukcesu - duży, zielony
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -183,7 +207,6 @@ namespace Kalendarz1
 
             headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
 
-            // Główna zawartość
             var contentPanel = new Panel
             {
                 Location = new Point(0, 80),
@@ -194,10 +217,8 @@ namespace Kalendarz1
 
             int yPos = 20;
 
-            // Parsowanie danych zamówienia
             var lines = orderDetails.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
-            // Odbiorca - najważniejsza informacja
             var odbiorcy = lines.FirstOrDefault(l => l.StartsWith("Odbiorca:"))?.Replace("Odbiorca:", "").Trim();
             if (!string.IsNullOrEmpty(odbiorcy))
             {
@@ -206,7 +227,6 @@ namespace Kalendarz1
                 yPos += 75;
             }
 
-            // Daty
             var dataProdukcji = lines.FirstOrDefault(l => l.StartsWith("Data produkcji:"))?.Replace("Data produkcji:", "").Trim();
             var dataSprzedazy = lines.FirstOrDefault(l => l.StartsWith("Data sprzedaży:"))?.Replace("Data sprzedaży:", "").Trim();
 
@@ -224,7 +244,6 @@ namespace Kalendarz1
                 yPos += 75;
             }
 
-            // Informacje o typie zamówienia
             var typZamowienia = lines.FirstOrDefault(l => l.Contains("ZAMÓWIENIE") || l.Contains("Produkty"));
             if (!string.IsNullOrEmpty(typZamowienia))
             {
@@ -233,7 +252,6 @@ namespace Kalendarz1
                 yPos += 70;
             }
 
-            // Specjalne oznaczenia (E2, Folia)
             var e2Info = lines.FirstOrDefault(l => l.Contains("E2"));
             var foliaInfo = lines.FirstOrDefault(l => l.Contains("Folia"));
 
@@ -276,7 +294,6 @@ namespace Kalendarz1
                 yPos += 70;
             }
 
-            // Lista towarów
             var towarStartIndex = Array.FindIndex(lines, l => l.Contains("Zamówione towary:"));
             var podsumowanieIndex = Array.FindIndex(lines, l => l.Contains("Podsumowanie:"));
 
@@ -323,7 +340,6 @@ namespace Kalendarz1
                 yPos += 210;
             }
 
-            // Podsumowanie - duże liczby
             var podsumowanie = lines.Skip(podsumowanieIndex + 1).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
 
             var summaryPanel = new Panel
@@ -380,7 +396,6 @@ namespace Kalendarz1
 
             contentPanel.Controls.Add(summaryPanel);
 
-            // Przycisk OK
             var btnOK = new Button
             {
                 Text = "OK - ROZUMIEM",
@@ -425,7 +440,6 @@ namespace Kalendarz1
                 using var pen = new Pen(accentColor, 2);
                 e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
 
-                // Lewy pasek kolorowy
                 using var brush = new SolidBrush(accentColor);
                 e.Graphics.FillRectangle(brush, 0, 0, 5, panel.Height);
             };
@@ -1039,25 +1053,25 @@ namespace Kalendarz1
                 await cn.OpenAsync();
 
                 var cmdLimit = new SqlCommand(@"
-            SELECT LimitAmount 
-            FROM [HANDEL].[SSCommon].[STContractors] 
-            WHERE id = @KlientId", cn);
+        SELECT LimitAmount 
+        FROM [HANDEL].[SSCommon].[STContractors] 
+        WHERE id = @KlientId", cn);
                 cmdLimit.Parameters.AddWithValue("@KlientId", int.Parse(klientId));
                 var limitObj = await cmdLimit.ExecuteScalarAsync();
                 _limitKredytowy = limitObj != DBNull.Value ? Convert.ToDecimal(limitObj) : 0;
 
                 var cmdZadluzenie = new SqlCommand(@"
-            WITH PNAgg AS (
-                SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona
-                FROM [HANDEL].[HM].[PN] PN
-                GROUP BY PN.dkid
-            )
-            SELECT SUM(DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS DoZaplacenia
-            FROM [HANDEL].[HM].[DK] DK
-            LEFT JOIN PNAgg PA ON PA.dkid = DK.id
-            WHERE DK.khid = @KlientId 
-              AND DK.anulowany = 0
-              AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0", cn);
+        WITH PNAgg AS (
+            SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona
+            FROM [HANDEL].[HM].[PN] PN
+            GROUP BY PN.dkid
+        )
+        SELECT SUM(DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) AS DoZaplacenia
+        FROM [HANDEL].[HM].[DK] DK
+        LEFT JOIN PNAgg PA ON PA.dkid = DK.id
+        WHERE DK.khid = @KlientId 
+          AND DK.anulowany = 0
+          AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0", cn);
                 cmdZadluzenie.Parameters.AddWithValue("@KlientId", int.Parse(klientId));
                 var zadluzenieObj = await cmdZadluzenie.ExecuteScalarAsync();
                 _doZaplacenia = zadluzenieObj != DBNull.Value ? Convert.ToDecimal(zadluzenieObj) : 0;
@@ -1314,10 +1328,10 @@ namespace Kalendarz1
         private async Task LoadOstatnieZamowienia()
         {
             const string sql = @"
-                SELECT KlientId, MAX(DataZamowienia) as OstatnieZamowienie
-                FROM [dbo].[ZamowieniaMieso]
-                WHERE DataZamowienia >= DATEADD(MONTH, -4, GETDATE())
-                GROUP BY KlientId";
+            SELECT KlientId, MAX(DataZamowienia) as OstatnieZamowienie
+            FROM [dbo].[ZamowieniaMieso]
+            WHERE DataZamowienia >= DATEADD(MONTH, -4, GETDATE())
+            GROUP BY KlientId";
 
             _ostatnieZamowienia.Clear();
 
@@ -1337,7 +1351,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd pobierania ostatnich zamówień: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowWarning($"Błąd pobierania ostatnich zamówień: {ex.Message}");
             }
 
             foreach (var k in _kontrahenci)
@@ -1364,12 +1378,12 @@ namespace Kalendarz1
             panelSugestieGodzin.Controls.Clear();
 
             const string sql = @"
-                SELECT TOP 5 CONVERT(VARCHAR(5), DataPrzyjazdu, 108) as Godzina, COUNT(*) as Ilosc
-                FROM [dbo].[ZamowieniaMieso]
-                WHERE KlientId = @KlientId 
-                  AND DataZamowienia >= DATEADD(MONTH, -6, GETDATE())
-                GROUP BY CONVERT(VARCHAR(5), DataPrzyjazdu, 108)
-                ORDER BY COUNT(*) DESC";
+            SELECT TOP 5 CONVERT(VARCHAR(5), DataPrzyjazdu, 108) as Godzina, COUNT(*) as Ilosc
+            FROM [dbo].[ZamowieniaMieso]
+            WHERE KlientId = @KlientId 
+              AND DataZamowienia >= DATEADD(MONTH, -6, GETDATE())
+            GROUP BY CONVERT(VARCHAR(5), DataPrzyjazdu, 108)
+            ORDER BY COUNT(*) DESC";
 
             try
             {
@@ -1987,12 +2001,12 @@ namespace Kalendarz1
             var excludedProducts = new HashSet<string> { "KURCZAK B", "FILET C" };
 
             var priorityOrder = new Dictionary<string, int>
-            {
-                { "KURCZAK A", 1 }, { "FILET A", 2 }, { "ĆWIARTKA", 3 }, { "SKRZYDŁO I", 4 },
-                { "NOGA", 5 }, { "PAŁKA", 6 }, { "KORPUS", 7 }, { "POLĘDWICZKI", 8 },
-                { "SERCE", 9 }, { "WĄTROBA", 10 }, { "ŻOŁĄDKI", 11 }, { "ĆWIARTKA II", 12 },
-                { "FILET II", 13 }, { "FILET II PP", 14 }, { "SKRZYDŁO II", 15 }
-            };
+        {
+            { "KURCZAK A", 1 }, { "FILET A", 2 }, { "ĆWIARTKA", 3 }, { "SKRZYDŁO I", 4 },
+            { "NOGA", 5 }, { "PAŁKA", 6 }, { "KORPUS", 7 }, { "POLĘDWICZKI", 8 },
+            { "SERCE", 9 }, { "WĄTROBA", 10 }, { "ŻOŁĄDKI", 11 }, { "ĆWIARTKA II", 12 },
+            { "FILET II", 13 }, { "FILET II PP", 14 }, { "SKRZYDŁO II", 15 }
+        };
 
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
@@ -2048,14 +2062,14 @@ namespace Kalendarz1
         private async Task LoadKontrahenciAsync()
         {
             const string sql = @"
-                SELECT c.Id, c.Shortcut AS Nazwa, c.NIP,
-                    poa.Postcode AS KodPocztowy, poa.Street AS Miejscowosc, 
-                    wym.CDim_Handlowiec_Val AS Handlowiec
-                FROM [HANDEL].[SSCommon].[STContractors] c
-                LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] poa 
-                    ON poa.ContactGuid = c.ContactGuid AND poa.AddressName = N'adres domyślny'
-                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId
-                ORDER BY c.Shortcut;";
+            SELECT c.Id, c.Shortcut AS Nazwa, c.NIP,
+                poa.Postcode AS KodPocztowy, poa.Street AS Miejscowosc, 
+                wym.CDim_Handlowiec_Val AS Handlowiec
+            FROM [HANDEL].[SSCommon].[STContractors] c
+            LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] poa 
+                ON poa.ContactGuid = c.ContactGuid AND poa.AddressName = N'adres domyślny'
+            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym ON c.Id = wym.ElementId
+            ORDER BY c.Shortcut;";
 
             _kontrahenci.Clear();
             await using var cn = new SqlConnection(_connHandel);
@@ -2462,10 +2476,10 @@ namespace Kalendarz1
             try
             {
                 await using var cmdCheck = new SqlCommand(@"
-            SELECT COUNT(*) 
-            FROM sys.columns 
-            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
-            AND name = 'DataProdukcji'", cn);
+        SELECT COUNT(*) 
+        FROM sys.columns 
+        WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+        AND name = 'DataProdukcji'", cn);
                 int count = (int)await cmdCheck.ExecuteScalarAsync();
                 dataProdukcjiExists = count > 0;
             }
@@ -2514,11 +2528,11 @@ namespace Kalendarz1
             var zamowienieTowary = new List<(int TowarId, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia)>();
 
             await using (var cmdT = new SqlCommand(@"
-        SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
-               ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
-               ISNULL(Folia, 0) as Folia
-        FROM [dbo].[ZamowieniaMiesoTowar]
-        WHERE ZamowienieId=@Id", cn))
+    SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
+           ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
+           ISNULL(Folia, 0) as Folia
+    FROM [dbo].[ZamowieniaMiesoTowar]
+    WHERE ZamowienieId=@Id", cn))
             {
                 cmdT.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdT.ExecuteReaderAsync();
@@ -2624,7 +2638,7 @@ namespace Kalendarz1
         {
             if (!ValidateBeforeSave(out var msg))
             {
-                MessageBox.Show(msg, "Błąd danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowWarning(msg, "Błąd danych");
                 return;
             }
 
@@ -2636,12 +2650,10 @@ namespace Kalendarz1
 
             if (sumaPaletCalkowita > LIMIT_PALET_OSTRZEZENIE)
             {
-                var result = MessageBox.Show(
+                var result = ShowWarningQuestion(
                     $"Łączna liczba palet ({sumaPaletCalkowita:N1}) przekracza limit TIR ({LIMIT_PALET_OSTRZEZENIE}).\n\n" +
                     "Czy na pewno chcesz zapisać to zamówienie?",
-                    "Uwaga - przekroczenie limitu",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
+                    "Uwaga - przekroczenie limitu");
 
                 if (result == DialogResult.No) return;
             }
@@ -2655,7 +2667,6 @@ namespace Kalendarz1
                 string summary = BuildOrderSummary();
                 string title = _idZamowieniaDoEdycji.HasValue ? "Zamówienie zaktualizowane" : "Zamówienie zapisane";
 
-                // NOWY DIALOG ZAMIAST MessageBox.Show
                 ShowOrderSuccessDialog(title, summary);
 
                 await LoadOstatnieZamowienia();
@@ -2664,7 +2675,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowError("Błąd zapisu: " + ex.Message);
             }
             finally
             {
@@ -2672,41 +2683,15 @@ namespace Kalendarz1
                 btnZapisz.Enabled = true;
             }
         }
-        // Dodaj te metody pomocnicze na końcu klasy WidokZamowienia i WidokZamowieniaPodsumowanie
 
-        #region MessageBox Helpers
-        private void ShowInfo(string message, string title = "Informacja")
-        {
-            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void ShowWarning(string message, string title = "Ostrzeżenie")
-        {
-            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-
-        private void ShowError(string message, string title = "Błąd")
-        {
-            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-
-        private DialogResult ShowQuestion(string message, string title = "Pytanie")
-        {
-            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-        }
-
-        private DialogResult ShowWarningQuestion(string message, string title = "Uwaga")
-        {
-            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-        }
-        #endregion
         private string BuildOrderSummary()
         {
             var sb = new StringBuilder();
             var orderedItems = _dt.AsEnumerable().Where(r => r.Field<decimal?>("Ilosc") > 0m).ToList();
 
-            var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
-            string nazwaOdbiorcy = odbiorca?.Nazwa ?? "Nieznany odbiorca";
+            var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientSContinuePlotted continuation of interrupted file and method.Użytkownik chce, żebym kontynuował plik.Poprzednie wyjście zostało przerwane w połowie metody BuildOrderSummary().Muszę dokończyć ten plik, a następnie podać drugi plik - WidokZamowieniaPodsumowanie.cs z wszystkimi poprawkami MessageBox.
+    Kontynuuję od miejsca przerwania w metodzie BuildOrderSummary().Kontynuuję plik WidokZamowienia.cs:csharpId"];
+                string nazwaOdbiorcy = odbiorca?.Nazwa ?? "Nieznany odbiorca";
 
             sb.AppendLine($"Odbiorca: {nazwaOdbiorcy}");
             sb.AppendLine($"Data produkcji: {dateTimePickerProdukcji?.Value:yyyy-MM-dd (dddd)}");
@@ -2771,7 +2756,7 @@ namespace Kalendarz1
 
             int orderId;
             decimal sumaPojemnikow = 0;
-            decimal sumaPalet = 0;
+            decimal sumaPalet = 0m;
             bool czyJakikolwiekE2 = false;
 
             foreach (DataRow r in _dt.Rows)
@@ -2907,4 +2892,4 @@ namespace Kalendarz1
 
         #endregion
     }
-}
+}</ artifact >
