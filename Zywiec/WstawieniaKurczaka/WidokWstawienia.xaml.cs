@@ -172,7 +172,7 @@ namespace Kalendarz1
                 "   Przykład: Wybierz 01.01.2025 aby ukryć wszystkie stare wstawienia z 2024\n\n" +
                 "**CO MOŻESZ ZROBIĆ:**\n" +
                 "• Kliknij wiersz raz - zobaczysz dostawy tego wstawienia po prawej stronie\n" +
-                "• Kliknij wiersz 2 razy - otworzy się okno ze szczegółami wstawienia\n" +
+                "• Kliknij wiersz 2 razy - otworzy się okno z możliwością dodania nowego wstawienia z danymi hodowcy\n" +
                 "• Kliknij prawym przyciskiem myszy (PPM) - zobaczysz menu:\n" +
                 "  ✏️ Edytuj wstawienie - zmień dane wstawienia\n" +
                 "  📅 Zmień datę wstawienia - przesuń datę wstawienia (możesz też przesunąć dostawy)\n" +
@@ -213,7 +213,9 @@ namespace Kalendarz1
                 "• Hodowca - Do kogo dzwonić\n" +
                 "• Ilość - Ile kurczaków wstawiono\n" +
                 "• Tel - Numer telefonu hodowcy\n\n" +
-                "**CO MOŻESZ ZROBIĆ (PPM - prawy przycisk myszy):**\n\n" +
+                "**CO MOŻESZ ZROBIĆ:**\n" +
+                "• Kliknij wiersz 2 razy - otworzy się okno z możliwością dodania nowego wstawienia\n" +
+                "• PPM (prawy przycisk myszy) - opcje kontaktu:\n\n" +
                 "📵 Nie odebrał (+3 dni)\n" +
                 "   Wybierz to gdy hodowca nie odbiera telefonu.\n" +
                 "   Przypomnienie wróci za 3 dni.\n\n" +
@@ -269,10 +271,11 @@ namespace Kalendarz1
                 "3. Zmień co chcesz\n" +
                 "4. Kliknij \"Zapisz\"\n\n" +
                 "**METODA 2 - Podwójne kliknięcie:**\n" +
-                "1. Kliknij 2 razy szybko na wstawienie\n" +
-                "2. Otworzy się okno edycji\n" +
-                "3. Zmień co chcesz\n" +
-                "4. Kliknij \"Zapisz\"\n\n" +
+                "1. Kliknij 2 razy szybko na wstawienie w tabeli Przypomnienia\n" +
+                "2. Zostaniesz zapytany czy chcesz skopiować dane z ostatniego wstawienia\n" +
+                "3. Wybierz odpowiednią opcję\n" +
+                "4. Wypełnij dane nowego wstawienia\n" +
+                "5. Kliknij \"Zapisz\"\n\n" +
                 "**CO MOŻESZ ZMIENIĆ:**\n" +
                 "• Hodowcę\n" +
                 "• Datę wstawienia\n" +
@@ -328,6 +331,10 @@ namespace Kalendarz1
                 "  🟢 Zielony = można zarchiwizować (wszystko odebrane)\n" +
                 "  🟡 Żółty = aktywne (dostawy w trakcie)\n" +
                 "  ⚪ Szary = przyszłe (kurczaki jeszcze rosną)\n\n" +
+                "**SZYBKIE DODAWANIE WSTAWIENIA:**\n\n" +
+                "• Kliknij 2 razy na wiersz w tabeli Przypomnienia\n" +
+                "• Zostaniesz zapytany czy skopiować dane z ostatniego wstawienia\n" +
+                "• To przyspiesza dodawanie kolejnych wstawień u tego samego hodowcy!\n\n" +
                 "**JEŚLI COŚ NIE DZIAŁA:**\n\n" +
                 "• Sprawdź czy masz połączenie z bazą danych\n" +
                 "• Upewnij się że masz uprawnienia do dodawania/edycji\n" +
@@ -965,12 +972,13 @@ namespace Kalendarz1
                 Width = 105
             });
 
+            // ZMIANA: Format z separatorem tysięcy
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
                 Binding = new System.Windows.Data.Binding("IloscWstawienia")
                 {
-                    StringFormat = "#,##0"
+                    StringFormat = "# ##0"
                 },
                 Width = 60
             });
@@ -982,11 +990,12 @@ namespace Kalendarz1
                 Width = 65
             });
 
+            // ZMIANA: Węższa kolumna "Kto"
             dataGridWstawienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kto",
                 Binding = new System.Windows.Data.Binding("KtoStwo"),
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
+                Width = 60
             });
 
             // Nowa kolumna Potw.
@@ -1160,12 +1169,13 @@ namespace Kalendarz1
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
+            // ZMIANA: Format z separatorem tysięcy
             dataGridPrzypomnienia.Columns.Add(new DataGridTextColumn
             {
                 Header = "Ilość",
                 Binding = new System.Windows.Data.Binding("Ilosc")
                 {
-                    StringFormat = "#,##0"
+                    StringFormat = "# ##0"
                 },
                 Width = 50
             });
@@ -1384,6 +1394,7 @@ namespace Kalendarz1
             }
         }
 
+        // ZMIANA: Nowa logika dla podwójnego kliknięcia - z dialogiem o kopiowaniu danych
         private void DataGridPrzypomnienia_DoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (dataGridPrzypomnienia.SelectedItem != null)
@@ -1391,21 +1402,37 @@ namespace Kalendarz1
                 var row = (DataRowView)dataGridPrzypomnienia.SelectedItem;
                 if (row["LP"] == DBNull.Value) return;
 
-                int lp = Convert.ToInt32(row["LP"]);
+                string dostawca = row["Dostawca"]?.ToString();
+                int ilosc = row["Ilosc"] != DBNull.Value ? Convert.ToInt32(row["Ilosc"]) : 0;
 
-                var wstawienie = new WstawienieWindow
+                // Pobierz dane ostatniego dostarczonego
+                var daneOstatniego = PobierzDaneOstatniegoDostarczonego(dostawca);
+
+                // Dialog z pytaniem o kopiowanie danych
+                var dialogKopiowania = new OknoKopiowaniaDanychDialog(dostawca, daneOstatniego);
+                if (dialogKopiowania.ShowDialog() == true)
                 {
-                    UserID = App.UserID
-                };
+                    var wstawienie = new WstawienieWindow
+                    {
+                        UserID = App.UserID
+                    };
 
-                string dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<string>(lp, "dbo.WstawieniaKurczakow", "Dostawca");
-                int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(lp, "dbo.WstawieniaKurczakow", "IloscWstawienia");
+                    // Podstawowe dane
+                    wstawienie.Dostawca = dostawca;
+                    wstawienie.SztWstawienia = ilosc;
 
-                wstawienie.SztWstawienia = sztWstawione;
-                wstawienie.Dostawca = dostawca;
-                wstawienie.ShowDialog();
+                    // Jeśli użytkownik chce skopiować dodatkowe dane
+                    if (dialogKopiowania.KopiujDodatkoweDane)
+                    {
+                        if (daneOstatniego != null)
+                        {
+                            wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
+                        }
+                    }
 
-                RefreshAll();
+                    wstawienie.ShowDialog();
+                    RefreshAll();
+                }
             }
         }
 
@@ -1416,21 +1443,151 @@ namespace Kalendarz1
                 var row = (DataRowView)dataGridWstawienia.SelectedItem;
                 if (row["LP"] == DBNull.Value) return;
 
-                int lp = Convert.ToInt32(row["LP"]);
+                string dostawca = row["Dostawca"]?.ToString();
+                int ilosc = row["IloscWstawienia"] != DBNull.Value ? Convert.ToInt32(row["IloscWstawienia"]) : 0;
 
-                var wstawienie = new WstawienieWindow
+                // Pobierz dane ostatniego dostarczonego
+                var daneOstatniego = PobierzDaneOstatniegoDostarczonego(dostawca);
+
+                // Dialog z pytaniem o kopiowanie danych
+                var dialogKopiowania = new OknoKopiowaniaDanychDialog(dostawca, daneOstatniego);
+                if (dialogKopiowania.ShowDialog() == true)
                 {
-                    UserID = App.UserID
-                };
+                    var wstawienie = new WstawienieWindow
+                    {
+                        UserID = App.UserID
+                    };
 
-                string dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<string>(lp, "dbo.WstawieniaKurczakow", "Dostawca");
-                int sztWstawione = zapytaniasql.PobierzInformacjeZBazyDanychHarmonogram<int>(lp, "dbo.WstawieniaKurczakow", "IloscWstawienia");
+                    // Podstawowe dane
+                    wstawienie.Dostawca = dostawca;
+                    wstawienie.SztWstawienia = ilosc;
 
-                wstawienie.SztWstawienia = sztWstawione;
-                wstawienie.Dostawca = dostawca;
-                wstawienie.ShowDialog();
+                    // Jeśli użytkownik chce skopiować dodatkowe dane
+                    if (dialogKopiowania.KopiujDodatkoweDane)
+                    {
+                        if (daneOstatniego != null)
+                        {
+                            wstawienie.DaneOstatniegoDostarczonego = daneOstatniego;
+                        }
+                    }
 
-                RefreshAll();
+                    wstawienie.ShowDialog();
+                    RefreshAll();
+                }
+            }
+        }
+
+        // NOWA METODA: Pobieranie danych ostatniego dostarczonego wstawienia
+        private DaneOstatniegoDostarczonego PobierzDaneOstatniegoDostarczonego(string dostawca)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Szukamy ostatniego wstawienia gdzie wszystkie dostawy już się odbyły
+                    string query = @"
+                        SELECT TOP 1 
+                            w.Lp,
+                            w.DataWstawienia
+                        FROM dbo.WstawieniaKurczakow w
+                        WHERE w.Dostawca = @Dostawca
+                        AND NOT EXISTS (
+                            SELECT 1 
+                            FROM dbo.HarmonogramDostaw hd 
+                            WHERE hd.LpW = w.Lp 
+                            AND hd.DataOdbioru >= CAST(GETDATE() AS DATE)
+                        )
+                        AND EXISTS (
+                            SELECT 1 
+                            FROM dbo.HarmonogramDostaw hd 
+                            WHERE hd.LpW = w.Lp
+                        )
+                        ORDER BY w.DataWstawienia DESC";
+
+                    long lpWstawienia = 0;
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                lpWstawienia = reader.GetInt64(0);
+                            }
+                        }
+                    }
+
+                    // Jeśli nie znaleziono dostarczonego, weź najwcześniejsze
+                    if (lpWstawienia == 0)
+                    {
+                        string queryNajwczesniejsze = @"
+                            SELECT TOP 1 Lp
+                            FROM dbo.WstawieniaKurczakow
+                            WHERE Dostawca = @Dostawca
+                            ORDER BY DataWstawienia ASC";
+
+                        using (var cmd = new SqlCommand(queryNajwczesniejsze, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Dostawca", dostawca);
+                            var result = cmd.ExecuteScalar();
+                            if (result != null && result != DBNull.Value)
+                            {
+                                lpWstawienia = Convert.ToInt64(result);
+                            }
+                        }
+                    }
+
+                    if (lpWstawienia == 0)
+                        return null;
+
+                    // Pobierz dostawy dla tego wstawienia
+                    string queryDostawy = @"
+                        SELECT 
+                            DATEDIFF(DAY, w.DataWstawienia, hd.DataOdbioru) AS Doba,
+                            hd.WagaDek,
+                            hd.SztSzuflada,
+                            hd.Auta,
+                            hd.SztukiDek
+                        FROM dbo.HarmonogramDostaw hd
+                        INNER JOIN dbo.WstawieniaKurczakow w ON hd.LpW = w.Lp
+                        WHERE hd.LpW = @LpW
+                        ORDER BY hd.DataOdbioru";
+
+                    var dostawy = new List<DaneDostawy>();
+                    using (var cmd = new SqlCommand(queryDostawy, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@LpW", lpWstawienia);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                dostawy.Add(new DaneDostawy
+                                {
+                                    Doba = reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0),
+                                    Waga = reader.IsDBNull(1) ? (double?)null : Convert.ToDouble(reader.GetDecimal(1)),
+                                    SztPoj = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2),
+                                    Auta = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                                    Sztuki = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4)
+                                });
+                            }
+                        }
+                    }
+
+                    if (dostawy.Count == 0)
+                        return null;
+
+                    return new DaneOstatniegoDostarczonego
+                    {
+                        Dostawy = dostawy
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Błąd pobierania danych ostatniego dostarczonego: {ex.Message}");
+                return null;
             }
         }
 
@@ -1488,6 +1645,7 @@ namespace Kalendarz1
         {
             dataGridDostawy.Columns.Clear();
 
+            // ZMIANA: Auto dla Data, A, Szt, Waga
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "Data",
@@ -1495,14 +1653,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd ddd"
                 },
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = DataGridLength.Auto
             });
 
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "A",
                 Binding = new System.Windows.Data.Binding("Auta"),
-                Width = new DataGridLength(0.5, DataGridLengthUnitType.Star)
+                Width = DataGridLength.Auto
             });
 
             dataGridDostawy.Columns.Add(new DataGridTextColumn
@@ -1512,17 +1670,18 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
+                Width = DataGridLength.Auto
             });
 
+            // ZMIANA: Waga z 2 miejscami po przecinku
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "Waga",
                 Binding = new System.Windows.Data.Binding("WagaDek")
                 {
-                    StringFormat = "# ##0"
+                    StringFormat = "# ##0.00"
                 },
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star)
+                Width = DataGridLength.Auto
             });
 
             dataGridDostawy.Columns.Add(new DataGridTextColumn
@@ -1535,11 +1694,12 @@ namespace Kalendarz1
                 Width = new DataGridLength(0.7, DataGridLengthUnitType.Star)
             });
 
+            // ZMIANA: Szersze Typ ceny
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "T",
                 Binding = new System.Windows.Data.Binding("typCeny"),
-                Width = new DataGridLength(0.4, DataGridLengthUnitType.Star)
+                Width = 60
             });
 
             dataGridDostawy.Columns.Add(new DataGridTextColumn
@@ -1549,11 +1709,12 @@ namespace Kalendarz1
                 Width = new DataGridLength(0.5, DataGridLengthUnitType.Star)
             });
 
+            // ZMIANA: Szerszy Bufor
             dataGridDostawy.Columns.Add(new DataGridTextColumn
             {
                 Header = "B",
                 Binding = new System.Windows.Data.Binding("bufor"),
-                Width = new DataGridLength(0.4, DataGridLengthUnitType.Star)
+                Width = 70
             });
         }
 
@@ -1962,6 +2123,326 @@ namespace Kalendarz1
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    // ====== OKNO DIALOGOWE DLA KOPIOWANIA DANYCH ======
+    public partial class OknoKopiowaniaDanychDialog : Window
+    {
+        public bool KopiujDodatkoweDane { get; private set; }
+
+        public OknoKopiowaniaDanychDialog(string dostawca, DaneOstatniegoDostarczonego daneOstatniego = null)
+        {
+            InitializeComponent(dostawca, daneOstatniego);
+        }
+
+        private void InitializeComponent(string dostawca, DaneOstatniegoDostarczonego daneOstatniego)
+        {
+            Width = 650;
+            Height = 600;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+            ResizeMode = ResizeMode.NoResize;
+
+            var mainBorder = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(15),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 0,
+                    Color = Colors.Black,
+                    Opacity = 0.2,
+                    BlurRadius = 20
+                }
+            };
+
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(30)
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var titlePanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 12, 20, 12)
+            };
+            var titleText = new TextBlock
+            {
+                Text = $"📋 Nowe wstawienie - {dostawca}",
+                FontSize = 17,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextAlignment = TextAlignment.Center
+            };
+            titlePanel.Child = titleText;
+            Grid.SetRow(titlePanel, 0);
+
+            var spacer1 = new Border { Height = 20 };
+            Grid.SetRow(spacer1, 1);
+
+            // Tekst informacyjny
+            var infoText = new TextBlock
+            {
+                Text = "Czy chcesz skopiować dane z ostatniego zrealizowanego wstawienia?",
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            Grid.SetRow(infoText, 2);
+
+            // Panel z danymi dostaw
+            var dostawyPanel = new StackPanel();
+            Grid.SetRow(dostawyPanel, 3);
+
+            if (daneOstatniego != null && daneOstatniego.Dostawy != null && daneOstatniego.Dostawy.Count > 0)
+            {
+                var dostawyBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(232, 245, 233)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15),
+                    Margin = new Thickness(0, 0, 0, 15)
+                };
+
+                var dostawyStack = new StackPanel();
+
+                var headerText = new TextBlock
+                {
+                    Text = "📦 Dane do skopiowania z ostatniego wstawienia:",
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                dostawyStack.Children.Add(headerText);
+
+                for (int i = 0; i < daneOstatniego.Dostawy.Count; i++)
+                {
+                    var dostawa = daneOstatniego.Dostawy[i];
+                    var dostawaBorder = new Border
+                    {
+                        Background = Brushes.White,
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+
+                    var dostawaGrid = new Grid();
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    dostawaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var nrText = new TextBlock
+                    {
+                        Text = $"Dostawa {i + 1}:",
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(nrText, 0);
+                    dostawaGrid.Children.Add(nrText);
+
+                    int colIndex = 1;
+
+                    if (dostawa.Doba.HasValue)
+                    {
+                        var dobaPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 15, 0) };
+                        dobaPanel.Children.Add(new TextBlock { Text = "📅 ", FontSize = 10 });
+                        dobaPanel.Children.Add(new TextBlock { Text = $"Doba: {dostawa.Doba} dni", FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        Grid.SetColumn(dobaPanel, colIndex++);
+                        dostawaGrid.Children.Add(dobaPanel);
+                    }
+
+                    if (dostawa.Waga.HasValue)
+                    {
+                        var wagaPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 15, 0) };
+                        wagaPanel.Children.Add(new TextBlock { Text = "⚖️ ", FontSize = 10 });
+                        wagaPanel.Children.Add(new TextBlock { Text = $"Waga: {dostawa.Waga:0.0} kg", FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        Grid.SetColumn(wagaPanel, colIndex++);
+                        dostawaGrid.Children.Add(wagaPanel);
+                    }
+
+                    if (dostawa.SztPoj.HasValue)
+                    {
+                        var sztPojPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 15, 0) };
+                        sztPojPanel.Children.Add(new TextBlock { Text = "📦 ", FontSize = 10 });
+                        sztPojPanel.Children.Add(new TextBlock { Text = $"Szt/poj: {dostawa.SztPoj}", FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        Grid.SetColumn(sztPojPanel, colIndex++);
+                        dostawaGrid.Children.Add(sztPojPanel);
+                    }
+
+                    if (dostawa.Sztuki.HasValue)
+                    {
+                        var sztukiPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 15, 0) };
+                        sztukiPanel.Children.Add(new TextBlock { Text = "🐔 ", FontSize = 10 });
+                        sztukiPanel.Children.Add(new TextBlock { Text = $"Sztuki: {dostawa.Sztuki:#,##0}", FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        Grid.SetColumn(sztukiPanel, colIndex++);
+                        dostawaGrid.Children.Add(sztukiPanel);
+                    }
+
+                    if (dostawa.Auta.HasValue)
+                    {
+                        var autaPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                        autaPanel.Children.Add(new TextBlock { Text = "🚚 ", FontSize = 10 });
+                        autaPanel.Children.Add(new TextBlock { Text = $"Auta: {dostawa.Auta}", FontSize = 10, FontWeight = FontWeights.SemiBold });
+                        Grid.SetColumn(autaPanel, colIndex++);
+                        dostawaGrid.Children.Add(autaPanel);
+                    }
+
+                    dostawaBorder.Child = dostawaGrid;
+                    dostawyStack.Children.Add(dostawaBorder);
+                }
+
+                dostawyBorder.Child = dostawyStack;
+                dostawyPanel.Children.Add(dostawyBorder);
+            }
+            else
+            {
+                var brakDanychBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15),
+                    Margin = new Thickness(0, 0, 0, 15)
+                };
+
+                var brakDanychText = new TextBlock
+                {
+                    Text = "⚠️ Brak danych z ostatniego wstawienia.\n\nZostaną użyte domyślne wartości dostaw:\n• Dostawa 1: Doba 35, Waga 2.1 kg, Szt/poj 20\n• Dostawa 2: Doba 42, Waga 2.8 kg, Szt/poj 16\n\nSztuki i Auta będą puste - trzeba będzie je uzupełnić ręcznie.",
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
+                    LineHeight = 18
+                };
+
+                brakDanychBorder.Child = brakDanychText;
+                dostawyPanel.Children.Add(brakDanychBorder);
+            }
+
+            dostawyPanel.Children.Add(infoText);
+
+            var spacer2 = new Border { Height = 20 };
+            Grid.SetRow(spacer2, 4);
+
+            // Przyciski
+            var buttonStack = new StackPanel();
+            Grid.SetRow(buttonStack, 5);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            var btnTak = new Button
+            {
+                Content = "✅ TAK, SKOPIUJ DANE",
+                Width = 200,
+                Height = 45,
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(92, 138, 58)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(0)
+            };
+            var btnTakBorder = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Child = btnTak
+            };
+            btnTak.Click += (s, e) =>
+            {
+                KopiujDodatkoweDane = true;
+                DialogResult = true;
+                Close();
+            };
+
+            var btnNie = new Button
+            {
+                Content = "⏭️ TYLKO PODSTAWOWE",
+                Width = 200,
+                Height = 45,
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(0)
+            };
+            var btnNieBorder = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Child = btnNie
+            };
+            btnNie.Click += (s, e) =>
+            {
+                KopiujDodatkoweDane = false;
+                DialogResult = true;
+                Close();
+            };
+
+            buttonPanel.Children.Add(btnTakBorder);
+            buttonPanel.Children.Add(btnNieBorder);
+            buttonStack.Children.Add(buttonPanel);
+
+            var btnAnuluj = new Button
+            {
+                Content = "❌ ANULUJ",
+                Width = 150,
+                Height = 40,
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                Cursor = Cursors.Hand,
+                BorderThickness = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var btnAnulujBorder = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Child = btnAnuluj,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            btnAnuluj.Click += (s, e) =>
+            {
+                DialogResult = false;
+                Close();
+            };
+            buttonStack.Children.Add(btnAnulujBorder);
+
+            grid.Children.Add(titlePanel);
+            grid.Children.Add(spacer1);
+            grid.Children.Add(dostawyPanel);
+            grid.Children.Add(spacer2);
+            grid.Children.Add(buttonStack);
+
+            scrollViewer.Content = grid;
+            mainBorder.Child = scrollViewer;
+            Content = mainBorder;
         }
     }
 

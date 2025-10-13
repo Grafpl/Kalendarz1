@@ -17,6 +17,7 @@ namespace Kalendarz1
         public bool Modyfikacja { get; set; }
         public int LpWstawienia { get; set; }
         public DateTime DataWstawienia { get; set; }
+        public DaneOstatniegoDostarczonego DaneOstatniegoDostarczonego { get; set; }
 
         private List<DostawaRow> dostawyRows = new List<DostawaRow>();
         private List<SeriaWstawienRow> seriaRows = new List<SeriaWstawienRow>();
@@ -46,8 +47,32 @@ namespace Kalendarz1
             {
                 txtTrybFormularza.Text = "Nowe";
                 dpDataWstawienia.SelectedDate = DateTime.Today;
-                DodajDostawe(35, 2.1, 20);
-                DodajDostawe(42, 2.8, 16);
+
+                // ZMIANA: Sprawdź czy przekazano dane z innego okna
+                if (!string.IsNullOrEmpty(Dostawca))
+                {
+                    cmbDostawca.SelectedItem = Dostawca;
+                }
+
+                if (SztWstawienia > 0)
+                {
+                    txtSztukiWstawienia.Text = SztWstawienia.ToString("0");
+                }
+
+                // ZMIANA: Jeśli przekazano dane ostatniego dostarczonego, skopiuj je
+                if (DaneOstatniegoDostarczonego != null && DaneOstatniegoDostarczonego.Dostawy != null && DaneOstatniegoDostarczonego.Dostawy.Count > 0)
+                {
+                    foreach (var dostawa in DaneOstatniegoDostarczonego.Dostawy)
+                    {
+                        DodajDostawe(dostawa.Doba, dostawa.Waga, dostawa.SztPoj, dostawa.Sztuki, dostawa.Auta);
+                    }
+                }
+                else
+                {
+                    // Domyślne dostawy jeśli nie ma danych z ostatniego
+                    DodajDostawe(35, 2.1, 20);
+                    DodajDostawe(42, 2.8, 16);
+                }
             }
         }
 
@@ -205,9 +230,9 @@ namespace Kalendarz1
             DodajDostawe();
         }
 
-        private void DodajDostawe(int? domyslnaDoba = null, double? domyslnaWaga = null, int? domyslneSztPoj = null)
+        private void DodajDostawe(int? domyslnaDoba = null, double? domyslnaWaga = null, int? domyslneSztPoj = null, int? domyslneSztuki = null, int? domyslneAuta = null)
         {
-            // Jeśli są już jakieś dostawy, skopiuj wagę i szt/poj z ostatniej
+            // Jeśli są już jakieś dostawy i nie podano domyślnych wartości, skopiuj wagę i szt/poj z ostatniej
             if (dostawyRows.Count > 0 && !domyslnaWaga.HasValue && !domyslneSztPoj.HasValue)
             {
                 var ostatniaDostawa = dostawyRows[dostawyRows.Count - 1];
@@ -239,7 +264,9 @@ namespace Kalendarz1
                 Id = nextDostawaId++,
                 Doba = domyslnaDoba,
                 Waga = domyslnaWaga,
-                SztPoj = domyslneSztPoj
+                SztPoj = domyslneSztPoj,
+                Sztuki = domyslneSztuki,
+                Auta = domyslneAuta
             };
 
             var grid = CreateDostawaGrid(dostawa);
@@ -307,6 +334,7 @@ namespace Kalendarz1
 
             // Sztuki
             var txtSztuki = new TextBox { Style = (Style)FindResource("ModernTextBox"), FontSize = 11 };
+            if (dostawa.Sztuki.HasValue) txtSztuki.Text = dostawa.Sztuki.Value.ToString();
             txtSztuki.TextChanged += (s, e) => { ObliczSumeSztuk(); ObliczAutaWyliczone(dostawa); };
             Grid.SetColumn(txtSztuki, 7);
             grid.Children.Add(txtSztuki);
@@ -314,6 +342,7 @@ namespace Kalendarz1
 
             // Auta (RĘCZNE)
             var txtAutaReczne = new TextBox { Style = (Style)FindResource("HighlightTextBox"), FontSize = 11 };
+            if (dostawa.Auta.HasValue) txtAutaReczne.Text = dostawa.Auta.Value.ToString();
             Grid.SetColumn(txtAutaReczne, 8);
             grid.Children.Add(txtAutaReczne);
             dostawa.TxtAutaReczne = txtAutaReczne;
@@ -1146,6 +1175,8 @@ namespace Kalendarz1
             public int? Doba { get; set; }
             public double? Waga { get; set; }
             public int? SztPoj { get; set; }
+            public int? Sztuki { get; set; }
+            public int? Auta { get; set; }
             public TextBlock TxtNr { get; set; }
             public TextBox TxtDoba { get; set; }
             public DatePicker DpData { get; set; }
@@ -1176,5 +1207,20 @@ namespace Kalendarz1
         }
 
         #endregion
+    }
+
+    // NOWE KLASY POMOCNICZE - muszą być dostępne także w WidokWstawienia
+    public class DaneDostawy
+    {
+        public int? Doba { get; set; }
+        public double? Waga { get; set; }
+        public int? SztPoj { get; set; }
+        public int? Auta { get; set; }
+        public int? Sztuki { get; set; }
+    }
+
+    public class DaneOstatniegoDostarczonego
+    {
+        public List<DaneDostawy> Dostawy { get; set; }
     }
 }
