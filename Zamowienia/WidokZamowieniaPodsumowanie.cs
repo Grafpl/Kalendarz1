@@ -1,5 +1,5 @@
 ﻿// Plik: WidokZamowieniaPodsumowanie.cs
-// WERSJA 9.9 – Uproszczone szczegóły dla wydań bez zamówień
+// WERSJA 9.9 – POPRAWIONA - Wszystkie MessageBox z parent=this
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -341,7 +341,7 @@ namespace Kalendarz1
 
             if (EndDate < StartDate)
             {
-                MessageBox.Show("Data końcowa nie może być wcześniejsza niż początkowa!",
+                MessageBox.Show(this, "Data końcowa nie może być wcześniejsza niż początkowa!",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -475,6 +475,33 @@ namespace Kalendarz1
         private NazwaZiD nazwaZiD = new NazwaZiD();
 
         private bool _pokazujWydaniaBezZamowien = true;
+
+        #region MessageBox Helpers
+        private void ShowInfo(string message, string title = "Informacja")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void ShowWarning(string message, string title = "Ostrzeżenie")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        private void ShowError(string message, string title = "Błąd")
+        {
+            MessageBox.Show(this, message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private DialogResult ShowQuestion(string message, string title = "Pytanie")
+        {
+            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        }
+
+        private DialogResult ShowWarningQuestion(string message, string title = "Uwaga")
+        {
+            return MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        }
+        #endregion
 
         public WidokZamowieniaPodsumowanie()
         {
@@ -864,7 +891,7 @@ namespace Kalendarz1
         private async void btnNoweZamowienie_Click(object? sender, EventArgs e)
         {
             var widokZamowienia = new WidokZamowienia(UserID, null);
-            if (widokZamowienia.ShowDialog() == DialogResult.OK)
+            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
             {
                 await OdswiezWszystkieDaneAsync();
             }
@@ -874,21 +901,22 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, aby je wybrać.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw kliknij wiersz z zamówieniem, aby je wybrać.", "Brak wyboru");
                 return;
             }
 
             var widokZamowienia = new WidokZamowienia(UserID, id);
-            if (widokZamowienia.ShowDialog() == DialogResult.OK)
+            if (widokZamowienia.ShowDialog(this) == DialogResult.OK)
             {
                 await OdswiezWszystkieDaneAsync();
             }
         }
+
         private async void btnDodajNotatke_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.", "Brak wyboru");
                 return;
             }
 
@@ -903,7 +931,7 @@ namespace Kalendarz1
             }
 
             using var dlg = new NotatkiDialog(currentNote);
-            if (dlg.ShowDialog() == DialogResult.OK)
+            if (dlg.ShowDialog(this) == DialogResult.OK)
             {
                 try
                 {
@@ -914,13 +942,13 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dlg.Notatka) ? DBNull.Value : dlg.Notatka);
                     await cmd.ExecuteNonQueryAsync();
 
-                    MessageBox.Show("Notatka została zapisana.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowInfo("Notatka została zapisana.", "Sukces");
                     await WyswietlSzczegolyZamowieniaAsync(id);
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowError($"Błąd podczas zapisywania notatki: {ex.Message}");
                 }
             }
         }
@@ -929,11 +957,11 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw kliknij wiersz z zamówieniem, które chcesz anulować.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw kliknij wiersz z zamówieniem, które chcesz anulować.", "Brak wyboru");
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź anulowanie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = ShowWarningQuestion("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź anulowanie");
             if (result == DialogResult.Yes)
             {
                 try
@@ -944,12 +972,12 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@Id", _aktualneIdZamowienia.Value);
                     await cmd.ExecuteNonQueryAsync();
 
-                    MessageBox.Show("Zamówienie zostało anulowane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowInfo("Zamówienie zostało anulowane.", "Sukces");
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowError($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}", "Błąd krytyczny");
                 }
             }
         }
@@ -970,12 +998,12 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie do duplikacji.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw wybierz zamówienie do duplikacji.", "Brak wyboru");
                 return;
             }
 
             using var dlg = new MultipleDatePickerDialog("Wybierz dni dla duplikatu zamówienia");
-            if (dlg.ShowDialog() == DialogResult.OK && dlg.SelectedDates.Any())
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.SelectedDates.Any())
             {
                 try
                 {
@@ -986,9 +1014,9 @@ namespace Kalendarz1
                         utworzono++;
                     }
 
-                    MessageBox.Show($"Zamówienie zostało zduplikowane na {utworzono} dni.\n" +
+                    ShowInfo($"Zamówienie zostało zduplikowane na {utworzono} dni.\n" +
                                   $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
-                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "Sukces");
 
                     _selectedDate = dlg.SelectedDates.First();
                     AktualizujDatyPrzyciskow();
@@ -996,7 +1024,7 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowError($"Błąd podczas duplikowania: {ex.Message}");
                 }
             }
         }
@@ -1068,12 +1096,12 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie wzorcowe dla cyklu.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw wybierz zamówienie wzorcowe dla cyklu.", "Brak wyboru");
                 return;
             }
 
             using var dlg = new CykliczneZamowieniaDialog();
-            if (dlg.ShowDialog() == DialogResult.OK)
+            if (dlg.ShowDialog(this) == DialogResult.OK)
             {
                 try
                 {
@@ -1084,15 +1112,15 @@ namespace Kalendarz1
                         utworzono++;
                     }
 
-                    MessageBox.Show($"Utworzono {utworzono} zamówień cyklicznych.\n" +
+                    ShowInfo($"Utworzono {utworzono} zamówień cyklicznych.\n" +
                                   $"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}",
-                                  "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                  "Sukces");
 
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowError($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}");
                 }
             }
         }
@@ -1119,7 +1147,7 @@ namespace Kalendarz1
                     await cmdAlter.ExecuteNonQueryAsync();
 
                     _dataUbojuKolumnaIstnieje = true;
-                    MessageBox.Show("Kolumna 'DataUboju' została dodana do bazy danych.", "Aktualizacja bazy", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowInfo("Kolumna 'DataUboju' została dodana do bazy danych.", "Aktualizacja bazy");
                 }
                 else
                 {
@@ -1129,12 +1157,11 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 _dataUbojuKolumnaIstnieje = false;
-                MessageBox.Show($"Nie można dodać kolumny DataUboju do bazy danych.\n" +
+                ShowWarning($"Nie można dodać kolumny DataUboju do bazy danych.\n" +
                                $"Funkcja filtrowania po dacie uboju będzie niedostępna.\n\n" +
                                $"Błąd: {ex.Message}\n\n" +
                                $"Aby włączyć tę funkcję, wykonaj SQL:\n" +
-                               $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL",
-                    "Ostrzeżenie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                               $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL");
 
                 if (rbDataUboju != null)
                 {
@@ -1165,7 +1192,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}", "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowError($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}\n\nINNER: {ex.InnerException}", "Błąd Krytyczny");
             }
         }
 
@@ -1291,9 +1318,9 @@ namespace Kalendarz1
             else if (rbDataUboju.Checked && !_dataUbojuKolumnaIstnieje)
             {
                 rbDataOdbioru.Checked = true;
-                MessageBox.Show("Kolumna DataUboju nie istnieje w bazie danych.\n" +
+                ShowInfo("Kolumna DataUboju nie istnieje w bazie danych.\n" +
                                "Filtrowanie po dacie uboju jest niedostępne.",
-                               "Funkcja niedostępna", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                               "Funkcja niedostępna");
             }
         }
 
@@ -1302,7 +1329,7 @@ namespace Kalendarz1
             if (_dtZamowienia.Columns.Count == 0)
             {
                 _dtZamowienia.Columns.Add("Id", typeof(int));
-                _dtZamowienia.Columns.Add("KlientId", typeof(int));  // <-- DODANE
+                _dtZamowienia.Columns.Add("KlientId", typeof(int));
                 _dtZamowienia.Columns.Add("Odbiorca", typeof(string));
                 _dtZamowienia.Columns.Add("Handlowiec", typeof(string));
                 _dtZamowienia.Columns.Add("IloscZamowiona", typeof(decimal));
@@ -1451,17 +1478,13 @@ namespace Kalendarz1
                 }
 
                 _dtZamowienia.Rows.Add(
-           id,
-           klientId,  // <-- DODANE
-           nazwa, handlowiec, ilosc, wydane, pojemniki, palety, trybText,
-           dataPrzyjazdu?.Date ?? dzien, dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
-           terminOdbioru, dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value,
-           utworzonePrzez, status, maNotatke
-       );
+                    id, klientId, nazwa, handlowiec, ilosc, wydane, pojemniki, palety, trybText,
+                    dataPrzyjazdu?.Date ?? dzien, dataPrzyjazdu?.ToString("HH:mm") ?? "08:00",
+                    terminOdbioru, dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value,
+                    utworzonePrzez, status, maNotatke
+                );
             }
 
-            // Wydania bez zamówień
-            // POPRAWIONY FRAGMENT - Wydania bez zamówień
             var wydaniaBezZamowien = new List<DataRow>();
             foreach (var kv in wydaniaPerKhidIdtw)
             {
@@ -1475,7 +1498,7 @@ namespace Kalendarz1
                 var (nazwa, handlowiec) = kontrahenci.TryGetValue(khid, out var kh) ? kh : ($"Nieznany ({khid})", "");
                 var row = _dtZamowienia.NewRow();
                 row["Id"] = 0;
-                row["KlientId"] = khid;  // <-- DODANE - tu jest klucz!
+                row["KlientId"] = khid;
                 row["Odbiorca"] = nazwa;
                 row["Handlowiec"] = handlowiec;
                 row["IloscZamowiona"] = 0m;
@@ -1502,7 +1525,7 @@ namespace Kalendarz1
             dgvZamowienia.ClearSelection();
 
             if (dgvZamowienia.Columns["Id"] != null) dgvZamowienia.Columns["Id"].Visible = false;
-            if (dgvZamowienia.Columns["KlientId"] != null) dgvZamowienia.Columns["KlientId"].Visible = false;  // <-- DODANE
+            if (dgvZamowienia.Columns["KlientId"] != null) dgvZamowienia.Columns["KlientId"].Visible = false;
             if (dgvZamowienia.Columns["MaNotatke"] != null) dgvZamowienia.Columns["MaNotatke"].Visible = false;
             if (dgvZamowienia.Columns["TrybE2"] != null) dgvZamowienia.Columns["TrybE2"].Visible = false;
             if (dgvZamowienia.Columns["DataUboju"] != null) dgvZamowienia.Columns["DataUboju"].Visible = false;
@@ -1622,6 +1645,7 @@ namespace Kalendarz1
                 }
             }
         }
+
         private void dgvZamowienia_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -1703,7 +1727,6 @@ namespace Kalendarz1
 
                 if (status == "Wydanie bez zamówienia")
                 {
-                    // POPRAWKA: używamy KlientId zamiast nazwy Odbiorca
                     var klientId = drv.Row.Field<int>("KlientId");
                     _aktualneIdZamowienia = null;
                     await WyswietlSzczegolyWydaniaBezZamowieniaAsync(klientId, _selectedDate);
@@ -1722,15 +1745,13 @@ namespace Kalendarz1
 
             WyczyscSzczegoly();
         }
-        // ===== POPRAWIONA METODA - TYLKO 2 KOLUMNY DLA WYDAŃ BEZ ZAMÓWIEŃ =====
+
         private async Task WyswietlSzczegolyWydaniaBezZamowieniaAsync(int khId, DateTime dzien)
         {
-            // Tworzymy prostą tabelę z tylko dwoma kolumnami
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Wydano", typeof(decimal));
 
-            // Pobieramy nazwę odbiorcy dla wyświetlenia
             string odbiorcaNazwa = "Nieznany";
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -1742,7 +1763,6 @@ namespace Kalendarz1
                     odbiorcaNazwa = result.ToString() ?? $"KH {khId}";
             }
 
-            // Teraz używamy khId bezpośrednio - nie ma problemu z wyszukiwaniem
             if (khId > 0)
             {
                 await using (var cn = new SqlConnection(_connHandel))
@@ -1775,13 +1795,10 @@ namespace Kalendarz1
                 }
             }
 
-            // Wyświetlamy informację w polu notatek
             txtNotatki.Text = $"📦 Wydanie bez zamówienia\n\nOdbiorca: {odbiorcaNazwa} (ID: {khId})\nData: {dzien:yyyy-MM-dd dddd}\n\nPoniżej lista wydanych produktów (tylko towary z katalogów 67095 i 67153)";
 
-            // Bindujemy tabelę do grida
             dgvSzczegoly.DataSource = dt;
 
-            // Formatowanie kolumn
             if (dgvSzczegoly.Columns["Produkt"] != null)
             {
                 dgvSzczegoly.Columns["Produkt"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -1797,6 +1814,7 @@ namespace Kalendarz1
                 dgvSzczegoly.Columns["Wydano"].Width = 120;
             }
         }
+
         private async Task<Dictionary<int, decimal>> PobierzStanyMagazynowe(DateTime dzien)
         {
             var stany = new Dictionary<int, decimal>();
@@ -2250,8 +2268,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas wczytywania szczegółów zamówienia:\n{ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowError($"Błąd podczas wczytywania szczegółów zamówienia:\n{ex.Message}");
 
                 dgvSzczegoly.DataSource = null;
                 txtNotatki.Clear();
@@ -2286,11 +2303,11 @@ namespace Kalendarz1
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
             {
-                MessageBox.Show("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowInfo("Najpierw wybierz zamówienie do usunięcia.", "Brak wyboru");
                 return;
             }
 
-            var result = MessageBox.Show("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = ShowWarningQuestion("Czy na pewno chcesz TRWALE usunąć wybrane zamówienie? Tej operacji nie można cofnąć.", "Potwierdź usunięcie");
             if (result == DialogResult.Yes)
             {
                 try
@@ -2307,12 +2324,12 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@Id", id);
                         await cmd.ExecuteNonQueryAsync();
                     }
-                    MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowInfo("Zamówienie zostało trwale usunięte.", "Sukces");
                     await OdswiezWszystkieDaneAsync();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ShowError($"Błąd podczas usuwania zamówienia: {ex.Message}", "Błąd krytyczny");
                 }
             }
         }
