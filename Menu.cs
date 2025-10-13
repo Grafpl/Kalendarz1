@@ -152,7 +152,8 @@ namespace Kalendarz1
                 [16] = "UstalanieTranportu",
                 [17] = "ZmianyUHodowcow",
                 [18] = "ProdukcjaPodglad",
-                [19] = "OfertaCenowa"
+                [19] = "OfertaCenowa",
+                [20] = "PlanTygodniowy"  // <-- DODAJ TEN WIERSZ
             };
 
             // The initial reset is now in LoadUserPermissions, so we just apply the grants here
@@ -197,7 +198,8 @@ namespace Kalendarz1
         "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
         "OfertaCenowa",
         "PrognozyUboju",
-        "AnalizaTygodniowa"
+        "AnalizaTygodniowa",
+        "PlanTygodniowy"  // <-- DODAJ TEN WIERSZ
     };
         }
         private void SetupMenuItems()
@@ -229,33 +231,42 @@ namespace Kalendarz1
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
-                {
-                    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
-new MenuItemConfig(
-    "ZamowieniaOdbiorcow",
-    "Zamówienia Mięsa",
-    "Przeglądaj i zarządzaj zamówieniami",
-    Color.FromArgb(30, 136, 229),
-    () => {
-        var window = new Kalendarz1.WPF.MainWindow();
-        window.UserID = App.UserID;
-        return window;
-    },
-    "📦"
-),                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
-                    // --- VVV DODAJ TEN BLOK KODU VVV ---
-        new MenuItemConfig(
-            "AnalizaTygodniowa",
-            "Dashboard Analityczny",
-            "Analizuj bilans produkcji i sprzedaży",
-            Color.FromArgb(216, 27, 96), // Wyrazisty, nowy kolor
-            () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(),
-            "📊"
-        ),
-        // --- ^^^ KONIEC BLOKU DO DODANIA ^^^ ---
-        new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
-                },
+{
+    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
+    new MenuItemConfig(
+        "ZamowieniaOdbiorcow",
+        "Zamówienia Mięsa",
+        "Przeglądaj i zarządzaj zamówieniami",
+        Color.FromArgb(30, 136, 229),
+        () => {
+            var window = new Kalendarz1.WPF.MainWindow();
+            window.UserID = App.UserID;
+            return window;
+        },
+        "📦"
+    ),
+    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
+    // --- DODAJ TEN WPIS ---
+    new MenuItemConfig(
+        "PlanTygodniowy",
+        "Plan Produkcji",
+        "Tygodniowy plan uboju i krojenia",
+        Color.FromArgb(156, 39, 176), // Fioletowy
+        () => new Kalendarz1.TygodniowyPlan(),
+        "📊"
+    ),
+    // --- KONIEC ---
+    new MenuItemConfig(
+        "AnalizaTygodniowa",
+        "Dashboard Analityczny",
+        "Analizuj bilans produkcji i sprzedaży",
+        Color.FromArgb(216, 27, 96),
+        () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(),
+        "📊"
+    ),
+    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+},
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", Color.FromArgb(0, 151, 167), () => new WidokPojemnikiZestawienie(), "📊"),

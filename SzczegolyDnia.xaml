@@ -1,0 +1,786 @@
+﻿<Window x:Class="Kalendarz1.SzczegolyDnia"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szczegóły Dnia - Dostawy" 
+        Height="750" Width="1600"
+        WindowStartupLocation="CenterOwner"
+        Background="White"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style x:Key="DataGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="GridLinesVisibility" Value="All"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="30"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8F9FA"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style x:Key="ColumnHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="#5C8A3A" Padding="15,12">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="SZCZEGÓŁY DNIA: " 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtData" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="5,0,0,0"/>
+                    <TextBlock x:Name="txtDzienTygodnia" 
+                               FontSize="15" 
+                               Foreground="White"
+                               Opacity="0.8"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"/>
+                </StackPanel>
+
+                <Button Content="✕ Zamknij"
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource ButtonStyle}"
+                        Background="#E74C3C"
+                        Width="100"
+                        Click="BtnZamknij_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Podsumowanie dnia -->
+        <Border Grid.Row="1" Background="#ECF0F1" Padding="15,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="LICZBA AUT" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtLiczbaAut" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="#E67E22"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="ŻYWIEC [kg]" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtZywiec" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="#2C3E50"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="SZTUKI" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtSztuki" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="#2C3E50"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="TUSZKA A [kg]" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtTuszkaA" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="#5C8A3A"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="FILET [kg]" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtFilet" 
+                               FontSize="18" 
+                               FontWeight="Bold" 
+                               Foreground="#E67E22"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="5">
+                    <TextBlock Text="STATUS" 
+                               FontSize="9" 
+                               FontWeight="Bold"
+                               Foreground="#7F8C8D"/>
+                    <TextBlock x:Name="txtStatus" 
+                               FontSize="13" 
+                               FontWeight="Bold" 
+                               Foreground="#3498DB"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- KOMPAKTOWE STATYSTYKI POJEMNIKÓW -->
+        <Border Grid.Row="2" 
+                Background="White" 
+                BorderBrush="#BDC3C7" 
+                BorderThickness="0,1,0,1"
+                Padding="15,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Ikona i tytuł -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="📦" 
+                               FontSize="32" 
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="POJEMNIKI" 
+                               FontSize="10" 
+                               FontWeight="Bold"
+                               Foreground="#2C3E50"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="15kg | 36/pal" 
+                               FontSize="8"
+                               Foreground="#7F8C8D"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- MAŁY KURCZAK - kompaktowo -->
+                <Border Grid.Column="2" 
+                        Background="#E3F2FD" 
+                        BorderBrush="#2196F3" 
+                        BorderThickness="2"
+                        CornerRadius="6"
+                        Padding="12,8">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="🔵 MAŁY KURCZAK" 
+                                       FontSize="11" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtMalyProcentKompakt" 
+                                       Text="0%"
+                                       FontSize="14" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Kompaktowa siatka POJ 12-9 -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- POJ 12 -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" 
+                                       Text="12" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" 
+                                       x:Name="txtPoj12Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" 
+                                       x:Name="txtPoj12Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 11 -->
+                            <TextBlock Grid.Row="0" Grid.Column="1" 
+                                       Text="11" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" 
+                                       x:Name="txtPoj11Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" 
+                                       x:Name="txtPoj11Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 10 -->
+                            <TextBlock Grid.Row="0" Grid.Column="2" 
+                                       Text="10" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" 
+                                       x:Name="txtPoj10Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" 
+                                       x:Name="txtPoj10Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 9 -->
+                            <TextBlock Grid.Row="0" Grid.Column="3" 
+                                       Text="9" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" 
+                                       x:Name="txtPoj9Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#1976D2"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" 
+                                       x:Name="txtPoj9Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Suma małego -->
+                        <Border Background="#0D47A1" 
+                                CornerRadius="4" 
+                                Padding="8,4"
+                                Margin="0,8,0,0">
+                            <TextBlock x:Name="txtSumaMalyKompakt" 
+                                       Text="0 poj"
+                                       FontSize="11" 
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- DUŻY KURCZAK - kompaktowo -->
+                <Border Grid.Column="4" 
+                        Background="#FFF3E0" 
+                        BorderBrush="#FF9800" 
+                        BorderThickness="2"
+                        CornerRadius="6"
+                        Padding="12,8">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="🟠 DUŻY KURCZAK" 
+                                       FontSize="11" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtDuzyProcentKompakt" 
+                                       Text="0%"
+                                       FontSize="14" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Kompaktowa siatka POJ 8-5 -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- POJ 8 -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" 
+                                       Text="8" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" 
+                                       x:Name="txtPoj8Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" 
+                                       x:Name="txtPoj8Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 7 -->
+                            <TextBlock Grid.Row="0" Grid.Column="1" 
+                                       Text="7" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" 
+                                       x:Name="txtPoj7Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" 
+                                       x:Name="txtPoj7Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 6 -->
+                            <TextBlock Grid.Row="0" Grid.Column="2" 
+                                       Text="6" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" 
+                                       x:Name="txtPoj6Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" 
+                                       x:Name="txtPoj6Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+
+                            <!-- POJ 5 -->
+                            <TextBlock Grid.Row="0" Grid.Column="3" 
+                                       Text="5" 
+                                       FontSize="9" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="3" 
+                                       x:Name="txtPoj5Kompakt"
+                                       Text="0"
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="#F57C00"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="3" 
+                                       x:Name="txtPoj5Pal"
+                                       Text=""
+                                       FontSize="8"
+                                       Foreground="#7F8C8D"
+                                       HorizontalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Suma dużego -->
+                        <Border Background="#E65100" 
+                                CornerRadius="4" 
+                                Padding="8,4"
+                                Margin="0,8,0,0">
+                            <TextBlock x:Name="txtSumaDuzyKompakt" 
+                                       Text="0 poj"
+                                       FontSize="11" 
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Lista dostaw (hodowców) -->
+        <Border Grid.Row="3" 
+                BorderBrush="#BDC3C7" 
+                BorderThickness="1"
+                Margin="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" 
+                        Background="#ECF0F1" 
+                        Padding="10,8"
+                        BorderBrush="#BDC3C7"
+                        BorderThickness="0,0,0,1">
+                    <TextBlock Text="Lista dostaw od hodowców (sortowane po wadze)" 
+                               FontWeight="SemiBold" 
+                               FontSize="13"/>
+                </Border>
+
+                <DataGrid Grid.Row="1"
+                          x:Name="dgDostawy" 
+                          Style="{StaticResource DataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Lp" 
+                                          Binding="{Binding Lp}" 
+                                          Width="50">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Dostawca / Hodowca" 
+                                          Binding="{Binding Dostawca}" 
+                                          Width="200">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="A" 
+                                          Binding="{Binding Auta}" 
+                                          Width="40">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Waga śr. [kg]" 
+                                          Binding="{Binding WagaDek, StringFormat=F2}" 
+                                          Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Sztuki" 
+                                          Binding="{Binding SztukiDek, StringFormat=N0}" 
+                                          Width="70">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Żywiec [kg]" 
+                                          Binding="{Binding ZywiecKg, StringFormat=N0}" 
+                                          Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Tuszka [kg]" 
+                                          Binding="{Binding TuszkaKg, StringFormat=N0}" 
+                                          Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Tuszka A [kg]" 
+                                          Binding="{Binding TuszkaA, StringFormat=N0}" 
+                                          Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#5C8A3A"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Filet [kg]" 
+                                          Binding="{Binding Filet, StringFormat=N0}" 
+                                          Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#E67E22"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Ćwiartka [kg]" 
+                                          Binding="{Binding Cwiartka, StringFormat=N0}" 
+                                          Width="95">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Skrzydło [kg]" 
+                                          Binding="{Binding Skrzydlo, StringFormat=N0}" 
+                                          Width="95">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 12" 
+                                          Binding="{Binding Pojemniki12}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#3498DB"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 11" 
+                                          Binding="{Binding Pojemniki11}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#3498DB"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 10" 
+                                          Binding="{Binding Pojemniki10}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#3498DB"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 9" 
+                                          Binding="{Binding Pojemniki9}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#3498DB"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 8" 
+                                          Binding="{Binding Pojemniki8}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#E67E22"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 7" 
+                                          Binding="{Binding Pojemniki7}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#E67E22"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 6" 
+                                          Binding="{Binding Pojemniki6}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#E67E22"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="POJ 5" 
+                                          Binding="{Binding Pojemniki5}" 
+                                          Width="55">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#E67E22"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Status" 
+                                          Binding="{Binding Status}" 
+                                          Width="*"
+                                          MinWidth="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontSize" Value="10"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- Stopka -->
+        <Border Grid.Row="4" Background="#34495E" Padding="15,10">
+            <Grid>
+                <TextBlock Foreground="White" 
+                           FontSize="11"
+                           VerticalAlignment="Center">
+                    <Run Text="💡 Statystyki pojemników:"/>
+                    <Run Text="🔵 MAŁY (POJ 12-9) | 🟠 DUŻY (POJ 8-5)" FontWeight="Bold"/>
+                </TextBlock>
+
+                <StackPanel Orientation="Horizontal" 
+                            HorizontalAlignment="Right">
+                    <Button Content="📋 Kopiuj listę"
+                            Style="{StaticResource ButtonStyle}"
+                            Background="#3498DB"
+                            Width="120"
+                            Click="BtnKopiuj_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
