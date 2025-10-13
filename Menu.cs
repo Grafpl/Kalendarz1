@@ -231,8 +231,18 @@ namespace Kalendarz1
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
-                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
-                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+new MenuItemConfig(
+    "ZamowieniaOdbiorcow",
+    "Zamówienia Mięsa",
+    "Przeglądaj i zarządzaj zamówieniami",
+    Color.FromArgb(30, 136, 229),
+    () => {
+        var window = new Kalendarz1.WPF.MainWindow();
+        window.UserID = App.UserID;
+        return window;
+    },
+    "📦"
+),                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
                     new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
                     // --- VVV DODAJ TEN BLOK KODU VVV ---
         new MenuItemConfig(
