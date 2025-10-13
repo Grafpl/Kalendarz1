@@ -28,103 +28,148 @@
         /// </summary>
         private void InitializeComponent()
         {
-            dataGridViewKalendarz = new System.Windows.Forms.DataGridView();
-            dataGridViewPartie = new System.Windows.Forms.DataGridView();
-            CommandButton_Insert = new System.Windows.Forms.Button();
-            nieUzupelnione = new System.Windows.Forms.CheckBox();
-            label18 = new System.Windows.Forms.Label();
-            textBoxSearch = new System.Windows.Forms.TextBox();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).BeginInit();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
+            dgvContracts = new System.Windows.Forms.DataGridView();
+            btnAddContract = new System.Windows.Forms.Button();
+            chkShowOnlyIncomplete = new System.Windows.Forms.CheckBox();
+            lblSearch = new System.Windows.Forms.Label();
+            txtSearch = new System.Windows.Forms.TextBox();
+            panelTop = new System.Windows.Forms.Panel();
+            ((System.ComponentModel.ISupportInitialize)dgvContracts).BeginInit();
+            panelTop.SuspendLayout();
             SuspendLayout();
             // 
-            // dataGridViewKalendarz
+            // dgvContracts
             // 
-            dataGridViewKalendarz.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewKalendarz.Location = new System.Drawing.Point(12, 81);
-            dataGridViewKalendarz.Name = "dataGridViewKalendarz";
-            dataGridViewKalendarz.RowHeadersVisible = false;
-            dataGridViewKalendarz.RowTemplate.Height = 25;
-            dataGridViewKalendarz.Size = new System.Drawing.Size(1570, 757);
-            dataGridViewKalendarz.TabIndex = 116;
+            dgvContracts.AllowUserToAddRows = false;
+            dgvContracts.AllowUserToDeleteRows = false;
+            dgvContracts.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            dgvContracts.BackgroundColor = System.Drawing.Color.White;
+            dgvContracts.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            dgvContracts.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
+            dgvContracts.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(92, 138, 58);
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 238);
+            dataGridViewCellStyle1.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.Color.FromArgb(92, 138, 58);
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            dgvContracts.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dgvContracts.ColumnHeadersHeight = 40;
+            dgvContracts.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9F);
+            dataGridViewCellStyle2.ForeColor = System.Drawing.Color.FromArgb(44, 62, 80);
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(75, 115, 47);
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            dgvContracts.DefaultCellStyle = dataGridViewCellStyle2;
+            dgvContracts.EnableHeadersVisualStyles = false;
+            dgvContracts.GridColor = System.Drawing.Color.FromArgb(224, 224, 224);
+            dgvContracts.Location = new System.Drawing.Point(0, 81);
+            dgvContracts.Name = "dgvContracts";
+            dgvContracts.RowHeadersVisible = false;
+            dgvContracts.RowTemplate.Height = 30;
+            dgvContracts.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            dgvContracts.Size = new System.Drawing.Size(1594, 769);
+            dgvContracts.TabIndex = 116;
             // 
-            // dataGridViewPartie
+            // btnAddContract
             // 
-            dataGridViewPartie.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewPartie.Location = new System.Drawing.Point(1161, 45);
-            dataGridViewPartie.Name = "dataGridViewPartie";
-            dataGridViewPartie.RowHeadersVisible = false;
-            dataGridViewPartie.RowTemplate.Height = 25;
-            dataGridViewPartie.Size = new System.Drawing.Size(421, 30);
-            dataGridViewPartie.TabIndex = 117;
+            btnAddContract.BackColor = System.Drawing.Color.FromArgb(92, 138, 58);
+            btnAddContract.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(92, 138, 58);
+            btnAddContract.FlatAppearance.BorderSize = 0;
+            btnAddContract.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnAddContract.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, 238);
+            btnAddContract.ForeColor = System.Drawing.Color.White;
+            btnAddContract.Location = new System.Drawing.Point(22, 12);
+            btnAddContract.Name = "btnAddContract";
+            btnAddContract.Size = new System.Drawing.Size(150, 55);
+            btnAddContract.TabIndex = 154;
+            btnAddContract.Text = "Dodaj umowę";
+            btnAddContract.UseVisualStyleBackColor = false;
+            btnAddContract.Click += CommandButton_Insert_Click;
             // 
-            // CommandButton_Insert
+            // chkShowOnlyIncomplete
             // 
-            CommandButton_Insert.BackColor = System.Drawing.Color.Lime;
-            CommandButton_Insert.Location = new System.Drawing.Point(12, 12);
-            CommandButton_Insert.Name = "CommandButton_Insert";
-            CommandButton_Insert.Size = new System.Drawing.Size(116, 63);
-            CommandButton_Insert.TabIndex = 154;
-            CommandButton_Insert.Text = "Dodaj umowe";
-            CommandButton_Insert.UseVisualStyleBackColor = false;
-            CommandButton_Insert.Click += CommandButton_Insert_Click;
+            chkShowOnlyIncomplete.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            chkShowOnlyIncomplete.AutoSize = true;
+            chkShowOnlyIncomplete.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 238);
+            chkShowOnlyIncomplete.ForeColor = System.Drawing.Color.FromArgb(44, 62, 80);
+            chkShowOnlyIncomplete.Location = new System.Drawing.Point(361, 44);
+            chkShowOnlyIncomplete.Name = "chkShowOnlyIncomplete";
+            chkShowOnlyIncomplete.Size = new System.Drawing.Size(152, 21);
+            chkShowOnlyIncomplete.TabIndex = 155;
+            chkShowOnlyIncomplete.Text = "Pokaż nieuzupełnione";
+            chkShowOnlyIncomplete.UseVisualStyleBackColor = true;
+            chkShowOnlyIncomplete.CheckedChanged += nieUzupelnione_CheckedChanged;
             // 
-            // nieUzupelnione
+            // lblSearch
             // 
-            nieUzupelnione.AutoSize = true;
-            nieUzupelnione.Location = new System.Drawing.Point(503, 56);
-            nieUzupelnione.Name = "nieUzupelnione";
-            nieUzupelnione.Size = new System.Drawing.Size(112, 19);
-            nieUzupelnione.TabIndex = 155;
-            nieUzupelnione.Text = "Nie uzupełnione";
-            nieUzupelnione.UseVisualStyleBackColor = true;
-            nieUzupelnione.CheckedChanged += nieUzupelnione_CheckedChanged;
+            lblSearch.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            lblSearch.AutoSize = true;
+            lblSearch.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 238);
+            lblSearch.ForeColor = System.Drawing.Color.FromArgb(127, 140, 141);
+            lblSearch.Location = new System.Drawing.Point(185, 12);
+            lblSearch.Name = "lblSearch";
+            lblSearch.Size = new System.Drawing.Size(161, 15);
+            lblSearch.TabIndex = 157;
+            lblSearch.Text = "Szukaj po dostawcy lub dacie";
+            lblSearch.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // label18
+            // txtSearch
             // 
-            label18.Location = new System.Drawing.Point(134, 17);
-            label18.Name = "label18";
-            label18.Size = new System.Drawing.Size(100, 25);
-            label18.TabIndex = 157;
-            label18.Text = "Szukaj";
-            label18.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            txtSearch.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            txtSearch.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 238);
+            txtSearch.Location = new System.Drawing.Point(185, 40);
+            txtSearch.Name = "txtSearch";
+            txtSearch.Size = new System.Drawing.Size(170, 27);
+            txtSearch.TabIndex = 156;
+            txtSearch.TextChanged += textBoxSearch_TextChanged;
             // 
-            // textBoxSearch
+            // panelTop
             // 
-            textBoxSearch.Location = new System.Drawing.Point(134, 45);
-            textBoxSearch.Name = "textBoxSearch";
-            textBoxSearch.Size = new System.Drawing.Size(100, 23);
-            textBoxSearch.TabIndex = 156;
-            textBoxSearch.TextChanged += textBoxSearch_TextChanged;
+            panelTop.BackColor = System.Drawing.Color.White;
+            panelTop.Controls.Add(btnAddContract);
+            panelTop.Controls.Add(lblSearch);
+            panelTop.Controls.Add(chkShowOnlyIncomplete);
+            panelTop.Controls.Add(txtSearch);
+            panelTop.Dock = System.Windows.Forms.DockStyle.Top;
+            panelTop.Location = new System.Drawing.Point(0, 0);
+            panelTop.Name = "panelTop";
+            panelTop.Size = new System.Drawing.Size(1594, 81);
+            panelTop.TabIndex = 158;
             // 
             // SprawdzalkaUmow
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(1594, 850);
-            Controls.Add(label18);
-            Controls.Add(textBoxSearch);
-            Controls.Add(nieUzupelnione);
-            Controls.Add(CommandButton_Insert);
-            Controls.Add(dataGridViewPartie);
-            Controls.Add(dataGridViewKalendarz);
+            Controls.Add(panelTop);
+            Controls.Add(dgvContracts);
+            Font = new System.Drawing.Font("Segoe UI", 9F);
             Name = "SprawdzalkaUmow";
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            Text = "SprawdzalkaUmow";
+            Text = "Sprawdzarka Umów";
             WindowState = System.Windows.Forms.FormWindowState.Maximized;
-            ((System.ComponentModel.ISupportInitialize)dataGridViewKalendarz).EndInit();
-            ((System.ComponentModel.ISupportInitialize)dataGridViewPartie).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dgvContracts).EndInit();
+            panelTop.ResumeLayout(false);
+            panelTop.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
+
         }
 
         #endregion
 
-        private System.Windows.Forms.DataGridView dataGridViewKalendarz;
-        private System.Windows.Forms.DataGridView dataGridViewPartie;
-        private System.Windows.Forms.Button CommandButton_Insert;
-        private System.Windows.Forms.CheckBox nieUzupelnione;
-        private System.Windows.Forms.Label label18;
-        private System.Windows.Forms.TextBox textBoxSearch;
+        private System.Windows.Forms.DataGridView dgvContracts;
+        private System.Windows.Forms.Button btnAddContract;
+        private System.Windows.Forms.CheckBox chkShowOnlyIncomplete;
+        private System.Windows.Forms.Label lblSearch;
+        private System.Windows.Forms.TextBox txtSearch;
+        private System.Windows.Forms.Panel panelTop;
     }
 }

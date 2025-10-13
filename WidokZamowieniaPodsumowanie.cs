@@ -864,12 +864,11 @@ namespace Kalendarz1
         private async void btnNoweZamowienie_Click(object? sender, EventArgs e)
         {
             var widokZamowienia = new WidokZamowienia(UserID, null);
-            if (widokZamowienia.ShowDialog() == true)
+            if (widokZamowienia.ShowDialog() == DialogResult.OK)
             {
                 await OdswiezWszystkieDaneAsync();
             }
         }
-
 
         private async void btnModyfikuj_Click(object? sender, EventArgs e)
         {
@@ -880,12 +879,11 @@ namespace Kalendarz1
             }
 
             var widokZamowienia = new WidokZamowienia(UserID, id);
-            if (widokZamowienia.ShowDialog() == true)
+            if (widokZamowienia.ShowDialog() == DialogResult.OK)
             {
                 await OdswiezWszystkieDaneAsync();
             }
         }
-
         private async void btnDodajNotatke_Click(object? sender, EventArgs e)
         {
             if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0)
@@ -1618,13 +1616,12 @@ namespace Kalendarz1
             {
                 if (!TrySetAktualneIdZamowieniaFromGrid(out var id) || id <= 0) return;
                 var widokZamowienia = new WidokZamowienia(UserID, id);
-                if (widokZamowienia.ShowDialog() == true)
+                if (widokZamowienia.ShowDialog() == DialogResult.OK)
                 {
                     await OdswiezWszystkieDaneAsync();
                 }
             }
         }
-
         private void dgvZamowienia_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;

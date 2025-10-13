@@ -1,0 +1,513 @@
+﻿<Window x:Class="Kalendarz1.SzczegolyDokumentuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szczegóły faktury" 
+        Height="900" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F5F7FA">
+
+    <Window.Resources>
+        <Style x:Key="ModernCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" BlurRadius="8" Opacity="0.2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CompactInfoLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#7f8c8d"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+
+        <Style x:Key="CompactInfoValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#2c3e50"/>
+        </Style>
+
+        <Style x:Key="StatCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="15,12"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="1" BlurRadius="6" Opacity="0.15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Background="#5C8A3A" Padding="25,18">
+            <Grid>
+                <StackPanel>
+                    <TextBlock x:Name="txtNumerDokumentu" 
+                               Text="📄 Faktura: ..."
+                               FontSize="22" FontWeight="Bold" 
+                               Foreground="White"/>
+                    <TextBlock Text="Szczegółowa analiza dokumentu sprzedaży" 
+                               FontSize="12" 
+                               Foreground="#E0F0D6" 
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PANEL INFORMACJI - KOMPAKTOWY -->
+        <Border Grid.Row="1" Style="{StaticResource ModernCard}" Margin="15,12,15,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Wiersz 1 -->
+                <StackPanel Grid.Column="0" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="📅 Data wystawienia" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtDataWystawienia" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="⏰ Termin płatności" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtTerminPlatnosci" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="📆 Termin (dni)" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtDniTerminu" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="⏳ Do terminu" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtDniDoTerminu" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="💵 Wartość netto" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtWartoscNetto" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="5" Grid.Row="0" Margin="8,5">
+                    <TextBlock Text="💰 Wartość brutto" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtWartoscBrutto" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <!-- Wiersz 2 -->
+                <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" Margin="8,8,8,5">
+                    <TextBlock Text="🏢 Kontrahent" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtKontrahent" Text="---" 
+                               Style="{StaticResource CompactInfoValue}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Grid.Row="1" Margin="8,8,8,5">
+                    <TextBlock Text="👤 Handlowiec" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtHandlowiec" Text="---" Style="{StaticResource CompactInfoValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Grid.ColumnSpan="3" Grid.Row="1" Margin="8,8,8,5">
+                    <TextBlock Text="💳 Status płatności" Style="{StaticResource CompactInfoLabel}"/>
+                    <TextBlock x:Name="txtStatusPlatnosci" Text="---" 
+                               FontSize="14" FontWeight="Bold"
+                               Foreground="#5C8A3A"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <Grid Grid.Row="2" Margin="15,5,15,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*" MinWidth="350" MaxWidth="450"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- POZYCJE FAKTURY -->
+            <Border Grid.Column="0" Style="{StaticResource ModernCard}" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="📦 Pozycje faktury" 
+                               FontSize="15" FontWeight="Bold" 
+                               Foreground="#2c3e50"
+                               Margin="0,0,0,12"/>
+
+                    <DataGrid Grid.Row="1" 
+                              x:Name="dgPozycje"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              RowHeight="36"
+                              ColumnHeaderHeight="42"
+                              AlternatingRowBackground="#f8f9fa"
+                              Background="White"
+                              BorderThickness="0">
+
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#5C8A3A"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Padding" Value="10"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Padding" Value="8"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FontSize" Value="12"/>
+                            </Style>
+                        </DataGrid.Resources>
+
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="50">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Kod Towaru / Opis" 
+                                                Binding="{Binding KodTowaru}" 
+                                                Width="*" MinWidth="250">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                        <Setter Property="Padding" Value="6"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Ilość" Binding="{Binding IloscFormatted}" Width="100">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Cena" Binding="{Binding CenaFormatted}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding WartoscFormatted}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#5C8A3A"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Udział %" Binding="{Binding UdzialProcentowy}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="#3498db"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- PANEL ANALITYCZNY -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8,0,0,0">
+
+                    <!-- PODSTAWOWE STATYSTYKI -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="📊 Statystyki" 
+                                       FontSize="14" FontWeight="Bold" 
+                                       Foreground="#2c3e50" Margin="0,0,0,12"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Wartość całkowita -->
+                                <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,5">
+                                    <TextBlock Text="💰 Wartość" FontSize="10" Foreground="#7f8c8d"/>
+                                    <TextBlock x:Name="txtStatWartoscCalk" Text="0.00 zł" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#5C8A3A"/>
+                                </StackPanel>
+
+                                <!-- Liczba pozycji -->
+                                <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,5">
+                                    <TextBlock Text="📦 Pozycje" FontSize="10" Foreground="#7f8c8d"/>
+                                    <TextBlock x:Name="txtStatLiczbaPozycji" Text="0" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#3498db"/>
+                                </StackPanel>
+
+                                <!-- Suma ilości -->
+                                <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,5">
+                                    <TextBlock Text="⚖ Suma kg" FontSize="10" Foreground="#7f8c8d"/>
+                                    <TextBlock x:Name="txtStatSumaIlosci" Text="0.00 kg" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#16a085"/>
+                                </StackPanel>
+
+                                <!-- Średnia cena -->
+                                <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,5">
+                                    <TextBlock Text="📊 Śr. cena" FontSize="10" Foreground="#7f8c8d"/>
+                                    <TextBlock x:Name="txtStatSredniaCena" Text="0.00 zł/kg" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#f39c12"/>
+                                </StackPanel>
+
+                                <!-- Średnia wartość pozycji -->
+                                <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Margin="0,5">
+                                    <TextBlock Text="📈 Średnia wartość pozycji" FontSize="10" Foreground="#7f8c8d"/>
+                                    <TextBlock x:Name="txtStatSredniaWartoscPozycji" Text="0.00 zł" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#9b59b6"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- TOP 3 NAJWAŻNIEJSZE POZYCJE -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="🏆 Top 3 pozycje" 
+                                       FontSize="14" FontWeight="Bold" 
+                                       Foreground="#2c3e50" Margin="0,0,0,12"/>
+
+                            <ItemsControl x:Name="icTop3Pozycje">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#f8f9fa" 
+                                                CornerRadius="4" 
+                                                Padding="10,8" 
+                                                Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" 
+                                                           Text="{Binding Ranking}" 
+                                                           FontSize="18" 
+                                                           FontWeight="Bold" 
+                                                           Foreground="#5C8A3A"
+                                                           Margin="0,0,10,0"/>
+
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Nazwa}" 
+                                                               FontSize="11" 
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Szczegoly}" 
+                                                               FontSize="9" 
+                                                               Foreground="#7f8c8d"/>
+                                                </StackPanel>
+
+                                                <TextBlock Grid.Column="2" 
+                                                           Text="{Binding Udzial}" 
+                                                           FontSize="13" 
+                                                           FontWeight="Bold" 
+                                                           Foreground="#3498db"
+                                                           VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ANALIZA STRUKTURY -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="🔍 Analiza struktury" 
+                                       FontSize="14" FontWeight="Bold" 
+                                       Foreground="#2c3e50" Margin="0,0,0,12"/>
+
+                            <StackPanel>
+                                <TextBlock Text="📊 Indeks koncentracji" 
+                                           FontSize="10" Foreground="#7f8c8d" Margin="0,0,0,4"/>
+                                <Grid>
+                                    <ProgressBar x:Name="pbKoncentracja" 
+                                                 Height="20" 
+                                                 Background="#ecf0f1"
+                                                 Foreground="#5C8A3A"
+                                                 Minimum="0" Maximum="100"/>
+                                    <TextBlock x:Name="txtKoncentracja" 
+                                               Text="0%" 
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontSize="11" 
+                                               FontWeight="Bold"
+                                               Foreground="White"/>
+                                </Grid>
+                                <TextBlock x:Name="txtKoncentracjaOpis" 
+                                           Text="Równomierny rozkład wartości" 
+                                           FontSize="10" 
+                                           Foreground="#5C8A3A"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <Separator Margin="0,15"/>
+
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock Text="💎 Rozpiętość cen" 
+                                           FontSize="10" Foreground="#7f8c8d" Margin="0,0,0,4"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Min" FontSize="9" Foreground="#7f8c8d"/>
+                                        <TextBlock x:Name="txtMinCena" Text="0.00 zł" 
+                                                   FontSize="12" FontWeight="Bold" Foreground="#e74c3c"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="1" Text="→" 
+                                               FontSize="16" Foreground="#7f8c8d" 
+                                               Margin="10,8,10,0"/>
+
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Max" FontSize="9" Foreground="#7f8c8d" TextAlignment="Right"/>
+                                        <TextBlock x:Name="txtMaxCena" Text="0.00 zł" 
+                                                   FontSize="12" FontWeight="Bold" Foreground="#27ae60" TextAlignment="Right"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- DODATKOWE INFORMACJE -->
+                    <Border Style="{StaticResource ModernCard}">
+                        <StackPanel>
+                            <TextBlock Text="ℹ Informacje dodatkowe" 
+                                       FontSize="14" FontWeight="Bold" 
+                                       Foreground="#2c3e50" Margin="0,0,0,12"/>
+
+                            <StackPanel Margin="0,5">
+                                <TextBlock Text="📌 Najdroższa pozycja" FontSize="10" Foreground="#7f8c8d"/>
+                                <TextBlock x:Name="txtStatNajdrozsza" Text="---" 
+                                           FontSize="11" FontWeight="SemiBold" 
+                                           TextWrapping="Wrap" Foreground="#e74c3c"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,8,0,5">
+                                <TextBlock Text="📌 Najtańsza pozycja" FontSize="10" Foreground="#7f8c8d"/>
+                                <TextBlock x:Name="txtStatNajtansza" Text="---" 
+                                           FontSize="11" FontWeight="SemiBold" 
+                                           TextWrapping="Wrap" Foreground="#9b59b6"/>
+                            </StackPanel>
+
+                            <Separator Margin="0,10"/>
+
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock x:Name="txtDiagnoza" 
+                                           Text="💡 Faktura zawiera zróżnicowany asortyment produktów." 
+                                           FontSize="11" 
+                                           Foreground="#5C8A3A"
+                                           TextWrapping="Wrap"
+                                           FontStyle="Italic"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- PRZYCISKI -->
+        <Border Grid.Row="3" Background="#ecf0f1" 
+                BorderBrush="#bdc3c7" BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="📊 Eksportuj CSV" 
+                        Style="{StaticResource ActionButton}"
+                        Background="#5C8A3A"
+                        Click="BtnEksportuj_Click"/>
+                <Button Content="🖨 Drukuj" 
+                        Style="{StaticResource ActionButton}"
+                        Background="#3498db"
+                        Click="BtnDrukuj_Click"/>
+                <Button Content="✖ Zamknij" 
+                        Style="{StaticResource ActionButton}"
+                        Background="#95a5a6"
+                        Click="BtnZamknij_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

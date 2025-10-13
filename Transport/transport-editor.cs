@@ -2375,12 +2375,11 @@ namespace Kalendarz1.Transport.Formularze
             if (zamowienie == null) return;
 
             var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamowienie.ZamowienieId);
-            if (widokZamowienia.ShowDialog() == true)
+            if (widokZamowienia.ShowDialog() == DialogResult.OK)
             {
                 await LoadWolneZamowienia();
             }
         }
-
         private async Task PokazSzczegolyZamowienia()
         {
             if (dgvWolneZamowienia.CurrentRow == null) return;
@@ -2417,7 +2416,7 @@ Adres: {zamowienie.Adres}";
                 var zamId = int.Parse(ladunek.KodKlienta.Substring(4));
 
                 var widokZamowienia = new WidokZamowienia(UserID ?? _uzytkownik, zamId);
-                if (widokZamowienia.ShowDialog() == true)
+                if (widokZamowienia.ShowDialog() == DialogResult.OK)
                 {
                     await CheckForZamowieniaUpdates();
                     await LoadWolneZamowienia();
@@ -2428,8 +2427,7 @@ Adres: {zamowienie.Adres}";
                 MessageBox.Show("Ta pozycja nie jest powiązana z zamówieniem.",
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-        }
-        #endregion
+        }       
 
         #region Zapis
 
@@ -2740,3 +2738,4 @@ Adres: {zamowienie.Adres}";
         }
     }
 }
+#endregion

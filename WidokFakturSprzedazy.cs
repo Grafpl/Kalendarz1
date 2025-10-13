@@ -2886,14 +2886,12 @@ ORDER BY Dzien ASC;";
                     int idDokumentu = Convert.ToInt32(selectedRow.Cells["ID"].Value);
                     string numerDokumentu = selectedRow.Cells["NumerDokumentu"].Value?.ToString() ?? "Nieznany";
 
-                    using (var szczegoly = new SzczegolyDokumentuForm(connectionString, idDokumentu, numerDokumentu))
-                    {
-                        szczegoly.ShowDialog(this);
-                    }
+                    // ✅ ZMIANA: WPF okno
+                    var windowSzczegoly = new SzczegolyDokumentuWindow(connectionString, idDokumentu, numerDokumentu);
+                    windowSzczegoly.ShowDialog();
                 }
             }
         }
-
         private void MenuAnaliza_Click(object? sender, EventArgs e)
         {
             if (dataGridViewOdbiorcy.SelectedRows.Count > 0)
@@ -3635,25 +3633,18 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
         // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności
         private void DataGridViewPlatnosci_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Sprawdzenie, czy kliknięto prawidłowy wiersz (nie nagłówek)
-            if (e.RowIndex < 0)
-            {
-                return;
-            }
+            if (e.RowIndex < 0) return;
 
             var row = dataGridViewPlatnosci.Rows[e.RowIndex];
             var kontrahentCellValue = row.Cells["Kontrahent"].Value;
 
-            // Sprawdzenie, czy to nie jest wiersz sumy
             if (kontrahentCellValue != null && kontrahentCellValue.ToString() != "📊 SUMA")
             {
                 string nazwaKontrahenta = kontrahentCellValue.ToString();
 
-                // Utworzenie i wyświetlenie nowego okna ze szczegółami
-                using (var formSzczegoly = new FormSzczegolyPlatnosci(connectionString, nazwaKontrahenta))
-                {
-                    formSzczegoly.ShowDialog(this);
-                }
+                // Otwórz nowe okno WPF
+                var okno = new SzczegolyPlatnosciWindow(connectionString, nazwaKontrahenta);
+                okno.ShowDialog();
             }
         }
     }

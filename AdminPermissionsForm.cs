@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
@@ -15,88 +16,272 @@ namespace Kalendarz1
         private DataGridView permissionsGrid;
         private ComboBox userComboBox;
         private TextBox searchBox;
-        private Button saveButton;
-        private Button addUserButton;
-        private Button deleteUserButton;
-        private Button refreshButton;
-        private Panel topPanel;
-        private Panel leftPanel;
-        private Panel rightPanel;
-        private Label titleLabel;
+        private Button saveButton, refreshButton, addUserButton, deleteUserButton;
+        private Panel topPanel, leftPanel, rightPanel, bottomPanel;
+        private Label titleLabel, usersCountLabel;
         private string selectedUserId;
+        private FlowLayoutPanel categoryCheckboxesPanel;
+        private ProgressBar loadingBar;
+
+        private static class Colors
+        {
+            public static readonly Color Primary = ColorTranslator.FromHtml("#5C8A3A");
+            public static readonly Color PrimaryDark = ColorTranslator.FromHtml("#4B732F");
+            public static readonly Color PrimaryLight = ColorTranslator.FromHtml("#E0F0D6");
+            public static readonly Color TextDark = ColorTranslator.FromHtml("#2C3E50");
+            public static readonly Color TextGray = ColorTranslator.FromHtml("#7F8C8D");
+            public static readonly Color Border = ColorTranslator.FromHtml("#BDC3C7");
+            public static readonly Color Background = ColorTranslator.FromHtml("#ECF0F1");
+            public static readonly Color Success = ColorTranslator.FromHtml("#27AE60");
+            public static readonly Color Danger = ColorTranslator.FromHtml("#E74C3C");
+            public static readonly Color Warning = ColorTranslator.FromHtml("#F39C12");
+            public static readonly Color Info = ColorTranslator.FromHtml("#3498DB");
+        }
 
         public AdminPermissionsForm()
         {
             InitializeComponent();
             InitializeCustomComponents();
             LoadUsers();
-            ApplyModernStyle();
         }
 
         private void InitializeComponent()
         {
             this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami";
-            this.Size = new Size(1200, 700);
+            this.Size = new Size(1500, 850);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.BackColor = Colors.Background;
+
+            // Rounded form
+            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 20, 20));
         }
+
+        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
+        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
         private void InitializeCustomComponents()
         {
-            // Panel górny
+            // ========== TOP PANEL ==========
             topPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
-                BackColor = Color.FromArgb(41, 53, 65)
+                Height = 90,
+                BackColor = Colors.Primary
             };
 
             titleLabel = new Label
             {
-                Text = "⚙ PANEL ADMINISTRACYJNY - ZARZĄDZANIE UPRAWNIENIAMI",
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
+                Text = "⚙️ PANEL ADMINISTRACYJNY",
+                Font = new Font("Segoe UI", 22, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(30, 25)
+                Location = new Point(35, 20)
             };
             topPanel.Controls.Add(titleLabel);
 
-            // Panel lewy - lista użytkowników
+            var subtitleLabel = new Label
+            {
+                Text = "Zarządzanie użytkownikami i uprawnieniami systemowymi",
+                Font = new Font("Segoe UI", 11),
+                ForeColor = Colors.PrimaryLight,
+                AutoSize = true,
+                Location = new Point(38, 55)
+            };
+            topPanel.Controls.Add(subtitleLabel);
+
+            var closeButton = new Button
+            {
+                Text = "✕",
+                Size = new Size(40, 40),
+                Location = new Point(this.Width - 60, 25),
+                BackColor = Color.Transparent,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 16),
+                Cursor = Cursors.Hand
+            };
+            closeButton.FlatAppearance.BorderSize = 0;
+            closeButton.FlatAppearance.MouseOverBackColor = Colors.Danger;
+            closeButton.Click += (s, e) => this.Close();
+            topPanel.Controls.Add(closeButton);
+
+            // ========== LEFT PANEL ==========
             leftPanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 400,
-                BackColor = Color.FromArgb(245, 245, 245),
-                Padding = new Padding(20)
+                Width = 450,
+                BackColor = Color.White,
+                Padding = new Padding(25, 20, 25, 20)
             };
 
             var usersLabel = new Label
             {
-                Text = "UŻYTKOWNICY SYSTEMU",
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                ForeColor = Color.FromArgb(55, 71, 79),
-                Location = new Point(20, 20),
+                Text = "👥 UŻYTKOWNICY SYSTEMU",
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                ForeColor = Colors.TextDark,
+                Location = new Point(25, 20),
                 AutoSize = true
             };
             leftPanel.Controls.Add(usersLabel);
 
-            // Pole wyszukiwania
+            usersCountLabel = new Label
+            {
+                Text = "Ładowanie...",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Colors.TextGray,
+                Location = new Point(28, 48),
+                AutoSize = true
+            };
+            leftPanel.Controls.Add(usersCountLabel);
+
+            // Search box
             searchBox = new TextBox
             {
-                Location = new Point(20, 50),
-                Size = new Size(360, 30),
-                Font = new Font("Segoe UI", 11),
-                PlaceholderText = "🔍 Szukaj użytkownika..."
+                Location = new Point(25, 75),
+                Size = new Size(400, 35),
+                Font = new Font("Segoe UI", 12),
+                PlaceholderText = "🔍 Szukaj użytkownika (ID lub nazwa)...",
+                BorderStyle = BorderStyle.FixedSingle
             };
             searchBox.TextChanged += SearchBox_TextChanged;
             leftPanel.Controls.Add(searchBox);
 
-            // Grid z użytkownikami
-            usersGrid = new DataGridView
+            // Users grid
+            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 450));
+            usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
+            usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
+            leftPanel.Controls.Add(usersGrid);
+
+            // Buttons
+            var buttonY = 580;
+            addUserButton = CreateStyledButton("➕ Nowy użytkownik", Colors.Success,
+                new Point(25, buttonY), new Size(195, 48));
+            addUserButton.Click += AddUserButton_Click;
+            leftPanel.Controls.Add(addUserButton);
+
+            deleteUserButton = CreateStyledButton("🗑️ Usuń użytkownika", Colors.Danger,
+                new Point(230, buttonY), new Size(195, 48));
+            deleteUserButton.Click += DeleteUserButton_Click;
+            leftPanel.Controls.Add(deleteUserButton);
+
+            // Loading bar
+            loadingBar = new ProgressBar
             {
-                Location = new Point(20, 90),
-                Size = new Size(360, 400),
+                Location = new Point(25, 638),
+                Size = new Size(400, 6),
+                Style = ProgressBarStyle.Marquee,
+                MarqueeAnimationSpeed = 30,
+                Visible = false
+            };
+            leftPanel.Controls.Add(loadingBar);
+
+            // ========== RIGHT PANEL ==========
+            rightPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Colors.Background,
+                Padding = new Padding(25, 20, 25, 20)
+            };
+
+            var permissionsLabel = new Label
+            {
+                Text = "🔐 UPRAWNIENIA UŻYTKOWNIKA",
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                ForeColor = Colors.TextDark,
+                Location = new Point(25, 20),
+                AutoSize = true
+            };
+            rightPanel.Controls.Add(permissionsLabel);
+
+            // User info
+            userComboBox = new ComboBox
+            {
+                Location = new Point(25, 55),
+                Size = new Size(350, 35),
+                Font = new Font("Segoe UI", 11),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Enabled = false,
+                FlatStyle = FlatStyle.Flat
+            };
+            rightPanel.Controls.Add(userComboBox);
+
+            // Category checkboxes
+            categoryCheckboxesPanel = new FlowLayoutPanel
+            {
+                Location = new Point(390, 55),
+                Size = new Size(620, 80),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                BackColor = Color.White,
+                Padding = new Padding(10)
+            };
+
+            var categoryLabel = new Label
+            {
+                Text = "⚡ Szybkie zaznaczanie:",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Colors.TextDark,
+                AutoSize = true,
+                Margin = new Padding(5, 10, 15, 5)
+            };
+            categoryCheckboxesPanel.Controls.Add(categoryLabel);
+
+            CreateCategoryCheckbox("Zaopatrzenie", Colors.Success);
+            CreateCategoryCheckbox("Produkcja", Colors.Warning);
+            CreateCategoryCheckbox("Sprzedaż", Colors.Info);
+            CreateCategoryCheckbox("Opakowania", ColorTranslator.FromHtml("#00BCD4"));
+            CreateCategoryCheckbox("Finanse", Colors.TextGray);
+
+            rightPanel.Controls.Add(categoryCheckboxesPanel);
+
+            // Permissions grid
+            permissionsGrid = CreateStyledGrid(new Point(25, 145), new Size(985, 430));
+            rightPanel.Controls.Add(permissionsGrid);
+
+            // Bottom buttons
+            bottomPanel = new Panel
+            {
+                Location = new Point(25, 585),
+                Size = new Size(985, 60),
+                BackColor = Color.Transparent
+            };
+
+            saveButton = CreateStyledButton("💾 Zapisz zmiany", Colors.Primary,
+                new Point(0, 0), new Size(200, 55));
+            saveButton.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            saveButton.Click += SaveButton_Click;
+            bottomPanel.Controls.Add(saveButton);
+
+            refreshButton = CreateStyledButton("🔄 Odśwież", Colors.TextGray,
+                new Point(210, 0), new Size(170, 55));
+            refreshButton.Click += RefreshButton_Click;
+            bottomPanel.Controls.Add(refreshButton);
+
+            var selectAllButton = CreateStyledButton("✓ Zaznacz wszystkie", Colors.Success,
+                new Point(390, 0), new Size(200, 55));
+            selectAllButton.Click += (s, e) => SetAllPermissions(true);
+            bottomPanel.Controls.Add(selectAllButton);
+
+            var deselectAllButton = CreateStyledButton("✗ Odznacz wszystkie", Colors.Danger,
+                new Point(600, 0), new Size(200, 55));
+            deselectAllButton.Click += (s, e) => SetAllPermissions(false);
+            bottomPanel.Controls.Add(deselectAllButton);
+
+            rightPanel.Controls.Add(bottomPanel);
+
+            // Add panels
+            this.Controls.Add(rightPanel);
+            this.Controls.Add(leftPanel);
+            this.Controls.Add(topPanel);
+        }
+
+        private DataGridView CreateStyledGrid(Point location, Size size)
+        {
+            var grid = new DataGridView
+            {
+                Location = location,
+                Size = size,
                 Font = new Font("Segoe UI", 10),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
@@ -106,217 +291,127 @@ namespace Kalendarz1
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                EnableHeadersVisualStyles = false
             };
-            usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
-            usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
 
-            // Stylizacja grida
-            usersGrid.EnableHeadersVisualStyles = false;
-            usersGrid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
-            usersGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            usersGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            usersGrid.ColumnHeadersHeight = 35;
-            usersGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(41, 128, 185);
-            usersGrid.DefaultCellStyle.SelectionForeColor = Color.White;
-            usersGrid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
+            grid.ColumnHeadersDefaultCellStyle.BackColor = Colors.Primary;
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
+            grid.ColumnHeadersHeight = 40;
+            grid.DefaultCellStyle.SelectionBackColor = Colors.PrimaryLight;
+            grid.DefaultCellStyle.SelectionForeColor = Colors.TextDark;
+            grid.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#F8F9FA");
+            grid.RowTemplate.Height = 35;
 
-            leftPanel.Controls.Add(usersGrid);
+            return grid;
+        }
 
-            // Przyciski zarządzania użytkownikami
-            addUserButton = new Button
+        private Button CreateStyledButton(string text, Color color, Point location, Size size)
+        {
+            var button = new Button
             {
-                Text = "➕ Nowy użytkownik",
-                Location = new Point(20, 500),
-                Size = new Size(175, 40),
+                Text = text,
+                Size = size,
+                Location = location,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                BackColor = Color.FromArgb(46, 125, 50),
                 ForeColor = Color.White,
+                BackColor = color,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            addUserButton.FlatAppearance.BorderSize = 0;
-            addUserButton.Click += AddUserButton_Click;
-            leftPanel.Controls.Add(addUserButton);
 
-            deleteUserButton = new Button
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(color, 0.15f);
+            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color, 0.25f);
+
+            return button;
+        }
+
+        private void CreateCategoryCheckbox(string categoryName, Color color)
+        {
+            var checkbox = new CheckBox
             {
-                Text = "🗑 Usuń użytkownika",
-                Location = new Point(205, 500),
-                Size = new Size(175, 40),
+                Text = categoryName,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                BackColor = Color.FromArgb(229, 57, 53),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
+                ForeColor = color,
+                AutoSize = true,
+                Margin = new Padding(12, 8, 12, 8),
                 Cursor = Cursors.Hand
             };
-            deleteUserButton.FlatAppearance.BorderSize = 0;
-            deleteUserButton.Click += DeleteUserButton_Click;
-            leftPanel.Controls.Add(deleteUserButton);
+            checkbox.CheckedChanged += (s, e) => CategoryCheckbox_CheckedChanged(categoryName, checkbox.Checked);
+            categoryCheckboxesPanel.Controls.Add(checkbox);
+        }
 
-            // Panel prawy - uprawnienia
-            rightPanel = new Panel
+        private void CategoryCheckbox_CheckedChanged(string categoryName, bool isChecked)
+        {
+            if (permissionsGrid.DataSource == null) return;
+
+            var modulesInCategory = GetModulesByCategory(categoryName);
+            foreach (DataGridViewRow row in permissionsGrid.Rows)
             {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(20)
-            };
+                string moduleName = row.Cells["Moduł"].Value?.ToString();
+                if (modulesInCategory.Contains(moduleName))
+                {
+                    row.Cells["Dostęp"].Value = isChecked;
+                }
+            }
+        }
 
-            var permissionsLabel = new Label
+        private List<string> GetModulesByCategory(string categoryName)
+        {
+            var categories = new Dictionary<string, List<string>>
             {
-                Text = "UPRAWNIENIA UŻYTKOWNIKA",
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                ForeColor = Color.FromArgb(55, 71, 79),
-                Location = new Point(20, 20),
-                AutoSize = true
+                ["Zaopatrzenie"] = new List<string> { "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca", "DokumentyZakupu", "PlatnosciHodowcy", "ZmianyUHodowcow", "Specyfikacje", "PlachtyAviloga" },
+                ["Produkcja"] = new List<string> { "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni" },
+                ["Sprzedaż"] = new List<string> { "CRM", "ZamowieniaOdbiorcow", "DokumentySprzedazy", "PrognozyUboju", "AnalizaTygodniowa", "OfertaCenowa" },
+                ["Opakowania"] = new List<string> { "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu" },
+                ["Finanse"] = new List<string> { "DaneFinansowe" }
             };
-            rightPanel.Controls.Add(permissionsLabel);
-
-            // ComboBox z użytkownikiem
-            userComboBox = new ComboBox
-            {
-                Location = new Point(20, 50),
-                Size = new Size(300, 30),
-                Font = new Font("Segoe UI", 11),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Enabled = false
-            };
-            rightPanel.Controls.Add(userComboBox);
-
-            // Grid z uprawnieniami
-            permissionsGrid = new DataGridView
-            {
-                Location = new Point(20, 90),
-                Size = new Size(720, 450),
-                Font = new Font("Segoe UI", 10),
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
-
-            // Stylizacja grida uprawnień
-            permissionsGrid.EnableHeadersVisualStyles = false;
-            permissionsGrid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
-            permissionsGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            permissionsGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            permissionsGrid.ColumnHeadersHeight = 35;
-            permissionsGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(41, 128, 185);
-            permissionsGrid.DefaultCellStyle.SelectionForeColor = Color.White;
-            permissionsGrid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
-
-            rightPanel.Controls.Add(permissionsGrid);
-
-            // Przyciski akcji
-            saveButton = new Button
-            {
-                Text = "💾 Zapisz zmiany",
-                Location = new Point(20, 550),
-                Size = new Size(180, 45),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                BackColor = Color.FromArgb(33, 150, 243),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            saveButton.FlatAppearance.BorderSize = 0;
-            saveButton.Click += SaveButton_Click;
-            rightPanel.Controls.Add(saveButton);
-
-            refreshButton = new Button
-            {
-                Text = "🔄 Odśwież",
-                Location = new Point(210, 550),
-                Size = new Size(150, 45),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            refreshButton.FlatAppearance.BorderSize = 0;
-            refreshButton.Click += RefreshButton_Click;
-            rightPanel.Controls.Add(refreshButton);
-
-            // Przyciski szybkiego ustawiania
-            var selectAllButton = new Button
-            {
-                Text = "✓ Zaznacz wszystkie",
-                Location = new Point(370, 550),
-                Size = new Size(180, 45),
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            selectAllButton.FlatAppearance.BorderSize = 0;
-            selectAllButton.Click += (s, e) => SetAllPermissions(true);
-            rightPanel.Controls.Add(selectAllButton);
-
-            var deselectAllButton = new Button
-            {
-                Text = "✗ Odznacz wszystkie",
-                Location = new Point(560, 550),
-                Size = new Size(180, 45),
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                BackColor = Color.FromArgb(244, 67, 54),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            deselectAllButton.FlatAppearance.BorderSize = 0;
-            deselectAllButton.Click += (s, e) => SetAllPermissions(false);
-            rightPanel.Controls.Add(deselectAllButton);
-
-            // Dodaj panele do formy
-            this.Controls.Add(rightPanel);
-            this.Controls.Add(leftPanel);
-            this.Controls.Add(topPanel);
+            return categories.ContainsKey(categoryName) ? categories[categoryName] : new List<string>();
         }
 
         private void LoadUsers()
         {
+            loadingBar.Visible = true;
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"SELECT ID, Name 
-                                   FROM operators 
-                                   WHERE ID != '11111' 
-                                   ORDER BY Name";
-
+                    string query = @"SELECT ID, Name FROM operators WHERE ID != '11111' ORDER BY Name";
                     SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
                     DataTable dt = new DataTable();
                     adapter.Fill(dt);
-
                     usersGrid.DataSource = dt;
+                    usersCountLabel.Text = $"Łącznie: {dt.Rows.Count} użytkowników";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania użytkowników: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas ładowania użytkowników:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                loadingBar.Visible = false;
             }
         }
 
         private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
-            // Ustaw szerokości kolumn po związaniu danych
             if (usersGrid.Columns.Count > 0)
             {
                 if (usersGrid.Columns.Contains("ID"))
                 {
                     usersGrid.Columns["ID"].HeaderText = "ID";
-                    usersGrid.Columns["ID"].Width = 80;
+                    usersGrid.Columns["ID"].Width = 100;
                 }
                 if (usersGrid.Columns.Contains("Name"))
                 {
                     usersGrid.Columns["Name"].HeaderText = "Nazwa użytkownika";
-                    usersGrid.Columns["Name"].Width = 250;
+                    usersGrid.Columns["Name"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 }
             }
         }
@@ -331,7 +426,6 @@ namespace Kalendarz1
                 permissions.Columns.Add("Opis", typeof(string));
                 permissions.Columns.Add("Dostęp", typeof(bool));
 
-                // Mapowanie pozycji na moduły
                 var accessMap = new Dictionary<int, string>
                 {
                     [0] = "DaneHodowcy",
@@ -353,14 +447,14 @@ namespace Kalendarz1
                     [16] = "UstalanieTranportu",
                     [17] = "ZmianyUHodowcow",
                     [18] = "ProdukcjaPodglad",
-                    [19] = "OfertaCenowa"
+                    [19] = "OfertaCenowa",
+                    [20] = "PrognozyUboju",
+                    [21] = "AnalizaTygodniowa"
                 };
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-
-                    // Pobierz string Access z bazy
                     string query = "SELECT Access FROM operators WHERE ID = @userId";
                     string accessString = "";
 
@@ -368,37 +462,35 @@ namespace Kalendarz1
                     {
                         cmd.Parameters.AddWithValue("@userId", userId);
                         var result = cmd.ExecuteScalar();
-                        if (result != null)
-                        {
-                            accessString = result.ToString();
-                        }
+                        if (result != null) accessString = result.ToString();
                     }
 
-                    // Parsuj uprawnienia
                     foreach (var module in modules)
                     {
                         bool hasAccess = false;
-
-                        // Znajdź pozycję modułu w mapie
                         var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
                         if (position >= 0 && position < accessString.Length)
-                        {
                             hasAccess = accessString[position] == '1';
-                        }
 
                         permissions.Rows.Add(module.Key, module.Value, hasAccess);
                     }
                 }
 
                 permissionsGrid.DataSource = permissions;
-                // Reszta kodu pozostaje bez zmian...
+                if (permissionsGrid.Columns.Count > 0)
+                {
+                    permissionsGrid.Columns["Moduł"].Width = 200;
+                    permissionsGrid.Columns["Opis"].Width = 550;
+                    permissionsGrid.Columns["Dostęp"].Width = 100;
+                    permissionsGrid.Columns["Dostęp"].ReadOnly = false;
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania uprawnień: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas ładowania uprawnień:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private Dictionary<string, string> GetModulesList()
         {
             return new Dictionary<string, string>
@@ -422,49 +514,25 @@ namespace Kalendarz1
                 ["UstalanieTranportu"] = "Planowanie transportu",
                 ["ZmianyUHodowcow"] = "Zgłoszenia zmian u hodowców",
                 ["ProdukcjaPodglad"] = "Podgląd produkcji",
-                ["OfertaCenowa"] = "Tworzenie ofert cenowych"
+                ["OfertaCenowa"] = "Tworzenie ofert cenowych",
+                ["PrognozyUboju"] = "Prognoza uboju i analiza zakupów",
+                ["AnalizaTygodniowa"] = "Dashboard analityczny produkcji"
             };
-        }
-
-        private void CreatePermissionsTableIfNotExists(SqlConnection conn)
-        {
-            string createTableQuery = @"
-                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='UserPermissions' AND xtype='U')
-                CREATE TABLE UserPermissions (
-                    ID int IDENTITY(1,1) PRIMARY KEY,
-                    UserID varchar(50) NOT NULL,
-                    ModuleName varchar(100) NOT NULL,
-                    HasAccess bit NOT NULL DEFAULT 0,
-                    LastModified datetime DEFAULT GETDATE(),
-                    ModifiedBy varchar(50),
-                    UNIQUE(UserID, ModuleName)
-                )";
-
-            using (SqlCommand cmd = new SqlCommand(createTableQuery, conn))
-            {
-                cmd.ExecuteNonQuery();
-            }
         }
 
         private void SaveButton_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(selectedUserId))
             {
-                MessageBox.Show("Wybierz użytkownika przed zapisaniem.",
-                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Wybierz użytkownika przed zapisaniem.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             try
             {
-                // Buduj string Access
                 char[] accessArray = new char[50];
-                for (int i = 0; i < 50; i++)
-                {
-                    accessArray[i] = '0';
-                }
+                for (int i = 0; i < 50; i++) accessArray[i] = '0';
 
-                // Mapowanie modułów na pozycje
                 var accessMap = new Dictionary<string, int>
                 {
                     ["DaneHodowcy"] = 0,
@@ -486,18 +554,18 @@ namespace Kalendarz1
                     ["UstalanieTranportu"] = 16,
                     ["ZmianyUHodowcow"] = 17,
                     ["ProdukcjaPodglad"] = 18,
-                    ["OfertaCenowa"] = 19
+                    ["OfertaCenowa"] = 19,
+                    ["PrognozyUboju"] = 20,
+                    ["AnalizaTygodniowa"] = 21
                 };
 
                 foreach (DataGridViewRow row in permissionsGrid.Rows)
                 {
-                    string moduleName = row.Cells["Moduł"].Value.ToString();
+                    string moduleName = row.Cells["Moduł"].Value?.ToString();
                     bool hasAccess = Convert.ToBoolean(row.Cells["Dostęp"].Value);
 
                     if (accessMap.ContainsKey(moduleName) && hasAccess)
-                    {
                         accessArray[accessMap[moduleName]] = '1';
-                    }
                 }
 
                 string newAccessString = new string(accessArray);
@@ -506,7 +574,6 @@ namespace Kalendarz1
                 {
                     conn.Open();
                     string query = "UPDATE operators SET Access = @access WHERE ID = @userId";
-
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@access", newAccessString);
@@ -515,37 +582,33 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show("Uprawnienia zostały zapisane pomyślnie!",
-                    "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("✓ Uprawnienia zostały zapisane pomyślnie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas zapisywania uprawnień: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas zapisywania uprawnień:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
         private void AddUserButton_Click(object sender, EventArgs e)
         {
-            var dialog = new AddUserDialog();
+            var dialog = new AddUserDialog(connectionString);
             if (dialog.ShowDialog() == DialogResult.OK)
-            {
                 LoadUsers();
-            }
         }
 
         private void DeleteUserButton_Click(object sender, EventArgs e)
         {
             if (usersGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Wybierz użytkownika do usunięcia.",
-                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Wybierz użytkownika do usunięcia.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
             string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
 
-            var result = MessageBox.Show($"Czy na pewno chcesz usunąć użytkownika {userName} (ID: {userId})?",
+            var result = MessageBox.Show($"Czy na pewno chcesz usunąć użytkownika:\n\n{userName} (ID: {userId})?",
                 "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
             if (result == DialogResult.Yes)
@@ -555,16 +618,6 @@ namespace Kalendarz1
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-
-                        // Usuń uprawnienia
-                        string deletePermissions = "DELETE FROM UserPermissions WHERE UserID = @userId";
-                        using (SqlCommand cmd = new SqlCommand(deletePermissions, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@userId", userId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        // Usuń użytkownika
                         string deleteUser = "DELETE FROM operators WHERE ID = @userId";
                         using (SqlCommand cmd = new SqlCommand(deleteUser, conn))
                         {
@@ -573,8 +626,7 @@ namespace Kalendarz1
                         }
                     }
 
-                    MessageBox.Show("Użytkownik został usunięty.",
-                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("✓ Użytkownik został usunięty.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadUsers();
                     permissionsGrid.DataSource = null;
                     selectedUserId = null;
@@ -582,8 +634,7 @@ namespace Kalendarz1
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd podczas usuwania użytkownika: {ex.Message}",
-                        "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Błąd podczas usuwania użytkownika:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -592,9 +643,7 @@ namespace Kalendarz1
         {
             LoadUsers();
             if (!string.IsNullOrEmpty(selectedUserId))
-            {
                 LoadPermissions(selectedUserId);
-            }
         }
 
         private void UsersGrid_SelectionChanged(object sender, EventArgs e)
@@ -605,8 +654,7 @@ namespace Kalendarz1
                 if (!string.IsNullOrEmpty(selectedUserId))
                 {
                     string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
-                    string displayName = $"{selectedUserId} - {userName}";
-                    userComboBox.Text = displayName;
+                    userComboBox.Text = $"{selectedUserId} - {userName}";
                     LoadPermissions(selectedUserId);
                 }
             }
@@ -617,115 +665,67 @@ namespace Kalendarz1
             if (usersGrid.DataSource is DataTable dt)
             {
                 string filter = searchBox.Text.Trim();
-                if (string.IsNullOrEmpty(filter))
-                {
-                    dt.DefaultView.RowFilter = "";
-                }
-                else
-                {
-                    dt.DefaultView.RowFilter = $"ID LIKE '%{filter}%' OR Name LIKE '%{filter}%'";
-                }
+                dt.DefaultView.RowFilter = string.IsNullOrEmpty(filter) ? "" : $"ID LIKE '%{filter}%' OR Name LIKE '%{filter}%'";
             }
         }
 
         private void SetAllPermissions(bool value)
         {
             foreach (DataGridViewRow row in permissionsGrid.Rows)
-            {
                 row.Cells["Dostęp"].Value = value;
-            }
-        }
-
-        private void ApplyModernStyle()
-        {
-            this.BackColor = Color.FromArgb(236, 239, 241);
-            this.Font = new Font("Segoe UI", 10, FontStyle.Regular);
         }
     }
 
-    // Dialog dla dodawania nowego użytkownika
     public class AddUserDialog : Form
     {
-        private TextBox idTextBox;
-        private TextBox nameTextBox;
-        private Button okButton;
-        private Button cancelButton;
-        private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private TextBox idTextBox, nameTextBox;
+        private Button okButton, cancelButton;
+        private string connectionString;
 
-        public AddUserDialog()
+        public AddUserDialog(string connString)
         {
+            connectionString = connString;
             InitializeComponents();
         }
 
         private void InitializeComponents()
         {
             this.Text = "Dodaj nowego użytkownika";
-            this.Size = new Size(400, 200);
+            this.Size = new Size(450, 250);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.BackColor = ColorTranslator.FromHtml("#ECF0F1");
 
-            var idLabel = new Label
-            {
-                Text = "ID użytkownika:",
-                Location = new Point(30, 30),
-                AutoSize = true
-            };
+            var titleLabel = new Label { Text = "➕ Nowy użytkownik", Font = new Font("Segoe UI", 14, FontStyle.Bold), ForeColor = ColorTranslator.FromHtml("#2C3E50"), Location = new Point(30, 20), AutoSize = true };
+            this.Controls.Add(titleLabel);
+
+            var idLabel = new Label { Text = "ID użytkownika:", Location = new Point(30, 70), AutoSize = true, Font = new Font("Segoe UI", 10) };
             this.Controls.Add(idLabel);
 
-            idTextBox = new TextBox
-            {
-                Location = new Point(150, 27),
-                Size = new Size(200, 25)
-            };
+            idTextBox = new TextBox { Location = new Point(170, 67), Size = new Size(230, 28), Font = new Font("Segoe UI", 11) };
             this.Controls.Add(idTextBox);
 
-            var nameLabel = new Label
-            {
-                Text = "Nazwa:",
-                Location = new Point(30, 70),
-                AutoSize = true
-            };
+            var nameLabel = new Label { Text = "Nazwa:", Location = new Point(30, 115), AutoSize = true, Font = new Font("Segoe UI", 10) };
             this.Controls.Add(nameLabel);
 
-            nameTextBox = new TextBox
-            {
-                Location = new Point(150, 67),
-                Size = new Size(200, 25)
-            };
+            nameTextBox = new TextBox { Location = new Point(170, 112), Size = new Size(230, 28), Font = new Font("Segoe UI", 11) };
             this.Controls.Add(nameTextBox);
 
-            okButton = new Button
-            {
-                Text = "Dodaj",
-                Location = new Point(100, 120),
-                Size = new Size(90, 35),
-                BackColor = Color.FromArgb(46, 125, 50),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                DialogResult = DialogResult.OK
-            };
+            okButton = new Button { Text = "Dodaj", Location = new Point(130, 170), Size = new Size(110, 40), BackColor = ColorTranslator.FromHtml("#27AE60"), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), DialogResult = DialogResult.OK };
+            okButton.FlatAppearance.BorderSize = 0;
             okButton.Click += OkButton_Click;
             this.Controls.Add(okButton);
 
-            cancelButton = new Button
-            {
-                Text = "Anuluj",
-                Location = new Point(210, 120),
-                Size = new Size(90, 35),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                DialogResult = DialogResult.Cancel
-            };
+            cancelButton = new Button { Text = "Anuluj", Location = new Point(250, 170), Size = new Size(110, 40), BackColor = ColorTranslator.FromHtml("#7F8C8D"), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), DialogResult = DialogResult.Cancel };
+            cancelButton.FlatAppearance.BorderSize = 0;
             this.Controls.Add(cancelButton);
         }
 
         private void OkButton_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(idTextBox.Text) ||
-                string.IsNullOrWhiteSpace(nameTextBox.Text))
+            if (string.IsNullOrWhiteSpace(idTextBox.Text) || string.IsNullOrWhiteSpace(nameTextBox.Text))
             {
                 MessageBox.Show("Wypełnij wszystkie pola.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 this.DialogResult = DialogResult.None;
@@ -737,23 +737,20 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"INSERT INTO operators (ID, Name) 
-                                   VALUES (@id, @name)";
-
+                    string query = @"INSERT INTO operators (ID, Name, Access) VALUES (@id, @name, @access)";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@id", idTextBox.Text);
                         cmd.Parameters.AddWithValue("@name", nameTextBox.Text);
+                        cmd.Parameters.AddWithValue("@access", new string('0', 50));
                         cmd.ExecuteNonQuery();
                     }
                 }
-
-                MessageBox.Show("Użytkownik został dodany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("✓ Użytkownik został dodany.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas dodawania użytkownika: {ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas dodawania użytkownika:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.DialogResult = DialogResult.None;
             }
         }

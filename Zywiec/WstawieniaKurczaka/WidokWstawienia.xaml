@@ -1,0 +1,700 @@
+﻿<Window x:Class="Kalendarz1.WidokWstawienia"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="🐔 System Zarządzania Wstawieniami Kurczaków" 
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="#ECF0F1"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <!-- Animacje -->
+        <Storyboard x:Key="FadeIn">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+        </Storyboard>
+
+        <!-- Style dla przycisków -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InfoButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2980B9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style dla paneli -->
+        <Style x:Key="CardPanel" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.08" BlurRadius="15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style dla TextBox -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#5C8A3A"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style dla DataGrid -->
+        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8FAFB"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeight" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="BorderBrush" Value="#4B732F"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" BorderThickness="0" Padding="10,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E8F5E9"/>
+                    <Setter Property="Foreground" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style dla Context Menu -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#E8F5E9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#ECF0F1" Offset="0"/>
+                <GradientStop Color="#E0E6E8" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- ============ PANEL GÓRNY - KOMPAKTOWY ============ -->
+            <Border Grid.Row="0" Style="{StaticResource CardPanel}" Padding="8,6">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Wiersz 1: Logo, opis, statystyki główne i dodatkowe, pomoc -->
+                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Logo -->
+                        <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="4" Margin="0,0,8,0" BorderBrush="#5C8A3A" BorderThickness="1.5" VerticalAlignment="Center">
+                            <Image x:Name="imgLogo" Width="28" Height="28" Stretch="Uniform"/>
+                        </Border>
+
+                        <!-- Opis formularza -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
+                            <TextBlock Text="📋 Panel Główny Wstawień" FontSize="12" FontWeight="Bold" Foreground="#2C3E50"/>
+                            <TextBlock Text="Zarządzanie hodowcami, dostawami i kontaktami" FontSize="8.5" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,1,0,0"/>
+                        </StackPanel>
+
+                        <!-- Statystyki -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Statystyki główne -->
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,3">
+                                <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#E8F5E9" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📅 Dziś " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatDzisiaj" Text="0" FontSize="11" Foreground="#5C8A3A" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#FFF9C4" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📊 Tydz " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatTydzien" Text="0" FontSize="11" Foreground="#FBC02D" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#E3F2FD" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📆 Mies " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatMiesiac" Text="0" FontSize="11" Foreground="#3498DB" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#F3E5F5" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📅 Rok " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatRok" Text="0" FontSize="11" Foreground="#9B59B6" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#FFF3E0" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⏰ Przyp " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatPrzypomnienia" Text="0" FontSize="11" Foreground="#F39C12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="White" CornerRadius="4" Padding="6,3" BorderBrush="#E1F5FE" BorderThickness="1.5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📦 Suma " FontSize="8" Foreground="#7F8C8D" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtStatLacznie" Text="0" FontSize="11" Foreground="#2196F3" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Statystyki dodatkowe -->
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="📈 Śr/d: " Foreground="#2E7D32" FontWeight="SemiBold"/><Run x:Name="txtStatSredniaDzien" Text="0" Foreground="#5C8A3A" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#FFF3E0" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="👨‍🌾 Hod: " Foreground="#EF6C00" FontWeight="SemiBold"/><Run x:Name="txtStatHodowcow" Text="0" Foreground="#F39C12" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="📊 Śr.szt: " Foreground="#1976D2" FontWeight="SemiBold"/><Run x:Name="txtStatSredniaSztuk" Text="0" Foreground="#3498DB" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#F3E5F5" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="🔝 Najw: " Foreground="#7B1FA2" FontWeight="SemiBold"/><Run x:Name="txtStatNajwieksze" Text="0" Foreground="#9B59B6" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#FCE4EC" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="📈 Tr: " Foreground="#C2185B" FontWeight="SemiBold"/><Run x:Name="txtStatTrend" Text="➡️" Foreground="#E91E63" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#E0F2F1" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="📋 W/K: " Foreground="#00796B" FontWeight="SemiBold"/><Run x:Name="txtStatWolnyKontrakt" Text="0/0" Foreground="#009688" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#FFF8E1" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
+                                    <TextBlock FontSize="8"><Run Text="⭐ TOP: " Foreground="#F57C00" FontWeight="SemiBold"/><Run x:Name="txtStatTopHodowca" Text="-" Foreground="#FF9800" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                                <Border Background="#E8EAF6" CornerRadius="4" Padding="5,2">
+                                    <TextBlock FontSize="8"><Run Text="📅 7d: " Foreground="#3949AB" FontWeight="SemiBold"/><Run x:Name="txtStatOstatnie7Dni" Text="0" Foreground="#5C6BC0" FontWeight="Bold"/></TextBlock>
+                                </Border>
+                            </WrapPanel>
+                        </Grid>
+
+                        <!-- Przycisk pomocy -->
+                        <Button Grid.Column="3" x:Name="btnPomoc" Style="{StaticResource InfoButton}" 
+                                Width="95" Height="28" FontSize="10" Click="BtnPomoc_Click" ToolTip="Instrukcja obsługi systemu" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="❓" FontSize="12" Margin="0,0,4,0"/>
+                                <TextBlock Text="Instrukcja" FontSize="10" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Wiersz 2: Statystyki per użytkownik (kompaktowe) -->
+                    <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="5" Padding="6,4" Margin="0,4,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Wstawienia -->
+                            <Border Grid.Column="0" Background="#E8F5E9" CornerRadius="4" Padding="5,3" Margin="0,0,3,0">
+                                <StackPanel>
+                                    <TextBlock Text="👥 Wstawienia:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <TextBlock Text="📊 Tydz: " FontSize="7" Foreground="#5C8A3A" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsWstawieniaPerUserTydzien">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#81C784" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#2E7D32"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#5C8A3A" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📆 Mies: " FontSize="7" Foreground="#5C8A3A" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsWstawieniaPerUserMiesiac">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#81C784" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#2E7D32"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#5C8A3A" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📅 Rok: " FontSize="7" Foreground="#5C8A3A" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsWstawieniaPerUserRok">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#81C784" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#2E7D32"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#5C8A3A" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Kontakty -->
+                            <Border Grid.Column="1" Background="#E1F5FE" CornerRadius="4" Padding="5,3" Margin="0,0,3,0">
+                                <StackPanel>
+                                    <TextBlock Text="📞 Kontakty:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <TextBlock Text="📊 Tydz: " FontSize="7" Foreground="#0277BD" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsKontaktyPerUserTydzien">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#4FC3F7" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#01579B"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#0277BD" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📆 Mies: " FontSize="7" Foreground="#0277BD" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsKontaktyPerUserMiesiac">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#4FC3F7" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#01579B"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#0277BD" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📅 Rok: " FontSize="7" Foreground="#0277BD" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsKontaktyPerUserRok">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#4FC3F7" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#01579B"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#0277BD" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Potwierdzenia -->
+                            <Border Grid.Column="2" Background="#F3E5F5" CornerRadius="4" Padding="5,3">
+                                <StackPanel>
+                                    <TextBlock Text="✅ Potwierdzenia:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <TextBlock Text="📊 Tydz: " FontSize="7" Foreground="#7B1FA2" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsPotwierdzaniaPerUserTydzien">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#BA68C8" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#4A148C"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#7B1FA2" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📆 Mies: " FontSize="7" Foreground="#7B1FA2" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsPotwierdzaniaPerUserMiesiac">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#BA68C8" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#4A148C"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#7B1FA2" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <TextBlock Text="📅 Rok: " FontSize="7" Foreground="#7B1FA2" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <ItemsControl x:Name="itemsPotwierdzaniaPerUserRok">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" CornerRadius="3" Padding="2,1" Margin="0,0,2,0" BorderBrush="#BA68C8" BorderThickness="1">
+                                                        <TextBlock FontSize="7">
+                                                            <Run Text="{Binding User}" FontWeight="SemiBold" Foreground="#4A148C"/>
+                                                            <Run Text=" " />
+                                                            <Run Text="{Binding Count}" Foreground="#7B1FA2" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ============ GŁÓWNA ZAWARTOŚĆ ============ -->
+            <Grid Grid.Row="1" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="1.3*"/>
+                    <ColumnDefinition Width="1.5*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ============ KOLUMNA 1: Lista wstawień ============ -->
+                <Border Grid.Column="0" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek z wyszukiwarką, filtrami i przyciskiem -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Wiersz 1: Tytuł i przycisk Dodaj -->
+                            <Grid Grid.Row="0" Margin="0,0,0,6">
+                                <TextBlock Text="📋 Lista Wstawień" FontSize="15" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                <Button Content="➕ Dodaj" Style="{StaticResource PrimaryButton}" 
+                                        HorizontalAlignment="Right" Click="BtnDodaj_Click"/>
+                            </Grid>
+
+                            <!-- Wiersz 2: Wyszukiwarka i filtry -->
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Wyszukiwarka -->
+                                <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="6" Padding="8,6" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,6,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="🔍" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5C8A3A"/>
+                                        <TextBox Grid.Column="1" x:Name="textBoxFilter" 
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 Padding="2" FontSize="10" 
+                                                 Foreground="#2C3E50"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Checkbox - Tylko przyszłe wstawienia -->
+                                <Border Grid.Column="1" Background="#E8F5E9" CornerRadius="6" Padding="6,4" BorderBrush="#81C784" BorderThickness="1" Margin="0,0,6,0">
+                                    <CheckBox x:Name="chkPokazPrzyszle" Content="📅 Tylko przyszłe" FontSize="9" FontWeight="SemiBold" 
+                                              Foreground="#2E7D32" VerticalAlignment="Center" Checked="ChkPokazPrzyszle_Changed" Unchecked="ChkPokazPrzyszle_Changed"/>
+                                </Border>
+
+                                <!-- DatePicker - Data od -->
+                                <Border Grid.Column="2" Background="#FFF3E0" CornerRadius="6" Padding="6,4" BorderBrush="#FFB74D" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📆 Od: " FontSize="9" FontWeight="SemiBold" Foreground="#EF6C00" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <DatePicker x:Name="datePickerOd" FontSize="9" Height="22" BorderThickness="0" Background="Transparent" 
+                                                    SelectedDateChanged="DatePickerOd_Changed" Width="90"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                        <!-- DataGrid Wstawień z menu kontekstowym -->
+                        <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+                            <DataGrid x:Name="dataGridWstawienia" 
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      RowHeight="26">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="✏️ Edytuj wstawienie" Click="MenuEdytuj_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📅 Zmień datę wstawienia" Click="MenuZmienDateWstawienia_Click" FontWeight="SemiBold"/>
+                                        <Separator/>
+                                        <MenuItem Header="🗑️ Usuń wstawienie" Click="MenuUsun_Click" Foreground="#E74C3C"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ============ KOLUMNA 2: Zaplanowane Dostawy + Przypomnienia ============ -->
+                <Border Grid.Column="1" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="120"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Zaplanowane Dostawy - nagłówek -->
+                        <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="6" Padding="6,4" Margin="0,0,0,6">
+                            <TextBlock Text="📦 Zaplanowane Dostawy" FontSize="13" FontWeight="Bold" 
+                                       Foreground="#2E7D32" TextAlignment="Center"/>
+                        </Border>
+
+                        <!-- Zaplanowane Dostawy - tabela (3-4 wiersze) -->
+                        <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
+                            <DataGrid x:Name="dataGridDostawy" 
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      FontSize="9" RowHeight="24"
+                                      AutoGenerateColumns="False"
+                                      ColumnWidth="*"/>
+                        </Border>
+
+                        <!-- Przypomnienia - nagłówek -->
+                        <StackPanel Grid.Row="2" Margin="0,0,0,6">
+                            <Grid Margin="0,0,0,2">
+                                <TextBlock Text="⏰ Przypomnienia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Left"/>
+                                <Border Background="#FFEBEE" CornerRadius="6" Padding="5,2" HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🔔 " FontSize="8" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtLiczbaPrzypomnien" Text="0" FontSize="9" Foreground="#E74C3C" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <TextBlock Text="PPM → Opcje kontaktu" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
+                        </StackPanel>
+
+                        <!-- Przypomnienia - tabela -->
+                        <Border Grid.Row="3" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <DataGrid x:Name="dataGridPrzypomnienia" 
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      RowHeight="24" FontSize="9">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="📵 Nie odebrał (+3 dni)" Click="MenuNieOdebral_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📞 3 próby telefonu (+1 miesiąc)" Click="MenuTryProby_Click" FontWeight="SemiBold"/>
+                                        <Separator/>
+                                        <MenuItem Header="🕐 Odłożenie na dłużej..." Click="MenuOdlozDluzej_Click"/>
+                                        <MenuItem Header="➕ Dodanie numeru hodowcy" Click="MenuDodajNumer_Click"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- ============ KOLUMNA 3: Historia ============ -->
+                <Border Grid.Column="2" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="📜 Historia Kontaktów" FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
+                            <TextBlock Text="Wszystkie odłożenia" FontSize="8" Foreground="#7F8C8D" Margin="0,1,0,0" FontStyle="Italic"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="1" BorderBrush="#9B59B6" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
+                            <DataGrid x:Name="dataGridHistoria" 
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      RowHeight="24" FontSize="9"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

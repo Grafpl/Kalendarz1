@@ -21,6 +21,7 @@
     <None Remove="background_video.mp4" />
     <None Remove="logo-2-green.png" />
     <None Remove="logo-2-white.png" />
+    <None Remove="Logo.png" />
     <None Remove="logo2white.png" />
     <None Remove="Resources\Screenshot_4.ico" />
     <None Remove="Screenshot_8.jpg" />
@@ -59,6 +60,9 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
     <Resource Include="logo-2-green.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Logo.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
     <Resource Include="logo2white.png">
@@ -114,6 +118,7 @@
   <ItemGroup>
     <Folder Include="Kalendarz1\" />
     <Folder Include="Menu\" />
+    <Folder Include="Nowy folder1\" />
     <Folder Include="Nowy folder\" />
     <Folder Include="Transport\Widoki\" />
   </ItemGroup>

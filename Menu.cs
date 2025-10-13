@@ -189,15 +189,17 @@ namespace Kalendarz1
         private List<string> GetAllModules()
         {
             return new List<string>
-            {
-                "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
-                "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
-                "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-                "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa"
-            };
+    {
+        "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
+        "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
+        "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
+        "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
+        "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
+        "OfertaCenowa",
+        "PrognozyUboju",
+        "AnalizaTygodniowa"
+    };
         }
-
         private void SetupMenuItems()
         {
             mainLayout.Controls.Clear();
@@ -231,7 +233,18 @@ namespace Kalendarz1
                     new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
                     new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-                    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
+                    // --- VVV DODAJ TEN BLOK KODU VVV ---
+        new MenuItemConfig(
+            "AnalizaTygodniowa",
+            "Dashboard Analityczny",
+            "Analizuj bilans produkcji i sprzedaży",
+            Color.FromArgb(216, 27, 96), // Wyrazisty, nowy kolor
+            () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(),
+            "📊"
+        ),
+        // --- ^^^ KONIEC BLOKU DO DODANIA ^^^ ---
+        new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
                 },
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
