@@ -188,7 +188,7 @@ namespace Kalendarz1
                     Data = "SUMA",
                     DzienTygodnia = "",
                     LiczbaAut = aktualneDane.Sum(x => x.LiczbaAut),
-                    LiczbaUbiorek = aktualneDane.Sum(x => x.LiczbaUbiorek),  // NOWE
+                    LiczbaUbiorek = aktualneDane.Sum(x => x.LiczbaUbiorek),
                     ZywiecKg = aktualneDane.Sum(x => x.ZywiecKg),
                     Sztuki = aktualneDane.Sum(x => x.Sztuki),
                     WagaSrednia = aktualneDane.Sum(x => x.Sztuki) > 0 ? aktualneDane.Sum(x => x.ZywiecKg) / aktualneDane.Sum(x => x.Sztuki) : 0,
@@ -255,6 +255,7 @@ namespace Kalendarz1
                             Data = dzien.ToString("yyyy-MM-dd"),
                             DzienTygodnia = GetPolskiDzienTygodnia(dzien),
                             LiczbaAut = 0,
+                            LiczbaUbiorek = 0,
                             ZywiecKg = 0,
                             Sztuki = 0,
                             WagaSrednia = 0,
@@ -340,7 +341,7 @@ namespace Kalendarz1
                                 {
                                     // Sumuj podstawowe wartości
                                     dzien.LiczbaAut += auta;
-                                    dzien.LiczbaUbiorek += ubiorka;  // NOWE
+                                    dzien.LiczbaUbiorek += ubiorka;
                                     dzien.ZywiecKg += zywiecKg;
                                     dzien.Sztuki += sztuki;
 
@@ -547,6 +548,7 @@ namespace Kalendarz1
             decimal sumaTuszkaA = daneRzeczywiste.Sum(x => x.TuszkaA);
             decimal sumaFilet = daneRzeczywiste.Sum(x => x.Filet);
             decimal sumaCwiartka = daneRzeczywiste.Sum(x => x.Cwiartka);
+            int sumaUbiorek = daneRzeczywiste.Sum(x => x.LiczbaUbiorek);
 
             decimal sumaPotwierdzonych = daneRzeczywiste.Where(x => x.CzyPotwierdzone).Sum(x => x.ZywiecKg);
             decimal procentPotwierdzenia = sumaSurowiec > 0 ? (sumaPotwierdzonych / sumaSurowiec * 100) : 0;
@@ -555,12 +557,14 @@ namespace Kalendarz1
             txtStatTuszkaA.Text = $"{sumaTuszkaA:N0} kg";
             txtStatFilet.Text = $"{sumaFilet:N0} kg";
             txtStatPotwierdzenie.Text = $"{procentPotwierdzenia:F0}%";
+            txtStatUbiorki.Text = $"{sumaUbiorek}";
             progressPotwierdzenie.Value = (double)procentPotwierdzenia;
 
             txtSumaSurowiec.Text = $"{sumaSurowiec:N0} kg";
             txtSumaTuszkaA.Text = $"{sumaTuszkaA:N0} kg";
             txtSumaFilet.Text = $"{sumaFilet:N0} kg";
             txtSumaCwiartka.Text = $"{sumaCwiartka:N0} kg";
+            txtSumaUbiorki.Text = $"{sumaUbiorek}";
         }
 
         private void ObliczStatystykiPojemnikow(List<PlanDziennyModel> dane)
@@ -811,9 +815,9 @@ namespace Kalendarz1
                     if (dzien.ZywiecKg > 0)
                     {
                         sb.AppendLine($"{dzien.Data} ({dzien.DzienTygodnia})");
-                        sb.AppendLine($"   Auta: {dzien.LiczbaAut} | Żywiec: {dzien.ZywiecKg:N0} kg | Sztuki: {dzien.Sztuki:N0}");
+                        sb.AppendLine($"   Auta: {dzien.LiczbaAut} (Ubiórki: {dzien.LiczbaUbiorek}) | Żywiec: {dzien.ZywiecKg:N0} kg | Sztuki: {dzien.Sztuki:N0}");
                         sb.AppendLine($"   Tuszka A: {dzien.TuszkaA:N0} kg | Filet: {dzien.Filet:N0} kg");
-                        sb.AppendLine($"   Status: {dzien.StatusTekst}");
+                        sb.AppendLine($"   Status: {dzien.StatusTekst} ({dzien.ProcentPotwierdzenia:F0}% potwierdzone)");
                         sb.AppendLine();
                     }
                 }
@@ -825,6 +829,7 @@ namespace Kalendarz1
                 sb.AppendLine($"Tuszka A:         {txtSumaTuszkaA.Text}");
                 sb.AppendLine($"Filet:            {txtSumaFilet.Text}");
                 sb.AppendLine($"Ćwiartka:         {txtSumaCwiartka.Text}");
+                sb.AppendLine($"Ubiórki:          {txtSumaUbiorki.Text}");
                 sb.AppendLine("═══════════════════════════════════════════════════════════");
 
                 Clipboard.SetText(sb.ToString());
@@ -849,11 +854,11 @@ namespace Kalendarz1
                 csv.AppendLine($"Wydajnosc;Tuszka {aktualnaWydajnosc.WspolczynnikTuszki}% A/B {aktualnaWydajnosc.ProcentTuszkaA}/{aktualnaWydajnosc.ProcentTuszkaB}");
                 csv.AppendLine();
 
-                csv.AppendLine("Data;Dzien;Auta;Zywiec [kg];Sztuki;Waga sr.;Tuszka [kg];A/B;Tuszka A [kg];Cwiartka [kg];Skrzydlo [kg];Filet [kg];Korpus [kg];POJ 12;POJ 11;POJ 10;POJ 9;POJ 8;POJ 7;POJ 6;POJ 5;Status");
+                csv.AppendLine("Data;Dzien;Auta;Ubiorki;Zywiec [kg];Sztuki;Waga sr.;Tuszka [kg];A/B;Tuszka A [kg];Cwiartka [kg];Skrzydlo [kg];Filet [kg];Korpus [kg];POJ 12;POJ 11;POJ 10;POJ 9;POJ 8;POJ 7;POJ 6;POJ 5;Status;% Potw.");
 
                 foreach (var dzien in aktualneDane)
                 {
-                    csv.AppendLine($"{dzien.Data};{dzien.DzienTygodnia};{dzien.LiczbaAut};{dzien.ZywiecKg:F2};{dzien.Sztuki};{dzien.WagaSrednia:F2};{dzien.TuszkaCalkowita:F2};{dzien.TuszkaAB};{dzien.TuszkaA:F2};{dzien.Cwiartka:F2};{dzien.Skrzydlo:F2};{dzien.Filet:F2};{dzien.Korpus:F2};{dzien.Pojemniki12};{dzien.Pojemniki11};{dzien.Pojemniki10};{dzien.Pojemniki9};{dzien.Pojemniki8};{dzien.Pojemniki7};{dzien.Pojemniki6};{dzien.Pojemniki5};{dzien.StatusTekst}");
+                    csv.AppendLine($"{dzien.Data};{dzien.DzienTygodnia};{dzien.LiczbaAut};{dzien.LiczbaUbiorek};{dzien.ZywiecKg:F2};{dzien.Sztuki};{dzien.WagaSrednia:F2};{dzien.TuszkaCalkowita:F2};{dzien.TuszkaAB};{dzien.TuszkaA:F2};{dzien.Cwiartka:F2};{dzien.Skrzydlo:F2};{dzien.Filet:F2};{dzien.Korpus:F2};{dzien.Pojemniki12};{dzien.Pojemniki11};{dzien.Pojemniki10};{dzien.Pojemniki9};{dzien.Pojemniki8};{dzien.Pojemniki7};{dzien.Pojemniki6};{dzien.Pojemniki5};{dzien.StatusTekst};{dzien.ProcentPotwierdzenia:F0}%");
                 }
 
                 string filename = $"Plan_Produkcji_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
@@ -883,7 +888,7 @@ namespace Kalendarz1
         public string Data { get; set; }
         public string DzienTygodnia { get; set; }
         public int LiczbaAut { get; set; }
-        public int LiczbaUbiorek { get; set; }  // NOWE
+        public int LiczbaUbiorek { get; set; }
         public decimal ZywiecKg { get; set; }
         public int Sztuki { get; set; }
         public decimal WagaSrednia { get; set; }

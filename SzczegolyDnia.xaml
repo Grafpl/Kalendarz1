@@ -166,327 +166,373 @@
         </Border>
 
         <!-- KOMPAKTOWE STATYSTYKI POJEMNIKÓW -->
+        <!-- SEKCJA STATYSTYK POJEMNIKÓW - Grid.Row="2" -->
         <Border Grid.Row="2" 
-                Background="White" 
-                BorderBrush="#BDC3C7" 
-                BorderThickness="0,1,0,1"
-                Padding="15,10">
+        Background="White" 
+        BorderBrush="#BDC3C7" 
+        BorderThickness="0,1,0,1"
+        Padding="15,12">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- Ikona i tytuł -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="📦" 
-                               FontSize="32" 
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="POJEMNIKI" 
-                               FontSize="10" 
+                <!-- Nagłówek sekcji -->
+                <TextBlock Grid.Row="0" 
+                   Text="📦 STATYSTYKI POJEMNIKÓW (15kg/poj | 36 poj/paleta)" 
+                   FontSize="13" 
+                   FontWeight="Bold"
+                   Foreground="#2C3E50"
+                   HorizontalAlignment="Left"/>
+
+                <!-- Dwie kolumny: Mały i Duży kurczak -->
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- MAŁY KURCZAK (POJ 12-9) -->
+                    <Border Grid.Column="0" 
+                    Background="#E3F2FD" 
+                    BorderBrush="#2196F3" 
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="🔵 MAŁY KURCZAK (POJ 12-9)" 
+                               FontSize="14" 
                                FontWeight="Bold"
-                               Foreground="#2C3E50"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="15kg | 36/pal" 
-                               FontSize="8"
-                               Foreground="#7F8C8D"
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
+                               Foreground="#1976D2"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,10"/>
 
-                <!-- MAŁY KURCZAK - kompaktowo -->
-                <Border Grid.Column="2" 
-                        Background="#E3F2FD" 
-                        BorderBrush="#2196F3" 
-                        BorderThickness="2"
-                        CornerRadius="6"
-                        Padding="12,8">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,8">
-                            <TextBlock Text="🔵 MAŁY KURCZAK" 
-                                       FontSize="11" 
-                                       FontWeight="Bold"
-                                       Foreground="#1976D2"
-                                       HorizontalAlignment="Left"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtMalyProcentKompakt" 
-                                       Text="0%"
-                                       FontSize="14" 
-                                       FontWeight="Bold"
-                                       Foreground="#1976D2"
-                                       HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                        <!-- Kompaktowa siatka POJ 12-9 -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- POJ 12 -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" 
-                                       Text="12" 
-                                       FontSize="9" 
+                                <!-- POJ 12 -->
+                                <StackPanel Grid.Column="0" Margin="5">
+                                    <Border Background="#1976D2" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 12" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj12Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" 
-                                       x:Name="txtPoj12Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj12ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" 
-                                       x:Name="txtPoj12Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj12Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 11 -->
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
-                                       Text="11" 
-                                       FontSize="9" 
+                                <!-- POJ 11 -->
+                                <StackPanel Grid.Column="1" Margin="5">
+                                    <Border Background="#1976D2" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 11" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj11Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" 
-                                       x:Name="txtPoj11Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj11ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" 
-                                       x:Name="txtPoj11Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj11Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 10 -->
-                            <TextBlock Grid.Row="0" Grid.Column="2" 
-                                       Text="10" 
-                                       FontSize="9" 
+                                <!-- POJ 10 -->
+                                <StackPanel Grid.Column="2" Margin="5">
+                                    <Border Background="#1976D2" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 10" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj10Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" 
-                                       x:Name="txtPoj10Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj10ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="2" 
-                                       x:Name="txtPoj10Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj10Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 9 -->
-                            <TextBlock Grid.Row="0" Grid.Column="3" 
-                                       Text="9" 
-                                       FontSize="9" 
+                                <!-- POJ 9 -->
+                                <StackPanel Grid.Column="3" Margin="5">
+                                    <Border Background="#1976D2" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 9" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj9Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="3" 
-                                       x:Name="txtPoj9Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj9ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#1976D2"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="3" 
-                                       x:Name="txtPoj9Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj9Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
-                        </Grid>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Grid>
 
-                        <!-- Suma małego -->
-                        <Border Background="#0D47A1" 
-                                CornerRadius="4" 
-                                Padding="8,4"
-                                Margin="0,8,0,0">
-                            <TextBlock x:Name="txtSumaMalyKompakt" 
-                                       Text="0 poj"
-                                       FontSize="11" 
+                            <!-- SUMA małego -->
+                            <Border Background="#0D47A1" 
+                            CornerRadius="5" 
+                            Padding="10"
+                            Margin="0,10,0,0">
+                                <Grid>
+                                    <TextBlock Text="SUMA MAŁY:" 
+                                       FontSize="12" 
                                        FontWeight="Bold"
                                        Foreground="White"
-                                       HorizontalAlignment="Center"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- DUŻY KURCZAK - kompaktowo -->
-                <Border Grid.Column="4" 
-                        Background="#FFF3E0" 
-                        BorderBrush="#FF9800" 
-                        BorderThickness="2"
-                        CornerRadius="6"
-                        Padding="12,8">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,8">
-                            <TextBlock Text="🟠 DUŻY KURCZAK" 
-                                       FontSize="11" 
-                                       FontWeight="Bold"
-                                       Foreground="#F57C00"
-                                       HorizontalAlignment="Left"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtDuzyProcentKompakt" 
-                                       Text="0%"
+                                       HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="txtSumaMalyKompakt" 
                                        FontSize="14" 
                                        FontWeight="Bold"
-                                       Foreground="#F57C00"
-                                       HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
+                                       Foreground="White"
+                                       HorizontalAlignment="Right"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Kompaktowa siatka POJ 8-5 -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <!-- DUŻY KURCZAK (POJ 8-5) -->
+                    <Border Grid.Column="2" 
+                    Background="#FFF3E0" 
+                    BorderBrush="#FF9800" 
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="🟠 DUŻY KURCZAK (POJ 8-5)" 
+                               FontSize="14" 
+                               FontWeight="Bold"
+                               Foreground="#F57C00"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,10"/>
 
-                            <!-- POJ 8 -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" 
-                                       Text="8" 
-                                       FontSize="9" 
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- POJ 8 -->
+                                <StackPanel Grid.Column="0" Margin="5">
+                                    <Border Background="#F57C00" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 8" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj8Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" 
-                                       x:Name="txtPoj8Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj8ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" 
-                                       x:Name="txtPoj8Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj8Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 7 -->
-                            <TextBlock Grid.Row="0" Grid.Column="1" 
-                                       Text="7" 
-                                       FontSize="9" 
+                                <!-- POJ 7 -->
+                                <StackPanel Grid.Column="1" Margin="5">
+                                    <Border Background="#F57C00" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 7" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj7Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" 
-                                       x:Name="txtPoj7Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj7ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" 
-                                       x:Name="txtPoj7Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj7Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 6 -->
-                            <TextBlock Grid.Row="0" Grid.Column="2" 
-                                       Text="6" 
-                                       FontSize="9" 
+                                <!-- POJ 6 -->
+                                <StackPanel Grid.Column="2" Margin="5">
+                                    <Border Background="#F57C00" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 6" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj6Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" 
-                                       x:Name="txtPoj6Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj6ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="2" 
-                                       x:Name="txtPoj6Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj6Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
 
-                            <!-- POJ 5 -->
-                            <TextBlock Grid.Row="0" Grid.Column="3" 
-                                       Text="5" 
-                                       FontSize="9" 
+                                <!-- POJ 5 -->
+                                <StackPanel Grid.Column="3" Margin="5">
+                                    <Border Background="#F57C00" 
+                                    CornerRadius="5" 
+                                    Padding="8,5">
+                                        <TextBlock Text="POJ 5" 
+                                           FontSize="11" 
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock x:Name="txtPoj5Kompakt" 
+                                       FontSize="18" 
                                        FontWeight="Bold"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="3" 
-                                       x:Name="txtPoj5Kompakt"
-                                       Text="0"
-                                       FontSize="13" 
-                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="txtPoj5ProcentKompakt" 
+                                       FontSize="12"
                                        Foreground="#F57C00"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="3" 
-                                       x:Name="txtPoj5Pal"
-                                       Text=""
-                                       FontSize="8"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="txtPoj5Pal" 
+                                       FontSize="9"
                                        Foreground="#7F8C8D"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       TextAlignment="Center"/>
-                        </Grid>
+                                       TextAlignment="Center"
+                                       Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Grid>
 
-                        <!-- Suma dużego -->
-                        <Border Background="#E65100" 
-                                CornerRadius="4" 
-                                Padding="8,4"
-                                Margin="0,8,0,0">
-                            <TextBlock x:Name="txtSumaDuzyKompakt" 
-                                       Text="0 poj"
-                                       FontSize="11" 
+                            <!-- SUMA dużego -->
+                            <Border Background="#E65100" 
+                            CornerRadius="5" 
+                            Padding="10"
+                            Margin="0,10,0,0">
+                                <Grid>
+                                    <TextBlock Text="SUMA DUŻY:" 
+                                       FontSize="12" 
                                        FontWeight="Bold"
                                        Foreground="White"
-                                       HorizontalAlignment="Center"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
+                                       HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="txtSumaDuzyKompakt" 
+                                       FontSize="14" 
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       HorizontalAlignment="Right"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
 
@@ -514,7 +560,7 @@
                 <DataGrid Grid.Row="1"
                           x:Name="dgDostawy" 
                           Style="{StaticResource DataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}">
+                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}" SelectionChanged="dgDostawy_SelectionChanged">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Lp" 
                                           Binding="{Binding Lp}" 

@@ -343,63 +343,84 @@ namespace Kalendarz1
             decimal procentMaly = (decimal)sumaMaly / sumaCala * 100;
             decimal procentDuzy = (decimal)sumaDuzy / sumaCala * 100;
 
-            // Ustaw wartości dla małego kurczaka
+            // Ustaw wartości dla małego kurczaka z procentami
             txtPoj12Kompakt.Text = suma.Pojemniki12.ToString();
-            txtPoj11Kompakt.Text = suma.Pojemniki11.ToString();
-            txtPoj10Kompakt.Text = suma.Pojemniki10.ToString();
-            txtPoj9Kompakt.Text = suma.Pojemniki9.ToString();
-
+            txtPoj12ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki12 / sumaCala * 100):F1}%" : "0%";
             txtPoj12Pal.Text = FormatujPaletyKrotko(suma.Pojemniki12);
+
+            txtPoj11Kompakt.Text = suma.Pojemniki11.ToString();
+            txtPoj11ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki11 / sumaCala * 100):F1}%" : "0%";
             txtPoj11Pal.Text = FormatujPaletyKrotko(suma.Pojemniki11);
+
+            txtPoj10Kompakt.Text = suma.Pojemniki10.ToString();
+            txtPoj10ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki10 / sumaCala * 100):F1}%" : "0%";
             txtPoj10Pal.Text = FormatujPaletyKrotko(suma.Pojemniki10);
+
+            txtPoj9Kompakt.Text = suma.Pojemniki9.ToString();
+            txtPoj9ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki9 / sumaCala * 100):F1}%" : "0%";
             txtPoj9Pal.Text = FormatujPaletyKrotko(suma.Pojemniki9);
 
-            // Ustaw wartości dla dużego kurczaka
+            // Ustaw wartości dla dużego kurczaka z procentami
             txtPoj8Kompakt.Text = suma.Pojemniki8.ToString();
-            txtPoj7Kompakt.Text = suma.Pojemniki7.ToString();
-            txtPoj6Kompakt.Text = suma.Pojemniki6.ToString();
-            txtPoj5Kompakt.Text = suma.Pojemniki5.ToString();
-
+            txtPoj8ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki8 / sumaCala * 100):F1}%" : "0%";
             txtPoj8Pal.Text = FormatujPaletyKrotko(suma.Pojemniki8);
+
+            txtPoj7Kompakt.Text = suma.Pojemniki7.ToString();
+            txtPoj7ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki7 / sumaCala * 100):F1}%" : "0%";
             txtPoj7Pal.Text = FormatujPaletyKrotko(suma.Pojemniki7);
+
+            txtPoj6Kompakt.Text = suma.Pojemniki6.ToString();
+            txtPoj6ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki6 / sumaCala * 100):F1}%" : "0%";
             txtPoj6Pal.Text = FormatujPaletyKrotko(suma.Pojemniki6);
+
+            txtPoj5Kompakt.Text = suma.Pojemniki5.ToString();
+            txtPoj5ProcentKompakt.Text = sumaCala > 0 ? $"{((decimal)suma.Pojemniki5 / sumaCala * 100):F1}%" : "0%";
             txtPoj5Pal.Text = FormatujPaletyKrotko(suma.Pojemniki5);
 
-            // Sumy i procenty
-            txtMalyProcentKompakt.Text = $"{procentMaly:F0}%";
-            txtDuzyProcentKompakt.Text = $"{procentDuzy:F0}%";
-
-            txtSumaMalyKompakt.Text = $"{sumaMaly:N0} poj";
-            txtSumaDuzyKompakt.Text = $"{sumaDuzy:N0} poj";
+            // Sumy z procentami
+            txtSumaMalyKompakt.Text = $"{sumaMaly:N0} poj ({procentMaly:F1}%)";
+            txtSumaDuzyKompakt.Text = $"{sumaDuzy:N0} poj ({procentDuzy:F1}%)";
         }
-
         private void WyczyscStatystykiPojemnikow()
         {
+            // Mały kurczak
             txtPoj12Kompakt.Text = "0";
-            txtPoj11Kompakt.Text = "0";
-            txtPoj10Kompakt.Text = "0";
-            txtPoj9Kompakt.Text = "0";
-            txtPoj8Kompakt.Text = "0";
-            txtPoj7Kompakt.Text = "0";
-            txtPoj6Kompakt.Text = "0";
-            txtPoj5Kompakt.Text = "0";
-
+            txtPoj12ProcentKompakt.Text = "0%";
             txtPoj12Pal.Text = "";
+
+            txtPoj11Kompakt.Text = "0";
+            txtPoj11ProcentKompakt.Text = "0%";
             txtPoj11Pal.Text = "";
+
+            txtPoj10Kompakt.Text = "0";
+            txtPoj10ProcentKompakt.Text = "0%";
             txtPoj10Pal.Text = "";
+
+            txtPoj9Kompakt.Text = "0";
+            txtPoj9ProcentKompakt.Text = "0%";
             txtPoj9Pal.Text = "";
+
+            // Duży kurczak
+            txtPoj8Kompakt.Text = "0";
+            txtPoj8ProcentKompakt.Text = "0%";
             txtPoj8Pal.Text = "";
+
+            txtPoj7Kompakt.Text = "0";
+            txtPoj7ProcentKompakt.Text = "0%";
             txtPoj7Pal.Text = "";
+
+            txtPoj6Kompakt.Text = "0";
+            txtPoj6ProcentKompakt.Text = "0%";
             txtPoj6Pal.Text = "";
+
+            txtPoj5Kompakt.Text = "0";
+            txtPoj5ProcentKompakt.Text = "0%";
             txtPoj5Pal.Text = "";
 
-            txtMalyProcentKompakt.Text = "0%";
-            txtDuzyProcentKompakt.Text = "0%";
-
-            txtSumaMalyKompakt.Text = "0 poj";
-            txtSumaDuzyKompakt.Text = "0 poj";
+            // Sumy
+            txtSumaMalyKompakt.Text = "0 poj (0%)";
+            txtSumaDuzyKompakt.Text = "0 poj (0%)";
         }
-
         private string FormatujPalety(int liczba)
         {
             if (liczba == 0) return "";
@@ -512,4 +533,98 @@ namespace Kalendarz1
                     if (suma.Pojemniki5 > 0)
                     {
                         decimal proc = (decimal)suma.Pojemniki5 / sumaCala * 100;
-                        sb.AppendLine($"   POJ 5
+                        sb.AppendLine($"   POJ 5:  {suma.Pojemniki5,4} poj ({proc,5:F1}%) - {FormatujPalety(suma.Pojemniki5)}");
+                    }
+                    sb.AppendLine($"   SUMA DUŻY: {sumaDuzy:N0} poj ({procentDuzy:F1}%)");
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine("═══════════════════════════════════════════════════════════");
+                sb.AppendLine("                    LISTA DOSTAW");
+                sb.AppendLine("═══════════════════════════════════════════════════════════");
+                sb.AppendLine();
+
+                // Lista dostaw (posortowane po wadze)
+                foreach (var dostawa in dostawy.Where(d => !d.JestSuma))
+                {
+                    sb.AppendLine($"{dostawa.Lp}. {dostawa.Dostawca}");
+                    sb.AppendLine($"   Auta: {dostawa.Auta} | Waga śr.: {dostawa.WagaDek:F2} kg | Sztuki: {dostawa.SztukiDek:N0}");
+                    sb.AppendLine($"   Żywiec: {dostawa.ZywiecKg:N0} kg | Tuszka A: {dostawa.TuszkaA:N0} kg");
+                    sb.AppendLine($"   Filet: {dostawa.Filet:N0} kg | Ćwiartka: {dostawa.Cwiartka:N0} kg");
+
+                    if (dostawa.Pojemniki12 > 0 || dostawa.Pojemniki11 > 0 || dostawa.Pojemniki10 > 0 || dostawa.Pojemniki9 > 0)
+                    {
+                        sb.Append($"   🔵 MAŁY:");
+                        if (dostawa.Pojemniki12 > 0) sb.Append($" 12:{dostawa.Pojemniki12}");
+                        if (dostawa.Pojemniki11 > 0) sb.Append($" 11:{dostawa.Pojemniki11}");
+                        if (dostawa.Pojemniki10 > 0) sb.Append($" 10:{dostawa.Pojemniki10}");
+                        if (dostawa.Pojemniki9 > 0) sb.Append($" 9:{dostawa.Pojemniki9}");
+                        sb.AppendLine();
+                    }
+
+                    if (dostawa.Pojemniki8 > 0 || dostawa.Pojemniki7 > 0 || dostawa.Pojemniki6 > 0 || dostawa.Pojemniki5 > 0)
+                    {
+                        sb.Append($"   🟠 DUŻY:");
+                        if (dostawa.Pojemniki8 > 0) sb.Append($" 8:{dostawa.Pojemniki8}");
+                        if (dostawa.Pojemniki7 > 0) sb.Append($" 7:{dostawa.Pojemniki7}");
+                        if (dostawa.Pojemniki6 > 0) sb.Append($" 6:{dostawa.Pojemniki6}");
+                        if (dostawa.Pojemniki5 > 0) sb.Append($" 5:{dostawa.Pojemniki5}");
+                        sb.AppendLine();
+                    }
+
+                    sb.AppendLine($"   Status: {dostawa.Status}");
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine("═══════════════════════════════════════════════════════════");
+
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Szczegóły dnia zostały skopiowane do schowka!",
+                              "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd kopiowania: {ex.Message}",
+                              "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnZamknij_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void dgDostawy_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+
+        }
+    }
+
+    public class DostawaModel
+    {
+        public int Lp { get; set; }
+        public string Dostawca { get; set; }
+        public int Auta { get; set; }
+        public decimal WagaDek { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal ZywiecKg { get; set; }
+        public decimal TuszkaKg { get; set; }
+        public decimal TuszkaA { get; set; }
+        public decimal Filet { get; set; }
+        public decimal Cwiartka { get; set; }
+        public decimal Skrzydlo { get; set; }
+        public string Status { get; set; }
+
+        // Pojemniki według wielkości
+        public int Pojemniki12 { get; set; }
+        public int Pojemniki11 { get; set; }
+        public int Pojemniki10 { get; set; }
+        public int Pojemniki9 { get; set; }
+        public int Pojemniki8 { get; set; }
+        public int Pojemniki7 { get; set; }
+        public int Pojemniki6 { get; set; }
+        public int Pojemniki5 { get; set; }
+
+        public bool JestSuma { get; set; }
+    }
+}
