@@ -31,11 +31,13 @@ namespace Kalendarz1
             wszystkieProdukty = new ObservableCollection<ProduktModel>();
             skonfigurowaneProdukty = new ObservableCollection<ProduktKonfiguracjaModel>();
 
+            dpDataOd.SelectedDate = DateTime.Today;
+
             WczytajProdukty();
             WczytajKonfiguracje();
 
             listDostepne.ItemsSource = dostepneProdukty;
-            listSkonfigurowane.ItemsSource = skonfigurowaneProdukty;
+            dgKonfiguracje.ItemsSource = skonfigurowaneProdukty;
 
             ObliczSumeProcentow();
         }
@@ -48,7 +50,6 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Pobierz produkty z katalogu 67095 (drobne elementy)
                     string query = @"
                         SELECT id, kod, nazwa 
                         FROM HM.TW 
@@ -90,30 +91,59 @@ namespace Kalendarz1
                     conn.Open();
 
                     string query = @"
-                        SELECT k.ID, k.TowarID, k.NazwaTowaru, k.ProcentUdzialu
+                        SELECT k.ID, k.TowarID, k.NazwaTowaru, k.ProcentUdzialu, k.DataOd, k.Aktywny,
+                               k.DataModyfikacji, k.ModyfikowalPrzez
                         FROM KonfiguracjaProduktow k
-                        WHERE k.Aktywny = 1
-                        ORDER BY k.ProcentUdzialu DESC";
+                        ORDER BY k.DataOd DESC, k.ID DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
+                        var tempDict = new Dictionary<DateTime, List<(int ID, int TowarID, string Nazwa, decimal Procent, bool Aktywny, DateTime? DataMod, string User)>>();
+
                         while (reader.Read())
                         {
+                            DateTime dataOd = reader.IsDBNull(reader.GetOrdinal("DataOd"))
+                                ? DateTime.Today
+                                : Convert.ToDateTime(reader["DataOd"]);
+
                             int towarID = Convert.ToInt32(reader["TowarID"]);
                             string nazwa = reader["NazwaTowaru"].ToString();
+                            decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
+                            bool aktywny = !reader.IsDBNull(reader.GetOrdinal("Aktywny")) && Convert.ToBoolean(reader["Aktywny"]);
+                            DateTime? dataMod = reader.IsDBNull(reader.GetOrdinal("DataModyfikacji"))
+                                ? null
+                                : Convert.ToDateTime(reader["DataModyfikacji"]);
+                            string user = reader.IsDBNull(reader.GetOrdinal("ModyfikowalPrzez"))
+                                ? ""
+                                : reader["ModyfikowalPrzez"].ToString();
 
-                            // Znajdź kod produktu
-                            var produkt = wszystkieProdukty.FirstOrDefault(p => p.ID == towarID);
-                            string kod = produkt?.Kod ?? "";
+                            if (!tempDict.ContainsKey(dataOd))
+                                tempDict[dataOd] = new List<(int, int, string, decimal, bool, DateTime?, string)>();
+
+                            tempDict[dataOd].Add((Convert.ToInt32(reader["ID"]), towarID, nazwa, procent, aktywny, dataMod, user));
+                        }
+
+                        // Grupuj po dacie i stwórz jeden wiersz na konfigurację
+                        foreach (var kvp in tempDict.OrderByDescending(x => x.Key))
+                        {
+                            var produkty = kvp.Value;
+                            decimal sumaProcent = produkty.Sum(p => p.Procent);
+                            bool czyAktywny = produkty.Any(p => p.Aktywny);
+                            int liczbaProd = produkty.Count;
+
+                            var pierwszyProd = produkty.First();
 
                             skonfigurowaneProdukty.Add(new ProduktKonfiguracjaModel
                             {
-                                ID = Convert.ToInt32(reader["ID"]),
-                                TowarID = towarID,
-                                Kod = kod,
-                                Nazwa = nazwa,
-                                Procent = Convert.ToDecimal(reader["ProcentUdzialu"])
+                                DataOd = kvp.Key,
+                                LiczbaProduktow = liczbaProd,
+                                SumaProcentow = sumaProcent,
+                                Aktywny = czyAktywny,
+                                StatusTekst = czyAktywny ? "✓ Aktywna" : "✕ Nieaktywna",
+                                DataModyfikacji = pierwszyProd.DataMod ?? DateTime.Now,
+                                ModyfikowalPrzez = pierwszyProd.User,
+                                Produkty = string.Join(", ", produkty.Select(p => $"{p.Nazwa} ({p.Procent:F1}%)"))
                             });
                         }
                     }
@@ -153,6 +183,8 @@ namespace Kalendarz1
             }
         }
 
+        private ObservableCollection<ProduktSzczegolyModel> produktySzczegoly = new ObservableCollection<ProduktSzczegolyModel>();
+
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
         {
             var wybrany = listDostepne.SelectedItem as ProduktModel;
@@ -163,16 +195,14 @@ namespace Kalendarz1
                 return;
             }
 
-            // Sprawdź czy już nie jest dodany
-            if (skonfigurowaneProdukty.Any(p => p.TowarID == wybrany.ID))
+            if (produktySzczegoly.Any(p => p.TowarID == wybrany.ID))
             {
                 MessageBox.Show("Ten produkt jest już w konfiguracji.",
                               "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            // Dodaj do konfiguracji z domyślnym 0%
-            skonfigurowaneProdukty.Add(new ProduktKonfiguracjaModel
+            produktySzczegoly.Add(new ProduktSzczegolyModel
             {
                 TowarID = wybrany.ID,
                 Kod = wybrany.Kod,
@@ -180,16 +210,19 @@ namespace Kalendarz1
                 Procent = 0m
             });
 
-            ObliczSumeProcentow();
+            if (listSkonfigurowane.ItemsSource == null)
+            {
+                listSkonfigurowane.ItemsSource = produktySzczegoly;
+            }
 
-            // Wyczyść zaznaczenie
+            ObliczSumeProcentow();
             listDostepne.SelectedItem = null;
         }
 
         private void BtnUsun_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
-            var produkt = button?.Tag as ProduktKonfiguracjaModel;
+            var produkt = button?.Tag as ProduktSzczegolyModel;
 
             if (produkt != null)
             {
@@ -204,7 +237,7 @@ namespace Kalendarz1
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    skonfigurowaneProdukty.Remove(produkt);
+                    produktySzczegoly.Remove(produkt);
                     ObliczSumeProcentow();
                 }
             }
@@ -217,33 +250,29 @@ namespace Kalendarz1
 
         private void ObliczSumeProcentow()
         {
-            if (txtSumaProcentow == null) return;
+            if (txtSumaProcentow == null || produktySzczegoly == null) return;
 
-            decimal suma = skonfigurowaneProdukty.Sum(p => p.Procent);
+            decimal suma = produktySzczegoly.Sum(p => p.Procent);
             txtSumaProcentow.Text = $"{suma:F1}%";
 
-            // Zmień kolor w zależności od sumy
             SolidColorBrush kolorTekstu;
             SolidColorBrush kolorTla;
             SolidColorBrush kolorObramowania;
 
             if (suma >= 93 && suma <= 95)
             {
-                // Idealnie - zielony
                 kolorTekstu = new SolidColorBrush(Color.FromRgb(92, 138, 58));
                 kolorTla = new SolidColorBrush(Color.FromRgb(232, 245, 233));
                 kolorObramowania = new SolidColorBrush(Color.FromRgb(92, 138, 58));
             }
             else if (suma >= 90 && suma <= 98)
             {
-                // Dopuszczalne - pomarańczowy
                 kolorTekstu = new SolidColorBrush(Color.FromRgb(255, 152, 0));
                 kolorTla = new SolidColorBrush(Color.FromRgb(255, 243, 205));
                 kolorObramowania = new SolidColorBrush(Color.FromRgb(255, 193, 7));
             }
             else
             {
-                // Niedopuszczalne - czerwony
                 kolorTekstu = new SolidColorBrush(Color.FromRgb(231, 76, 60));
                 kolorTla = new SolidColorBrush(Color.FromRgb(255, 235, 238));
                 kolorObramowania = new SolidColorBrush(Color.FromRgb(231, 76, 60));
@@ -263,16 +292,15 @@ namespace Kalendarz1
                 "• Skrzydło: 9%\n" +
                 "• Filet: 28%\n" +
                 "• Korpus: 19%\n\n" +
-                "Aktualna konfiguracja zostanie usunięta.",
+                "Aktualna konfiguracja zostanie wyczyszczona.",
                 "Potwierdzenie przywrócenia",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
-                skonfigurowaneProdukty.Clear();
+                produktySzczegoly.Clear();
 
-                // Znajdź domyślne produkty
                 var domyslne = new Dictionary<string, decimal>
                 {
                     { "Ćwiartka", 38m },
@@ -288,7 +316,7 @@ namespace Kalendarz1
 
                     if (produkt != null)
                     {
-                        skonfigurowaneProdukty.Add(new ProduktKonfiguracjaModel
+                        produktySzczegoly.Add(new ProduktSzczegolyModel
                         {
                             TowarID = produkt.ID,
                             Kod = produkt.Kod,
@@ -304,14 +332,29 @@ namespace Kalendarz1
                     }
                 }
 
+                listSkonfigurowane.ItemsSource = produktySzczegoly;
                 ObliczSumeProcentow();
             }
         }
 
         private void BtnZapisz_Click(object sender, RoutedEventArgs e)
         {
-            // Walidacja
-            decimal suma = skonfigurowaneProdukty.Sum(p => p.Procent);
+            if (!dpDataOd.SelectedDate.HasValue)
+            {
+                MessageBox.Show("Wybierz datę od której ma obowiązywać konfiguracja.",
+                              "Brak daty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                dpDataOd.Focus();
+                return;
+            }
+
+            if (produktySzczegoly.Count == 0)
+            {
+                MessageBox.Show("Dodaj przynajmniej jeden produkt do konfiguracji.",
+                              "Brak produktów", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            decimal suma = produktySzczegoly.Sum(p => p.Procent);
 
             if (suma < 90 || suma > 98)
             {
@@ -336,38 +379,30 @@ namespace Kalendarz1
                     {
                         try
                         {
-                            // Dezaktywuj wszystkie istniejące
-                            string deactivateQuery = "UPDATE KonfiguracjaProduktow SET Aktywny = 0";
+                            DateTime dataOd = dpDataOd.SelectedDate.Value.Date;
+
+                            // Dezaktywuj konfiguracje dla tej samej daty
+                            string deactivateQuery = "UPDATE KonfiguracjaProduktow SET Aktywny = 0 WHERE DataOd = @DataOd";
                             using (SqlCommand cmd = new SqlCommand(deactivateQuery, conn, trans))
                             {
+                                cmd.Parameters.AddWithValue("@DataOd", dataOd);
                                 cmd.ExecuteNonQuery();
                             }
 
-                            // Wstaw nowe lub zaktualizuj istniejące
-                            foreach (var produkt in skonfigurowaneProdukty)
+                            // Dodaj nowe produkty
+                            foreach (var produkt in produktySzczegoly)
                             {
                                 string query = @"
-                                    IF EXISTS (SELECT 1 FROM KonfiguracjaProduktow WHERE TowarID = @TowarID)
-                                    BEGIN
-                                        UPDATE KonfiguracjaProduktow 
-                                        SET ProcentUdzialu = @Procent, 
-                                            Aktywny = 1,
-                                            DataModyfikacji = GETDATE(),
-                                            ModyfikowalPrzez = @User
-                                        WHERE TowarID = @TowarID
-                                    END
-                                    ELSE
-                                    BEGIN
-                                        INSERT INTO KonfiguracjaProduktow 
-                                            (TowarID, NazwaTowaru, ProcentUdzialu, Aktywny, ModyfikowalPrzez, DataModyfikacji)
-                                        VALUES (@TowarID, @Nazwa, @Procent, 1, @User, GETDATE())
-                                    END";
+                                    INSERT INTO KonfiguracjaProduktow 
+                                        (TowarID, NazwaTowaru, ProcentUdzialu, DataOd, Aktywny, ModyfikowalPrzez, DataModyfikacji)
+                                    VALUES (@TowarID, @Nazwa, @Procent, @DataOd, 1, @User, GETDATE())";
 
                                 using (SqlCommand cmd = new SqlCommand(query, conn, trans))
                                 {
                                     cmd.Parameters.AddWithValue("@TowarID", produkt.TowarID);
                                     cmd.Parameters.AddWithValue("@Nazwa", produkt.Nazwa);
                                     cmd.Parameters.AddWithValue("@Procent", produkt.Procent);
+                                    cmd.Parameters.AddWithValue("@DataOd", dataOd);
                                     cmd.Parameters.AddWithValue("@User", Environment.UserName);
                                     cmd.ExecuteNonQuery();
                                 }
@@ -377,7 +412,8 @@ namespace Kalendarz1
 
                             MessageBox.Show(
                                 $"✓ Konfiguracja została zapisana pomyślnie!\n\n" +
-                                $"Liczba produktów: {skonfigurowaneProdukty.Count}\n" +
+                                $"Data od: {dataOd:yyyy-MM-dd}\n" +
+                                $"Liczba produktów: {produktySzczegoly.Count}\n" +
                                 $"Suma procentów: {suma:F1}%\n\n" +
                                 $"Zmiany będą widoczne w planie tygodniowym.",
                                 "Sukces",
@@ -404,7 +440,7 @@ namespace Kalendarz1
 
         private void BtnAnuluj_Click(object sender, RoutedEventArgs e)
         {
-            if (skonfigurowaneProdukty.Count > 0)
+            if (produktySzczegoly.Count > 0)
             {
                 var result = MessageBox.Show(
                     "Czy na pewno chcesz zamknąć okno bez zapisywania?\n\n" +
@@ -420,9 +456,63 @@ namespace Kalendarz1
             DialogResult = false;
             Close();
         }
+
+        private void BtnUsunKonfiguracje_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var konfig = button?.Tag as ProduktKonfiguracjaModel;
+
+            if (konfig != null)
+            {
+                var result = MessageBox.Show(
+                    $"Czy na pewno dezaktywować konfigurację?\n\n" +
+                    $"Data od: {konfig.DataOd:yyyy-MM-dd}\n" +
+                    $"Liczba produktów: {konfig.LiczbaProduktow}\n" +
+                    $"Suma: {konfig.SumaProcentow:F1}%\n\n" +
+                    $"Konfiguracja zostanie zachowana w bazie, ale nie będzie używana.",
+                    "Potwierdzenie dezaktywacji",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        using (SqlConnection conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+
+                            string updateQuery = @"
+                                UPDATE KonfiguracjaProduktow 
+                                SET Aktywny = 0, 
+                                    DataModyfikacji = GETDATE(),
+                                    ModyfikowalPrzez = @User
+                                WHERE DataOd = @DataOd AND Aktywny = 1";
+
+                            using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@DataOd", konfig.DataOd);
+                                cmd.Parameters.AddWithValue("@User", Environment.UserName);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        skonfigurowaneProdukty.Clear();
+                        WczytajKonfiguracje();
+
+                        MessageBox.Show("Konfiguracja została dezaktywowana.",
+                                      "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd dezaktywacji: {ex.Message}",
+                                      "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
     }
 
-    // Modele danych
     public class ProduktModel
     {
         public int ID { get; set; }
@@ -430,9 +520,8 @@ namespace Kalendarz1
         public string Nazwa { get; set; }
     }
 
-    public class ProduktKonfiguracjaModel : INotifyPropertyChanged
+    public class ProduktSzczegolyModel : INotifyPropertyChanged
     {
-        public int ID { get; set; }
         public int TowarID { get; set; }
         public string Kod { get; set; }
         public string Nazwa { get; set; }
@@ -456,5 +545,17 @@ namespace Kalendarz1
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+    }
+
+    public class ProduktKonfiguracjaModel
+    {
+        public DateTime DataOd { get; set; }
+        public int LiczbaProduktow { get; set; }
+        public decimal SumaProcentow { get; set; }
+        public bool Aktywny { get; set; }
+        public string StatusTekst { get; set; }
+        public DateTime DataModyfikacji { get; set; }
+        public string ModyfikowalPrzez { get; set; }
+        public string Produkty { get; set; }
     }
 }

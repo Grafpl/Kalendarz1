@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Kalendarz1; // Dla WidokZamowienia z WinForms
 
 namespace Kalendarz1.WPF
 {
@@ -17,7 +16,6 @@ namespace Kalendarz1.WPF
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-        // Dodaj te stałe
         private static readonly DateTime MinSqlDate = new DateTime(1753, 1, 1);
         private static readonly DateTime MaxSqlDate = new DateTime(9999, 12, 31);
 
@@ -25,8 +23,6 @@ namespace Kalendarz1.WPF
         private DateTime _selectedDate;
         private int? _currentOrderId;
         private readonly List<Button> _dayButtons = new();
-
-        // DODAJ TO - mapowanie przycisków na daty
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
 
         private bool _showBySlaughterDate = true;
@@ -38,9 +34,8 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
-        private bool _showReleasesWithoutOrders = true;
+        private bool _showReleasesWithoutOrders = false;
 
-        // Kolorowanie handlowców
         private readonly Dictionary<string, Color> _salesmanColors = new Dictionary<string, Color>();
         private readonly List<Color> _colorPalette = new List<Color>
         {
@@ -49,13 +44,14 @@ namespace Kalendarz1.WPF
             Color.FromRgb(255, 228, 225), Color.FromRgb(240, 255, 255), Color.FromRgb(240, 248, 255)
         };
         private int _colorIndex = 0;
-        // Dodaj tę metodę pomocniczą
+
         private DateTime ValidateSqlDate(DateTime date)
         {
             if (date < MinSqlDate) return MinSqlDate;
             if (date > MaxSqlDate) return MaxSqlDate;
             return date.Date;
         }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -73,11 +69,92 @@ namespace Kalendarz1.WPF
 
             await LoadInitialDataAsync();
 
-            // WALIDUJ TUTAJ
             _selectedDate = ValidateSqlDate(DateTime.Today);
             UpdateDayButtonDates();
             await RefreshAllDataAsync();
         }
+
+        #region Konfiguracja Wydajności i Produktów
+
+        private async Task<(decimal wspolczynnikTuszki, decimal procentA, decimal procentB)> GetKonfiguracjaWydajnosciAsync(DateTime data)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string query = @"
+                    SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA, ProcentTuszkaB
+                    FROM KonfiguracjaWydajnosci
+                    WHERE DataOd <= @Data AND Aktywny = 1
+                    ORDER BY DataOd DESC";
+
+                await using var cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return (
+                        Convert.ToDecimal(reader["WspolczynnikTuszki"]),
+                        Convert.ToDecimal(reader["ProcentTuszkaA"]),
+                        Convert.ToDecimal(reader["ProcentTuszkaB"])
+                    );
+                }
+
+                return (78.0m, 85.0m, 15.0m);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd pobierania konfiguracji wydajności: {ex.Message}\n\nUżyto wartości domyślnych.",
+                    "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return (78.0m, 85.0m, 15.0m);
+            }
+        }
+
+        private async Task<Dictionary<int, decimal>> GetKonfiguracjaProduktowAsync(DateTime data)
+        {
+            var result = new Dictionary<int, decimal>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string query = @"
+                    SELECT kp.TowarID, kp.ProcentUdzialu
+                    FROM KonfiguracjaProduktow kp
+                    INNER JOIN (
+                        SELECT MAX(DataOd) as MaxData
+                        FROM KonfiguracjaProduktow
+                        WHERE DataOd <= @Data AND Aktywny = 1
+                    ) sub ON kp.DataOd = sub.MaxData
+                    WHERE kp.Aktywny = 1";
+
+                await using var cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@Data", data.Date);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    int towarId = Convert.ToInt32(reader["TowarID"]);
+                    decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
+                    result[towarId] = procent;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd pobierania konfiguracji produktów: {ex.Message}",
+                    "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return result;
+            }
+        }
+
+        #endregion
+
         #region Setup and Initialization
 
         private void SetupDayButtons()
@@ -97,14 +174,13 @@ namespace Kalendarz1.WPF
                 btn.Content = stack;
 
                 btn.Click += DayButton_Click;
-
-                // ZAMIAST Tag użyj Dictionary
                 _dayButtonDates[btn] = DateTime.Today.AddDays(i);
 
                 _dayButtons.Add(btn);
                 panelDays.Children.Add(btn);
             }
         }
+
         private async Task LoadInitialDataAsync()
         {
             await CheckAndCreateSlaughterDateColumnAsync();
@@ -234,15 +310,12 @@ namespace Kalendarz1.WPF
                 _slaughterDateColumnExists = false;
                 MessageBox.Show($"Nie można dodać kolumny DataUboju do bazy danych.\n" +
                                $"Funkcja filtrowania po dacie uboju będzie niedostępna.\n\n" +
-                               $"Błąd: {ex.Message}\n\n" +
-                               $"Aby włączyć tę funkcję, wykonaj SQL:\n" +
-                               $"ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataUboju DATE NULL",
+                               $"Błąd: {ex.Message}",
                     "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
         #endregion
-
         #region Navigation Events
 
         private void DayButton_Click(object sender, RoutedEventArgs e)
@@ -254,6 +327,7 @@ namespace Kalendarz1.WPF
                 _ = RefreshAllDataAsync();
             }
         }
+
         private void BtnPreviousWeek_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(-7);
@@ -286,33 +360,31 @@ namespace Kalendarz1.WPF
                 var dt = startOfWeek.AddDays(i);
                 var btn = _dayButtons[i];
 
-                // ZAPISZ DATĘ W DICTIONARY zamiast Tag
                 _dayButtonDates[btn] = dt;
 
-                // Zaktualizuj tekst
                 var stack = new StackPanel();
                 stack.Children.Add(new TextBlock { Text = dayNames[i], FontSize = 9, FontWeight = FontWeights.Bold });
                 stack.Children.Add(new TextBlock { Text = dt.ToString("dd.MM"), FontSize = 9 });
                 btn.Content = stack;
 
-                // Ustaw kolory
                 if (dt.Date == _selectedDate.Date)
                 {
-                    btn.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)); // Niebieski - wybrany
+                    btn.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
                     btn.Foreground = Brushes.White;
                 }
                 else if (dt.Date == DateTime.Today)
                 {
-                    btn.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)); // Żółty - dzisiaj
+                    btn.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
                     btn.Foreground = Brushes.White;
                 }
                 else
                 {
-                    btn.Background = new SolidColorBrush(Color.FromRgb(245, 247, 250)); // Jasny szary - normalny
+                    btn.Background = new SolidColorBrush(Color.FromRgb(245, 247, 250));
                     btn.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80));
                 }
             }
         }
+
         #endregion
 
         #region Action Button Events
@@ -543,7 +615,6 @@ namespace Kalendarz1.WPF
         }
 
         #endregion
-
         #region Filter Events
 
         private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
@@ -745,8 +816,8 @@ namespace Kalendarz1.WPF
                 FROM [dbo].[ZamowieniaMieso] zm
                 JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                 WHERE {dateColumn} = @Day AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
-                            (selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "") +
-                            $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                                    (selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "") +
+                                    $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
                      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{slaughterDateGroupBy}
                 ORDER BY zm.Id";
 
@@ -763,7 +834,6 @@ namespace Kalendarz1.WPF
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
             var cultureInfo = new CultureInfo("pl-PL");
 
-            // Zmienne do sumowania
             int totalOrdersCount = 0;
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
@@ -823,7 +893,6 @@ namespace Kalendarz1.WPF
                     createdBy = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
                 }
 
-                // Sumowanie
                 totalOrdersCount++;
                 totalOrdered += quantity;
                 totalReleased += released;
@@ -837,7 +906,6 @@ namespace Kalendarz1.WPF
                 );
             }
 
-            // Add releases without orders
             var releasesWithoutOrders = new List<DataRow>();
             foreach (var kv in releasesPerClientProduct)
             {
@@ -870,18 +938,16 @@ namespace Kalendarz1.WPF
                 row["MaNotatke"] = false;
                 releasesWithoutOrders.Add(row);
 
-                // Dodaj do sumy również wydania bez zamówień
                 totalReleased += released;
             }
 
             foreach (var row in releasesWithoutOrders.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
                 _dtOrders.Rows.Add(row.ItemArray);
 
-            // DODAJ WIERSZ SUMY NA POCZĄTKU
             if (_dtOrders.Rows.Count > 0)
             {
                 var summaryRow = _dtOrders.NewRow();
-                summaryRow["Id"] = -1; // Specjalny ID dla wiersza sumy
+                summaryRow["Id"] = -1;
                 summaryRow["KlientId"] = 0;
                 summaryRow["Odbiorca"] = "═══ SUMA ═══";
                 summaryRow["Handlowiec"] = $"Zamówień: {totalOrdersCount}";
@@ -898,7 +964,7 @@ namespace Kalendarz1.WPF
                 summaryRow["Status"] = "SUMA";
                 summaryRow["MaNotatke"] = false;
 
-                _dtOrders.Rows.InsertAt(summaryRow, 0); // Wstaw na początku
+                _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
 
             SetupOrdersDataGrid();
@@ -909,7 +975,6 @@ namespace Kalendarz1.WPF
             dgOrders.ItemsSource = _dtOrders.DefaultView;
             dgOrders.Columns.Clear();
 
-            // Dodaj event handler dla kolorowania wierszy
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
@@ -917,7 +982,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(2.5, DataGridLengthUnitType.Star), // ZWIĘKSZONE
+                Width = new DataGridLength(2.5, DataGridLengthUnitType.Star),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -932,7 +997,7 @@ namespace Kalendarz1.WPF
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zamówiono",
-                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" }, // SEPARATOR TYSIĘCY
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
@@ -940,7 +1005,7 @@ namespace Kalendarz1.WPF
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" }, // SEPARATOR TYSIĘCY
+                Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
@@ -948,7 +1013,7 @@ namespace Kalendarz1.WPF
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Palety",
-                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" }, // ZMIENIONE NA N1
+                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
                 Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
@@ -957,7 +1022,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Termin Odbioru",
                 Binding = new System.Windows.Data.Binding("TerminOdbioru"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star), // ZMNIEJSZONE - może się zwijać
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 100
             });
 
@@ -965,10 +1030,11 @@ namespace Kalendarz1.WPF
             {
                 Header = "Utworzone przez",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star), // ZMNIEJSZONE - może się zwijać
+                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
                 MinWidth = 80
             });
         }
+
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -977,17 +1043,15 @@ namespace Kalendarz1.WPF
                 var salesman = rowView.Row.Field<string>("Handlowiec") ?? "";
                 var id = rowView.Row.Field<int>("Id");
 
-                // WIERSZ SUMY - specjalne formatowanie
                 if (id == -1 || status == "SUMA")
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58)); // Zielony
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58));
                     e.Row.Foreground = Brushes.White;
                     e.Row.FontWeight = FontWeights.Bold;
                     e.Row.FontSize = 14;
-                    return; // Wyjdź, aby nie nadpisać innych stylów
+                    return;
                 }
 
-                // Kolorowanie statusów
                 if (status == "Wydanie bez zamówienia")
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 240, 200));
@@ -1000,12 +1064,10 @@ namespace Kalendarz1.WPF
                 }
                 else if (!string.IsNullOrEmpty(salesman))
                 {
-                    // Kolorowanie według handlowca
                     var color = GetColorForSalesman(salesman);
                     e.Row.Background = new SolidColorBrush(color);
                 }
 
-                // Czerwone tło dla palet > 34
                 var pallets = rowView.Row.Field<decimal?>("Palety") ?? 0m;
                 if (pallets > 34)
                 {
@@ -1014,6 +1076,7 @@ namespace Kalendarz1.WPF
                 }
             }
         }
+
         private Color GetColorForSalesman(string salesman)
         {
             if (string.IsNullOrEmpty(salesman))
@@ -1029,9 +1092,7 @@ namespace Kalendarz1.WPF
 
         private async Task<Dictionary<int, Dictionary<int, decimal>>> GetReleasesPerClientProductAsync(DateTime day)
         {
-            // Na początku metody waliduj datę
             day = ValidateSqlDate(day);
-
             var dict = new Dictionary<int, Dictionary<int, decimal>>();
             if (!_productCatalogCache.Keys.Any()) return dict;
 
@@ -1047,15 +1108,13 @@ namespace Kalendarz1.WPF
                    GROUP BY MG.khid, MZ.idtw";
 
             await using var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@Day", day); // już zwalidowana
+            cmd.Parameters.AddWithValue("@Day", day);
             await using var rdr = await cmd.ExecuteReaderAsync();
 
             while (await rdr.ReadAsync())
             {
                 int clientId = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
                 int productId = rdr.GetInt32(1);
-
-                // POPRAWKA: użyj Convert.ToDecimal zamiast GetDecimal
                 decimal qty = rdr.IsDBNull(2) ? 0m : Convert.ToDecimal(rdr.GetValue(2));
 
                 if (!dict.TryGetValue(clientId, out var perProduct))
@@ -1072,6 +1131,7 @@ namespace Kalendarz1.WPF
 
             return dict;
         }
+
         private async Task DisplayOrderDetailsAsync(int orderId)
         {
             try
@@ -1082,8 +1142,7 @@ namespace Kalendarz1.WPF
                 int clientId = 0;
                 string notes = "";
                 var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil)>();
-
-                DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date); // WALIDUJ TUTAJ
+                DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
                 await using (var cn = new SqlConnection(_connLibra))
                 {
@@ -1143,24 +1202,23 @@ namespace Kalendarz1.WPF
                     {
                         await cn.OpenAsync();
                         const string sql = @"
-            SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-            FROM [HANDEL].[HM].[MZ] MZ 
-            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-            WHERE MG.seria IN ('sWZ','sWZ-W') 
-            AND MG.aktywny = 1 
-            AND MG.data = @Day 
-            AND MG.khid = @ClientId 
-            GROUP BY MZ.idtw";
-                        // Później w metodzie, gdzie przekazujesz do SQL:
+                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                    FROM [HANDEL].[HM].[MZ] MZ 
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+                    WHERE MG.seria IN ('sWZ','sWZ-W') 
+                    AND MG.aktywny = 1 
+                    AND MG.data = @Day 
+                    AND MG.khid = @ClientId 
+                    GROUP BY MZ.idtw";
+
                         await using var cmd = new SqlCommand(sql, cn);
-                        cmd.Parameters.AddWithValue("@Day", dateForReleases); // już zwalidowana
+                        cmd.Parameters.AddWithValue("@Day", dateForReleases);
                         cmd.Parameters.AddWithValue("@ClientId", clientId);
                         using var rd = await cmd.ExecuteReaderAsync();
 
                         while (await rd.ReadAsync())
                         {
                             int productId = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
-                            // POPRAWKA: użyj Convert.ToDecimal
                             decimal quantity = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
                             releases[productId] = quantity;
                         }
@@ -1231,13 +1289,13 @@ namespace Kalendarz1.WPF
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) // ZMNIEJSZONE
+                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star)
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zamówiono",
-                Binding = new System.Windows.Data.Binding("Zamówiono") { StringFormat = "N0" }, // SEPARATOR TYSIĘCY
+                Binding = new System.Windows.Data.Binding("Zamówiono") { StringFormat = "N0" },
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
@@ -1245,7 +1303,7 @@ namespace Kalendarz1.WPF
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "N0" }, // SEPARATOR TYSIĘCY
+                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "N0" },
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
@@ -1253,7 +1311,7 @@ namespace Kalendarz1.WPF
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Różnica",
-                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "N0" }, // SEPARATOR TYSIĘCY
+                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "N0" },
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
@@ -1262,13 +1320,12 @@ namespace Kalendarz1.WPF
             {
                 Header = "Folia",
                 Binding = new System.Windows.Data.Binding("Folia"),
-                Width = new DataGridLength(70), // ZWIĘKSZONE z 50 na 70
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
         private async Task DisplayReleaseWithoutOrderDetailsAsync(int clientId, DateTime day)
         {
-            // Na początku metody waliduj datę
             day = ValidateSqlDate(day);
 
             var dt = new DataTable();
@@ -1312,7 +1369,6 @@ namespace Kalendarz1.WPF
                     while (await rd.ReadAsync())
                     {
                         int productId = rd.IsDBNull(0) ? 0 : rd.GetInt32(0);
-                        // POPRAWKA: użyj Convert.ToDecimal
                         decimal quantity = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
                         string product = _productCatalogCache.TryGetValue(productId, out var code)
                             ? code : $"Nieznany ({productId})";
@@ -1356,12 +1412,56 @@ namespace Kalendarz1.WPF
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
             dtAgg.Columns.Add("Bilans", typeof(decimal));
 
-            var (plannedIncome, actualIncome) = await GetIncomePerProductAsync(day);
+            var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
+            var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
+
+            decimal totalMassDek = 0m;
+            await using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw 
+                            WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    var weight = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
+                    var quantity = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                    totalMassDek += (weight * quantity);
+                }
+            }
+
+            decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
+            decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
+            decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
+
+            var actualIncome = new Dictionary<int, decimal>();
+            await using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                            FROM [HANDEL].[HM].[MZ] MZ 
+                            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+                            WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day 
+                            GROUP BY MZ.idtw";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int productId = rdr.GetInt32(0);
+                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                    actualIncome[productId] = qty;
+                }
+            }
 
             var orderSum = new Dictionary<int, decimal>();
             var orderIds = _dtOrders.AsEnumerable()
                 .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
-                .Where(r => r.Field<string>("Status") != "SUMA") // Pomiń wiersz sumy
+                .Where(r => r.Field<string>("Status") != "SUMA")
                 .Select(r => r.Field<int>("Id"))
                 .Where(id => id > 0)
                 .ToList();
@@ -1379,50 +1479,124 @@ namespace Kalendarz1.WPF
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
 
-            // TYLKO PRODUKTY Z KATALOGU 67095
-            var products67095 = _productCatalogCache.Where(p =>
+            // Zbierz dane dla Tuszki A
+            var kurczakA = _productCatalogCache.FirstOrDefault(p =>
+                p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
+
+            decimal planA = 0m, factA = 0m, ordersA = 0m, balanceA = 0m;
+
+            if (kurczakA.Key > 0)
             {
-                // Sprawdź czy produkt jest w katalogu 67095
-                using var cn = new SqlConnection(_connHandel);
-                cn.Open();
-                var cmd = new SqlCommand("SELECT katalog FROM [HANDEL].[HM].[TW] WHERE ID = @Id", cn);
-                cmd.Parameters.AddWithValue("@Id", p.Key);
-                var result = cmd.ExecuteScalar();
+                planA = pulaTuszkiA;
+                factA = actualIncome.TryGetValue(kurczakA.Key, out var a) ? a : 0m;
+                ordersA = orderSum.TryGetValue(kurczakA.Key, out var z) ? z : 0m;
+                balanceA = factA - ordersA;
+            }
 
-                if (result is DBNull || result == null) return false;
+            // Zbierz dane dla Tuszki B i elementów
+            decimal sumaPlanB = 0m;
+            decimal sumaFaktB = 0m;
+            decimal sumaZamB = 0m;
 
-                if (result is int ki)
-                    return ki == 67095;
-                else
-                {
-                    string katStr = Convert.ToString(result);
-                    return katStr == "67095";
-                }
-            }).OrderBy(kvp => kvp.Value);
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans)>();
 
-            foreach (var product in products67095)
+            foreach (var produktKonfig in konfiguracjaProduktow.OrderByDescending(p => p.Value))
             {
-                var code = product.Value;
-                if (code.IndexOf("Kurczak B", StringComparison.OrdinalIgnoreCase) >= 0)
+                int produktId = produktKonfig.Key;
+                decimal procentUdzialu = produktKonfig.Value;
+
+                if (!_productCatalogCache.ContainsKey(produktId))
                     continue;
 
-                var planned = plannedIncome.TryGetValue(product.Key, out var p) ? p : 0m;
-                var actual = actualIncome.TryGetValue(product.Key, out var f) ? f : 0m;
-                var orders = orderSum.TryGetValue(product.Key, out var z) ? z : 0m;
+                string nazwaProdukt = _productCatalogCache[produktId];
+
+                if (nazwaProdukt.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
+                var actual = actualIncome.TryGetValue(produktId, out var a) ? a : 0m;
+                var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
                 var balance = actual - orders;
 
-                dtAgg.Rows.Add(code, planned, actual, orders, balance);
+                produktyB.Add(($"  └ {nazwaProdukt} ({procentUdzialu:F1}%)", plannedForProduct, actual, orders, balance));
+
+                sumaPlanB += plannedForProduct;
+                sumaFaktB += actual;
+                sumaZamB += orders;
+            }
+
+            decimal bilansB = sumaFaktB - sumaZamB;
+            decimal sumaCalkowita = balanceA + bilansB;
+
+            // DODAJ WIERSZE W KOLEJNOŚCI:
+            // 1. SUMA CAŁKOWITA
+            dtAgg.Rows.Add("SUMA ", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, balanceA + bilansB);
+
+            // 2. TUSZKA A
+            dtAgg.Rows.Add("🐔 Tuszka A", planA, factA, ordersA, balanceA);
+
+            // 3. TUSZKA B
+            dtAgg.Rows.Add("🐔 Tuszka B", sumaPlanB, sumaFaktB, sumaZamB, bilansB);
+
+            // 4. ELEMENTY Z TUSZKI B
+            foreach (var produkt in produktyB)
+            {
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.zam, produkt.bilans);
             }
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
-
-            // Sort by planned income descending
-            dgAggregation.Items.SortDescriptions.Clear();
-            dgAggregation.Items.SortDescriptions.Add(
-                new System.ComponentModel.SortDescription("PlanowanyPrzychód",
-                System.ComponentModel.ListSortDirection.Descending));
         }
+
+        
+
+        private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var produkt = rowView.Row.Field<string>("Produkt") ?? "";
+                var bilans = rowView.Row.Field<decimal?>("Bilans") ?? 0m;
+
+                // SUMA CAŁKOWITA - ciemnozielony
+                if (produkt.StartsWith("═══ SUMA CAŁKOWITA"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                    e.Row.Foreground = Brushes.White;
+                    e.Row.FontWeight = FontWeights.Bold;
+                    e.Row.FontSize = 14;
+                }
+                // TUSZKA A - jasnozielony
+                else if (produkt.StartsWith("🐔 Tuszka A"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.FontSize = 13;
+                }
+                // TUSZKA B - jasnoniebieski
+                else if (produkt.StartsWith("🐔 Tuszka B"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(179, 229, 252));
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.FontSize = 13;
+                }
+                // ELEMENTY - bardzo jasny niebieski
+                else if (produkt.StartsWith("  └"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
+                    e.Row.FontStyle = FontStyles.Normal;
+                    e.Row.FontSize = 11;
+                }
+
+                // Czerwone tło dla dużego ujemnego bilansu
+                if (bilans < -500)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 205, 210));
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(183, 28, 28));
+                    e.Row.FontWeight = FontWeights.Bold;
+                }
+            }
+        }
+
         private void SetupAggregationDataGrid()
         {
             dgAggregation.Columns.Clear();
@@ -1431,30 +1605,30 @@ namespace Kalendarz1.WPF
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(180)
             });
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Plan przychód",
+                Header = "Plan",
                 Binding = new System.Windows.Data.Binding("PlanowanyPrzychód") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(80),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Fakt przychód",
+                Header = "Fakt",
                 Binding = new System.Windows.Data.Binding("FaktycznyPrzychód") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(80),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zamówienia",
+                Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(80),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -1462,80 +1636,14 @@ namespace Kalendarz1.WPF
             {
                 Header = "Bilans",
                 Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(80),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
-        }
-        private async Task<(Dictionary<int, decimal> planned, Dictionary<int, decimal> actual)> GetIncomePerProductAsync(DateTime day)
-        {
-            // Na początku metody waliduj datę
-            day = ValidateSqlDate(day);
 
-            decimal totalMassDek = 0m;
-            await using (var cn = new SqlConnection(_connLibra))
-            {
-                await cn.OpenAsync();
-                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw 
-                            WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-
-                while (await rdr.ReadAsync())
-                {
-                    // POPRAWKA: użyj Convert.ToDecimal
-                    var weight = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
-                    var quantity = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    totalMassDek += (weight * quantity);
-                }
-            }
-
-            decimal carcassYield = 0.78m;
-            decimal shareA = 0.85m;
-            decimal shareB = 0.15m;
-
-            decimal pool = totalMassDek * carcassYield;
-            decimal poolA = pool * shareA;
-            decimal poolB = pool * shareB;
-
-            var planned = new Dictionary<int, decimal>();
-            foreach (var kv in _productCatalogCache)
-            {
-                var code = kv.Value;
-                if (code.IndexOf("Kurczak A", StringComparison.OrdinalIgnoreCase) >= 0)
-                    planned[kv.Key] = poolA;
-                else if (code.IndexOf("Kurczak B", StringComparison.OrdinalIgnoreCase) >= 0)
-                    planned[kv.Key] = poolB;
-                else
-                    planned[kv.Key] = 0m;
-            }
-
-            var actual = new Dictionary<int, decimal>();
-            await using (var cn = new SqlConnection(_connHandel))
-            {
-                await cn.OpenAsync();
-                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                            FROM [HANDEL].[HM].[MZ] MZ 
-                            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                            WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day 
-                            GROUP BY MZ.idtw";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-
-                while (await rdr.ReadAsync())
-                {
-                    int productId = rdr.GetInt32(0);
-                    // POPRAWKA: użyj Convert.ToDecimal
-                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    actual[productId] = qty;
-                }
-            }
-
-            return (planned, actual);
+            dgAggregation.LoadingRow -= DgAggregation_LoadingRow;
+            dgAggregation.LoadingRow += DgAggregation_LoadingRow;
         }
         #endregion
-
         #region Helper Methods
 
         private void ApplyFilters()
@@ -1632,7 +1740,6 @@ namespace Kalendarz1.WPF
 
         private async Task DuplicateOrderAsync(int sourceId, DateTime targetDate, bool copyNotes = false)
         {
-            // Na początku metody waliduj datę
             targetDate = ValidateSqlDate(targetDate);
 
             await using var cn = new SqlConnection(_connLibra);
