@@ -1,0 +1,321 @@
+﻿<Window x:Class="Kalendarz1.WPF.PotencjalniOdbiorcy"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Potencjalni Odbiorcy" 
+        Height="850" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI"
+        WindowState="Maximized">
+
+    <Window.Resources>
+        <Style x:Key="HeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="InfoPanelStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FilterButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="5" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2980B9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Style="{StaticResource InfoPanelStyle}" Background="#3498DB">
+            <StackPanel>
+                <TextBlock x:Name="txtNaglowek" 
+                           FontSize="18" FontWeight="Bold" 
+                           Foreground="White" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Panel informacyjny -->
+        <Border Grid.Row="1" Style="{StaticResource InfoPanelStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="📊 Plan/Fakt" Style="{StaticResource HeaderStyle}"/>
+                    <TextBlock x:Name="txtPlan" FontSize="16" Foreground="#27ae60"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="📦 Zamówienia" Style="{StaticResource HeaderStyle}"/>
+                    <TextBlock x:Name="txtZamowienia" FontSize="16" Foreground="#3498db"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="⚠ Brakuje" Style="{StaticResource HeaderStyle}"/>
+                    <TextBlock x:Name="txtBrakuje" FontSize="16" FontWeight="Bold" Foreground="#e74c3c"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="💰 Bilans" Style="{StaticResource HeaderStyle}"/>
+                    <TextBlock x:Name="txtBilans" FontSize="16"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="👥 Znaleziono odbiorców" Style="{StaticResource HeaderStyle}"/>
+                    <TextBlock x:Name="txtLiczbaOdbiorców" FontSize="16" Foreground="#9b59b6"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Panel filtrów -->
+        <Border Grid.Row="2" Style="{StaticResource InfoPanelStyle}" Background="#ECF0F1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- NOWY RZĄD - Wybór produktu -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="📦 Produkt:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+
+                    <ComboBox x:Name="cbWyborProduktu" Width="300" Margin="5,0"
+                      SelectionChanged="CbWyborProduktu_SelectionChanged"
+                      DisplayMemberPath="Value"
+                      SelectedValuePath="Key"/>
+
+                    <Button Content="🔄 Przeładuj dane" 
+                    Style="{StaticResource FilterButtonStyle}"
+                    Click="BtnPrzeladujDane_Click" 
+                    Background="#27ae60"
+                    Margin="10,0"/>
+                </StackPanel>
+
+                <!-- Pierwszy rząd filtrów -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="🔍 Filtry:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+
+                    <ComboBox x:Name="cbFiltrHandlowiec" Width="150" Margin="5,0"
+                      SelectionChanged="CbFiltrHandlowiec_SelectionChanged">
+                        <ComboBoxItem Content="👥 Wszyscy handlowcy" IsSelected="True"/>
+                    </ComboBox>
+
+                    <ComboBox x:Name="cbFiltrSwiezosc" Width="180" Margin="5,0"
+                      SelectionChanged="CbFiltrSwiezosc_SelectionChanged">
+                        <ComboBoxItem Content="📅 Wszystkie okresy" IsSelected="True" Tag="0"/>
+                        <ComboBoxItem Content="📅 Ostatnie 30 dni" Tag="30"/>
+                        <ComboBoxItem Content="📅 Ostatnie 90 dni" Tag="90"/>
+                        <ComboBoxItem Content="📅 Ostatnie 180 dni" Tag="180"/>
+                        <ComboBoxItem Content="📅 Ostatni rok" Tag="365"/>
+                    </ComboBox>
+
+                    <TextBlock Text="⚖ Min. ilość:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                    <TextBox x:Name="txtMinIlosc" Width="80" Margin="5,0" 
+                     Text="0" TextChanged="TxtMinIlosc_TextChanged"
+                     VerticalContentAlignment="Center"/>
+
+                    <TextBlock Text="💰 Min. wartość:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                    <TextBox x:Name="txtMinWartosc" Width="80" Margin="5,0"
+                     Text="0" TextChanged="TxtMinWartosc_TextChanged"
+                     VerticalContentAlignment="Center"/>
+
+                    <Button Content="🔄 Resetuj" Style="{StaticResource FilterButtonStyle}"
+                    Click="BtnResetujFiltry_Click" Background="#95a5a6"/>
+                </StackPanel>
+
+                <!-- Drugi rząd - statystyki przefiltrowanych -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal">
+                    <TextBlock x:Name="txtStatystykiFiltrow" 
+                       FontSize="11" 
+                       Foreground="#7f8c8d"
+                       VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- DataGrid z odbiorcami -->
+        <Border Grid.Row="3" Style="{StaticResource InfoPanelStyle}">
+            <DataGrid x:Name="dgOdbiorcy" 
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Extended"
+                      GridLinesVisibility="None"
+                      HeadersVisibility="Column"
+                      RowHeight="35"
+                      AlternatingRowBackground="#F8F9FA"
+                      Background="White"
+                      BorderThickness="0"
+                      CanUserSortColumns="True">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#2C3E50"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="FontSize" Value="11"/>
+                        <Setter Property="Padding" Value="10,8"/>
+                        <Setter Property="Height" Value="40"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="🏢 Odbiorca" Binding="{Binding Odbiorca}" Width="2*"/>
+                    <DataGridTextColumn Header="👤 Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
+                    <DataGridTextColumn Header="📍 Miasto" Binding="{Binding Miasto}" Width="*"/>
+                    <DataGridTextColumn Header="💵 Ost. cena" Binding="{Binding OstCena, StringFormat=N2}" Width="90">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="⚖ Ost. ilość (kg)" Binding="{Binding OstIlosc, StringFormat=N0}" Width="110">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="📅 Ostatni zakup" Binding="{Binding OstData, StringFormat=yyyy-MM-dd}" Width="110"/>
+                    <DataGridTextColumn Header="📊 Dni temu" Binding="{Binding DniTemu}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="🔢 Transakcji" Binding="{Binding LiczbaTransakcji}" Width="85">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="💰 Śr. cena" Binding="{Binding SredniaCena, StringFormat=N2}" Width="85">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="⚖ Śr. ilość (kg)" Binding="{Binding SredniaIlosc, StringFormat=N0}" Width="110">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="💎 Suma wartość (zł)" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="130">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="📈 Regularność" Binding="{Binding Regularnosc}" Width="110">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="💳 Limit (zł)" Binding="{Binding Limit, StringFormat=N0}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Stopka z przyciskami -->
+        <Border Grid.Row="4" Background="#ECF0F1" 
+                CornerRadius="5" Padding="10" Margin="0,10,0,0">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock x:Name="txtZaznaczono" 
+                               VerticalAlignment="Center" 
+                               FontWeight="Bold"
+                               Margin="0,0,20,0"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnKopiujListe" 
+                            Content="📋 Kopiuj listę" 
+                            Width="130" Height="35" Margin="0,0,10,0"
+                            Background="#9b59b6" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"
+                            FontWeight="Bold" Click="BtnKopiujListe_Click"
+                            Style="{StaticResource FilterButtonStyle}"/>
+
+                    <Button x:Name="btnEksportuj" 
+                            Content="📊 Eksportuj CSV" 
+                            Width="140" Height="35" Margin="0,0,10,0"
+                            Background="#27ae60" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"
+                            FontWeight="Bold" Click="BtnEksportuj_Click"
+                            Style="{StaticResource FilterButtonStyle}"/>
+
+                    <Button Content="✗ Zamknij" 
+                            Width="100" Height="35"
+                            Background="#95a5a6" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"
+                            FontWeight="Bold" Click="BtnZamknij_Click"
+                            Style="{StaticResource FilterButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

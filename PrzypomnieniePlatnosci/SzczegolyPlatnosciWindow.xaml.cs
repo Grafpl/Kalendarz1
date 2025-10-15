@@ -32,7 +32,6 @@ namespace Kalendarz1
 
         private void WczytajDaneKontrahenta()
         {
-            // Uproszczone zapytanie - tylko podstawowe dane
             string query = @"
     SELECT 
         C.Name AS PelnaNazwa,
@@ -73,10 +72,8 @@ namespace Kalendarz1
                             Miejscowosc = miejscowosc
                         };
 
-                        // Aktualizuj interfejs
                         txtPelnaNazwa.Text = daneKontrahenta.PelnaNazwa;
 
-                        // Składanie adresu
                         var adresParts = new List<string>();
                         if (!string.IsNullOrEmpty(ulica)) adresParts.Add(ulica);
                         if (!string.IsNullOrEmpty(kodPocztowy) || !string.IsNullOrEmpty(miejscowosc))
@@ -98,9 +95,9 @@ namespace Kalendarz1
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void WczytajDane()
         {
-            // Stawka odsetek ustawowych (dla 2025 roku - 11,5%)
             decimal stawkaOdsetekRoczna = 11.5m;
 
             string query = @"
@@ -162,7 +159,6 @@ namespace Kalendarz1
                         int dniPoTerminie = Convert.ToInt32(row["DniPoTerminie"]);
                         decimal pozostaloDoZaplaty = Convert.ToDecimal(row["PozostaloDoZaplaty"]);
 
-                        // Oblicz odsetki ustawowe
                         decimal odsetki = 0;
                         if (dniPoTerminie > 0 && pozostaloDoZaplaty > 0)
                         {
@@ -205,7 +201,6 @@ namespace Kalendarz1
                         }
                     }
 
-                    // Dodaj wiersz sumy
                     if (dokumenty.Count > 0)
                     {
                         decimal procentSumaZaplacone = sumaWartoscBrutto > 0 ? (sumaZaplacono / sumaWartoscBrutto) * 100 : 0;
@@ -225,7 +220,6 @@ namespace Kalendarz1
 
                     dgDokumenty.ItemsSource = dokumenty;
 
-                    // Aktualizuj podsumowanie
                     txtSumaWartoscNetto.Text = $"{sumaWartoscNetto:N2} zł";
                     txtSumaWartoscBrutto.Text = $"{sumaWartoscBrutto:N2} zł";
                     txtSumaZaplacono.Text = $"{sumaZaplacono:N2} zł";
@@ -239,16 +233,61 @@ namespace Kalendarz1
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void BtnAnalizaWykres_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Sprawdź czy connectionString jest poprawny
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Brak połączenia z bazą danych. Spróbuj ponownie otworzyć okno.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(nazwaKontrahenta))
+                {
+                    MessageBox.Show("Brak informacji o kontrahencie.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var wykresWindow = new WykresAnalizaPlatnosciWindow(connectionString, nazwaKontrahenta);
+                wykresWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania okna analizy:\n{ex.Message}\n\nStos wywołań:\n{ex.StackTrace}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlanSplaty_Click(object sender, RoutedEventArgs e)
+        {
+            var dokumentyBezSumy = dokumenty.Where(d => d.NumerDokumentu != "📊 RAZEM:").ToList();
+            decimal kwotaDlugu = dokumentyBezSumy.Sum(d => d.PozostaloDoZaplaty);
+
+            if (kwotaDlugu <= 0)
+            {
+                MessageBox.Show("Brak zaległych płatności dla tego kontrahenta.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var planSplatyWindow = new PlanSplatyWindow(kwotaDlugu, nazwaKontrahenta, daneKontrahenta, dokumentyBezSumy);
+            planSplatyWindow.ShowDialog();
+        }
+
         private void BtnGenerujPDF_Click(object sender, RoutedEventArgs e)
         {
-            // Wybór wersji
             var wyborWersjiWindow = new WyborWersjiPrzypomnienieWindow();
             if (wyborWersjiWindow.ShowDialog() != true)
                 return;
 
             var wersja = wyborWersjiWindow.WybranaWersja;
+            int liczbaDni = wyborWersjiWindow.LiczbaDni;
 
-            // Pytanie o odsetki
             var result = MessageBox.Show(
                 "Czy dołączyć informacje o odsetkach ustawowych do przypomnienia?",
                 "Odsetki w dokumencie",
@@ -273,7 +312,8 @@ namespace Kalendarz1
                         daneKontrahenta,
                         dokumenty.Where(d => d.NumerDokumentu != "📊 RAZEM:").ToList(),
                         czyDodacOdsetki,
-                        wersja);
+                        wersja,
+                        liczbaDni);
 
                     MessageBox.Show("✓ PDF został pomyślnie wygenerowany!", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
@@ -299,18 +339,17 @@ namespace Kalendarz1
                 return;
             }
 
-            // Wybór wersji
             var wyborWersjiWindow = new WyborWersjiPrzypomnienieWindow();
             if (wyborWersjiWindow.ShowDialog() != true)
                 return;
 
             var wersja = wyborWersjiWindow.WybranaWersja;
+            int liczbaDni = wyborWersjiWindow.LiczbaDni;
 
             decimal kwotaPrzeterminowana = przeterminowane.Sum(d => d.PozostaloDoZaplaty);
             int liczbaDokumentow = przeterminowane.Count;
             DateTime najpozniejszyTermin = przeterminowane.Min(d => d.TerminPlatnosci);
 
-            // Generuj PDF
             var saveDialog = new SaveFileDialog
             {
                 Filter = "PDF files (*.pdf)|*.pdf",
@@ -336,7 +375,8 @@ namespace Kalendarz1
                         daneKontrahenta,
                         dokumenty.Where(d => d.NumerDokumentu != "📊 RAZEM:").ToList(),
                         czyDodacOdsetki,
-                        wersja);
+                        wersja,
+                        liczbaDni);
 
                     sciezkaPDF = saveDialog.FileName;
                 }
@@ -352,7 +392,6 @@ namespace Kalendarz1
                 return;
             }
 
-            // Otwórz okno emaila
             string emailOdbiorcy = "";
             var emailWindow = new EmailPrzypomnienieWindow(
                 nazwaKontrahenta,
@@ -361,19 +400,20 @@ namespace Kalendarz1
                 liczbaDokumentow,
                 najpozniejszyTermin,
                 sciezkaPDF,
-                wersja);
+                wersja,
+                liczbaDni);
 
             emailWindow.ShowDialog();
         }
 
         private void BtnDrukuj_Click(object sender, RoutedEventArgs e)
         {
-            // Wybór wersji
             var wyborWersjiWindow = new WyborWersjiPrzypomnienieWindow();
             if (wyborWersjiWindow.ShowDialog() != true)
                 return;
 
             var wersja = wyborWersjiWindow.WybranaWersja;
+            int liczbaDni = wyborWersjiWindow.LiczbaDni;
 
             try
             {
@@ -394,7 +434,8 @@ namespace Kalendarz1
                     daneKontrahenta,
                     dokumenty.Where(d => d.NumerDokumentu != "📊 RAZEM:").ToList(),
                     czyDodacOdsetki,
-                    wersja);
+                    wersja,
+                    liczbaDni);
 
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
@@ -412,6 +453,7 @@ namespace Kalendarz1
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)
         {
             this.Close();

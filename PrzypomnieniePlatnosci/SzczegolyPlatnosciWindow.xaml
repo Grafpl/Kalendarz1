@@ -55,6 +55,15 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="ButtonBlue" TargetType="Button" BasedOn="{StaticResource ButtonGreen}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1D4ED8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="FontWeight" Value="Bold"/>
@@ -101,7 +110,7 @@
             </Grid>
         </Border>
 
-        <!-- Dane kontrahenta - BEZ WARUNKÓW HANDLOWYCH -->
+        <!-- Dane kontrahenta -->
         <Border Grid.Row="1" Background="White" Padding="15,12" Margin="15,12,15,0" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1" CornerRadius="4">
             <StackPanel>
                 <TextBlock Text="🏢 Dane kontrahenta" FontSize="11" FontWeight="Bold" Foreground="{StaticResource ColorGreen}" Margin="0,0,0,5"/>
@@ -119,6 +128,7 @@
                 </StackPanel>
             </StackPanel>
         </Border>
+
         <!-- Podsumowanie -->
         <Border Grid.Row="2" Background="#FFF3E0" Padding="12" Margin="15,10,15,0" CornerRadius="4">
             <Grid>
@@ -321,11 +331,11 @@
             </DataGrid>
         </Border>
 
-        <!-- Dane do przelewu -->
-
         <!-- Przyciski -->
         <Border Grid.Row="5" Background="#F3F4F6" Padding="12" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="📊 Analiza Wykres" Style="{StaticResource ButtonBlue}" Margin="0,0,8,0" Width="140" Click="BtnAnalizaWykres_Click"/>
+                <Button Content="📋 Plan spłaty" Style="{StaticResource ButtonBlue}" Margin="0,0,8,0" Width="130" Click="BtnPlanSplaty_Click"/>
                 <Button Content="📧 Wyślij Email" Style="{StaticResource ButtonGreen}" Margin="0,0,8,0" Width="130" Click="BtnWyslijEmail_Click"/>
                 <Button Content="📄 Generuj PDF" Style="{StaticResource ButtonGreen}" Margin="0,0,8,0" Width="130" Click="BtnGenerujPDF_Click"/>
                 <Button Content="🖨️ Drukuj" Style="{StaticResource ButtonGreen}" Margin="0,0,8,0" Width="110" Click="BtnDrukuj_Click"/>
