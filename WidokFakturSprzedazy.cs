@@ -405,17 +405,7 @@ namespace Kalendarz1
             WypelnijTowaryComboBoxTop10(comboBoxTowarTop10);
             comboBoxTowarTop10.SelectedIndexChanged += (s, e) => OdswiezWykresTop10();
 
-            // ✅ NOWY CHECKBOX - Pokaż wszystkich handlowców (tylko dla admina)
-            CheckBox chkWszyscyHandlowcyTop10 = new CheckBox
-            {
-                Name = "chkWszyscyHandlowcyTop10",
-                Text = "👥 Pokaż wszystkich handlowców",
-                Location = new Point(650, 12),
-                AutoSize = true,
-                Checked = true,  // Domyślnie zaznaczone
-                Visible = UserID == "11111"  // Widoczne tylko dla admina
-            };
-            chkWszyscyHandlowcyTop10.CheckedChanged += (s, e) => OdswiezWykresTop10();
+
 
             panelTop10Controls.Controls.Add(lblRokTop10);
             panelTop10Controls.Controls.Add(comboBoxRokTop10);
@@ -423,7 +413,7 @@ namespace Kalendarz1
             panelTop10Controls.Controls.Add(comboBoxMiesiacTop10);
             panelTop10Controls.Controls.Add(lblTowarTop10);
             panelTop10Controls.Controls.Add(comboBoxTowarTop10);
-            panelTop10Controls.Controls.Add(chkWszyscyHandlowcyTop10);
+
 
             panelTop10.Controls.Add(panelTop10Controls);
 
@@ -2239,9 +2229,9 @@ ORDER BY SredniaCena DESC;";
                 if (comboBoxTowarTop10.SelectedValue != null && (int)comboBoxTowarTop10.SelectedValue != 0)
                     towarId = (int)comboBoxTowarTop10.SelectedValue;
 
-                // ✅ Sprawdź checkbox (tylko dla admina)
+                // ✅ Sprawdź checkbox (tylko dla admina) - ale IGNORUJ go, zawsze pokazuj wszystkich
                 var checkbox = tabControl.Controls.Find("chkWszyscyHandlowcyTop10", true).FirstOrDefault() as CheckBox;
-                bool pokazWszystkichHandlowcow = checkbox?.Checked ?? false;
+                bool pokazWszystkichHandlowcow = checkbox?.Checked ?? true;  // Domyślnie true
 
                 string query = @"
     SELECT TOP 10
@@ -2255,11 +2245,8 @@ ORDER BY SredniaCena DESC;";
     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
       AND (@TowarID IS NULL OR DP.idtw = @TowarID)";
 
-                // ✅ FILTR: Jeśli checkbox NIE zaznaczony (lub użytkownik nie jest adminem), filtruj po handlowcach
-                if (!pokazWszystkichHandlowcow || UserID != "11111")
-                {
-                    query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
-                }
+                // ✅ ZAWSZE POKAZUJ WSZYSTKICH - usuń całkowicie filtr
+                // NIE DODAWAJ: UserHandlowcyManager.GetHandlowcyWhereClause(...)
 
                 query += @"
     GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
@@ -2328,8 +2315,7 @@ ORDER BY SredniaCena DESC;";
 
                     var kulturaPL = new CultureInfo("pl-PL");
                     string nazwaTowar = towarId.HasValue ? comboBoxTowarTop10.Text : "wszystkie towary";
-                    string zakres = pokazWszystkichHandlowcow && UserID == "11111" ? "wszyscy handlowcy" : "moi handlowcy";
-                    string tytul = $"🏆 Top 10 - {nazwaTowar} - {zakres} - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
+                    string tytul = $"🏆 Top 10 - {nazwaTowar} - WSZYSCY odbiorcy - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
                     chartTop10.Titles[0].Text = tytul;
                 }
             }
@@ -2361,8 +2347,8 @@ ORDER BY SredniaCena DESC;";
     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
       AND WYM.CDim_Handlowiec_Val IS NOT NULL";
 
-                // ✅ ZAWSZE filtruj tylko po handlowcach użytkownika (NIE MA checkboxa)
-                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+                // ✅ USUŃ FILTR - pokazuj WSZYSTKICH handlowców
+                // query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
 
                 query += @"
     GROUP BY WYM.CDim_Handlowiec_Val
@@ -2426,7 +2412,7 @@ ORDER BY SredniaCena DESC;";
                     chartHandlowcy.Series.Add(series);
 
                     var kulturaPL = new CultureInfo("pl-PL");
-                    string tytul = $"👥 Udział handlowców - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
+                    string tytul = $"👥 Udział WSZYSTKICH handlowców - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";  // ✅ Zmieniony tytuł
                     chartHandlowcy.Titles[0].Text = tytul;
                 }
             }
@@ -2434,8 +2420,7 @@ ORDER BY SredniaCena DESC;";
             {
                 MessageBox.Show($"❌ Błąd handlowców: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }        // === LICZENIE CEN JAK W SYMFONII: SUM(cena * ilość) / SUM(ilość) (ZAMIANA DOTYCHCZASOWEJ METODY) ===
-        // === LICZENIE CEN JAK W SYMFONII: SUM(cena*ilosc)/SUM(ilosc) ===
+        }        // === LICZENIE CEN JAK W SYMFONII: SUM(cena*ilosc)/SUM(ilosc) ===
         private void OdswiezPorownanieTowarow()
         {
             var combo1 = tabControl.Controls.Find("comboBoxTowar1", true).FirstOrDefault() as ComboBox;
@@ -2679,18 +2664,57 @@ ORDER BY Dzien ASC;";
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID", DataPropertyName = "ID", Visible = false });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "IsGroupRow", DataPropertyName = "IsGroupRow", Visible = false });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "SortDate", DataPropertyName = "SortDate", Visible = false });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "NumerDokumentu", DataPropertyName = "NumerDokumentu", HeaderText = "📄 Numer Dokumentu", Width = 150 });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "NazwaFirmy", DataPropertyName = "NazwaFirmy", HeaderText = "🏢 Nazwa Firmy", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "IloscKG", DataPropertyName = "IloscKG", HeaderText = "⚖ Ilosc KG", Width = 100, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "SredniaCena", DataPropertyName = "SredniaCena", HeaderText = "💵 Sr. Cena KG", Width = 110, DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" } });
 
-            // NOWE KOLUMNY
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "NumerDokumentu",
+                DataPropertyName = "NumerDokumentu",
+                HeaderText = "📄 Numer Dokumentu",
+                Width = 150
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "NazwaFirmy",
+                DataPropertyName = "NazwaFirmy",
+                HeaderText = "🏢 Nazwa Firmy",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "IloscKG",
+                DataPropertyName = "IloscKG",
+                HeaderText = "⚖ Ilość KG",
+                Width = 80,  // ✅ Zmniejszone z 100
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" }
+            });
+
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "SredniaCena",
+                DataPropertyName = "SredniaCena",
+                HeaderText = "💵 Śr. Cena",
+                Width = 90,  // ✅ Zmniejszone z 110
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" }
+            });
+
+            // ✅ NOWA KOLUMNA - Wartość
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Wartosc",
+                DataPropertyName = "Wartosc",
+                HeaderText = "💰 Wartość",
+                Width = 110,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "DniTerminu",
                 DataPropertyName = "DniTerminu",
-                HeaderText = "📅 Dni terminu",
-                Width = 90,
+                HeaderText = "📅 Termin",
+                Width = 70,  // ✅ Zmniejszone z 90
                 DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
 
@@ -2699,11 +2723,17 @@ ORDER BY Dzien ASC;";
                 Name = "DniDoTerminu",
                 DataPropertyName = "DniDoTerminu",
                 HeaderText = "⏰ Do terminu",
-                Width = 90,
+                Width = 110,  // ✅ Bez zmian
                 DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
 
-            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Handlowiec", DataPropertyName = "Handlowiec", HeaderText = "👤 Handlowiec", Width = 120 });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Handlowiec",
+                DataPropertyName = "Handlowiec",
+                HeaderText = "👤 Handlowiec",
+                Width = 90  // ✅ Zmniejszone z 120
+            });
 
             dataGridViewOdbiorcy.SelectionChanged += DataGridViewDokumenty_SelectionChanged;
             dataGridViewOdbiorcy.RowPrePaint += DataGridViewOdbiorcy_RowPrePaint;
@@ -2934,14 +2964,14 @@ ORDER BY Dzien ASC;";
             dataGridViewPlatnosci.AllowUserToAddRows = false;
             dataGridViewPlatnosci.AllowUserToDeleteRows = false;
             dataGridViewPlatnosci.RowHeadersVisible = false;
-            dataGridViewPlatnosci.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // ✅ Dopasowanie do okna
+            dataGridViewPlatnosci.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Kontrahent",
                 DataPropertyName = "Kontrahent",
                 HeaderText = "🏢 Kontrahent",
-                FillWeight = 25  // ✅ Proporcjonalna szerokość
+                FillWeight = 20  // ✅ Zmniejszone z 25
             });
 
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
@@ -2949,7 +2979,7 @@ ORDER BY Dzien ASC;";
                 Name = "Limit",
                 DataPropertyName = "Limit",
                 HeaderText = "💳 Limit",
-                FillWeight = 12,
+                FillWeight = 15,  // ✅ Zwiększone z 12
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
@@ -3060,7 +3090,7 @@ WHERE C.Shortcut NOT LIKE '%Centrum Drobiu%'
   AND C.Shortcut NOT LIKE '%Piórkowski%'
 GROUP BY C.Shortcut, C.LimitAmount, MP.MaxDniPrzeterminowania
 HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
-ORDER BY DoZaplacenia DESC;";
+ORDER BY Przeterminowane DESC, DoZaplacenia DESC;";
 
             try
             {
@@ -3182,7 +3212,6 @@ ORDER BY DoZaplacenia DESC;";
                 var row = dataGridViewPlatnosci.Rows[e.RowIndex];
                 var colName = dataGridViewPlatnosci.Columns[e.ColumnIndex].Name;
 
-                // Pomiń wiersz sumy w kolorowaniu szczegółowym
                 bool isSumaRow = row.Cells["Kontrahent"].Value?.ToString() == "📊 SUMA";
 
                 // Formatowanie kwot z "zł"
@@ -3239,19 +3268,19 @@ ORDER BY DoZaplacenia DESC;";
                     {
                         if (liczbaAlertow >= 2)
                         {
-                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");  // Czerwony
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");
                             e.CellStyle.ForeColor = Color.White;
                             e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
                         }
                         else if (liczbaAlertow == 1)
                         {
-                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");  // Żółty
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");
                             e.CellStyle.ForeColor = Color.White;
                             e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
                         }
                     }
 
-                    // Kolorowanie kolumny PrzekroczonyLimit
+                    // ✅ TYLKO PrzekroczonyLimit i Przeterminowane dostają kolory
                     if (colName == "PrzekroczonyLimit" && limitNaCzerwono)
                     {
                         e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");
@@ -3259,7 +3288,6 @@ ORDER BY DoZaplacenia DESC;";
                         e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
                     }
 
-                    // Kolorowanie kolumny Przeterminowane
                     if (colName == "Przeterminowane")
                     {
                         if (przeterminowaneNaCzerwono)
@@ -3272,21 +3300,6 @@ ORDER BY DoZaplacenia DESC;";
                         {
                             e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");
                             e.CellStyle.ForeColor = Color.White;
-                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
-                        }
-                    }
-
-                    // Kolorowanie kolumny NajpozniejszaPlatnosc
-                    if (colName == "NajpozniejszaPlatnosc" && e.Value != null && e.Value.ToString().Contains("dni"))
-                    {
-                        if (przeterminowaneNaCzerwono)
-                        {
-                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
-                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
-                        }
-                        else if (przeterminowaneNaZolto)
-                        {
-                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#f39c12");
                             e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
                         }
                     }
@@ -3333,8 +3346,13 @@ DECLARE @DataOd DATE = @pDataOd;
 DECLARE @DataDo DATE = @pDataDo;
 
 WITH AgregatyDokumentu AS (
-    SELECT super AS id_dk, SUM(ilosc) AS SumaKG, SUM(wartNetto) / NULLIF(SUM(ilosc), 0) AS SredniaCena
-    FROM [HANDEL].[HM].[DP] WHERE @TowarID IS NULL OR idtw = @TowarID GROUP BY super
+    SELECT super AS id_dk, 
+           SUM(ilosc) AS SumaKG, 
+           SUM(wartNetto) / NULLIF(SUM(ilosc), 0) AS SredniaCena,
+           SUM(wartNetto) AS SumaWartosc  -- ✅ DODANE
+    FROM [HANDEL].[HM].[DP] 
+    WHERE @TowarID IS NULL OR idtw = @TowarID 
+    GROUP BY super
 ),
 PlatnosciInfo AS (
     SELECT 
@@ -3364,7 +3382,6 @@ DokumentyFiltrowane AS (
         AND DK.data >= @DataOd
         AND DK.data <= @DataDo";
 
-            // ✅ KLUCZOWA LINIA - DODAJE FILTR HANDLOWCÓW
             query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
 
             query += @"
@@ -3372,7 +3389,9 @@ DokumentyFiltrowane AS (
 SELECT 
     CONVERT(date, DF.data) AS SortDate, 1 AS SortOrder, 0 AS IsGroupRow,
     DF.kod AS NumerDokumentu, C.shortcut AS NazwaFirmy,
-    ISNULL(AD.SumaKG, 0) AS IloscKG, ISNULL(AD.SredniaCena, 0) AS SredniaCena,
+    ISNULL(AD.SumaKG, 0) AS IloscKG, 
+    ISNULL(AD.SredniaCena, 0) AS SredniaCena,
+    ISNULL(AD.SumaWartosc, 0) AS Wartosc,  -- ✅ DODANE
     ISNULL(DF.CDim_Handlowiec_Val, '-') AS Handlowiec, DF.khid, DF.id,
     DF.DniTerminu,
     DF.DniDoTerminu,
@@ -3383,7 +3402,7 @@ INNER JOIN AgregatyDokumentu AD ON DF.id = AD.id_dk
 UNION ALL
 SELECT DISTINCT
     CONVERT(date, data) AS SortDate, 0 AS SortOrder, 1 AS IsGroupRow,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL  -- ✅ Dodaj jedno NULL więcej
 FROM DokumentyFiltrowane
 ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
 
@@ -3560,7 +3579,7 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                     e.FormattingApplied = true;
                 }
 
-                // Formatowanie kolumny DniDoTerminu
+                // ✅ NOWE FORMATOWANIE kolumny DniDoTerminu
                 if (colName == "DniDoTerminu")
                 {
                     if (e.Value == null || e.Value == DBNull.Value)
@@ -3574,8 +3593,8 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                         int dni = Convert.ToInt32(e.Value);
                         if (dni > 0)
                         {
-                            e.Value = $"{dni} dni";
-                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#3498db");
+                            e.Value = $"+ {dni} dni";  // ✅ Przed terminem
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#3498db");  // Niebieski
                         }
                         else if (dni == 0)
                         {
@@ -3585,7 +3604,7 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                         }
                         else
                         {
-                            e.Value = $"Po terminie ({Math.Abs(dni)} dni)";
+                            e.Value = $"- {Math.Abs(dni)} dni";  // ✅ Po terminie
                             e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
                             e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffebee");
                             e.CellStyle.Font = new Font(dataGridViewOdbiorcy.Font, FontStyle.Bold);
@@ -3594,8 +3613,7 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                     e.FormattingApplied = true;
                 }
             }
-        }
-        // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności
+        }        // NOWA METODA: Obsługa podwójnego kliknięcia w tabeli płatności
         private void DataGridViewPlatnosci_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;

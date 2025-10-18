@@ -3,13 +3,19 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
+using System.Drawing.Printing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.WPF
 {
@@ -49,6 +55,7 @@ namespace Kalendarz1.WPF
 
         // DODANE DLA CONTEXT MENU
         private DataRowView _contextMenuSelectedRow = null;
+        private HashSet<int> _processedOrderIds = new HashSet<int>();
 
         private DateTime ValidateSqlDate(DateTime date)
         {
@@ -189,6 +196,7 @@ namespace Kalendarz1.WPF
         private async Task LoadInitialDataAsync()
         {
             await CheckAndCreateSlaughterDateColumnAsync();
+            await CheckAndCreateTransportKursIDColumnAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -320,6 +328,32 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private async Task CheckAndCreateTransportKursIDColumnAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                                         WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID'";
+
+                await using var cmdCheck = new SqlCommand(checkSql, cn);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    const string alterSql = @"ALTER TABLE [dbo].[ZamowieniaMieso] ADD TransportKursID INT NULL";
+                    await using var cmdAlter = new SqlCommand(alterSql, cn);
+                    await cmdAlter.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Jeśli kolumna już istnieje lub nie można jej dodać, kontynuujemy
+            }
+        }
+
         #endregion
 
         #region Navigation Events
@@ -395,185 +429,12 @@ namespace Kalendarz1.WPF
 
         #region Action Button Events
 
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            _ = RefreshAllDataAsync();
-        }
-
         private async void BtnNew_Click(object sender, RoutedEventArgs e)
         {
             var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, null);
             if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 await RefreshAllDataAsync();
-            }
-        }
-
-        private async void BtnEdit_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
-            {
-                MessageBox.Show("Najpierw wybierz zamówienie do edycji.",
-                    "Brak wyboru", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
-            if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                await RefreshAllDataAsync();
-            }
-        }
-
-        private async void BtnNote_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
-            {
-                MessageBox.Show("Najpierw wybierz zamówienie, do którego chcesz dodać notatkę.",
-                    "Brak wyboru", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            string currentNote = "";
-            await using (var cn = new SqlConnection(_connLibra))
-            {
-                await cn.OpenAsync();
-                var cmd = new SqlCommand("SELECT Uwagi FROM ZamowieniaMieso WHERE Id = @Id", cn);
-                cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                var result = await cmd.ExecuteScalarAsync();
-                currentNote = result?.ToString() ?? "";
-            }
-
-            var noteWindow = new NoteWindow(currentNote);
-            if (noteWindow.ShowDialog() == true)
-            {
-                try
-                {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-                    var cmd = new SqlCommand("UPDATE ZamowieniaMieso SET Uwagi = @Uwagi WHERE Id = @Id", cn);
-                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                    cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(noteWindow.NoteText)
-                        ? DBNull.Value : noteWindow.NoteText);
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Notatka została zapisana.", "Sukces",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    await DisplayOrderDetailsAsync(_currentOrderId.Value);
-                    await RefreshAllDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private async void BtnCancel_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
-            {
-                MessageBox.Show("Najpierw wybierz zamówienie do anulowania.",
-                    "Brak wyboru", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var result = MessageBox.Show("Czy na pewno chcesz anulować wybrane zamówienie? Tej operacji nie można cofnąć.",
-                "Potwierdź anulowanie", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                try
-                {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-                    await using var cmd = new SqlCommand(
-                        "UPDATE dbo.ZamowieniaMieso SET Status = 'Anulowane' WHERE Id = @Id", cn);
-                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    await RefreshAllDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}",
-                        "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private async void BtnDuplicate_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
-            {
-                MessageBox.Show("Najpierw wybierz zamówienie do duplikacji.",
-                    "Brak wyboru", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var dlg = new MultipleDatePickerWindow("Wybierz dni dla duplikatu zamówienia");
-            if (dlg.ShowDialog() == true && dlg.SelectedDates.Any())
-            {
-                try
-                {
-                    int created = 0;
-                    foreach (var date in dlg.SelectedDates)
-                    {
-                        await DuplicateOrderAsync(_currentOrderId.Value, date, dlg.CopyNotes);
-                        created++;
-                    }
-
-                    MessageBox.Show($"Zamówienie zostało zduplikowane na {created} dni.\n" +
-                                  $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    _selectedDate = dlg.SelectedDates.First();
-                    UpdateDayButtonDates();
-                    await RefreshAllDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private async void BtnCyclic_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
-            {
-                MessageBox.Show("Najpierw wybierz zamówienie wzorcowe dla cyklu.",
-                    "Brak wyboru", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var dlg = new CyclicOrdersWindow();
-            if (dlg.ShowDialog() == true)
-            {
-                try
-                {
-                    int created = 0;
-                    foreach (var date in dlg.SelectedDays)
-                    {
-                        await DuplicateOrderAsync(_currentOrderId.Value, date, false);
-                        created++;
-                    }
-
-                    MessageBox.Show($"Utworzono {created} zamówień cyklicznych.\n" +
-                                  $"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    await RefreshAllDataAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
             }
         }
 
@@ -620,6 +481,21 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private async void BtnPrint_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var printWindow = new PrintPreviewWindow(_dtOrders, _selectedDate, _productCatalogCache);
+                printWindow.Owner = this;
+                printWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas przygotowywania wydruku:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #endregion
 
         #region Context Menu Events
@@ -645,6 +521,10 @@ namespace Kalendarz1.WPF
                 bool isWydanieBezZamowienia = status == "Wydanie bez zamówienia";
                 bool isAnulowane = status == "Anulowane";
 
+                // Konfiguruj widoczność i dostępność elementów menu
+                menuAnuluj.Visibility = isAnulowane ? Visibility.Collapsed : Visibility.Visible;
+                menuPrzywroc.Visibility = isAnulowane ? Visibility.Visible : Visibility.Collapsed;
+
                 foreach (var item in contextMenuOrders.Items)
                 {
                     if (item is MenuItem menuItem)
@@ -655,7 +535,6 @@ namespace Kalendarz1.WPF
                         {
                             menuItem.IsEnabled = header.Contains("Płatności") ||
                                                 header.Contains("Historia") ||
-                                                header.Contains("Informacje kontaktowe") ||
                                                 header.Contains("Odśwież");
                         }
                         else if (isAnulowane)
@@ -663,8 +542,8 @@ namespace Kalendarz1.WPF
                             menuItem.IsEnabled = header.Contains("Szczegóły zamówienia") ||
                                                 header.Contains("Płatności") ||
                                                 header.Contains("Historia") ||
-                                                header.Contains("Informacje kontaktowe") ||
                                                 header.Contains("Odśwież") ||
+                                                header.Contains("Przywróć") ||
                                                 header.Contains("USUŃ");
                         }
                         else
@@ -699,7 +578,33 @@ namespace Kalendarz1.WPF
 
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
-            BtnDuplicate_Click(sender, e);
+
+            var dlg = new MultipleDatePickerWindow("Wybierz dni dla duplikatu zamówienia");
+            if (dlg.ShowDialog() == true && dlg.SelectedDates.Any())
+            {
+                try
+                {
+                    int created = 0;
+                    foreach (var date in dlg.SelectedDates)
+                    {
+                        await DuplicateOrderAsync(_currentOrderId.Value, date, dlg.CopyNotes);
+                        created++;
+                    }
+
+                    MessageBox.Show($"Zamówienie zostało zduplikowane na {created} dni.\n" +
+                                  $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    _selectedDate = dlg.SelectedDates.First();
+                    UpdateDayButtonDates();
+                    await RefreshAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private async void MenuCykliczne_Click(object sender, RoutedEventArgs e)
@@ -716,7 +621,31 @@ namespace Kalendarz1.WPF
 
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
-            BtnCyclic_Click(sender, e);
+
+            var dlg = new CyclicOrdersWindow();
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    int created = 0;
+                    foreach (var date in dlg.SelectedDays)
+                    {
+                        await DuplicateOrderAsync(_currentOrderId.Value, date, false);
+                        created++;
+                    }
+
+                    MessageBox.Show($"Utworzono {created} zamówień cyklicznych.\n" +
+                                  $"Od {dlg.StartDate:yyyy-MM-dd} do {dlg.EndDate:yyyy-MM-dd}",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    await RefreshAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas tworzenia zamówień cyklicznych: {ex.Message}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private async void MenuModyfikuj_Click(object sender, RoutedEventArgs e)
@@ -733,7 +662,12 @@ namespace Kalendarz1.WPF
 
             _currentOrderId = id;
             await DisplayOrderDetailsAsync(id);
-            BtnEdit_Click(sender, e);
+
+            var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
+            if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                await RefreshAllDataAsync();
+            }
         }
 
         private async void MenuNotatka_Click(object sender, RoutedEventArgs e)
@@ -749,8 +683,41 @@ namespace Kalendarz1.WPF
             }
 
             _currentOrderId = id;
-            await DisplayOrderDetailsAsync(id);
-            BtnNote_Click(sender, e);
+
+            string currentNote = "";
+            await using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                var cmd = new SqlCommand("SELECT Uwagi FROM ZamowieniaMieso WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                var result = await cmd.ExecuteScalarAsync();
+                currentNote = result?.ToString() ?? "";
+            }
+
+            var noteWindow = new NoteWindow(currentNote);
+            if (noteWindow.ShowDialog() == true)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand("UPDATE ZamowieniaMieso SET Uwagi = @Uwagi WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                    cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(noteWindow.NoteText)
+                        ? DBNull.Value : noteWindow.NoteText);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Notatka została zapisana.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await DisplayOrderDetailsAsync(_currentOrderId.Value);
+                    await RefreshAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private async void MenuAnuluj_Click(object sender, RoutedEventArgs e)
@@ -772,16 +739,78 @@ namespace Kalendarz1.WPF
                 $"Czy na pewno chcesz anulować to zamówienie?\n\n" +
                 $"📦 Odbiorca: {odbiorca}\n" +
                 $"⚖️ Ilość: {ilosc:N0} kg\n\n" +
-                $"⚠️ Tej operacji nie można cofnąć!",
+                $"⚠️ Zamówienie można później przywrócić.",
                 "Potwierdź anulowanie",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
             if (result == MessageBoxResult.Yes)
             {
-                _currentOrderId = id;
-                await DisplayOrderDetailsAsync(id);
-                BtnCancel_Click(sender, e);
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand(
+                        "UPDATE dbo.ZamowieniaMieso SET Status = 'Anulowane' WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}",
+                        "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void MenuPrzywroc_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można przywrócić tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+            var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz przywrócić to zamówienie?\n\n" +
+                $"📦 Odbiorca: {odbiorca}\n" +
+                $"⚖️ Ilość: {ilosc:N0} kg\n\n" +
+                $"✅ Zamówienie zostanie ponownie aktywowane.",
+                "Potwierdź przywrócenie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand(
+                        "UPDATE dbo.ZamowieniaMieso SET Status = 'Nowe' WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Zamówienie zostało przywrócone.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Wystąpił błąd podczas przywracania zamówienia: {ex.Message}",
+                        "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -990,164 +1019,6 @@ namespace Kalendarz1.WPF
             }
         }
 
-        private async void MenuWyslijPotwierdzenie_Click(object sender, RoutedEventArgs e)
-        {
-            if (_contextMenuSelectedRow == null) return;
-
-            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
-            if (id <= 0)
-            {
-                MessageBox.Show("Nie można wysłać potwierdzenia dla tego elementu.", "Informacja",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var result = MessageBox.Show(
-                "Funkcja wysyłania potwierdzeń email zostanie wkrótce zaimplementowana.\n\n" +
-                "Czy chcesz skopiować szczegóły zamówienia do schowka?",
-                "Email - w przygotowaniu",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                var odbiorca = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "");
-                var data = _contextMenuSelectedRow.Row.Field<DateTime>("DataPrzyjecia");
-                var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
-
-                string tekst = $"Potwierdzenie zamówienia #{id}\n" +
-                              $"Odbiorca: {odbiorca}\n" +
-                              $"Data odbioru: {data:dd.MM.yyyy}\n" +
-                              $"Ilość: {ilosc:N0} kg";
-
-                Clipboard.SetText(tekst);
-                MessageBox.Show("✓ Skopiowano do schowka!", "Sukces",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        private async void MenuEksportujPDF_Click(object sender, RoutedEventArgs e)
-        {
-            if (_contextMenuSelectedRow == null) return;
-
-            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
-            if (id <= 0)
-            {
-                MessageBox.Show("Nie można wyeksportować tego elementu.", "Informacja",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            MessageBox.Show(
-                "Funkcja eksportu do PDF zostanie wkrótce zaimplementowana.\n\n" +
-                "Będzie zawierać:\n" +
-                "• Szczegóły zamówienia\n" +
-                "• Listę produktów\n" +
-                "• Dane kontrahenta\n" +
-                "• Podpis i pieczęć",
-                "PDF - w przygotowaniu",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-
-        private async void MenuInformacjeKontaktowe_Click(object sender, RoutedEventArgs e)
-        {
-            if (_contextMenuSelectedRow == null) return;
-
-            try
-            {
-                var clientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
-                var nazwaOdbiorcy = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "");
-
-                if (clientId <= 0)
-                {
-                    MessageBox.Show("Brak informacji o kliencie.", "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                var info = new System.Text.StringBuilder();
-                info.AppendLine($"📞 DANE KONTAKTOWE");
-                info.AppendLine($"{'━',50}");
-                info.AppendLine();
-
-                await using (var cn = new SqlConnection(_connHandel))
-                {
-                    await cn.OpenAsync();
-
-                    string sql = @"
-                        SELECT 
-                            C.Name as PelnaNazwa,
-                            C.Shortcut as Skrot,
-                            C.NIP,
-                            POA.Street as Ulica,
-                            POA.PostCode as KodPocztowy,
-                            POA.Place as Miejscowosc,
-                            CP.PhoneNo as Telefon,
-                            CE.EMail as Email,
-                            CC.CDim_Handlowiec_Val as Handlowiec
-                        FROM [HANDEL].[SSCommon].[STContractors] C
-                        LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] POA 
-                            ON POA.ContactGuid = C.ContactGuid AND POA.AddressName = N'adres domyślny'
-                        LEFT JOIN [HANDEL].[SSCommon].[STContactPhones] CP 
-                            ON CP.ContactGuid = C.ContactGuid
-                        LEFT JOIN [HANDEL].[SSCommon].[STContactEMails] CE 
-                            ON CE.ContactGuid = C.ContactGuid
-                        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] CC 
-                            ON CC.ElementId = C.Id
-                        WHERE C.Id = @ClientId";
-
-                    await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@ClientId", clientId);
-
-                    await using var reader = await cmd.ExecuteReaderAsync();
-
-                    if (await reader.ReadAsync())
-                    {
-                        info.AppendLine($"🏢 {reader["PelnaNazwa"]}");
-                        info.AppendLine($"   ({reader["Skrot"]})");
-                        info.AppendLine();
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("NIP")))
-                            info.AppendLine($"🆔 NIP: {reader["NIP"]}");
-
-                        info.AppendLine();
-                        info.AppendLine("📍 ADRES:");
-                        if (!reader.IsDBNull(reader.GetOrdinal("Ulica")))
-                            info.AppendLine($"   {reader["Ulica"]}");
-                        if (!reader.IsDBNull(reader.GetOrdinal("KodPocztowy")) || !reader.IsDBNull(reader.GetOrdinal("Miejscowosc")))
-                            info.AppendLine($"   {reader["KodPocztowy"]} {reader["Miejscowosc"]}");
-
-                        info.AppendLine();
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("Telefon")))
-                            info.AppendLine($"📞 Telefon: {reader["Telefon"]}");
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("Email")))
-                            info.AppendLine($"📧 Email: {reader["Email"]}");
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("Handlowiec")))
-                        {
-                            info.AppendLine();
-                            info.AppendLine($"👨‍💼 Handlowiec: {reader["Handlowiec"]}");
-                        }
-                    }
-                    else
-                    {
-                        info.AppendLine("Brak szczegółowych danych kontaktowych.");
-                    }
-                }
-
-                MessageBox.Show(info.ToString(), "Dane kontaktowe",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas pobierania danych:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private async void MenuOdswiez_Click(object sender, RoutedEventArgs e)
         {
             await RefreshAllDataAsync();
@@ -1310,6 +1181,8 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("Status", typeof(string));
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
                 _dtOrders.Columns.Add("MaFolie", typeof(bool));
+                _dtOrders.Columns.Add("Trans", typeof(string));
+                _dtOrders.Columns.Add("Prod", typeof(string));
             }
             else
             {
@@ -1342,14 +1215,16 @@ namespace Kalendarz1.WPF
 
             var temp = new DataTable();
             var clientsWithOrders = new HashSet<int>();
+            _processedOrderIds.Clear();
 
             await using (var cnLibra = new SqlConnection(_connLibra))
             {
                 await cnLibra.OpenAsync();
                 string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
 
+                // Najpierw zbierz wszystkie klienty
                 string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso] 
-                              WHERE {dateColumn} = @Day AND Status <> 'Anulowane' AND KlientId IS NOT NULL";
+                              WHERE {dateColumn} = @Day AND KlientId IS NOT NULL";
                 await using var cmdClients = new SqlCommand(sqlClients, cnLibra);
                 cmdClients.Parameters.AddWithValue("@Day", day);
                 await using var readerClients = await cmdClients.ExecuteReaderAsync();
@@ -1373,15 +1248,15 @@ namespace Kalendarz1.WPF
                     string sql = $@"
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-       zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi,
+       zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
             THEN 1 ELSE 0 END AS BIT) AS MaFolie{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
-JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-WHERE {dateColumn} = @Day AND zmt.KodTowaru IN ({idwList}) AND zm.Status <> 'Anulowane' " +
-                                        (selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "") +
+LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+WHERE {dateColumn} = @Day " +
+                                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                         $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -1397,14 +1272,21 @@ ORDER BY zm.Id";
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
             var cultureInfo = new CultureInfo("pl-PL");
 
-            int totalOrdersCount = 0;
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
             decimal totalPallets = 0m;
+            int totalOrdersCount = 0;
+            int actualOrdersCount = 0;
 
             foreach (DataRow r in temp.Rows)
             {
                 int id = Convert.ToInt32(r["Id"]);
+
+                // Sprawdź czy już przetworzono to zamówienie
+                if (_processedOrderIds.Contains(id))
+                    continue;
+                _processedOrderIds.Add(id);
+
                 int clientId = Convert.ToInt32(r["KlientId"]);
                 decimal quantity = Convert.ToDecimal(r["Ilosc"]);
                 DateTime? arrivalDate = r["DataPrzyjazdu"] is DBNull ? null : Convert.ToDateTime(r["DataPrzyjazdu"]);
@@ -1421,6 +1303,12 @@ ORDER BY zm.Id";
                 string notes = r["Uwagi"]?.ToString() ?? "";
                 bool hasNote = !string.IsNullOrWhiteSpace(notes);
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
+
+                int? transportKursId = null;
+                if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
+                {
+                    transportKursId = Convert.ToInt32(r["TransportKursID"]);
+                }
 
                 int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
                 decimal pallets = Math.Ceiling(r["LiczbaPalet"] is DBNull ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
@@ -1462,16 +1350,23 @@ ORDER BY zm.Id";
                     createdBy = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
                 }
 
+                string transColumn = transportKursId.HasValue ? "✓" : "";
+                string prodColumn = status == "Zrealizowane" ? "✓" : "";
+
                 totalOrdersCount++;
-                totalOrdered += quantity;
-                totalReleased += released;
-                totalPallets += pallets;
+                if (status != "Anulowane")
+                {
+                    totalOrdered += quantity;
+                    totalReleased += released;
+                    totalPallets += pallets;
+                    actualOrdersCount++;
+                }
 
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil
+                    createdBy, status, hasNote, hasFoil, transColumn, prodColumn
                 );
             }
 
@@ -1506,6 +1401,8 @@ ORDER BY zm.Id";
                 row["Status"] = "Wydanie bez zamówienia";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
+                row["Trans"] = "";
+                row["Prod"] = "";
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -1534,13 +1431,14 @@ ORDER BY zm.Id";
                 }
             }
 
-            if (_dtOrders.Rows.Count > 0)
+            // Dodaj tylko jedną sumę na samym początku
+            if (_dtOrders.Rows.Count > 0 && actualOrdersCount > 0)
             {
                 var summaryRow = _dtOrders.NewRow();
                 summaryRow["Id"] = -1;
                 summaryRow["KlientId"] = 0;
                 summaryRow["Odbiorca"] = "═══ SUMA ═══";
-                summaryRow["Handlowiec"] = $"Zamówień: {totalOrdersCount}";
+                summaryRow["Handlowiec"] = $"Zamówień: {actualOrdersCount}";
                 summaryRow["IloscZamowiona"] = totalOrdered;
                 summaryRow["IloscFaktyczna"] = totalReleased;
                 summaryRow["Pojemniki"] = 0;
@@ -1554,6 +1452,8 @@ ORDER BY zm.Id";
                 summaryRow["Status"] = "SUMA";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
+                summaryRow["Trans"] = "";
+                summaryRow["Prod"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -1612,6 +1512,22 @@ ORDER BY zm.Id";
 
             dgOrders.Columns.Add(new DataGridTextColumn
             {
+                Header = "Trans.",
+                Binding = new System.Windows.Data.Binding("Trans"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Prod.",
+                Binding = new System.Windows.Data.Binding("Prod"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
                 Header = "Termin Odbioru",
                 Binding = new System.Windows.Data.Binding("TerminOdbioru"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
@@ -1626,7 +1542,6 @@ ORDER BY zm.Id";
                 MinWidth = 80
             });
         }
-
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -1653,6 +1568,7 @@ ORDER BY zm.Id";
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230));
                     e.Row.Foreground = new SolidColorBrush(Colors.Gray);
+                    e.Row.FontStyle = FontStyles.Italic;
                 }
                 else if (!string.IsNullOrEmpty(salesman))
                 {
@@ -1661,7 +1577,7 @@ ORDER BY zm.Id";
                 }
 
                 var pallets = rowView.Row.Field<decimal?>("Palety") ?? 0m;
-                if (pallets > 34)
+                if (pallets > 34 && status != "Anulowane")
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 100, 100));
                     e.Row.Foreground = Brushes.White;
@@ -2469,8 +2385,8 @@ ORDER BY zm.Id";
                 await cmdInsert.ExecuteNonQueryAsync();
 
                 var cmdCopyItems = new SqlCommand(@"INSERT INTO ZamowieniaMiesoTowar 
-                    (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2) 
-                    SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2 
+                    (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
+                    SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia 
                     FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
                 cmdCopyItems.Parameters.AddWithValue("@newId", newId);
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
@@ -2486,6 +2402,8 @@ ORDER BY zm.Id";
         }
 
         #endregion
+
+        #region Converter Classes
 
         public class StrikethroughConverter : IMultiValueConverter
         {
@@ -2520,5 +2438,264 @@ ORDER BY zm.Id";
                 throw new NotImplementedException();
             }
         }
+
+        #endregion
     }
+
+    #region Print Preview Window
+
+    public class PrintPreviewWindow : Window
+    {
+        private FlowDocument _document;
+        private readonly DataTable _dataSource;
+        private readonly DateTime _selectedDate;
+        private readonly Dictionary<int, string> _productCatalog;
+
+        public PrintPreviewWindow(DataTable dataSource, DateTime selectedDate, Dictionary<int, string> productCatalog)
+        {
+            _dataSource = dataSource;
+            _selectedDate = selectedDate;
+            _productCatalog = productCatalog;
+
+            Title = "Podgląd wydruku - Zestawienie zamówień";
+            Width = 900;
+            Height = 700;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+            CreateDocument();
+            InitializeUI();
+        }
+
+        private void InitializeUI()
+        {
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(50) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var toolbar = new ToolBar();
+            toolbar.Height = 45;
+
+            var btnPrint = new Button
+            {
+                Content = "🖨️ Drukuj",
+                Height = 35,
+                Width = 100,
+                FontSize = 14,
+                Margin = new Thickness(5)
+            };
+            btnPrint.Click += BtnPrint_Click;
+
+            var btnClose = new Button
+            {
+                Content = "❌ Zamknij",
+                Height = 35,
+                Width = 100,
+                FontSize = 14,
+                Margin = new Thickness(5)
+            };
+            btnClose.Click += (s, e) => Close();
+
+            toolbar.Items.Add(btnPrint);
+            toolbar.Items.Add(btnClose);
+
+            Grid.SetRow(toolbar, 0);
+            grid.Children.Add(toolbar);
+
+            var viewer = new FlowDocumentScrollViewer
+            {
+                Document = _document,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            Grid.SetRow(viewer, 1);
+            grid.Children.Add(viewer);
+
+            Content = grid;
+        }
+
+        private void CreateDocument()
+        {
+            _document = new FlowDocument
+            {
+                PageWidth = 794,
+                PageHeight = 1123,
+                ColumnWidth = 794,
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 11
+            };
+
+            // Nagłówek
+            var header = new Paragraph
+            {
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            header.Inlines.Add($"ZESTAWIENIE ZAMÓWIEŃ");
+            _document.Blocks.Add(header);
+
+            var dateHeader = new Paragraph
+            {
+                FontSize = 14,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            dateHeader.Inlines.Add($"Data: {_selectedDate:dddd, dd MMMM yyyy}");
+            _document.Blocks.Add(dateHeader);
+
+            // Tabela główna
+            var table = new Table();
+            table.CellSpacing = 0;
+            table.BorderBrush = Brushes.Black;
+            table.BorderThickness = new Thickness(1);
+
+            // Kolumny
+            table.Columns.Add(new TableColumn { Width = new GridLength(30) });  // Lp
+            table.Columns.Add(new TableColumn { Width = new GridLength(200) }); // Odbiorca
+            table.Columns.Add(new TableColumn { Width = new GridLength(100) }); // Handlowiec
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Zamówiono
+            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Wydano
+            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Palety
+            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Trans
+            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Prod
+            table.Columns.Add(new TableColumn { Width = new GridLength(150) }); // Uwagi
+
+            var headerGroup = new TableRowGroup();
+
+            var headerRow = new TableRow();
+            headerRow.Background = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+            headerRow.Foreground = Brushes.White;
+
+            headerRow.Cells.Add(CreateHeaderCell("Lp"));
+            headerRow.Cells.Add(CreateHeaderCell("Odbiorca"));
+            headerRow.Cells.Add(CreateHeaderCell("Handlowiec"));
+            headerRow.Cells.Add(CreateHeaderCell("Zamów. [kg]"));
+            headerRow.Cells.Add(CreateHeaderCell("Wydano [kg]"));
+            headerRow.Cells.Add(CreateHeaderCell("Palety"));
+            headerRow.Cells.Add(CreateHeaderCell("Tr."));
+            headerRow.Cells.Add(CreateHeaderCell("Pr."));
+            headerRow.Cells.Add(CreateHeaderCell("Uwagi"));
+
+            headerGroup.Rows.Add(headerRow);
+            table.RowGroups.Add(headerGroup);
+
+            // Dane
+            var dataGroup = new TableRowGroup();
+            int lp = 0;
+            decimal totalOrdered = 0;
+            decimal totalReleased = 0;
+            decimal totalPallets = 0;
+
+            foreach (DataRow row in _dataSource.Rows)
+            {
+                var status = row["Status"]?.ToString() ?? "";
+                var id = Convert.ToInt32(row["Id"]);
+
+                if (id == -1 || status == "SUMA" || status == "Anulowane")
+                    continue;
+
+                lp++;
+                var dataRow = new TableRow();
+
+                if (lp % 2 == 0)
+                    dataRow.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
+
+                var ordered = Convert.ToDecimal(row["IloscZamowiona"]);
+                var released = Convert.ToDecimal(row["IloscFaktyczna"]);
+                var pallets = Convert.ToDecimal(row["Palety"]);
+
+                totalOrdered += ordered;
+                totalReleased += released;
+                totalPallets += pallets;
+
+                dataRow.Cells.Add(CreateDataCell(lp.ToString(), TextAlignment.Center));
+                dataRow.Cells.Add(CreateDataCell(CzyscNazwe(row["Odbiorca"]?.ToString() ?? "")));
+                dataRow.Cells.Add(CreateDataCell(row["Handlowiec"]?.ToString() ?? ""));
+                dataRow.Cells.Add(CreateDataCell(ordered.ToString("N0"), TextAlignment.Right));
+                dataRow.Cells.Add(CreateDataCell(released.ToString("N0"), TextAlignment.Right));
+                dataRow.Cells.Add(CreateDataCell(pallets.ToString("N1"), TextAlignment.Center));
+                dataRow.Cells.Add(CreateDataCell(row["Trans"]?.ToString() ?? "", TextAlignment.Center));
+                dataRow.Cells.Add(CreateDataCell(row["Prod"]?.ToString() ?? "", TextAlignment.Center));
+                dataRow.Cells.Add(CreateDataCell(""));
+
+                dataGroup.Rows.Add(dataRow);
+            }
+
+            // Suma
+            var sumRow = new TableRow();
+            sumRow.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58));
+            sumRow.Foreground = Brushes.White;
+            sumRow.FontWeight = FontWeights.Bold;
+
+            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
+            sumRow.Cells.Add(CreateDataCell("SUMA", TextAlignment.Left, FontWeights.Bold));
+            sumRow.Cells.Add(CreateDataCell($"Ilość: {lp}", TextAlignment.Left, FontWeights.Bold));
+            sumRow.Cells.Add(CreateDataCell(totalOrdered.ToString("N0"), TextAlignment.Right, FontWeights.Bold));
+            sumRow.Cells.Add(CreateDataCell(totalReleased.ToString("N0"), TextAlignment.Right, FontWeights.Bold));
+            sumRow.Cells.Add(CreateDataCell(totalPallets.ToString("N1"), TextAlignment.Center, FontWeights.Bold));
+            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
+            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
+            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
+
+            dataGroup.Rows.Add(sumRow);
+            table.RowGroups.Add(dataGroup);
+
+            _document.Blocks.Add(table);
+
+            // Stopka
+            var footer = new Paragraph
+            {
+                FontSize = 10,
+                TextAlignment = TextAlignment.Right,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
+            footer.Inlines.Add($"Wydrukowano: {DateTime.Now:yyyy-MM-dd HH:mm}");
+            _document.Blocks.Add(footer);
+        }
+
+        private TableCell CreateHeaderCell(string text)
+        {
+            var cell = new TableCell(new Paragraph(new Run(text))
+            {
+                TextAlignment = TextAlignment.Center,
+                FontWeight = FontWeights.Bold
+            });
+            cell.Padding = new Thickness(5);
+            cell.BorderBrush = Brushes.Black;
+            cell.BorderThickness = new Thickness(0.5);
+            return cell;
+        }
+
+        private TableCell CreateDataCell(string text, TextAlignment align = TextAlignment.Left, FontWeight? weight = null)
+        {
+            var cell = new TableCell(new Paragraph(new Run(text))
+            {
+                TextAlignment = align,
+                FontWeight = weight ?? FontWeights.Normal
+            });
+            cell.Padding = new Thickness(3);
+            cell.BorderBrush = Brushes.Gray;
+            cell.BorderThickness = new Thickness(0.5);
+            return cell;
+        }
+        private string CzyscNazwe(string nazwa)
+        {
+            return nazwa.Replace("📝", "").Replace("📦", "").Trim();
+        }
+
+        private void BtnPrint_Click(object sender, RoutedEventArgs e)
+        {
+            PrintDialog printDialog = new PrintDialog();
+            if (printDialog.ShowDialog() == true)
+            {
+                IDocumentPaginatorSource idpSource = _document;
+                printDialog.PrintDocument(idpSource.DocumentPaginator, "Zestawienie zamówień");
+                MessageBox.Show("Dokument został wysłany do drukarki.", "Drukowanie",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+    }
+
+    #endregion
 }

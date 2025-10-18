@@ -335,39 +335,23 @@
                 <StackPanel x:Name="panelDays" Grid.Column="1" Orientation="Horizontal" 
                            Margin="20,0,0,0" VerticalAlignment="Center"/>
 
-                <!-- Action Buttons -->
+                <!-- Action Buttons - Only New and Print -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" 
                            HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}" 
-                            Background="#2ECC71" Content="+ Nowe" Width="95" 
-                            Click="BtnNew_Click"/>
+                            Background="#2ECC71" Content="➕ Nowe" Width="110" 
+                            Click="BtnNew_Click"
+                            ToolTip="Utwórz nowe zamówienie"
+                            FontSize="14" Height="42"/>
 
-                    <Button x:Name="btnEdit" Style="{StaticResource ActionButtonStyle}"
-                            Background="#3498DB" Content="✏ Modyfikuj" Width="95"
-                            Click="BtnEdit_Click"/>
-
-                    <Button x:Name="btnDuplicate" Style="{StaticResource ActionButtonStyle}"
-                            Background="#9B59B6" Content="⧉ Duplikuj" Width="95"
-                            Click="BtnDuplicate_Click"/>
-
-                    <Button x:Name="btnCyclic" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E67E22" Content="⟲ Cykliczne" Width="95"
-                            Click="BtnCyclic_Click"/>
-
-                    <Button x:Name="btnNote" Style="{StaticResource ActionButtonStyle}"
-                            Background="#F1C40F" Foreground="#2C3E50" Content="✎ Notatka" Width="95"
-                            Click="BtnNote_Click"/>
-
-                    <Button x:Name="btnCancel" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="✕ Anuluj" Width="95"
-                            Click="BtnCancel_Click"/>
-
-                    <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
-                            Background="#95A5A6" Content="⟲ Odśwież" Width="95"
-                            Click="BtnRefresh_Click"/>
+                    <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
+                            Background="#3498DB" Content="🖨️ Drukuj" Width="110"
+                            Click="BtnPrint_Click" Margin="5,0"
+                            ToolTip="Drukuj zestawienie zamówień"
+                            FontSize="14" Height="42"/>
 
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="✕ Usuń" Width="95"
+                            Background="#2C3E50" Content="🗑️ Usuń" Width="95"
                             Click="BtnDelete_Click"
                             Visibility="Collapsed"/>
                 </StackPanel>
@@ -451,61 +435,82 @@
 
                     <DataGrid.ContextMenu>
                         <ContextMenu x:Name="contextMenuOrders">
+                            <ContextMenu.Resources>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Height" Value="36"/>
+                                    <Setter Property="FontSize" Value="14"/>
+                                    <Setter Property="Padding" Value="5,4"/>
+                                </Style>
+                            </ContextMenu.Resources>
+
                             <!-- Główne akcje -->
-                            <MenuItem Header="🔄 Duplikuj zamówienie" 
+                            <MenuItem x:Name="menuDuplikuj" Header="🔄 Duplikuj zamówienie" 
                                       Click="MenuDuplikuj_Click"
-                                      FontWeight="Bold"/>
-                            <MenuItem Header="⟲ Zamówienia cykliczne" 
-                                      Click="MenuCykliczne_Click"/>
-                            <MenuItem Header="✏️ Modyfikuj zamówienie" 
-                                      Click="MenuModyfikuj_Click"/>
-                            <MenuItem Header="✎ Dodaj/Edytuj notatkę" 
-                                      Click="MenuNotatka_Click"/>
+                                      FontWeight="Bold"
+                                      ToolTip="Skopiuj zamówienie na inny dzień"/>
+
+                            <MenuItem x:Name="menuCykliczne" Header="📅 Zamówienia cykliczne" 
+                                      Click="MenuCykliczne_Click"
+                                      ToolTip="Utwórz serię zamówień"/>
+
+                            <MenuItem x:Name="menuModyfikuj" Header="✏️ Modyfikuj zamówienie" 
+                                      Click="MenuModyfikuj_Click"
+                                      ToolTip="Edytuj szczegóły zamówienia"/>
+
+                            <MenuItem x:Name="menuNotatka" Header="📝 Dodaj/Edytuj notatkę" 
+                                      Click="MenuNotatka_Click"
+                                      ToolTip="Dodaj lub zmień notatkę"/>
 
                             <Separator/>
 
                             <!-- Informacje -->
-                            <MenuItem Header="📊 Szczegóły zamówienia" 
+                            <MenuItem x:Name="menuSzczegolyZamowienia" Header="📊 Szczegóły zamówienia" 
                                       Click="MenuSzczegolyZamowienia_Click"
-                                      Background="#E8F5E9"/>
-                            <MenuItem Header="💳 Płatności kontrahenta" 
+                                      Background="#E8F5E9"
+                                      ToolTip="Wyświetl pełne informacje"/>
+
+                            <MenuItem x:Name="menuSzczegolyPlatnosci" Header="💳 Płatności kontrahenta" 
                                       Click="MenuSzczegolyPlatnosci_Click"
-                                      Background="#E3F2FD"/>
-                            <MenuItem Header="📋 Historia zamówień kontrahenta" 
+                                      Background="#E3F2FD"
+                                      ToolTip="Sprawdź stan rozliczeń"/>
+
+                            <MenuItem x:Name="menuHistoriaZamowien" Header="📋 Historia zamówień" 
                                       Click="MenuHistoriaZamowien_Click"
-                                      Background="#FFF8E1"/>
-
-                            <Separator/>
-
-                            <!-- Akcje dodatkowe -->
-                            <MenuItem Header="📧 Wyślij potwierdzenie email" 
-                                      Click="MenuWyslijPotwierdzenie_Click"/>
-                            <MenuItem Header="📄 Eksportuj do PDF" 
-                                      Click="MenuEksportujPDF_Click"/>
-                            <MenuItem Header="📞 Informacje kontaktowe" 
-                                      Click="MenuInformacjeKontaktowe_Click"/>
+                                      Background="#FFF8E1"
+                                      ToolTip="Zobacz poprzednie zamówienia"/>
 
                             <Separator/>
 
                             <!-- Odświeżanie -->
-                            <MenuItem Header="🔄 Odśwież dane" 
+                            <MenuItem x:Name="menuOdswiez" Header="🔄 Odśwież dane" 
                                       Click="MenuOdswiez_Click"
-                                      FontWeight="SemiBold"/>
+                                      FontWeight="SemiBold"
+                                      ToolTip="Zaktualizuj widok"/>
 
                             <Separator/>
 
                             <!-- Akcje niebezpieczne -->
-                            <MenuItem Header="❌ Anuluj zamówienie" 
+                            <MenuItem x:Name="menuAnuluj" Header="❌ Anuluj zamówienie" 
                                       Click="MenuAnuluj_Click"
                                       Foreground="#E74C3C"
-                                      FontWeight="Bold"/>
+                                      FontWeight="Bold"
+                                      ToolTip="Oznacz jako anulowane"/>
+
+                            <MenuItem x:Name="menuPrzywroc" Header="✅ Przywróć zamówienie" 
+                                      Click="MenuPrzywroc_Click"
+                                      Foreground="#27AE60"
+                                      FontWeight="Bold"
+                                      Visibility="Collapsed"
+                                      ToolTip="Cofnij anulowanie"/>
+
                             <MenuItem x:Name="menuUsun"
                                       Header="🗑️ USUŃ TRWALE zamówienie" 
                                       Click="MenuUsun_Click"
                                       Foreground="#8B0000"
                                       FontWeight="Bold"
                                       Background="#FFE6E6"
-                                      Visibility="Collapsed"/>
+                                      Visibility="Collapsed"
+                                      ToolTip="Nieodwracalne usunięcie"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
                 </DataGrid>
