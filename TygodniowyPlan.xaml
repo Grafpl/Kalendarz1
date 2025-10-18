@@ -128,6 +128,10 @@
                             Style="{StaticResource ButtonStyle}"
                             Background="#3498DB"
                             Click="BtnKonfiguracjaWydajnosci_Click"/>
+                    <Button Content="🥩 Konfiguruj Podroby" 
+                            Style="{StaticResource ButtonStyle}"
+                            Background="#8B4513"
+                            Click="BtnKonfiguracjaPodrobow_Click"/>
                     <Button Content="🛠 Konfiguruj Produkty" 
                             Style="{StaticResource ButtonStyle}"
                             Background="#3498DB"
@@ -136,6 +140,7 @@
                             Style="{StaticResource ButtonStyle}"
                             Background="#27AE60"
                             Click="BtnOdswiez_Click"/>
+
                 </StackPanel>
             </Grid>
         </Border>

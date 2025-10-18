@@ -24,16 +24,10 @@ namespace Kalendarz1
 
         public string UserID { get; set; }
 
-        private readonly Dictionary<string, string> mapaHandlowcow = new Dictionary<string, string>
-        {
-            { "9991", "Dawid" },
-            { "9998", "Daniel" },
-            { "871231", "Radek" },
-            { "432143", "Ania" }
-        };
 
-        private string? _docelowyHandlowiec;
-        private Button btnWybierzHandlowcow;
+
+
+
         private ComboBox comboBoxRokUdzial;
         private ComboBox comboBoxMiesiacUdzial;
         private ComboBox comboBoxRokSprzedaz;
@@ -61,7 +55,7 @@ namespace Kalendarz1
         private DataGridView dataGridViewPorownaniaSwiezeMrozone;
         private Label lblStatystykiPorown;
 
-        private List<string> zaznaczeniHandlowcy = new List<string>();
+
 
         public WidokFakturSprzedazy()
         {
@@ -124,20 +118,24 @@ namespace Kalendarz1
 
         private void WidokFakturSprzedazy_Load(object? sender, EventArgs e)
         {
+            // Obsługa UserID i uprawnień
             if (UserID == "11111")
             {
-                _docelowyHandlowiec = null;
                 this.Text = "📊 System Zarządzania Fakturami Sprzedaży - [ADMINISTRATOR]";
-            }
-            else if (mapaHandlowcow.ContainsKey(UserID))
-            {
-                _docelowyHandlowiec = mapaHandlowcow[UserID];
-                this.Text = $"📊 System Zarządzania Fakturami Sprzedaży - [{_docelowyHandlowiec}]";
             }
             else
             {
-                MessageBox.Show("⚠ Nieznany lub nieprawidłowy identyfikator użytkownika.", "Błąd logowania", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                _docelowyHandlowiec = "____BRAK_UPRAWNIEN____";
+                string userName = PobierzNazweUzytkownika(UserID);
+                this.Text = $"📊 System Zarządzania Fakturami Sprzedaży - [{userName}]";
+
+                if (!UserHandlowcyManager.HasAssignedHandlowcy(UserID))
+                {
+                    MessageBox.Show(
+                        "⚠ Nie masz przypisanych handlowców.\n\nSkontaktuj się z administratorem aby otrzymać dostęp do danych.",
+                        "Brak dostępu",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
             }
 
             dateTimePickerDo.Value = DateTime.Today;
@@ -151,13 +149,9 @@ namespace Kalendarz1
 
             StworzZakladkiAnalityczne();
 
-            InicjalizujFiltryHandlowcow();
-
             WczytajPlatnosciPerKontrahent(null);
             StworzKontroleTowary();
             ZaladujKontrahentow();
-
-            StworzPrzyciskWyboruHandlowcow();
 
             dataGridViewOdbiorcy.RowHeadersVisible = false;
             dataGridViewPozycje.RowHeadersVisible = false;
@@ -171,132 +165,38 @@ namespace Kalendarz1
             OdswiezDaneGlownejSiatki();
             AktualizujRozmiary();
 
-            // ===== DODAJ TO NA KOŃCU =====
-            // Zmniejsz szerokość lewego panelu z fakturami
-            splitContainerMain.SplitterDistance = 900;  // Zmień z 850 na 600 (lub inną wartość)
-                                                        // ==============================
+            splitContainerMain.SplitterDistance = 900;
+            var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
+            MessageBox.Show(
+                $"🔍 DEBUG INFO:\n\n" +
+                $"UserID: {UserID}\n" +
+                $"Ma handlowców: {UserHandlowcyManager.HasAssignedHandlowcy(UserID)}\n" +
+                $"Lista handlowców: {(handlowcy.Count > 0 ? string.Join(", ", handlowcy) : "BRAK")}\n\n" +
+                $"Klauzula WHERE:\n{UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val")}",
+                "Debug - System Handlowców",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
-        private void InicjalizujFiltryHandlowcow()
-        {
-            zaznaczeniHandlowcy = new List<string>();
 
-            if (UserID == "11111")
+        private string PobierzNazweUzytkownika(string userId)
+        {
+            try
             {
-                // Administrator - domyślnie wszyscy handlowcy zaznaczeni
-                try
+                string libraConnectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+                using (var conn = new SqlConnection(libraConnectionString))
                 {
-                    using (var conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"
-                    SELECT DISTINCT WYM.CDim_Handlowiec_Val
-                    FROM [HANDEL].[SSCommon].[ContractorClassification] WYM
-                    WHERE WYM.CDim_Handlowiec_Val IS NOT NULL
-                    ORDER BY WYM.CDim_Handlowiec_Val";
-
-                        var cmd = new SqlCommand(query, conn);
-                        conn.Open();
-                        var reader = cmd.ExecuteReader();
-
-                        while (reader.Read())
-                        {
-                            zaznaczeniHandlowcy.Add(reader.GetString(0));
-                        }
-                    }
-                }
-                catch { }
-            }
-            else if (mapaHandlowcow.ContainsKey(UserID))
-            {
-                // Zwykły użytkownik - tylko jego własny handlowiec
-                zaznaczeniHandlowcy.Add(mapaHandlowcow[UserID]);
-            }
-        }
-        private void StworzPrzyciskWyboruHandlowcow()
-        {
-            Label lblHandlowiec = new Label
-            {
-                Text = "👥 Handlowcy:",
-                Location = new Point(675, 15),
-                AutoSize = true
-            };
-            panelFilters.Controls.Add(lblHandlowiec);
-
-            btnWybierzHandlowcow = new Button
-            {
-                Text = "✓ Wybierz...",
-                Location = new Point(760, 12),
-                Size = new Size(110, 25),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = ColorTranslator.FromHtml("#3498db"),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnWybierzHandlowcow.FlatAppearance.BorderSize = 0;
-            btnWybierzHandlowcow.Click += BtnWybierzHandlowcow_Click;
-
-            panelFilters.Controls.Add(btnWybierzHandlowcow);
-
-            label3.Location = new Point(890, 15);
-            dateTimePickerOd.Location = new Point(920, 12);
-
-            label4.Location = new Point(1040, 15);
-            dateTimePickerDo.Location = new Point(1070, 12);
-
-            btnRefresh.Location = new Point(1190, 11);
-        }
-        private void BtnWybierzHandlowcow_Click(object? sender, EventArgs e)
-        {
-            List<string> dozwoleniHandlowcy = new List<string>();
-
-            if (UserID == "11111")
-            {
-                dozwoleniHandlowcy = null;
-            }
-            else if (mapaHandlowcow.ContainsKey(UserID))
-            {
-                dozwoleniHandlowcy = new List<string> { mapaHandlowcow[UserID] };
-            }
-            else
-            {
-                MessageBox.Show("⚠ Brak uprawnień do wyboru handlowców.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            using (var form = new FormWyborHandlowcow(connectionString, zaznaczeniHandlowcy, dozwoleniHandlowcy))
-            {
-                if (form.ShowDialog() == DialogResult.OK)
-                {
-                    zaznaczeniHandlowcy = form.WybraniHandlowcy;
-
-                    // Zaktualizuj tekst przycisku
-                    if (zaznaczeniHandlowcy.Count == 0)
-                        btnWybierzHandlowcow.Text = "✓ Wybierz...";
-                    else if (zaznaczeniHandlowcy.Count == 1)
-                        btnWybierzHandlowcow.Text = $"✓ {zaznaczeniHandlowcy[0]}";
-                    else
-                        btnWybierzHandlowcow.Text = $"✓ Wybrano ({zaznaczeniHandlowcy.Count})";
-
-                    OdswiezDaneGlownejSiatki();
-                    WczytajPlatnosciPerKontrahent(null);
-                    ZaladujKontrahentow();
-
-                    if (tabControl.SelectedIndex == 0)
-                        WczytajPlatnosciPerKontrahent(null);
-                    else if (tabControl.SelectedIndex == 1)
-                        OdswiezWykresSprzedazy();
-                    else if (tabControl.SelectedIndex == 2)
-                        OdswiezWykresTop10();
-                    else if (tabControl.SelectedIndex == 3)
-                        OdswiezWykresHandlowcow();
-                    else if (tabControl.SelectedIndex == 4)
-                        OdswiezAnalizeCen();
+                    conn.Open();
+                    var cmd = new SqlCommand("SELECT Name FROM operators WHERE ID = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", userId);
+                    var result = cmd.ExecuteScalar();
+                    return result?.ToString() ?? $"Użytkownik {userId}";
                 }
             }
-        }
-        private List<string> PobierzZaznaczonychHandlowcow()
-        {
-            return zaznaczeniHandlowcy;
+            catch
+            {
+                return $"Użytkownik {userId}";
+            }
         }
 
         private void StworzKontroleTowary()
@@ -462,6 +362,8 @@ namespace Kalendarz1
             };
             KonfigurujWykresSprzedazy();
 
+            // W metodzie StworzZakladkiAnalityczne() ZNAJDŹ I ZAMIEŃ:
+
             TabPage tabTop10 = new TabPage("🏆 Top 10 - odbiorcy");
             Panel panelTop10 = new Panel { Dock = DockStyle.Fill };
             tabTop10.Controls.Add(panelTop10);
@@ -503,12 +405,25 @@ namespace Kalendarz1
             WypelnijTowaryComboBoxTop10(comboBoxTowarTop10);
             comboBoxTowarTop10.SelectedIndexChanged += (s, e) => OdswiezWykresTop10();
 
+            // ✅ NOWY CHECKBOX - Pokaż wszystkich handlowców (tylko dla admina)
+            CheckBox chkWszyscyHandlowcyTop10 = new CheckBox
+            {
+                Name = "chkWszyscyHandlowcyTop10",
+                Text = "👥 Pokaż wszystkich handlowców",
+                Location = new Point(650, 12),
+                AutoSize = true,
+                Checked = true,  // Domyślnie zaznaczone
+                Visible = UserID == "11111"  // Widoczne tylko dla admina
+            };
+            chkWszyscyHandlowcyTop10.CheckedChanged += (s, e) => OdswiezWykresTop10();
+
             panelTop10Controls.Controls.Add(lblRokTop10);
             panelTop10Controls.Controls.Add(comboBoxRokTop10);
             panelTop10Controls.Controls.Add(lblMiesiacTop10);
             panelTop10Controls.Controls.Add(comboBoxMiesiacTop10);
             panelTop10Controls.Controls.Add(lblTowarTop10);
             panelTop10Controls.Controls.Add(comboBoxTowarTop10);
+            panelTop10Controls.Controls.Add(chkWszyscyHandlowcyTop10);
 
             panelTop10.Controls.Add(panelTop10Controls);
 
@@ -840,6 +755,20 @@ namespace Kalendarz1
             if (string.IsNullOrEmpty(handlowiec))
                 return;
 
+            // ✅ SPRAWDZENIE UPRAWNIEŃ - Czy użytkownik ma dostęp do tego handlowca?
+            var userHandlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
+
+            if (UserID != "11111" && !userHandlowcy.Contains(handlowiec))
+            {
+                MessageBox.Show(
+                    $"⛔ Brak dostępu do szczegółów handlowca: {handlowiec}\n\n" +
+                    $"Możesz przeglądać tylko dane swoich przypisanych handlowców.",
+                    "Brak uprawnień",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             int towarId = (int)comboBoxTowarAnalizaCen.SelectedValue;
             string nazwaTowaru = comboBoxTowarAnalizaCen.Text;
 
@@ -853,8 +782,7 @@ namespace Kalendarz1
             {
                 historiaForm.ShowDialog(this);
             }
-        }
-        // === FRAGMENT TWORZĄCY ZAKŁADKĘ (JEŚLI JUŻ MASZ - ZAMIEŃ NA TO) ===
+        }        // === FRAGMENT TWORZĄCY ZAKŁADKĘ (JEŚLI JUŻ MASZ - ZAMIEŃ NA TO) ===
         private void StworzZakladkePorownaniaSwiezeMrozone(TabPage tab)
         {
             Panel mainPanel = new Panel { Dock = DockStyle.Fill };
@@ -2189,31 +2117,27 @@ ORDER BY SredniaCena DESC;";
 
                 int rok = (int)comboBoxRokSprzedaz.SelectedItem;
                 int miesiac = (int)comboBoxMiesiacSprzedaz.SelectedValue;
-                var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
 
                 var lblSuma = chartSprzedaz?.Parent?.Controls.Find("panelSumaSprzedaz", false)
                     .FirstOrDefault()?.Controls.Find("lblSumaSprzedaz", false)
                     .FirstOrDefault() as Label;
 
                 string query = @"
-            SELECT 
-                C.shortcut AS Kontrahent,
-                SUM(DP.wartNetto) AS WartoscSprzedazy
-            FROM [HANDEL].[HM].[DK] DK
-            INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-            INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-            WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac";
+    SELECT 
+        C.shortcut AS Kontrahent,
+        SUM(DP.wartNetto) AS WartoscSprzedazy
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac";
 
-                if (zaznaczeniHandlowcy.Count > 0)
-                {
-                    var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
-                    query += $" AND WYM.CDim_Handlowiec_Val IN ('{handlowcyLista}')";
-                }
+                // ✅ ZMIANA: Użyj UserHandlowcyManager zamiast zaznaczeniHandlowcy
+                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
 
                 query += @"
-            GROUP BY C.shortcut
-            ORDER BY WartoscSprzedazy DESC;";
+    GROUP BY C.shortcut
+    ORDER BY WartoscSprzedazy DESC;";
 
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -2247,17 +2171,17 @@ ORDER BY SredniaCena DESC;";
                     }
 
                     Color[] colors = {
-                    ColorTranslator.FromHtml("#3498db"),
-                    ColorTranslator.FromHtml("#2ecc71"),
-                    ColorTranslator.FromHtml("#e74c3c"),
-                    ColorTranslator.FromHtml("#f39c12"),
-                    ColorTranslator.FromHtml("#9b59b6"),
-                    ColorTranslator.FromHtml("#1abc9c"),
-                    ColorTranslator.FromHtml("#e67e22"),
-                    ColorTranslator.FromHtml("#95a5a6"),
-                    ColorTranslator.FromHtml("#34495e"),
-                    ColorTranslator.FromHtml("#16a085")
-                };
+                ColorTranslator.FromHtml("#3498db"),
+                ColorTranslator.FromHtml("#2ecc71"),
+                ColorTranslator.FromHtml("#e74c3c"),
+                ColorTranslator.FromHtml("#f39c12"),
+                ColorTranslator.FromHtml("#9b59b6"),
+                ColorTranslator.FromHtml("#1abc9c"),
+                ColorTranslator.FromHtml("#e67e22"),
+                ColorTranslator.FromHtml("#95a5a6"),
+                ColorTranslator.FromHtml("#34495e"),
+                ColorTranslator.FromHtml("#16a085")
+            };
 
                     int colorIdx = 0;
                     foreach (DataRow row in dt.Rows)
@@ -2276,9 +2200,14 @@ ORDER BY SredniaCena DESC;";
                     chartSprzedaz.Series.Add(series);
 
                     var kulturaPL = new CultureInfo("pl-PL");
-                    string nazwaHandlowcow = zaznaczeniHandlowcy.Count == 0 ? "wszyscy handlowcy" :
-                                            zaznaczeniHandlowcy.Count == 1 ? zaznaczeniHandlowcy[0] :
-                                            $"{zaznaczeniHandlowcy.Count} handlowców";
+
+                    // ✅ ZMIANA: Pobierz nazwę handlowców dla tytułu
+                    var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
+                    string nazwaHandlowcow = UserID == "11111" ? "wszyscy handlowcy" :
+                                            handlowcy.Count == 0 ? "brak przypisanych handlowców" :
+                                            handlowcy.Count == 1 ? handlowcy[0] :
+                                            $"{handlowcy.Count} handlowców";
+
                     string tytul = $"📊 Udział kontrahentów - {nazwaHandlowcow} - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
                     chartSprzedaz.Titles[0].Text = tytul;
 
@@ -2293,7 +2222,6 @@ ORDER BY SredniaCena DESC;";
                 MessageBox.Show($"❌ Błąd wykresu sprzedaży:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void OdswiezWykresTop10()
         {
             try
@@ -2311,19 +2239,31 @@ ORDER BY SredniaCena DESC;";
                 if (comboBoxTowarTop10.SelectedValue != null && (int)comboBoxTowarTop10.SelectedValue != 0)
                     towarId = (int)comboBoxTowarTop10.SelectedValue;
 
+                // ✅ Sprawdź checkbox (tylko dla admina)
+                var checkbox = tabControl.Controls.Find("chkWszyscyHandlowcyTop10", true).FirstOrDefault() as CheckBox;
+                bool pokazWszystkichHandlowcow = checkbox?.Checked ?? false;
+
                 string query = @"
-        SELECT TOP 10
-            C.shortcut AS Kontrahent,
-            ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-            SUM(DP.ilosc) AS SumaIlosci
-        FROM [HANDEL].[HM].[DK] DK
-        INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-        WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-          AND (@TowarID IS NULL OR DP.idtw = @TowarID)
-        GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
-        ORDER BY SumaIlosci DESC;";
+    SELECT TOP 10
+        C.shortcut AS Kontrahent,
+        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+        SUM(DP.ilosc) AS SumaIlosci
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+      AND (@TowarID IS NULL OR DP.idtw = @TowarID)";
+
+                // ✅ FILTR: Jeśli checkbox NIE zaznaczony (lub użytkownik nie jest adminem), filtruj po handlowcach
+                if (!pokazWszystkichHandlowcow || UserID != "11111")
+                {
+                    query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+                }
+
+                query += @"
+    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+    ORDER BY SumaIlosci DESC;";
 
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -2388,7 +2328,8 @@ ORDER BY SredniaCena DESC;";
 
                     var kulturaPL = new CultureInfo("pl-PL");
                     string nazwaTowar = towarId.HasValue ? comboBoxTowarTop10.Text : "wszystkie towary";
-                    string tytul = $"🏆 Top 10 - {nazwaTowar} - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
+                    string zakres = pokazWszystkichHandlowcow && UserID == "11111" ? "wszyscy handlowcy" : "moi handlowcy";
+                    string tytul = $"🏆 Top 10 - {nazwaTowar} - {zakres} - {kulturaPL.DateTimeFormat.GetMonthName(miesiac)} {rok}";
                     chartTop10.Titles[0].Text = tytul;
                 }
             }
@@ -2411,16 +2352,21 @@ ORDER BY SredniaCena DESC;";
                 int miesiac = (int)comboBoxMiesiacUdzial.SelectedValue;
 
                 string query = @"
-            SELECT 
-                WYM.CDim_Handlowiec_Val AS Handlowiec,
-                SUM(DP.wartNetto) AS WartoscSprzedazy
-            FROM [HANDEL].[HM].[DK] DK
-            INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-            INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-            WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-              AND WYM.CDim_Handlowiec_Val IS NOT NULL
-            GROUP BY WYM.CDim_Handlowiec_Val
-            ORDER BY WartoscSprzedazy DESC;";
+    SELECT 
+        WYM.CDim_Handlowiec_Val AS Handlowiec,
+        SUM(DP.wartNetto) AS WartoscSprzedazy
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+      AND WYM.CDim_Handlowiec_Val IS NOT NULL";
+
+                // ✅ ZAWSZE filtruj tylko po handlowcach użytkownika (NIE MA checkboxa)
+                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
+
+                query += @"
+    GROUP BY WYM.CDim_Handlowiec_Val
+    ORDER BY WartoscSprzedazy DESC;";
 
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -2453,15 +2399,15 @@ ORDER BY SredniaCena DESC;";
                     }
 
                     Color[] colors = {
-                    ColorTranslator.FromHtml("#3498db"),
-                    ColorTranslator.FromHtml("#2ecc71"),
-                    ColorTranslator.FromHtml("#e74c3c"),
-                    ColorTranslator.FromHtml("#f39c12"),
-                    ColorTranslator.FromHtml("#9b59b6"),
-                    ColorTranslator.FromHtml("#1abc9c"),
-                    ColorTranslator.FromHtml("#e67e22"),
-                    ColorTranslator.FromHtml("#95a5a6")
-                };
+                ColorTranslator.FromHtml("#3498db"),
+                ColorTranslator.FromHtml("#2ecc71"),
+                ColorTranslator.FromHtml("#e74c3c"),
+                ColorTranslator.FromHtml("#f39c12"),
+                ColorTranslator.FromHtml("#9b59b6"),
+                ColorTranslator.FromHtml("#1abc9c"),
+                ColorTranslator.FromHtml("#e67e22"),
+                ColorTranslator.FromHtml("#95a5a6")
+            };
 
                     int colorIdx = 0;
                     foreach (DataRow row in dt.Rows)
@@ -2488,9 +2434,7 @@ ORDER BY SredniaCena DESC;";
             {
                 MessageBox.Show($"❌ Błąd handlowców: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        // === LICZENIE CEN JAK W SYMFONII: SUM(cena * ilość) / SUM(ilość) (ZAMIANA DOTYCHCZASOWEJ METODY) ===
+        }        // === LICZENIE CEN JAK W SYMFONII: SUM(cena * ilość) / SUM(ilość) (ZAMIANA DOTYCHCZASOWEJ METODY) ===
         // === LICZENIE CEN JAK W SYMFONII: SUM(cena*ilosc)/SUM(ilosc) ===
         private void OdswiezPorownanieTowarow()
         {
@@ -2990,13 +2934,14 @@ ORDER BY Dzien ASC;";
             dataGridViewPlatnosci.AllowUserToAddRows = false;
             dataGridViewPlatnosci.AllowUserToDeleteRows = false;
             dataGridViewPlatnosci.RowHeadersVisible = false;
+            dataGridViewPlatnosci.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; // ✅ Dopasowanie do okna
 
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Kontrahent",
                 DataPropertyName = "Kontrahent",
                 HeaderText = "🏢 Kontrahent",
-                Width = 180,
+                FillWeight = 25  // ✅ Proporcjonalna szerokość
             });
 
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
@@ -3004,7 +2949,7 @@ ORDER BY Dzien ASC;";
                 Name = "Limit",
                 DataPropertyName = "Limit",
                 HeaderText = "💳 Limit",
-                Width = 100,
+                FillWeight = 12,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
@@ -3013,7 +2958,7 @@ ORDER BY Dzien ASC;";
                 Name = "DoZaplacenia",
                 DataPropertyName = "DoZaplacenia",
                 HeaderText = "💰 Do zapłacenia",
-                Width = 110,
+                FillWeight = 15,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
@@ -3022,7 +2967,7 @@ ORDER BY Dzien ASC;";
                 Name = "PrzekroczonyLimit",
                 DataPropertyName = "PrzekroczonyLimit",
                 HeaderText = "⚠ Przekroczony limit",
-                Width = 120,
+                FillWeight = 15,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
@@ -3031,7 +2976,7 @@ ORDER BY Dzien ASC;";
                 Name = "Terminowe",
                 DataPropertyName = "Terminowe",
                 HeaderText = "✓ Terminowe",
-                Width = 100,
+                FillWeight = 13,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
@@ -3040,27 +2985,23 @@ ORDER BY Dzien ASC;";
                 Name = "Przeterminowane",
                 DataPropertyName = "Przeterminowane",
                 HeaderText = "⏰ Przeterminowane",
-                Width = 120,
+                FillWeight = 15,
                 DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
             });
 
-            // NOWA KOLUMNA
             dataGridViewPlatnosci.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "NajpozniejszaPlatnosc",
                 DataPropertyName = "NajpozniejszaPlatnosc",
                 HeaderText = "📅 Najpóźniejsza płatność",
-                Width = 140,
+                FillWeight = 18,
                 DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
 
             dataGridViewPlatnosci.CellDoubleClick += DataGridViewPlatnosci_CellDoubleClick;
         }
-
         private void WczytajPlatnosciPerKontrahent(string? handlowiec)
         {
-            var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
-
             string sql = @"
 WITH PNAgg AS (
     SELECT PN.dkid,
@@ -3073,22 +3014,14 @@ Dokumenty AS (
     SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
     FROM [HANDEL].[HM].[DK] DK
     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE DK.anulowany = 0
       AND C.Shortcut NOT LIKE '%Centrum Drobiu%'
       AND C.Shortcut NOT LIKE '%Sd/Kozio%'
       AND C.Shortcut NOT LIKE '%Piórkowski%'";
 
-            if (zaznaczeniHandlowcy.Count > 0)
-            {
-                var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
-                sql += $@"
-      AND EXISTS (
-          SELECT 1
-          FROM [HANDEL].[SSCommon].[ContractorClassification] W
-          WHERE W.ElementId = DK.khid
-            AND W.CDim_Handlowiec_Val IN ('{handlowcyLista}')
-      )";
-            }
+            // ✅ DODAJ FILTR HANDLOWCÓW
+            sql += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
 
             sql += @"
 ),
@@ -3249,7 +3182,10 @@ ORDER BY DoZaplacenia DESC;";
                 var row = dataGridViewPlatnosci.Rows[e.RowIndex];
                 var colName = dataGridViewPlatnosci.Columns[e.ColumnIndex].Name;
 
-                // Formatowanie kwot
+                // Pomiń wiersz sumy w kolorowaniu szczegółowym
+                bool isSumaRow = row.Cells["Kontrahent"].Value?.ToString() == "📊 SUMA";
+
+                // Formatowanie kwot z "zł"
                 if (colName == "Limit" || colName == "DoZaplacenia" || colName == "PrzekroczonyLimit" ||
                     colName == "Terminowe" || colName == "Przeterminowane")
                 {
@@ -3269,8 +3205,7 @@ ORDER BY DoZaplacenia DESC;";
                         if (dni > 0)
                         {
                             e.Value = $"⚠ {dni} dni po terminie";
-                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
-                            e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                            e.FormattingApplied = true;
                         }
                         else
                         {
@@ -3284,60 +3219,93 @@ ORDER BY DoZaplacenia DESC;";
                     e.FormattingApplied = true;
                 }
 
-                // Kolorowanie gdy przekroczony limit między -150 000 a -2 000 000
-                if (row.Cells["PrzekroczonyLimit"].Value != null &&
-                    row.Cells["PrzekroczonyLimit"].Value != DBNull.Value &&
-                    row.Cells["Kontrahent"].Value?.ToString() != "📊 SUMA")
+                if (!isSumaRow)
                 {
-                    decimal przekroczony = Convert.ToDecimal(row.Cells["PrzekroczonyLimit"].Value);
+                    decimal? przekroczonyLimit = row.Cells["PrzekroczonyLimit"].Value != DBNull.Value ?
+                        Convert.ToDecimal(row.Cells["PrzekroczonyLimit"].Value) : (decimal?)null;
 
-                    if (przekroczony <= -2000 && przekroczony >= -2000000)
+                    decimal? przeterminowane = row.Cells["Przeterminowane"].Value != DBNull.Value ?
+                        Convert.ToDecimal(row.Cells["Przeterminowane"].Value) : (decimal?)null;
+
+                    // ✅ LOGIKA KOLOROWANIA
+                    bool limitNaCzerwono = przekroczonyLimit.HasValue && przekroczonyLimit.Value < 0;
+                    bool przeterminowaneNaCzerwono = przeterminowane.HasValue && przeterminowane.Value > 50000;
+                    bool przeterminowaneNaZolto = przeterminowane.HasValue && przeterminowane.Value > 0 && przeterminowane.Value <= 50000;
+
+                    int liczbaAlertow = (limitNaCzerwono ? 1 : 0) + (przeterminowaneNaCzerwono ? 1 : 0);
+
+                    // Kolorowanie kolumny Kontrahent
+                    if (colName == "Kontrahent")
                     {
-                        if (colName == "Kontrahent" || colName == "Limit" ||
-                            colName == "DoZaplacenia" || colName == "PrzekroczonyLimit")
+                        if (liczbaAlertow >= 2)
                         {
-                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#ffcdd2");
-                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#b71c1c");
-                            e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");  // Czerwony
+                            e.CellStyle.ForeColor = Color.White;
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
+                        else if (liczbaAlertow == 1)
+                        {
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");  // Żółty
+                            e.CellStyle.ForeColor = Color.White;
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
                         }
                     }
-                }
 
-                // Kolorowanie kolumny Przeterminowane gdy wartość > 30 000
-                if (colName == "Przeterminowane" &&
-                    row.Cells["Przeterminowane"].Value != null &&
-                    row.Cells["Przeterminowane"].Value != DBNull.Value &&
-                    row.Cells["Kontrahent"].Value?.ToString() != "📊 SUMA")
-                {
-                    decimal przeterminowane = Convert.ToDecimal(row.Cells["Przeterminowane"].Value);
-
-                    if (przeterminowane > 30000)
+                    // Kolorowanie kolumny PrzekroczonyLimit
+                    if (colName == "PrzekroczonyLimit" && limitNaCzerwono)
                     {
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#ff5252");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");
                         e.CellStyle.ForeColor = Color.White;
-                        e.CellStyle.Font = new Font(dataGridViewPlatnosci.Font, FontStyle.Bold);
+                        e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                    }
+
+                    // Kolorowanie kolumny Przeterminowane
+                    if (colName == "Przeterminowane")
+                    {
+                        if (przeterminowaneNaCzerwono)
+                        {
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");
+                            e.CellStyle.ForeColor = Color.White;
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
+                        else if (przeterminowaneNaZolto)
+                        {
+                            e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");
+                            e.CellStyle.ForeColor = Color.White;
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
+                    }
+
+                    // Kolorowanie kolumny NajpozniejszaPlatnosc
+                    if (colName == "NajpozniejszaPlatnosc" && e.Value != null && e.Value.ToString().Contains("dni"))
+                    {
+                        if (przeterminowaneNaCzerwono)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
+                        else if (przeterminowaneNaZolto)
+                        {
+                            e.CellStyle.ForeColor = ColorTranslator.FromHtml("#f39c12");
+                            e.CellStyle.Font = new Font(e.CellStyle.Font, FontStyle.Bold);
+                        }
                     }
                 }
             }
         }
         private void ZaladujKontrahentow()
         {
-            var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 string query = @"
-                    SELECT DISTINCT C.id, C.shortcut AS nazwa
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId";
+            SELECT DISTINCT C.id, C.shortcut AS nazwa
+            FROM [HANDEL].[HM].[DK] DK
+            INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+            LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+            WHERE 1=1";
 
-                if (zaznaczeniHandlowcy.Count > 0)
-                {
-                    var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
-                    query += $" WHERE WYM.CDim_Handlowiec_Val IN ('{handlowcyLista}')";
-                }
-
+                // ✅ DODAJ FILTR HANDLOWCÓW
+                query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
                 query += " ORDER BY C.shortcut ASC;";
 
                 var cmd = new SqlCommand(query, connection);
@@ -3350,16 +3318,14 @@ ORDER BY DoZaplacenia DESC;";
                 dr["id"] = 0;
                 dr["nazwa"] = "--- Wszyscy kontrahenci ---";
                 kontrahenci.Rows.InsertAt(dr, 0);
+
                 comboBoxKontrahent.DisplayMember = "nazwa";
                 comboBoxKontrahent.ValueMember = "id";
                 comboBoxKontrahent.DataSource = kontrahenci;
             }
         }
-
         private void WczytajDokumentySprzedazy(int? towarId, int? kontrahentId)
         {
-            var zaznaczeniHandlowcy = PobierzZaznaczonychHandlowcow();
-
             string query = @"
 DECLARE @TowarID INT = @pTowarID;
 DECLARE @KontrahentID INT = @pKontrahentID;
@@ -3398,11 +3364,8 @@ DokumentyFiltrowane AS (
         AND DK.data >= @DataOd
         AND DK.data <= @DataDo";
 
-            if (zaznaczeniHandlowcy.Count > 0)
-            {
-                var handlowcyLista = string.Join("','", zaznaczeniHandlowcy.Select(h => h.Replace("'", "''")));
-                query += $" AND WYM.CDim_Handlowiec_Val IN ('{handlowcyLista}')";
-            }
+            // ✅ KLUCZOWA LINIA - DODAJE FILTR HANDLOWCÓW
+            query += UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val");
 
             query += @"
 )
@@ -3445,7 +3408,6 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
                 MessageBox.Show("❌ Błąd podczas wczytywania dokumentów: " + ex.Message, "Błąd Bazy Danych", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void WczytajPozycjeDokumentu(int idDokumentu)
         {
             string query = @"
@@ -3526,7 +3488,10 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
         // Dodaj handler:
         private void BtnMapa_Click(object? sender, EventArgs e)
         {
-            using (var mapaForm = new MapaOdbiorcowForm(connectionString, UserID, zaznaczeniHandlowcy))
+            // ✅ ZMIANA: Pobierz listę handlowców z managera
+            var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
+
+            using (var mapaForm = new MapaOdbiorcowForm(connectionString, UserID, handlowcy))
             {
                 mapaForm.ShowDialog(this);
             }
@@ -3649,144 +3614,6 @@ ORDER BY SortDate DESC, SortOrder ASC, SredniaCena DESC;";
         }
     }
 
-    public class FormWyborHandlowcow : Form
-    {
-        private CheckedListBox checkedListBox;
-        private Button btnOK;
-        private Button btnAnuluj;
-        private Button btnWszyscy;
-        private Button btnZaden;
-        public List<string> WybraniHandlowcy { get; private set; }
-
-        public FormWyborHandlowcow(string connectionString, List<string> aktualnieZaznaczeni, List<string> dozwoleniHandlowcy = null)
-        {
-            this.Text = "👥 Wybierz handlowców";
-            this.Size = new Size(350, 400);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-
-            Label lblInfo = new Label
-            {
-                Text = "✓ Zaznacz handlowców do filtrowania:",
-                Location = new Point(10, 10),
-                Size = new Size(320, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-            };
-            this.Controls.Add(lblInfo);
-
-            checkedListBox = new CheckedListBox
-            {
-                Location = new Point(10, 35),
-                Size = new Size(310, 250),
-                CheckOnClick = true
-            };
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    string query = @"
-                    SELECT DISTINCT WYM.CDim_Handlowiec_Val
-                    FROM [HANDEL].[SSCommon].[ContractorClassification] WYM
-                    WHERE WYM.CDim_Handlowiec_Val IS NOT NULL
-                    ORDER BY WYM.CDim_Handlowiec_Val";
-
-                    var cmd = new SqlCommand(query, conn);
-                    conn.Open();
-                    var reader = cmd.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        string nazwa = reader.GetString(0);
-
-                        // Jeśli dozwoleniHandlowcy == null, to admin widzi wszystkich
-                        // Jeśli dozwoleniHandlowcy != null, pokazuj tylko dozwolonych
-                        if (dozwoleniHandlowcy == null || dozwoleniHandlowcy.Contains(nazwa))
-                        {
-                            checkedListBox.Items.Add(nazwa);
-                        }
-                    }
-                }
-            }
-            catch { }
-
-            if (aktualnieZaznaczeni != null && aktualnieZaznaczeni.Count > 0)
-            {
-                for (int i = 0; i < checkedListBox.Items.Count; i++)
-                {
-                    if (aktualnieZaznaczeni.Contains(checkedListBox.Items[i].ToString()))
-                        checkedListBox.SetItemChecked(i, true);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < checkedListBox.Items.Count; i++)
-                    checkedListBox.SetItemChecked(i, true);
-            }
-
-            this.Controls.Add(checkedListBox);
-
-            btnWszyscy = new Button
-            {
-                Text = "✓ Wszyscy",
-                Location = new Point(10, 295),
-                Size = new Size(75, 25)
-            };
-            btnWszyscy.Click += (s, e) => {
-                for (int i = 0; i < checkedListBox.Items.Count; i++)
-                    checkedListBox.SetItemChecked(i, true);
-            };
-            this.Controls.Add(btnWszyscy);
-
-            btnZaden = new Button
-            {
-                Text = "✗ Żaden",
-                Location = new Point(95, 295),
-                Size = new Size(75, 25)
-            };
-            btnZaden.Click += (s, e) => {
-                for (int i = 0; i < checkedListBox.Items.Count; i++)
-                    checkedListBox.SetItemChecked(i, false);
-            };
-            this.Controls.Add(btnZaden);
-
-            btnOK = new Button
-            {
-                Text = "✓ OK",
-                Location = new Point(165, 330),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.OK,
-                BackColor = ColorTranslator.FromHtml("#27ae60"),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnOK.FlatAppearance.BorderSize = 0;
-            btnOK.Click += (s, e) => {
-                WybraniHandlowcy = new List<string>();
-                foreach (var item in checkedListBox.CheckedItems)
-                    WybraniHandlowcy.Add(item.ToString());
-            };
-            this.Controls.Add(btnOK);
-
-            btnAnuluj = new Button
-            {
-                Text = "✗ Anuluj",
-                Location = new Point(245, 330),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.Cancel,
-                BackColor = ColorTranslator.FromHtml("#95a5a6"),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnAnuluj.FlatAppearance.BorderSize = 0;
-            this.Controls.Add(btnAnuluj);
-
-            this.AcceptButton = btnOK;
-            this.CancelButton = btnAnuluj;
-        }
-    }
     public class FormHistoriaCen : Form
     {
         private DataGridView dataGridView;

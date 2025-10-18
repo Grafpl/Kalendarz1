@@ -12,11 +12,14 @@ namespace Kalendarz1
     public partial class AdminPermissionsForm : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string handelConnectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
         private DataGridView usersGrid;
         private DataGridView permissionsGrid;
         private ComboBox userComboBox;
         private TextBox searchBox;
         private Button saveButton, refreshButton, addUserButton, deleteUserButton;
+        private Button manageHandlowcyButton; // NOWY PRZYCISK
         private Panel topPanel, leftPanel, rightPanel, bottomPanel;
         private Label titleLabel, usersCountLabel;
         private string selectedUserId;
@@ -42,12 +45,13 @@ namespace Kalendarz1
         {
             InitializeComponent();
             InitializeCustomComponents();
+            UserHandlowcyManager.CreateTableIfNotExists();
             LoadUsers();
         }
 
         private void InitializeComponent()
         {
-            this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami";
+            this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami i Handlowcami";
             this.Size = new Size(1500, 850);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.None;
@@ -82,7 +86,7 @@ namespace Kalendarz1
 
             var subtitleLabel = new Label
             {
-                Text = "Zarządzanie użytkownikami i uprawnieniami systemowymi",
+                Text = "Zarządzanie użytkownikami, uprawnieniami i przypisanymi handlowcami",
                 Font = new Font("Segoe UI", 11),
                 ForeColor = Colors.PrimaryLight,
                 AutoSize = true,
@@ -148,13 +152,13 @@ namespace Kalendarz1
             leftPanel.Controls.Add(searchBox);
 
             // Users grid
-            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 450));
+            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 400)); // Zmniejszone o 50px
             usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
             usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
             leftPanel.Controls.Add(usersGrid);
 
-            // Buttons
-            var buttonY = 580;
+            // Buttons - przesunięte wyżej
+            var buttonY = 530;
             addUserButton = CreateStyledButton("➕ Nowy użytkownik", Colors.Success,
                 new Point(25, buttonY), new Size(195, 48));
             addUserButton.Click += AddUserButton_Click;
@@ -164,6 +168,12 @@ namespace Kalendarz1
                 new Point(230, buttonY), new Size(195, 48));
             deleteUserButton.Click += DeleteUserButton_Click;
             leftPanel.Controls.Add(deleteUserButton);
+
+            // NOWY PRZYCISK - Zarządzaj handlowcami
+            manageHandlowcyButton = CreateStyledButton("👔 Zarządzaj handlowcami", ColorTranslator.FromHtml("#9B59B6"),
+                new Point(25, 585), new Size(400, 48));
+            manageHandlowcyButton.Click += ManageHandlowcyButton_Click;
+            leftPanel.Controls.Add(manageHandlowcyButton);
 
             // Loading bar
             loadingBar = new ProgressBar
@@ -381,7 +391,21 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"SELECT ID, Name FROM operators WHERE ID != '11111' ORDER BY Name";
+                    string query = @"
+                        SELECT 
+                            o.ID, 
+                            o.Name,
+                            STUFF((
+                                SELECT ', ' + uh.HandlowiecName
+                                FROM UserHandlowcy uh
+                                WHERE uh.UserID = o.ID
+                                ORDER BY uh.HandlowiecName
+                                FOR XML PATH('')
+                            ), 1, 2, '') AS Handlowcy
+                        FROM operators o
+                        WHERE o.ID != '11111' 
+                        ORDER BY o.Name";
+
                     SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
                     DataTable dt = new DataTable();
                     adapter.Fill(dt);
@@ -406,12 +430,17 @@ namespace Kalendarz1
                 if (usersGrid.Columns.Contains("ID"))
                 {
                     usersGrid.Columns["ID"].HeaderText = "ID";
-                    usersGrid.Columns["ID"].Width = 100;
+                    usersGrid.Columns["ID"].Width = 80;
                 }
                 if (usersGrid.Columns.Contains("Name"))
                 {
                     usersGrid.Columns["Name"].HeaderText = "Nazwa użytkownika";
-                    usersGrid.Columns["Name"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    usersGrid.Columns["Name"].Width = 150;
+                }
+                if (usersGrid.Columns.Contains("Handlowcy"))
+                {
+                    usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
+                    usersGrid.Columns["Handlowcy"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 }
             }
         }
@@ -608,7 +637,7 @@ namespace Kalendarz1
             string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
             string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
 
-            var result = MessageBox.Show($"Czy na pewno chcesz usunąć użytkownika:\n\n{userName} (ID: {userId})?",
+            var result = MessageBox.Show($"Czy na pewno chcesz usunąć użytkownika:\n\n{userName} (ID: {userId})?\n\nZostaną również usunięte wszystkie przypisania handlowców.",
                 "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
             if (result == DialogResult.Yes)
@@ -618,6 +647,16 @@ namespace Kalendarz1
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
+
+                        // Usuń powiązania z handlowcami
+                        string deleteHandlowcy = "DELETE FROM UserHandlowcy WHERE UserID = @userId";
+                        using (SqlCommand cmd = new SqlCommand(deleteHandlowcy, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@userId", userId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // Usuń użytkownika
                         string deleteUser = "DELETE FROM operators WHERE ID = @userId";
                         using (SqlCommand cmd = new SqlCommand(deleteUser, conn))
                         {
@@ -674,8 +713,31 @@ namespace Kalendarz1
             foreach (DataGridViewRow row in permissionsGrid.Rows)
                 row.Cells["Dostęp"].Value = value;
         }
+
+        // NOWA METODA - Obsługa zarządzania handlowcami
+        private void ManageHandlowcyButton_Click(object sender, EventArgs e)
+        {
+            if (usersGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Wybierz użytkownika, któremu chcesz przypisać handlowców.",
+                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
+            string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+
+            using (var dialog = new UserHandlowcyDialog(connectionString, handelConnectionString, userId, userName))
+            {
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    LoadUsers(); // Odśwież listę użytkowników
+                }
+            }
+        }
     }
 
+    // Pozostałe klasy pomocnicze
     public class AddUserDialog : Form
     {
         private TextBox idTextBox, nameTextBox;

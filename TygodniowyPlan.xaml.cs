@@ -744,7 +744,15 @@ namespace Kalendarz1
                 OdswiezWidok();
             }
         }
-
+        private void BtnKonfiguracjaPodrobow_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new KonfiguracjaPodrobow(connectionString, connectionStringHandel);
+            if (okno.ShowDialog() == true)
+            {
+                // Możesz tutaj odświeżyć widok jeśli potrzeba
+                OdswiezWidok();
+            }
+        }
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
             WczytajKonfiguracjeProduktow();

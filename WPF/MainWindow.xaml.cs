@@ -47,6 +47,9 @@ namespace Kalendarz1.WPF
         };
         private int _colorIndex = 0;
 
+        // DODANE DLA CONTEXT MENU
+        private DataRowView _contextMenuSelectedRow = null;
+
         private DateTime ValidateSqlDate(DateTime date)
         {
             if (date < MinSqlDate) return MinSqlDate;
@@ -318,6 +321,7 @@ namespace Kalendarz1.WPF
         }
 
         #endregion
+
         #region Navigation Events
 
         private void DayButton_Click(object sender, RoutedEventArgs e)
@@ -617,18 +621,574 @@ namespace Kalendarz1.WPF
         }
 
         #endregion
+
+        #region Context Menu Events
+
+        private void DgOrders_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var dep = (DependencyObject)e.OriginalSource;
+            while (dep != null && !(dep is DataGridRow))
+            {
+                dep = VisualTreeHelper.GetParent(dep);
+            }
+
+            if (dep is DataGridRow row && row.Item is DataRowView rowView)
+            {
+                _contextMenuSelectedRow = rowView;
+                var status = rowView.Row.Field<string>("Status") ?? "";
+                var id = rowView.Row.Field<int>("Id");
+
+                bool isSpecialRow = (id == -1 || id == 0 ||
+                                    status == "SUMA" ||
+                                    status == "Wydanie bez zamówienia");
+
+                bool isWydanieBezZamowienia = status == "Wydanie bez zamówienia";
+                bool isAnulowane = status == "Anulowane";
+
+                foreach (var item in contextMenuOrders.Items)
+                {
+                    if (item is MenuItem menuItem)
+                    {
+                        string header = menuItem.Header?.ToString() ?? "";
+
+                        if (isWydanieBezZamowienia)
+                        {
+                            menuItem.IsEnabled = header.Contains("Płatności") ||
+                                                header.Contains("Historia") ||
+                                                header.Contains("Informacje kontaktowe") ||
+                                                header.Contains("Odśwież");
+                        }
+                        else if (isAnulowane)
+                        {
+                            menuItem.IsEnabled = header.Contains("Szczegóły zamówienia") ||
+                                                header.Contains("Płatności") ||
+                                                header.Contains("Historia") ||
+                                                header.Contains("Informacje kontaktowe") ||
+                                                header.Contains("Odśwież") ||
+                                                header.Contains("USUŃ");
+                        }
+                        else
+                        {
+                            menuItem.IsEnabled = !isSpecialRow;
+                        }
+                    }
+                }
+
+                menuUsun.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
+
+                dgOrders.SelectedItem = rowView;
+            }
+            else
+            {
+                _contextMenuSelectedRow = null;
+                e.Handled = true;
+            }
+        }
+
+        private async void MenuDuplikuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można zduplikować tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+            BtnDuplicate_Click(sender, e);
+        }
+
+        private async void MenuCykliczne_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można utworzyć zamówień cyklicznych dla tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+            BtnCyclic_Click(sender, e);
+        }
+
+        private async void MenuModyfikuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można modyfikować tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+            BtnEdit_Click(sender, e);
+        }
+
+        private async void MenuNotatka_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można dodać notatki do tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+            BtnNote_Click(sender, e);
+        }
+
+        private async void MenuAnuluj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można anulować tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+            var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz anulować to zamówienie?\n\n" +
+                $"📦 Odbiorca: {odbiorca}\n" +
+                $"⚖️ Ilość: {ilosc:N0} kg\n\n" +
+                $"⚠️ Tej operacji nie można cofnąć!",
+                "Potwierdź anulowanie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _currentOrderId = id;
+                await DisplayOrderDetailsAsync(id);
+                BtnCancel_Click(sender, e);
+            }
+        }
+
+        private async void MenuUsun_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można usunąć tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+            BtnDelete_Click(sender, e);
+        }
+
+        private void MenuSzczegolyPlatnosci_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            try
+            {
+                var status = _contextMenuSelectedRow.Row.Field<string>("Status") ?? "";
+                int clientId;
+                string nazwaOdbiorcy;
+
+                if (status == "Wydanie bez zamówienia")
+                {
+                    clientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+                    nazwaOdbiorcy = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+                }
+                else
+                {
+                    var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+                    if (id <= 0)
+                    {
+                        MessageBox.Show("Nie można wyświetlić płatności dla tego elementu.", "Informacja",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    clientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+                    nazwaOdbiorcy = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+                }
+
+                nazwaOdbiorcy = CzyscNazweZEmoji(nazwaOdbiorcy);
+
+                if (clientId <= 0)
+                {
+                    MessageBox.Show("Brak informacji o kliencie dla tego zamówienia.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var szczegolyWindow = new SzczegolyPlatnosciWindow(_connHandel, nazwaOdbiorcy);
+                szczegolyWindow.Owner = this;
+                szczegolyWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"❌ Błąd podczas otwierania szczegółów płatności:\n\n{ex.Message}\n\n" +
+                    $"Stos wywołań:\n{ex.StackTrace}",
+                    "Błąd krytyczny",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuSzczegolyZamowienia_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            var status = _contextMenuSelectedRow.Row.Field<string>("Status") ?? "";
+
+            if (status == "Wydanie bez zamówienia")
+            {
+                MessageBox.Show("To jest wydanie bez zamówienia. Szczegóły są widoczne w panelu po prawej stronie.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można wyświetlić szczegółów dla tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _currentOrderId = id;
+            await DisplayOrderDetailsAsync(id);
+
+            var odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
+            var dataOdbioru = _contextMenuSelectedRow.Row.Field<DateTime>("DataPrzyjecia");
+            var godzina = _contextMenuSelectedRow.Row.Field<string>("GodzinaPrzyjecia") ?? "";
+            var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
+            var wydano = _contextMenuSelectedRow.Row.Field<decimal>("IloscFaktyczna");
+            var palety = _contextMenuSelectedRow.Row.Field<decimal>("Palety");
+            var pojemniki = _contextMenuSelectedRow.Row.Field<int>("Pojemniki");
+            var trybE2 = _contextMenuSelectedRow.Row.Field<string>("TrybE2") ?? "";
+            var utworzone = _contextMenuSelectedRow.Row.Field<string>("UtworzonePrzez") ?? "";
+
+            string info = $"📦 SZCZEGÓŁY ZAMÓWIENIA #{id}\n" +
+                          $"{'━',50}\n\n" +
+                          $"👤 Odbiorca: {CzyscNazweZEmoji(odbiorca)}\n" +
+                          $"📅 Data odbioru: {dataOdbioru:dd.MM.yyyy} {godzina}\n" +
+                          $"📊 Status: {status}\n\n" +
+                          $"⚖️ Zamówiono: {ilosc:N0} kg\n" +
+                          $"✅ Wydano: {wydano:N0} kg\n" +
+                          $"📈 Realizacja: {(ilosc > 0 ? (wydano / ilosc * 100).ToString("N1") : "0")}%\n\n" +
+                          $"📦 Pojemniki: {pojemniki} szt.\n" +
+                          $"🚚 Palety: {palety:N1}\n" +
+                          $"⚙️ Tryb: {trybE2}\n\n" +
+                          $"👨‍💼 Utworzone przez: {utworzone}";
+
+            MessageBox.Show(info, "Szczegóły zamówienia", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async void MenuHistoriaZamowien_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            try
+            {
+                var clientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+                var nazwaOdbiorcy = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany");
+
+                if (clientId <= 0)
+                {
+                    MessageBox.Show("Brak informacji o kliencie.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var historia = new System.Text.StringBuilder();
+                historia.AppendLine($"📋 HISTORIA ZAMÓWIEŃ - {nazwaOdbiorcy}");
+                historia.AppendLine($"{'━',60}");
+                historia.AppendLine();
+
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    string sql = @"
+                        SELECT TOP 20
+                            zm.Id,
+                            zm.DataZamowienia,
+                            zm.Status,
+                            SUM(ISNULL(zmt.Ilosc, 0)) as IloscCalkowita,
+                            zm.LiczbaPalet
+                        FROM ZamowieniaMieso zm
+                        LEFT JOIN ZamowieniaMiesoTowar zmt ON zm.Id = zmt.ZamowienieId
+                        WHERE zm.KlientId = @ClientId
+                            AND zm.DataZamowienia >= DATEADD(MONTH, -6, GETDATE())
+                        GROUP BY zm.Id, zm.DataZamowienia, zm.Status, zm.LiczbaPalet
+                        ORDER BY zm.DataZamowienia DESC";
+
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ClientId", clientId);
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    decimal sumaKg = 0;
+                    int liczbaZamowien = 0;
+
+                    while (await reader.ReadAsync())
+                    {
+                        int id = reader.GetInt32(0);
+                        DateTime data = reader.GetDateTime(1);
+                        string statusZam = reader.IsDBNull(2) ? "Brak" : reader.GetString(2);
+                        decimal ilosc = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
+                        decimal palety = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
+
+                        historia.AppendLine($"#{id} | {data:dd.MM.yyyy} | {statusZam,-12} | {ilosc,7:N0} kg | {palety,4:N1} pal.");
+
+                        if (statusZam != "Anulowane")
+                        {
+                            sumaKg += ilosc;
+                            liczbaZamowien++;
+                        }
+                    }
+
+                    historia.AppendLine();
+                    historia.AppendLine($"{'━',60}");
+                    historia.AppendLine($"Razem (ostatnie 6 m-cy): {liczbaZamowien} zamówień | {sumaKg:N0} kg");
+
+                    if (liczbaZamowien > 0)
+                    {
+                        decimal srednia = sumaKg / liczbaZamowien;
+                        historia.AppendLine($"Średnia na zamówienie: {srednia:N0} kg");
+                    }
+                }
+
+                MessageBox.Show(historia.ToString(), "Historia zamówień",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania historii:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuWyslijPotwierdzenie_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można wysłać potwierdzenia dla tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                "Funkcja wysyłania potwierdzeń email zostanie wkrótce zaimplementowana.\n\n" +
+                "Czy chcesz skopiować szczegóły zamówienia do schowka?",
+                "Email - w przygotowaniu",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var odbiorca = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "");
+                var data = _contextMenuSelectedRow.Row.Field<DateTime>("DataPrzyjecia");
+                var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
+
+                string tekst = $"Potwierdzenie zamówienia #{id}\n" +
+                              $"Odbiorca: {odbiorca}\n" +
+                              $"Data odbioru: {data:dd.MM.yyyy}\n" +
+                              $"Ilość: {ilosc:N0} kg";
+
+                Clipboard.SetText(tekst);
+                MessageBox.Show("✓ Skopiowano do schowka!", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private async void MenuEksportujPDF_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można wyeksportować tego elementu.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            MessageBox.Show(
+                "Funkcja eksportu do PDF zostanie wkrótce zaimplementowana.\n\n" +
+                "Będzie zawierać:\n" +
+                "• Szczegóły zamówienia\n" +
+                "• Listę produktów\n" +
+                "• Dane kontrahenta\n" +
+                "• Podpis i pieczęć",
+                "PDF - w przygotowaniu",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private async void MenuInformacjeKontaktowe_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            try
+            {
+                var clientId = _contextMenuSelectedRow.Row.Field<int>("KlientId");
+                var nazwaOdbiorcy = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "");
+
+                if (clientId <= 0)
+                {
+                    MessageBox.Show("Brak informacji o kliencie.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var info = new System.Text.StringBuilder();
+                info.AppendLine($"📞 DANE KONTAKTOWE");
+                info.AppendLine($"{'━',50}");
+                info.AppendLine();
+
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+
+                    string sql = @"
+                        SELECT 
+                            C.Name as PelnaNazwa,
+                            C.Shortcut as Skrot,
+                            C.NIP,
+                            POA.Street as Ulica,
+                            POA.PostCode as KodPocztowy,
+                            POA.Place as Miejscowosc,
+                            CP.PhoneNo as Telefon,
+                            CE.EMail as Email,
+                            CC.CDim_Handlowiec_Val as Handlowiec
+                        FROM [HANDEL].[SSCommon].[STContractors] C
+                        LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] POA 
+                            ON POA.ContactGuid = C.ContactGuid AND POA.AddressName = N'adres domyślny'
+                        LEFT JOIN [HANDEL].[SSCommon].[STContactPhones] CP 
+                            ON CP.ContactGuid = C.ContactGuid
+                        LEFT JOIN [HANDEL].[SSCommon].[STContactEMails] CE 
+                            ON CE.ContactGuid = C.ContactGuid
+                        LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] CC 
+                            ON CC.ElementId = C.Id
+                        WHERE C.Id = @ClientId";
+
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ClientId", clientId);
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    if (await reader.ReadAsync())
+                    {
+                        info.AppendLine($"🏢 {reader["PelnaNazwa"]}");
+                        info.AppendLine($"   ({reader["Skrot"]})");
+                        info.AppendLine();
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("NIP")))
+                            info.AppendLine($"🆔 NIP: {reader["NIP"]}");
+
+                        info.AppendLine();
+                        info.AppendLine("📍 ADRES:");
+                        if (!reader.IsDBNull(reader.GetOrdinal("Ulica")))
+                            info.AppendLine($"   {reader["Ulica"]}");
+                        if (!reader.IsDBNull(reader.GetOrdinal("KodPocztowy")) || !reader.IsDBNull(reader.GetOrdinal("Miejscowosc")))
+                            info.AppendLine($"   {reader["KodPocztowy"]} {reader["Miejscowosc"]}");
+
+                        info.AppendLine();
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("Telefon")))
+                            info.AppendLine($"📞 Telefon: {reader["Telefon"]}");
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("Email")))
+                            info.AppendLine($"📧 Email: {reader["Email"]}");
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("Handlowiec")))
+                        {
+                            info.AppendLine();
+                            info.AppendLine($"👨‍💼 Handlowiec: {reader["Handlowiec"]}");
+                        }
+                    }
+                    else
+                    {
+                        info.AppendLine("Brak szczegółowych danych kontaktowych.");
+                    }
+                }
+
+                MessageBox.Show(info.ToString(), "Dane kontaktowe",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania danych:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshAllDataAsync();
+            MessageBox.Show("✓ Dane zostały odświeżone!", "Sukces",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private string CzyscNazweZEmoji(string nazwa)
+        {
+            if (string.IsNullOrEmpty(nazwa))
+                return nazwa;
+
+            nazwa = nazwa.Replace("📝", "")
+                         .Replace("📦", "")
+                         .Replace("🍗", "")
+                         .Replace("🍖", "")
+                         .Replace("🥩", "")
+                         .Replace("🐔", "")
+                         .Replace("└", "")
+                         .Trim();
+
+            while (nazwa.Contains("  "))
+            {
+                nazwa = nazwa.Replace("  ", " ");
+            }
+
+            return nazwa.Trim();
+        }
+
+        #endregion
+
         #region Filter Events
 
         private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
         {
             ApplyFilters();
-     
         }
 
         private void CbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ApplyFilters();
-      
         }
 
         private async void CbFilterProduct_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -640,7 +1200,6 @@ namespace Kalendarz1.WPF
         {
             _showReleasesWithoutOrders = chkShowReleasesWithoutOrders.IsChecked == true;
             ApplyFilters();
-          
         }
 
         private async void RbDateFilter_Checked(object sender, RoutedEventArgs e)
@@ -711,7 +1270,6 @@ namespace Kalendarz1.WPF
             {
                 await LoadOrdersForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
-       
 
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
                 {
@@ -751,7 +1309,7 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
                 _dtOrders.Columns.Add("Status", typeof(string));
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
-                _dtOrders.Columns.Add("MaFolie", typeof(bool));  // DODAJ TĘ LINIĘ
+                _dtOrders.Columns.Add("MaFolie", typeof(bool));
             }
             else
             {
@@ -864,7 +1422,6 @@ ORDER BY zm.Id";
                 bool hasNote = !string.IsNullOrWhiteSpace(notes);
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
 
-
                 int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
                 decimal pallets = Math.Ceiling(r["LiczbaPalet"] is DBNull ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
                 bool modeE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
@@ -879,9 +1436,8 @@ ORDER BY zm.Id";
 
                 if (hasFoil)
                 {
-                    name = "📦 " + name;  // DODAJ IKONKĘ FOLII
+                    name = "📦 " + name;
                 }
-
 
                 decimal released = 0m;
                 if (releasesPerClientProduct.TryGetValue(clientId, out var perProduct))
@@ -912,11 +1468,11 @@ ORDER BY zm.Id";
                 totalPallets += pallets;
 
                 _dtOrders.Rows.Add(
-         id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
-         arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
-         pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-         createdBy, status, hasNote, hasFoil  // DODAJ hasFoil
-     );
+                    id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
+                    arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
+                    pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
+                    createdBy, status, hasNote, hasFoil
+                );
             }
 
             var releasesWithoutOrders = new List<DataRow>();
@@ -949,6 +1505,7 @@ ORDER BY zm.Id";
                 row["UtworzonePrzez"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
                 row["MaNotatke"] = false;
+                row["MaFolie"] = false;
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -957,10 +1514,8 @@ ORDER BY zm.Id";
             foreach (var row in releasesWithoutOrders.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
                 _dtOrders.Rows.Add(row.ItemArray);
 
-            // Sortowanie po handlowcu
             if (_dtOrders.Rows.Count > 0)
             {
-                // Utworz tymczasową kopię wszystkich danych
                 var tempData = new List<object[]>();
                 foreach (DataRow row in _dtOrders.Rows)
                 {
@@ -969,10 +1524,8 @@ ORDER BY zm.Id";
                     tempData.Add(rowCopy);
                 }
 
-                // Posortuj według kolumny Handlowiec (indeks 3)
                 var sortedData = tempData.OrderBy(arr => arr[3]?.ToString() ?? "").ToList();
 
-                // Wyczyść i dodaj posortowane dane
                 _dtOrders.Rows.Clear();
 
                 foreach (var rowData in sortedData)
@@ -981,7 +1534,6 @@ ORDER BY zm.Id";
                 }
             }
 
-            // Potem dodaj wiersz sumy na początek
             if (_dtOrders.Rows.Count > 0)
             {
                 var summaryRow = _dtOrders.NewRow();
@@ -1009,6 +1561,7 @@ ORDER BY zm.Id";
             SetupOrdersDataGrid();
             ApplyFilters();
         }
+
         private void SetupOrdersDataGrid()
         {
             dgOrders.ItemsSource = _dtOrders.DefaultView;
@@ -1021,7 +1574,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = DataGridLength.Auto,  // ZMIENIONE z 2.5* na Auto
+                Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -1073,6 +1626,7 @@ ORDER BY zm.Id";
                 MinWidth = 80
             });
         }
+
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -1362,6 +1916,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
+
         private async Task DisplayReleaseWithoutOrderDetailsAsync(int clientId, DateTime day)
         {
             day = ValidateSqlDate(day);
@@ -1475,7 +2030,6 @@ ORDER BY zm.Id";
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
-            // PRZYCHODY FAKTYCZNE DLA KURCZAK A (sPWU)
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -1497,7 +2051,6 @@ ORDER BY zm.Id";
                 }
             }
 
-            // PRZYCHODY FAKTYCZNE DLA KURCZAK B I ELEMENTÓW (sPWP)
             var actualIncomeElementy = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -1540,7 +2093,6 @@ ORDER BY zm.Id";
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
 
-            // ZMIANA: Szukaj produktu "Kurczak A" zamiast "Kurczak A"
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
                 p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
 
@@ -1570,11 +2122,9 @@ ORDER BY zm.Id";
 
                 string nazwaProdukt = _productCatalogCache[produktId];
 
-                // ZMIANA: Pomiń "Kurczak B" zamiast "Kurczak B"
                 if (nazwaProdukt.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // DODAJ IKONKĘ
                 string ikona = "";
                 if (nazwaProdukt.Contains("Skrzydło", StringComparison.OrdinalIgnoreCase))
                     ikona = "🍗";
@@ -1605,7 +2155,6 @@ ORDER BY zm.Id";
 
             dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, balanceA + bilansB);
 
-            // ZMIANA: Wyświetlaj "Kurczak A" i "Kurczak B"
             dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, ordersA, balanceA);
             dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB);
 
@@ -1624,7 +2173,6 @@ ORDER BY zm.Id";
             {
                 var produkt = rowView.Row.Field<string>("Produkt") ?? "";
 
-                // SUMA CAŁKOWITA - ciemnozielony
                 if (produkt.StartsWith("═══ SUMA CAŁKOWITA"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
@@ -1632,21 +2180,18 @@ ORDER BY zm.Id";
                     e.Row.FontWeight = FontWeights.Bold;
                     e.Row.FontSize = 14;
                 }
-                // KURCZAK A - jasnozielony (ZMIANA)
                 else if (produkt.StartsWith("🐔 Kurczak A"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
                     e.Row.FontWeight = FontWeights.SemiBold;
                     e.Row.FontSize = 13;
                 }
-                // KURCZAK B - jasnoniebieski (ZMIANA)
                 else if (produkt.StartsWith("🐔 Kurczak B"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(179, 229, 252));
                     e.Row.FontWeight = FontWeights.SemiBold;
                     e.Row.FontSize = 13;
                 }
-                // ELEMENTY - bardzo jasny niebieski
                 else if (produkt.StartsWith("  └"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
@@ -1655,11 +2200,11 @@ ORDER BY zm.Id";
                 }
             }
         }
+
         private void SetupAggregationDataGrid()
         {
             dgAggregation.Columns.Clear();
 
-            // Kolumna Plan z przekreśleniem gdy jest faktyczny przychód
             var planColumn = new DataGridTemplateColumn
             {
                 Header = "Plan",
@@ -1675,7 +2220,6 @@ ORDER BY zm.Id";
             factory.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right);
             factory.SetValue(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0));
 
-            // Dodaj MultiBinding dla TextDecorations
             var multiBinding = new System.Windows.Data.MultiBinding();
             multiBinding.Converter = new StrikethroughConverter();
             multiBinding.Bindings.Add(new System.Windows.Data.Binding("FaktycznyPrzychód"));
@@ -1719,21 +2263,19 @@ ORDER BY zm.Id";
             dgAggregation.LoadingRow -= DgAggregation_LoadingRow;
             dgAggregation.LoadingRow += DgAggregation_LoadingRow;
 
-            // DODAJ TO NA KOŃCU:
             dgAggregation.MouseDoubleClick -= DgAggregation_MouseDoubleClick;
             dgAggregation.MouseDoubleClick += DgAggregation_MouseDoubleClick;
         }
+
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (dgAggregation.SelectedItem is DataRowView rowView)
             {
                 var produktNazwa = rowView.Row.Field<string>("Produkt") ?? "";
 
-                // Ignoruj TYLKO wiersz sumy całkowitej
                 if (produktNazwa.StartsWith("═══"))
                     return;
 
-                // Usuń ikonki i spacje z nazwy produktu
                 var czystyProdukt = produktNazwa
                     .Replace("└", "")
                     .Replace("🍗", "")
@@ -1743,7 +2285,6 @@ ORDER BY zm.Id";
                     .Replace("  ", " ")
                     .Trim();
 
-                // Wyciągnij nazwę produktu (bez procentu w nawiasie)
                 int indexProcentu = czystyProdukt.IndexOf("(");
                 if (indexProcentu > 0)
                     czystyProdukt = czystyProdukt.Substring(0, indexProcentu).Trim();
@@ -1753,7 +2294,6 @@ ORDER BY zm.Id";
                 var zamowienia = rowView.Row.Field<decimal?>("Zamówienia") ?? 0m;
                 var bilans = rowView.Row.Field<decimal?>("Bilans") ?? 0m;
 
-                // Znajdź ID produktu
                 int? produktId = await ZnajdzIdProduktuAsync(czystyProdukt);
 
                 if (!produktId.HasValue)
@@ -1766,7 +2306,6 @@ ORDER BY zm.Id";
                     return;
                 }
 
-                // Otwórz okno z potencjalnymi odbiorcami
                 var okno = new PotencjalniOdbiorcy(
                     _connHandel,
                     produktId.Value,
@@ -1779,6 +2318,7 @@ ORDER BY zm.Id";
                 okno.ShowDialog();
             }
         }
+
         private async Task<int?> ZnajdzIdProduktuAsync(string nazwaProdukt)
         {
             try
@@ -1786,7 +2326,6 @@ ORDER BY zm.Id";
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
 
-                // Najpierw spróbuj dokładnego dopasowania
                 var cmd = new SqlCommand(@"
             SELECT TOP 1 ID 
             FROM [HANDEL].[HM].[TW] 
@@ -1796,7 +2335,6 @@ ORDER BY zm.Id";
 
                 var result = await cmd.ExecuteScalarAsync();
 
-                // Jeśli nie znaleziono, spróbuj LIKE
                 if (result == null)
                 {
                     cmd = new SqlCommand(@"
@@ -1810,7 +2348,6 @@ ORDER BY zm.Id";
                     result = await cmd.ExecuteScalarAsync();
                 }
 
-                // Jeśli nadal nie znaleziono, spróbuj wyszukać po fragmencie
                 if (result == null)
                 {
                     cmd = new SqlCommand(@"
@@ -1839,6 +2376,7 @@ ORDER BY zm.Id";
         }
 
         #endregion
+
         #region Helper Methods
 
         private void ApplyFilters()
@@ -1865,7 +2403,6 @@ ORDER BY zm.Id";
 
             _dtOrders.DefaultView.RowFilter = string.Join(" AND ", conditions);
         }
-
 
         private void ClearDetails()
         {
@@ -1968,7 +2505,7 @@ ORDER BY zm.Id";
                         var strikethrough = new TextDecoration
                         {
                             Location = TextDecorationLocation.Strikethrough,
-                            Pen = new Pen(Brushes.Black, 2) // Gruba kreska (2 piksele)
+                            Pen = new Pen(Brushes.Black, 2)
                         };
                         textDecorations.Add(strikethrough);
                         return textDecorations;
