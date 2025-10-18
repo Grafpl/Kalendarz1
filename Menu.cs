@@ -221,11 +221,22 @@ namespace Kalendarz1
                     new MenuItemConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", Color.FromArgb(120, 144, 156), () => new WidokMatryca(), "🎯")
                 },
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
-                {
-                    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
-                    new MenuItemConfig("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", Color.FromArgb(245, 124, 0), () => new WidokPanelProdukcjaNowy { UserID = App.UserID }, "🏭"),
-                    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
-                }
+{
+    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
+    new MenuItemConfig(
+        "ProdukcjaPodglad",
+        "Podgląd Produkcji",
+        "Monitoruj bieżącą produkcję",
+        Color.FromArgb(245, 124, 0),
+        () => {
+            var window = new Kalendarz1.ProdukcjaPanel();
+            window.UserID = App.UserID;
+            return window;
+        },
+        "🏭"
+    ),
+    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
+}
             };
 
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>

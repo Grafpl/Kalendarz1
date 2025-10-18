@@ -17,12 +17,14 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
+
 namespace Kalendarz1.WPF
 {
     public partial class MainWindow : Window
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private static readonly DateTime MinSqlDate = new DateTime(1753, 1, 1);
         private static readonly DateTime MaxSqlDate = new DateTime(9999, 12, 31);
@@ -36,6 +38,7 @@ namespace Kalendarz1.WPF
         private bool _showBySlaughterDate = true;
         private bool _slaughterDateColumnExists = true;
         private bool _isInitialized = false;
+        private bool _showAnulowane = false;
 
         private readonly DataTable _dtOrders = new();
         private readonly Dictionary<int, string> _productCodeCache = new();
@@ -53,7 +56,6 @@ namespace Kalendarz1.WPF
         };
         private int _colorIndex = 0;
 
-        // DODANE DLA CONTEXT MENU
         private DataRowView _contextMenuSelectedRow = null;
         private HashSet<int> _processedOrderIds = new HashSet<int>();
 
@@ -78,6 +80,7 @@ namespace Kalendarz1.WPF
             SetupDayButtons();
             btnDelete.Visibility = (UserID == "11111") ? Visibility.Visible : Visibility.Collapsed;
             chkShowReleasesWithoutOrders.IsChecked = _showReleasesWithoutOrders;
+            chkShowAnulowane.IsChecked = false;
 
             await LoadInitialDataAsync();
 
@@ -310,8 +313,6 @@ namespace Kalendarz1.WPF
                     await cmdAlter.ExecuteNonQueryAsync();
 
                     _slaughterDateColumnExists = true;
-                    MessageBox.Show("Kolumna 'DataUboju' została dodana do bazy danych.",
-                        "Aktualizacja bazy", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
@@ -321,10 +322,6 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 _slaughterDateColumnExists = false;
-                MessageBox.Show($"Nie można dodać kolumny DataUboju do bazy danych.\n" +
-                               $"Funkcja filtrowania po dacie uboju będzie niedostępna.\n\n" +
-                               $"Błąd: {ex.Message}",
-                    "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -350,7 +347,7 @@ namespace Kalendarz1.WPF
             }
             catch (Exception ex)
             {
-                // Jeśli kolumna już istnieje lub nie można jej dodać, kontynuujemy
+                // Kolumna może już istnieć
             }
         }
 
@@ -485,9 +482,22 @@ namespace Kalendarz1.WPF
         {
             try
             {
-                var printWindow = new PrintPreviewWindow(_dtOrders, _selectedDate, _productCatalogCache);
-                printWindow.Owner = this;
-                printWindow.ShowDialog();
+                var printWindow = new PrintOptionsWindow();
+                if (printWindow.ShowDialog() == true)
+                {
+                    if (printWindow.GroupByProduct)
+                    {
+                        var printPreview = new PrintPreviewByProductWindow(_dtOrders, _selectedDate, _productCatalogCache);
+                        printPreview.Owner = this;
+                        printPreview.ShowDialog();
+                    }
+                    else
+                    {
+                        var printPreview = new PrintPreviewByClientWindow(_dtOrders, _selectedDate, _productCatalogCache);
+                        printPreview.Owner = this;
+                        printPreview.ShowDialog();
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -498,6 +508,52 @@ namespace Kalendarz1.WPF
 
         #endregion
 
+        #region Filter Events
+
+        private void ChkShowAnulowane_Changed(object sender, RoutedEventArgs e)
+        {
+            _showAnulowane = chkShowAnulowane.IsChecked == true;
+            ApplyFilters();
+        }
+
+        private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void CbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private async void CbFilterProduct_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            await RefreshAllDataAsync();
+        }
+
+        private void ChkShowReleases_Changed(object sender, RoutedEventArgs e)
+        {
+            _showReleasesWithoutOrders = chkShowReleasesWithoutOrders.IsChecked == true;
+            ApplyFilters();
+        }
+
+        private async void RbDateFilter_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_isInitialized) return;
+
+            if (rbSlaughterDate.IsChecked == true && _slaughterDateColumnExists)
+            {
+                _showBySlaughterDate = true;
+                await RefreshAllDataAsync();
+            }
+            else if (rbPickupDate.IsChecked == true)
+            {
+                _showBySlaughterDate = false;
+                await RefreshAllDataAsync();
+            }
+        }
+
+        #endregion
         #region Context Menu Events
 
         private void DgOrders_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -544,7 +600,8 @@ namespace Kalendarz1.WPF
                                                 header.Contains("Historia") ||
                                                 header.Contains("Odśwież") ||
                                                 header.Contains("Przywróć") ||
-                                                header.Contains("USUŃ");
+                                                header.Contains("USUŃ") ||
+                                                header.Contains("transport");
                         }
                         else
                         {
@@ -831,6 +888,231 @@ namespace Kalendarz1.WPF
             BtnDelete_Click(sender, e);
         }
 
+        private async void MenuTransportInfo_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null) return;
+
+            var id = _contextMenuSelectedRow.Row.Field<int>("Id");
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można wyświetlić informacji o transporcie dla tego elementu.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                // Pobierz TransportKursID z zamówienia
+                int? transportKursId = null;
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var sql = "SELECT TransportKursID FROM dbo.ZamowieniaMieso WHERE Id = @Id";
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        transportKursId = Convert.ToInt32(result);
+                    }
+                }
+
+                if (!transportKursId.HasValue)
+                {
+                    MessageBox.Show("To zamówienie nie jest przypisane do żadnego transportu.",
+                        "Brak transportu", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Wybór opcji wyświetlania
+                var options = MessageBox.Show(
+                    "Jak chcesz wyświetlić informacje o transporcie?\n\n" +
+                    "TAK - Otwórz edytor transportu\n" +
+                    "NIE - Pokaż okno z informacjami",
+                    "Wybierz opcję",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (options == MessageBoxResult.Yes)
+                {
+                    // Otwórz edytor transportu
+                    try
+                    {
+                        // ================== POPRAWKA BŁĘDU CS7036 ==================
+                        // Dodano brakujące argumenty do konstruktora
+                        var repozytorium = new Kalendarz1.Transport.Repozytorium.TransportRepozytorium(_connTransport, _connLibra);
+                        // ==========================================================
+
+                        var kurs = await repozytorium.PobierzKursAsync(transportKursId.Value);
+
+                        if (kurs != null)
+                        {
+                            var edytor = new Kalendarz1.Transport.Formularze.EdytorKursuWithPalety(
+                                repozytorium, kurs, UserID);
+                            edytor.ShowDialog();
+                            await RefreshAllDataAsync();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Nie znaleziono kursu transportowego.",
+                                "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas otwierania edytora transportu:\n{ex.Message}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else if (options == MessageBoxResult.No)
+                {
+                    // ================== POPRAWKA BŁĘDU CS0246 ==================
+                    // Zastąpiono brakujące okno TransportInfoWindow standardowym MessageBoxem
+                    var transportInfo = await GetTransportInfoAsync(transportKursId.Value);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"🚚 KURS #{transportInfo.KursId} - {transportInfo.DataKursu:dd.MM.yyyy}");
+                    sb.AppendLine($"Status: {transportInfo.Status}");
+                    sb.AppendLine($"Trasa: {transportInfo.Trasa}");
+                    sb.AppendLine($"Wyjazd: {transportInfo.GodzWyjazdu:hh\\:mm} | Powrót: {transportInfo.GodzPowrotu:hh\\:mm}");
+                    sb.AppendLine();
+                    sb.AppendLine($"👤 Kierowca: {transportInfo.Kierowca} ({transportInfo.TelefonKierowcy})");
+                    sb.AppendLine($"🚗 Pojazd: {transportInfo.MarkaPojazdu} {transportInfo.ModelPojazdu} ({transportInfo.Rejestracja})");
+                    sb.AppendLine($"📦 Max palet: {transportInfo.MaxPalety}");
+                    sb.AppendLine();
+                    sb.AppendLine("--- ŁADUNKI ---");
+
+                    foreach (var ladunek in transportInfo.Ladunki.OrderBy(l => l.Kolejnosc))
+                    {
+                        sb.AppendLine($"{ladunek.Kolejnosc}. {ladunek.NazwaKlienta} ({ladunek.KodKlienta}) - {ladunek.Palety} palet, {ladunek.Pojemniki} pojemników");
+                    }
+
+                    MessageBox.Show(sb.ToString(), "Informacje o transporcie", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // ==========================================================
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania informacji o transporcie:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private async Task<TransportInfo> GetTransportInfoAsync(int kursId)
+        {
+            var info = new TransportInfo { KursId = kursId };
+
+            try
+            {
+                await using var cn = new SqlConnection(_connTransport);
+                await cn.OpenAsync();
+
+                // Pobierz dane kursu
+                var sqlKurs = @"
+                    SELECT k.DataKursu, k.Trasa, k.GodzWyjazdu, k.GodzPowrotu, k.Status,
+                           ki.Imie + ' ' + ki.Nazwisko as Kierowca, ki.Telefon,
+                           p.Rejestracja, p.Marka, p.Model, p.PaletyH1
+                    FROM dbo.Kurs k
+                    LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                    WHERE k.KursID = @KursId";
+
+                using (var cmd = new SqlCommand(sqlKurs, cn))
+                {
+                    cmd.Parameters.AddWithValue("@KursId", kursId);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        info.DataKursu = reader.GetDateTime(0);
+                        info.Trasa = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        info.GodzWyjazdu = reader.IsDBNull(2) ? null : reader.GetTimeSpan(2);
+                        info.GodzPowrotu = reader.IsDBNull(3) ? null : reader.GetTimeSpan(3);
+                        info.Status = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                        info.Kierowca = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                        info.TelefonKierowcy = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                        info.Rejestracja = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                        info.MarkaPojazdu = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                        info.ModelPojazdu = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                        info.MaxPalety = reader.IsDBNull(10) ? 0 : reader.GetInt32(10);
+                    }
+                }
+
+                // Pobierz ładunki
+                var sqlLadunki = @"
+                    SELECT l.Kolejnosc, l.KodKlienta, l.PaletyH1, l.PojemnikiE2, l.Uwagi
+                    FROM dbo.Ladunek l
+                    WHERE l.KursID = @KursId
+                    ORDER BY l.Kolejnosc";
+
+                using (var cmd = new SqlCommand(sqlLadunki, cn))
+                {
+                    cmd.Parameters.AddWithValue("@KursId", kursId);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var ladunek = new LadunekInfo
+                        {
+                            Kolejnosc = reader.GetInt32(0),
+                            KodKlienta = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                            Palety = reader.GetInt32(2),
+                            Pojemniki = reader.GetInt32(3),
+                            Uwagi = reader.IsDBNull(4) ? "" : reader.GetString(4)
+                        };
+
+                        // Pobierz nazwę klienta
+                        if (ladunek.KodKlienta.StartsWith("ZAM_"))
+                        {
+                            ladunek.NazwaKlienta = await GetClientNameFromOrder(ladunek.KodKlienta.Substring(4));
+                        }
+                        else
+                        {
+                            ladunek.NazwaKlienta = ladunek.Uwagi;
+                        }
+
+                        info.Ladunki.Add(ladunek);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania danych transportu:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return info;
+        }
+
+        private async Task<string> GetClientNameFromOrder(string orderId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                var sql = "SELECT KlientId FROM dbo.ZamowieniaMieso WHERE Id = @Id";
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", orderId);
+                var clientId = await cmd.ExecuteScalarAsync();
+
+                if (clientId != null)
+                {
+                    await using var cnHandel = new SqlConnection(_connHandel);
+                    await cnHandel.OpenAsync();
+
+                    var sqlName = "SELECT Shortcut FROM [HANDEL].[SSCommon].[STContractors] WHERE Id = @Id";
+                    using var cmdName = new SqlCommand(sqlName, cnHandel);
+                    cmdName.Parameters.AddWithValue("@Id", clientId);
+                    var name = await cmdName.ExecuteScalarAsync();
+                    return name?.ToString() ?? $"Klient {clientId}";
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+
+            return "Nieznany";
+        }
+
         private void MenuSzczegolyPlatnosci_Click(object sender, RoutedEventArgs e)
         {
             if (_contextMenuSelectedRow == null) return;
@@ -1050,47 +1332,6 @@ namespace Kalendarz1.WPF
 
         #endregion
 
-        #region Filter Events
-
-        private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            ApplyFilters();
-        }
-
-        private void CbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            ApplyFilters();
-        }
-
-        private async void CbFilterProduct_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            await RefreshAllDataAsync();
-        }
-
-        private void ChkShowReleases_Changed(object sender, RoutedEventArgs e)
-        {
-            _showReleasesWithoutOrders = chkShowReleasesWithoutOrders.IsChecked == true;
-            ApplyFilters();
-        }
-
-        private async void RbDateFilter_Checked(object sender, RoutedEventArgs e)
-        {
-            if (!_isInitialized) return;
-
-            if (rbSlaughterDate.IsChecked == true && _slaughterDateColumnExists)
-            {
-                _showBySlaughterDate = true;
-                await RefreshAllDataAsync();
-            }
-            else if (rbPickupDate.IsChecked == true)
-            {
-                _showBySlaughterDate = false;
-                await RefreshAllDataAsync();
-            }
-        }
-
-        #endregion
-
         #region DataGrid Events
 
         private async void DgOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1222,7 +1463,6 @@ namespace Kalendarz1.WPF
                 await cnLibra.OpenAsync();
                 string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
 
-                // Najpierw zbierz wszystkie klienty
                 string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso] 
                               WHERE {dateColumn} = @Day AND KlientId IS NOT NULL";
                 await using var cmdClients = new SqlCommand(sqlClients, cnLibra);
@@ -1282,7 +1522,6 @@ ORDER BY zm.Id";
             {
                 int id = Convert.ToInt32(r["Id"]);
 
-                // Sprawdź czy już przetworzono to zamówienie
                 if (_processedOrderIds.Contains(id))
                     continue;
                 _processedOrderIds.Add(id);
@@ -1431,7 +1670,6 @@ ORDER BY zm.Id";
                 }
             }
 
-            // Dodaj tylko jedną sumę na samym początku
             if (_dtOrders.Rows.Count > 0 && actualOrdersCount > 0)
             {
                 var summaryRow = _dtOrders.NewRow();
@@ -1542,6 +1780,7 @@ ORDER BY zm.Id";
                 MinWidth = 80
             });
         }
+
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -1751,7 +1990,8 @@ ORDER BY zm.Id";
                     decimal released = releases.TryGetValue(item.ProductCode, out var w) ? w : 0m;
                     decimal difference = released - ordered;
 
-                    dt.Rows.Add(product, ordered, released, difference, item.Foil ? "TAK" : "NIE");
+                    // Zmiana: pokazuj "TAK" tylko gdy jest folia, w przeciwnym razie pusta komórka
+                    dt.Rows.Add(product, ordered, released, difference, item.Foil ? "TAK" : "");
                     releases.Remove(item.ProductCode);
                 }
 
@@ -1762,7 +2002,7 @@ ORDER BY zm.Id";
 
                     string product = _productCatalogCache.TryGetValue(kv.Key, out var code) ?
                         code : $"Nieznany ({kv.Key})";
-                    dt.Rows.Add(product, 0m, kv.Value, kv.Value, "B/D");
+                    dt.Rows.Add(product, 0m, kv.Value, kv.Value, "");
                 }
 
                 txtNotes.Text = notes;
@@ -2317,6 +2557,11 @@ ORDER BY zm.Id";
                 conditions.Add("Status <> 'Wydanie bez zamówienia'");
             }
 
+            if (!_showAnulowane)
+            {
+                conditions.Add("Status <> 'Anulowane'");
+            }
+
             _dtOrders.DefaultView.RowFilter = string.Join(" AND ", conditions);
         }
 
@@ -2345,7 +2590,7 @@ ORDER BY zm.Id";
                 bool modeE2 = false;
 
                 using (var cmd = new SqlCommand(@"SELECT KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2 
-                                                 FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
+                                         FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
                 {
                     cmd.Parameters.AddWithValue("@Id", sourceId);
                     using var reader = await cmd.ExecuteReaderAsync();
@@ -2366,9 +2611,9 @@ ORDER BY zm.Id";
                 int newId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
 
                 var cmdInsert = new SqlCommand(@"INSERT INTO ZamowieniaMieso 
-                    (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
-                     LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
-                    VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
+            (Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, 
+             LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus) 
+            VALUES (@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje')", cn, tr);
 
                 cmdInsert.Parameters.AddWithValue("@id", newId);
                 cmdInsert.Parameters.AddWithValue("@dz", targetDate.Date);
@@ -2385,9 +2630,9 @@ ORDER BY zm.Id";
                 await cmdInsert.ExecuteNonQueryAsync();
 
                 var cmdCopyItems = new SqlCommand(@"INSERT INTO ZamowieniaMiesoTowar 
-                    (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
-                    SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia 
-                    FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
+            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
+            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia 
+            FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
                 cmdCopyItems.Parameters.AddWithValue("@newId", newId);
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
                 await cmdCopyItems.ExecuteNonQueryAsync();
@@ -2403,7 +2648,34 @@ ORDER BY zm.Id";
 
         #endregion
 
-        #region Converter Classes
+        #region Support Classes
+
+        public class TransportInfo
+        {
+            public int KursId { get; set; }
+            public DateTime DataKursu { get; set; }
+            public string Trasa { get; set; } = "";
+            public TimeSpan? GodzWyjazdu { get; set; }
+            public TimeSpan? GodzPowrotu { get; set; }
+            public string Status { get; set; } = "";
+            public string Kierowca { get; set; } = "";
+            public string TelefonKierowcy { get; set; } = "";
+            public string Rejestracja { get; set; } = "";
+            public string MarkaPojazdu { get; set; } = "";
+            public string ModelPojazdu { get; set; } = "";
+            public int MaxPalety { get; set; }
+            public List<LadunekInfo> Ladunki { get; set; } = new List<LadunekInfo>();
+        }
+
+        public class LadunekInfo
+        {
+            public int Kolejnosc { get; set; }
+            public string KodKlienta { get; set; } = "";
+            public string NazwaKlienta { get; set; } = "";
+            public int Palety { get; set; }
+            public int Pojemniki { get; set; }
+            public string Uwagi { get; set; } = "";
+        }
 
         public class StrikethroughConverter : IMultiValueConverter
         {
@@ -2441,261 +2713,4 @@ ORDER BY zm.Id";
 
         #endregion
     }
-
-    #region Print Preview Window
-
-    public class PrintPreviewWindow : Window
-    {
-        private FlowDocument _document;
-        private readonly DataTable _dataSource;
-        private readonly DateTime _selectedDate;
-        private readonly Dictionary<int, string> _productCatalog;
-
-        public PrintPreviewWindow(DataTable dataSource, DateTime selectedDate, Dictionary<int, string> productCatalog)
-        {
-            _dataSource = dataSource;
-            _selectedDate = selectedDate;
-            _productCatalog = productCatalog;
-
-            Title = "Podgląd wydruku - Zestawienie zamówień";
-            Width = 900;
-            Height = 700;
-            WindowStartupLocation = WindowStartupLocation.CenterScreen;
-
-            CreateDocument();
-            InitializeUI();
-        }
-
-        private void InitializeUI()
-        {
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(50) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-            var toolbar = new ToolBar();
-            toolbar.Height = 45;
-
-            var btnPrint = new Button
-            {
-                Content = "🖨️ Drukuj",
-                Height = 35,
-                Width = 100,
-                FontSize = 14,
-                Margin = new Thickness(5)
-            };
-            btnPrint.Click += BtnPrint_Click;
-
-            var btnClose = new Button
-            {
-                Content = "❌ Zamknij",
-                Height = 35,
-                Width = 100,
-                FontSize = 14,
-                Margin = new Thickness(5)
-            };
-            btnClose.Click += (s, e) => Close();
-
-            toolbar.Items.Add(btnPrint);
-            toolbar.Items.Add(btnClose);
-
-            Grid.SetRow(toolbar, 0);
-            grid.Children.Add(toolbar);
-
-            var viewer = new FlowDocumentScrollViewer
-            {
-                Document = _document,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-            };
-
-            Grid.SetRow(viewer, 1);
-            grid.Children.Add(viewer);
-
-            Content = grid;
-        }
-
-        private void CreateDocument()
-        {
-            _document = new FlowDocument
-            {
-                PageWidth = 794,
-                PageHeight = 1123,
-                ColumnWidth = 794,
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 11
-            };
-
-            // Nagłówek
-            var header = new Paragraph
-            {
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            header.Inlines.Add($"ZESTAWIENIE ZAMÓWIEŃ");
-            _document.Blocks.Add(header);
-
-            var dateHeader = new Paragraph
-            {
-                FontSize = 14,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-            dateHeader.Inlines.Add($"Data: {_selectedDate:dddd, dd MMMM yyyy}");
-            _document.Blocks.Add(dateHeader);
-
-            // Tabela główna
-            var table = new Table();
-            table.CellSpacing = 0;
-            table.BorderBrush = Brushes.Black;
-            table.BorderThickness = new Thickness(1);
-
-            // Kolumny
-            table.Columns.Add(new TableColumn { Width = new GridLength(30) });  // Lp
-            table.Columns.Add(new TableColumn { Width = new GridLength(200) }); // Odbiorca
-            table.Columns.Add(new TableColumn { Width = new GridLength(100) }); // Handlowiec
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Zamówiono
-            table.Columns.Add(new TableColumn { Width = new GridLength(80) });  // Wydano
-            table.Columns.Add(new TableColumn { Width = new GridLength(60) });  // Palety
-            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Trans
-            table.Columns.Add(new TableColumn { Width = new GridLength(40) });  // Prod
-            table.Columns.Add(new TableColumn { Width = new GridLength(150) }); // Uwagi
-
-            var headerGroup = new TableRowGroup();
-
-            var headerRow = new TableRow();
-            headerRow.Background = new SolidColorBrush(Color.FromRgb(44, 62, 80));
-            headerRow.Foreground = Brushes.White;
-
-            headerRow.Cells.Add(CreateHeaderCell("Lp"));
-            headerRow.Cells.Add(CreateHeaderCell("Odbiorca"));
-            headerRow.Cells.Add(CreateHeaderCell("Handlowiec"));
-            headerRow.Cells.Add(CreateHeaderCell("Zamów. [kg]"));
-            headerRow.Cells.Add(CreateHeaderCell("Wydano [kg]"));
-            headerRow.Cells.Add(CreateHeaderCell("Palety"));
-            headerRow.Cells.Add(CreateHeaderCell("Tr."));
-            headerRow.Cells.Add(CreateHeaderCell("Pr."));
-            headerRow.Cells.Add(CreateHeaderCell("Uwagi"));
-
-            headerGroup.Rows.Add(headerRow);
-            table.RowGroups.Add(headerGroup);
-
-            // Dane
-            var dataGroup = new TableRowGroup();
-            int lp = 0;
-            decimal totalOrdered = 0;
-            decimal totalReleased = 0;
-            decimal totalPallets = 0;
-
-            foreach (DataRow row in _dataSource.Rows)
-            {
-                var status = row["Status"]?.ToString() ?? "";
-                var id = Convert.ToInt32(row["Id"]);
-
-                if (id == -1 || status == "SUMA" || status == "Anulowane")
-                    continue;
-
-                lp++;
-                var dataRow = new TableRow();
-
-                if (lp % 2 == 0)
-                    dataRow.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-
-                var ordered = Convert.ToDecimal(row["IloscZamowiona"]);
-                var released = Convert.ToDecimal(row["IloscFaktyczna"]);
-                var pallets = Convert.ToDecimal(row["Palety"]);
-
-                totalOrdered += ordered;
-                totalReleased += released;
-                totalPallets += pallets;
-
-                dataRow.Cells.Add(CreateDataCell(lp.ToString(), TextAlignment.Center));
-                dataRow.Cells.Add(CreateDataCell(CzyscNazwe(row["Odbiorca"]?.ToString() ?? "")));
-                dataRow.Cells.Add(CreateDataCell(row["Handlowiec"]?.ToString() ?? ""));
-                dataRow.Cells.Add(CreateDataCell(ordered.ToString("N0"), TextAlignment.Right));
-                dataRow.Cells.Add(CreateDataCell(released.ToString("N0"), TextAlignment.Right));
-                dataRow.Cells.Add(CreateDataCell(pallets.ToString("N1"), TextAlignment.Center));
-                dataRow.Cells.Add(CreateDataCell(row["Trans"]?.ToString() ?? "", TextAlignment.Center));
-                dataRow.Cells.Add(CreateDataCell(row["Prod"]?.ToString() ?? "", TextAlignment.Center));
-                dataRow.Cells.Add(CreateDataCell(""));
-
-                dataGroup.Rows.Add(dataRow);
-            }
-
-            // Suma
-            var sumRow = new TableRow();
-            sumRow.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58));
-            sumRow.Foreground = Brushes.White;
-            sumRow.FontWeight = FontWeights.Bold;
-
-            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
-            sumRow.Cells.Add(CreateDataCell("SUMA", TextAlignment.Left, FontWeights.Bold));
-            sumRow.Cells.Add(CreateDataCell($"Ilość: {lp}", TextAlignment.Left, FontWeights.Bold));
-            sumRow.Cells.Add(CreateDataCell(totalOrdered.ToString("N0"), TextAlignment.Right, FontWeights.Bold));
-            sumRow.Cells.Add(CreateDataCell(totalReleased.ToString("N0"), TextAlignment.Right, FontWeights.Bold));
-            sumRow.Cells.Add(CreateDataCell(totalPallets.ToString("N1"), TextAlignment.Center, FontWeights.Bold));
-            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
-            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
-            sumRow.Cells.Add(CreateDataCell("", TextAlignment.Center));
-
-            dataGroup.Rows.Add(sumRow);
-            table.RowGroups.Add(dataGroup);
-
-            _document.Blocks.Add(table);
-
-            // Stopka
-            var footer = new Paragraph
-            {
-                FontSize = 10,
-                TextAlignment = TextAlignment.Right,
-                Margin = new Thickness(0, 20, 0, 0)
-            };
-            footer.Inlines.Add($"Wydrukowano: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            _document.Blocks.Add(footer);
-        }
-
-        private TableCell CreateHeaderCell(string text)
-        {
-            var cell = new TableCell(new Paragraph(new Run(text))
-            {
-                TextAlignment = TextAlignment.Center,
-                FontWeight = FontWeights.Bold
-            });
-            cell.Padding = new Thickness(5);
-            cell.BorderBrush = Brushes.Black;
-            cell.BorderThickness = new Thickness(0.5);
-            return cell;
-        }
-
-        private TableCell CreateDataCell(string text, TextAlignment align = TextAlignment.Left, FontWeight? weight = null)
-        {
-            var cell = new TableCell(new Paragraph(new Run(text))
-            {
-                TextAlignment = align,
-                FontWeight = weight ?? FontWeights.Normal
-            });
-            cell.Padding = new Thickness(3);
-            cell.BorderBrush = Brushes.Gray;
-            cell.BorderThickness = new Thickness(0.5);
-            return cell;
-        }
-        private string CzyscNazwe(string nazwa)
-        {
-            return nazwa.Replace("📝", "").Replace("📦", "").Trim();
-        }
-
-        private void BtnPrint_Click(object sender, RoutedEventArgs e)
-        {
-            PrintDialog printDialog = new PrintDialog();
-            if (printDialog.ShowDialog() == true)
-            {
-                IDocumentPaginatorSource idpSource = _document;
-                printDialog.PrintDocument(idpSource.DocumentPaginator, "Zestawienie zamówień");
-                MessageBox.Show("Dokument został wysłany do drukarki.", "Drukowanie",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-    }
-
-    #endregion
 }

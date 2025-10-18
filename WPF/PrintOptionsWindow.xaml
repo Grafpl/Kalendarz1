@@ -1,0 +1,61 @@
+﻿<Window x:Class="Kalendarz1.WPF.PrintOptionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Opcje wydruku" 
+        Height="250" Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" 
+                   Text="Wybierz sposób grupowania wydruku:"
+                   FontSize="14" FontWeight="Bold"
+                   Margin="0,0,0,20"/>
+
+        <StackPanel Grid.Row="1" VerticalAlignment="Center">
+            <RadioButton x:Name="rbGroupByClient"
+                         Content="📋 Grupuj według klientów"
+                         IsChecked="True"
+                         FontSize="13"
+                         Margin="10,5"/>
+
+            <TextBlock Text="Każdy klient ze swoimi zamówionymi produktami"
+                       FontSize="11" Foreground="Gray"
+                       Margin="30,0,0,10"/>
+
+            <RadioButton x:Name="rbGroupByProduct"
+                         Content="📦 Grupuj według produktów"
+                         FontSize="13"
+                         Margin="10,5"/>
+
+            <TextBlock Text="Każdy produkt z listą odbiorców"
+                       FontSize="11" Foreground="Gray"
+                       Margin="30,0,0,10"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button x:Name="btnPrint"
+                    Content="🖨️ Drukuj"
+                    Width="100" Height="35"
+                    Margin="5"
+                    Background="#2ECC71"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    Click="BtnPrint_Click"/>
+
+            <Button x:Name="btnCancel"
+                    Content="Anuluj"
+                    Width="100" Height="35"
+                    Margin="5"
+                    Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

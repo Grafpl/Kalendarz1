@@ -122,6 +122,7 @@
     <Folder Include="Nowy folder1\" />
     <Folder Include="Nowy folder2\" />
     <Folder Include="Nowy folder3\" />
+    <Folder Include="Nowy folder4\" />
     <Folder Include="Nowy folder\" />
     <Folder Include="Transport\Widoki\" />
   </ItemGroup>
