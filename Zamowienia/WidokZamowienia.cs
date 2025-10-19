@@ -1,5 +1,5 @@
 ﻿// Plik: WidokZamowienia.cs
-// WERSJA 20.0 - Sprawdzanie duplikatów + nowe dialogi po zapisie + kolorystyka Menu1
+// WERSJA 21.0 - Dodano cenę, Hallal, własny odbiór + poprawki
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -75,6 +75,7 @@ namespace Kalendarz1
         private decimal _doZaplacenia = 0;
 
         private DateTimePicker? dateTimePickerProdukcji;
+        private Label? lblGodzinaLabel;
 
         public WidokZamowienia() : this(App.UserID ?? string.Empty, null) { }
         public WidokZamowienia(int? idZamowienia) : this(App.UserID ?? string.Empty, idZamowienia) { }
@@ -108,6 +109,9 @@ namespace Kalendarz1
             dateTimePickerSprzedaz.Format = DateTimePickerFormat.Custom;
             dateTimePickerSprzedaz.CustomFormat = "yyyy-MM-dd (dddd)";
 
+            // Konfiguracja checkboxa własnego odbioru
+            chkWlasnyOdbior.CheckedChanged += ChkWlasnyOdbior_CheckedChanged;
+
             try
             {
                 await LoadInitialDataInBackground();
@@ -131,398 +135,13 @@ namespace Kalendarz1
             }
         }
 
-        // Nowy dialog sprawdzający duplikaty
-        private class DuplicateOrderDialog : Form
+        private void ChkWlasnyOdbior_CheckedChanged(object? sender, EventArgs e)
         {
-            public bool ProceedWithSave { get; private set; } = false;
-
-            public DuplicateOrderDialog(string odbiorcaNazwa, DateTime dataProdukcji, string existingOrderDetails)
+            if (lblGodzinaLabel != null)
             {
-                Text = "⚠ Ostrzeżenie - Znaleziono istniejące zamówienie";
-                Size = new Size(650, 520);
-                StartPosition = FormStartPosition.CenterParent;
-                FormBorderStyle = FormBorderStyle.FixedDialog;
-                MaximizeBox = false;
-                MinimizeBox = false;
-                BackColor = Color.White;
-                Font = new Font("Segoe UI", 9.5f);
-
-                var headerPanel = new Panel
-                {
-                    Dock = DockStyle.Top,
-                    Height = 80,
-                    BackColor = Color.FromArgb(231, 76, 60)
-                };
-
-                var iconLabel = new Label
-                {
-                    Text = "⚠",
-                    Font = new Font("Segoe UI", 36f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Location = new Point(20, 15),
-                    Size = new Size(50, 50),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-
-                var titleLabel = new Label
-                {
-                    Text = "UWAGA - DUPLIKAT ZAMÓWIENIA",
-                    Font = new Font("Segoe UI", 16f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Location = new Point(80, 25),
-                    AutoSize = true
-                };
-
-                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
-
-                var infoPanel = new Panel
-                {
-                    Location = new Point(20, 100),
-                    Size = new Size(610, 280),
-                    BackColor = Color.FromArgb(255, 243, 224),
-                    BorderStyle = BorderStyle.FixedSingle
-                };
-
-                var lblInfo = new Label
-                {
-                    Text = $"⚠ ZNALEZIONO ISTNIEJĄCE ZAMÓWIENIE\n\n" +
-                           $"Dla odbiorcy: {odbiorcaNazwa}\n" +
-                           $"Z datą produkcji: {dataProdukcji:yyyy-MM-dd (dddd)}\n\n" +
-                           $"Czy na pewno chcesz utworzyć kolejne zamówienie na ten sam dzień?\n\n" +
-                           $"Szczegóły istniejącego zamówienia:",
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(120, 53, 15),
-                    Location = new Point(15, 15),
-                    Size = new Size(580, 120),
-                    TextAlign = ContentAlignment.TopLeft
-                };
-
-                var txtDetails = new TextBox
-                {
-                    Text = existingOrderDetails,
-                    Location = new Point(15, 140),
-                    Size = new Size(580, 125),
-                    Multiline = true,
-                    ReadOnly = true,
-                    ScrollBars = ScrollBars.Vertical,
-                    Font = new Font("Segoe UI", 9f),
-                    BackColor = Color.White,
-                    BorderStyle = BorderStyle.FixedSingle
-                };
-
-                infoPanel.Controls.AddRange(new Control[] { lblInfo, txtDetails });
-
-                var btnYes = new Button
-                {
-                    Text = "TAK - Utwórz nowe zamówienie",
-                    Size = new Size(200, 45),
-                    Location = new Point(120, 405),
-                    BackColor = Color.FromArgb(231, 76, 60),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnYes.FlatAppearance.BorderSize = 0;
-                btnYes.Click += (s, e) => { ProceedWithSave = true; DialogResult = DialogResult.OK; Close(); };
-
-                var btnNo = new Button
-                {
-                    Text = "NIE - Anuluj",
-                    Size = new Size(160, 45),
-                    Location = new Point(330, 405),
-                    BackColor = Color.FromArgb(149, 165, 166),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnNo.FlatAppearance.BorderSize = 0;
-                btnNo.Click += (s, e) => { ProceedWithSave = false; DialogResult = DialogResult.Cancel; Close(); };
-
-                Controls.AddRange(new Control[] { headerPanel, infoPanel, btnYes, btnNo });
+                lblGodzinaLabel.Text = chkWlasnyOdbior.Checked ? "Godzina odbioru" : "Godzina przyjazdu";
             }
         }
-
-        // Nowy dialog po zapisie
-        private class AfterSaveDialog : Form
-        {
-            public bool CreateAnother { get; private set; } = false;
-
-            public AfterSaveDialog(string orderSummary, bool isEdit)
-            {
-                Text = isEdit ? "✓ Zamówienie zaktualizowane" : "✓ Zamówienie zapisane";
-                Size = new Size(700, 750);
-                StartPosition = FormStartPosition.CenterParent;
-                FormBorderStyle = FormBorderStyle.FixedDialog;
-                MaximizeBox = false;
-                MinimizeBox = false;
-                TopMost = true;
-                BackColor = Color.White;
-                Font = new Font("Segoe UI", 9.5f);
-
-                var mainPanel = new Panel
-                {
-                    Dock = DockStyle.Fill,
-                    AutoScroll = true,
-                    Padding = new Padding(0)
-                };
-
-                var headerPanel = new Panel
-                {
-                    Dock = DockStyle.Top,
-                    Height = 90,
-                    BackColor = Color.FromArgb(92, 138, 58)
-                };
-
-                var iconLabel = new Label
-                {
-                    Text = "✓",
-                    Font = new Font("Segoe UI", 40f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Location = new Point(20, 20),
-                    Size = new Size(60, 50),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-
-                var titleLabel = new Label
-                {
-                    Text = (isEdit ? "ZAMÓWIENIE ZAKTUALIZOWANE" : "ZAMÓWIENIE ZAPISANE").ToUpper(),
-                    Font = new Font("Segoe UI", 18f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    Location = new Point(90, 30),
-                    AutoSize = true
-                };
-
-                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
-
-                var contentPanel = new Panel
-                {
-                    Location = new Point(0, 90),
-                    Size = new Size(684, 560),
-                    AutoScroll = true,
-                    Padding = new Padding(20)
-                };
-
-                int yPos = 20;
-
-                var lines = orderSummary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-                var odbiorcy = lines.FirstOrDefault(l => l.StartsWith("Odbiorca:"))?.Replace("Odbiorca:", "").Trim();
-                if (!string.IsNullOrEmpty(odbiorcy))
-                {
-                    var odbPanel = CreateInfoBox("📦 ODBIORCA", odbiorcy, Color.FromArgb(52, 152, 219), yPos);
-                    contentPanel.Controls.Add(odbPanel);
-                    yPos += 80;
-                }
-
-                var dataProdukcji = lines.FirstOrDefault(l => l.StartsWith("Data produkcji:"))?.Replace("Data produkcji:", "").Trim();
-                var dataSprzedazy = lines.FirstOrDefault(l => l.StartsWith("Data sprzedaży:"))?.Replace("Data sprzedaży:", "").Trim();
-
-                if (!string.IsNullOrEmpty(dataProdukcji))
-                {
-                    var prodPanel = CreateInfoBox("🏭 DATA PRODUKCJI", dataProdukcji, Color.FromArgb(155, 89, 182), yPos);
-                    contentPanel.Controls.Add(prodPanel);
-                    yPos += 80;
-                }
-
-                if (!string.IsNullOrEmpty(dataSprzedazy))
-                {
-                    var sprzPanel = CreateInfoBox("🚚 DATA ODBIORU", dataSprzedazy, Color.FromArgb(230, 126, 34), yPos);
-                    contentPanel.Controls.Add(sprzPanel);
-                    yPos += 80;
-                }
-
-                var towarStartIndex = Array.FindIndex(lines, l => l.Contains("Zamówione towary:"));
-                var podsumowanieIndex = Array.FindIndex(lines, l => l.Contains("Podsumowanie:"));
-
-                if (towarStartIndex >= 0 && podsumowanieIndex > towarStartIndex)
-                {
-                    var towaryPanel = new Panel
-                    {
-                        Location = new Point(20, yPos),
-                        Size = new Size(640, 200),
-                        BackColor = Color.FromArgb(240, 247, 237),
-                        BorderStyle = BorderStyle.FixedSingle,
-                        AutoScroll = true
-                    };
-
-                    var towaryLabel = new Label
-                    {
-                        Text = "📋 ZAMÓWIONE TOWARY",
-                        Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                        ForeColor = Color.FromArgb(31, 41, 55),
-                        Location = new Point(10, 10),
-                        AutoSize = true
-                    };
-                    towaryPanel.Controls.Add(towaryLabel);
-
-                    int towYPos = 40;
-                    for (int i = towarStartIndex + 1; i < podsumowanieIndex; i++)
-                    {
-                        var line = lines[i].Trim();
-                        if (string.IsNullOrEmpty(line)) continue;
-
-                        var itemLabel = new Label
-                        {
-                            Text = line,
-                            Font = new Font("Segoe UI", 9f),
-                            ForeColor = Color.FromArgb(55, 65, 81),
-                            Location = new Point(15, towYPos),
-                            Size = new Size(600, 22)
-                        };
-                        towaryPanel.Controls.Add(itemLabel);
-                        towYPos += 24;
-                    }
-
-                    contentPanel.Controls.Add(towaryPanel);
-                    yPos += 210;
-                }
-
-                var podsumowanie = lines.Skip(podsumowanieIndex + 1).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
-
-                var summaryPanel = new Panel
-                {
-                    Location = new Point(20, yPos),
-                    Size = new Size(640, 120),
-                    BackColor = Color.FromArgb(224, 242, 215),
-                    BorderStyle = BorderStyle.FixedSingle
-                };
-
-                var summTitle = new Label
-                {
-                    Text = "✓ PODSUMOWANIE",
-                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(92, 138, 58),
-                    Location = new Point(15, 10),
-                    AutoSize = true
-                };
-                summaryPanel.Controls.Add(summTitle);
-
-                int summYPos = 45;
-                foreach (var summLine in podsumowanie)
-                {
-                    var parts = summLine.Split(':');
-                    if (parts.Length == 2)
-                    {
-                        var summLabel = new Label
-                        {
-                            Text = parts[0].Trim() + ":",
-                            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                            ForeColor = Color.FromArgb(55, 65, 81),
-                            Location = new Point(20, summYPos),
-                            Size = new Size(150, 20)
-                        };
-
-                        var summValue = new Label
-                        {
-                            Text = parts[1].Trim(),
-                            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                            ForeColor = Color.FromArgb(92, 138, 58),
-                            Location = new Point(180, summYPos - 2),
-                            AutoSize = true
-                        };
-
-                        summaryPanel.Controls.AddRange(new Control[] { summLabel, summValue });
-                        summYPos += 25;
-                    }
-                }
-
-                contentPanel.Controls.Add(summaryPanel);
-
-                var questionPanel = new Panel
-                {
-                    Location = new Point(0, 655),
-                    Size = new Size(700, 95),
-                    BackColor = Color.FromArgb(236, 240, 241),
-                    Dock = DockStyle.Bottom
-                };
-
-                var lblQuestion = new Label
-                {
-                    Text = "Co chcesz zrobić teraz?",
-                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(44, 62, 80),
-                    Location = new Point(0, 15),
-                    Size = new Size(700, 25),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-
-                var btnNewOrder = new Button
-                {
-                    Text = "➕ UTWÓRZ KOLEJNE ZAMÓWIENIE",
-                    Size = new Size(280, 48),
-                    Location = new Point(80, 45),
-                    BackColor = Color.FromArgb(92, 138, 58),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnNewOrder.FlatAppearance.BorderSize = 0;
-                btnNewOrder.Click += (s, e) => { CreateAnother = true; DialogResult = DialogResult.OK; Close(); };
-
-                var btnBackToSummary = new Button
-                {
-                    Text = "◀ WRÓĆ DO PODSUMOWANIA",
-                    Size = new Size(280, 48),
-                    Location = new Point(370, 45),
-                    BackColor = Color.FromArgb(52, 152, 219),
-                    ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
-                btnBackToSummary.FlatAppearance.BorderSize = 0;
-                btnBackToSummary.Click += (s, e) => { CreateAnother = false; DialogResult = DialogResult.OK; Close(); };
-
-                questionPanel.Controls.AddRange(new Control[] { lblQuestion, btnNewOrder, btnBackToSummary });
-
-                mainPanel.Controls.Add(contentPanel);
-                Controls.Add(headerPanel);
-                Controls.Add(mainPanel);
-                Controls.Add(questionPanel);
-            }
-
-            private static Panel CreateInfoBox(string title, string value, Color accentColor, int yPos)
-            {
-                var panel = new Panel
-                {
-                    Location = new Point(20, yPos),
-                    Size = new Size(640, 70),
-                    BackColor = Color.White,
-                    BorderStyle = BorderStyle.FixedSingle
-                };
-
-                panel.Paint += (s, e) =>
-                {
-                    using var brush = new SolidBrush(accentColor);
-                    e.Graphics.FillRectangle(brush, 0, 0, 6, panel.Height);
-                };
-
-                var titleLabel = new Label
-                {
-                    Text = title,
-                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                    ForeColor = accentColor,
-                    Location = new Point(15, 12),
-                    AutoSize = true
-                };
-
-                var valueLabel = new Label
-                {
-                    Text = value,
-                    Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(31, 41, 55),
-                    Location = new Point(15, 35),
-                    Size = new Size(610, 28)
-                };
-
-                panel.Controls.AddRange(new Control[] { titleLabel, valueLabel });
-                return panel;
-            }
-        }
-
         #region Responsywny Layout
 
         private void ConfigureResponsiveLayout()
@@ -563,7 +182,6 @@ namespace Kalendarz1
             panelOdbiorca.Padding = new Padding(10, 5, 10, 5);
             panelOdbiorca.Height = 70;
 
-            // Usuwamy lblTytul całkowicie
             var oldTitle = panelOdbiorca.Controls.OfType<Label>().FirstOrDefault(l => l == lblTytul);
             if (oldTitle != null)
             {
@@ -711,7 +329,7 @@ namespace Kalendarz1
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 270));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Zwiększone z 70 na 100
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             if (panelOstatniOdbiorcy != null)
@@ -863,7 +481,7 @@ namespace Kalendarz1
                 Padding = new Padding(0, 0, 0, 3)
             };
 
-            var lblTime = new Label
+            lblGodzinaLabel = new Label
             {
                 Text = "Godzina przyjazdu",
                 Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
@@ -876,6 +494,7 @@ namespace Kalendarz1
             {
                 dateTimePickerSprzedaz.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 dateTimePickerSprzedaz.Margin = new Padding(0, 0, 5, 5);
+                dateTimePickerSprzedaz.Width = 140;
             }
 
             if (dateTimePickerGodzinaPrzyjazdu != null)
@@ -885,6 +504,19 @@ namespace Kalendarz1
                 dateTimePickerGodzinaPrzyjazdu.ShowUpDown = true;
                 dateTimePickerGodzinaPrzyjazdu.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 dateTimePickerGodzinaPrzyjazdu.Margin = new Padding(5, 0, 0, 5);
+                dateTimePickerGodzinaPrzyjazdu.Width = 140;
+            }
+
+            if (chkWlasnyOdbior != null)
+            {
+                if (chkWlasnyOdbior.Parent != null)
+                {
+                    chkWlasnyOdbior.Parent.Controls.Remove(chkWlasnyOdbior);
+                }
+                chkWlasnyOdbior.Dock = DockStyle.None;
+                chkWlasnyOdbior.AutoSize = true;
+                chkWlasnyOdbior.Font = new Font("Segoe UI", 8f);
+                chkWlasnyOdbior.Margin = new Padding(0);
             }
 
             panelSugestieGodzin = new FlowLayoutPanel
@@ -901,13 +533,17 @@ namespace Kalendarz1
             datesLayout.SetColumnSpan(dateTimePickerProdukcji, 2);
 
             datesLayout.Controls.Add(lblDate, 0, 2);
-            datesLayout.Controls.Add(lblTime, 1, 2);
+            datesLayout.Controls.Add(lblGodzinaLabel, 1, 2);
 
             datesLayout.Controls.Add(dateTimePickerSprzedaz, 0, 3);
             datesLayout.Controls.Add(dateTimePickerGodzinaPrzyjazdu, 1, 3);
 
-            datesLayout.Controls.Add(panelSugestieGodzin, 0, 4);
-            datesLayout.SetColumnSpan(panelSugestieGodzin, 2);
+            if (chkWlasnyOdbior != null)
+            {
+                datesLayout.Controls.Add(chkWlasnyOdbior, 0, 4);
+            }
+
+            datesLayout.Controls.Add(panelSugestieGodzin, 1, 4);
 
             panelTransport = new Panel
             {
@@ -1008,7 +644,7 @@ namespace Kalendarz1
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 Padding = new Padding(12),
-                Height = 100 // Zwiększone z 70 na 100
+                Height = 85
             };
 
             var lblHeader = new Label
@@ -1023,16 +659,16 @@ namespace Kalendarz1
             lblLimitInfo = new Label
             {
                 Text = "Wybierz odbiorcę",
-                Font = new Font("Segoe UI", 9f),
+                Font = new Font("Segoe UI", 8f),
                 ForeColor = Color.FromArgb(107, 114, 128),
-                Location = new Point(12, 35),
-                Size = new Size(370, 20)
+                Location = new Point(12, 32),
+                Size = new Size(370, 18)
             };
 
             progressLimit = new ProgressBar
             {
-                Location = new Point(12, 58),
-                Size = new Size(370, 20),
+                Location = new Point(12, 53),
+                Size = new Size(370, 18),
                 Maximum = 100,
                 Style = ProgressBarStyle.Continuous
             };
@@ -1057,7 +693,6 @@ namespace Kalendarz1
 
             return panelPlatnosci;
         }
-
         private async Task LoadPlatnosciOdbiorcy(string klientId)
         {
             if (panelPlatnosci == null || lblLimitInfo == null || progressLimit == null) return;
@@ -1091,8 +726,8 @@ namespace Kalendarz1
                 var zadluzenieObj = await cmdZadluzenie.ExecuteScalarAsync();
                 _doZaplacenia = zadluzenieObj != DBNull.Value ? Convert.ToDecimal(zadluzenieObj) : 0;
 
-                lblLimitInfo.Location = new Point(12, 35);
-                lblLimitInfo.Size = new Size(370, 20);
+                lblLimitInfo.Location = new Point(12, 32);
+                lblLimitInfo.Size = new Size(370, 18);
                 lblLimitInfo.TextAlign = ContentAlignment.MiddleLeft;
 
                 if (_limitKredytowy > 0)
@@ -1107,21 +742,21 @@ namespace Kalendarz1
                     if (dostepny < 0)
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(220, 38, 38);
-                        lblLimitInfo.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+                        lblLimitInfo.Font = new Font("Segoe UI", 8f, FontStyle.Bold);
                         progressLimit.ForeColor = Color.FromArgb(220, 38, 38);
                         panelPlatnosci.BackColor = Color.FromArgb(254, 242, 242);
                     }
                     else if (procentWykorzystania > 80)
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(217, 119, 6);
-                        lblLimitInfo.Font = new Font("Segoe UI", 9f);
+                        lblLimitInfo.Font = new Font("Segoe UI", 8f);
                         progressLimit.ForeColor = Color.FromArgb(251, 191, 36);
                         panelPlatnosci.BackColor = Color.FromArgb(255, 251, 235);
                     }
                     else
                     {
                         lblLimitInfo.ForeColor = Color.FromArgb(92, 138, 58);
-                        lblLimitInfo.Font = new Font("Segoe UI", 9f);
+                        lblLimitInfo.Font = new Font("Segoe UI", 8f);
                         progressLimit.ForeColor = Color.FromArgb(92, 138, 58);
                         panelPlatnosci.BackColor = Color.White;
                     }
@@ -1142,6 +777,622 @@ namespace Kalendarz1
             }
         }
 
+        #endregion
+
+        #region Inicjalizacja i Ustawienia UI
+
+        private void BuildDataTableSchema()
+        {
+            _dt.Columns.Add("Id", typeof(int));
+            _dt.Columns.Add("Kod", typeof(string));
+            _dt.Columns.Add("Katalog", typeof(string));
+            _dt.Columns.Add("E2", typeof(bool));
+            _dt.Columns.Add("Folia", typeof(bool));
+            _dt.Columns.Add("Hallal", typeof(bool));
+            _dt.Columns.Add("Palety", typeof(decimal));
+            _dt.Columns.Add("Pojemniki", typeof(decimal));
+            _dt.Columns.Add("Ilosc", typeof(decimal));
+
+            // STRING, nie DECIMAL - bo w bazie to VARCHAR(20)
+            var cenaColumn = _dt.Columns.Add("Cena", typeof(string));
+            cenaColumn.AllowDBNull = true;
+
+            _dt.Columns.Add("KodTowaru", typeof(string));
+            _dt.Columns.Add("KodKopia", typeof(string));
+            _dt.Columns.Add("MaWartosci", typeof(int));
+
+            _view = new DataView(_dt);
+            _view.RowFilter = $"Katalog = '{_aktywnyKatalog}'";
+            _view.Sort = "MaWartosci ASC, Kod ASC";
+            dataGridViewZamowienie.DataSource = _view;
+
+            dataGridViewZamowienie.Columns["Id"]!.Visible = false;
+            dataGridViewZamowienie.Columns["KodTowaru"]!.Visible = false;
+            dataGridViewZamowienie.Columns["Katalog"]!.Visible = false;
+            dataGridViewZamowienie.Columns["MaWartosci"]!.Visible = false;
+
+            var cKod = dataGridViewZamowienie.Columns["Kod"]!;
+            cKod.ReadOnly = true;
+            cKod.FillWeight = 165;
+            cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            cKod.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
+            cKod.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
+            cKod.HeaderText = "Towar";
+
+            var cE2 = dataGridViewZamowienie.Columns["E2"] as DataGridViewCheckBoxColumn;
+            if (cE2 != null)
+            {
+                cE2.HeaderText = "40 E2";
+                cE2.Width = 55;
+                cE2.MinimumWidth = 55;
+                cE2.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                cE2.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                cE2.DefaultCellStyle.Padding = new Padding(3);
+                cE2.DefaultCellStyle.BackColor = Color.FromArgb(254, 242, 242);
+                cE2.ToolTipText = "40 pojemników/paletę";
+                cE2.Resizable = DataGridViewTriState.False;
+            }
+
+            var cFolia = dataGridViewZamowienie.Columns["Folia"] as DataGridViewCheckBoxColumn;
+            if (cFolia != null)
+            {
+                cFolia.HeaderText = "Folia";
+                cFolia.Width = 55;
+                cFolia.MinimumWidth = 55;
+                cFolia.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                cFolia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                cFolia.DefaultCellStyle.Padding = new Padding(3);
+                cFolia.DefaultCellStyle.BackColor = Color.FromArgb(240, 247, 237);
+                cFolia.ToolTipText = "Zapakowane w folię";
+                cFolia.Resizable = DataGridViewTriState.False;
+            }
+
+            var cHallal = dataGridViewZamowienie.Columns["Hallal"] as DataGridViewCheckBoxColumn;
+            if (cHallal != null)
+            {
+                cHallal.HeaderText = "🔪 Hallal";
+                cHallal.Width = 65;
+                cHallal.MinimumWidth = 65;
+                cHallal.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                cHallal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                cHallal.DefaultCellStyle.Padding = new Padding(3);
+                cHallal.DefaultCellStyle.BackColor = Color.FromArgb(240, 255, 240);
+                cHallal.ToolTipText = "Cięty zgodnie z Hallal";
+                cHallal.Resizable = DataGridViewTriState.False;
+            }
+
+            var cPalety = dataGridViewZamowienie.Columns["Palety"]!;
+            cPalety.HeaderText = "Palety";
+            cPalety.FillWeight = 75;
+            cPalety.DefaultCellStyle.Format = "N0";
+            cPalety.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            cPalety.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10.5f);
+            cPalety.DefaultCellStyle.ForeColor = Color.FromArgb(239, 68, 68);
+
+            var cPojemniki = dataGridViewZamowienie.Columns["Pojemniki"]!;
+            cPojemniki.HeaderText = "Pojemniki";
+            cPojemniki.FillWeight = 95;
+            cPojemniki.DefaultCellStyle.Format = "N0";
+            cPojemniki.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            cPojemniki.DefaultCellStyle.ForeColor = Color.FromArgb(92, 138, 58);
+
+            var cIlosc = dataGridViewZamowienie.Columns["Ilosc"]!;
+            cIlosc.FillWeight = 105;
+            cIlosc.DefaultCellStyle.Format = "N0";
+            cIlosc.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            cIlosc.HeaderText = "Ilość (kg)";
+            cIlosc.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10.5f);
+            cIlosc.DefaultCellStyle.ForeColor = Color.FromArgb(92, 138, 58);
+
+            var cCena = dataGridViewZamowienie.Columns["Cena"]!;
+            cCena.HeaderText = "Cena";
+            cCena.FillWeight = 80;
+            cCena.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            cCena.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
+            cCena.DefaultCellStyle.ForeColor = Color.FromArgb(41, 128, 185);
+            cCena.DefaultCellStyle.NullValue = "";
+
+            var cKodKopia = dataGridViewZamowienie.Columns["KodKopia"]!;
+            cKodKopia.ReadOnly = true;
+            cKodKopia.FillWeight = 165;
+            cKodKopia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            cKodKopia.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
+            cKodKopia.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
+            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
+            cKodKopia.HeaderText = "Towar";
+        }
+        private void DataGridViewZamowienie_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (_blokujObslugeZmian || e.RowIndex < 0) return;
+
+            var row = (dataGridViewZamowienie.Rows[e.RowIndex].DataBoundItem as DataRowView)?.Row;
+            if (row == null) return;
+
+            _blokujObslugeZmian = true;
+
+            string changedColumnName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
+            string kodTowaru = row.Field<string>("Kod") ?? "";
+
+            bool useE2 = row.Field<bool>("E2");
+            decimal pojemnikNaPalete = useE2 ? POJEMNIKOW_NA_PALECIE_E2 : POJEMNIKOW_NA_PALECIE;
+            decimal kgNaPojemnik = GetKgPerContainer(kodTowaru);
+            decimal kgNaPalete = pojemnikNaPalete * kgNaPojemnik;
+
+            try
+            {
+                switch (changedColumnName)
+                {
+                    case "E2":
+                        decimal currentPalety = ParseDec(row["Palety"]);
+                        if (currentPalety > 0)
+                        {
+                            row["Pojemniki"] = currentPalety * pojemnikNaPalete;
+                            row["Ilosc"] = currentPalety * kgNaPalete;
+                        }
+                        break;
+
+                    case "Ilosc":
+                        decimal ilosc = ParseDec(row["Ilosc"]);
+                        row["Pojemniki"] = (ilosc > 0 && kgNaPojemnik > 0) ? Math.Round(ilosc / kgNaPojemnik, 0) : 0m;
+                        row["Palety"] = (ilosc > 0 && kgNaPalete > 0) ? ilosc / kgNaPalete : 0m;
+                        MarkInvalid(dataGridViewZamowienie.Rows[e.RowIndex].Cells["Ilosc"], ilosc < 0);
+                        break;
+
+                    case "Pojemniki":
+                        decimal pojemniki = ParseDec(row["Pojemniki"]);
+                        row["Ilosc"] = pojemniki * kgNaPojemnik;
+                        row["Palety"] = (pojemniki > 0 && pojemnikNaPalete > 0) ? pojemniki / pojemnikNaPalete : 0m;
+                        break;
+
+                    case "Palety":
+                        decimal palety = ParseDec(row["Palety"]);
+                        row["Pojemniki"] = palety * pojemnikNaPalete;
+                        row["Ilosc"] = palety * kgNaPalete;
+                        break;
+
+                    case "Cena":
+                        var cellValue = dataGridViewZamowienie.Rows[e.RowIndex].Cells["Cena"].Value;
+
+                        if (cellValue == null || cellValue == DBNull.Value)
+                        {
+                            row["Cena"] = DBNull.Value;
+                        }
+                        else
+                        {
+                            string cenaText = cellValue.ToString()?.Trim() ?? "";
+
+                            if (string.IsNullOrWhiteSpace(cenaText))
+                            {
+                                row["Cena"] = DBNull.Value;
+                            }
+                            else
+                            {
+                                cenaText = cenaText.Replace("zł", "").Replace("PLN", "").Trim();
+
+                                if (decimal.TryParse(cenaText, NumberStyles.Any, _pl, out decimal cenaValue))
+                                {
+                                    // Zapisz jako STRING (bo w bazie to VARCHAR)
+                                    row["Cena"] = cenaValue > 0 ? cenaValue.ToString("F2", _pl) : DBNull.Value;
+                                }
+                                else
+                                {
+                                    row["Cena"] = DBNull.Value;
+                                }
+                            }
+                        }
+                        break;
+                }
+
+                decimal iloscAktualna = ParseDec(row["Ilosc"]);
+                row["MaWartosci"] = (iloscAktualna > 0) ? 0 : 1;
+            }
+            finally
+            {
+                _blokujObslugeZmian = false;
+            }
+            RecalcSum();
+        }
+        #endregion
+
+        #region Zapis i Odczyt Zamówienia
+
+        private async Task LoadZamowienieAsync(int id)
+        {
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            bool dataProdukcjiExists = false;
+            try
+            {
+                await using var cmdCheck = new SqlCommand(@"
+            SELECT COUNT(*) 
+            FROM sys.columns 
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+            AND name = 'DataProdukcji'", cn);
+                int count = (int)await cmdCheck.ExecuteScalarAsync();
+                dataProdukcjiExists = count > 0;
+            }
+            catch { }
+
+            string sqlQuery = dataProdukcjiExists
+                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
+                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
+
+            await using (var cmdZ = new SqlCommand(sqlQuery, cn))
+            {
+                cmdZ.Parameters.AddWithValue("@Id", id);
+                await using var rd = await cmdZ.ExecuteReaderAsync();
+                if (await rd.ReadAsync())
+                {
+                    dateTimePickerSprzedaz.Value = rd.GetDateTime(0);
+                    UstawOdbiorce(rd.GetInt32(1).ToString());
+                    textBoxUwagi.Text = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
+                    dateTimePickerGodzinaPrzyjazdu.Value = rd.GetDateTime(3);
+
+                    if (dateTimePickerProdukcji != null)
+                    {
+                        if (dataProdukcjiExists && rd.FieldCount > 4 && !await rd.IsDBNullAsync(4))
+                        {
+                            dateTimePickerProdukcji.Value = rd.GetDateTime(4);
+                        }
+                        else
+                        {
+                            dateTimePickerProdukcji.Value = DateTime.Today;
+                        }
+                    }
+                }
+            }
+
+            _blokujObslugeZmian = true;
+            foreach (DataRow r in _dt.Rows)
+            {
+                r["E2"] = false;
+                r["Folia"] = false;
+                r["Hallal"] = false;
+                r["Ilosc"] = 0m;
+                r["Pojemniki"] = 0m;
+                r["Palety"] = 0m;
+                r["Cena"] = DBNull.Value;  // NULL
+                r["MaWartosci"] = 1;
+            }
+
+            var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia, bool Hallal, string Cena)>();
+
+            await using (var cmdT = new SqlCommand(@"
+        SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
+               ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
+               ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal,
+               ISNULL(Cena, '0') as Cena
+        FROM [dbo].[ZamowieniaMiesoTowar]
+        WHERE ZamowienieId=@Id", cn))
+            {
+                cmdT.Parameters.AddWithValue("@Id", id);
+                await using var rd = await cmdT.ExecuteReaderAsync();
+
+                while (await rd.ReadAsync())
+                {
+                    zamowienieTowary.Add((
+                        rd.GetInt32(0),
+                        await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1),
+                        rd.GetInt32(2),
+                        rd.GetDecimal(3),
+                        rd.GetBoolean(4),
+                        rd.GetBoolean(5),
+                        rd.GetBoolean(6),
+                        rd.GetString(7)  // STRING!
+                    ));
+                }
+            }
+
+            bool czySaMrozonki = false;
+
+            foreach (var towar in zamowienieTowary)
+            {
+                var rows = _dt.Select($"Id = {towar.KodTowaru}");
+                if (rows.Any())
+                {
+                    var row = rows[0];
+                    string katalog = row.Field<string>("Katalog") ?? "";
+
+                    if (katalog == "67153") czySaMrozonki = true;
+
+                    row["Ilosc"] = towar.Ilosc;
+                    row["Pojemniki"] = towar.Pojemniki;
+                    row["Palety"] = towar.Palety;
+                    row["E2"] = towar.E2;
+                    row["Folia"] = towar.Folia;
+                    row["Hallal"] = towar.Hallal;
+
+                    // STRING - zapisz jako string lub NULL
+                    if (!string.IsNullOrWhiteSpace(towar.Cena) &&
+                        decimal.TryParse(towar.Cena, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cenaVal) &&
+                        cenaVal > 0)
+                    {
+                        row["Cena"] = cenaVal.ToString("F2", _pl);
+                    }
+                    else
+                    {
+                        row["Cena"] = DBNull.Value;
+                    }
+
+                    row["MaWartosci"] = (towar.Ilosc > 0) ? 0 : 1;
+                }
+            }
+
+            if (czySaMrozonki && rbMrozony != null)
+            {
+                rbMrozony.Checked = true;
+                _aktywnyKatalog = "67153";
+            }
+            else if (rbSwiezy != null)
+            {
+                rbSwiezy.Checked = true;
+                _aktywnyKatalog = "67095";
+            }
+
+            _view.RowFilter = $"Katalog = '{_aktywnyKatalog}'";
+
+            _blokujObslugeZmian = false;
+            RecalcSum();
+        }
+        private async void btnZapisz_Click(object? sender, EventArgs e)
+        {
+            if (!ValidateBeforeSave(out var msg))
+            {
+                ShowWarning(msg, "Błąd danych");
+                return;
+            }
+
+            decimal sumaPaletCalkowita = 0m;
+            foreach (DataRow r in _dt.Rows)
+            {
+                sumaPaletCalkowita += r.Field<decimal?>("Palety") ?? 0m;
+            }
+
+            if (sumaPaletCalkowita > LIMIT_PALET_OSTRZEZENIE)
+            {
+                var result = ShowWarningQuestion(
+                    $"Łączna liczba palet ({sumaPaletCalkowita:N1}) przekracza limit TIR ({LIMIT_PALET_OSTRZEZENIE}).\n\n" +
+                    "Czy na pewno chcesz zapisać to zamówienie?",
+                    "Uwaga - przekroczenie limitu");
+
+                if (result == DialogResult.No) return;
+            }
+
+            if (!_idZamowieniaDoEdycji.HasValue && !string.IsNullOrEmpty(_selectedKlientId))
+            {
+                DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+                var existingOrder = await CheckForExistingOrder(_selectedKlientId, dataProdukcji);
+
+                if (existingOrder != null)
+                {
+                    var odbiorcaNazwa = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId)?.Nazwa ?? "Nieznany";
+
+                    using var duplicateDialog = new DuplicateOrderDialog(odbiorcaNazwa, dataProdukcji, existingOrder);
+                    if (duplicateDialog.ShowDialog(this) != System.Windows.Forms.DialogResult.OK || !duplicateDialog.ProceedWithSave)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            Cursor = Cursors.WaitCursor;
+            btnZapisz.Enabled = false;
+
+            try
+            {
+                await SaveOrderAsync();
+                string summary = BuildOrderSummary();
+                bool isEdit = _idZamowieniaDoEdycji.HasValue;
+
+                using var afterSaveDialog = new AfterSaveDialog(summary, isEdit);
+                afterSaveDialog.ShowDialog(this);
+
+                if (afterSaveDialog.CreateAnother)
+                {
+                    ClearFormForNewOrder();
+                }
+                else
+                {
+                    this.DialogResult = System.Windows.Forms.DialogResult.OK;
+                    this.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowError("Błąd zapisu: " + ex.Message);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+                btnZapisz.Enabled = true;
+            }
+        }
+        private void DataGridViewZamowienie_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.ColumnIndex < 0 || e.RowIndex < 0) return;
+
+            var columnName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "Cena")
+            {
+                if (e.Value == null || e.Value == DBNull.Value)
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (e.Value is string cenaStr)
+                {
+                    if (string.IsNullOrWhiteSpace(cenaStr))
+                    {
+                        e.Value = "";
+                        e.FormattingApplied = true;
+                    }
+                    else if (decimal.TryParse(cenaStr, NumberStyles.Any, _pl, out decimal cenaValue))
+                    {
+                        if (cenaValue == 0m)
+                        {
+                            e.Value = "";
+                            e.FormattingApplied = true;
+                        }
+                        else
+                        {
+                            e.Value = cenaValue.ToString("N2", _pl);
+                            e.FormattingApplied = true;
+                        }
+                    }
+                }
+            }
+        }
+        private async Task SaveOrderAsync()
+        {
+            await using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            bool dataProdukcjiExists = await CheckIfColumnExists(cn, "DataProdukcji");
+            bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");
+
+            await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
+
+            int orderId;
+            decimal sumaPojemnikow = 0;
+            decimal sumaPalet = 0;
+            bool czyJakikolwiekE2 = false;
+
+            foreach (DataRow r in _dt.Rows)
+            {
+                if (r.Field<decimal>("Ilosc") > 0m)
+                {
+                    sumaPojemnikow += r.Field<decimal>("Pojemniki");
+                    sumaPalet += r.Field<decimal>("Palety");
+                    if (r.Field<bool>("E2")) czyJakikolwiekE2 = true;
+                }
+            }
+
+            DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+            string transportStatus = (chkWlasnyOdbior?.Checked == true) ? "Wlasny" : "Oczekuje";
+
+            if (_idZamowieniaDoEdycji.HasValue)
+            {
+                orderId = _idZamowieniaDoEdycji.Value;
+
+                string updateSql = @"UPDATE [dbo].[ZamowieniaMieso] SET 
+            DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, 
+            KtoMod = @km, KiedyMod = SYSDATETIME(), LiczbaPojemnikow = @poj, 
+            LiczbaPalet = @pal, TrybE2 = @e2, TransportStatus = @ts";
+
+                if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
+                if (dataUbojuExists) updateSql += ", DataUboju = @duboj";
+
+                updateSql += " WHERE Id = @id";
+
+                var cmdUpdate = new SqlCommand(updateSql, cn, tr);
+                cmdUpdate.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
+                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+                cmdUpdate.Parameters.AddWithValue("@dp", dataPrzyjazdu);
+
+                if (dataProdukcjiExists) cmdUpdate.Parameters.AddWithValue("@dprod", dataProdukcji);
+                if (dataUbojuExists) cmdUpdate.Parameters.AddWithValue("@duboj", dataProdukcji);
+
+                cmdUpdate.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
+                cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
+                cmdUpdate.Parameters.AddWithValue("@km", UserID);
+                cmdUpdate.Parameters.AddWithValue("@id", orderId);
+                cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
+                cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
+                cmdUpdate.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
+                cmdUpdate.Parameters.AddWithValue("@ts", transportStatus);
+
+                await cmdUpdate.ExecuteNonQueryAsync();
+
+                var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @id", cn, tr);
+                cmdDelete.Parameters.AddWithValue("@id", orderId);
+                await cmdDelete.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id), 0) + 1 FROM [dbo].[ZamowieniaMieso]", cn, tr);
+                orderId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
+
+                string insertColumns = "Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus";
+                string insertValues = "@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, @ts";
+
+                if (dataProdukcjiExists) { insertColumns += ", DataProdukcji"; insertValues += ", @dprod"; }
+                if (dataUbojuExists) { insertColumns += ", DataUboju"; insertValues += ", @duboj"; }
+
+                string insertSql = $@"INSERT INTO [dbo].[ZamowieniaMieso] ({insertColumns}) VALUES ({insertValues})";
+
+                var cmdInsert = new SqlCommand(insertSql, cn, tr);
+                cmdInsert.Parameters.AddWithValue("@id", orderId);
+                cmdInsert.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
+                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+                cmdInsert.Parameters.AddWithValue("@dp", dataPrzyjazdu);
+
+                if (dataProdukcjiExists) cmdInsert.Parameters.AddWithValue("@dprod", dataProdukcji);
+                if (dataUbojuExists) cmdInsert.Parameters.AddWithValue("@duboj", dataProdukcji);
+
+                cmdInsert.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
+                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
+                cmdInsert.Parameters.AddWithValue("@u", UserID);
+                cmdInsert.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
+                cmdInsert.Parameters.AddWithValue("@pal", sumaPalet);
+                cmdInsert.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
+                cmdInsert.Parameters.AddWithValue("@ts", transportStatus);
+
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
+
+            var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
+        (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal) 
+        VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia, @hallal)", cn, tr);
+
+            cmdInsertItem.Parameters.Add("@zid", SqlDbType.Int);
+            cmdInsertItem.Parameters.Add("@kt", SqlDbType.Int);
+            cmdInsertItem.Parameters.Add("@il", SqlDbType.Decimal);
+            cmdInsertItem.Parameters.Add("@ce", SqlDbType.VarChar, 20);  // VARCHAR!
+            cmdInsertItem.Parameters.Add("@poj", SqlDbType.Int);
+            cmdInsertItem.Parameters.Add("@pal", SqlDbType.Decimal);
+            cmdInsertItem.Parameters.Add("@e2", SqlDbType.Bit);
+            cmdInsertItem.Parameters.Add("@folia", SqlDbType.Bit);
+            cmdInsertItem.Parameters.Add("@hallal", SqlDbType.Bit);
+
+            foreach (DataRow r in _dt.Rows)
+            {
+                if (r.Field<decimal>("Ilosc") <= 0m) continue;
+
+                cmdInsertItem.Parameters["@zid"].Value = orderId;
+                cmdInsertItem.Parameters["@kt"].Value = r.Field<int>("Id");
+                cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
+
+                // OBSŁUGA CENY - STRING (VARCHAR w bazie)
+                if (r.IsNull("Cena"))
+                {
+                    cmdInsertItem.Parameters["@ce"].Value = "0";
+                }
+                else
+                {
+                    string cenaStr = r.Field<string>("Cena") ?? "";
+                    if (string.IsNullOrWhiteSpace(cenaStr) || !decimal.TryParse(cenaStr, NumberStyles.Any, _pl, out decimal cenaVal) || cenaVal <= 0)
+                    {
+                        cmdInsertItem.Parameters["@ce"].Value = "0";
+                    }
+                    else
+                    {
+                        cmdInsertItem.Parameters["@ce"].Value = cenaVal.ToString("F2", CultureInfo.InvariantCulture);
+                    }
+                }
+
+                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(r.Field<decimal>("Pojemniki"));
+                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal>("Palety");
+                cmdInsertItem.Parameters["@e2"].Value = r.Field<bool>("E2");
+                cmdInsertItem.Parameters["@folia"].Value = r.Field<bool>("Folia");
+                cmdInsertItem.Parameters["@hallal"].Value = r.Field<bool>("Hallal");
+
+                await cmdInsertItem.ExecuteNonQueryAsync();
+            }
+
+            await tr.CommitAsync();
+        }
         #endregion
 
         #region Grid Ostatnich Odbiorców
@@ -1242,9 +1493,11 @@ namespace Kalendarz1
                     {
                         r["E2"] = false;
                         r["Folia"] = false;
+                        r["Hallal"] = false;
                         r["Ilosc"] = 0m;
                         r["Pojemniki"] = 0m;
                         r["Palety"] = 0m;
+                        r["Cena"] = DBNull.Value;  // POPRAWIONE - było 0m
                     }
                     _blokujObslugeZmian = false;
                     textBoxUwagi.Text = "";
@@ -1254,7 +1507,6 @@ namespace Kalendarz1
                 RecalcSum();
             }
         }
-
         private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
         {
             var path = new GraphicsPath();
@@ -1786,96 +2038,13 @@ namespace Kalendarz1
                 dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
             }
 
+            if (chkWlasnyOdbior != null)
+            {
+                chkWlasnyOdbior.Checked = false;
+            }
+
             RecalcSum();
         }
-
-        private void BuildDataTableSchema()
-        {
-            _dt.Columns.Add("Id", typeof(int));
-            _dt.Columns.Add("Kod", typeof(string));
-            _dt.Columns.Add("Katalog", typeof(string));
-            _dt.Columns.Add("E2", typeof(bool));
-            _dt.Columns.Add("Folia", typeof(bool));
-            _dt.Columns.Add("Palety", typeof(decimal));
-            _dt.Columns.Add("Pojemniki", typeof(decimal));
-            _dt.Columns.Add("Ilosc", typeof(decimal));
-            _dt.Columns.Add("KodTowaru", typeof(string));
-            _dt.Columns.Add("KodKopia", typeof(string));
-            _dt.Columns.Add("MaWartosci", typeof(int));
-
-            _view = new DataView(_dt);
-            _view.RowFilter = $"Katalog = '{_aktywnyKatalog}'";
-            _view.Sort = "MaWartosci ASC, Kod ASC";
-            dataGridViewZamowienie.DataSource = _view;
-
-            dataGridViewZamowienie.Columns["Id"]!.Visible = false;
-            dataGridViewZamowienie.Columns["KodTowaru"]!.Visible = false;
-            dataGridViewZamowienie.Columns["Katalog"]!.Visible = false;
-            dataGridViewZamowienie.Columns["MaWartosci"]!.Visible = false;
-
-            var cKod = dataGridViewZamowienie.Columns["Kod"]!;
-            cKod.ReadOnly = true;
-            cKod.FillWeight = 165;
-            cKod.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-            cKod.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
-            cKod.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
-            cKod.HeaderText = "Towar";
-
-            var cE2 = dataGridViewZamowienie.Columns["E2"] as DataGridViewCheckBoxColumn;
-            if (cE2 != null)
-            {
-                cE2.HeaderText = "40 E2";
-                cE2.FillWeight = 25;
-                cE2.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                cE2.DefaultCellStyle.Padding = new Padding(3);
-                cE2.DefaultCellStyle.BackColor = Color.FromArgb(254, 242, 242);
-                cE2.ToolTipText = "40 pojemników/paletę";
-            }
-
-            var cFolia = dataGridViewZamowienie.Columns["Folia"] as DataGridViewCheckBoxColumn;
-            if (cFolia != null)
-            {
-                cFolia.HeaderText = "Folia";
-                cFolia.FillWeight = 25;
-                cFolia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                cFolia.DefaultCellStyle.Padding = new Padding(3);
-                cFolia.DefaultCellStyle.BackColor = Color.FromArgb(240, 247, 237);
-                cFolia.ToolTipText = "Zapakowane w folię";
-            }
-
-            var cPalety = dataGridViewZamowienie.Columns["Palety"]!;
-            cPalety.HeaderText = "Palety";
-            cPalety.FillWeight = 75;
-            cPalety.DefaultCellStyle.Format = "N0";
-            cPalety.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cPalety.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10.5f);
-            cPalety.DefaultCellStyle.ForeColor = Color.FromArgb(239, 68, 68);
-
-            var cPojemniki = dataGridViewZamowienie.Columns["Pojemniki"]!;
-            cPojemniki.HeaderText = "Pojemniki";
-            cPojemniki.FillWeight = 95;
-            cPojemniki.DefaultCellStyle.Format = "N0";
-            cPojemniki.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cPojemniki.DefaultCellStyle.ForeColor = Color.FromArgb(92, 138, 58);
-
-            var cIlosc = dataGridViewZamowienie.Columns["Ilosc"]!;
-            cIlosc.FillWeight = 105;
-            cIlosc.DefaultCellStyle.Format = "N0";
-            cIlosc.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            cIlosc.HeaderText = "Ilość (kg)";
-            cIlosc.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 10.5f);
-            cIlosc.DefaultCellStyle.ForeColor = Color.FromArgb(92, 138, 58);
-
-            var cKodKopia = dataGridViewZamowienie.Columns["KodKopia"]!;
-            cKodKopia.ReadOnly = true;
-            cKodKopia.FillWeight = 165;
-            cKodKopia.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            cKodKopia.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
-            cKodKopia.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
-            cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
-            cKodKopia.HeaderText = "Towar";
-        }
-
         private void WireUpUIEvents()
         {
             dataGridViewZamowienie.CellValueChanged += DataGridViewZamowienie_CellValueChanged;
@@ -1884,6 +2053,7 @@ namespace Kalendarz1
             dataGridViewZamowienie.RowPostPaint += DataGridViewZamowienie_RowPostPaint;
             dataGridViewZamowienie.ColumnWidthChanged += (s, e) => dataGridViewZamowienie.Invalidate();
             dataGridViewZamowienie.CurrentCellDirtyStateChanged += DataGridViewZamowienie_CurrentCellDirtyStateChanged;
+            dataGridViewZamowienie.CellFormatting += DataGridViewZamowienie_CellFormatting;  // DODAJ TĘ LINIĘ
 
             txtSzukajOdbiorcy.TextChanged += TxtSzukajOdbiorcy_TextChanged;
             txtSzukajOdbiorcy.KeyDown += TxtSzukajOdbiorcy_KeyDown;
@@ -1899,98 +2069,6 @@ namespace Kalendarz1
             cbHandlowiecFilter.DropDownStyle = ComboBoxStyle.DropDownList;
             cbHandlowiecFilter.SelectedIndexChanged += CbHandlowiecFilter_SelectedIndexChanged;
         }
-
-        private void ListaWynikowOdbiorcy_Click(object? sender, EventArgs e) => WybierzOdbiorceZListy();
-
-        private async void CbHandlowiecFilter_SelectedIndexChanged(object? sender, EventArgs e)
-        {
-            string? handlowiec = cbHandlowiecFilter.SelectedItem?.ToString();
-            await LoadOstatnieZamowienia();
-            UpdateOstatniOdbiorcyGrid(handlowiec);
-            TxtSzukajOdbiorcy_TextChanged(null, EventArgs.Empty);
-        }
-
-        private void DataGridViewZamowienie_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
-        {
-            if (dataGridViewZamowienie.CurrentCell is DataGridViewCheckBoxCell)
-            {
-                dataGridViewZamowienie.CommitEdit(DataGridViewDataErrorContexts.Commit);
-            }
-        }
-
-        private void DataGridViewZamowienie_RowPostPaint(object? sender, DataGridViewRowPostPaintEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-
-            var row = dataGridViewZamowienie.Rows[e.RowIndex];
-            var dataRow = (row.DataBoundItem as DataRowView)?.Row;
-            if (dataRow == null) return;
-
-            string kod = dataRow.Field<string>("Kod") ?? "";
-            decimal ilosc = dataRow.Field<decimal?>("Ilosc") ?? 0m;
-            decimal pojemniki = dataRow.Field<decimal?>("Pojemniki") ?? 0m;
-            decimal palety = dataRow.Field<decimal?>("Palety") ?? 0m;
-            bool e2 = dataRow.Field<bool>("E2");
-            bool folia = dataRow.Field<bool>("Folia");
-
-            bool maWartosci = (ilosc > 0 || pojemniki > 0 || palety > 0);
-
-            if (maWartosci)
-            {
-                row.DefaultCellStyle.BackColor = Color.FromArgb(240, 253, 244);
-                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(187, 247, 208);
-                row.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
-            }
-            else
-            {
-                row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : Color.FromArgb(249, 250, 251);
-                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(224, 242, 215);
-                row.DefaultCellStyle.Font = new Font("Segoe UI", 9.5f);
-            }
-
-            var e2Cell = row.Cells["E2"];
-            var foliaCell = row.Cells["Folia"];
-
-            if (e2)
-            {
-                e2Cell.Style.BackColor = Color.FromArgb(254, 202, 202);
-                e2Cell.Style.SelectionBackColor = Color.FromArgb(252, 165, 165);
-            }
-            else if (!maWartosci)
-            {
-                e2Cell.Style.BackColor = Color.FromArgb(254, 242, 242);
-                e2Cell.Style.SelectionBackColor = Color.FromArgb(254, 226, 226);
-            }
-            else
-            {
-                e2Cell.Style.BackColor = Color.FromArgb(254, 240, 240);
-                e2Cell.Style.SelectionBackColor = Color.FromArgb(220, 252, 231);
-            }
-
-            if (folia)
-            {
-                foliaCell.Style.BackColor = Color.FromArgb(224, 242, 215);
-                foliaCell.Style.SelectionBackColor = Color.FromArgb(187, 247, 208);
-            }
-            else if (!maWartosci)
-            {
-                foliaCell.Style.BackColor = Color.FromArgb(240, 247, 237);
-                foliaCell.Style.SelectionBackColor = Color.FromArgb(224, 242, 215);
-            }
-            else
-            {
-                foliaCell.Style.BackColor = Color.FromArgb(245, 250, 243);
-                foliaCell.Style.SelectionBackColor = Color.FromArgb(220, 252, 231);
-            }
-
-            if (CzyRysowacSeparatorPo(kod))
-            {
-                using var pen = new Pen(Color.FromArgb(209, 213, 219), 2);
-                var bounds = e.RowBounds;
-                e.Graphics.DrawLine(pen, bounds.Left, bounds.Bottom - 1, bounds.Right, bounds.Bottom - 1);
-            }
-        }
-
         #endregion
 
         #region Asynchroniczne Ładowanie Danych
@@ -2009,12 +2087,12 @@ namespace Kalendarz1
             var excludedProducts = new HashSet<string> { "KURCZAK B", "FILET C" };
 
             var priorityOrder = new Dictionary<string, int>
-            {
-                { "KURCZAK A", 1 }, { "FILET A", 2 }, { "ĆWIARTKA", 3 }, { "SKRZYDŁO I", 4 },
-                { "NOGA", 5 }, { "PAŁKA", 6 }, { "KORPUS", 7 }, { "POLĘDWICZKI", 8 },
-                { "SERCE", 9 }, { "WĄTROBA", 10 }, { "ŻOŁĄDKI", 11 }, { "ĆWIARTKA II", 12 },
-                { "FILET II", 13 }, { "FILET II PP", 14 }, { "SKRZYDŁO II", 15 }
-            };
+    {
+        { "KURCZAK A", 1 }, { "FILET A", 2 }, { "ĆWIARTKA", 3 }, { "SKRZYDŁO I", 4 },
+        { "NOGA", 5 }, { "PAŁKA", 6 }, { "KORPUS", 7 }, { "POLĘDWICZKI", 8 },
+        { "SERCE", 9 }, { "WĄTROBA", 10 }, { "ŻOŁĄDKI", 11 }, { "ĆWIARTKA II", 12 },
+        { "FILET II", 13 }, { "FILET II PP", 14 }, { "SKRZYDŁO II", 15 }
+    };
 
             await using var cn = new SqlConnection(_connHandel);
             await cn.OpenAsync();
@@ -2055,11 +2133,11 @@ namespace Kalendarz1
 
                 foreach (var item in sortedList)
                 {
-                    _dt.Rows.Add(item.Id, item.Kod, item.Katalog, false, false, 0m, 0m, 0m, item.Kod, item.Kod, 1);
+                    // POPRAWIONE - ostatni parametr to DBNull.Value zamiast 0m
+                    _dt.Rows.Add(item.Id, item.Kod, item.Katalog, false, false, false, 0m, 0m, 0m, DBNull.Value, item.Kod, item.Kod, 1);
                 }
             }
         }
-
         private bool CzyRysowacSeparatorPo(string kod)
         {
             if (string.IsNullOrEmpty(kod)) return false;
@@ -2103,6 +2181,122 @@ namespace Kalendarz1
 
         #region Logika Biznesowa i Zdarzenia UI
 
+        private void ListaWynikowOdbiorcy_Click(object? sender, EventArgs e) => WybierzOdbiorceZListy();
+
+        private async void CbHandlowiecFilter_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            string? handlowiec = cbHandlowiecFilter.SelectedItem?.ToString();
+            await LoadOstatnieZamowienia();
+            UpdateOstatniOdbiorcyGrid(handlowiec);
+            TxtSzukajOdbiorcy_TextChanged(null, EventArgs.Empty);
+        }
+
+        private void DataGridViewZamowienie_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+        {
+            if (dataGridViewZamowienie.CurrentCell is DataGridViewCheckBoxCell)
+            {
+                dataGridViewZamowienie.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void DataGridViewZamowienie_RowPostPaint(object? sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            var row = dataGridViewZamowienie.Rows[e.RowIndex];
+            var dataRow = (row.DataBoundItem as DataRowView)?.Row;
+            if (dataRow == null) return;
+
+            string kod = dataRow.Field<string>("Kod") ?? "";
+            decimal ilosc = dataRow.Field<decimal?>("Ilosc") ?? 0m;
+            decimal pojemniki = dataRow.Field<decimal?>("Pojemniki") ?? 0m;
+            decimal palety = dataRow.Field<decimal?>("Palety") ?? 0m;
+            bool e2 = dataRow.Field<bool>("E2");
+            bool folia = dataRow.Field<bool>("Folia");
+            bool hallal = dataRow.Field<bool>("Hallal");
+
+            // POPRAWIONE - odczytywanie STRING
+            decimal cena = 0m;
+            if (!dataRow.IsNull("Cena"))
+            {
+                string cenaStr = dataRow.Field<string>("Cena") ?? "";
+                decimal.TryParse(cenaStr, NumberStyles.Any, _pl, out cena);
+            }
+
+            bool maWartosci = (ilosc > 0 || pojemniki > 0 || palety > 0 || cena > 0);
+
+            if (maWartosci)
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(240, 253, 244);
+                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(187, 247, 208);
+                row.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
+            }
+            else
+            {
+                row.DefaultCellStyle.BackColor = (e.RowIndex % 2 == 0) ? Color.White : Color.FromArgb(249, 250, 251);
+                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(224, 242, 215);
+                row.DefaultCellStyle.Font = new Font("Segoe UI", 9.5f);
+            }
+
+            var e2Cell = row.Cells["E2"];
+            var foliaCell = row.Cells["Folia"];
+            var hallalCell = row.Cells["Hallal"];
+
+            if (e2)
+            {
+                e2Cell.Style.BackColor = Color.FromArgb(254, 202, 202);
+                e2Cell.Style.SelectionBackColor = Color.FromArgb(252, 165, 165);
+            }
+            else if (!maWartosci)
+            {
+                e2Cell.Style.BackColor = Color.FromArgb(254, 242, 242);
+                e2Cell.Style.SelectionBackColor = Color.FromArgb(254, 226, 226);
+            }
+            else
+            {
+                e2Cell.Style.BackColor = Color.FromArgb(254, 240, 240);
+                e2Cell.Style.SelectionBackColor = Color.FromArgb(220, 252, 231);
+            }
+
+            if (folia)
+            {
+                foliaCell.Style.BackColor = Color.FromArgb(224, 242, 215);
+                foliaCell.Style.SelectionBackColor = Color.FromArgb(187, 247, 208);
+            }
+            else if (!maWartosci)
+            {
+                foliaCell.Style.BackColor = Color.FromArgb(240, 247, 237);
+                foliaCell.Style.SelectionBackColor = Color.FromArgb(224, 242, 215);
+            }
+            else
+            {
+                foliaCell.Style.BackColor = Color.FromArgb(245, 250, 243);
+                foliaCell.Style.SelectionBackColor = Color.FromArgb(220, 252, 231);
+            }
+
+            if (hallal)
+            {
+                hallalCell.Style.BackColor = Color.FromArgb(200, 255, 200);
+                hallalCell.Style.SelectionBackColor = Color.FromArgb(170, 240, 170);
+            }
+            else if (!maWartosci)
+            {
+                hallalCell.Style.BackColor = Color.FromArgb(240, 255, 240);
+                hallalCell.Style.SelectionBackColor = Color.FromArgb(220, 245, 220);
+            }
+            else
+            {
+                hallalCell.Style.BackColor = Color.FromArgb(235, 255, 235);
+                hallalCell.Style.SelectionBackColor = Color.FromArgb(220, 252, 231);
+            }
+
+            if (CzyRysowacSeparatorPo(kod))
+            {
+                using var pen = new Pen(Color.FromArgb(209, 213, 219), 2);
+                var bounds = e.RowBounds;
+                e.Graphics.DrawLine(pen, bounds.Left, bounds.Bottom - 1, bounds.Right, bounds.Bottom - 1);
+            }
+        }
         private void TxtSzukajOdbiorcy_TextChanged(object? sender, EventArgs e)
         {
             var query = txtSzukajOdbiorcy.Text.Trim().ToLower();
@@ -2193,66 +2387,6 @@ namespace Kalendarz1
             }
         }
 
-        private void DataGridViewZamowienie_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
-        {
-            if (_blokujObslugeZmian || e.RowIndex < 0) return;
-
-            var row = (dataGridViewZamowienie.Rows[e.RowIndex].DataBoundItem as DataRowView)?.Row;
-            if (row == null) return;
-
-            _blokujObslugeZmian = true;
-
-            string changedColumnName = dataGridViewZamowienie.Columns[e.ColumnIndex].Name;
-            string kodTowaru = row.Field<string>("Kod") ?? "";
-
-            bool useE2 = row.Field<bool>("E2");
-            decimal pojemnikNaPalete = useE2 ? POJEMNIKOW_NA_PALECIE_E2 : POJEMNIKOW_NA_PALECIE;
-            decimal kgNaPojemnik = GetKgPerContainer(kodTowaru);
-            decimal kgNaPalete = pojemnikNaPalete * kgNaPojemnik;
-
-            try
-            {
-                switch (changedColumnName)
-                {
-                    case "E2":
-                        decimal currentPalety = ParseDec(row["Palety"]);
-                        if (currentPalety > 0)
-                        {
-                            row["Pojemniki"] = currentPalety * pojemnikNaPalete;
-                            row["Ilosc"] = currentPalety * kgNaPalete;
-                        }
-                        break;
-
-                    case "Ilosc":
-                        decimal ilosc = ParseDec(row["Ilosc"]);
-                        row["Pojemniki"] = (ilosc > 0 && kgNaPojemnik > 0) ? Math.Round(ilosc / kgNaPojemnik, 0) : 0m;
-                        row["Palety"] = (ilosc > 0 && kgNaPalete > 0) ? ilosc / kgNaPalete : 0m;
-                        MarkInvalid(dataGridViewZamowienie.Rows[e.RowIndex].Cells["Ilosc"], ilosc < 0);
-                        break;
-
-                    case "Pojemniki":
-                        decimal pojemniki = ParseDec(row["Pojemniki"]);
-                        row["Ilosc"] = pojemniki * kgNaPojemnik;
-                        row["Palety"] = (pojemniki > 0 && pojemnikNaPalete > 0) ? pojemniki / pojemnikNaPalete : 0m;
-                        break;
-
-                    case "Palety":
-                        decimal palety = ParseDec(row["Palety"]);
-                        row["Pojemniki"] = palety * pojemnikNaPalete;
-                        row["Ilosc"] = palety * kgNaPalete;
-                        break;
-                }
-
-                decimal iloscAktualna = ParseDec(row["Ilosc"]);
-                row["MaWartosci"] = (iloscAktualna > 0) ? 0 : 1;
-            }
-            finally
-            {
-                _blokujObslugeZmian = false;
-            }
-            RecalcSum();
-        }
-
         private void DataGridViewZamowienie_EditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
         {
             if (e.Control is TextBox tb)
@@ -2273,18 +2407,19 @@ namespace Kalendarz1
                 row["Palety"] = 0m;
                 row["Pojemniki"] = 0m;
                 row["Ilosc"] = 0m;
+                row["Cena"] = DBNull.Value;  // NULL, nie 0m ani ""
                 row["MaWartosci"] = 1;
             }
             _blokujObslugeZmian = false;
             RecalcSum();
         }
-
         private void CreateHeaderIcons()
         {
             _headerIcons["Kod"] = CreateIconForText("PROD");
             _headerIcons["Palety"] = CreatePalletIcon();
             _headerIcons["Pojemniki"] = CreateContainerIcon();
             _headerIcons["Ilosc"] = CreateScaleIcon();
+            _headerIcons["Cena"] = CreatePriceIcon();
             _headerIcons["KodTowaru"] = CreateIconForText("PROD");
             _headerIcons["KodKopia"] = CreateIconForText("PROD");
         }
@@ -2326,6 +2461,18 @@ namespace Kalendarz1
             return bmp;
         }
 
+        private Image CreatePriceIcon()
+        {
+            var bmp = new Bitmap(16, 16);
+            using var g = Graphics.FromImage(bmp);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+            using var font = new Font("Arial", 9f, FontStyle.Bold);
+            using var brush = new SolidBrush(Color.FromArgb(41, 128, 185));
+            g.DrawString("$", font, brush, -1, 1);
+            return bmp;
+        }
+
         private Image CreateIconForText(string text)
         {
             var bmp = new Bitmap(16, 16);
@@ -2360,7 +2507,6 @@ namespace Kalendarz1
 
             UpdateTransportBars(sumaPalety);
         }
-
         private decimal ParseDec(object? v)
         {
             var s = v?.ToString()?.Trim();
@@ -2422,9 +2568,11 @@ namespace Kalendarz1
             {
                 r["E2"] = false;
                 r["Folia"] = false;
+                r["Hallal"] = false;
                 r["Ilosc"] = 0m;
                 r["Pojemniki"] = 0m;
                 r["Palety"] = 0m;
+                r["Cena"] = DBNull.Value;  // NULL, nie 0m ani ""
                 r["MaWartosci"] = 1;
             }
             _blokujObslugeZmian = false;
@@ -2449,6 +2597,11 @@ namespace Kalendarz1
                 dateTimePickerGodzinaPrzyjazdu.Value = DateTime.Today.AddHours(8);
             }
 
+            if (chkWlasnyOdbior != null)
+            {
+                chkWlasnyOdbior.Checked = false;
+            }
+
             btnZapisz.Text = "Zapisz";
 
             cbHandlowiecFilter.SelectedItem = selectedHandlowiec;
@@ -2461,7 +2614,7 @@ namespace Kalendarz1
             {
                 lblLimitInfo.Text = "Wybierz odbiorcę";
                 lblLimitInfo.ForeColor = Color.FromArgb(107, 114, 128);
-                lblLimitInfo.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+                lblLimitInfo.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
             }
             if (progressLimit != null) progressLimit.Value = 0;
             if (panelPlatnosci != null) panelPlatnosci.BackColor = Color.White;
@@ -2469,131 +2622,9 @@ namespace Kalendarz1
             RecalcSum();
             txtSzukajOdbiorcy.Focus();
         }
-
         #endregion
 
-        #region Zapis i Odczyt Zamówienia
-
-        private async Task LoadZamowienieAsync(int id)
-        {
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-
-            bool dataProdukcjiExists = false;
-            try
-            {
-                await using var cmdCheck = new SqlCommand(@"
-            SELECT COUNT(*) 
-            FROM sys.columns 
-            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
-            AND name = 'DataProdukcji'", cn);
-                int count = (int)await cmdCheck.ExecuteScalarAsync();
-                dataProdukcjiExists = count > 0;
-            }
-            catch { }
-
-            string sqlQuery = dataProdukcjiExists
-                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
-                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
-
-            await using (var cmdZ = new SqlCommand(sqlQuery, cn))
-            {
-                cmdZ.Parameters.AddWithValue("@Id", id);
-                await using var rd = await cmdZ.ExecuteReaderAsync();
-                if (await rd.ReadAsync())
-                {
-                    dateTimePickerSprzedaz.Value = rd.GetDateTime(0);
-                    UstawOdbiorce(rd.GetInt32(1).ToString());
-                    textBoxUwagi.Text = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
-                    dateTimePickerGodzinaPrzyjazdu.Value = rd.GetDateTime(3);
-
-                    if (dateTimePickerProdukcji != null)
-                    {
-                        if (dataProdukcjiExists && rd.FieldCount > 4 && !await rd.IsDBNullAsync(4))
-                        {
-                            dateTimePickerProdukcji.Value = rd.GetDateTime(4);
-                        }
-                        else
-                        {
-                            dateTimePickerProdukcji.Value = DateTime.Today;
-                        }
-                    }
-                }
-            }
-
-            _blokujObslugeZmian = true;
-            foreach (DataRow r in _dt.Rows)
-            {
-                r["E2"] = false;
-                r["Folia"] = false;
-                r["Ilosc"] = 0m;
-                r["Pojemniki"] = 0m;
-                r["Palety"] = 0m;
-                r["MaWartosci"] = 1;
-            }
-
-            var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia)>();
-
-            await using (var cmdT = new SqlCommand(@"
-        SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
-               ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
-               ISNULL(Folia, 0) as Folia
-        FROM [dbo].[ZamowieniaMiesoTowar]
-        WHERE ZamowienieId=@Id", cn))
-            {
-                cmdT.Parameters.AddWithValue("@Id", id);
-                await using var rd = await cmdT.ExecuteReaderAsync();
-
-                while (await rd.ReadAsync())
-                {
-                    zamowienieTowary.Add((
-                        rd.GetInt32(0),
-                        await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1),
-                        rd.GetInt32(2),
-                        rd.GetDecimal(3),
-                        rd.GetBoolean(4),
-                        rd.GetBoolean(5)
-                    ));
-                }
-            }
-
-            bool czySaMrozonki = false;
-
-            foreach (var towar in zamowienieTowary)
-            {
-                var rows = _dt.Select($"Id = {towar.KodTowaru}");
-                if (rows.Any())
-                {
-                    var row = rows[0];
-                    string katalog = row.Field<string>("Katalog") ?? "";
-
-                    if (katalog == "67153") czySaMrozonki = true;
-
-                    row["Ilosc"] = towar.Ilosc;
-                    row["Pojemniki"] = towar.Pojemniki;
-                    row["Palety"] = towar.Palety;
-                    row["E2"] = towar.E2;
-                    row["Folia"] = towar.Folia;
-                    row["MaWartosci"] = (towar.Ilosc > 0) ? 0 : 1;
-                }
-            }
-
-            if (czySaMrozonki && rbMrozony != null)
-            {
-                rbMrozony.Checked = true;
-                _aktywnyKatalog = "67153";
-            }
-            else if (rbSwiezy != null)
-            {
-                rbSwiezy.Checked = true;
-                _aktywnyKatalog = "67095";
-            }
-
-            _view.RowFilter = $"Katalog = '{_aktywnyKatalog}'";
-
-            _blokujObslugeZmian = false;
-            RecalcSum();
-        }
+        #region Helper Methods
 
         private bool ValidateBeforeSave(out string message)
         {
@@ -2641,85 +2672,6 @@ namespace Kalendarz1
             return IsSpecialProduct(kod) ? KG_NA_POJEMNIKU_SPECJALNY : KG_NA_POJEMNIKU;
         }
 
-        private async void btnZapisz_Click(object? sender, EventArgs e)
-        {
-            if (!ValidateBeforeSave(out var msg))
-            {
-                ShowWarning(msg, "Błąd danych");
-                return;
-            }
-
-            decimal sumaPaletCalkowita = 0m;
-            foreach (DataRow r in _dt.Rows)
-            {
-                sumaPaletCalkowita += r.Field<decimal?>("Palety") ?? 0m;
-            }
-
-            if (sumaPaletCalkowita > LIMIT_PALET_OSTRZEZENIE)
-            {
-                var result = ShowWarningQuestion(
-                    $"Łączna liczba palet ({sumaPaletCalkowita:N1}) przekracza limit TIR ({LIMIT_PALET_OSTRZEZENIE}).\n\n" +
-                    "Czy na pewno chcesz zapisać to zamówienie?",
-                    "Uwaga - przekroczenie limitu");
-
-                if (result == DialogResult.No) return;
-            }
-
-            // NOWE: Sprawdzanie duplikatów
-            if (!_idZamowieniaDoEdycji.HasValue && !string.IsNullOrEmpty(_selectedKlientId))
-            {
-                DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
-                var existingOrder = await CheckForExistingOrder(_selectedKlientId, dataProdukcji);
-
-                if (existingOrder != null)
-                {
-                    var odbiorcaNazwa = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId)?.Nazwa ?? "Nieznany";
-
-                    using var duplicateDialog = new DuplicateOrderDialog(odbiorcaNazwa, dataProdukcji, existingOrder);
-                    if (duplicateDialog.ShowDialog(this) != DialogResult.OK || !duplicateDialog.ProceedWithSave)
-                    {
-                        return; // Użytkownik anulował
-                    }
-                }
-            }
-
-            Cursor = Cursors.WaitCursor;
-            btnZapisz.Enabled = false;
-
-            try
-            {
-                await SaveOrderAsync();
-                string summary = BuildOrderSummary();
-                bool isEdit = _idZamowieniaDoEdycji.HasValue;
-
-                // NOWY DIALOG
-                using var afterSaveDialog = new AfterSaveDialog(summary, isEdit);
-                afterSaveDialog.ShowDialog(this);
-
-                if (afterSaveDialog.CreateAnother)
-                {
-                    // Użytkownik chce utworzyć kolejne zamówienie
-                    ClearFormForNewOrder();
-                }
-                else
-                {
-                    // Użytkownik chce wrócić do podsumowania
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowError("Błąd zapisu: " + ex.Message);
-            }
-            finally
-            {
-                Cursor = Cursors.Default;
-                btnZapisz.Enabled = true;
-            }
-        }
-
-        // NOWA METODA: Sprawdzanie istniejącego zamówienia
         private async Task<string?> CheckForExistingOrder(string klientId, DateTime dataProdukcji)
         {
             try
@@ -2727,15 +2679,14 @@ namespace Kalendarz1
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Sprawdzamy czy kolumna DataProdukcji istnieje
                 bool dataProdukcjiExists = false;
                 try
                 {
                     await using var cmdCheck = new SqlCommand(@"
-                        SELECT COUNT(*) 
-                        FROM sys.columns 
-                        WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
-                        AND name = 'DataProdukcji'", cn);
+                SELECT COUNT(*) 
+                FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+                AND name = 'DataProdukcji'", cn);
                     int count = (int)await cmdCheck.ExecuteScalarAsync();
                     dataProdukcjiExists = count > 0;
                 }
@@ -2746,12 +2697,12 @@ namespace Kalendarz1
                     : "DataZamowienia = @DataProdukcji";
 
                 string sql = $@"
-                    SELECT TOP 1 zm.Id, zm.DataZamowienia, zm.DataPrzyjazdu, zm.LiczbaPalet, zm.LiczbaPojemnikow
-                    FROM [dbo].[ZamowieniaMieso] zm
-                    WHERE zm.KlientId = @KlientId 
-                    AND {whereClause}
-                    AND zm.Status <> 'Anulowane'
-                    ORDER BY zm.DataUtworzenia DESC";
+            SELECT TOP 1 zm.Id, zm.DataZamowienia, zm.DataPrzyjazdu, zm.LiczbaPalet, zm.LiczbaPojemnikow
+            FROM [dbo].[ZamowieniaMieso] zm
+            WHERE zm.KlientId = @KlientId 
+            AND {whereClause}
+            AND zm.Status <> 'Anulowane'
+            ORDER BY zm.DataUtworzenia DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@KlientId", int.Parse(klientId));
@@ -2775,14 +2726,13 @@ namespace Kalendarz1
                     sb.AppendLine();
                     sb.AppendLine("Lista produktów:");
 
-                    // Pobierz szczegóły towarów
                     reader.Close();
 
                     var cmdItems = new SqlCommand(@"
-                        SELECT tw.Kod, zmt.Ilosc, zmt.Pojemniki, zmt.Palety
-                        FROM [dbo].[ZamowieniaMiesoTowar] zmt
-                        JOIN [HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.Id
-                        WHERE zmt.ZamowienieId = @Id", cn);
+                SELECT tw.Kod, zmt.Ilosc, zmt.Pojemniki, zmt.Palety, ISNULL(zmt.Cena, '0') as Cena
+                FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                JOIN [HANDEL].[HM].[TW] tw ON zmt.KodTowaru = tw.Id
+                WHERE zmt.ZamowienieId = @Id", cn);
                     cmdItems.Parameters.AddWithValue("@Id", existingId);
 
                     await using var readerItems = await cmdItems.ExecuteReaderAsync();
@@ -2793,7 +2743,13 @@ namespace Kalendarz1
                         int poj = readerItems.IsDBNull(2) ? 0 : readerItems.GetInt32(2);
                         decimal pal = readerItems.IsDBNull(3) ? 0 : readerItems.GetDecimal(3);
 
-                        sb.AppendLine($"  • {kod}: {ilosc:N0} kg ({poj} poj., {pal:N1} pal.)");
+                        // STRING!
+                        string cenaStr = readerItems.IsDBNull(4) ? "0" : readerItems.GetString(4);
+                        decimal cena = 0m;
+                        decimal.TryParse(cenaStr, NumberStyles.Any, CultureInfo.InvariantCulture, out cena);
+
+                        string cenaDisplay = cena > 0 ? $", {cena:N2} zł/kg" : "";
+                        sb.AppendLine($"  • {kod}: {ilosc:N0} kg ({poj} poj., {pal:N1} pal.{cenaDisplay})");
                     }
 
                     return sb.ToString();
@@ -2803,9 +2759,116 @@ namespace Kalendarz1
             }
             catch
             {
-                return null; // W razie błędu nie blokujemy zapisu
+                return null;
             }
         }
+        private async Task<bool> CheckIfColumnExists(SqlConnection cn, string columnName)
+        {
+            try
+            {
+                await using var cmd = new SqlCommand(@"
+            SELECT COUNT(*) 
+            FROM sys.columns 
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+            AND name = @ColumnName", cn);
+                cmd.Parameters.AddWithValue("@ColumnName", columnName);
+                int count = (int)await cmd.ExecuteScalarAsync();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private string BuildOrderSummary()
+        {
+            var sb = new StringBuilder();
+            var orderedItems = _dt.AsEnumerable().Where(r => r.Field<decimal?>("Ilosc") > 0m).ToList();
+
+            var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
+            string nazwaOdbiorcy = odbiorca?.Nazwa ?? "Nieznany odbiorca";
+
+            sb.AppendLine($"Odbiorca: {nazwaOdbiorcy}");
+            sb.AppendLine($"Data produkcji: {dateTimePickerProdukcji?.Value:yyyy-MM-dd (dddd)}");
+            sb.AppendLine($"Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd (dddd)}");
+
+            if (chkWlasnyOdbior?.Checked == true)
+            {
+                sb.AppendLine($"Transport: WŁASNY ODBIÓR");
+            }
+
+            var swiezeItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67095").ToList();
+            var mrozoneItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67153").ToList();
+
+            if (swiezeItems.Any() && mrozoneItems.Any())
+            {
+                sb.AppendLine($"\nZAMÓWIENIE MIESZANE: {swiezeItems.Count} świeżych + {mrozoneItems.Count} mrożonych");
+            }
+            else if (mrozoneItems.Any())
+            {
+                sb.AppendLine($"\nProdukty mrożone: {mrozoneItems.Count}");
+            }
+
+            var e2Items = orderedItems.Where(r => r.Field<bool>("E2")).ToList();
+            if (e2Items.Any()) sb.AppendLine($"Towary E2 (40 poj./pal.): {e2Items.Count}");
+
+            var foliaItems = orderedItems.Where(r => r.Field<bool>("Folia")).ToList();
+            if (foliaItems.Any()) sb.AppendLine($"Towary w folii: {foliaItems.Count}");
+
+            var hallalItems = orderedItems.Where(r => r.Field<bool>("Hallal")).ToList();
+            if (hallalItems.Any()) sb.AppendLine($"🔪 Towary Hallal: {hallalItems.Count}");
+
+            sb.AppendLine("\nZamówione towary:");
+
+            decimal totalPojemniki = 0;
+            decimal totalPalety = 0;
+            decimal totalCena = 0;
+
+            foreach (var item in orderedItems)
+            {
+                string katalog = item.Field<string>("Katalog") == "67153" ? " [MROŻONY]" : "";
+                string e2Marker = item.Field<bool>("E2") ? " [E2]" : "";
+                string foliaMarker = item.Field<bool>("Folia") ? " [FOLIA]" : "";
+                string hallalMarker = item.Field<bool>("Hallal") ? " [🔪 HALLAL]" : "";
+                decimal pojemniki = item.Field<decimal>("Pojemniki");
+                decimal palety = item.Field<decimal>("Palety");
+
+                // POPRAWIONE - odczytywanie STRING
+                decimal cena = 0m;
+                if (!item.IsNull("Cena"))
+                {
+                    string cenaStr = item.Field<string>("Cena") ?? "";
+                    decimal.TryParse(cenaStr, NumberStyles.Any, _pl, out cena);
+                }
+
+                totalPojemniki += pojemniki;
+                totalPalety += palety;
+
+                if (cena > 0)
+                {
+                    totalCena += cena * item.Field<decimal>("Ilosc");
+                }
+
+                string cenaStrDisplay = cena > 0 ? $", {cena:N2} zł/kg" : "";
+
+                sb.AppendLine($"  {item.Field<string>("Kod")}{katalog}{e2Marker}{foliaMarker}{hallalMarker}: {item.Field<decimal>("Ilosc"):N0} kg " +
+                            $"({pojemniki:N0} poj., {palety:N1} pal.{cenaStrDisplay})");
+            }
+
+            decimal totalKg = orderedItems.Sum(r => r.Field<decimal>("Ilosc"));
+            sb.AppendLine($"\nPodsumowanie:");
+            sb.AppendLine($"  Łącznie: {totalKg:N0} kg");
+            sb.AppendLine($"  Pojemników: {totalPojemniki:N0}");
+            sb.AppendLine($"  Palet: {totalPalety:N1}");
+            if (totalCena > 0)
+            {
+                sb.AppendLine($"  Wartość: {totalCena:N2} zł");
+            }
+
+            return sb.ToString();
+        }
+        #endregion
 
         #region MessageBox Helpers
         private void ShowInfo(string message, string title = "Informacja")
@@ -2834,208 +2897,403 @@ namespace Kalendarz1
         }
         #endregion
 
-        private string BuildOrderSummary()
+        #region Nested Classes - Dialogs
+
+        private class DuplicateOrderDialog : Form
         {
-            var sb = new StringBuilder();
-            var orderedItems = _dt.AsEnumerable().Where(r => r.Field<decimal?>("Ilosc") > 0m).ToList();
+            public bool ProceedWithSave { get; private set; } = false;
 
-            var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
-            string nazwaOdbiorcy = odbiorca?.Nazwa ?? "Nieznany odbiorca";
-
-            sb.AppendLine($"Odbiorca: {nazwaOdbiorcy}");
-            sb.AppendLine($"Data produkcji: {dateTimePickerProdukcji?.Value:yyyy-MM-dd (dddd)}");
-            sb.AppendLine($"Data sprzedaży: {dateTimePickerSprzedaz.Value:yyyy-MM-dd (dddd)}");
-
-            var swiezeItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67095").ToList();
-            var mrozoneItems = orderedItems.Where(r => r.Field<string>("Katalog") == "67153").ToList();
-
-            if (swiezeItems.Any() && mrozoneItems.Any())
+            public DuplicateOrderDialog(string odbiorcaNazwa, DateTime dataProdukcji, string existingOrderDetails)
             {
-                sb.AppendLine($"\nZAMÓWIENIE MIESZANE: {swiezeItems.Count} świeżych + {mrozoneItems.Count} mrożonych");
-            }
-            else if (mrozoneItems.Any())
-            {
-                sb.AppendLine($"\nProdukty mrożone: {mrozoneItems.Count}");
-            }
+                Text = "⚠ Ostrzeżenie - Znaleziono istniejące zamówienie";
+                Size = new Size(650, 520);
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9.5f);
 
-            var e2Items = orderedItems.Where(r => r.Field<bool>("E2")).ToList();
-            if (e2Items.Any()) sb.AppendLine($"Towary E2 (40 poj./pal.): {e2Items.Count}");
-
-            var foliaItems = orderedItems.Where(r => r.Field<bool>("Folia")).ToList();
-            if (foliaItems.Any()) sb.AppendLine($"Towary w folii: {foliaItems.Count}");
-
-            sb.AppendLine("\nZamówione towary:");
-
-            decimal totalPojemniki = 0;
-            decimal totalPalety = 0;
-
-            foreach (var item in orderedItems)
-            {
-                string katalog = item.Field<string>("Katalog") == "67153" ? " [MROŻONY]" : "";
-                string e2Marker = item.Field<bool>("E2") ? " [E2]" : "";
-                string foliaMarker = item.Field<bool>("Folia") ? " [FOLIA]" : "";
-                decimal pojemniki = item.Field<decimal>("Pojemniki");
-                decimal palety = item.Field<decimal>("Palety");
-
-                totalPojemniki += pojemniki;
-                totalPalety += palety;
-
-                sb.AppendLine($"  {item.Field<string>("Kod")}{katalog}{e2Marker}{foliaMarker}: {item.Field<decimal>("Ilosc"):N0} kg " +
-                            $"({pojemniki:N0} poj., {palety:N1} pal.)");
-            }
-
-            decimal totalKg = orderedItems.Sum(r => r.Field<decimal>("Ilosc"));
-            sb.AppendLine($"\nPodsumowanie:");
-            sb.AppendLine($"  Łącznie: {totalKg:N0} kg");
-            sb.AppendLine($"  Pojemników: {totalPojemniki:N0}");
-            sb.AppendLine($"  Palet: {totalPalety:N1}");
-
-            return sb.ToString();
-        }
-
-        private async Task SaveOrderAsync()
-        {
-            await using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-
-            bool dataProdukcjiExists = await CheckIfColumnExists(cn, "DataProdukcji");
-            bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");
-
-            await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
-
-            int orderId;
-            decimal sumaPojemnikow = 0;
-            decimal sumaPalet = 0;
-            bool czyJakikolwiekE2 = false;
-
-            foreach (DataRow r in _dt.Rows)
-            {
-                if (r.Field<decimal>("Ilosc") > 0m)
+                var headerPanel = new Panel
                 {
-                    sumaPojemnikow += r.Field<decimal>("Pojemniki");
-                    sumaPalet += r.Field<decimal>("Palety");
-                    if (r.Field<bool>("E2")) czyJakikolwiekE2 = true;
-                }
+                    Dock = DockStyle.Top,
+                    Height = 80,
+                    BackColor = Color.FromArgb(231, 76, 60)
+                };
+
+                var iconLabel = new Label
+                {
+                    Text = "⚠",
+                    Font = new Font("Segoe UI", 36f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(20, 15),
+                    Size = new Size(50, 50),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                var titleLabel = new Label
+                {
+                    Text = "UWAGA - DUPLIKAT ZAMÓWIENIA",
+                    Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(80, 25),
+                    AutoSize = true
+                };
+
+                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
+
+                var infoPanel = new Panel
+                {
+                    Location = new Point(20, 100),
+                    Size = new Size(610, 280),
+                    BackColor = Color.FromArgb(255, 243, 224),
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                var lblInfo = new Label
+                {
+                    Text = $"⚠ ZNALEZIONO ISTNIEJĄCE ZAMÓWIENIE\n\n" +
+                           $"Dla odbiorcy: {odbiorcaNazwa}\n" +
+                           $"Z datą produkcji: {dataProdukcji:yyyy-MM-dd (dddd)}\n\n" +
+                           $"Czy na pewno chcesz utworzyć kolejne zamówienie na ten sam dzień?\n\n" +
+                           $"Szczegóły istniejącego zamówienia:",
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(120, 53, 15),
+                    Location = new Point(15, 15),
+                    Size = new Size(580, 120),
+                    TextAlign = ContentAlignment.TopLeft
+                };
+
+                var txtDetails = new TextBox
+                {
+                    Text = existingOrderDetails,
+                    Location = new Point(15, 140),
+                    Size = new Size(580, 125),
+                    Multiline = true,
+                    ReadOnly = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Font = new Font("Segoe UI", 9f),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                infoPanel.Controls.AddRange(new Control[] { lblInfo, txtDetails });
+
+                var btnYes = new Button
+                {
+                    Text = "TAK - Utwórz nowe zamówienie",
+                    Size = new Size(200, 45),
+                    Location = new Point(120, 405),
+                    BackColor = Color.FromArgb(231, 76, 60),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnYes.FlatAppearance.BorderSize = 0;
+                btnYes.Click += (s, e) => { ProceedWithSave = true; DialogResult = DialogResult.OK; Close(); };
+
+                var btnNo = new Button
+                {
+                    Text = "NIE - Anuluj",
+                    Size = new Size(160, 45),
+                    Location = new Point(330, 405),
+                    BackColor = Color.FromArgb(149, 165, 166),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnNo.FlatAppearance.BorderSize = 0;
+                btnNo.Click += (s, e) => { ProceedWithSave = false; DialogResult = DialogResult.Cancel; Close(); };
+
+                Controls.AddRange(new Control[] { headerPanel, infoPanel, btnYes, btnNo });
             }
-
-            DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
-
-            if (_idZamowieniaDoEdycji.HasValue)
-            {
-                orderId = _idZamowieniaDoEdycji.Value;
-
-                string updateSql = @"UPDATE [dbo].[ZamowieniaMieso] SET 
-            DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, 
-            KtoMod = @km, KiedyMod = SYSDATETIME(), LiczbaPojemnikow = @poj, 
-            LiczbaPalet = @pal, TrybE2 = @e2";
-
-                if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
-                if (dataUbojuExists) updateSql += ", DataUboju = @duboj";
-
-                updateSql += " WHERE Id = @id";
-
-                var cmdUpdate = new SqlCommand(updateSql, cn, tr);
-                cmdUpdate.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
-                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
-                cmdUpdate.Parameters.AddWithValue("@dp", dataPrzyjazdu);
-
-                if (dataProdukcjiExists) cmdUpdate.Parameters.AddWithValue("@dprod", dataProdukcji);
-                if (dataUbojuExists) cmdUpdate.Parameters.AddWithValue("@duboj", dataProdukcji);
-
-                cmdUpdate.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
-                cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
-                cmdUpdate.Parameters.AddWithValue("@km", UserID);
-                cmdUpdate.Parameters.AddWithValue("@id", orderId);
-                cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
-                cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
-                cmdUpdate.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
-
-                await cmdUpdate.ExecuteNonQueryAsync();
-
-                var cmdDelete = new SqlCommand(@"DELETE FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @id", cn, tr);
-                cmdDelete.Parameters.AddWithValue("@id", orderId);
-                await cmdDelete.ExecuteNonQueryAsync();
-            }
-            else
-            {
-                var cmdGetId = new SqlCommand(@"SELECT ISNULL(MAX(Id), 0) + 1 FROM [dbo].[ZamowieniaMieso]", cn, tr);
-                orderId = Convert.ToInt32(await cmdGetId.ExecuteScalarAsync());
-
-                string insertColumns = "Id, DataZamowienia, DataPrzyjazdu, KlientId, Uwagi, IdUser, DataUtworzenia, LiczbaPojemnikow, LiczbaPalet, TrybE2, TransportStatus";
-                string insertValues = "@id, @dz, @dp, @kid, @uw, @u, GETDATE(), @poj, @pal, @e2, 'Oczekuje'";
-
-                if (dataProdukcjiExists) { insertColumns += ", DataProdukcji"; insertValues += ", @dprod"; }
-                if (dataUbojuExists) { insertColumns += ", DataUboju"; insertValues += ", @duboj"; }
-
-                string insertSql = $@"INSERT INTO [dbo].[ZamowieniaMieso] ({insertColumns}) VALUES ({insertValues})";
-
-                var cmdInsert = new SqlCommand(insertSql, cn, tr);
-                cmdInsert.Parameters.AddWithValue("@id", orderId);
-                cmdInsert.Parameters.AddWithValue("@dz", dateTimePickerSprzedaz.Value.Date);
-                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
-                cmdInsert.Parameters.AddWithValue("@dp", dataPrzyjazdu);
-
-                if (dataProdukcjiExists) cmdInsert.Parameters.AddWithValue("@dprod", dataProdukcji);
-                if (dataUbojuExists) cmdInsert.Parameters.AddWithValue("@duboj", dataProdukcji);
-
-                cmdInsert.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
-                cmdInsert.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
-                cmdInsert.Parameters.AddWithValue("@u", UserID);
-                cmdInsert.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
-                cmdInsert.Parameters.AddWithValue("@pal", sumaPalet);
-                cmdInsert.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
-
-                await cmdInsert.ExecuteNonQueryAsync();
-            }
-
-            var cmdInsertItem = new SqlCommand(@"INSERT INTO [dbo].[ZamowieniaMiesoTowar] 
-        (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
-        VALUES (@zid, @kt, @il, @ce, @poj, @pal, @e2, @folia)", cn, tr);
-
-            cmdInsertItem.Parameters.Add("@zid", SqlDbType.Int);
-            cmdInsertItem.Parameters.Add("@kt", SqlDbType.Int);
-            cmdInsertItem.Parameters.Add("@il", SqlDbType.Decimal);
-            cmdInsertItem.Parameters.Add("@ce", SqlDbType.Decimal);
-            cmdInsertItem.Parameters.Add("@poj", SqlDbType.Int);
-            cmdInsertItem.Parameters.Add("@pal", SqlDbType.Decimal);
-            cmdInsertItem.Parameters.Add("@e2", SqlDbType.Bit);
-            cmdInsertItem.Parameters.Add("@folia", SqlDbType.Bit);
-
-            foreach (DataRow r in _dt.Rows)
-            {
-                if (r.Field<decimal>("Ilosc") <= 0m) continue;
-
-                cmdInsertItem.Parameters["@zid"].Value = orderId;
-                cmdInsertItem.Parameters["@kt"].Value = r.Field<int>("Id");
-                cmdInsertItem.Parameters["@il"].Value = r.Field<decimal>("Ilosc");
-                cmdInsertItem.Parameters["@ce"].Value = 0m;
-                cmdInsertItem.Parameters["@poj"].Value = (int)Math.Round(r.Field<decimal>("Pojemniki"));
-                cmdInsertItem.Parameters["@pal"].Value = r.Field<decimal>("Palety");
-                cmdInsertItem.Parameters["@e2"].Value = r.Field<bool>("E2");
-                cmdInsertItem.Parameters["@folia"].Value = r.Field<bool>("Folia");
-
-                await cmdInsertItem.ExecuteNonQueryAsync();
-            }
-
-            await tr.CommitAsync();
         }
 
-        private async Task<bool> CheckIfColumnExists(SqlConnection cn, string columnName)
+        private class AfterSaveDialog : Form
         {
-            try
+            public bool CreateAnother { get; private set; } = false;
+
+            public AfterSaveDialog(string orderSummary, bool isEdit)
             {
-                await using var cmd = new SqlCommand(@"
-            SELECT COUNT(*) 
-            FROM sys.columns 
-            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
-            AND name = @ColumnName", cn);
-                cmd.Parameters.AddWithValue("@ColumnName", columnName);
-                int count = (int)await cmd.ExecuteScalarAsync();
-                return count > 0;
+                Text = isEdit ? "✓ Zamówienie zaktualizowane" : "✓ Zamówienie zapisane";
+                Size = new Size(700, 750);
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                TopMost = true;
+                BackColor = Color.White;
+                Font = new Font("Segoe UI", 9.5f);
+
+                var mainPanel = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoScroll = true,
+                    Padding = new Padding(0)
+                };
+
+                var headerPanel = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 90,
+                    BackColor = Color.FromArgb(92, 138, 58)
+                };
+
+                var iconLabel = new Label
+                {
+                    Text = "✓",
+                    Font = new Font("Segoe UI", 40f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(20, 20),
+                    Size = new Size(60, 50),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                var titleLabel = new Label
+                {
+                    Text = (isEdit ? "ZAMÓWIENIE ZAKTUALIZOWANE" : "ZAMÓWIENIE ZAPISANE").ToUpper(),
+                    Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(90, 30),
+                    AutoSize = true
+                };
+
+                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel });
+
+                var contentPanel = new Panel
+                {
+                    Location = new Point(0, 90),
+                    Size = new Size(684, 560),
+                    AutoScroll = true,
+                    Padding = new Padding(20)
+                };
+
+                int yPos = 20;
+
+                var lines = orderSummary.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                var odbiorcy = lines.FirstOrDefault(l => l.StartsWith("Odbiorca:"))?.Replace("Odbiorca:", "").Trim();
+                if (!string.IsNullOrEmpty(odbiorcy))
+                {
+                    var odbPanel = CreateInfoBox("📦 ODBIORCA", odbiorcy, Color.FromArgb(52, 152, 219), yPos);
+                    contentPanel.Controls.Add(odbPanel);
+                    yPos += 80;
+                }
+
+                var dataProdukcji = lines.FirstOrDefault(l => l.StartsWith("Data produkcji:"))?.Replace("Data produkcji:", "").Trim();
+                var dataSprzedazy = lines.FirstOrDefault(l => l.StartsWith("Data sprzedaży:"))?.Replace("Data sprzedaży:", "").Trim();
+                var transport = lines.FirstOrDefault(l => l.StartsWith("Transport:"))?.Replace("Transport:", "").Trim();
+
+                if (!string.IsNullOrEmpty(dataProdukcji))
+                {
+                    var prodPanel = CreateInfoBox("🏭 DATA PRODUKCJI", dataProdukcji, Color.FromArgb(155, 89, 182), yPos);
+                    contentPanel.Controls.Add(prodPanel);
+                    yPos += 80;
+                }
+
+                if (!string.IsNullOrEmpty(dataSprzedazy))
+                {
+                    var sprzPanel = CreateInfoBox("🚚 DATA ODBIORU", dataSprzedazy, Color.FromArgb(230, 126, 34), yPos);
+                    contentPanel.Controls.Add(sprzPanel);
+                    yPos += 80;
+                }
+
+                if (!string.IsNullOrEmpty(transport))
+                {
+                    var transPanel = CreateInfoBox("🚗 TRANSPORT", transport, Color.FromArgb(46, 204, 113), yPos);
+                    contentPanel.Controls.Add(transPanel);
+                    yPos += 80;
+                }
+
+                var towarStartIndex = Array.FindIndex(lines, l => l.Contains("Zamówione towary:"));
+                var podsumowanieIndex = Array.FindIndex(lines, l => l.Contains("Podsumowanie:"));
+
+                if (towarStartIndex >= 0 && podsumowanieIndex > towarStartIndex)
+                {
+                    var towaryPanel = new Panel
+                    {
+                        Location = new Point(20, yPos),
+                        Size = new Size(640, 200),
+                        BackColor = Color.FromArgb(240, 247, 237),
+                        BorderStyle = BorderStyle.FixedSingle,
+                        AutoScroll = true
+                    };
+
+                    var towaryLabel = new Label
+                    {
+                        Text = "📋 ZAMÓWIONE TOWARY",
+                        Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(31, 41, 55),
+                        Location = new Point(10, 10),
+                        AutoSize = true
+                    };
+                    towaryPanel.Controls.Add(towaryLabel);
+
+                    int towYPos = 40;
+                    for (int i = towarStartIndex + 1; i < podsumowanieIndex; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (string.IsNullOrEmpty(line)) continue;
+
+                        var itemLabel = new Label
+                        {
+                            Text = line,
+                            Font = new Font("Segoe UI", 9f),
+                            ForeColor = Color.FromArgb(55, 65, 81),
+                            Location = new Point(15, towYPos),
+                            Size = new Size(600, 22)
+                        };
+                        towaryPanel.Controls.Add(itemLabel);
+                        towYPos += 24;
+                    }
+
+                    contentPanel.Controls.Add(towaryPanel);
+                    yPos += 210;
+                }
+
+                var podsumowanie = lines.Skip(podsumowanieIndex + 1).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+
+                var summaryPanel = new Panel
+                {
+                    Location = new Point(20, yPos),
+                    Size = new Size(640, 120),
+                    BackColor = Color.FromArgb(224, 242, 215),
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                var summTitle = new Label
+                {
+                    Text = "✓ PODSUMOWANIE",
+                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(92, 138, 58),
+                    Location = new Point(15, 10),
+                    AutoSize = true
+                };
+                summaryPanel.Controls.Add(summTitle);
+
+                int summYPos = 45;
+                foreach (var summLine in podsumowanie)
+                {
+                    var parts = summLine.Split(':');
+                    if (parts.Length == 2)
+                    {
+                        var summLabel = new Label
+                        {
+                            Text = parts[0].Trim() + ":",
+                            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                            ForeColor = Color.FromArgb(55, 65, 81),
+                            Location = new Point(20, summYPos),
+                            Size = new Size(150, 20)
+                        };
+
+                        var summValue = new Label
+                        {
+                            Text = parts[1].Trim(),
+                            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                            ForeColor = Color.FromArgb(92, 138, 58),
+                            Location = new Point(180, summYPos - 2),
+                            AutoSize = true
+                        };
+
+                        summaryPanel.Controls.AddRange(new Control[] { summLabel, summValue });
+                        summYPos += 25;
+                    }
+                }
+
+                contentPanel.Controls.Add(summaryPanel);
+
+                var questionPanel = new Panel
+                {
+                    Location = new Point(0, 655),
+                    Size = new Size(700, 95),
+                    BackColor = Color.FromArgb(236, 240, 241),
+                    Dock = DockStyle.Bottom
+                };
+
+                var lblQuestion = new Label
+                {
+                    Text = "Co chcesz zrobić teraz?",
+                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(44, 62, 80),
+                    Location = new Point(0, 15),
+                    Size = new Size(700, 25),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                var btnNewOrder = new Button
+                {
+                    Text = "➕ UTWÓRZ KOLEJNE ZAMÓWIENIE",
+                    Size = new Size(280, 48),
+                    Location = new Point(80, 45),
+                    BackColor = Color.FromArgb(92, 138, 58),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnNewOrder.FlatAppearance.BorderSize = 0;
+                btnNewOrder.Click += (s, e) => { CreateAnother = true; DialogResult = DialogResult.OK; Close(); };
+
+                var btnBackToSummary = new Button
+                {
+                    Text = "◀ WRÓĆ DO PODSUMOWANIA",
+                    Size = new Size(280, 48),
+                    Location = new Point(370, 45),
+                    BackColor = Color.FromArgb(52, 152, 219),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnBackToSummary.FlatAppearance.BorderSize = 0;
+                btnBackToSummary.Click += (s, e) => { CreateAnother = false; DialogResult = DialogResult.OK; Close(); };
+
+                questionPanel.Controls.AddRange(new Control[] { lblQuestion, btnNewOrder, btnBackToSummary });
+
+                mainPanel.Controls.Add(contentPanel);
+                Controls.Add(headerPanel);
+                Controls.Add(mainPanel);
+                Controls.Add(questionPanel);
             }
-            catch
+
+            private static Panel CreateInfoBox(string title, string value, Color accentColor, int yPos)
             {
-                return false;
+                var panel = new Panel
+                {
+                    Location = new Point(20, yPos),
+                    Size = new Size(640, 70),
+                    BackColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                panel.Paint += (s, e) =>
+                {
+                    using var brush = new SolidBrush(accentColor);
+                    e.Graphics.FillRectangle(brush, 0, 0, 6, panel.Height);
+                };
+
+                var titleLabel = new Label
+                {
+                    Text = title,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    ForeColor = accentColor,
+                    Location = new Point(15, 12),
+                    AutoSize = true
+                };
+
+                var valueLabel = new Label
+                {
+                    Text = value,
+                    Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(31, 41, 55),
+                    Location = new Point(15, 35),
+                    Size = new Size(610, 28)
+                };
+
+                panel.Controls.AddRange(new Control[] { titleLabel, valueLabel });
+                return panel;
             }
         }
 

@@ -502,9 +502,11 @@
 
             <Grid Grid.Column="1" Margin="5,10,10,10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="55*"/>
+                    <RowDefinition Height="45*"/>
+
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="25*"/>
+                    <RowDefinition Height="35*"/>
+
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Style="{StaticResource PanelBorderStyle}">

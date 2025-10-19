@@ -1,4 +1,9 @@
 ﻿#nullable disable
+using DocumentFormat.OpenXml.Wordprocessing;
+using LiveChartsCore.Measure;
+using System.Windows;
+using System.Windows.Forms;
+
 namespace Kalendarz1
 {
     partial class WidokZamowienia
@@ -28,6 +33,7 @@ namespace Kalendarz1
             textBoxUwagi = new System.Windows.Forms.TextBox();
             dateTimePickerGodzinaPrzyjazdu = new System.Windows.Forms.DateTimePicker();
             dateTimePickerSprzedaz = new System.Windows.Forms.DateTimePicker();
+            chkWlasnyOdbior = new System.Windows.Forms.CheckBox();
             panelOstatniOdbiorcy = new System.Windows.Forms.Panel();
             lblOstatniOdbiorcy = new System.Windows.Forms.Label();
             gridOstatniOdbiorcy = new System.Windows.Forms.DataGridView();
@@ -118,6 +124,7 @@ namespace Kalendarz1
             // 
             panelDetaleZamowienia.Controls.Add(listaWynikowOdbiorcy);
             panelDetaleZamowienia.Controls.Add(textBoxUwagi);
+            panelDetaleZamowienia.Controls.Add(chkWlasnyOdbior);
             panelDetaleZamowienia.Controls.Add(dateTimePickerGodzinaPrzyjazdu);
             panelDetaleZamowienia.Controls.Add(dateTimePickerSprzedaz);
             panelDetaleZamowienia.Controls.Add(panelOstatniOdbiorcy);
@@ -149,6 +156,16 @@ namespace Kalendarz1
             textBoxUwagi.Size = new System.Drawing.Size(410, 80);
             textBoxUwagi.TabIndex = 4;
             // 
+            // chkWlasnyOdbior
+            // 
+            chkWlasnyOdbior.AutoSize = true;
+            chkWlasnyOdbior.Location = new System.Drawing.Point(10, 350);
+            chkWlasnyOdbior.Name = "chkWlasnyOdbior";
+            chkWlasnyOdbior.Size = new System.Drawing.Size(105, 19);
+            chkWlasnyOdbior.TabIndex = 6;
+            chkWlasnyOdbior.Text = "Własny odbiór";
+            chkWlasnyOdbior.UseVisualStyleBackColor = true;
+            // 
             // dateTimePickerGodzinaPrzyjazdu
             // 
             dateTimePickerGodzinaPrzyjazdu.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
@@ -163,7 +180,7 @@ namespace Kalendarz1
             dateTimePickerSprzedaz.Format = System.Windows.Forms.DateTimePickerFormat.Short;
             dateTimePickerSprzedaz.Location = new System.Drawing.Point(10, 320);
             dateTimePickerSprzedaz.Name = "dateTimePickerSprzedaz";
-            dateTimePickerSprzedaz.Size = new System.Drawing.Size(203, 23);
+            dateTimePickerSprzedaz.Size = new System.Drawing.Size(165, 23);
             dateTimePickerSprzedaz.TabIndex = 1;
             // 
             // panelOstatniOdbiorcy
@@ -336,6 +353,7 @@ namespace Kalendarz1
         private System.Windows.Forms.Panel panelDetaleZamowienia;
         private System.Windows.Forms.DateTimePicker dateTimePickerSprzedaz;
         private System.Windows.Forms.DateTimePicker dateTimePickerGodzinaPrzyjazdu;
+        private System.Windows.Forms.CheckBox chkWlasnyOdbior;
         private System.Windows.Forms.TextBox textBoxUwagi;
         private System.Windows.Forms.DataGridView dataGridViewZamowienie;
         private System.Windows.Forms.ListBox listaWynikowOdbiorcy;

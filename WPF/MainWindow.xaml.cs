@@ -34,6 +34,7 @@ namespace Kalendarz1.WPF
         private int? _currentOrderId;
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
+        private Button? btnToday; // Dodaj to pole na początku klasy
 
         private bool _showBySlaughterDate = true;
         private bool _slaughterDateColumnExists = true;
@@ -176,6 +177,50 @@ namespace Kalendarz1.WPF
         {
             string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
+            // Najpierw dodaj przycisk "Dziś"
+            btnToday = new Button
+            {
+                Style = (Style)FindResource("DayButtonStyle"),
+                Width = 75,
+                Height = 45,
+                Margin = new Thickness(0, 0, 5, 0)
+            };
+
+            var stackToday = new StackPanel();
+            stackToday.Children.Add(new TextBlock
+            {
+                Text = "Dziś",
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            stackToday.Children.Add(new TextBlock
+            {
+                Text = DateTime.Today.ToString("dd.MM"),
+                FontSize = 9,
+                Foreground = Brushes.White
+            });
+            btnToday.Content = stackToday;
+            btnToday.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+            btnToday.Click += (s, e) =>
+            {
+                _selectedDate = DateTime.Today;
+                UpdateDayButtonDates();
+                _ = RefreshAllDataAsync();
+            };
+
+            panelDays.Children.Add(btnToday);
+
+            // Teraz dodaj separator
+            var separator = new System.Windows.Controls.Separator
+            {
+                Width = 2,
+                Margin = new Thickness(5, 0, 5, 0),
+                Background = new SolidColorBrush(Color.FromRgb(229, 231, 235))
+            };
+            panelDays.Children.Add(separator);
+
+            // Teraz dodaj przyciski dni tygodnia
             for (int i = 0; i < 7; i++)
             {
                 var btn = new Button
@@ -195,7 +240,6 @@ namespace Kalendarz1.WPF
                 panelDays.Children.Add(btn);
             }
         }
-
         private async Task LoadInitialDataAsync()
         {
             await CheckAndCreateSlaughterDateColumnAsync();
@@ -1215,7 +1259,6 @@ namespace Kalendarz1.WPF
 
             MessageBox.Show(info, "Szczegóły zamówienia", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-
         private async void MenuHistoriaZamowien_Click(object sender, RoutedEventArgs e)
         {
             if (_contextMenuSelectedRow == null) return;
@@ -1422,6 +1465,7 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("Status", typeof(string));
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
                 _dtOrders.Columns.Add("MaFolie", typeof(bool));
+                _dtOrders.Columns.Add("MaHallal", typeof(bool));
                 _dtOrders.Columns.Add("Trans", typeof(string));
                 _dtOrders.Columns.Add("Prod", typeof(string));
             }
@@ -1490,12 +1534,14 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
-            THEN 1 ELSE 0 END AS BIT) AS MaFolie{slaughterDateSelect}
+            THEN 1 ELSE 0 END AS BIT) AS MaFolie,
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1) 
+            THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
-                                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
-                                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
+                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
@@ -1542,6 +1588,7 @@ ORDER BY zm.Id";
                 string notes = r["Uwagi"]?.ToString() ?? "";
                 bool hasNote = !string.IsNullOrWhiteSpace(notes);
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
+                bool hasHallal = temp.Columns.Contains("MaHallal") && !(r["MaHallal"] is DBNull) && Convert.ToBoolean(r["MaHallal"]);
 
                 int? transportKursId = null;
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
@@ -1564,6 +1611,11 @@ ORDER BY zm.Id";
                 if (hasFoil)
                 {
                     name = "📦 " + name;
+                }
+
+                if (hasHallal)
+                {
+                    name = "🔪 " + name;
                 }
 
                 decimal released = 0m;
@@ -1605,7 +1657,7 @@ ORDER BY zm.Id";
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, transColumn, prodColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn
                 );
             }
 
@@ -1640,6 +1692,7 @@ ORDER BY zm.Id";
                 row["Status"] = "Wydanie bez zamówienia";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
+                row["MaHallal"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
                 releasesWithoutOrders.Add(row);
@@ -1690,6 +1743,7 @@ ORDER BY zm.Id";
                 summaryRow["Status"] = "SUMA";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
+                summaryRow["MaHallal"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
 
@@ -1699,7 +1753,6 @@ ORDER BY zm.Id";
             SetupOrdersDataGrid();
             ApplyFilters();
         }
-
         private void SetupOrdersDataGrid()
         {
             dgOrders.ItemsSource = _dtOrders.DefaultView;
@@ -1888,7 +1941,7 @@ ORDER BY zm.Id";
 
                 int clientId = 0;
                 string notes = "";
-                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil)>();
+                var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena)>(); // STRING!
                 DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
                 await using (var cn = new SqlConnection(_connLibra))
@@ -1897,9 +1950,9 @@ ORDER BY zm.Id";
 
                     string slaughterDateSelect = _slaughterDateColumnExists ? ", DataUboju" : "";
                     using (var cmdInfo = new SqlCommand($@"
-                        SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect} 
-                        FROM dbo.ZamowieniaMieso 
-                        WHERE Id = @Id", cn))
+                SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect} 
+                FROM dbo.ZamowieniaMieso 
+                WHERE Id = @Id", cn))
                     {
                         cmdInfo.Parameters.AddWithValue("@Id", orderId);
                         using var readerInfo = await cmdInfo.ExecuteReaderAsync();
@@ -1924,9 +1977,9 @@ ORDER BY zm.Id";
                     }
 
                     using (var cmdItems = new SqlCommand(@"
-                        SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia
-                        FROM dbo.ZamowieniaMiesoTowar
-                        WHERE ZamowienieId = @Id", cn))
+                SELECT KodTowaru, Ilosc, ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal, ISNULL(Cena, '0') as Cena
+                FROM dbo.ZamowieniaMiesoTowar
+                WHERE ZamowienieId = @Id", cn))
                     {
                         cmdItems.Parameters.AddWithValue("@Id", orderId);
                         using var readerItems = await cmdItems.ExecuteReaderAsync();
@@ -1936,8 +1989,10 @@ ORDER BY zm.Id";
                             int productCode = readerItems.GetInt32(0);
                             decimal quantity = readerItems.IsDBNull(1) ? 0m : readerItems.GetDecimal(1);
                             bool foil = readerItems.GetBoolean(2);
+                            bool hallal = readerItems.GetBoolean(3);
+                            string cenaStr = readerItems.GetString(4); // STRING z bazy!
 
-                            orderItems.Add((productCode, quantity, foil));
+                            orderItems.Add((productCode, quantity, foil, hallal, cenaStr));
                         }
                     }
                 }
@@ -1978,6 +2033,10 @@ ORDER BY zm.Id";
                 dt.Columns.Add("Wydano", typeof(decimal));
                 dt.Columns.Add("Różnica", typeof(decimal));
                 dt.Columns.Add("Folia", typeof(string));
+                dt.Columns.Add("Hallal", typeof(string));
+                dt.Columns.Add("Cena", typeof(string)); // STRING w DataTable
+
+                var cultureInfo = new CultureInfo("pl-PL");
 
                 foreach (var item in orderItems)
                 {
@@ -1990,8 +2049,19 @@ ORDER BY zm.Id";
                     decimal released = releases.TryGetValue(item.ProductCode, out var w) ? w : 0m;
                     decimal difference = released - ordered;
 
-                    // Zmiana: pokazuj "TAK" tylko gdy jest folia, w przeciwnym razie pusta komórka
-                    dt.Rows.Add(product, ordered, released, difference, item.Foil ? "TAK" : "");
+                    string foliaText = item.Foil ? "TAK" : "";
+                    string hallalText = item.Hallal ? "🔪" : "";
+
+                    // Konwertuj string na decimal dla wyświetlenia
+                    string cenaText = "";
+                    if (!string.IsNullOrWhiteSpace(item.Cena) &&
+                        decimal.TryParse(item.Cena, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cenaValue) &&
+                        cenaValue > 0)
+                    {
+                        cenaText = $"{cenaValue.ToString("N2", cultureInfo)} zł";
+                    }
+
+                    dt.Rows.Add(product, ordered, released, difference, foliaText, hallalText, cenaText);
                     releases.Remove(item.ProductCode);
                 }
 
@@ -2002,7 +2072,7 @@ ORDER BY zm.Id";
 
                     string product = _productCatalogCache.TryGetValue(kv.Key, out var code) ?
                         code : $"Nieznany ({kv.Key})";
-                    dt.Rows.Add(product, 0m, kv.Value, kv.Value, "");
+                    dt.Rows.Add(product, 0m, kv.Value, kv.Value, "", "", "");
                 }
 
                 txtNotes.Text = notes;
@@ -2022,13 +2092,12 @@ ORDER BY zm.Id";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas wczytywania szczegółów zamówienia:\n{ex.Message}",
+                MessageBox.Show($"Błąd podczas wczytywania szczegółów zamówienia:\n{ex.Message}\n\nStack:\n{ex.StackTrace}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 dgDetails.ItemsSource = null;
                 txtNotes.Clear();
             }
         }
-
         private void SetupDetailsDataGrid()
         {
             dgDetails.Columns.Clear();
@@ -2068,11 +2137,26 @@ ORDER BY zm.Id";
             {
                 Header = "Folia",
                 Binding = new System.Windows.Data.Binding("Folia"),
-                Width = new DataGridLength(70),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
-        }
 
+            dgDetails.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hallal",
+                Binding = new System.Windows.Data.Binding("Hallal"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgDetails.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Cena",
+                Binding = new System.Windows.Data.Binding("Cena"),
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+        }
         private async Task DisplayReleaseWithoutOrderDetailsAsync(int clientId, DateTime day)
         {
             day = ValidateSqlDate(day);
@@ -2590,7 +2674,7 @@ ORDER BY zm.Id";
                 bool modeE2 = false;
 
                 using (var cmd = new SqlCommand(@"SELECT KlientId, Uwagi, DataPrzyjazdu, LiczbaPojemnikow, LiczbaPalet, TrybE2 
-                                         FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
+                                 FROM ZamowieniaMieso WHERE Id = @Id", cn, tr))
                 {
                     cmd.Parameters.AddWithValue("@Id", sourceId);
                     using var reader = await cmd.ExecuteReaderAsync();
@@ -2629,9 +2713,10 @@ ORDER BY zm.Id";
                 cmdInsert.Parameters.AddWithValue("@e2", modeE2);
                 await cmdInsert.ExecuteNonQueryAsync();
 
+                // POPRAWIONE - Cena to VARCHAR
                 var cmdCopyItems = new SqlCommand(@"INSERT INTO ZamowieniaMiesoTowar 
-            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia) 
-            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia 
+            (ZamowienieId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal) 
+            SELECT @newId, KodTowaru, Ilosc, Cena, Pojemniki, Palety, E2, Folia, Hallal 
             FROM ZamowieniaMiesoTowar WHERE ZamowienieId = @sourceId", cn, tr);
                 cmdCopyItems.Parameters.AddWithValue("@newId", newId);
                 cmdCopyItems.Parameters.AddWithValue("@sourceId", sourceId);
@@ -2645,7 +2730,6 @@ ORDER BY zm.Id";
                 throw;
             }
         }
-
         #endregion
 
         #region Support Classes
