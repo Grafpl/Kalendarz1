@@ -1540,8 +1540,8 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
-                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
-                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+                                (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
+                                $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
@@ -1626,19 +1626,35 @@ ORDER BY zm.Id";
                         perProduct.Values.Sum();
                 }
 
-                string pickupTerm = arrivalDate.HasValue ?
-                    arrivalDate.Value.ToString("yyyy-MM-dd dddd HH:mm", cultureInfo) :
-                    day.ToString("yyyy-MM-dd dddd", cultureInfo);
+                // ✅ POPRAWKA 1: Skrócone nazwy dni (pon, wt, śr...)
+                string pickupTerm = "";
+                if (arrivalDate.HasValue)
+                {
+                    string dzienTygodnia = arrivalDate.Value.ToString("ddd", cultureInfo); // pon, wt, śr...
+                    pickupTerm = $"{arrivalDate.Value:yyyy-MM-dd} {dzienTygodnia} {arrivalDate.Value:HH:mm}";
+                }
+                else
+                {
+                    string dzienTygodnia = day.ToString("ddd", cultureInfo);
+                    pickupTerm = $"{day:yyyy-MM-dd} {dzienTygodnia}";
+                }
 
+                // ✅ POPRAWKA 2: Tylko imię w "Utworzone przez"
                 string createdBy = "";
                 if (createdDate.HasValue)
                 {
                     string userName = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
-                    createdBy = $"{createdDate.Value:yyyy-MM-dd HH:mm} ({userName})";
+
+                    // Wyciągnij tylko imię (pierwszy wyraz przed spacją)
+                    string imie = userName.Contains(" ") ? userName.Split(' ')[0] : userName;
+
+                    createdBy = $"{createdDate.Value:yyyy-MM-dd HH:mm} ({imie})";
                 }
                 else
                 {
-                    createdBy = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
+                    string userName = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
+                    string imie = userName.Contains(" ") ? userName.Split(' ')[0] : userName;
+                    createdBy = imie;
                 }
 
                 string transColumn = transportKursId.HasValue ? "✓" : "";
@@ -1653,6 +1669,7 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
+                // PO (bez zmian - formatowanie w SetupOrdersDataGrid):
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
@@ -1686,7 +1703,10 @@ ORDER BY zm.Id";
                 row["TrybE2"] = "";
                 row["DataPrzyjecia"] = day;
                 row["GodzinaPrzyjecia"] = "";
-                row["TerminOdbioru"] = day.ToString("yyyy-MM-dd dddd", cultureInfo);
+
+                string dzienTygodnia = day.ToString("ddd", cultureInfo);
+                row["TerminOdbioru"] = $"{day:yyyy-MM-dd} {dzienTygodnia}";
+
                 row["DataUboju"] = DBNull.Value;
                 row["UtworzonePrzez"] = "";
                 row["Status"] = "Wydanie bez zamówienia";
@@ -1729,7 +1749,10 @@ ORDER BY zm.Id";
                 summaryRow["Id"] = -1;
                 summaryRow["KlientId"] = 0;
                 summaryRow["Odbiorca"] = "═══ SUMA ═══";
-                summaryRow["Handlowiec"] = $"Zamówień: {actualOrdersCount}";
+
+                // ✅ POPRAWKA 3: Tylko liczba zamówień (bez tekstu "Zamówień:")
+                summaryRow["Handlowiec"] = actualOrdersCount.ToString();
+
                 summaryRow["IloscZamowiona"] = totalOrdered;
                 summaryRow["IloscFaktyczna"] = totalReleased;
                 summaryRow["Pojemniki"] = 0;
@@ -1761,22 +1784,25 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
+            // 1. Odbiorca
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = DataGridLength.Auto,
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Width = new DataGridLength(200),
+                MinWidth = 200
             });
 
+            // 2. Handlo.
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Handlowiec",
+                Header = "Handlo.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
                 Width = DataGridLength.Auto,
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
+            // 3. Zamówiono
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zamówiono",
@@ -1785,6 +1811,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
+            // 4. Wydano
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wydano",
@@ -1793,6 +1820,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
+            // 5. Palety
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Palety",
@@ -1801,39 +1829,42 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Trans.",
-                Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(50),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Prod.",
-                Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(50),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
+            // 6. Termin Odbioru
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin Odbioru",
                 Binding = new System.Windows.Data.Binding("TerminOdbioru"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                Width = DataGridLength.Auto,
+                MinWidth = 180
             });
 
+            // 7. Utworzone przez
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzone przez",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
-                MinWidth = 80
+                Width = DataGridLength.Auto,
+                MinWidth = 140
+            });
+
+            // ✅ 8. Trans. - PRZENIESIONE NA KONIEC
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Trans.",
+                Binding = new System.Windows.Data.Binding("Trans"),
+                Width = new DataGridLength(65),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // ✅ 9. Prod. - PRZENIESIONE NA KONIEC
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Prod.",
+                Binding = new System.Windows.Data.Binding("Prod"),
+                Width = new DataGridLength(65),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
-
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -1876,7 +1907,6 @@ ORDER BY zm.Id";
                 }
             }
         }
-
         private Color GetColorForSalesman(string salesman)
         {
             if (string.IsNullOrEmpty(salesman))
@@ -2419,28 +2449,32 @@ ORDER BY zm.Id";
                     e.Row.Foreground = Brushes.White;
                     e.Row.FontWeight = FontWeights.Bold;
                     e.Row.FontSize = 14;
+                    e.Row.Height = 40; // Standardowa wysokość dla sumy
                 }
                 else if (produkt.StartsWith("🐔 Kurczak A"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
                     e.Row.FontWeight = FontWeights.SemiBold;
                     e.Row.FontSize = 13;
+                    e.Row.Height = 36;
                 }
                 else if (produkt.StartsWith("🐔 Kurczak B"))
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(179, 229, 252));
                     e.Row.FontWeight = FontWeights.SemiBold;
                     e.Row.FontSize = 13;
+                    e.Row.Height = 36;
                 }
                 else if (produkt.StartsWith("  └"))
                 {
+                    // ✅ POPRAWKA 14: Mniejsze wiersze dla elementów Kurczaka B
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
                     e.Row.FontStyle = FontStyles.Normal;
-                    e.Row.FontSize = 11;
+                    e.Row.FontSize = 10; // Zmniejszone z 11
+                    e.Row.Height = 24;    // Zmniejszone z 32
                 }
             }
         }
-
         private void SetupAggregationDataGrid()
         {
             dgAggregation.Columns.Clear();
@@ -2797,4 +2831,5 @@ ORDER BY zm.Id";
 
         #endregion
     }
+   
 }

@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="🐔 System Zarządzania Wstawieniami Kurczaków" 
         WindowState="Maximized"
@@ -273,14 +274,25 @@
                             </WrapPanel>
                         </Grid>
 
-                        <Button Grid.Column="3" x:Name="btnPomoc" Style="{StaticResource InfoButton}" 
-                                Width="95" Height="28" FontSize="10" Click="BtnPomoc_Click" ToolTip="Instrukcja obsługi systemu" VerticalAlignment="Center" Margin="10,0,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="❓" FontSize="12" Margin="0,0,4,0"/>
-                                <TextBlock Text="Instrukcja" FontSize="10" FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Button>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <Button x:Name="btnStatystyki" Style="{StaticResource InfoButton}" 
+                                    Width="120" Height="28" FontSize="10" Click="BtnStatystyki_Click" 
+                                    ToolTip="Statystyki pracowników" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📊" FontSize="12" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Statystyki" FontSize="10" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
 
+                            <Button x:Name="btnPomoc" Style="{StaticResource InfoButton}" 
+                                    Width="95" Height="28" FontSize="10" Click="BtnPomoc_Click" 
+                                    ToolTip="Instrukcja obsługi systemu">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="❓" FontSize="12" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Instrukcja" FontSize="10" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
                     <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="5" Padding="6,4" Margin="0,4,0,0">
@@ -648,19 +660,11 @@
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      RowHeight="24" FontSize="9">
-                                <DataGrid.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="✅ Potwierdź wstawienie" Click="MenuPotwierdzWstawienie_Click" FontWeight="SemiBold"/>
-                                        <MenuItem Header="📅 Potwierdź i zmień datę" Click="MenuPotwierdzIZmienDate_Click" FontWeight="SemiBold"/>
-                                    </ContextMenu>
-                                </DataGrid.ContextMenu>
-                            </DataGrid>
+                                      RowHeight="24" FontSize="9"/>
                         </Border>
 
                     </Grid>
                 </Border>
-
 
                 <Border Grid.Column="2" Style="{StaticResource CardPanel}">
                     <Grid>

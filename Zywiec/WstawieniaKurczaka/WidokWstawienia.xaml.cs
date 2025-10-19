@@ -1270,19 +1270,63 @@ namespace Kalendarz1
                 Width = 75
             });
         }
+        private void MenuDodajTelefonDoPotwierdzenia_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridDoPotwierdzenia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie z listy.", "Uwaga",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
+            string dostawca = Convert.ToString(row["Dostawca"]);
+
+            var dialogNumer = new OknoDodaniaNumeruDialog(dostawca);
+            if (dialogNumer.ShowDialog() == true)
+            {
+                try
+                {
+                    using (var connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "UPDATE dbo.Dostawcy SET Phone1 = @Phone WHERE ShortName = @Dostawca";
+                        using (var cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Phone", dialogNumer.NumerTelefonu);
+                            cmd.Parameters.AddWithValue("@Dostawca", dostawca);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    MessageBox.Show($"Dodano numer telefonu: {dialogNumer.NumerTelefonu}",
+                        "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoadDoPotwierdzenia();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Błąd zapisu: " + ex.Message, "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
         private void LoadDoPotwierdzenia()
         {
             string query = @"
         SELECT 
-            LP,
-            Dostawca,
-            DataWstawienia,
-            IloscWstawienia
-        FROM dbo.WstawieniaKurczakow
-        WHERE (isConf IS NULL OR isConf = 0)
-          AND DataWstawienia >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
-          AND DataWstawienia <= DATEADD(day, 30, CAST(GETDATE() AS DATE))
-        ORDER BY DataWstawienia ASC";
+            w.LP,
+            w.Dostawca,
+            w.DataWstawienia,
+            w.IloscWstawienia,
+            ISNULL(d.Phone1, '-') AS Telefon
+        FROM dbo.WstawieniaKurczakow w
+        LEFT JOIN dbo.Dostawcy d ON d.ShortName = w.Dostawca
+        WHERE (w.isConf IS NULL OR w.isConf = 0)
+          AND w.DataWstawienia >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+          AND w.DataWstawienia <= DATEADD(day, 30, CAST(GETDATE() AS DATE))
+        ORDER BY w.DataWstawienia ASC";
 
             using (var connection = new SqlConnection(connectionString))
             using (var adapter = new SqlDataAdapter(query, connection))
@@ -1302,14 +1346,7 @@ namespace Kalendarz1
             {
                 Header = "LP",
                 Binding = new Binding("LP"),
-                Width = 35
-            });
-
-            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hodowca",
-                Binding = new Binding("Dostawca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = 40
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1319,7 +1356,14 @@ namespace Kalendarz1
                 {
                     StringFormat = "MM-dd ddd"
                 },
-                Width = 80
+                Width = 85
+            });
+
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hodowca",
+                Binding = new Binding("Dostawca"),
+                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star)
             });
 
             dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
@@ -1329,11 +1373,35 @@ namespace Kalendarz1
                 {
                     StringFormat = "# ##0"
                 },
-                Width = 50
+                Width = 60
             });
-        }
 
-        // ====== OBSŁUGA ZDARZEŃ ======
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Tel",
+                Binding = new Binding("Telefon"),
+                Width = 90
+            });
+
+            // Dodaj context menu
+            var contextMenu = new ContextMenu();
+
+            var menuItemPotwierdz = new MenuItem { Header = "✅ Potwierdź wstawienie", FontWeight = FontWeights.SemiBold };
+            menuItemPotwierdz.Click += MenuPotwierdzWstawienie_Click;
+            contextMenu.Items.Add(menuItemPotwierdz);
+
+            var menuItemPotwierdzData = new MenuItem { Header = "📅 Potwierdź i zmień datę", FontWeight = FontWeights.SemiBold };
+            menuItemPotwierdzData.Click += MenuPotwierdzIZmienDate_Click;
+            contextMenu.Items.Add(menuItemPotwierdzData);
+
+            contextMenu.Items.Add(new Separator());
+
+            var menuItemDodajTel = new MenuItem { Header = "➕ Dodaj numer hodowcy" };
+            menuItemDodajTel.Click += MenuDodajTelefonDoPotwierdzenia_Click;
+            contextMenu.Items.Add(menuItemDodajTel);
+
+            dataGridDoPotwierdzenia.ContextMenu = contextMenu;
+        }        // ====== OBSŁUGA ZDARZEŃ ======
         private void TextBoxFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
             ApplyFilters();
@@ -1348,7 +1416,11 @@ namespace Kalendarz1
         {
             ApplyFilters();
         }
-
+        private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
+        {
+            var statystykiWindow = new StatystykiPracownikow();
+            statystykiWindow.ShowDialog();
+        }
         private void ApplyFilters()
         {
             var view = dataGridWstawienia.ItemsSource as DataView;
@@ -2998,7 +3070,9 @@ namespace Kalendarz1
             mainBorder.Child = grid;
             Content = mainBorder;
         }
+
     }
+
 
     // ====== OKNO DIALOGOWE DLA ZMIANY DATY WSTAWIENIA ======
     public partial class OknoZmianyDatyWstawieniaDialog : Window
@@ -3188,10 +3262,6 @@ namespace Kalendarz1
             mainBorder.Child = grid;
             Content = mainBorder;
         }
-        private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
-        {
-            var statystykiWindow = new StatystykiPracownikow();
-            statystykiWindow.Show();
-        }
+
     }
 }
