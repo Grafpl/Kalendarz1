@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ using System.Windows.Threading;
 
 namespace Kalendarz1
 {
-    public partial class ProdukcjaPanel : Window
+    public partial class ProdukcjaPanel : Window, INotifyPropertyChanged
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -29,13 +30,33 @@ namespace Kalendarz1
         private Dictionary<int, string> _produktLookup = new();
         private DispatcherTimer refreshTimer;
 
-        private ObservableCollection<ZamowienieViewModel> _zamowieniaList = new();
+        public ObservableCollection<ZamowienieViewModel> ZamowieniaList1 { get; set; } = new();
+        public ObservableCollection<ZamowienieViewModel> ZamowieniaList2 { get; set; } = new();
 
-        private static readonly string[] OffalKeywords = { "wątroba", "watrob", "serce", "serca", "żołąd", "zolad", "żołądki", "zoladki" };
+        private double _realizationProgress;
+        public double RealizationProgress
+        {
+            get => _realizationProgress;
+            set { _realizationProgress = value; OnPropertyChanged(); }
+        }
+
+        private string _realizationProgressText;
+        public string RealizationProgressText
+        {
+            get => _realizationProgressText;
+            set { _realizationProgressText = value; OnPropertyChanged(); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
 
         public ProdukcjaPanel()
         {
             InitializeComponent();
+            this.DataContext = this;
             InitializeAsync();
             KeyDown += ProdukcjaPanel_KeyDown;
             StartAutoRefresh();
@@ -46,11 +67,14 @@ namespace Kalendarz1
             await ReloadAllAsync();
         }
 
-        private void ProdukcjaPanel_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void ProdukcjaPanel_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == System.Windows.Input.Key.Escape) Close();
-            if (e.Key == System.Windows.Input.Key.Enter) TryOpenShipmentDetails();
+            if (e.Key == Key.Escape) Close();
+            if (e.Key == Key.Enter) TryOpenShipmentDetails();
         }
+
+        private ZamowienieViewModel SelectedZamowienie =>
+            dgvZamowienia1.SelectedItem as ZamowienieViewModel ?? dgvZamowienia2.SelectedItem as ZamowienieViewModel;
 
         #region Event Handlers
         private async void btnPrev_Click(object sender, RoutedEventArgs e)
@@ -88,7 +112,6 @@ namespace Kalendarz1
 
         private async void btnSaveNotes_Click(object sender, RoutedEventArgs e)
         {
-            await SaveItemNotesAsync();
             await SaveProductionNotesAsync();
         }
 
@@ -102,9 +125,22 @@ namespace Kalendarz1
             Close();
         }
 
-        private async void dgvZamowienia_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void dgvZamowienia1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await LoadPozycjeForSelectedAsync();
+            if (dgvZamowienia1.SelectedItem != null)
+            {
+                dgvZamowienia2.SelectedItem = null;
+                await LoadPozycjeForSelectedAsync();
+            }
+        }
+
+        private async void dgvZamowienia2_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dgvZamowienia2.SelectedItem != null)
+            {
+                dgvZamowienia1.SelectedItem = null;
+                await LoadPozycjeForSelectedAsync();
+            }
         }
 
         private void dgvZamowienia_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -121,45 +157,40 @@ namespace Kalendarz1
         #region Data Loading
         private async Task ReloadAllAsync()
         {
-            lblData.Text = _selectedDate.ToString("yyyy-MM-dd ddd");
-            lblUser.Text = $"Użytkownik: {UserID}";
+            lblData.Text = _selectedDate.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL"));
 
             await PopulateProductFilterAsync();
             await LoadOrdersAsync();
             await LoadIn0ESummaryAsync();
             await LoadPojTuszkiAsync();
             await LoadPozycjeForSelectedAsync();
+            await LoadHandlowcyStatsAsync();
         }
 
         private async Task PopulateProductFilterAsync()
         {
             string dateColumn = "DataUboju";
-            int? prev = _filteredProductId;
             var ids = new HashSet<int>();
 
-            using (var cn = new SqlConnection(_connLibra))
+            try
             {
-                await cn.OpenAsync();
-                string sql = "SELECT DISTINCT zmt.KodTowaru FROM dbo.ZamowieniaMieso z " +
-                            "JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id=zmt.ZamowienieId " +
-                            $"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
-                var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                    if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0));
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    string sql = "SELECT DISTINCT zmt.KodTowaru FROM dbo.ZamowieniaMieso z " +
+                                "JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id=zmt.ZamowienieId " +
+                                $"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                        if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0));
+                }
             }
-
-            using (var cn = new SqlConnection(_connHandel))
+            catch (Exception ex)
             {
-                await cn.OpenAsync();
-                var cmd = new SqlCommand(@"SELECT DISTINCT MZ.idtw FROM HANDEL.HM.MZ MZ 
-                    JOIN HANDEL.HM.MG ON MZ.super=MG.id 
-                    WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data=@D", cn);
-                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                    if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0));
+                MessageBox.Show($"Błąd połączenia z bazą LibraNet:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
             _produktLookup.Clear();
@@ -171,24 +202,28 @@ namespace Kalendarz1
             var items = new List<ComboItem> { new ComboItem(0, "— Wszystkie —") };
             items.AddRange(_produktLookup.OrderBy(k => k.Value).Select(k => new ComboItem(k.Key, k.Value)));
 
+            var prevSelectedValue = cbFiltrProdukt.SelectedValue;
             cbFiltrProdukt.ItemsSource = items;
             cbFiltrProdukt.DisplayMemberPath = "Text";
             cbFiltrProdukt.SelectedValuePath = "Value";
 
-            if (prev.HasValue && items.Any(i => i.Value == prev.Value))
-                cbFiltrProdukt.SelectedItem = items.First(i => i.Value == prev.Value);
+            if (prevSelectedValue != null && items.Any(i => i.Value.Equals(prevSelectedValue)))
+                cbFiltrProdukt.SelectedValue = prevSelectedValue;
             else
                 cbFiltrProdukt.SelectedIndex = 0;
 
-            cbFiltrProdukt.SelectionChanged += async (s, e) =>
+            if (cbFiltrProdukt.Tag == null)
             {
-                if (cbFiltrProdukt.SelectedItem is ComboItem item)
+                cbFiltrProdukt.SelectionChanged += async (s, e) =>
                 {
-                    _filteredProductId = item.Value == 0 ? null : item.Value;
-                    await LoadOrdersAsync();
-                    await LoadPozycjeForSelectedAsync();
-                }
-            };
+                    if (cbFiltrProdukt.SelectedItem is ComboItem item)
+                    {
+                        _filteredProductId = item.Value == 0 ? null : item.Value;
+                        await LoadOrdersAsync();
+                    }
+                };
+                cbFiltrProdukt.Tag = "Initialized";
+            }
         }
 
         private async Task LoadProductLookupAsync(HashSet<int> ids)
@@ -198,26 +233,32 @@ namespace Kalendarz1
 
             for (int i = 0; i < list.Count; i += batch)
             {
-                using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                var slice = list.Skip(i).Take(batch).ToList();
-                var cmd = cn.CreateCommand();
-                var paramNames = new List<string>();
-
-                for (int k = 0; k < slice.Count; k++)
+                try
                 {
-                    var pn = "@p" + k;
-                    cmd.Parameters.AddWithValue(pn, slice[k]);
-                    paramNames.Add(pn);
+                    using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    var slice = list.Skip(i).Take(batch).ToList();
+                    var cmd = cn.CreateCommand();
+                    var paramNames = new List<string>();
+
+                    for (int k = 0; k < slice.Count; k++)
+                    {
+                        var pn = "@p" + k;
+                        cmd.Parameters.AddWithValue(pn, slice[k]);
+                        paramNames.Add(pn);
+                    }
+
+                    cmd.CommandText = $"SELECT ID,kod FROM HM.TW WHERE ID IN ({string.Join(",", paramNames)}) AND katalog=67095";
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        _produktLookup[rd.GetInt32(0)] = rd.GetString(1);
+                    }
                 }
-
-                cmd.CommandText = $"SELECT ID,kod FROM HM.TW WHERE ID IN ({string.Join(",", paramNames)}) AND katalog=67095";
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                catch (Exception ex)
                 {
-                    int id = rd.GetInt32(0);
-                    string kod = rd.IsDBNull(1) ? string.Empty : rd.GetString(1);
-                    _produktLookup[id] = kod;
+                    MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania produktów:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
                 }
             }
         }
@@ -229,70 +270,58 @@ namespace Kalendarz1
             var orderListForGrid = new List<ZamowienieViewModel>();
             var klientIdsWithOrder = new HashSet<int>();
 
-            // 1. Load orders from LibraNet
-            using (var cn = new SqlConnection(_connLibra))
+            try
             {
-                await cn.OpenAsync();
-
-                var sqlBuilder = new System.Text.StringBuilder();
-                sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ");
-                sqlBuilder.Append("ISNULL(z.Status,'Nowe') AS Status, ");
-                sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
-
-                if (_filteredProductId.HasValue)
-                    sqlBuilder.Append(" AND t.KodTowaru=@P");
-
-                sqlBuilder.Append(") AS TotalIlosc, ");
-                sqlBuilder.Append("z.DataUtworzenia, z.TransportKursID, ");
-                sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t ");
-                sqlBuilder.Append("WHERE t.ZamowienieId = z.Id AND t.Folia = 1) ");
-                sqlBuilder.Append("THEN 1 ELSE 0 END AS BIT) AS MaFolie ");
-                sqlBuilder.Append("FROM dbo.ZamowieniaMieso z ");
-                sqlBuilder.Append($"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
-
-                if (_filteredProductId.HasValue)
-                    sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
-
-                var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
-                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                if (_filteredProductId.HasValue)
-                    cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
-
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                using (var cn = new SqlConnection(_connLibra))
                 {
-                    var uwagi = rd.GetString(2);
-                    var info = new ZamowienieInfo
-                    {
-                        Id = rd.GetInt32(0),
-                        KlientId = rd.GetInt32(1),
-                        Uwagi = uwagi,
-                        Status = rd.GetString(3),
-                        TotalIlosc = rd.IsDBNull(4) ? 0 : rd.GetDecimal(4),
-                        IsShipmentOnly = false,
-                        DataUtworzenia = rd.IsDBNull(5) ? null : rd.GetDateTime(5),
-                        MaNotatke = !string.IsNullOrWhiteSpace(uwagi),
-                        MaFolie = !rd.IsDBNull(7) && rd.GetBoolean(7),
-                        TransportKursId = rd.IsDBNull(6) ? null : rd.GetInt64(6)
-                    };
+                    await cn.OpenAsync();
+                    var sqlBuilder = new System.Text.StringBuilder();
+                    sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
+                    sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
+                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    sqlBuilder.Append(") AS TotalIlosc, z.DataUtworzenia, z.TransportKursID, ");
+                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie ");
+                    sqlBuilder.Append($"FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
+                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
-                    _zamowienia[info.Id] = info;
-                    klientIdsWithOrder.Add(info.KlientId);
+                    var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        var info = new ZamowienieInfo
+                        {
+                            Id = rd.GetInt32(0),
+                            KlientId = rd.GetInt32(1),
+                            Uwagi = rd.GetString(2),
+                            Status = rd.GetString(3),
+                            TotalIlosc = rd.IsDBNull(4) ? 0 : rd.GetDecimal(4),
+                            DataUtworzenia = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
+                            TransportKursId = rd.IsDBNull(6) ? null : rd.GetInt64(6),
+                            MaFolie = rd.GetBoolean(7),
+                            MaNotatke = !string.IsNullOrWhiteSpace(rd.GetString(2))
+                        };
+                        _zamowienia[info.Id] = info;
+                        klientIdsWithOrder.Add(info.KlientId);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą LibraNet podczas pobierania zamówień:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
 
             await LoadTransportInfoAsync();
 
             if (cbPokazWydaniaSymfonia.IsChecked == true)
             {
                 var shipments = await LoadShipmentsAsync();
-                var shipmentOnlyClientIds = shipments
-                    .Where(s => !klientIdsWithOrder.Contains(s.KlientId))
-                    .Select(s => s.KlientId)
-                    .Distinct()
-                    .ToList();
-
-                if (shipmentOnlyClientIds.Count > 0)
+                var shipmentOnlyClientIds = shipments.Select(s => s.KlientId).Distinct().Except(klientIdsWithOrder).ToList();
+                if (shipmentOnlyClientIds.Any())
                 {
                     var contractors = await LoadContractorsAsync(shipmentOnlyClientIds);
                     foreach (var s in shipments.Where(s => shipmentOnlyClientIds.Contains(s.KlientId)))
@@ -306,8 +335,7 @@ namespace Kalendarz1
                             Handlowiec = Normalize(cinfo?.Handlowiec),
                             Status = "Wydanie Symfonia",
                             TotalIlosc = s.Qty,
-                            IsShipmentOnly = true,
-                            MaFolie = false
+                            IsShipmentOnly = true
                         };
                         orderListForGrid.Add(new ZamowienieViewModel(info));
                     }
@@ -315,7 +343,7 @@ namespace Kalendarz1
             }
 
             var orderClientIds = _zamowienia.Values.Select(o => o.KlientId).Distinct().ToList();
-            if (orderClientIds.Count > 0)
+            if (orderClientIds.Any())
             {
                 var contractors = await LoadContractorsAsync(orderClientIds);
                 foreach (var orderInfo in _zamowienia.Values)
@@ -328,27 +356,22 @@ namespace Kalendarz1
                     else
                     {
                         orderInfo.Klient = $"KH {orderInfo.KlientId}";
-                        orderInfo.Handlowiec = "(Brak)";
                     }
                     orderListForGrid.Add(new ZamowienieViewModel(orderInfo));
                 }
             }
 
-            _zamowieniaList.Clear();
-            var sorted = orderListForGrid
-                .OrderBy(o => StatusOrder(o.Status))
-                .ThenBy(o => o.SortDateTime)
-                .ThenBy(o => o.Handlowiec)
-                .ThenBy(o => o.Klient);
+            var sorted = orderListForGrid.OrderBy(o => StatusOrder(o.Status)).ThenBy(o => o.SortDateTime).ThenBy(o => o.Handlowiec).ThenBy(o => o.Klient).ToList();
 
-            foreach (var item in sorted)
-            {
-                _zamowieniaList.Add(item);
-            }
+            ZamowieniaList1.Clear();
+            ZamowieniaList2.Clear();
 
-            dgvZamowienia.ItemsSource = _zamowieniaList;
-            UpdateRowColors();
-            UpdateStatsLabel();
+            int midpoint = (int)Math.Ceiling(sorted.Count / 2.0);
+            sorted.Take(midpoint).ToList().ForEach(ZamowieniaList1.Add);
+            sorted.Skip(midpoint).ToList().ForEach(ZamowieniaList2.Add);
+
+            UpdateAllRowColors();
+            UpdateProgressInfo();
         }
 
         private async Task LoadTransportInfoAsync()
@@ -357,65 +380,53 @@ namespace Kalendarz1
             {
                 using var cn = new SqlConnection(_connTransport);
                 await cn.OpenAsync();
-
-                var sql = "SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs";
-                var cmd = new SqlCommand(sql, cn);
-
+                var cmd = new SqlCommand("SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs", cn);
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
                     var kursId = rd.GetInt64(0);
-
-                    if (_zamowienia.Values.Any(z => z.TransportKursId == kursId))
+                    var order = _zamowienia.Values.FirstOrDefault(z => z.TransportKursId == kursId);
+                    if (order != null)
                     {
-                        var order = _zamowienia.Values.First(z => z.TransportKursId == kursId);
                         order.CzasWyjazdu = rd.IsDBNull(1) ? null : rd.GetTimeSpan(1);
-                        order.StatusTransportu = rd.IsDBNull(2) ? "" : rd.GetString(2);
                         order.DataKursu = rd.GetDateTime(3);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Nie można pobrać danych transportu: {ex.Message}");
-            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd transportu: {ex.Message}"); }
         }
 
         private async Task<List<(int KlientId, decimal Qty)>> LoadShipmentsAsync()
         {
             var shipments = new List<(int KlientId, decimal Qty)>();
-
-            using var cn = new SqlConnection(_connHandel);
-            await cn.OpenAsync();
-
-            string sql = @"SELECT MG.khid, SUM(ABS(MZ.ilosc)) 
-                FROM HANDEL.HM.MZ MZ 
-                JOIN HANDEL.HM.MG ON MZ.super=MG.id 
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 
-                AND MG.data=@D AND MG.khid IS NOT NULL";
-
-            if (_filteredProductId.HasValue)
-                sql += " AND MZ.idtw=@P";
-
-            sql += " GROUP BY MG.khid";
-
-            var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-            if (_filteredProductId.HasValue)
-                cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
-
-            using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync())
+            try
             {
-                shipments.Add((rd.GetInt32(0), rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1))));
+                using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                string sql = @"SELECT MG.khid, SUM(ABS(MZ.ilosc)) FROM HANDEL.HM.MZ MZ JOIN HANDEL.HM.MG ON MZ.super=MG.id 
+                               WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data=@D AND MG.khid IS NOT NULL";
+                if (_filteredProductId.HasValue) sql += " AND MZ.idtw=@P";
+                sql += " GROUP BY MG.khid";
+                var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    shipments.Add((rd.GetInt32(0), Convert.ToDecimal(rd.GetValue(1))));
+                }
             }
-
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania wydań:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             return shipments;
         }
 
         private async Task LoadPozycjeForSelectedAsync()
         {
-            if (!(dgvZamowienia.SelectedItem is ZamowienieViewModel vm))
+            var vm = SelectedZamowienie;
+            if (vm == null)
             {
                 dgvPozycje.ItemsSource = null;
                 txtUwagi.Text = "";
@@ -424,7 +435,6 @@ namespace Kalendarz1
             }
 
             var info = vm.Info;
-
             if (info.IsShipmentOnly)
             {
                 await LoadShipmentOnlyAsync(info.KlientId);
@@ -437,44 +447,29 @@ namespace Kalendarz1
             {
                 using var cnProd = new SqlConnection(_connLibra);
                 await cnProd.OpenAsync();
-                var cmdProd = new SqlCommand(
-                    "SELECT NotatkaProdukcja FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cnProd);
+                var cmdProd = new SqlCommand("SELECT NotatkaProdukcja FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cnProd);
                 cmdProd.Parameters.AddWithValue("@Id", info.Id);
-                var notatkaProd = await cmdProd.ExecuteScalarAsync();
-                txtNotatkiTransportu.Text = notatkaProd?.ToString() ?? "";
+                txtNotatkiTransportu.Text = (await cmdProd.ExecuteScalarAsync())?.ToString() ?? "";
             }
-            catch
-            {
-                txtNotatkiTransportu.Text = "";
-            }
+            catch { txtNotatkiTransportu.Text = ""; }
 
             await EnsureNotesTableAsync();
 
-            var orderPositions = new List<(int TowarId, decimal Ilosc, string Notatka, bool Folia)>();
+            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia)>();
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, n.Notatka, ISNULL(zmt.Folia, 0) AS Folia 
-                    FROM dbo.ZamowieniaMiesoTowar zmt 
-                    LEFT JOIN dbo.ZamowieniaMiesoTowarNotatki n 
-                        ON n.ZamowienieId=zmt.ZamowienieId AND n.KodTowaru=zmt.KodTowaru 
-                    WHERE zmt.ZamowienieId=@Id" +
-                    (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
-
+                string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia 
+                               FROM dbo.ZamowieniaMiesoTowar zmt 
+                               WHERE zmt.ZamowienieId=@Id" + (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", info.Id);
-                if (_filteredProductId.HasValue)
-                    cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+                if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    orderPositions.Add((
-                        rd.GetInt32(0),
-                        rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1)),
-                        rd.IsDBNull(2) ? string.Empty : rd.GetString(2),
-                        !rd.IsDBNull(3) && rd.GetBoolean(3)
-                    ));
+                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2)));
                 }
             }
 
@@ -490,20 +485,16 @@ namespace Kalendarz1
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
-            dt.Columns.Add("Folia", typeof(bool));
 
-            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Notatka, p.Folia));
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia));
 
             foreach (var id in ids)
             {
                 mapOrd.TryGetValue(id, out var ord);
                 shipments.TryGetValue(id, out var wyd);
                 string kod = towarMap.TryGetValue(id, out var t) ? t.Kod : $"ID:{id}";
-
-                if (ord.Folia)
-                    kod = "🎞️ " + kod;
-
-                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd, ord.Folia);
+                if (ord.Folia) kod = "🎞️ " + kod;
+                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd);
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
@@ -515,33 +506,36 @@ namespace Kalendarz1
             dt.Columns.Add("Towar", typeof(string));
             dt.Columns.Add("Kg", typeof(decimal));
 
-            using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-            var cmd = new SqlCommand(@"SELECT ArticleName, CAST(Weight AS float) W 
-                FROM dbo.In0E 
-                WHERE Data=@D AND ISNULL(ArticleName,'')<>''", cn);
-            cmd.Parameters.AddWithValue("@D", _selectedDate.ToString("yyyy-MM-dd"));
-
-            var agg = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-            using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync())
+            try
             {
-                string name = rd.IsDBNull(0) ? "(Brak)" : rd.GetString(0);
-                decimal w = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
-                if (!agg.ContainsKey(name)) agg[name] = 0;
-                agg[name] += w;
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT ArticleName, SUM(CAST(Weight AS float)) W 
+                                           FROM dbo.In0E WHERE Data=@D AND ISNULL(ArticleName,'')<>'' 
+                                           GROUP BY ArticleName ORDER BY W DESC", cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.ToString("yyyy-MM-dd"));
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        dt.Rows.Add(rd.GetString(0), Convert.ToDecimal(rd.GetValue(1)));
+                    }
+                }
             }
-
-            foreach (var kv in agg.OrderByDescending(k => k.Value))
+            catch (Exception ex)
             {
-                dt.Rows.Add(kv.Key, kv.Value);
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania In0E: {ex.Message}");
             }
-
             dgvIn0ESumy.ItemsSource = dt.DefaultView;
         }
 
         private async Task LoadPojTuszkiAsync()
         {
+            var dt = new DataTable();
+            dt.Columns.Add("Typ", typeof(string));
+            dt.Columns.Add("Palety", typeof(int));
+            dt.Columns.Add("Udział", typeof(string));
+
             try
             {
                 var pojData = new List<(int Poj, int Pal)>();
@@ -561,10 +555,6 @@ namespace Kalendarz1
                     }
                 }
 
-                var dt = new DataTable();
-                dt.Columns.Add("Typ", typeof(string));
-                dt.Columns.Add("Palety", typeof(int));
-                dt.Columns.Add("Udział", typeof(string));
 
                 decimal totalPalety = pojData.Sum(p => p.Pal);
 
@@ -577,10 +567,7 @@ namespace Kalendarz1
                     }
                 }
 
-                if (pojData.Any())
-                {
-                    dt.Rows.Add("", DBNull.Value, "");
-                }
+                if (pojData.Any()) dt.Rows.Add("", DBNull.Value, "");
 
                 var duzyIds = new HashSet<int> { 5, 6, 7, 8 };
                 var malyIds = new HashSet<int> { 9, 10, 11 };
@@ -593,15 +580,12 @@ namespace Kalendarz1
                 dt.Rows.Add("Duży kurczak", duzyKurczakPalety, duzyUdzial);
                 dt.Rows.Add("Mały kurczak", malyKurczakPalety, malyUdzial);
                 dt.Rows.Add("SUMA", (int)totalPalety, "100%");
-
-                dgvPojTuszki.ItemsSource = dt.DefaultView;
             }
             catch (Exception ex)
             {
-                dgvPojTuszki.ItemsSource = null;
-                MessageBox.Show($"Wystąpił błąd podczas ładowania danych o tuszkach:\n{ex.Message}",
-                                "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania tuszek: {ex.Message}");
             }
+            dgvPojTuszki.ItemsSource = dt.DefaultView;
         }
 
         private async Task LoadShipmentOnlyAsync(int klientId)
@@ -618,130 +602,133 @@ namespace Kalendarz1
 
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
+            dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
+            dt.Columns.Add("Różnica (kg)", typeof(decimal));
 
-            foreach (var kv in shipments)
+            foreach (var kv in shipments.OrderBy(s => s.Key))
             {
                 string kod = towarMap.TryGetValue(kv.Key, out var t) ? t.Kod : $"ID:{kv.Key}";
-                dt.Rows.Add(kod, kv.Value);
+                dt.Rows.Add(kod, 0, kv.Value, -kv.Value);
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
         }
+
+        private async Task LoadHandlowcyStatsAsync()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("Handlowiec", typeof(string));
+            dt.Columns.Add("IloscZamowien", typeof(int));
+            dt.Columns.Add("SumaKg", typeof(decimal));
+
+            await Task.Run(() =>
+            {
+                var stats = _zamowienia.Values
+                    .Where(z => !z.IsShipmentOnly)
+                    .GroupBy(z => z.Handlowiec)
+                    .Select(g => new
+                    {
+                        Handlowiec = g.Key,
+                        IloscZamowien = g.Count(),
+                        SumaKg = g.Sum(z => z.TotalIlosc)
+                    })
+                    .OrderByDescending(s => s.SumaKg);
+
+                foreach (var s in stats)
+                {
+                    dt.Rows.Add(s.Handlowiec, s.IloscZamowien, s.SumaKg);
+                }
+            });
+
+            dgvHandlowcyStats.ItemsSource = dt.DefaultView;
+        }
         #endregion
 
         #region Helper Methods
-        private string Normalize(string s)
+        private string Normalize(string s) => string.IsNullOrWhiteSpace(s) ? "(Brak)" : string.Join(' ', s.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+
+        private int StatusOrder(string status) => status switch { "Nowe" => 0, "Zrealizowane" => 1, "Wydanie Symfonia" => 2, _ => 3 };
+
+        private void UpdateAllRowColors()
         {
-            if (string.IsNullOrWhiteSpace(s)) return "(Brak)";
-            var parts = s.Trim().Replace('\u00A0', ' ').Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length == 0 ? "(Brak)" : string.Join(' ', parts);
+            foreach (var item in ZamowieniaList1) UpdateRowColor(item);
+            foreach (var item in ZamowieniaList2) UpdateRowColor(item);
         }
 
-        private int StatusOrder(string status) => status switch
+        private void UpdateRowColor(ZamowienieViewModel item)
         {
-            "Nowe" => 0,
-            "Zrealizowane" => 1,
-            "Wydanie Symfonia" => 2,
-            "Anulowane" => 3,
-            _ => 4
-        };
-
-        private void UpdateRowColors()
-        {
-            foreach (var item in _zamowieniaList)
+            if (item.Status == "Zrealizowane")
             {
-                if (item.Status == "Zrealizowane")
+                item.RowColor = new SolidColorBrush(Color.FromRgb(32, 80, 44));
+                item.TextColor = Brushes.LightGreen;
+            }
+            else if (item.Info.IsShipmentOnly)
+            {
+                item.RowColor = new SolidColorBrush(Color.FromRgb(80, 58, 32));
+                item.TextColor = Brushes.Gold;
+            }
+            else if (item.Info.CzasWyjazdu.HasValue && item.Info.DataKursu.HasValue)
+            {
+                var wyjazd = item.Info.DataKursu.Value.Add(item.Info.CzasWyjazdu.Value);
+                var roznica = (wyjazd - DateTime.Now).TotalMinutes;
+                if (roznica < 0)
                 {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(32, 80, 44));
-                    item.TextColor = Brushes.LightGreen;
+                    item.RowColor = new SolidColorBrush(Color.FromRgb(139, 0, 0));
+                    item.TextColor = Brushes.White;
                 }
-                else if (item.Info.IsShipmentOnly)
+                else if (roznica <= 30)
                 {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(80, 58, 32));
-                    item.TextColor = Brushes.Gold;
-                }
-                else if (item.Info.CzasWyjazdu.HasValue && item.Info.DataKursu.HasValue)
-                {
-                    var dataICzasWyjazdu = item.Info.DataKursu.Value.Add(item.Info.CzasWyjazdu.Value);
-                    var roznicaCzasu = dataICzasWyjazdu - DateTime.Now;
-
-                    if (roznicaCzasu.TotalMinutes < 0)
-                    {
-                        item.RowColor = new SolidColorBrush(Color.FromRgb(139, 0, 0));
-                        item.TextColor = Brushes.White;
-                    }
-                    else if (roznicaCzasu.TotalMinutes <= 30)
-                    {
-                        item.RowColor = new SolidColorBrush(Color.FromRgb(218, 165, 32));
-                        item.TextColor = Brushes.Black;
-                    }
-                    else
-                    {
-                        item.RowColor = new SolidColorBrush(Color.FromRgb(34, 139, 34));
-                        item.TextColor = Brushes.White;
-                    }
+                    item.RowColor = new SolidColorBrush(Color.FromRgb(218, 165, 32));
+                    item.TextColor = Brushes.Black;
                 }
                 else
                 {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(55, 57, 70));
+                    item.RowColor = Brushes.Transparent;
                     item.TextColor = Brushes.White;
                 }
             }
+            else
+            {
+                item.RowColor = Brushes.Transparent;
+                item.TextColor = Brushes.White;
+            }
         }
 
-
-        private void UpdateStatsLabel()
+        private void UpdateProgressInfo()
         {
             int total = _zamowienia.Count;
             if (total == 0)
             {
-                lblStats.Text = "Brak zamówień";
+                RealizationProgress = 0;
+                RealizationProgressText = "0";
                 return;
             }
-            int realized = _zamowienia.Values.Count(z => string.Equals(z.Status, "Zrealizowane", StringComparison.OrdinalIgnoreCase));
-            lblStats.Text = $"Zrealizowane: {realized}/{total} ({100.0 * realized / total:N1}%)";
+            int realized = _zamowienia.Values.Count(z => z.Status == "Zrealizowane");
+            RealizationProgress = (double)realized / total * 100;
+            RealizationProgressText = $"{RealizationProgress:F0}";
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
         {
             var dict = new Dictionary<int, ContractorInfo>();
-            if (ids.Count == 0) return dict;
-            const int batch = 400;
-
-            for (int i = 0; i < ids.Count; i += batch)
+            if (!ids.Any()) return dict;
+            try
             {
-                var slice = ids.Skip(i).Take(batch).ToList();
                 using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-                var cmd = cn.CreateCommand();
-                var paramNames = new List<string>();
-
-                for (int k = 0; k < slice.Count; k++)
-                {
-                    string pn = "@p" + k;
-                    cmd.Parameters.AddWithValue(pn, slice[k]);
-                    paramNames.Add(pn);
-                }
-
-                cmd.CommandText = $@"SELECT c.Id, 
-                    ISNULL(c.Shortcut,'KH '+CAST(c.Id AS varchar(10))) Shortcut, 
-                    ISNULL(w.CDim_Handlowiec_Val,'(Brak)') Handlowiec 
-                    FROM SSCommon.STContractors c 
-                    LEFT JOIN SSCommon.ContractorClassification w ON c.Id=w.ElementId 
-                    WHERE c.Id IN ({string.Join(',', paramNames)})";
-
+                var cmd = new SqlCommand($@"SELECT c.Id, ISNULL(c.Shortcut,'KH '+CAST(c.Id AS varchar(10))), ISNULL(w.CDim_Handlowiec_Val,'(Brak)') 
+                                            FROM SSCommon.STContractors c LEFT JOIN SSCommon.ContractorClassification w ON c.Id=w.ElementId 
+                                            WHERE c.Id IN ({string.Join(',', ids)})", cn);
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    var ci = new ContractorInfo
-                    {
-                        Id = rd.GetInt32(0),
-                        Shortcut = rd.IsDBNull(1) ? string.Empty : rd.GetString(1).Trim(),
-                        Handlowiec = rd.IsDBNull(2) ? "(Brak)" : Normalize(rd.GetString(2))
-                    };
-                    dict[ci.Id] = ci;
+                    dict[rd.GetInt32(0)] = new ContractorInfo { Id = rd.GetInt32(0), Shortcut = rd.GetString(1).Trim(), Handlowiec = Normalize(rd.GetString(2)) };
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania kontrahentów:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             return dict;
         }
@@ -749,35 +736,21 @@ namespace Kalendarz1
         private async Task<Dictionary<int, TowarInfo>> LoadTowaryAsync(List<int> ids)
         {
             var dict = new Dictionary<int, TowarInfo>();
-            if (ids.Count == 0) return dict;
-            const int batch = 400;
-
-            for (int i = 0; i < ids.Count; i += batch)
+            if (!ids.Any()) return dict;
+            try
             {
-                var slice = ids.Skip(i).Take(batch).ToList();
                 using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-                var cmd = cn.CreateCommand();
-                var paramNames = new List<string>();
-
-                for (int k = 0; k < slice.Count; k++)
-                {
-                    string pn = "@t" + k;
-                    cmd.Parameters.AddWithValue(pn, slice[k]);
-                    paramNames.Add(pn);
-                }
-
-                cmd.CommandText = $"SELECT ID,kod FROM HM.TW WHERE ID IN ({string.Join(',', paramNames)})";
+                var cmd = new SqlCommand($"SELECT ID,kod FROM HM.TW WHERE ID IN ({string.Join(',', ids)})", cn);
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    var ti = new TowarInfo
-                    {
-                        Id = rd.GetInt32(0),
-                        Kod = rd.IsDBNull(1) ? string.Empty : rd.GetString(1)
-                    };
-                    dict[ti.Id] = ti;
+                    dict[rd.GetInt32(0)] = new TowarInfo { Id = rd.GetInt32(0), Kod = rd.GetString(1) };
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania towarów:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             return dict;
         }
@@ -785,41 +758,34 @@ namespace Kalendarz1
         private async Task<Dictionary<int, decimal>> GetShipmentsForClientAsync(int klientId)
         {
             var dict = new Dictionary<int, decimal>();
-            using var cn = new SqlConnection(_connHandel);
-            await cn.OpenAsync();
-
-            string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                FROM HANDEL.HM.MZ MZ 
-                JOIN HANDEL.HM.MG ON MZ.super=MG.id 
-                JOIN HANDEL.HM.TW ON MZ.idtw=TW.id 
-                WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 
-                AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095" +
-                (_filteredProductId.HasValue ? " AND MZ.idtw=@P" : "") + " GROUP BY MZ.idtw";
-
-            var cmd = new SqlCommand(sql, cn);
-            cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-            cmd.Parameters.AddWithValue("@K", klientId);
-            if (_filteredProductId.HasValue)
-                cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
-
-            using var rd = await cmd.ExecuteReaderAsync();
-            while (await rd.ReadAsync())
+            try
             {
-                int id = rd.GetInt32(0);
-                decimal qty = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
-                dict[id] = qty;
+                using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
+                               FROM HANDEL.HM.MZ MZ JOIN HANDEL.HM.MG ON MZ.super=MG.id 
+                               JOIN HANDEL.HM.TW ON MZ.idtw=TW.id 
+                               WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
+                               + (_filteredProductId.HasValue ? " AND MZ.idtw=@P" : "") + " GROUP BY MZ.idtw";
+                var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                cmd.Parameters.AddWithValue("@K", klientId);
+                if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    dict[rd.GetInt32(0)] = Convert.ToDecimal(rd.GetValue(1));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania wydań klienta:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             return dict;
         }
 
-        private int? GetSelectedOrderId()
-        {
-            if (dgvZamowienia.SelectedItem is ZamowienieViewModel vm && !vm.Info.IsShipmentOnly)
-            {
-                return vm.Info.Id;
-            }
-            return null;
-        }
+        private int? GetSelectedOrderId() => SelectedZamowienie != null && !SelectedZamowienie.Info.IsShipmentOnly ? SelectedZamowienie.Info.Id : null;
         #endregion
 
         #region Actions
@@ -827,80 +793,28 @@ namespace Kalendarz1
         {
             var orderId = GetSelectedOrderId();
             if (!orderId.HasValue) return;
-
-            if (MessageBox.Show("Oznaczyć zamówienie jako zrealizowane?", "Potwierdzenie",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("Oznaczyć zamówienie jako zrealizowane?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
             var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Zrealizowane' WHERE Id=@I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
             await cmd.ExecuteNonQueryAsync();
-            await ReloadAllAsync();
+            await LoadOrdersAsync();
         }
 
         private async Task UndoRealizedAsync()
         {
             var orderId = GetSelectedOrderId();
             if (!orderId.HasValue) return;
-
-            if (MessageBox.Show("Cofnąć realizację?", "Potwierdzenie",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("Cofnąć realizację?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
             var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Nowe' WHERE Id=@I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
             await cmd.ExecuteNonQueryAsync();
-            await ReloadAllAsync();
-        }
-
-        private async Task SaveItemNotesAsync()
-        {
-            // Implementation for saving item notes
-            await Task.CompletedTask;
-            MessageBox.Show("Zapisano notatki.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private async Task SaveProductionNotesAsync()
-        {
-            var orderId = GetSelectedOrderId();
-            if (!orderId.HasValue) return;
-
-            string notatka = txtNotatkiTransportu.Text.Trim();
-
-            using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
-
-            var checkCmd = new SqlCommand(
-                "SELECT COUNT(*) FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cn);
-            checkCmd.Parameters.AddWithValue("@Id", orderId.Value);
-            int exists = (int)await checkCmd.ExecuteScalarAsync();
-
-            SqlCommand cmd;
-            if (exists > 0)
-            {
-                cmd = new SqlCommand(@"
-                    UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki 
-                    SET NotatkaProdukcja = @Notatka, 
-                        DataModyfikacji = GETDATE(), 
-                        Uzytkownik = @User 
-                    WHERE ZamowienieId = @Id", cn);
-            }
-            else
-            {
-                cmd = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki 
-                    (ZamowienieId, NotatkaProdukcja, DataModyfikacji, Uzytkownik) 
-                    VALUES (@Id, @Notatka, GETDATE(), @User)", cn);
-            }
-
-            cmd.Parameters.AddWithValue("@Id", orderId.Value);
-            cmd.Parameters.AddWithValue("@Notatka", string.IsNullOrWhiteSpace(notatka) ? (object)DBNull.Value : notatka);
-            cmd.Parameters.AddWithValue("@User", UserID);
-
-            await cmd.ExecuteNonQueryAsync();
-            MessageBox.Show("Zapisano notatkę produkcji.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            await LoadOrdersAsync();
         }
 
         private async Task EnsureNotesTableAsync()
@@ -910,43 +824,61 @@ namespace Kalendarz1
             {
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
-                var cmd = new SqlCommand(@"
-                    IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowieniaMiesoTowarNotatki' AND type='U') 
-                    BEGIN 
-                        CREATE TABLE dbo.ZamowieniaMiesoTowarNotatki(
-                            ZamowienieId INT NOT NULL, 
-                            KodTowaru INT NOT NULL, 
-                            Notatka NVARCHAR(4000) NULL, 
-                            CONSTRAINT PK_ZamTowNot PRIMARY KEY (ZamowienieId,KodTowaru)
-                        ); 
-                    END", cn);
+                var cmd = new SqlCommand(@"IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowieniaMiesoProdukcjaNotatki' AND type='U') 
+                                           CREATE TABLE dbo.ZamowieniaMiesoProdukcjaNotatki(
+                                               ZamowienieId INT PRIMARY KEY, 
+                                               NotatkaProdukcja NVARCHAR(MAX), 
+                                               DataModyfikacji DATETIME, 
+                                               Uzytkownik NVARCHAR(100));", cn);
                 await cmd.ExecuteNonQueryAsync();
+                _notesTableEnsured = true;
             }
-            catch { }
-            _notesTableEnsured = true;
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd tworzenia tabeli notatek: {ex.Message}"); }
+        }
+
+        private async Task SaveProductionNotesAsync()
+        {
+            var orderId = GetSelectedOrderId();
+            if (!orderId.HasValue) return;
+
+            await EnsureNotesTableAsync();
+
+            string notatka = txtNotatkiTransportu.Text.Trim();
+            using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            var checkCmd = new SqlCommand("SELECT COUNT(*) FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id", cn);
+            checkCmd.Parameters.AddWithValue("@Id", orderId.Value);
+
+            string sql = (int)await checkCmd.ExecuteScalarAsync() > 0
+                ? "UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki SET NotatkaProdukcja = @Notatka, DataModyfikacji = GETDATE(), Uzytkownik = @User WHERE ZamowienieId = @Id"
+                : "INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki (ZamowienieId, NotatkaProdukcja, DataModyfikacji, Uzytkownik) VALUES (@Id, @Notatka, GETDATE(), @User)";
+
+            var cmd = new SqlCommand(sql, cn);
+            cmd.Parameters.AddWithValue("@Id", orderId.Value);
+            cmd.Parameters.AddWithValue("@Notatka", string.IsNullOrWhiteSpace(notatka) ? (object)DBNull.Value : notatka);
+            cmd.Parameters.AddWithValue("@User", UserID);
+
+            await cmd.ExecuteNonQueryAsync();
+            MessageBox.Show("Zapisano notatkę produkcji.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void TryOpenShipmentDetails()
         {
-            if (dgvZamowienia.SelectedItem is ZamowienieViewModel vm && vm.Info.IsShipmentOnly)
+            if (SelectedZamowienie != null && SelectedZamowienie.Info.IsShipmentOnly)
             {
-                var window = new ShipmentDetailsWindow(_connHandel, vm.Info.KlientId, _selectedDate);
-                window.Owner = this;
-                window.ShowDialog();
+                new ShipmentDetailsWindow(_connHandel, SelectedZamowienie.Info.KlientId, _selectedDate) { Owner = this }.ShowDialog();
             }
         }
 
         private void OpenLiveWindow()
         {
-            var window = new LivePrzychodyWindow(_connLibra, _selectedDate, s => true, (s, d) => (0, 0));
-            window.Owner = this;
-            window.ShowDialog();
+            new LivePrzychodyWindow(_connLibra, _selectedDate, s => true, (s, d) => (0, 0)) { Owner = this }.ShowDialog();
         }
 
         private void StartAutoRefresh()
         {
-            refreshTimer = new DispatcherTimer();
-            refreshTimer.Interval = TimeSpan.FromMinutes(1);
+            refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
             refreshTimer.Tick += async (s, e) => await ReloadAllAsync();
             refreshTimer.Start();
         }
@@ -972,7 +904,6 @@ namespace Kalendarz1
             public DateTime? DataUtworzenia { get; set; }
             public bool MaNotatke { get; set; }
             public TimeSpan? CzasWyjazdu { get; set; }
-            public string StatusTransportu { get; set; } = "";
             public DateTime? DataKursu { get; set; }
             public bool MaFolie { get; set; }
             public long? TransportKursId { get; set; }
@@ -995,83 +926,28 @@ namespace Kalendarz1
         {
             public int Value { get; }
             public string Text { get; }
-
-            public ComboItem(int value, string text)
-            {
-                Value = value;
-                Text = text;
-            }
+            public ComboItem(int value, string text) { Value = value; Text = text; }
         }
 
         public class ZamowienieViewModel : INotifyPropertyChanged
         {
             public ZamowienieInfo Info { get; }
+            public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            public string Klient => GetKlientDisplay();
+            public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
-            public DateTime? DataUtworzenia => Info.DataUtworzenia;
-            public string CzasWyjazdDisplay => GetCzasWyjazdDisplay();
-            public DateTime SortDateTime => GetSortDateTime();
+            public string CzasWyjazdDisplay => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue
+                ? $"{Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}"
+                : (Info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu");
+            public DateTime SortDateTime => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue ? Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value) : DateTime.MaxValue;
 
-            private Brush _rowColor = new SolidColorBrush(Color.FromRgb(55, 57, 70));
-            public Brush RowColor
-            {
-                get => _rowColor;
-                set
-                {
-                    _rowColor = value;
-                    OnPropertyChanged();
-                }
-            }
+            private Brush _rowColor = Brushes.Transparent;
+            public Brush RowColor { get => _rowColor; set { _rowColor = value; OnPropertyChanged(); } }
 
             private Brush _textColor = Brushes.White;
-            public Brush TextColor
-            {
-                get => _textColor;
-                set
-                {
-                    _textColor = value;
-                    OnPropertyChanged();
-                }
-            }
-
-            public ZamowienieViewModel(ZamowienieInfo info)
-            {
-                Info = info;
-            }
-
-            private string GetKlientDisplay()
-            {
-                string prefix = "";
-                if (Info.MaNotatke) prefix += "📝 ";
-                if (Info.MaFolie) prefix += "🎞️ ";
-                return prefix + Info.Klient;
-            }
-
-            private string GetCzasWyjazdDisplay()
-            {
-                if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
-                {
-                    var dataKursu = Info.DataKursu.Value;
-                    var dzienTygodnia = dataKursu.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
-                    return $"{Info.CzasWyjazdu.Value:hh\\:mm} {dzienTygodnia}";
-                }
-                else
-                {
-                    return Info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu";
-                }
-            }
-
-            private DateTime GetSortDateTime()
-            {
-                if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
-                {
-                    return Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value);
-                }
-                return DateTime.MaxValue;
-            }
+            public Brush TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

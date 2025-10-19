@@ -75,6 +75,7 @@ namespace Kalendarz1
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
+            LoadDoPotwierdzenia();
             UpdateStatistics();
         }
 
@@ -1269,6 +1270,68 @@ namespace Kalendarz1
                 Width = 75
             });
         }
+        private void LoadDoPotwierdzenia()
+        {
+            string query = @"
+        SELECT 
+            LP,
+            Dostawca,
+            DataWstawienia,
+            IloscWstawienia
+        FROM dbo.WstawieniaKurczakow
+        WHERE (isConf IS NULL OR isConf = 0)
+          AND DataWstawienia >= DATEADD(day, -30, CAST(GETDATE() AS DATE))
+          AND DataWstawienia <= DATEADD(day, 30, CAST(GETDATE() AS DATE))
+        ORDER BY DataWstawienia ASC";
+
+            using (var connection = new SqlConnection(connectionString))
+            using (var adapter = new SqlDataAdapter(query, connection))
+            {
+                var table = new DataTable();
+                adapter.Fill(table);
+
+                dataGridDoPotwierdzenia.ItemsSource = table.DefaultView;
+                SetupDoPotwierdzeniaColumns();
+            }
+        }
+        private void SetupDoPotwierdzeniaColumns()
+        {
+            dataGridDoPotwierdzenia.Columns.Clear();
+
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "LP",
+                Binding = new Binding("LP"),
+                Width = 35
+            });
+
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hodowca",
+                Binding = new Binding("Dostawca"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+            });
+
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data",
+                Binding = new Binding("DataWstawienia")
+                {
+                    StringFormat = "MM-dd ddd"
+                },
+                Width = 80
+            });
+
+            dataGridDoPotwierdzenia.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Ilość",
+                Binding = new Binding("IloscWstawienia")
+                {
+                    StringFormat = "# ##0"
+                },
+                Width = 50
+            });
+        }
 
         // ====== OBSŁUGA ZDARZEŃ ======
         private void TextBoxFilter_TextChanged(object sender, TextChangedEventArgs e)
@@ -2063,6 +2126,82 @@ namespace Kalendarz1
                 }
             }
         }
+        private void MenuPotwierdzWstawienie_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridDoPotwierdzenia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie do potwierdzenia.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
+            int lp = Convert.ToInt32(row["LP"]);
+
+            var result = MessageBox.Show("Czy na pewno chcesz potwierdzić to wstawienie?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                PotwierdzWstawienie(lp);
+            }
+        }
+
+        private void MenuPotwierdzIZmienDate_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridDoPotwierdzenia.SelectedItem == null)
+            {
+                MessageBox.Show("Wybierz wstawienie do potwierdzenia i zmiany daty.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var row = (DataRowView)dataGridDoPotwierdzenia.SelectedItem;
+            int lp = Convert.ToInt32(row["LP"]);
+            DateTime aktualnaData = Convert.ToDateTime(row["DataWstawienia"]);
+
+            var dialog = new OknoZmianyDatyWstawieniaDialog(row["Dostawca"].ToString(), aktualnaData);
+            if (dialog.ShowDialog() == true)
+            {
+                DateTime nowaData = dialog.NowaData;
+                PotwierdzWstawienie(lp, nowaData);
+            }
+        }
+
+        private void PotwierdzWstawienie(int lp, DateTime? nowaData = null)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query;
+
+                    if (nowaData.HasValue)
+                    {
+                        query = "UPDATE dbo.WstawieniaKurczakow SET isConf = 1, DataConf = GETDATE(), KtoConf = @UserID, DataWstawienia = @NowaData WHERE Lp = @LP";
+                    }
+                    else
+                    {
+                        query = "UPDATE dbo.WstawieniaKurczakow SET isConf = 1, DataConf = GETDATE(), KtoConf = @UserID WHERE Lp = @LP";
+                    }
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", App.UserID);
+                        cmd.Parameters.AddWithValue("@LP", lp);
+                        if (nowaData.HasValue)
+                        {
+                            cmd.Parameters.AddWithValue("@NowaData", nowaData.Value);
+                        }
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show("Wstawienie zostało pomyślnie potwierdzone.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshAll();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Wystąpił błąd podczas potwierdzania wstawienia: " + ex.Message, "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         // ====== PRZYCISKI ======
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
@@ -2099,6 +2238,7 @@ namespace Kalendarz1
             LoadWstawienia();
             LoadPrzypomnienia();
             LoadHistoria();
+            LoadDoPotwierdzenia();
             UpdateStatistics();
 
             if (!string.IsNullOrEmpty(lpDostawa))
@@ -3047,6 +3187,11 @@ namespace Kalendarz1
 
             mainBorder.Child = grid;
             Content = mainBorder;
+        }
+        private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
+        {
+            var statystykiWindow = new StatystykiPracownikow();
+            statystykiWindow.Show();
         }
     }
 }

@@ -35,18 +35,43 @@ namespace Kalendarz1.OfertaCenowa
             InitializeComponent();
             this.DataContext = this;
 
+            dpSredniaCenaData.SelectedDate = DateTime.Today;
+
             LoadData();
 
             dgTowary.ItemsSource = TowaryWOfercie;
             cboSzybkieDodawanieProduktu.ItemsSource = FiltrowaneTowary;
 
-            // Inicjalizacja pola pełnej nazwy
             txtPelnaNazwaProduktu.Text = "-";
 
             TowaryWOfercie.CollectionChanged += (s, e) => ObliczWartoscCalkowita();
 
             _isInitializing = false;
         }
+
+        public OfertaHandlowaWindow(KlientOferta klient) : this()
+        {
+            if (klient != null)
+            {
+                UstawKlientaRecznie(klient);
+            }
+        }
+
+        private void UstawKlientaRecznie(KlientOferta klient)
+        {
+            _trybReczny = true;
+            panelRecznyKlient.Visibility = Visibility.Visible;
+            cmbKlienci.IsEnabled = false;
+            btnReczneWprowadzenie.Content = "📋 Z bazy";
+            txtKlientInfo.Text = "Dane wczytane z CRM. Możesz je edytować.";
+
+            txtRecznyNazwa.Text = klient.Nazwa;
+            txtRecznyNIP.Text = klient.NIP;
+            txtRecznyAdres.Text = klient.Adres;
+            txtRecznyKodPocztowy.Text = klient.KodPocztowy;
+            txtRecznyMiejscowosc.Text = klient.Miejscowosc;
+        }
+
 
         private async void LoadData()
         {
@@ -119,7 +144,7 @@ namespace Kalendarz1.OfertaCenowa
                     if (excludedProducts.Any(excluded => kod.ToUpper().Contains(excluded)))
                         continue;
 
-                    string pelna_nazwa = rd[2]?.ToString() ?? kod; // Jeśli brak pełnej nazwy, użyj kodu
+                    string pelna_nazwa = rd[2]?.ToString() ?? kod;
 
                     Towary.Add(new TowarOferta
                     {
@@ -263,9 +288,7 @@ namespace Kalendarz1.OfertaCenowa
 
             if (dgTowary.Columns.Count > 2)
             {
-                // Kolumna 2 = Ilość (kg)
                 dgTowary.Columns[2].Visibility = tylkoCena ? Visibility.Collapsed : Visibility.Visible;
-                // Kolumna 5 = Wartość (zł)
                 dgTowary.Columns[5].Visibility = tylkoCena ? Visibility.Collapsed : Visibility.Visible;
             }
 
@@ -290,7 +313,6 @@ namespace Kalendarz1.OfertaCenowa
 
             if (!tylkoCena)
             {
-                // Jeśli pole jest puste lub zawiera 0, ustawiamy 0 bez błędu
                 if (string.IsNullOrWhiteSpace(txtSzybkieDodawanieIlosc.Text))
                 {
                     ilosc = 0;
@@ -303,7 +325,6 @@ namespace Kalendarz1.OfertaCenowa
             }
 
             decimal cena = 0;
-            // Jeśli pole ceny jest puste, ustawiamy 0 bez błędu
             if (string.IsNullOrWhiteSpace(txtSzybkieDodawanieCena.Text))
             {
                 cena = 0;
@@ -348,6 +369,108 @@ namespace Kalendarz1.OfertaCenowa
             txtWartoscCalkowita.Text = $"{suma:N2} zł";
         }
 
+        private async void BtnPobierzSrednieCeny_Click(object sender, RoutedEventArgs e)
+        {
+            if (dpSredniaCenaData.SelectedDate == null)
+            {
+                MessageBox.Show("Wybierz datę, z której mają zostać pobrane ceny.", "Brak daty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtProcentNarzuconejCeny.Text, out decimal procentMarzy) || procentMarzy < 0)
+            {
+                MessageBox.Show("Wprowadź poprawną wartość procentową marży (np. 20).", "Błędna marża", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (TowaryWOfercie.Count == 0)
+            {
+                MessageBox.Show("Dodaj przynajmniej jeden produkt do oferty, aby pobrać dla niego cenę.", "Brak towarów", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            DateTime data = dpSredniaCenaData.SelectedDate.Value;
+            var towaryIds = TowaryWOfercie.Select(t => t.Id).ToList();
+            var cenySrednie = new Dictionary<int, decimal>();
+            int zaktualizowano = 0;
+
+            btnPobierzSrednieCeny.IsEnabled = false;
+            btnPobierzSrednieCeny.Content = "Pobieranie...";
+
+            try
+            {
+                var parametryZapytania = new List<string>();
+                var sqlParameters = new List<SqlParameter> { new SqlParameter("@Data", data) };
+                for (int i = 0; i < towaryIds.Count; i++)
+                {
+                    var paramName = $"@p{i}";
+                    parametryZapytania.Add(paramName);
+                    sqlParameters.Add(new SqlParameter(paramName, towaryIds[i]));
+                }
+
+                // ZMIANA 1: Dodano CAST do DECIMAL(18,2)
+                string sql = $@"
+                    SELECT 
+                        DP.idtw AS TowarId,
+                        CAST(SUM(DP.wartNetto) / NULLIF(SUM(DP.ilosc), 0) AS DECIMAL(18,2)) AS SredniaCena
+                    FROM [HANDEL].[HM].[DK] DK
+                    JOIN [HANDEL].[HM].[DP] DP ON DP.super = DK.id
+                    WHERE CONVERT(date, DK.data) = @Data
+                      AND DP.idtw IN ({string.Join(",", parametryZapytania)})
+                      AND DK.anulowany = 0
+                    GROUP BY DP.idtw
+                    HAVING SUM(DP.ilosc) > 0";
+
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddRange(sqlParameters.ToArray());
+
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    // ZMIANA 2: Bezpieczniejsza konwersja
+                    cenySrednie.Add(rd.GetInt32(0), Convert.ToDecimal(rd[1]));
+                }
+
+                foreach (var towar in TowaryWOfercie)
+                {
+                    if (cenySrednie.TryGetValue(towar.Id, out decimal sredniaCena))
+                    {
+                        towar.CenaJednostkowa = Math.Round(sredniaCena * (1 + (procentMarzy / 100M)), 2);
+                        zaktualizowano++;
+                    }
+                }
+
+                if (chkPdfPokazIlosc.IsChecked == false)
+                {
+                    string notatka = "Cena zależna od ilości kupionej.";
+                    if (!txtNotatki.Text.Contains(notatka))
+                    {
+                        if (string.IsNullOrWhiteSpace(txtNotatki.Text))
+                        {
+                            txtNotatki.Text = notatka;
+                        }
+                        else
+                        {
+                            txtNotatki.Text += $"\n{notatka}";
+                        }
+                    }
+                }
+
+                MessageBox.Show($"Pomyślnie zaktualizowano ceny dla {zaktualizowano} z {TowaryWOfercie.Count} towarów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wystąpił błąd podczas pobierania cen: {ex.Message}", "Błąd bazy danych", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnPobierzSrednieCeny.IsEnabled = true;
+                btnPobierzSrednieCeny.Content = "Pobierz i oblicz ceny";
+            }
+        }
+
         private void BtnGenerujPDF_Click(object sender, RoutedEventArgs e)
         {
             var klient = GetRecznyKlient();
@@ -383,11 +506,9 @@ namespace Kalendarz1.OfertaCenowa
                     string walutaKonta = (cboKontoBankowe.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "PLN";
                     bool tylkoCena = chkTylkoCena.IsChecked == true;
 
-                    // Wybór języka
                     string jezykTag = (cboJezykPDF.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "Polski";
                     JezykOferty jezyk = jezykTag == "English" ? JezykOferty.English : JezykOferty.Polski;
 
-                    // Wybór logo
                     TypLogo typLogo = rbLogoOkragle.IsChecked == true ? TypLogo.Okragle : TypLogo.Dlugie;
 
                     var parametry = new ParametryOferty
@@ -448,3 +569,4 @@ namespace Kalendarz1.OfertaCenowa
         }
     }
 }
+

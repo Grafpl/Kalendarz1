@@ -478,6 +478,35 @@
                                 <TextBlock x:Name="txtWartoscCalkowita" Text="0,00 zł" FontSize="32" FontWeight="Bold" 
                                            Foreground="{StaticResource DarkTextBrush}" HorizontalAlignment="Right"/>
 
+                                <!-- NOWA SEKCJA POBIERANIA ŚREDNICH CEN -->
+                                <Border Background="#FDF2F2" BorderBrush="#F87171" BorderThickness="1" 
+                                        CornerRadius="6" Padding="12" Margin="0,20,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔥 Pobierz średnie ceny" FontSize="11" FontWeight="Bold" 
+                                                   Foreground="#991B1B" Margin="0,0,0,8"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Margin="0,0,10,0">
+                                                <TextBlock Text="Data" FontSize="9" FontWeight="SemiBold" Foreground="#7F1D1D"/>
+                                                <DatePicker x:Name="dpSredniaCenaData" Width="120" Height="30"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                <TextBlock Text="Marża (%)" FontSize="9" FontWeight="SemiBold" Foreground="#7F1D1D"/>
+                                                <TextBox x:Name="txtProcentNarzuconejCeny" Text="20" Width="60" Height="30" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                            <Button x:Name="btnPobierzSrednieCeny" Grid.Column="2" 
+                                                    Content="Pobierz i oblicz ceny" 
+                                                    Style="{StaticResource PrimaryButtonStyle}" 
+                                                    Height="30" VerticalAlignment="Bottom" 
+                                                    Click="BtnPobierzSrednieCeny_Click"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- KONTROLA PDF -->
                                 <Border Background="#F0FDF4" BorderBrush="{StaticResource PrimaryGreenBrush}" BorderThickness="1" 
                                         CornerRadius="6" Padding="12" Margin="0,20,0,0">
@@ -534,3 +563,4 @@
         </Grid>
     </Border>
 </Window>
+

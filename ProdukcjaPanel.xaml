@@ -7,14 +7,40 @@
         Title="Panel Produkcja" 
         WindowState="Maximized" 
         WindowStyle="None"
-        Background="#1C1E26">
+        Background="#1C1E26"
+        FontFamily="Segoe UI">
 
     <Window.Resources>
+        <!-- Style for the circular progress bar -->
+        <Style x:Key="CircularProgressBar" TargetType="ProgressBar">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Ellipse Stroke="#444" StrokeThickness="10" />
+                            <Path x:Name="path" Stroke="{TemplateBinding Foreground}" StrokeThickness="10" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                <Path.Data>
+                                    <PathGeometry>
+                                        <PathGeometry.Figures>
+                                            <PathFigure StartPoint="50,0">
+                                                <ArcSegment x:Name="arc" Size="50,50" SweepDirection="Clockwise" IsLargeArc="False"/>
+                                            </PathFigure>
+                                        </PathGeometry.Figures>
+                                    </PathGeometry>
+                                </Path.Data>
+                            </Path>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style for the top buttons - made larger for touch screens -->
         <Style x:Key="TopButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="70"/>
             <Setter Property="Width" Value="100"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="#787878"/>
@@ -41,6 +67,7 @@
             </Setter>
         </Style>
 
+        <!-- General Style for DataGrids -->
         <Style x:Key="CustomDataGridStyle" TargetType="DataGrid">
             <Setter Property="Background" Value="#2D2F3E"/>
             <Setter Property="Foreground" Value="White"/>
@@ -55,14 +82,13 @@
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="SelectionUnit" Value="FullRow"/>
-            <Setter Property="RowHeight" Value="35"/>
         </Style>
 
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#464858"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Height" Value="40"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -71,7 +97,7 @@
 
         <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -98,295 +124,306 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Style for TabControl Tabs - made larger for touch -->
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#282A32"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="35,20"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="#787878"
+                                BorderThickness="1,1,1,0"
+                                CornerRadius="8,8,0,0"
+                                Margin="0,0,-1,0">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#3C468E"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#4A56AD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="150"/>
+            <!-- Top Control Panel -->
             <RowDefinition Height="*"/>
+            <!-- Tabbed Content -->
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#282A32" CornerRadius="5">
+        <!-- TOP CONTROL PANEL -->
+        <Border Grid.Row="0" Background="#282A32" CornerRadius="8">
             <Grid>
-                <StackPanel Margin="16,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Date and Symfonia Checkbox -->
+                <StackPanel Grid.Column="0" Margin="20,0,20,0" VerticalAlignment="Center">
                     <TextBlock x:Name="lblData" 
-                               FontSize="30" 
+                               FontSize="32" 
                                FontWeight="Bold" 
                                Foreground="White"/>
-                    <TextBlock x:Name="lblUser" 
-                               FontSize="11" 
-                               FontStyle="Italic" 
-                               Foreground="LightGray" 
-                               Margin="0,10,0,0"/>
-                    <TextBlock x:Name="lblStats" 
-                               FontSize="12" 
-                               FontWeight="Bold" 
-                               Foreground="Khaki" 
-                               Margin="300,-20,0,0"/>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" 
-                            Margin="320,50,0,0" 
-                            VerticalAlignment="Top">
-                    <TextBlock Text="Towar:" 
-                               Foreground="White" 
-                               FontWeight="Bold" 
-                               VerticalAlignment="Center" 
-                               Margin="0,0,10,0"/>
-                    <ComboBox x:Name="cbFiltrProdukt" 
-                              Width="300" 
-                              Height="40"
-                              FontSize="16"
-                              Background="#2D2F3E"
-                              BorderBrush="#787878"
-                              Foreground="White"/>
                     <CheckBox x:Name="cbPokazWydaniaSymfonia"
                               Content="Pokaż wydania Symfonia"
                               Foreground="White"
-                              VerticalAlignment="Center"
-                              Margin="20,0,0,0"
-                              Click="cbPokazWydaniaSymfonia_Click"/>
+                              Margin="0,15,0,0"
+                              Click="cbPokazWydaniaSymfonia_Click">
+                        <CheckBox.LayoutTransform>
+                            <ScaleTransform ScaleX="1.5" ScaleY="1.5"/>
+                        </CheckBox.LayoutTransform>
+                    </CheckBox>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" 
+                <!-- Realization Progress Circle -->
+                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="20,0">
+                    <ProgressBar x:Name="progressRing"
+                                 Style="{StaticResource CircularProgressBar}"
+                                 Value="{Binding RealizationProgress}"
+                                 Width="100" Height="100"
+                                 IsIndeterminate="False"
+                                 Foreground="#4CAF50"/>
+                    <TextBlock Text="{Binding RealizationProgressText, StringFormat={}{0}%}"
+                               Foreground="White"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Zrealizowane"
+                               Foreground="LightGray"
+                               FontSize="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="0,50,0,0"/>
+                </Grid>
+
+                <!-- Filter ComboBox -->
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="40,0,0,0">
+                    <TextBlock Text="Filtruj towar:" 
+                               Foreground="White" 
+                               FontWeight="Bold" 
+                               VerticalAlignment="Center" 
+                               FontSize="16"
+                               Margin="0,0,0,5"/>
+                    <ComboBox x:Name="cbFiltrProdukt" 
+                              Width="350" 
+                              Height="50"
+                              FontSize="18"
+                              Background="#2D2F3E"
+                              BorderBrush="#787878"
+                              Foreground="White"/>
+                </StackPanel>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" 
                             HorizontalAlignment="Right" 
-                            Margin="0,28,15,0">
-                    <Button x:Name="btnPrev" 
-                            Content="◀" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#3C468E" 
-                            Margin="0,0,15,0"
-                            Click="btnPrev_Click"/>
-                    <Button x:Name="btnNext" 
-                            Content="▶" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#3C468E" 
-                            Margin="0,0,15,0"
-                            Click="btnNext_Click"/>
-                    <Button x:Name="btnToday" 
-                            Content="Dziś" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#3C468E" 
-                            Margin="0,0,15,0"
-                            Click="btnToday_Click"/>
-                    <Button x:Name="btnRefresh" 
-                            Content="Odśwież" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#376EA0" 
-                            Margin="0,0,15,0"
-                            Click="btnRefresh_Click"/>
-                    <Button x:Name="btnLive" 
-                            Content="Live" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#555A8C" 
-                            Margin="0,0,15,0"
-                            Click="btnLive_Click"/>
-                    <Button x:Name="btnUndo" 
-                            Content="Cofnij" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#8C643C" 
-                            Margin="0,0,15,0"
-                            Click="btnUndo_Click"/>
-                    <Button x:Name="btnSaveNotes" 
-                            Content="Zapisz not."
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#5F5F5F" 
-                            Margin="0,0,15,0"
-                            Click="btnSaveNotes_Click"/>
-                    <Button x:Name="btnZrealizowano" 
-                            Content="ZREAL."
-                            Style="{StaticResource TopButtonStyle}"
-                            Width="120"
-                            FontSize="15"
-                            Background="#19874B" 
-                            Margin="0,0,15,0"
-                            Click="btnZrealizowano_Click"/>
-                    <Button x:Name="btnClose" 
-                            Content="X" 
-                            Style="{StaticResource TopButtonStyle}"
-                            Background="#AA2832" 
-                            Click="btnClose_Click"/>
+                            VerticalAlignment="Center"
+                            Margin="0,0,15,0">
+                    <Button x:Name="btnPrev" Content="◀" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,10,0" Click="btnPrev_Click"/>
+                    <Button x:Name="btnNext" Content="▶" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,10,0" Click="btnNext_Click"/>
+                    <Button x:Name="btnToday" Content="Dziś" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,20,0" Click="btnToday_Click"/>
+                    <Button x:Name="btnRefresh" Content="Odśwież" Style="{StaticResource TopButtonStyle}" Background="#376EA0" Margin="0,0,20,0" Click="btnRefresh_Click"/>
+                    <Button x:Name="btnLive" Content="Live" Style="{StaticResource TopButtonStyle}" Background="#555A8C" Margin="0,0,20,0" Click="btnLive_Click"/>
+                    <Button x:Name="btnUndo" Content="Cofnij" Style="{StaticResource TopButtonStyle}" Background="#8C643C" Margin="0,0,20,0" Click="btnUndo_Click"/>
+                    <Button x:Name="btnSaveNotes" Content="Zapisz not." Style="{StaticResource TopButtonStyle}" Background="#5F5F5F" Margin="0,0,20,0" Click="btnSaveNotes_Click"/>
+                    <Button x:Name="btnZrealizowano" Content="ZREAL." Style="{StaticResource TopButtonStyle}" Width="120" FontSize="15" Background="#19874B" Margin="0,0,20,0" Click="btnZrealizowano_Click"/>
+                    <Button x:Name="btnClose" Content="X" Style="{StaticResource TopButtonStyle}" Background="#AA2832" Click="btnClose_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="20*"/>
-                <ColumnDefinition Width="55*"/>
-                <ColumnDefinition Width="25*"/>
-            </Grid.ColumnDefinitions>
+        <!-- TABBED CONTENT AREA -->
+        <TabControl Grid.Row="1" Margin="0,10,0,0" Background="Transparent" BorderThickness="0">
+            <!-- TAB 1: ZAMÓWIENIA -->
+            <TabItem Header="Zamówienia">
+                <Grid Background="#1C1E26">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="37*"/>
+                        <ColumnDefinition Width="37*"/>
+                        <ColumnDefinition Width="26*"/>
+                    </Grid.ColumnDefinitions>
 
-            <Grid Grid.Column="0" Margin="0,0,5,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="60*"/>
-                    <RowDefinition Height="40*"/>
-                </Grid.RowDefinitions>
-
-                <Border Grid.Row="0" Background="#22242E" CornerRadius="5" Margin="0,0,0,5">
-                    <DataGrid x:Name="dgvIn0ESumy" 
-                              Style="{StaticResource CustomDataGridStyle}"
-                              IsReadOnly="True"
-                              RowHeight="35"
-                              Margin="5">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Towar" Binding="{Binding Towar}" Width="*"/>
-                            <DataGridTextColumn Header="Kg" Binding="{Binding Kg, StringFormat=N0}" Width="Auto"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Border>
-
-                <Border Grid.Row="1" Background="#2D2F3A" CornerRadius="5">
-                    <Grid>
-                        <TextBlock Text="Tuszek poj/palety" 
-                                   Foreground="LightSkyBlue" 
-                                   FontWeight="Bold" 
-                                   FontSize="9.5"
-                                   Margin="5,5,0,0" 
-                                   VerticalAlignment="Top"/>
-                        <DataGrid x:Name="dgvPojTuszki" 
-                                  Style="{StaticResource CustomDataGridStyle}"
-                                  IsReadOnly="True"
-                                  RowHeight="28"
-                                  Margin="5,25,5,5">
+                    <Border Grid.Column="0" Background="#22242E" CornerRadius="5" Margin="0,0,5,0">
+                        <DataGrid x:Name="dgvZamowienia1" ItemsSource="{Binding ZamowieniaList1}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia1_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="40" Margin="5">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <Setter Property="Background" Value="{Binding RowColor}"/>
+                                    <Setter Property="Foreground" Value="{Binding TextColor}"/>
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="*"/>
-                                <DataGridTextColumn Header="Palety" Binding="{Binding Palety}" Width="Auto"/>
-                                <DataGridTextColumn Header="Udział" Binding="{Binding Udział}" Width="Auto"/>
+                                <DataGridTextColumn Header="Nazwa Klienta" Binding="{Binding Klient}" Width="2.5*"/>
+                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
+                                <DataGridTextColumn Header="Wyjazd o" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="Orange"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
                             </DataGrid.Columns>
                         </DataGrid>
-                    </Grid>
-                </Border>
-            </Grid>
+                    </Border>
 
-            <Border Grid.Column="1" Background="#22242E" CornerRadius="5" Margin="5,0">
-                <DataGrid x:Name="dgvZamowienia" 
-                          Style="{StaticResource CustomDataGridStyle}"
-                          SelectionChanged="dgvZamowienia_SelectionChanged"
-                          MouseDoubleClick="dgvZamowienia_MouseDoubleClick"
-                          IsReadOnly="True"
-                          RowHeight="45"
-                          Margin="5">
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow">
-                            <Setter Property="Height" Value="45"/>
-                            <Setter Property="Background" Value="{Binding RowColor}"/>
-                            <Setter Property="Foreground" Value="{Binding TextColor}"/>
-                        </Style>
-                    </DataGrid.RowStyle>
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Nazwa Klienta" 
-                                            Binding="{Binding Klient}" 
-                                            Width="*"/>
-                        <DataGridTextColumn Header="Ilość (kg)" 
-                                            Binding="{Binding TotalIlosc, StringFormat=N0}" 
-                                            Width="Auto"/>
-                        <DataGridTextColumn Header="Wyjazd o" 
-                                            Binding="{Binding CzasWyjazdDisplay}" 
-                                            Width="Auto">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="Orange"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Border Grid.Column="1" Background="#22242E" CornerRadius="5" Margin="5,0,5,0">
+                        <DataGrid x:Name="dgvZamowienia2" ItemsSource="{Binding ZamowieniaList2}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia2_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="40" Margin="5">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <Setter Property="Background" Value="{Binding RowColor}"/>
+                                    <Setter Property="Foreground" Value="{Binding TextColor}"/>
                                 </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTextColumn Header="Handlowiec" 
-                                            Binding="{Binding Handlowiec}" 
-                                            Width="Auto"/>
-                        <DataGridTextColumn Header="Status" 
-                                            Binding="{Binding Status}" 
-                                            Width="Auto"/>
-                        <DataGridTextColumn Header="Data utworzenia" 
-                                            Binding="{Binding DataUtworzenia, StringFormat=yyyy-MM-dd HH:mm}" 
-                                            Width="Auto"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
+                            </DataGrid.RowStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nazwa Klienta" Binding="{Binding Klient}" Width="2.5*"/>
+                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
+                                <DataGridTextColumn Header="Wyjazd o" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="Orange"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
 
-            <Grid Grid.Column="2" Margin="5,0,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="60*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="20*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="20*"/>
-                </Grid.RowDefinitions>
+                    <Grid Grid.Column="2" Margin="5,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="60*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="20*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="20*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#262832" CornerRadius="5" Margin="0,0,0,5">
+                            <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="32" Margin="5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*"/>
+                                    <DataGridTextColumn Header="Zamówiono" Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,5,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wydano" Binding="{Binding [Wydano (kg)], StringFormat=N0}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,5,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Różnica" Binding="{Binding [Różnica (kg)], StringFormat=N0}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,5,0"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                        <TextBlock Grid.Row="1" Text="Notatka zamówienia" Background="#323440" Foreground="Yellow" FontWeight="Bold" FontSize="14" Padding="5"/>
+                        <Border Grid.Row="2" Background="#343642" CornerRadius="5" Margin="0,5">
+                            <TextBox x:Name="txtUwagi" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="28" Margin="5"/>
+                        </Border>
+                        <TextBlock Grid.Row="3" Text="Notatka produkcji" Background="#323440" Foreground="LightBlue" FontWeight="Bold" FontSize="14" Padding="5"/>
+                        <Border Grid.Row="4" Background="#343642" CornerRadius="5" Margin="0,5,0,0">
+                            <TextBox x:Name="txtNotatkiTransportu" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="28" Margin="5"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
 
-                <Border Grid.Row="0" Background="#262832" CornerRadius="5" Margin="0,0,0,5">
-                    <DataGrid x:Name="dgvPozycje" 
-                              Style="{StaticResource CustomDataGridStyle}"
-                              IsReadOnly="True"
-                              RowHeight="32"
-                              Margin="5">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*"/>
-                            <DataGridTextColumn Header="Zamówiono" Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Wydano" Binding="{Binding [Wydano (kg)], StringFormat=N0}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Różnica" Binding="{Binding [Różnica (kg)], StringFormat=N0}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Border>
+            <!-- TAB 2: STATYSTYKI -->
+            <TabItem Header="Statystyki">
+                <Grid Background="#1C1E26">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="1" 
-                           Text="Notatka zamówienia" 
-                           Background="#323440"
-                           Foreground="Yellow" 
-                           FontWeight="Bold" 
-                           FontSize="12"
-                           Padding="5"/>
-                <Border Grid.Row="2" Background="#343642" CornerRadius="5" Margin="0,5">
-                    <TextBox x:Name="txtUwagi" 
-                             Background="Transparent"
-                             Foreground="White"
-                             BorderThickness="0"
-                             TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto"
-                             FontSize="14"
-                             Margin="5"/>
-                </Border>
+                    <Border Grid.Column="0" Background="#22242E" CornerRadius="5" Margin="0,0,5,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Podsumowanie przychodów (In0E)" Foreground="LightSkyBlue" FontWeight="Bold" FontSize="16" Margin="10"/>
+                            <DataGrid Grid.Row="1" x:Name="dgvIn0ESumy" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="35" Margin="5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Towar" Binding="{Binding Towar}" Width="*"/>
+                                    <DataGridTextColumn Header="Kg" Binding="{Binding Kg, StringFormat=N0}" Width="Auto"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
 
-                <TextBlock Grid.Row="3" 
-                           Text="Notatka produkcji" 
-                           Background="#323440"
-                           Foreground="LightBlue" 
-                           FontWeight="Bold" 
-                           FontSize="12"
-                           Padding="5"/>
-                <Border Grid.Row="4" Background="#343642" CornerRadius="5" Margin="0,5,0,0">
-                    <TextBox x:Name="txtNotatkiTransportu" 
-                             Background="Transparent"
-                             Foreground="White"
-                             BorderThickness="0"
-                             TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto"
-                             FontSize="14"
-                             Margin="5"/>
-                </Border>
-            </Grid>
-        </Grid>
+                    <Border Grid.Column="1" Background="#2D2F3A" CornerRadius="5" Margin="5,0,5,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Tuszek pojemniki/palety" Foreground="LightSkyBlue" FontWeight="Bold" FontSize="16" Margin="10"/>
+                            <DataGrid Grid.Row="1" x:Name="dgvPojTuszki" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="28" Margin="5,5,5,5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="*"/>
+                                    <DataGridTextColumn Header="Palety" Binding="{Binding Palety}" Width="Auto"/>
+                                    <DataGridTextColumn Header="Udział" Binding="{Binding Udział}" Width="Auto"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="#22242E" CornerRadius="5" Margin="5,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Wyniki Handlowców" Foreground="LightSkyBlue" FontWeight="Bold" FontSize="16" Margin="10"/>
+                            <DataGrid Grid.Row="1" x:Name="dgvHandlowcyStats" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="35" Margin="5">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
+                                    <DataGridTextColumn Header="Zamówienia" Binding="{Binding IloscZamowien}" Width="Auto"/>
+                                    <DataGridTextColumn Header="Suma (kg)" Binding="{Binding SumaKg, StringFormat=N0}" Width="Auto"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>
 

@@ -128,14 +128,7 @@ namespace Kalendarz1
                 string userName = PobierzNazweUzytkownika(UserID);
                 this.Text = $"📊 System Zarządzania Fakturami Sprzedaży - [{userName}]";
 
-                if (!UserHandlowcyManager.HasAssignedHandlowcy(UserID))
-                {
-                    MessageBox.Show(
-                        "⚠ Nie masz przypisanych handlowców.\n\nSkontaktuj się z administratorem aby otrzymać dostęp do danych.",
-                        "Brak dostępu",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                }
+                
             }
 
             dateTimePickerDo.Value = DateTime.Today;
@@ -167,15 +160,7 @@ namespace Kalendarz1
 
             splitContainerMain.SplitterDistance = 900;
             var handlowcy = UserHandlowcyManager.GetUserHandlowcy(UserID);
-            MessageBox.Show(
-                $"🔍 DEBUG INFO:\n\n" +
-                $"UserID: {UserID}\n" +
-                $"Ma handlowców: {UserHandlowcyManager.HasAssignedHandlowcy(UserID)}\n" +
-                $"Lista handlowców: {(handlowcy.Count > 0 ? string.Join(", ", handlowcy) : "BRAK")}\n\n" +
-                $"Klauzula WHERE:\n{UserHandlowcyManager.GetHandlowcyWhereClause(UserID, "WYM.CDim_Handlowiec_Val")}",
-                "Debug - System Handlowców",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            
         }
 
         private string PobierzNazweUzytkownika(string userId)

@@ -11,12 +11,10 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <!-- Animacje -->
         <Storyboard x:Key="FadeIn">
             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
         </Storyboard>
 
-        <!-- Style dla przycisków -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
             <Setter Property="Foreground" Value="White"/>
@@ -59,7 +57,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Style dla paneli -->
         <Style x:Key="CardPanel" TargetType="Border">
             <Setter Property="Background" Value="White"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -72,7 +69,6 @@
             </Setter>
         </Style>
 
-        <!-- Style dla TextBox -->
         <Style x:Key="ModernTextBox" TargetType="TextBox">
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="11"/>
@@ -99,7 +95,6 @@
             </Setter>
         </Style>
 
-        <!-- Style dla DataGrid -->
         <Style x:Key="ModernDataGrid" TargetType="DataGrid">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -148,7 +143,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Style dla Context Menu -->
         <Style TargetType="ContextMenu">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
@@ -182,7 +176,6 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- ============ PANEL GÓRNY - KOMPAKTOWY ============ -->
             <Border Grid.Row="0" Style="{StaticResource CardPanel}" Padding="8,6">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -190,7 +183,6 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Wiersz 1: Logo, opis, statystyki główne i dodatkowe, pomoc -->
                     <Grid Grid.Row="0" Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -199,25 +191,21 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Logo -->
                         <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="4" Margin="0,0,8,0" BorderBrush="#5C8A3A" BorderThickness="1.5" VerticalAlignment="Center">
                             <Image x:Name="imgLogo" Width="28" Height="28" Stretch="Uniform"/>
                         </Border>
 
-                        <!-- Opis formularza -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
                             <TextBlock Text="📋 Panel Główny Wstawień" FontSize="12" FontWeight="Bold" Foreground="#2C3E50"/>
                             <TextBlock Text="Zarządzanie hodowcami, dostawami i kontaktami" FontSize="8.5" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,1,0,0"/>
                         </StackPanel>
 
-                        <!-- Statystyki -->
                         <Grid Grid.Column="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Statystyki główne -->
                             <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,3">
                                 <Border Background="White" CornerRadius="4" Padding="6,3" Margin="0,0,3,0" BorderBrush="#E8F5E9" BorderThickness="1.5">
                                     <StackPanel Orientation="Horizontal">
@@ -257,7 +245,6 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Statystyki dodatkowe -->
                             <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="0,0,2,0">
                                     <TextBlock FontSize="8"><Run Text="📈 Śr/d: " Foreground="#2E7D32" FontWeight="SemiBold"/><Run x:Name="txtStatSredniaDzien" Text="0" Foreground="#5C8A3A" FontWeight="Bold"/></TextBlock>
@@ -286,7 +273,6 @@
                             </WrapPanel>
                         </Grid>
 
-                        <!-- Przycisk pomocy -->
                         <Button Grid.Column="3" x:Name="btnPomoc" Style="{StaticResource InfoButton}" 
                                 Width="95" Height="28" FontSize="10" Click="BtnPomoc_Click" ToolTip="Instrukcja obsługi systemu" VerticalAlignment="Center" Margin="10,0,0,0">
                             <StackPanel Orientation="Horizontal">
@@ -294,9 +280,9 @@
                                 <TextBlock Text="Instrukcja" FontSize="10" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
+
                     </Grid>
 
-                    <!-- Wiersz 2: Statystyki per użytkownik (kompaktowe) -->
                     <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="5" Padding="6,4" Margin="0,4,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -305,7 +291,6 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Wstawienia -->
                             <Border Grid.Column="0" Background="#E8F5E9" CornerRadius="4" Padding="5,3" Margin="0,0,3,0">
                                 <StackPanel>
                                     <TextBlock Text="👥 Wstawienia:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
@@ -375,7 +360,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Kontakty -->
                             <Border Grid.Column="1" Background="#E1F5FE" CornerRadius="4" Padding="5,3" Margin="0,0,3,0">
                                 <StackPanel>
                                     <TextBlock Text="📞 Kontakty:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
@@ -445,7 +429,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Potwierdzenia -->
                             <Border Grid.Column="2" Background="#F3E5F5" CornerRadius="4" Padding="5,3">
                                 <StackPanel>
                                     <TextBlock Text="✅ Potwierdzenia:" FontSize="8" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,2"/>
@@ -519,7 +502,6 @@
                 </Grid>
             </Border>
 
-            <!-- ============ GŁÓWNA ZAWARTOŚĆ ============ -->
             <Grid Grid.Row="1" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
@@ -527,7 +509,6 @@
                     <ColumnDefinition Width="1.5*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- ============ KOLUMNA 1: Lista wstawień ============ -->
                 <Border Grid.Column="0" Style="{StaticResource CardPanel}">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -535,21 +516,18 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek z wyszukiwarką, filtrami i przyciskiem -->
                         <Grid Grid.Row="0" Margin="0,0,0,8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Wiersz 1: Tytuł i przycisk Dodaj -->
                             <Grid Grid.Row="0" Margin="0,0,0,6">
                                 <TextBlock Text="📋 Lista Wstawień" FontSize="15" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
                                 <Button Content="➕ Dodaj" Style="{StaticResource PrimaryButton}" 
                                         HorizontalAlignment="Right" Click="BtnDodaj_Click"/>
                             </Grid>
 
-                            <!-- Wiersz 2: Wyszukiwarka i filtry -->
                             <Grid Grid.Row="1">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -557,7 +535,6 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Wyszukiwarka -->
                                 <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="6" Padding="8,6" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,6,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -573,13 +550,11 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Checkbox - Tylko przyszłe wstawienia -->
                                 <Border Grid.Column="1" Background="#E8F5E9" CornerRadius="6" Padding="6,4" BorderBrush="#81C784" BorderThickness="1" Margin="0,0,6,0">
                                     <CheckBox x:Name="chkPokazPrzyszle" Content="📅 Tylko przyszłe" FontSize="9" FontWeight="SemiBold" 
                                               Foreground="#2E7D32" VerticalAlignment="Center" Checked="ChkPokazPrzyszle_Changed" Unchecked="ChkPokazPrzyszle_Changed"/>
                                 </Border>
 
-                                <!-- DatePicker - Data od -->
                                 <Border Grid.Column="2" Background="#FFF3E0" CornerRadius="6" Padding="6,4" BorderBrush="#FFB74D" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="📆 Od: " FontSize="9" FontWeight="SemiBold" Foreground="#EF6C00" VerticalAlignment="Center" Margin="0,0,4,0"/>
@@ -590,7 +565,6 @@
                             </Grid>
                         </Grid>
 
-                        <!-- DataGrid Wstawień z menu kontekstowym -->
                         <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
                             <DataGrid x:Name="dataGridWstawienia" 
                                       Style="{StaticResource ModernDataGrid}"
@@ -610,7 +584,6 @@
                     </Grid>
                 </Border>
 
-                <!-- ============ KOLUMNA 2: Zaplanowane Dostawy + Przypomnienia ============ -->
                 <Border Grid.Column="1" Style="{StaticResource CardPanel}">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -618,15 +591,15 @@
                             <RowDefinition Height="120"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Zaplanowane Dostawy - nagłówek -->
                         <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="6" Padding="6,4" Margin="0,0,0,6">
                             <TextBlock Text="📦 Zaplanowane Dostawy" FontSize="13" FontWeight="Bold" 
                                        Foreground="#2E7D32" TextAlignment="Center"/>
                         </Border>
 
-                        <!-- Zaplanowane Dostawy - tabela (3-4 wiersze) -->
                         <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
                             <DataGrid x:Name="dataGridDostawy" 
                                       Style="{StaticResource ModernDataGrid}"
@@ -637,7 +610,6 @@
                                       ColumnWidth="*"/>
                         </Border>
 
-                        <!-- Przypomnienia - nagłówek -->
                         <StackPanel Grid.Row="2" Margin="0,0,0,6">
                             <Grid Margin="0,0,0,2">
                                 <TextBlock Text="⏰ Przypomnienia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Left"/>
@@ -651,8 +623,7 @@
                             <TextBlock Text="PPM → Opcje kontaktu" FontSize="7.5" Foreground="#7F8C8D" FontStyle="Italic"/>
                         </StackPanel>
 
-                        <!-- Przypomnienia - tabela -->
-                        <Border Grid.Row="3" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                        <Border Grid.Row="3" BorderBrush="#F39C12" BorderThickness="2" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,8">
                             <DataGrid x:Name="dataGridPrzypomnienia" 
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
@@ -669,10 +640,28 @@
                                 </DataGrid.ContextMenu>
                             </DataGrid>
                         </Border>
+
+                        <TextBlock Grid.Row="4" Text="⏳ Do Potwierdzenia" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,6"/>
+
+                        <Border Grid.Row="5" BorderBrush="#3498DB" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <DataGrid x:Name="dataGridDoPotwierdzenia" 
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      RowHeight="24" FontSize="9">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="✅ Potwierdź wstawienie" Click="MenuPotwierdzWstawienie_Click" FontWeight="SemiBold"/>
+                                        <MenuItem Header="📅 Potwierdź i zmień datę" Click="MenuPotwierdzIZmienDate_Click" FontWeight="SemiBold"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
+                        </Border>
+
                     </Grid>
                 </Border>
 
-                <!-- ============ KOLUMNA 3: Historia ============ -->
+
                 <Border Grid.Column="2" Style="{StaticResource CardPanel}">
                     <Grid>
                         <Grid.RowDefinitions>
