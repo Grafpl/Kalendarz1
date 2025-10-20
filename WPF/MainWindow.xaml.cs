@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -72,7 +73,371 @@ namespace Kalendarz1.WPF
             InitializeComponent();
             Loaded += MainWindow_Loaded;
         }
+        private void ApplyResponsiveLayout()
+        {
+            try
+            {
+                double screenHeight = SystemParameters.PrimaryScreenHeight;
+                double screenWidth = SystemParameters.PrimaryScreenWidth;
 
+                System.Diagnostics.Debug.WriteLine($"Rozdzielczość ekranu: {screenWidth}x{screenHeight}");
+
+                LayoutPreset preset;
+
+                if (screenHeight <= 768)
+                {
+                    preset = LayoutPreset.Small;        // HD 1366x768
+                    System.Diagnostics.Debug.WriteLine("Preset: Small (HD 768p)");
+                }
+                else if (screenHeight <= 900)
+                {
+                    preset = LayoutPreset.Medium;       // HD+ 1600x900
+                    System.Diagnostics.Debug.WriteLine("Preset: Medium (HD+ 900p)");
+                }
+                else if (screenHeight <= 1080)
+                {
+                    preset = LayoutPreset.ExtraLarge;   // ✅ FHD 1920x1080
+                    System.Diagnostics.Debug.WriteLine("Preset: ExtraLarge (FHD 1080p)");
+                }
+                else
+                {
+                    preset = LayoutPreset.Large;        // 2K/4K
+                    System.Diagnostics.Debug.WriteLine($"Preset: Large (2K/4K {screenHeight}p)");
+                }
+
+                ApplyPreset(preset);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"BŁĄD ApplyResponsiveLayout: {ex.Message}");
+                ApplyPreset(LayoutPreset.ExtraLarge);
+            }
+        }
+        private enum LayoutPreset
+        {
+            Small,
+            Medium,
+            Large,
+            ExtraLarge
+        }
+
+        private void ApplyPreset(LayoutPreset preset)
+        {
+            try
+            {
+                switch (preset)
+                {
+                    case LayoutPreset.Small:
+                        // HD 1366x768 - kompaktowy układ
+                        if (dgOrders != null)
+                        {
+                            dgOrders.FontSize = 9;
+                            dgOrders.RowHeight = 22;
+                            SetHeaderStyle(dgOrders, 9, 28);
+                        }
+
+                        if (dgDetails != null)
+                        {
+                            dgDetails.FontSize = 9;
+                            dgDetails.RowHeight = 20;
+                            SetHeaderStyle(dgDetails, 9, 26);
+                        }
+
+                        if (dgAggregation != null)
+                        {
+                            dgAggregation.FontSize = 8;
+                            dgAggregation.RowHeight = 20;
+                            SetHeaderStyle(dgAggregation, 8, 26);
+                        }
+
+                        if (txtNotes != null)
+                        {
+                            txtNotes.FontSize = 10;
+                        }
+                        break;
+
+                    case LayoutPreset.Medium:
+                        // HD+ 1600x900 - standardowy układ
+                        if (dgOrders != null)
+                        {
+                            dgOrders.FontSize = 10;
+                            dgOrders.RowHeight = 26;
+                            SetHeaderStyle(dgOrders, 10, 32);
+                        }
+
+                        if (dgDetails != null)
+                        {
+                            dgDetails.FontSize = 10;
+                            dgDetails.RowHeight = 24;
+                            SetHeaderStyle(dgDetails, 10, 28);
+                        }
+
+                        if (dgAggregation != null)
+                        {
+                            dgAggregation.FontSize = 9;
+                            dgAggregation.RowHeight = 24;
+                            SetHeaderStyle(dgAggregation, 9, 28);
+                        }
+
+                        if (txtNotes != null)
+                        {
+                            txtNotes.FontSize = 11;
+                        }
+                        break;
+
+                    case LayoutPreset.Large:
+                        // FHD 1920x1080 - komfortowy układ
+                        if (dgOrders != null)
+                        {
+                            dgOrders.FontSize = 11;
+                            dgOrders.RowHeight = 30;
+                            SetHeaderStyle(dgOrders, 11, 36);
+                        }
+
+                        if (dgDetails != null)
+                        {
+                            dgDetails.FontSize = 11;
+                            dgDetails.RowHeight = 28;
+                            SetHeaderStyle(dgDetails, 11, 32);
+                        }
+
+                        if (dgAggregation != null)
+                        {
+                            dgAggregation.FontSize = 10;
+                            dgAggregation.RowHeight = 28;
+                            SetHeaderStyle(dgAggregation, 10, 32);
+                        }
+
+                        if (txtNotes != null)
+                        {
+                            txtNotes.FontSize = 12;
+                        }
+                        break;
+
+                    case LayoutPreset.ExtraLarge:
+                        // 2K/4K - duży układ
+                        if (dgOrders != null)
+                        {
+                            dgOrders.FontSize = 12;
+                            dgOrders.RowHeight = 35;
+                            SetHeaderStyle(dgOrders, 12, 40);
+                        }
+
+                        if (dgDetails != null)
+                        {
+                            dgDetails.FontSize = 12;
+                            dgDetails.RowHeight = 32;
+                            SetHeaderStyle(dgDetails, 12, 36);
+                        }
+
+                        if (dgAggregation != null)
+                        {
+                            dgAggregation.FontSize = 11;
+                            dgAggregation.RowHeight = 32;
+                            SetHeaderStyle(dgAggregation, 11, 36);
+                        }
+
+                        if (txtNotes != null)
+                        {
+                            txtNotes.FontSize = 13;
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Loguj błąd, ale nie przerywaj działania aplikacji
+                System.Diagnostics.Debug.WriteLine($"Błąd w ApplyPreset: {ex.Message}");
+            }
+        }
+        private void SetHeaderStyle(DataGrid dataGrid, double fontSize, double height)
+        {
+            if (dataGrid == null) return;
+
+            try
+            {
+                var headerStyle = new Style(typeof(DataGridColumnHeader));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
+                    new SolidColorBrush(Color.FromRgb(44, 62, 80))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, fontSize));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(8, 4, 8, 4)));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, height));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty,
+                    HorizontalAlignment.Left));
+
+                dataGrid.ColumnHeaderStyle = headerStyle;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd w SetHeaderStyle dla {dataGrid.Name}: {ex.Message}");
+            }
+        }
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            try
+            {
+                double windowHeight = this.ActualHeight;
+                double windowWidth = this.ActualWidth;
+
+                // Domyślne wartości bazowe
+                const double DEFAULT_ORDER_FONT = 12;
+                const double DEFAULT_ORDER_ROW = 35;
+                const double DEFAULT_AGG_FONT = 10;
+                const double DEFAULT_AGG_ROW = 28;
+                const double DEFAULT_DETAILS_FONT = 10;
+                const double DEFAULT_DETAILS_ROW = 26;
+
+                double availableHeight = windowHeight - 180;
+
+                // === DOPASOWANIE dgOrders ===
+                int orderRowCount = _dtOrders.Rows.Count;
+
+                if (orderRowCount > 0 && availableHeight > 0)
+                {
+                    double optimalRowHeight = availableHeight / (orderRowCount + 1);
+
+                    // Skalowanie w dół tylko gdy potrzebne
+                    if (orderRowCount > 25 || optimalRowHeight < 24)
+                    {
+                        dgOrders.FontSize = 9;
+                        dgOrders.RowHeight = Math.Max(20, Math.Min(optimalRowHeight, 24));
+                    }
+                    else if (orderRowCount > 20 || optimalRowHeight < 28)
+                    {
+                        dgOrders.FontSize = 10;
+                        dgOrders.RowHeight = Math.Max(24, Math.Min(optimalRowHeight, 28));
+                    }
+                    else if (orderRowCount > 15 || optimalRowHeight < 32)
+                    {
+                        dgOrders.FontSize = 11;
+                        dgOrders.RowHeight = Math.Max(28, Math.Min(optimalRowHeight, 32));
+                    }
+                    else
+                    {
+                        // ✅ RESET DO DOMYŚLNYCH gdy jest dużo miejsca
+                        dgOrders.FontSize = DEFAULT_ORDER_FONT;
+                        dgOrders.RowHeight = DEFAULT_ORDER_ROW;
+                    }
+
+                    // Dynamiczny styl nagłówka
+                    var headerHeight = dgOrders.RowHeight + 8;
+                    var headerStyle = new Style(typeof(DataGridColumnHeader));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(44, 62, 80))));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, dgOrders.FontSize));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(8, 4, 8, 4)));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, headerHeight));
+                    headerStyle.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+
+                    dgOrders.ColumnHeaderStyle = headerStyle;
+                }
+
+                // === DOPASOWANIE dgDetails (górna część prawego panelu) ===
+                int detailsRowCount = dgDetails.Items.Count;
+
+                if (detailsRowCount > 0)
+                {
+                    // Dostępna wysokość dla dgDetails (45% prawego panelu)
+                    double detailsAvailableHeight = (windowHeight - 250) * 0.40; // 40% górnej części
+                    double detailsOptimalHeight = detailsAvailableHeight / (detailsRowCount + 1);
+
+                    if (detailsRowCount > 8 || detailsOptimalHeight < 22)
+                    {
+                        dgDetails.FontSize = 9;
+                        dgDetails.RowHeight = Math.Max(18, Math.Min(detailsOptimalHeight, 22));
+                    }
+                    else if (detailsRowCount > 5 || detailsOptimalHeight < 26)
+                    {
+                        dgDetails.FontSize = 10;
+                        dgDetails.RowHeight = Math.Max(22, Math.Min(detailsOptimalHeight, 26));
+                    }
+                    else
+                    {
+                        // ✅ RESET DO DOMYŚLNYCH
+                        dgDetails.FontSize = DEFAULT_DETAILS_FONT;
+                        dgDetails.RowHeight = DEFAULT_DETAILS_ROW;
+                    }
+
+                    var detailsHeaderStyle = new Style(typeof(DataGridColumnHeader));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(44, 62, 80))));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, dgDetails.FontSize));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(6, 3, 6, 3)));
+                    detailsHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, dgDetails.RowHeight + 6));
+
+                    dgDetails.ColumnHeaderStyle = detailsHeaderStyle;
+                }
+
+                // === DOPASOWANIE txtNotes (większa czcionka) ===
+                if (windowHeight < 700)
+                {
+                    txtNotes.FontSize = 11;
+                }
+                else if (windowHeight < 900)
+                {
+                    txtNotes.FontSize = 12;
+                }
+                else
+                {
+                    txtNotes.FontSize = 13; // Domyślna większa czcionka
+                }
+
+                // === DOPASOWANIE dgAggregation ===
+                int aggRowCount = dgAggregation.Items.Count;
+
+                if (aggRowCount > 0)
+                {
+                    double aggAvailableHeight = (windowHeight - 250) * 0.55; // 55% dolnej części
+                    double aggOptimalHeight = aggAvailableHeight / (aggRowCount + 1);
+
+                    if (aggRowCount > 15 || aggOptimalHeight < 20)
+                    {
+                        dgAggregation.FontSize = 8;
+                        dgAggregation.RowHeight = Math.Max(18, Math.Min(aggOptimalHeight, 22));
+                    }
+                    else if (aggRowCount > 10 || aggOptimalHeight < 24)
+                    {
+                        dgAggregation.FontSize = 9;
+                        dgAggregation.RowHeight = Math.Max(22, Math.Min(aggOptimalHeight, 26));
+                    }
+                    else
+                    {
+                        // ✅ RESET DO DOMYŚLNYCH
+                        dgAggregation.FontSize = DEFAULT_AGG_FONT;
+                        dgAggregation.RowHeight = DEFAULT_AGG_ROW;
+                    }
+
+                    var aggHeaderStyle = new Style(typeof(DataGridColumnHeader));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush(Color.FromRgb(44, 62, 80))));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.SemiBold));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, dgAggregation.FontSize));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(6, 3, 6, 3)));
+                    aggHeaderStyle.Setters.Add(new Setter(DataGridColumnHeader.HeightProperty, dgAggregation.RowHeight + 6));
+
+                    dgAggregation.ColumnHeaderStyle = aggHeaderStyle;
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy podczas zmiany rozmiaru
+            }
+        }
+        private void CbLayoutPreset_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cbLayoutPreset.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                var presetName = item.Tag.ToString();
+                if (Enum.TryParse<LayoutPreset>(presetName, out var preset))
+                {
+                    ApplyPreset(preset);
+                }
+            }
+        }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (_isInitialized) return;
@@ -87,9 +452,11 @@ namespace Kalendarz1.WPF
 
             _selectedDate = ValidateSqlDate(DateTime.Today);
             UpdateDayButtonDates();
-            await RefreshAllDataAsync();
-        }
+            await RefreshAllDataAsync(); // To utworzy DataGridy
 
+            // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
+            ApplyResponsiveLayout();
+        }
         #region Konfiguracja Wydajności i Produktów
 
         private async Task<(decimal wspolczynnikTuszki, decimal procentA, decimal procentB)> GetKonfiguracjaWydajnosciAsync(DateTime data)
@@ -1626,11 +1993,11 @@ ORDER BY zm.Id";
                         perProduct.Values.Sum();
                 }
 
-                // ✅ POPRAWKA 1: Skrócone nazwy dni (pon, wt, śr...)
+                // ✅ PRZYWRÓCONY ORYGINALNY FORMAT
                 string pickupTerm = "";
                 if (arrivalDate.HasValue)
                 {
-                    string dzienTygodnia = arrivalDate.Value.ToString("ddd", cultureInfo); // pon, wt, śr...
+                    string dzienTygodnia = arrivalDate.Value.ToString("ddd", cultureInfo); // pełny dzień
                     pickupTerm = $"{arrivalDate.Value:yyyy-MM-dd} {dzienTygodnia} {arrivalDate.Value:HH:mm}";
                 }
                 else
@@ -1639,7 +2006,7 @@ ORDER BY zm.Id";
                     pickupTerm = $"{day:yyyy-MM-dd} {dzienTygodnia}";
                 }
 
-                // ✅ POPRAWKA 2: Tylko imię w "Utworzone przez"
+                // ✅ PRZYWRÓCONY ORYGINALNY FORMAT - pełne imię
                 string createdBy = "";
                 if (createdDate.HasValue)
                 {
@@ -1784,84 +2151,84 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
-            // 1. Odbiorca
+            // 1. Odbiorca - 15% szerszy (1.15 zamiast 1.0)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(200),
-                MinWidth = 200
+                Width = new DataGridLength(1.15, DataGridLengthUnitType.Star), // ✅ +15%
+                MinWidth = 140
             });
 
-            // 2. Handlo.
+            // 2. Handlowiec
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Handlo.",
+                Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
             // 3. Zamówiono
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zamówiono",
+                Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             // 4. Wydano
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Wydano",
+                Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             // 5. Palety
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Palety",
+                Header = "Pal.",
                 Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(60),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
             // 6. Termin Odbioru
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Termin Odbioru",
+                Header = "Termin",
                 Binding = new System.Windows.Data.Binding("TerminOdbioru"),
-                Width = DataGridLength.Auto,
-                MinWidth = 180
+                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
+                MinWidth = 150
             });
 
             // 7. Utworzone przez
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Utworzone przez",
+                Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = DataGridLength.Auto,
-                MinWidth = 140
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 130
             });
 
-            // ✅ 8. Trans. - PRZENIESIONE NA KONIEC
+            // 8. Trans
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Trans.",
+                Header = "T",
                 Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(35),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // ✅ 9. Prod. - PRZENIESIONE NA KONIEC
+            // 9. Prod
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Prod.",
+                Header = "P",
                 Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(35),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
@@ -2136,30 +2503,31 @@ ORDER BY zm.Id";
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star), // elastyczna
+                MinWidth = 80
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zamówiono",
+                Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("Zamówiono") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
-                Header = "Wydano",
+                Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
-                Header = "Różnica",
+                Header = "Róż.",
                 Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -2167,7 +2535,7 @@ ORDER BY zm.Id";
             {
                 Header = "Folia",
                 Binding = new System.Windows.Data.Binding("Folia"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(45),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
@@ -2175,7 +2543,7 @@ ORDER BY zm.Id";
             {
                 Header = "Hallal",
                 Binding = new System.Windows.Data.Binding("Hallal"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(45),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
@@ -2183,7 +2551,7 @@ ORDER BY zm.Id";
             {
                 Header = "Cena",
                 Binding = new System.Windows.Data.Binding("Cena"),
-                Width = new DataGridLength(80),
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
         }
@@ -2273,6 +2641,7 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
             dtAgg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
+            dtAgg.Columns.Add("Stan", typeof(string));  // ✅ NOWA KOLUMNA
             dtAgg.Columns.Add("Bilans", typeof(decimal));
 
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
@@ -2283,7 +2652,7 @@ ORDER BY zm.Id";
             {
                 await cn.OpenAsync();
                 const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw 
-                    WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
+            WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2305,10 +2674,10 @@ ORDER BY zm.Id";
             {
                 await cn.OpenAsync();
                 const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                    FROM [HANDEL].[HM].[MZ] MZ 
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                    WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day 
-                    GROUP BY MZ.idtw";
+            FROM [HANDEL].[HM].[MZ] MZ 
+            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+            WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day 
+            GROUP BY MZ.idtw";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2326,10 +2695,10 @@ ORDER BY zm.Id";
             {
                 await cn.OpenAsync();
                 const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-                    FROM [HANDEL].[HM].[MZ] MZ 
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-                    WHERE MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day 
-                    GROUP BY MZ.idtw";
+            FROM [HANDEL].[HM].[MZ] MZ 
+            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
+            WHERE MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day 
+            GROUP BY MZ.idtw";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2373,7 +2742,9 @@ ORDER BY zm.Id";
                 planA = pulaTuszkiA;
                 factA = actualIncomeTuszkaA.TryGetValue(kurczakA.Key, out var a) ? a : 0m;
                 ordersA = orderSum.TryGetValue(kurczakA.Key, out var z) ? z : 0m;
-                balanceA = factA - ordersA;
+
+                // ✅ NOWA LOGIKA BILANSU: Jeżeli Fakt = 0 to Plan - Zam, inaczej Fakt - Zam
+                balanceA = (factA == 0) ? (planA - ordersA) : (factA - ordersA);
             }
 
             decimal sumaPlanB = 0m;
@@ -2408,7 +2779,9 @@ ORDER BY zm.Id";
                 decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
                 var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
                 var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
-                var balance = actual - orders;
+
+                // ✅ NOWA LOGIKA BILANSU: Jeżeli Fakt = 0 to Plan - Zam, inaczej Fakt - Zam
+                var balance = (actual == 0) ? (plannedForProduct - orders) : (actual - orders);
 
                 string nazwaZIkonka = string.IsNullOrEmpty(ikona)
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
@@ -2421,22 +2794,24 @@ ORDER BY zm.Id";
                 sumaZamB += orders;
             }
 
-            decimal bilansB = sumaFaktB - sumaZamB;
+            // ✅ BILANS CAŁKOWITY DLA KURCZAKA B
+            decimal bilansB = (sumaFaktB == 0) ? (sumaPlanB - sumaZamB) : (sumaFaktB - sumaZamB);
 
-            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, balanceA + bilansB);
+            // ✅ BILANS CAŁKOWITY
+            decimal bilansCalk = balanceA + bilansB;
 
-            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, ordersA, balanceA);
-            dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB);
+            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, "", bilansCalk);
+            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, ordersA, "", balanceA);
+            dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, "", bilansB);
 
             foreach (var produkt in produktyB)
             {
-                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.zam, produkt.bilans);
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.zam, "", produkt.bilans);
             }
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
         }
-
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -2481,8 +2856,8 @@ ORDER BY zm.Id";
 
             var planColumn = new DataGridTemplateColumn
             {
-                Header = "Plan",
-                Width = DataGridLength.Auto
+                Header = "Plan", // już skrócone
+                Width = new DataGridLength(70)
             };
 
             var planTemplate = new DataTemplate();
@@ -2505,25 +2880,33 @@ ORDER BY zm.Id";
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Fakt",
+                Header = "Fakt", // już skrócone
                 Binding = new System.Windows.Data.Binding("FaktycznyPrzychód") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zam.",
+                Header = "Zam.", // skrócone
                 Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Bilans",
+                Header = "Stan",
+                Binding = new System.Windows.Data.Binding("Stan"),
+                Width = new DataGridLength(60),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgAggregation.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Bil.", // skrócone z "Bilans"
                 Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
-                Width = DataGridLength.Auto,
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -2531,7 +2914,8 @@ ORDER BY zm.Id";
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star), // elastyczna
+                MinWidth = 150
             });
 
             dgAggregation.LoadingRow -= DgAggregation_LoadingRow;
@@ -2540,7 +2924,6 @@ ORDER BY zm.Id";
             dgAggregation.MouseDoubleClick -= DgAggregation_MouseDoubleClick;
             dgAggregation.MouseDoubleClick += DgAggregation_MouseDoubleClick;
         }
-
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (dgAggregation.SelectedItem is DataRowView rowView)

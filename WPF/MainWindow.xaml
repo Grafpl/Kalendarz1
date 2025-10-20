@@ -196,6 +196,18 @@
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
                             Background="#2C3E50" Content="🗑️ Usuń" Width="95"
                             Click="BtnDelete_Click" Visibility="Collapsed"/>
+                    <!-- W sekcji Action Buttons, przed btnDelete -->
+                    <ComboBox x:Name="cbLayoutPreset" 
+          Width="100" Height="40"
+          Margin="5,0"
+          SelectionChanged="CbLayoutPreset_SelectionChanged"
+          VerticalContentAlignment="Center"
+          FontSize="11">
+                        <ComboBoxItem Content="Mały" Tag="Small"/>
+                        <ComboBoxItem Content="Średni" Tag="Medium" IsSelected="True"/>
+                        <ComboBoxItem Content="Duży" Tag="Large"/>
+                        <ComboBoxItem Content="XL" Tag="ExtraLarge"/>
+                    </ComboBox>
                 </StackPanel>
             </Grid>
         </Border>
