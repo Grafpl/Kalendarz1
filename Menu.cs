@@ -7,18 +7,17 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-
 namespace Kalendarz1
 {
     public partial class MENU : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private Dictionary<string, bool> userPermissions = new Dictionary<string, bool>();
         private bool isAdmin = false;
         private Panel headerPanel;
         private Panel sidePanel;
         private Label welcomeLabel;
-
         private TableLayoutPanel mainLayout;
 
         public MENU()
@@ -80,18 +79,15 @@ namespace Kalendarz1
             string userId = App.UserID;
             isAdmin = (userId == "11111");
 
-            // First, reset all permissions to false. This is a failsafe.
             LoadAllPermissions(false);
 
             if (isAdmin)
             {
                 sidePanel.Visible = true;
-                // Grant all permissions only if the user is an admin
                 LoadAllPermissions(true);
             }
             else
             {
-                // Otherwise, load specific permissions from the database
                 LoadUserAccessFromDatabase(userId);
             }
         }
@@ -115,7 +111,6 @@ namespace Kalendarz1
                         }
                         else
                         {
-                            // If user has no permissions string, LoadAllPermissions(false) has already been called.
                             MessageBox.Show("Użytkownik nie ma zdefiniowanych uprawnień. Dostęp został zablokowany.", "Brak uprawnień", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
                     }
@@ -124,7 +119,6 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania uprawnień: {ex.Message}\n\nDostęp został zablokowany z powodu błędu.", "Błąd krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                // Ensure no permissions are granted on error
                 LoadAllPermissions(false);
             }
         }
@@ -153,10 +147,13 @@ namespace Kalendarz1
                 [17] = "ZmianyUHodowcow",
                 [18] = "ProdukcjaPodglad",
                 [19] = "OfertaCenowa",
-                [20] = "PlanTygodniowy"  // <-- DODAJ TEN WIERSZ
+                [20] = "PrognozyUboju",
+                [21] = "AnalizaTygodniowa",
+                [22] = "NotatkiZeSpotkan",
+                [23] = "PlanTygodniowy",
+                [24] = "LiczenieMagazynu" // ✅ NOWE UPRAWNIENIE
             };
 
-            // The initial reset is now in LoadUserPermissions, so we just apply the grants here
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
             {
                 if (accessMap.ContainsKey(i) && accessString[i] == '1')
@@ -171,7 +168,6 @@ namespace Kalendarz1
             var allModules = GetAllModules();
             if (userPermissions.Count == 0)
             {
-                // Initialize dictionary if it's empty
                 foreach (var module in allModules)
                 {
                     userPermissions.Add(module, grantAll);
@@ -179,7 +175,6 @@ namespace Kalendarz1
             }
             else
             {
-                // Otherwise, just update values
                 foreach (var module in allModules)
                 {
                     userPermissions[module] = grantAll;
@@ -190,18 +185,17 @@ namespace Kalendarz1
         private List<string> GetAllModules()
         {
             return new List<string>
-    {
-        "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
-        "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-        "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
-        "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-        "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
-        "OfertaCenowa",
-        "PrognozyUboju",
-        "AnalizaTygodniowa",
-        "PlanTygodniowy"  // <-- DODAJ TEN WIERSZ
-    };
+            {
+                "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
+                "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
+                "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
+                "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
+                "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
+                "OfertaCenowa", "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
+                "LiczenieMagazynu" // ✅ NOWE
+            };
         }
+
         private void SetupMenuItems()
         {
             mainLayout.Controls.Clear();
@@ -221,72 +215,55 @@ namespace Kalendarz1
                     new MenuItemConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", Color.FromArgb(120, 144, 156), () => new WidokMatryca(), "🎯")
                 },
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
-{
-    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
-    new MenuItemConfig(
-        "ProdukcjaPodglad",
-        "Podgląd Produkcji",
-        "Monitoruj bieżącą produkcję",
-        Color.FromArgb(245, 124, 0),
-        () => {
-            var window = new Kalendarz1.ProdukcjaPanel();
-            window.UserID = App.UserID;
-            return window;
-        },
-        "🏭"
-    ),
-    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
-}
+                {
+                    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
+                    new MenuItemConfig("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", Color.FromArgb(245, 124, 0), () => {
+                        var window = new Kalendarz1.ProdukcjaPanel();
+                        window.UserID = App.UserID;
+                        return window;
+                    }, "🏭"),
+                    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
+                    // ✅ NOWY PRZYCISK LICZENIA MAGAZYNU
+                    new MenuItemConfig("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", Color.FromArgb(156, 39, 176), () => {
+                        return new Kalendarz1.MagazynLiczenie.Formularze.LiczenieStanuWindow(
+                            connectionString,
+                            connectionHandel,
+                            App.UserID
+                        );
+                    }, "📦")
+                }
             };
 
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
-{
-    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
-    new MenuItemConfig(
-        "ZamowieniaOdbiorcow",
-        "Zamówienia Mięsa",
-        "Przeglądaj i zarządzaj zamówieniami",
-        Color.FromArgb(30, 136, 229),
-        () => {
-            var window = new Kalendarz1.WPF.MainWindow();
-            window.UserID = App.UserID;
-            return window;
-        },
-        "📦"
-    ),
-    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
-    // --- DODAJ TEN WPIS ---
-    new MenuItemConfig(
-        "PlanTygodniowy",
-        "Plan Produkcji",
-        "Tygodniowy plan uboju i krojenia",
-        Color.FromArgb(156, 39, 176), // Fioletowy
-        () => new Kalendarz1.TygodniowyPlan(),
-        "📊"
-    ),
-    // --- KONIEC ---
-    new MenuItemConfig(
-        "AnalizaTygodniowa",
-        "Dashboard Analityczny",
-        "Analizuj bilans produkcji i sprzedaży",
-        Color.FromArgb(216, 27, 96),
-        () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(),
-        "📊"
-    ),
-    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
-},
+                {
+                    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
+                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => {
+                        var window = new Kalendarz1.WPF.MainWindow();
+                        window.UserID = App.UserID;
+                        return window;
+                    }, "📦"),
+                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
+                    new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
+                    new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
+                    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+                },
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", Color.FromArgb(0, 151, 167), () => new WidokPojemnikiZestawienie(), "📊"),
                     new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", Color.FromArgb(0, 131, 143), () => new WidokPojemniki(), "📈"),
-                    new MenuItemConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", Color.FromArgb(255, 111, 0), () => { var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True"; var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString); return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID); }, "🚚")
+                    new MenuItemConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", Color.FromArgb(255, 111, 0), () => {
+                        var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                        var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
+                        return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
+                    }, "🚚")
                 },
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", Color.FromArgb(96, 125, 139), () => new WidokSprzeZakup(), "💼")
+                    new MenuItemConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", Color.FromArgb(96, 125, 139), () => new WidokSprzeZakup(), "💼"),
+                    new MenuItemConfig("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", Color.FromArgb(52, 73, 94), () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
                 }
             };
 
@@ -299,17 +276,14 @@ namespace Kalendarz1
             mainLayout.Controls.Add(rightPanel, 1, 0);
         }
 
-        // --- KLUCZOWA POPRAWKA LOGIKI ---
         private void PopulateColumn(FlowLayoutPanel columnPanel, Dictionary<string, List<MenuItemConfig>> categories)
         {
             foreach (var category in categories)
             {
-                // 1. Znajdź wszystkie moduły w tej kategorii, do których użytkownik FAKTYCZNIE ma dostęp.
                 var permittedItems = category.Value.Where(item =>
                     (userPermissions.ContainsKey(item.ModuleName) && userPermissions[item.ModuleName])
                 ).ToList();
 
-                // 2. Jeśli istnieje chociaż jeden taki moduł (LUB jeśli użytkownik jest adminem), wyświetl całą kategorię.
                 if (permittedItems.Any() || isAdmin)
                 {
                     var categoryLabel = new Label
@@ -332,7 +306,6 @@ namespace Kalendarz1
                         Padding = new Padding(5, 0, 5, 10)
                     };
 
-                    // 3. Wyświetl przyciski TYLKO dla dozwolonych modułów (lub wszystkich, jeśli to admin).
                     var itemsToDisplay = isAdmin ? category.Value : permittedItems;
                     foreach (var item in itemsToDisplay)
                     {
@@ -351,10 +324,12 @@ namespace Kalendarz1
             var iconLabel = new Label { Text = config.IconText, Font = new Font("Segoe UI Emoji", 24), Size = new Size(50, 50), Location = new Point(15, 15), ForeColor = config.Color };
             var titleLabel = new Label { Text = config.DisplayName, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.FromArgb(55, 71, 79), Location = new Point(15, 65), AutoSize = true };
             var descriptionLabel = new Label { Text = config.Description, Font = new Font("Segoe UI", 8), ForeColor = Color.Gray, Location = new Point(15, 85), Size = new Size(150, 30) };
+
             panel.Controls.Add(titleLabel);
             panel.Controls.Add(descriptionLabel);
             panel.Controls.Add(iconLabel);
             panel.Controls.Add(bottomBorder);
+
             panel.Paint += (sender, e) => {
                 ControlPaint.DrawBorder(e.Graphics, panel.ClientRectangle,
                     Color.FromArgb(220, 220, 220), 1, ButtonBorderStyle.Solid,
@@ -372,6 +347,7 @@ namespace Kalendarz1
                     attachClickEvent(child);
                 }
             };
+
             panel.MouseEnter += (s, e) => panel.BackColor = Color.FromArgb(248, 249, 250);
             panel.MouseLeave += (s, e) => panel.BackColor = Color.White;
             attachClickEvent(panel);
@@ -390,12 +366,10 @@ namespace Kalendarz1
                     {
                         var formularz = config.FormFactory();
 
-                        // Obsługa okna WPF
                         if (formularz is System.Windows.Window wpfWindow)
                         {
-                            wpfWindow.ShowDialog(); // lub .Show()
+                            wpfWindow.ShowDialog();
                         }
-                        // Obsługa formularza WinForms
                         else if (formularz is System.Windows.Forms.Form winForm)
                         {
                             winForm.Show();
@@ -419,6 +393,7 @@ namespace Kalendarz1
                 }
             }
         }
+
         private void ApplyModernStyle()
         {
             this.BackColor = Color.FromArgb(236, 239, 241);
@@ -464,11 +439,11 @@ namespace Kalendarz1
         public string DisplayName { get; set; }
         public string Description { get; set; }
         public Color Color { get; set; }
-        public Func<object> FormFactory { get; set; } // ← ZMIANA: Form → object
+        public Func<object> FormFactory { get; set; }
         public string IconText { get; set; }
 
         public MenuItemConfig(string moduleName, string displayName, string description,
-            Color color, Func<object> formFactory, string iconText = null) // ← ZMIANA
+            Color color, Func<object> formFactory, string iconText = null)
         {
             ModuleName = moduleName;
             DisplayName = displayName;

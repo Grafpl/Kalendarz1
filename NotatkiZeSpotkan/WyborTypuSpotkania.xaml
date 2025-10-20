@@ -1,0 +1,152 @@
+﻿<Window x:Class="Kalendarz1.NotatkiZeSpotkan.WyborTypuSpotkania"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wybierz typ spotkania"
+        Height="450" Width="700"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Segoe UI">
+
+    <Border CornerRadius="12" Background="White">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="Black" Opacity="0.3" BlurRadius="20"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- HEADER -->
+            <Border Grid.Row="0" Background="#5C8A3A" CornerRadius="12,12,0,0">
+                <StackPanel VerticalAlignment="Center" Margin="30,0">
+                    <TextBlock Text="Wybierz typ spotkania" FontSize="24" FontWeight="Bold" 
+                               Foreground="White"/>
+                    <TextBlock Text="Kliknij jedną z opcji poniżej" FontSize="13" 
+                               Foreground="#E0F0D6" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- OPCJE -->
+            <StackPanel Grid.Row="1" Margin="40,30" VerticalAlignment="Center">
+                <!-- ZESPÓŁ -->
+                <Button x:Name="btnZespol" Height="85" Margin="0,0,0,15" Click="BtnZespol_Click"
+                        Background="#3498DB" BorderThickness="0" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" Padding="25,20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="👥" FontSize="40" VerticalAlignment="Center" 
+                                               HorizontalAlignment="Center"/>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                                        <TextBlock Text="Spotkanie zespołów" FontSize="22" FontWeight="Bold" 
+                                                   Foreground="White"/>
+                                        <TextBlock Text="Wewnętrzne spotkanie firmowe z uczestnikami" 
+                                                   FontSize="14" Foreground="#ECF0F1" Margin="0,5,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.25" BlurRadius="10"/>
+                                </Border.Effect>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#2980B9"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#21618C"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- ODBIORCA -->
+                <Button x:Name="btnOdbiorca" Height="85" Margin="0,0,0,15" Click="BtnOdbiorca_Click"
+                        Background="#27AE60" BorderThickness="0" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" Padding="25,20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="🏢" FontSize="40" VerticalAlignment="Center" 
+                                               HorizontalAlignment="Center"/>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                                        <TextBlock Text="Spotkanie u odbiorcy" FontSize="22" FontWeight="Bold" 
+                                                   Foreground="White"/>
+                                        <TextBlock Text="Wizyta handlowa u klienta (z bazy odbiorców)" 
+                                                   FontSize="14" Foreground="#E0F0D6" Margin="0,5,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.25" BlurRadius="10"/>
+                                </Border.Effect>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#229954"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#1D8348"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- HODOWCA -->
+                <Button x:Name="btnHodowca" Height="85" Click="BtnHodowca_Click"
+                        Background="#E67E22" BorderThickness="0" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" Padding="25,20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="🐔" FontSize="40" VerticalAlignment="Center" 
+                                               HorizontalAlignment="Center"/>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                                        <TextBlock Text="Spotkanie u hodowcy" FontSize="22" FontWeight="Bold" 
+                                                   Foreground="White"/>
+                                        <TextBlock Text="Wizyta u dostawcy żywca (z bazy hodowców)" 
+                                                   FontSize="14" Foreground="#FDE9D9" Margin="0,5,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.25" BlurRadius="10"/>
+                                </Border.Effect>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#CA6F1E"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#A04000"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

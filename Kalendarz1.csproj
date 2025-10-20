@@ -119,7 +119,6 @@
   <ItemGroup>
     <Folder Include="Kalendarz1\" />
     <Folder Include="Menu\" />
-    <Folder Include="Nowy folder1\" />
     <Folder Include="Nowy folder2\" />
     <Folder Include="Nowy folder3\" />
     <Folder Include="Nowy folder4\" />

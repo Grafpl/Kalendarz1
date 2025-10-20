@@ -1,0 +1,280 @@
+﻿<Window x:Class="Kalendarz1.NotatkiZeSpotkan.EdytorNotatki"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edytor notatki"
+        WindowState="Maximized"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Margin" Value="0,12,0,8"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#34495E"/>
+            <Setter Property="Margin" Value="0,6,0,4"/>
+        </Style>
+
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <Style x:Key="ModernComboBox" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+
+        <Style x:Key="ModernDatePicker" TargetType="DatePicker">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="34"/>
+        </Style>
+
+        <Style x:Key="SaveButton" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.2" BlurRadius="8"/>
+                            </Border.Effect>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CancelButton" TargetType="Button" BasedOn="{StaticResource SaveButton}">
+            <Setter Property="Background" Value="#7F8C8D"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#6C7A7B"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="0" Background="White">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- HEADER -->
+            <Border Grid.Row="0" Background="#5C8A3A" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
+                        <TextBlock x:Name="txtHeaderIcon" Text="📝" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock x:Name="txtHeaderTitle" Text="Nowa notatka" FontSize="20" FontWeight="Bold" 
+                                   Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0">
+                        <Button Content="−" Width="35" Height="35" FontSize="18" Click="MinimizeButton_Click"
+                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="✕" Width="35" Height="35" FontSize="14" Click="CloseButton_Click"
+                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ZAWARTOŚĆ - 2 KOLUMNY -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="15"/>
+                        <ColumnDefinition Width="350"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEWA KOLUMNA -->
+                    <StackPanel Grid.Column="0">
+                        <!-- PODSTAWOWE -->
+                        <TextBlock Text="📋 Informacje" Style="{StaticResource SectionHeader}"/>
+                        <Border Background="#ECF0F1" CornerRadius="6" Padding="15,12" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Typ:" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock x:Name="txtTypSpotkania" Text="Zespół" FontSize="14" FontWeight="Bold" 
+                                               Foreground="#5C8A3A" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Data spotkania: *" Style="{StaticResource FieldLabel}"/>
+                                    <DatePicker x:Name="dpDataSpotkania" Style="{StaticResource ModernDatePicker}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- TEMAT -->
+                        <TextBlock Text="Temat: *" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="txtTemat" Style="{StaticResource ModernTextBox}" 
+                                 MaxLength="500" Height="36" Margin="0,0,0,12"/>
+
+                        <!-- KONTRAHENT -->
+                        <StackPanel x:Name="panelKontrahent" Visibility="Collapsed" Margin="0,0,0,12">
+                            <TextBlock x:Name="lblKontrahent" Text="Kontrahent: *" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="cmbKontrahent" Style="{StaticResource ModernComboBox}" 
+                                      DisplayMemberPath="Nazwa" SelectionChanged="CmbKontrahent_SelectionChanged"/>
+
+                            <TextBlock Text="Osoba kontaktowa:" Style="{StaticResource FieldLabel}" Margin="0,8,0,4"/>
+                            <TextBox x:Name="txtOsobaKontaktowa" Style="{StaticResource ModernTextBox}" Height="34"/>
+                        </StackPanel>
+
+                        <!-- TREŚĆ -->
+                        <TextBlock Text="💬 Treść notatki: *" Style="{StaticResource SectionHeader}"/>
+                        <TextBox x:Name="txtTresc" Style="{StaticResource ModernTextBox}"
+                                 TextWrapping="Wrap" AcceptsReturn="True" 
+                                 VerticalScrollBarVisibility="Auto"
+                                 MinHeight="180" MaxHeight="300" Margin="0,0,0,12"/>
+
+                        <!-- DODATKOWE -->
+                        <TextBlock Text="📎 Dodatkowe informacje" Style="{StaticResource SectionHeader}"/>
+                        <TextBox x:Name="txtDodatkoweInfo" Style="{StaticResource ModernTextBox}"
+                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 MinHeight="70" MaxHeight="120"
+                                 Foreground="#7F8C8D"/>
+                    </StackPanel>
+
+                    <!-- PRAWA KOLUMNA -->
+                    <StackPanel Grid.Column="2">
+                        <!-- UCZESTNICY -->
+                        <StackPanel x:Name="panelUczestnicy" Visibility="Collapsed" Margin="0,0,0,15">
+                            <TextBlock Text="👥 Uczestnicy" Style="{StaticResource SectionHeader}"/>
+
+                            <!-- FILTR UCZESTNIKÓW -->
+                            <TextBox x:Name="txtFiltrUczestnicy" 
+                                     Style="{StaticResource ModernTextBox}"
+                                     Height="32"
+                                     Margin="0,0,0,8"
+                                     TextChanged="TxtFiltrUczestnicy_TextChanged">
+                                <TextBox.Resources>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
+                                        <Style.Triggers>
+                                            <Trigger Property="Text" Value="">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <VisualBrush Stretch="None" AlignmentX="Left">
+                                                            <VisualBrush.Visual>
+                                                                <TextBlock Text="🔍 Filtruj uczestników..." 
+                                                                          Foreground="#999" 
+                                                                          FontSize="12" 
+                                                                          Margin="8,0,0,0"/>
+                                                            </VisualBrush.Visual>
+                                                        </VisualBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+
+                            <Border Background="#E8F5E9" CornerRadius="6" Padding="12" MaxHeight="250">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel x:Name="stackUczestnicy"/>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- WIDOCZNOŚĆ -->
+                        <TextBlock Text="👁️ Dostęp do notatki" Style="{StaticResource SectionHeader}"/>
+
+                        <!-- FILTR WIDOCZNOŚCI -->
+                        <TextBox x:Name="txtFiltrWidocznosc" 
+                                 Style="{StaticResource ModernTextBox}"
+                                 Height="32"
+                                 Margin="0,0,0,8"
+                                 TextChanged="TxtFiltrWidocznosc_TextChanged">
+                            <TextBox.Resources>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource ModernTextBox}">
+                                    <Style.Triggers>
+                                        <Trigger Property="Text" Value="">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <VisualBrush Stretch="None" AlignmentX="Left">
+                                                        <VisualBrush.Visual>
+                                                            <TextBlock Text="🔍 Filtruj użytkowników..." 
+                                                                      Foreground="#999" 
+                                                                      FontSize="12" 
+                                                                      Margin="8,0,0,0"/>
+                                                        </VisualBrush.Visual>
+                                                    </VisualBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Resources>
+                        </TextBox>
+
+                        <Border Background="#FFF3E0" CornerRadius="6" Padding="12">
+                            <StackPanel>
+                                <TextBlock FontSize="11" Foreground="#E67E22" FontWeight="SemiBold" Margin="0,0,0,4">
+                                    <Run Text="✓ Twórca"/>
+                                    <Run Text=" - zawsze ma dostęp" FontWeight="Normal"/>
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="#E67E22" FontWeight="SemiBold" Margin="0,0,0,8">
+                                    <Run Text="✓ Zaznaczone osoby"/>
+                                    <Run Text=" - mogą przeglądać i edytować" FontWeight="Normal"/>
+                                </TextBlock>
+                                <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel x:Name="stackWidocznosc"/>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- FOOTER -->
+            <Border Grid.Row="2" Background="#ECF0F1" Padding="20,12" BorderBrush="#BDC3C7" BorderThickness="0,1,0,0">
+                <Grid>
+                    <TextBlock Text="* Pola wymagane" FontSize="11" Foreground="#7F8C8D" 
+                               VerticalAlignment="Center" FontStyle="Italic"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="💾 Zapisz" Style="{StaticResource SaveButton}" 
+                                Click="BtnZapisz_Click" Margin="0,0,10,0"/>
+                        <Button Content="✖ Anuluj" Style="{StaticResource CancelButton}" 
+                                Click="BtnAnuluj_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

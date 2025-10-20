@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
@@ -17,9 +16,10 @@ namespace Kalendarz1
         private DataGridView usersGrid;
         private DataGridView permissionsGrid;
         private ComboBox userComboBox;
+        private ComboBox categoryFilterCombo;
         private TextBox searchBox;
         private Button saveButton, refreshButton, addUserButton, deleteUserButton;
-        private Button manageHandlowcyButton; // NOWY PRZYCISK
+        private Button manageHandlowcyButton;
         private Panel topPanel, leftPanel, rightPanel, bottomPanel;
         private Label titleLabel, usersCountLabel;
         private string selectedUserId;
@@ -51,13 +51,11 @@ namespace Kalendarz1
 
         private void InitializeComponent()
         {
-            this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami i Handlowcami";
-            this.Size = new Size(1500, 850);
+            this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami";
+            this.Size = new Size(1600, 900);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = Colors.Background;
-
-            // Rounded form
             this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 20, 20));
         }
 
@@ -66,7 +64,7 @@ namespace Kalendarz1
 
         private void InitializeCustomComponents()
         {
-            // ========== TOP PANEL ==========
+            // TOP PANEL
             topPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -110,7 +108,7 @@ namespace Kalendarz1
             closeButton.Click += (s, e) => this.Close();
             topPanel.Controls.Add(closeButton);
 
-            // ========== LEFT PANEL ==========
+            // LEFT PANEL
             leftPanel = new Panel
             {
                 Dock = DockStyle.Left,
@@ -139,7 +137,6 @@ namespace Kalendarz1
             };
             leftPanel.Controls.Add(usersCountLabel);
 
-            // Search box
             searchBox = new TextBox
             {
                 Location = new Point(25, 75),
@@ -151,13 +148,11 @@ namespace Kalendarz1
             searchBox.TextChanged += SearchBox_TextChanged;
             leftPanel.Controls.Add(searchBox);
 
-            // Users grid
-            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 400)); // Zmniejszone o 50px
+            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 400));
             usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
             usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
             leftPanel.Controls.Add(usersGrid);
 
-            // Buttons - przesunięte wyżej
             var buttonY = 530;
             addUserButton = CreateStyledButton("➕ Nowy użytkownik", Colors.Success,
                 new Point(25, buttonY), new Size(195, 48));
@@ -169,13 +164,11 @@ namespace Kalendarz1
             deleteUserButton.Click += DeleteUserButton_Click;
             leftPanel.Controls.Add(deleteUserButton);
 
-            // NOWY PRZYCISK - Zarządzaj handlowcami
             manageHandlowcyButton = CreateStyledButton("👔 Zarządzaj handlowcami", ColorTranslator.FromHtml("#9B59B6"),
                 new Point(25, 585), new Size(400, 48));
             manageHandlowcyButton.Click += ManageHandlowcyButton_Click;
             leftPanel.Controls.Add(manageHandlowcyButton);
 
-            // Loading bar
             loadingBar = new ProgressBar
             {
                 Location = new Point(25, 638),
@@ -186,7 +179,7 @@ namespace Kalendarz1
             };
             leftPanel.Controls.Add(loadingBar);
 
-            // ========== RIGHT PANEL ==========
+            // RIGHT PANEL
             rightPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -204,7 +197,6 @@ namespace Kalendarz1
             };
             rightPanel.Controls.Add(permissionsLabel);
 
-            // User info
             userComboBox = new ComboBox
             {
                 Location = new Point(25, 55),
@@ -216,11 +208,35 @@ namespace Kalendarz1
             };
             rightPanel.Controls.Add(userComboBox);
 
+            // Filtr kategorii
+            var filterLabel = new Label
+            {
+                Text = "Filtruj:",
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Colors.TextDark,
+                Location = new Point(390, 58),
+                AutoSize = true
+            };
+            rightPanel.Controls.Add(filterLabel);
+
+            categoryFilterCombo = new ComboBox
+            {
+                Location = new Point(450, 55),
+                Size = new Size(200, 35),
+                Font = new Font("Segoe UI", 11),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                FlatStyle = FlatStyle.Flat
+            };
+            categoryFilterCombo.Items.AddRange(new object[] { "Wszystkie kategorie", "Zaopatrzenie i Zakupy", "Produkcja i Magazyn", "Sprzedaż i CRM", "Opakowania i Transport", "Finanse i Zarządzanie" });
+            categoryFilterCombo.SelectedIndex = 0;
+            categoryFilterCombo.SelectedIndexChanged += CategoryFilter_Changed;
+            rightPanel.Controls.Add(categoryFilterCombo);
+
             // Category checkboxes
             categoryCheckboxesPanel = new FlowLayoutPanel
             {
-                Location = new Point(390, 55),
-                Size = new Size(620, 80),
+                Location = new Point(665, 55),
+                Size = new Size(450, 80),
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = true,
                 BackColor = Color.White,
@@ -237,23 +253,24 @@ namespace Kalendarz1
             };
             categoryCheckboxesPanel.Controls.Add(categoryLabel);
 
-            CreateCategoryCheckbox("Zaopatrzenie", Colors.Success);
-            CreateCategoryCheckbox("Produkcja", Colors.Warning);
-            CreateCategoryCheckbox("Sprzedaż", Colors.Info);
-            CreateCategoryCheckbox("Opakowania", ColorTranslator.FromHtml("#00BCD4"));
-            CreateCategoryCheckbox("Finanse", Colors.TextGray);
+            CreateCategoryCheckbox("Zaopatrzenie i Zakupy", Colors.Success);
+            CreateCategoryCheckbox("Produkcja i Magazyn", Colors.Warning);
+            CreateCategoryCheckbox("Sprzedaż i CRM", Colors.Info);
+            CreateCategoryCheckbox("Opakowania i Transport", ColorTranslator.FromHtml("#00BCD4"));
+            CreateCategoryCheckbox("Finanse i Zarządzanie", Colors.TextGray);
 
             rightPanel.Controls.Add(categoryCheckboxesPanel);
 
-            // Permissions grid
-            permissionsGrid = CreateStyledGrid(new Point(25, 145), new Size(985, 430));
+            permissionsGrid = CreateStyledGrid(new Point(25, 145), new Size(1090, 430));
+            permissionsGrid.CellContentClick += PermissionsGrid_CellContentClick;
+            permissionsGrid.CurrentCellDirtyStateChanged += PermissionsGrid_CurrentCellDirtyStateChanged;
             rightPanel.Controls.Add(permissionsGrid);
 
             // Bottom buttons
             bottomPanel = new Panel
             {
                 Location = new Point(25, 585),
-                Size = new Size(985, 60),
+                Size = new Size(1090, 60),
                 BackColor = Color.Transparent
             };
 
@@ -280,7 +297,6 @@ namespace Kalendarz1
 
             rightPanel.Controls.Add(bottomPanel);
 
-            // Add panels
             this.Controls.Add(rightPanel);
             this.Controls.Add(leftPanel);
             this.Controls.Add(topPanel);
@@ -299,7 +315,7 @@ namespace Kalendarz1
                 MultiSelect = false,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                ReadOnly = true,
+                ReadOnly = false, // ZMIANA: było true
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 EnableHeadersVisualStyles = false
@@ -344,11 +360,11 @@ namespace Kalendarz1
         {
             var checkbox = new CheckBox
             {
-                Text = categoryName,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Text = categoryName.Replace(" i ", " "),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = color,
                 AutoSize = true,
-                Margin = new Padding(12, 8, 12, 8),
+                Margin = new Padding(8, 8, 8, 8),
                 Cursor = Cursors.Hand
             };
             checkbox.CheckedChanged += (s, e) => CategoryCheckbox_CheckedChanged(categoryName, checkbox.Checked);
@@ -370,15 +386,46 @@ namespace Kalendarz1
             }
         }
 
+        private void CategoryFilter_Changed(object sender, EventArgs e)
+        {
+            if (permissionsGrid.DataSource is DataTable dt)
+            {
+                string selectedCategory = categoryFilterCombo.SelectedItem?.ToString();
+                if (selectedCategory == "Wszystkie kategorie")
+                {
+                    dt.DefaultView.RowFilter = "";
+                }
+                else
+                {
+                    var modulesInCategory = GetModulesByCategory(selectedCategory);
+                    string filter = string.Join(" OR ", modulesInCategory.Select(m => $"Moduł = '{m}'"));
+                    dt.DefaultView.RowFilter = filter;
+                }
+            }
+        }
+
         private List<string> GetModulesByCategory(string categoryName)
         {
             var categories = new Dictionary<string, List<string>>
             {
-                ["Zaopatrzenie"] = new List<string> { "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca", "DokumentyZakupu", "PlatnosciHodowcy", "ZmianyUHodowcow", "Specyfikacje", "PlachtyAviloga" },
-                ["Produkcja"] = new List<string> { "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni" },
-                ["Sprzedaż"] = new List<string> { "CRM", "ZamowieniaOdbiorcow", "DokumentySprzedazy", "PrognozyUboju", "AnalizaTygodniowa", "OfertaCenowa" },
-                ["Opakowania"] = new List<string> { "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu" },
-                ["Finanse"] = new List<string> { "DaneFinansowe" }
+                ["Zaopatrzenie i Zakupy"] = new List<string> {
+                    "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy",
+                    "TerminyDostawyZywca", "DokumentyZakupu", "PlatnosciHodowcy",
+                    "ZmianyUHodowcow", "Specyfikacje", "PlachtyAviloga"
+                },
+                ["Produkcja i Magazyn"] = new List<string> {
+                    "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni"
+                },
+                ["Sprzedaż i CRM"] = new List<string> {
+                    "CRM", "ZamowieniaOdbiorcow", "DokumentySprzedazy",
+                    "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "OfertaCenowa"
+                },
+                ["Opakowania i Transport"] = new List<string> {
+                    "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu"
+                },
+                ["Finanse i Zarządzanie"] = new List<string> {
+                    "DaneFinansowe", "NotatkiZeSpotkan"
+                }
             };
             return categories.ContainsKey(categoryName) ? categories[categoryName] : new List<string>();
         }
@@ -451,35 +498,12 @@ namespace Kalendarz1
             {
                 var modules = GetModulesList();
                 var permissions = new DataTable();
+                permissions.Columns.Add("Kategoria", typeof(string));
                 permissions.Columns.Add("Moduł", typeof(string));
                 permissions.Columns.Add("Opis", typeof(string));
                 permissions.Columns.Add("Dostęp", typeof(bool));
 
-                var accessMap = new Dictionary<int, string>
-                {
-                    [0] = "DaneHodowcy",
-                    [1] = "ZakupPaszyPisklak",
-                    [2] = "WstawieniaHodowcy",
-                    [3] = "TerminyDostawyZywca",
-                    [4] = "PlachtyAviloga",
-                    [5] = "DokumentyZakupu",
-                    [6] = "Specyfikacje",
-                    [7] = "PlatnosciHodowcy",
-                    [8] = "CRM",
-                    [9] = "ZamowieniaOdbiorcow",
-                    [10] = "KalkulacjaKrojenia",
-                    [11] = "PrzychodMrozni",
-                    [12] = "DokumentySprzedazy",
-                    [13] = "PodsumowanieSaldOpak",
-                    [14] = "SaldaOdbiorcowOpak",
-                    [15] = "DaneFinansowe",
-                    [16] = "UstalanieTranportu",
-                    [17] = "ZmianyUHodowcow",
-                    [18] = "ProdukcjaPodglad",
-                    [19] = "OfertaCenowa",
-                    [20] = "PrognozyUboju",
-                    [21] = "AnalizaTygodniowa"
-                };
+                var accessMap = GetAccessMap();
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -501,15 +525,22 @@ namespace Kalendarz1
                         if (position >= 0 && position < accessString.Length)
                             hasAccess = accessString[position] == '1';
 
-                        permissions.Rows.Add(module.Key, module.Value, hasAccess);
+                        permissions.Rows.Add(module.Category, module.Key, module.Description, hasAccess);
                     }
                 }
 
                 permissionsGrid.DataSource = permissions;
                 if (permissionsGrid.Columns.Count > 0)
                 {
+                    permissionsGrid.Columns["Kategoria"].Width = 200;
+                    permissionsGrid.Columns["Kategoria"].ReadOnly = true;
+
                     permissionsGrid.Columns["Moduł"].Width = 200;
-                    permissionsGrid.Columns["Opis"].Width = 550;
+                    permissionsGrid.Columns["Moduł"].ReadOnly = true;
+
+                    permissionsGrid.Columns["Opis"].Width = 500;
+                    permissionsGrid.Columns["Opis"].ReadOnly = true;
+
                     permissionsGrid.Columns["Dostęp"].Width = 100;
                     permissionsGrid.Columns["Dostęp"].ReadOnly = false;
                 }
@@ -520,32 +551,74 @@ namespace Kalendarz1
             }
         }
 
-        private Dictionary<string, string> GetModulesList()
+        private List<ModuleInfo> GetModulesList()
         {
-            return new Dictionary<string, string>
+            return new List<ModuleInfo>
             {
-                ["DaneHodowcy"] = "Zarządzanie danymi hodowców",
-                ["ZakupPaszyPisklak"] = "Zakup paszy i piskląt",
-                ["WstawieniaHodowcy"] = "Rejestracja wstawień u hodowców",
-                ["TerminyDostawyZywca"] = "Kalendarz terminów dostaw żywca",
-                ["PlachtyAviloga"] = "Zarządzanie płachtami Aviloga",
-                ["DokumentyZakupu"] = "Dokumenty zakupowe i umowy",
-                ["Specyfikacje"] = "Tworzenie i zarządzanie specyfikacjami",
-                ["PlatnosciHodowcy"] = "Płatności dla hodowców",
-                ["CRM"] = "System CRM dla odbiorców",
-                ["ZamowieniaOdbiorcow"] = "Zarządzanie zamówieniami odbiorców",
-                ["KalkulacjaKrojenia"] = "Kalkulacje krojenia i produkcji",
-                ["PrzychodMrozni"] = "Ewidencja przychodu do mroźni",
-                ["DokumentySprzedazy"] = "Faktury i dokumenty sprzedaży",
-                ["PodsumowanieSaldOpak"] = "Podsumowanie sald opakowań",
-                ["SaldaOdbiorcowOpak"] = "Salda opakowań u odbiorców",
-                ["DaneFinansowe"] = "Raporty i dane finansowe",
-                ["UstalanieTranportu"] = "Planowanie transportu",
-                ["ZmianyUHodowcow"] = "Zgłoszenia zmian u hodowców",
-                ["ProdukcjaPodglad"] = "Podgląd produkcji",
-                ["OfertaCenowa"] = "Tworzenie ofert cenowych",
-                ["PrognozyUboju"] = "Prognoza uboju i analiza zakupów",
-                ["AnalizaTygodniowa"] = "Dashboard analityczny produkcji"
+                // Zaopatrzenie i Zakupy
+                new ModuleInfo("DaneHodowcy", "Dane Hodowcy", "Zarządzanie danymi hodowców", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy", "Zakup paszy i piskląt", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("WstawieniaHodowcy", "Wstawienia", "Rejestracja wstawień u hodowców", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("DokumentyZakupu", "Dokumenty Zakupu", "Dokumenty zakupowe i umowy", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Tworzenie i zarządzanie specyfikacjami", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("PlatnosciHodowcy", "Płatności Hodowców", "Płatności dla hodowców", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmianę", "Zgłoszenia zmian u hodowców", "Zaopatrzenie i Zakupy"),
+                
+                // Produkcja i Magazyn
+                new ModuleInfo("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", "Produkcja i Magazyn"),
+                new ModuleInfo("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", "Produkcja i Magazyn"),
+                new ModuleInfo("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", "Produkcja i Magazyn"),
+                
+                // Sprzedaż i CRM
+                new ModuleInfo("CRM", "CRM", "Zarządzaj relacjami z klientami", "Sprzedaż i CRM"),
+                new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Zarządzanie zamówieniami", "Sprzedaż i CRM"),
+                new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "Sprzedaż i CRM"),
+                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "Sprzedaż i CRM"),
+                new ModuleInfo("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", "Sprzedaż i CRM"),
+                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "Sprzedaż i CRM"),
+                new ModuleInfo("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "Sprzedaż i CRM"),
+                
+                // Opakowania i Transport
+                new ModuleInfo("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", "Opakowania i Transport"),
+                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", "Opakowania i Transport"),
+                new ModuleInfo("UstalanieTranportu", "Transport", "Organizuj i planuj transport", "Opakowania i Transport"),
+                
+                // Finanse i Zarządzanie
+                new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie"),
+                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie")
+            };
+        }
+
+        private Dictionary<int, string> GetAccessMap()
+        {
+            return new Dictionary<int, string>
+            {
+                [0] = "DaneHodowcy",
+                [1] = "ZakupPaszyPisklak",
+                [2] = "WstawieniaHodowcy",
+                [3] = "TerminyDostawyZywca",
+                [4] = "PlachtyAviloga",
+                [5] = "DokumentyZakupu",
+                [6] = "Specyfikacje",
+                [7] = "PlatnosciHodowcy",
+                [8] = "CRM",
+                [9] = "ZamowieniaOdbiorcow",
+                [10] = "KalkulacjaKrojenia",
+                [11] = "PrzychodMrozni",
+                [12] = "DokumentySprzedazy",
+                [13] = "PodsumowanieSaldOpak",
+                [14] = "SaldaOdbiorcowOpak",
+                [15] = "DaneFinansowe",
+                [16] = "UstalanieTranportu",
+                [17] = "ZmianyUHodowcow",
+                [18] = "ProdukcjaPodglad",
+                [19] = "OfertaCenowa",
+                [20] = "PrognozyUboju",
+                [21] = "AnalizaTygodniowa",
+                [22] = "NotatkiZeSpotkan",
+                [23] = "PlanTygodniowy"
             };
         }
 
@@ -562,39 +635,15 @@ namespace Kalendarz1
                 char[] accessArray = new char[50];
                 for (int i = 0; i < 50; i++) accessArray[i] = '0';
 
-                var accessMap = new Dictionary<string, int>
-                {
-                    ["DaneHodowcy"] = 0,
-                    ["ZakupPaszyPisklak"] = 1,
-                    ["WstawieniaHodowcy"] = 2,
-                    ["TerminyDostawyZywca"] = 3,
-                    ["PlachtyAviloga"] = 4,
-                    ["DokumentyZakupu"] = 5,
-                    ["Specyfikacje"] = 6,
-                    ["PlatnosciHodowcy"] = 7,
-                    ["CRM"] = 8,
-                    ["ZamowieniaOdbiorcow"] = 9,
-                    ["KalkulacjaKrojenia"] = 10,
-                    ["PrzychodMrozni"] = 11,
-                    ["DokumentySprzedazy"] = 12,
-                    ["PodsumowanieSaldOpak"] = 13,
-                    ["SaldaOdbiorcowOpak"] = 14,
-                    ["DaneFinansowe"] = 15,
-                    ["UstalanieTranportu"] = 16,
-                    ["ZmianyUHodowcow"] = 17,
-                    ["ProdukcjaPodglad"] = 18,
-                    ["OfertaCenowa"] = 19,
-                    ["PrognozyUboju"] = 20,
-                    ["AnalizaTygodniowa"] = 21
-                };
+                var accessMap = GetAccessMap();
 
                 foreach (DataGridViewRow row in permissionsGrid.Rows)
                 {
                     string moduleName = row.Cells["Moduł"].Value?.ToString();
                     bool hasAccess = Convert.ToBoolean(row.Cells["Dostęp"].Value);
 
-                    if (accessMap.ContainsKey(moduleName) && hasAccess)
-                        accessArray[accessMap[moduleName]] = '1';
+                    if (accessMap.ContainsKey(accessMap.FirstOrDefault(x => x.Value == moduleName).Key) && hasAccess)
+                        accessArray[accessMap.FirstOrDefault(x => x.Value == moduleName).Key] = '1';
                 }
 
                 string newAccessString = new string(accessArray);
@@ -648,7 +697,6 @@ namespace Kalendarz1
                     {
                         conn.Open();
 
-                        // Usuń powiązania z handlowcami
                         string deleteHandlowcy = "DELETE FROM UserHandlowcy WHERE UserID = @userId";
                         using (SqlCommand cmd = new SqlCommand(deleteHandlowcy, conn))
                         {
@@ -656,7 +704,6 @@ namespace Kalendarz1
                             cmd.ExecuteNonQuery();
                         }
 
-                        // Usuń użytkownika
                         string deleteUser = "DELETE FROM operators WHERE ID = @userId";
                         using (SqlCommand cmd = new SqlCommand(deleteUser, conn))
                         {
@@ -714,7 +761,26 @@ namespace Kalendarz1
                 row.Cells["Dostęp"].Value = value;
         }
 
-        // NOWA METODA - Obsługa zarządzania handlowcami
+        private void PermissionsGrid_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex >= 0 && e.RowIndex >= 0)
+            {
+                var column = permissionsGrid.Columns[e.ColumnIndex];
+                if (column.Name == "Dostęp" && column is DataGridViewCheckBoxColumn)
+                {
+                    permissionsGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                }
+            }
+        }
+
+        private void PermissionsGrid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (permissionsGrid.IsCurrentCellDirty)
+            {
+                permissionsGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
         private void ManageHandlowcyButton_Click(object sender, EventArgs e)
         {
             if (usersGrid.SelectedRows.Count == 0)
@@ -731,13 +797,28 @@ namespace Kalendarz1
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    LoadUsers(); // Odśwież listę użytkowników
+                    LoadUsers();
                 }
+            }
+        }
+
+        private class ModuleInfo
+        {
+            public string Key { get; set; }
+            public string DisplayName { get; set; }
+            public string Description { get; set; }
+            public string Category { get; set; }
+
+            public ModuleInfo(string key, string displayName, string description, string category)
+            {
+                Key = key;
+                DisplayName = displayName;
+                Description = description;
+                Category = category;
             }
         }
     }
 
-    // Pozostałe klasy pomocnicze
     public class AddUserDialog : Form
     {
         private TextBox idTextBox, nameTextBox;

@@ -2640,8 +2640,8 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("Produkt", typeof(string));
             dtAgg.Columns.Add("PlanowanyPrzychód", typeof(decimal));
             dtAgg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
+            dtAgg.Columns.Add("Stan", typeof(string));
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
-            dtAgg.Columns.Add("Stan", typeof(string));  // ✅ NOWA KOLUMNA
             dtAgg.Columns.Add("Bilans", typeof(decimal));
 
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
@@ -2732,10 +2732,40 @@ ORDER BY zm.Id";
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
 
+            // ✅ POBIERZ STANY MAGAZYNOWE
+            var stanyMagazynowe = new Dictionary<int, decimal>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sqlStany = @"
+            SELECT ProduktId, Stan 
+            FROM dbo.StanyMagazynowe 
+            WHERE Data = @Data";
+
+                await using var cmd = new SqlCommand(sqlStany, cn);
+                cmd.Parameters.AddWithValue("@Data", day.Date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    int produktId = reader.GetInt32(0);
+                    decimal stan = reader.GetDecimal(1);
+                    stanyMagazynowe[produktId] = stan;
+                }
+            }
+            catch
+            {
+                // Tabela może nie istnieć jeszcze - ignoruj błąd
+            }
+
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
                 p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
 
             decimal planA = 0m, factA = 0m, ordersA = 0m, balanceA = 0m;
+            string stanA = "";
+            decimal stanMagA = 0m;
 
             if (kurczakA.Key > 0)
             {
@@ -2743,15 +2773,27 @@ ORDER BY zm.Id";
                 factA = actualIncomeTuszkaA.TryGetValue(kurczakA.Key, out var a) ? a : 0m;
                 ordersA = orderSum.TryGetValue(kurczakA.Key, out var z) ? z : 0m;
 
-                // ✅ NOWA LOGIKA BILANSU: Jeżeli Fakt = 0 to Plan - Zam, inaczej Fakt - Zam
-                balanceA = (factA == 0) ? (planA - ordersA) : (factA - ordersA);
+                // ✅ POBIERZ STAN MAGAZYNOWY
+                stanMagA = stanyMagazynowe.TryGetValue(kurczakA.Key, out var sA) ? sA : 0m;
+                stanA = stanMagA > 0 ? stanMagA.ToString("N0") : "";
+
+                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                if (factA > 0)
+                {
+                    balanceA = factA + stanMagA - ordersA;
+                }
+                else
+                {
+                    balanceA = planA + stanMagA - ordersA;
+                }
             }
 
             decimal sumaPlanB = 0m;
             decimal sumaFaktB = 0m;
             decimal sumaZamB = 0m;
+            decimal sumaStanB = 0m;
 
-            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans)>();
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>();
 
             foreach (var produktKonfig in konfiguracjaProduktow.OrderByDescending(p => p.Value))
             {
@@ -2780,33 +2822,72 @@ ORDER BY zm.Id";
                 var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
                 var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
 
-                // ✅ NOWA LOGIKA BILANSU: Jeżeli Fakt = 0 to Plan - Zam, inaczej Fakt - Zam
-                var balance = (actual == 0) ? (plannedForProduct - orders) : (actual - orders);
+                // ✅ POBIERZ STAN MAGAZYNOWY
+                decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
+                string stanText = stanMag > 0 ? stanMag.ToString("N0") : "";
+
+                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                decimal balance;
+                if (actual > 0)
+                {
+                    balance = actual + stanMag - orders;
+                }
+                else
+                {
+                    balance = plannedForProduct + stanMag - orders;
+                }
 
                 string nazwaZIkonka = string.IsNullOrEmpty(ikona)
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
                     : $"  └ {ikona} {nazwaProdukt} ({procentUdzialu:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, balance));
+                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, stanText, stanMag, balance));
 
                 sumaPlanB += plannedForProduct;
                 sumaFaktB += actual;
                 sumaZamB += orders;
+                sumaStanB += stanMag;
             }
 
             // ✅ BILANS CAŁKOWITY DLA KURCZAKA B
-            decimal bilansB = (sumaFaktB == 0) ? (sumaPlanB - sumaZamB) : (sumaFaktB - sumaZamB);
+            decimal bilansB;
+            if (sumaFaktB > 0)
+            {
+                bilansB = sumaFaktB + sumaStanB - sumaZamB;
+            }
+            else
+            {
+                bilansB = sumaPlanB + sumaStanB - sumaZamB;
+            }
 
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
-            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, "", bilansCalk);
-            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, ordersA, "", balanceA);
-            dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, "", bilansB);
+            // ✅ DODAJ WIERSZE DO TABELI
+            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══",
+                planA + sumaPlanB,
+                factA + sumaFaktB,
+                (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
+                ordersA + sumaZamB,
+                bilansCalk);
+
+            dtAgg.Rows.Add("🐔 Kurczak A",
+                planA,
+                factA,
+                stanA,
+                ordersA,
+                balanceA);
+
+            dtAgg.Rows.Add("🐔 Kurczak B",
+                sumaPlanB,
+                sumaFaktB,
+                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""),
+                sumaZamB,
+                bilansB);
 
             foreach (var produkt in produktyB)
             {
-                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.zam, "", produkt.bilans);
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.bilans);
             }
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
@@ -2854,9 +2935,10 @@ ORDER BY zm.Id";
         {
             dgAggregation.Columns.Clear();
 
+            // 1. PLAN
             var planColumn = new DataGridTemplateColumn
             {
-                Header = "Plan", // już skrócone
+                Header = "Plan",
                 Width = new DataGridLength(70)
             };
 
@@ -2878,22 +2960,16 @@ ORDER BY zm.Id";
             planColumn.CellTemplate = planTemplate;
             dgAggregation.Columns.Add(planColumn);
 
+            // 2. FAKT
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Fakt", // już skrócone
+                Header = "Fakt",
                 Binding = new System.Windows.Data.Binding("FaktycznyPrzychód") { StringFormat = "N0" },
                 Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            dgAggregation.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zam.", // skrócone
-                Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
+            // 3. STAN - ✅ TERAZ PO FAKT
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Stan",
@@ -2902,19 +2978,30 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
+            // 4. ZAM.
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Bil.", // skrócone z "Bilans"
+                Header = "Zam.",
+                Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 5. BILANS
+            dgAggregation.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Bil.",
                 Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
                 Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
+            // 6. PRODUKT
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star), // elastyczna
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
                 MinWidth = 150
             });
 
