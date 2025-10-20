@@ -2816,7 +2816,6 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 var deliveries = GetConfirmedDeliveriesForDateExcludingAlreadyScored(target.Value, user);
                 if (deliveries.Count == 0) return;
 
-                // === NOWOŚĆ: jedno okno dla wszystkich dostaw ===
                 ShowBulkSurveyDialogAndSave(deliveries, user);
             }
             catch
@@ -2824,6 +2823,8 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 // opcjonalnie log/MessageBox
             }
         }
+
+        // --- Metody dostępu do danych ---
 
         /// <summary>
         /// Znajdź najbliższą datę >= startDate z co najmniej jedną dostawą „Potwierdzony” (max lookAheadDays).
@@ -2897,94 +2898,18 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
         }
 
         /// <summary>
-        /// Okienko 1–5: Cena / Transport / Komunikacja + (opcjonalnie) Elastyczność + Notatka.
-        /// false → „Koniec” (przerwanie pętli), true → zapisano lub „Pomiń tę dostawę”.
-        /// </summary>
-        private bool ShowQuickSurveyDialogAndSave(DeliverySurveyItem d, string userId)
-        {
-            using (var f = new Form())
-            {
-                f.Text = "Ocena rozmowy z hodowcą";
-                f.StartPosition = FormStartPosition.CenterParent;
-                f.FormBorderStyle = FormBorderStyle.FixedDialog;
-                f.MaximizeBox = false;
-                f.MinimizeBox = false;
-                f.TopMost = true;
-                f.Width = 560;
-                f.Height = 460;
-
-                var lblHead = new Label
-                {
-                    Left = 12,
-                    Top = 12,
-                    Width = 520,
-                    Text = $"Dzień: {d.DataOdbioru:yyyy-MM-dd ddd} | Dostawca: {d.Dostawca}"
-                };
-                var lblDet = new Label
-                {
-                    Left = 12,
-                    Top = 36,
-                    Width = 520,
-                    Text = $"Auta: {d.Auta?.ToString() ?? "-"} | Sztuki: {d.SztukiDek?.ToString("N0") ?? "-"} | Waga: {d.WagaDek?.ToString("0.00") ?? "-"} kg | {d.TypCeny ?? ""} {(d.Cena.HasValue ? $"{d.Cena:0.00} zł" : "")}"
-                };
-
-                var nudCena = MakeNud("Cena (jak się dogadaliście co do ceny?)", 70);
-                var nudTransport = MakeNud("Transport (ustalenia / jasność / akceptacja)", 120);
-                var nudKomunikacja = MakeNud("Komunikacja (kontakt, jasność, kultura)", 170);
-                var nudElastycznosc = MakeNud("Elastyczność (skłonność do kompromisu) – opcjonalnie", 220, required: false);
-
-                var lblNote = new Label { Left = 12, Top = 270, Width = 520, Text = "Notatka (opcjonalnie)" };
-                var txtNote = new TextBox { Left = 12, Top = 290, Width = 520, Height = 80, Multiline = true, ScrollBars = ScrollBars.Vertical };
-
-                var btnOk = new Button { Left = 12, Top = 380, Width = 120, Text = "Zapisz i dalej", DialogResult = DialogResult.OK };
-                var btnSkip = new Button { Left = 150, Top = 380, Width = 140, Text = "Pomiń tę dostawę" };
-                var btnCancel = new Button { Left = 310, Top = 380, Width = 120, Text = "Koniec", DialogResult = DialogResult.Cancel };
-
-                btnSkip.Click += (s, e) => { f.Tag = "skip"; f.Close(); };
-                f.AcceptButton = btnOk;
-                f.CancelButton = btnCancel;
-
-                f.Controls.AddRange(new Control[] { lblHead, lblDet,
-            nudCena.label, nudCena.nud,
-            nudTransport.label, nudTransport.nud,
-            nudKomunikacja.label, nudKomunikacja.nud,
-            nudElastycznosc.label, nudElastycznosc.nud,
-            lblNote, txtNote, btnOk, btnSkip, btnCancel });
-
-                var result = f.ShowDialog(this);
-                if (result == DialogResult.Cancel) return false; // przerwij serię (Koniec)
-                if (Equals(f.Tag, "skip")) return true;          // pomiń tylko tę dostawę
-
-                int ocCena = (int)nudCena.nud.Value;
-                int ocTrans = (int)nudTransport.nud.Value;
-                int ocKom = (int)nudKomunikacja.nud.Value;
-                int? ocElas = nudElastycznosc.nud.Value == 0 ? (int?)null : (int)nudElastycznosc.nud.Value;
-
-                SaveFeedbackToDb(d.Lp, d.DataOdbioru.Date, userId, ocCena, ocTrans, ocKom, ocElas, txtNote.Text?.Trim());
-                return true;
-            }
-
-            (Label label, NumericUpDown nud) MakeNud(string text, int top, bool required = true)
-            {
-                var lbl = new Label { Left = 12, Top = top, Width = 520, Text = text + (required ? " *" : "") };
-                var n = new NumericUpDown { Left = 12, Top = top + 18, Width = 80, Minimum = required ? 1 : 0, Maximum = 5, Value = required ? 3 : 0 };
-                return (lbl, n);
-            }
-        }
-
-        /// <summary>
         /// Zapis do dbo.DostawaFeedback.
         /// </summary>
         private void SaveFeedbackToDb(int dostawaLp, DateTime dataDostawy, string userId,
-            int ocCena, int ocTransport, int ocKomunikacja, int? ocElastycznosc, string notatka)
+            int ocCena, int ocTransport, int ocKomunikacja, int? ocElastycznosc, int ocStanPtakow, string notatka)
         {
             using (var cnn = new SqlConnection(connectionPermission))
             {
                 cnn.Open();
                 using (var cmd = new SqlCommand(@"
             INSERT INTO dbo.DostawaFeedback
-            (DostawaLp, DataDostawy, Kto, OcenaCena, OcenaTransport, OcenaKomunikacja, OcenaElastycznosc, Notatka)
-            VALUES (@Lp, @DataDostawy, @Kto, @OcCena, @OcTrans, @OcKom, @OcElas, @Notatka);", cnn))
+            (DostawaLp, DataDostawy, Kto, OcenaCena, OcenaTransport, OcenaKomunikacja, OcenaElastycznosc, OcenaStanPtakow, Notatka)
+            VALUES (@Lp, @DataDostawy, @Kto, @OcCena, @OcTrans, @OcKom, @OcElas, @OcStanPtakow, @Notatka);", cnn))
                 {
                     cmd.Parameters.Add("@Lp", SqlDbType.Int).Value = dostawaLp;
                     cmd.Parameters.Add("@DataDostawy", SqlDbType.Date).Value = dataDostawy;
@@ -2993,11 +2918,15 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                     cmd.Parameters.Add("@OcTrans", SqlDbType.TinyInt).Value = ocTransport;
                     cmd.Parameters.Add("@OcKom", SqlDbType.TinyInt).Value = ocKomunikacja;
                     cmd.Parameters.Add("@OcElas", SqlDbType.TinyInt).Value = (object?)ocElastycznosc ?? DBNull.Value;
+                    cmd.Parameters.Add("@OcStanPtakow", SqlDbType.TinyInt).Value = ocStanPtakow;
                     cmd.Parameters.Add("@Notatka", SqlDbType.NVarChar, 1000).Value = string.IsNullOrWhiteSpace(notatka) ? (object)DBNull.Value : notatka;
                     cmd.ExecuteNonQuery();
                 }
             }
         }
+
+        // --- Logika UI ankiety ---
+
         /// <summary>
         /// Jedno okno z listą „kart” dla wszystkich dostaw w danym dniu.
         /// W każdej karcie są 4 grupy radio (1..5): Cena, Transport, Komunikacja (wymagane), Elastyczność (opcjonalnie) + Notatka.
@@ -3019,80 +2948,22 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 f.BackColor = Color.White;
 
                 // Nagłówek
-                var header = new Panel
-                {
-                    Dock = DockStyle.Top,
-                    Height = 60,
-                    BackColor = Color.FromArgb(245, 247, 250)
-                };
-                var lblTitle = new Label
-                {
-                    Text = "Daj znać jak poszły rozmowy – ocena 1..5 (5 = najlepiej)",
-                    Left = 16,
-                    Top = 18,
-                    AutoSize = true,
-                    Font = new Font("Segoe UI", 12, FontStyle.Bold)
-                };
-                var lblSub = new Label
-                {
-                    Text = "Wymagane: Cena, Transport, Komunikacja. Elastyczność i Notatka – opcjonalnie.",
-                    Left = 16,
-                    Top = 36,
-                    AutoSize = true,
-                    Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                    ForeColor = Color.FromArgb(90, 104, 120)
-                };
+                var header = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(245, 247, 250) };
+                var lblTitle = new Label { Text = "Daj znać jak poszły rozmowy – ocena 1..5 (5 = najlepiej)", Left = 16, Top = 18, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold) };
+                var lblSub = new Label { Text = "Wymagane: Cena, Transport, Komunikacja, Stan ptaków. Elastyczność i Notatka – opcjonalnie.", Left = 16, Top = 36, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Regular), ForeColor = Color.FromArgb(90, 104, 120) };
                 header.Controls.Add(lblTitle);
                 header.Controls.Add(lblSub);
 
                 // Obszar przewijany z kartami
-                var scroll = new Panel
-                {
-                    Dock = DockStyle.Fill,
-                    AutoScroll = true,
-                    BackColor = Color.White
-                };
-
-                // Układ kart – FlowLayoutPanel, „kafelki”
-                var flow = new FlowLayoutPanel
-                {
-                    Dock = DockStyle.Fill,
-                    AutoScroll = false,
-                    WrapContents = true,
-                    FlowDirection = FlowDirection.LeftToRight,
-                    Padding = new Padding(12),
-                };
+                var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
+                var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = false, WrapContents = true, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(12), };
                 scroll.Controls.Add(flow);
 
                 // Pasek akcji
-                var footer = new Panel
-                {
-                    Dock = DockStyle.Bottom,
-                    Height = 60,
-                    BackColor = Color.FromArgb(245, 247, 250)
-                };
-                var btnSave = new Button
-                {
-                    Text = "Zapisz wszystko",
-                    Width = 160,
-                    Height = 36,
-                    Left = 16,
-                    Top = 12,
-                    BackColor = Color.FromArgb(52, 152, 219),
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat
-                };
+                var footer = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(245, 247, 250) };
+                var btnSave = new Button { Text = "Zapisz wszystko", Width = 160, Height = 36, Left = 16, Top = 12, BackColor = Color.FromArgb(52, 152, 219), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
                 btnSave.FlatAppearance.BorderSize = 0;
-
-                var btnCancel = new Button
-                {
-                    Text = "Anuluj",
-                    Width = 120,
-                    Height = 36,
-                    Left = btnSave.Right + 12,
-                    Top = 12
-                };
-
+                var btnCancel = new Button { Text = "Anuluj", Width = 120, Height = 36, Left = btnSave.Right + 12, Top = 12 };
                 footer.Controls.Add(btnSave);
                 footer.Controls.Add(btnCancel);
 
@@ -3101,7 +2972,7 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 f.Controls.Add(header);
 
                 // --- zbuduj „karty” dostawców ---
-                var uiRows = new List<SurveyUIRow>(); // zbierz referencje do elementów UI i danych
+                var uiRows = new List<SurveyUIRow>();
                 foreach (var d in deliveries)
                 {
                     var row = CreateDeliveryCard(d);
@@ -3119,19 +2990,17 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                         int? c = GetSelectedRating(r.CenaButtons);
                         int? t = GetSelectedRating(r.TransportButtons);
                         int? k = GetSelectedRating(r.KomunikacjaButtons);
+                        int? p = GetSelectedRating(r.StanPtakowButtons);
 
-                        if (!c.HasValue || !t.HasValue || !k.HasValue)
+                        if (!c.HasValue || !t.HasValue || !k.HasValue || !p.HasValue)
                         {
-                            errors.Add($"• {r.Item.Dostawca} ({r.Item.DataOdbioru:yyyy-MM-dd}) – uzupełnij Cenę/Transport/Komunikację");
+                            errors.Add($"• {r.Item.Dostawca} – uzupełnij wymagane oceny (*)");
                         }
                     }
 
                     if (errors.Count > 0)
                     {
-                        MessageBox.Show(
-                            "Uzupełnij obowiązkowe pola:\n\n" + string.Join("\n", errors),
-                            "Braki w ocenach",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show("Uzupełnij obowiązkowe pola:\n\n" + string.Join("\n", errors), "Braki w ocenach", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
 
@@ -3142,12 +3011,13 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                         int ocCena = GetSelectedRating(r.CenaButtons).Value;
                         int ocTrans = GetSelectedRating(r.TransportButtons).Value;
                         int ocKom = GetSelectedRating(r.KomunikacjaButtons).Value;
-                        int? ocElas = GetSelectedRating(r.ElastycznoscButtons); // opcjonalne
+                        int? ocElas = GetSelectedRating(r.ElastycznoscButtons);
+                        int ocStanPtakow = GetSelectedRating(r.StanPtakowButtons).Value;
                         string note = r.Notatka.Text?.Trim();
 
                         try
                         {
-                            SaveFeedbackToDb(r.Item.Lp, r.Item.DataOdbioru.Date, userId, ocCena, ocTrans, ocKom, ocElas, note);
+                            SaveFeedbackToDb(r.Item.Lp, r.Item.DataOdbioru.Date, userId, ocCena, ocTrans, ocKom, ocElas, ocStanPtakow, note);
                             saved++;
                         }
                         catch (Exception ex)
@@ -3173,8 +3043,6 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
                 f.ShowDialog(this);
             }
 
-            // === lokalne helpy ===
-
             int? GetSelectedRating(RadioButton[] rb5)
             {
                 if (rb5 == null) return null;
@@ -3184,7 +3052,86 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             }
         }
 
+        /// <summary>
+        /// Tworzy panel-kartę z danymi dostawy + 4 grupy ocen (radio 1..5) + notatka.
+        /// Zwraca zestaw kontrolek (SurveyUIRow) do późniejszego odczytu.
+        /// </summary>
+        private SurveyUIRow CreateDeliveryCard(DeliverySurveyItem d)
+        {
+            var card = new Panel
+            {
+                Width = 900,
+                Height = 300,
+                Margin = new Padding(8),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
 
+            var header = new Panel { Left = 0, Top = 0, Width = card.Width - 2, Height = 40, BackColor = Color.FromArgb(250, 251, 253), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            var lblHeader = new Label { Left = 12, Top = 10, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold), Text = $"{d.Dostawca}  •  {d.DataOdbioru:yyyy-MM-dd ddd}" };
+            header.Controls.Add(lblHeader);
+            var lblMeta = new Label { Left = 12, Top = 46, Width = card.Width - 24, Height = 20, Font = new Font("Segoe UI", 9, FontStyle.Regular), ForeColor = Color.FromArgb(90, 104, 120), Text = $"Auta: {d.Auta?.ToString() ?? "-"}   |   Sztuki: {d.SztukiDek?.ToString("N0") ?? "-"}   |   Waga: {d.WagaDek?.ToString("0.00") ?? "-"} kg   |   {d.TypCeny ?? ""} {(d.Cena.HasValue ? $"{d.Cena:0.00} zł" : "")}" };
+
+            var grpCena = MakeRatingGroup("Cena *", 76, 12);
+            var grpTransport = MakeRatingGroup("Transport *", 76, 230);
+            var grpKomunikacja = MakeRatingGroup("Komunikacja *", 76, 448);
+            var grpElastycznosc = MakeRatingGroup("Elastyczność (opcj.)", 76, 666, required: false);
+
+            var grpStanPtakow = MakeRatingGroup("Stan ptaków *", 148, 12, required: true);
+            grpStanPtakow.Group.Paint += (sender, e) =>
+            {
+                if (sender is GroupBox box)
+                {
+                    ControlPaint.DrawBorder(e.Graphics, box.ClientRectangle, Color.Red, 2, ButtonBorderStyle.Solid, Color.Red, 2, ButtonBorderStyle.Solid, Color.Red, 2, ButtonBorderStyle.Solid, Color.Red, 2, ButtonBorderStyle.Solid);
+                }
+            };
+
+            grpCena.Buttons[2].Checked = true;
+            grpTransport.Buttons[2].Checked = true;
+            grpKomunikacja.Buttons[2].Checked = true;
+            grpStanPtakow.Buttons[2].Checked = true;
+
+            var lblNote = new Label { Left = 12, Top = 222, AutoSize = true, Text = "Notatka (opcjonalnie)", Font = new Font("Segoe UI", 9) };
+            var txtNote = new TextBox { Left = 12, Top = 242, Width = card.Width - 24, Height = 42, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Multiline = true, ScrollBars = ScrollBars.Vertical };
+
+            card.Controls.Add(header);
+            card.Controls.Add(lblMeta);
+            card.Controls.Add(grpCena.Group);
+            card.Controls.Add(grpTransport.Group);
+            card.Controls.Add(grpKomunikacja.Group);
+            card.Controls.Add(grpElastycznosc.Group);
+            card.Controls.Add(grpStanPtakow.Group);
+            card.Controls.Add(lblNote);
+            card.Controls.Add(txtNote);
+
+            return new SurveyUIRow
+            {
+                Item = d,
+                CardPanel = card,
+                CenaButtons = grpCena.Buttons,
+                TransportButtons = grpTransport.Buttons,
+                KomunikacjaButtons = grpKomunikacja.Buttons,
+                ElastycznoscButtons = grpElastycznosc.Buttons,
+                StanPtakowButtons = grpStanPtakow.Buttons,
+                Notatka = txtNote
+            };
+
+            (GroupBox Group, RadioButton[] Buttons) MakeRatingGroup(string title, int top, int left, bool required = true)
+            {
+                var g = new GroupBox { Text = title, Left = left, Top = top, Width = 200, Height = 70, Font = new Font("Segoe UI", 9, FontStyle.Regular) };
+                var btns = new RadioButton[5];
+                int x = 12;
+                for (int i = 0; i < 5; i++)
+                {
+                    btns[i] = new RadioButton { Text = (i + 1).ToString(), Left = x, Top = 30, AutoSize = true };
+                    g.Controls.Add(btns[i]);
+                    x += 32;
+                }
+                return (g, btns);
+            }
+        }
+
+        // --- Klasy pomocnicze ---
 
         /// <summary>Model jednej dostawy do ankiety.</summary>
         private sealed class DeliverySurveyItem
@@ -3198,149 +3145,20 @@ ORDER BY p.PartiaFull DESC, p.Data DESC;
             public string TypCeny { get; set; }
             public decimal? Cena { get; set; }
         }
-        /// <summary>
-        /// Tworzy panel-kartę z danymi dostawy + 4 grupy ocen (radio 1..5) + notatka.
-        /// Zwraca zestaw kontrolek (SurveyUIRow) do późniejszego odczytu.
-        /// </summary>
-        private SurveyUIRow CreateDeliveryCard(DeliverySurveyItem d)
-        {
-            // Karta (panel) – jasne tło, lekka ramka
-            var card = new Panel
-            {
-                Width = 900,
-                Height = 220,
-                Margin = new Padding(8),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            // Pasek nagłówka w karcie
-            var header = new Panel
-            {
-                Left = 0,
-                Top = 0,
-                Width = card.Width - 2,
-                Height = 40,
-                BackColor = Color.FromArgb(250, 251, 253),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
-            var lblHeader = new Label
-            {
-                Left = 12,
-                Top = 10,
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Text = $"{d.Dostawca}  •  {d.DataOdbioru:yyyy-MM-dd ddd}"
-            };
-            header.Controls.Add(lblHeader);
-
-            var lblMeta = new Label
-            {
-                Left = 12,
-                Top = 46,
-                Width = card.Width - 24,
-                Height = 20,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                ForeColor = Color.FromArgb(90, 104, 120),
-                Text = $"Auta: {d.Auta?.ToString() ?? "-"}   |   Sztuki: {d.SztukiDek?.ToString("N0") ?? "-"}   |   Waga: {d.WagaDek?.ToString("0.00") ?? "-"} kg   |   {d.TypCeny ?? ""} {(d.Cena.HasValue ? $"{d.Cena:0.00} zł" : "")}"
-            };
-
-            // 4 grupy Radio 1..5
-            var grpCena = MakeRatingGroup("Cena *", 76, 12);
-            var grpTransport = MakeRatingGroup("Transport *", 76, 230);
-            var grpKomunikacja = MakeRatingGroup("Komunikacja *", 76, 448);
-            var grpElastycznosc = MakeRatingGroup("Elastyczność (opcj.)", 76, 666, required: false);
-
-            // domyślnie 3/5
-            grpCena.Buttons[2].Checked = true;
-            grpTransport.Buttons[2].Checked = true;
-            grpKomunikacja.Buttons[2].Checked = true;
-            // Elastyczność zostaw bez wyboru (opcjonalne)
-
-            // Notatka
-            var lblNote = new Label
-            {
-                Left = 12,
-                Top = 156,
-                AutoSize = true,
-                Text = "Notatka (opcjonalnie)",
-                Font = new Font("Segoe UI", 9)
-            };
-            var txtNote = new TextBox
-            {
-                Left = 12,
-                Top = 176,
-                Width = card.Width - 24,
-                Height = 32,
-                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                Multiline = true,
-                ScrollBars = ScrollBars.Vertical
-            };
-
-            // Doklej do karty
-            card.Controls.Add(header);
-            card.Controls.Add(lblMeta);
-            card.Controls.Add(grpCena.Group);
-            card.Controls.Add(grpTransport.Group);
-            card.Controls.Add(grpKomunikacja.Group);
-            card.Controls.Add(grpElastycznosc.Group);
-            card.Controls.Add(lblNote);
-            card.Controls.Add(txtNote);
-
-            return new SurveyUIRow
-            {
-                Item = d,
-                CardPanel = card,
-                CenaButtons = grpCena.Buttons,
-                TransportButtons = grpTransport.Buttons,
-                KomunikacjaButtons = grpKomunikacja.Buttons,
-                ElastycznoscButtons = grpElastycznosc.Buttons,
-                Notatka = txtNote
-            };
-
-            // --- lokalny helper tworzący pojedynczą grupę 1..5 ---
-            (GroupBox Group, RadioButton[] Buttons) MakeRatingGroup(string title, int top, int left, bool required = true)
-            {
-                var g = new GroupBox
-                {
-                    Text = title,
-                    Left = left,
-                    Top = top,
-                    Width = 200,
-                    Height = 70,
-                    Font = new Font("Segoe UI", 9, FontStyle.Regular)
-                };
-                var btns = new RadioButton[5];
-                int x = 12;
-                for (int i = 0; i < 5; i++)
-                {
-                    btns[i] = new RadioButton
-                    {
-                        Text = (i + 1).ToString(),
-                        Left = x,
-                        Top = 30,
-                        AutoSize = true
-                    };
-                    g.Controls.Add(btns[i]);
-                    x += 32;
-                }
-                return (g, btns);
-            }
-        }
 
         /// <summary>Referencje do kontrolek w „karcie” + dane dostawy.</summary>
         private sealed class SurveyUIRow
         {
             public DeliverySurveyItem Item { get; set; }
             public Panel CardPanel { get; set; }
-
             public RadioButton[] CenaButtons { get; set; }
             public RadioButton[] TransportButtons { get; set; }
             public RadioButton[] KomunikacjaButtons { get; set; }
             public RadioButton[] ElastycznoscButtons { get; set; }
-
+            public RadioButton[] StanPtakowButtons { get; set; }
             public TextBox Notatka { get; set; }
         }
+
 
         private void Dubluj_Click(object sender, EventArgs e)
         {
@@ -3692,7 +3510,8 @@ WITH B AS (
         f.OcenaCena,
         f.OcenaTransport,
         f.OcenaKomunikacja,
-        f.OcenaElastycznosc
+        f.OcenaElastycznosc,
+        f.OcenaStanPtakow -- DODANA KOLUMNA
     FROM dbo.DostawaFeedback f
     INNER JOIN dbo.HarmonogramDostaw h
         ON h.Lp = f.DostawaLp
@@ -3700,28 +3519,31 @@ WITH B AS (
 Agg AS (
     SELECT
         Dostawca,
-        -- Średnie kategorii: AVG ignoruje NULL; TRUNC do 2 miejsc (ROUND(...,2,1))
+        -- Średnie kategorii
         CAST(ROUND(AVG(CAST(OcenaCena         AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrCena,
         CAST(ROUND(AVG(CAST(OcenaTransport    AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrTransport,
         CAST(ROUND(AVG(CAST(OcenaKomunikacja  AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrKomunikacja,
         CAST(ROUND(AVG(CAST(OcenaElastycznosc AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrElastycznosc,
+        CAST(ROUND(AVG(CAST(OcenaStanPtakow   AS DECIMAL(18,6))), 2, 1) AS DECIMAL(10,2)) AS SrStanPtakow, -- DODANA ŚREDNIA
 
-        -- Liczba ankiet do hodowcy (liczba wierszy feedbacku)
+        -- Liczba ankiet
         COUNT(*) AS LiczbaAnkiet,
 
-        -- Wynik: średnia z wierszowych średnich (wiersz = średnia po dostępnych kategoriach)
+        -- Wynik: średnia z wierszowych średnich
         CAST(ROUND(
             AVG(
                 CAST((
                     COALESCE(CAST(OcenaCena         AS DECIMAL(18,6)), 0) +
                     COALESCE(CAST(OcenaTransport    AS DECIMAL(18,6)), 0) +
                     COALESCE(CAST(OcenaKomunikacja  AS DECIMAL(18,6)), 0) +
-                    COALESCE(CAST(OcenaElastycznosc AS DECIMAL(18,6)), 0)
+                    COALESCE(CAST(OcenaElastycznosc AS DECIMAL(18,6)), 0) +
+                    COALESCE(CAST(OcenaStanPtakow   AS DECIMAL(18,6)), 0) -- DODANA OCENA DO SUMY
                 ) / NULLIF(
                     (CASE WHEN OcenaCena         IS NOT NULL THEN 1 ELSE 0 END) +
                     (CASE WHEN OcenaTransport    IS NOT NULL THEN 1 ELSE 0 END) +
                     (CASE WHEN OcenaKomunikacja  IS NOT NULL THEN 1 ELSE 0 END) +
-                    (CASE WHEN OcenaElastycznosc IS NOT NULL THEN 1 ELSE 0 END)
+                    (CASE WHEN OcenaElastycznosc IS NOT NULL THEN 1 ELSE 0 END) +
+                    (CASE WHEN OcenaStanPtakow   IS NOT NULL THEN 1 ELSE 0 END) -- DODANA OCENA DO DZIELNIKA
                 , 0) AS DECIMAL(18,6))
             )
         , 2, 1) AS DECIMAL(10,2)) AS Wynik
@@ -3735,11 +3557,11 @@ SELECT
     SrTransport,
     SrKomunikacja,
     SrElastycznosc,
+    SrStanPtakow, -- DODANA KOLUMNA
     LiczbaAnkiet,
     Wynik
 FROM Agg
 ORDER BY Wynik DESC, Dostawca ASC;";
-
 
         public async Task InitRankingUiAsync()
         {
@@ -3760,7 +3582,16 @@ ORDER BY Wynik DESC, Dostawca ASC;";
             datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrTransport", DataPropertyName = "SrTransport", HeaderText = "Śr. Transport", ReadOnly = true });
             datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrKomunikacja", DataPropertyName = "SrKomunikacja", HeaderText = "Śr. Komunikacja", ReadOnly = true });
             datagridRanking.Columns.Add(new DataGridViewTextBoxColumn { Name = "SrElastycznosc", DataPropertyName = "SrElastycznosc", HeaderText = "Śr. Elastyczność", ReadOnly = true });
-            // definicja kolumny
+
+            // NOWA KOLUMNA: Średni stan ptaków
+            datagridRanking.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "SrStanPtakow",
+                DataPropertyName = "SrStanPtakow",
+                HeaderText = "Śr. Stan ptaków",
+                ReadOnly = true
+            });
+
             datagridRanking.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "LiczbaAnkiet",
