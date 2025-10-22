@@ -1,5 +1,9 @@
 // Plik: Transport/EdytorKursuWithPalety.cs
 // Wersja z transakcyjnym zapisem i automatycznym tworzeniem zamówień
+// POPRAWKA 2025-01-15: Wykluczenie zamówień z własnym transportem
+// Zamówienia z TransportStatus = 'Własny' nie są pokazywane w wolnych zamówieniach
+// (linia ~1534)
+
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
@@ -1404,7 +1408,7 @@ namespace Kalendarz1.Transport.Formularze
             await UpdateWypelnienie();
         }
         // 8. DODAJ nową metodę pomocniczą:
-            private async Task<DateTime?> PobierzDateUbojuAsync(int zamowienieId)
+        private async Task<DateTime?> PobierzDateUbojuAsync(int zamowienieId)
         {
             try
             {
@@ -1531,6 +1535,7 @@ namespace Kalendarz1.Transport.Formularze
                     bool jestWLiscieDoDodania = _zamowieniaDoDodania.Any(z => z.ZamowienieId == zamId);
 
                     if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus) || _zamowieniaDoUsuniecia.Contains(zamId))
+                        && transportStatus != "Własny"  // NOWE: wykluczenie własnego transportu
                         && !jestWLiscieDoDodania)
                     {
                         var zamowienie = new ZamowienieDoTransportu
@@ -2427,7 +2432,7 @@ Adres: {zamowienie.Adres}";
                 MessageBox.Show("Ta pozycja nie jest powiązana z zamówieniem.",
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-        }       
+        }
 
         #region Zapis
 

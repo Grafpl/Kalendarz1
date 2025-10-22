@@ -225,6 +225,7 @@ namespace Kalendarz1.Transport.Pakowanie
         /// <summary>
         /// Oblicza wypełnienie kursu dla podanych ładunków
         /// POPRAWKA: Dokładne obliczanie procentu wypełnienia względem rzeczywistej pojemności
+        /// POPRAWKA 2: Uwzględnienie PlanE2NaPaleteOverride dla każdego ładunku
         /// </summary>
         public WynikPakowania ObliczKurs(IList<PozycjaLike> pozycje, int paletyPojazdu, int planE2NaPalete)
         {
@@ -251,19 +252,41 @@ namespace Kalendarz1.Transport.Pakowanie
             if (paletyPojazdu <= 0)
                 paletyPojazdu = 33; // Domyślna wartość
 
-            // Obliczenia podstawowe
+            // POPRAWKA 2: Obliczenia z uwzględnieniem różnych planów dla poszczególnych ładunków
             var sumaE2 = pozycje.Sum(p => p.PojemnikiE2);
 
-            // Obliczenie ile palet potrzeba (zaokrąglone w górę)
-            var paletyNominal = (int)Math.Ceiling((double)sumaE2 / planE2NaPalete);
-            var maxE2NaPalete = planE2NaPalete + (planE2NaPalete * 0.15m);
-            var paletyMax = (int)Math.Ceiling(sumaE2 / (double)maxE2NaPalete);
+            // Obliczenie ile palet potrzeba - uwzględniamy override dla każdego ładunku
+            decimal paletyNominalDecimal = 0;
+            decimal paletyMaxDecimal = 0;
+
+            foreach (var pozycja in pozycje)
+            {
+                // Użyj override jeśli jest dostępny, inaczej użyj domyślnego planu
+                int planDlaLadunku = pozycja.PlanE2NaPaleteOverride ?? planE2NaPalete;
+
+                // Oblicz palety dla tego ładunku
+                decimal paletyDlaLadunku = (decimal)pozycja.PojemnikiE2 / planDlaLadunku;
+                decimal maxE2NaPalete = planDlaLadunku + (planDlaLadunku * 0.15m);
+                decimal paletyMaxDlaLadunku = (decimal)pozycja.PojemnikiE2 / maxE2NaPalete;
+
+                paletyNominalDecimal += paletyDlaLadunku;
+                paletyMaxDecimal += paletyMaxDlaLadunku;
+            }
+
+            var paletyNominal = (int)Math.Ceiling(paletyNominalDecimal);
+            var paletyMax = (int)Math.Ceiling(paletyMaxDecimal);
 
             // POPRAWKA: Obliczenie procentu wypełnienia względem rzeczywistej pojemności pojazdu
-            // Pojemność pojazdu = paletyPojazdu * planE2NaPalete (np. 33 * 36 = 1188 pojemników)
-            // Procent wypełnienia = (sumaE2 / pojemnośćPojazdu) * 100
-            var pojemnoscPojazduNominal = paletyPojazdu * planE2NaPalete;
-            var pojemnoscPojazduMax = paletyPojazdu * maxE2NaPalete;
+            // Używamy średniego planu lub dominującego planu dla całego pojazdu
+            var dominujacyPlan = pozycje
+                .GroupBy(p => p.PlanE2NaPaleteOverride ?? planE2NaPalete)
+                .OrderByDescending(g => g.Sum(p => p.PojemnikiE2))
+                .First()
+                .Key;
+
+            var pojemnoscPojazduNominal = paletyPojazdu * dominujacyPlan;
+            var maxE2NaPaleteGlobal = dominujacyPlan + (dominujacyPlan * 0.15m);
+            var pojemnoscPojazduMax = paletyPojazdu * maxE2NaPaleteGlobal;
 
             var procNominal = pojemnoscPojazduNominal > 0
                 ? (decimal)sumaE2 / (decimal)pojemnoscPojazduNominal * 100m
@@ -281,7 +304,7 @@ namespace Kalendarz1.Transport.Pakowanie
 
             if (paletyNominal > paletyPojazdu)
             {
-                var dostepneE2 = paletyPojazdu * planE2NaPalete;
+                var dostepneE2 = pojemnoscPojazduNominal;
                 var aktualneE2 = 0;
 
                 foreach (var pozycja in pozycje.OrderBy(p => p.Kolejnosc))
