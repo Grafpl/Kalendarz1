@@ -1,5 +1,5 @@
 // =====================================================================
-// PLIK: Transport/TransportModels.cs - KOMPLETNY PLIK Z POPRAWKAMI
+// PLIK: Transport/TransportModels.cs - KOMPLETNY PLIK Z POPRAWKAMI WYPEŁNIENIA
 // =====================================================================
 
 using System;
@@ -224,6 +224,7 @@ namespace Kalendarz1.Transport.Pakowanie
     {
         /// <summary>
         /// Oblicza wypełnienie kursu dla podanych ładunków
+        /// POPRAWKA: Dokładne obliczanie procentu wypełnienia względem rzeczywistej pojemności
         /// </summary>
         public WynikPakowania ObliczKurs(IList<PozycjaLike> pozycje, int paletyPojazdu, int planE2NaPalete)
         {
@@ -252,12 +253,25 @@ namespace Kalendarz1.Transport.Pakowanie
 
             // Obliczenia podstawowe
             var sumaE2 = pozycje.Sum(p => p.PojemnikiE2);
-            var paletyNominal = (int)Math.Ceiling((double)sumaE2 / planE2NaPalete);
-            var maxE2NaPalete = planE2NaPalete + (planE2NaPalete * 0.15);
-            var paletyMax = (int)Math.Ceiling((double)sumaE2 / maxE2NaPalete);
 
-            var procNominal = paletyPojazdu > 0 ? (decimal)paletyNominal / paletyPojazdu * 100 : 0;
-            var procMax = paletyPojazdu > 0 ? (decimal)paletyMax / paletyPojazdu * 100 : 0;
+            // Obliczenie ile palet potrzeba (zaokrąglone w górę)
+            var paletyNominal = (int)Math.Ceiling((double)sumaE2 / planE2NaPalete);
+            var maxE2NaPalete = planE2NaPalete + (planE2NaPalete * 0.15m);
+            var paletyMax = (int)Math.Ceiling(sumaE2 / (double)maxE2NaPalete);
+
+            // POPRAWKA: Obliczenie procentu wypełnienia względem rzeczywistej pojemności pojazdu
+            // Pojemność pojazdu = paletyPojazdu * planE2NaPalete (np. 33 * 36 = 1188 pojemników)
+            // Procent wypełnienia = (sumaE2 / pojemnośćPojazdu) * 100
+            var pojemnoscPojazduNominal = paletyPojazdu * planE2NaPalete;
+            var pojemnoscPojazduMax = paletyPojazdu * maxE2NaPalete;
+
+            var procNominal = pojemnoscPojazduNominal > 0
+                ? (decimal)sumaE2 / (decimal)pojemnoscPojazduNominal * 100m
+                : 0m;
+
+            var procMax = pojemnoscPojazduMax > 0
+                ? (decimal)sumaE2 / pojemnoscPojazduMax * 100m
+                : 0m;
 
             // Obliczenie nadwyżki
             var nadwyzkaNominal = Math.Max(0, paletyNominal - paletyPojazdu);

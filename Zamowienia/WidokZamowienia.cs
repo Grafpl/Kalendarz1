@@ -1015,8 +1015,8 @@ namespace Kalendarz1
             catch { }
 
             string sqlQuery = dataProdukcjiExists
-                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
-                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
+                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
+                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
 
             await using (var cmdZ = new SqlCommand(sqlQuery, cn))
             {
@@ -1038,6 +1038,21 @@ namespace Kalendarz1
                         else
                         {
                             dateTimePickerProdukcji.Value = DateTime.Today;
+                        }
+                    }
+
+                    // Wczytanie statusu transportu i ustawienie checkboxa
+                    if (chkWlasnyOdbior != null)
+                    {
+                        int transportStatusIndex = dataProdukcjiExists ? 5 : 4;
+                        if (rd.FieldCount > transportStatusIndex && !await rd.IsDBNullAsync(transportStatusIndex))
+                        {
+                            string transportStatus = rd.GetString(transportStatusIndex);
+                            chkWlasnyOdbior.Checked = (transportStatus == "Wlasny");
+                        }
+                        else
+                        {
+                            chkWlasnyOdbior.Checked = false;
                         }
                     }
                 }

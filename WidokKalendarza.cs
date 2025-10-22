@@ -4,17 +4,20 @@ using Microsoft.VisualBasic.ApplicationServices;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing; // Dodaj tę dyrektywę
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Input;
-using System.Diagnostics;
-using System.IO;
-using System.Configuration;
+using Kalendarz1.AnkietyHodowcow;
+
+
 
 namespace Kalendarz1
 {
@@ -3716,9 +3719,13 @@ ORDER BY Ilosc DESC, f.Kto ASC;";
             var dostawca = Convert.ToString(datagridRanking.CurrentRow.Cells["Dostawca"].Value);
             if (string.IsNullOrWhiteSpace(dostawca)) return;
 
-            using var f = new HistoriaHodowcyForm(connectionPermission, dostawca);
-            f.StartPosition = FormStartPosition.CenterParent;
-            f.ShowDialog(this);
+            // Teraz możesz użyć krótkiej nazwy
+            var window = new HistoriaHodowcyWindowPremium(connectionPermission, dostawca);
+
+            var helper = new System.Windows.Interop.WindowInteropHelper(window);
+            helper.Owner = this.Handle;
+
+            window.ShowDialog();
             await Task.CompletedTask;
         }
 
