@@ -2,13 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Oferta Handlowa" 
-        Height="950" 
-        Width="1550"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Background="Transparent" 
         AllowsTransparency="True" 
         WindowStyle="None"
-        ResizeMode="NoResize">
+        ResizeMode="CanResize">
 
     <Window.Resources>
         <!-- UJEDNOLICONA KOLORYSTYKA -->
@@ -38,9 +37,9 @@
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="34"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Padding" Value="8,0"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsFocused" Value="True">
@@ -50,9 +49,9 @@
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Height" Value="34"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Padding" Value="8,0"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsFocused" Value="True">
@@ -85,12 +84,12 @@
         </Style>
 
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="48"/>
-            <Setter Property="Padding" Value="35,0"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="30,0"/>
             <Setter Property="Background" Value="{StaticResource PrimaryGreenBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -218,10 +217,10 @@
 
             <!-- TREŚĆ -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource BackgroundBrush}">
-                <StackPanel Margin="25">
+                <StackPanel Margin="15">
 
                     <!-- SEKCJA KLIENTA -->
-                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -316,8 +315,79 @@
                         </Grid>
                     </Border>
 
+                    <!-- SEKCJA SZABLONÓW -->
+                    <Border Background="#E8F5E9" BorderBrush="{StaticResource PrimaryGreenBrush}" 
+                            BorderThickness="2" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="⚡ SZYBKIE SZABLONY" FontSize="14" FontWeight="Bold" 
+                                       Foreground="{StaticResource PrimaryGreenBrush}" Margin="0,0,0,10"/>
+                            
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Szablony towarów -->
+                                <Border Grid.Column="0" Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                        BorderThickness="1" CornerRadius="6" Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="📦 Szablony zestawów towarów" FontSize="11" FontWeight="Bold" 
+                                                   Foreground="{StaticResource DarkTextBrush}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Wczytaj zapisane zestawy produktów jednym kliknięciem" 
+                                                   FontSize="9" Foreground="{StaticResource LightTextBrush}" 
+                                                   TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                        
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <Button Grid.Column="0" Content="🔽 Wczytaj szablon" 
+                                                    Click="BtnWczytajSzablonTowarow_Click"
+                                                    Style="{StaticResource PrimaryButtonStyle}" Height="36"/>
+                                            <Button Grid.Column="2" Content="⚙️" ToolTip="Zarządzaj szablonami towarów"
+                                                    Click="BtnZarzadzajSzablonami_TowarowClick"
+                                                    Style="{StaticResource PrimaryButtonStyle}" Width="36" Height="36" Padding="0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Szablony parametrów -->
+                                <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                        BorderThickness="1" CornerRadius="6" Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="⚙️ Szablony parametrów oferty" FontSize="11" FontWeight="Bold" 
+                                                   Foreground="{StaticResource DarkTextBrush}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Zastosuj często używane ustawienia (termin, transport, język)" 
+                                                   FontSize="9" Foreground="{StaticResource LightTextBrush}" 
+                                                   TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                        
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <Button Grid.Column="0" Content="🔽 Wczytaj szablon" 
+                                                    Click="BtnWczytajSzablonParametrow_Click"
+                                                    Style="{StaticResource PrimaryButtonStyle}" Height="36"/>
+                                            <Button Grid.Column="2" Content="⚙️" ToolTip="Zarządzaj szablonami parametrów"
+                                                    Click="BtnZarzadzajSzablonami_ParametrowClick"
+                                                    Style="{StaticResource PrimaryButtonStyle}" Width="36" Height="36" Padding="0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- SEKCJA PRODUKTÓW -->
-                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -327,7 +397,7 @@
 
                             <TextBlock Grid.Row="0" Text="DODAJ PRODUKT DO OFERTY" Style="{StaticResource HeaderTextStyle}"/>
 
-                            <Grid Grid.Row="1" Margin="0,0,0,20">
+                            <Grid Grid.Row="1" Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="1.5*"/>
@@ -388,12 +458,28 @@
                                 </StackPanel>
 
                                 <Button x:Name="btnSzybkieDodawanie" Grid.Column="6" Content="➕ Dodaj" VerticalAlignment="Bottom"
-                                        Click="BtnSzybkieDodawanie_Click" Style="{StaticResource PrimaryButtonStyle}" Height="38"/>
+                                        Click="BtnSzybkieDodawanie_Click" Style="{StaticResource PrimaryButtonStyle}" Height="34"/>
                             </Grid>
 
                             <StackPanel Grid.Row="2">
-                                <CheckBox x:Name="chkTylkoCena" Content="💰 Pokaż tylko cenę (bez ilości)" 
-                                          Margin="0,0,0,10" Checked="ChkTylkoCena_Changed" Unchecked="ChkTylkoCena_Changed"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <CheckBox x:Name="chkTylkoCena" Grid.Column="0" 
+                                              Content="💰 Pokaż tylko cenę (bez ilości)" 
+                                              Checked="ChkTylkoCena_Changed" Unchecked="ChkTylkoCena_Changed"/>
+                                    
+                                    <CheckBox x:Name="chkDodajNotkeKilogramy" Grid.Column="2" 
+                                              Content="📝 Dodaj notatkę: &quot;Cena zależna od ilości kupionej&quot;" 
+                                              FontSize="11" Foreground="{StaticResource LightTextBrush}"
+                                              Checked="ChkDodajNotkeKilogramy_Changed" 
+                                              Unchecked="ChkDodajNotkeKilogramy_Changed"/>
+                                </Grid>
+
 
                                 <DataGrid x:Name="dgTowary" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" 
                                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" Background="Transparent" 
@@ -550,14 +636,14 @@
             </ScrollViewer>
 
             <!-- STOPKA Z PRZYCISKAMI -->
-            <Border Grid.Row="2" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="25">
+            <Border Grid.Row="2" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="15">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="btnGenerujPDF" Content="📄 Generuj PDF" Style="{StaticResource AccentButtonStyle}" 
-                            Margin="0,0,10,0" Click="BtnGenerujPDF_Click" Width="170"/>
+                            Margin="0,0,8,0" Click="BtnGenerujPDF_Click" Width="150"/>
                     <Button x:Name="btnZapisz" Content="💾 Zapisz" Style="{StaticResource PrimaryButtonStyle}" 
-                            Margin="0,0,10,0" Click="BtnZapisz_Click" Width="160"/>
+                            Margin="0,0,8,0" Click="BtnZapisz_Click" Width="140"/>
                     <Button x:Name="btnAnuluj" Content="↩️ Anuluj" Style="{StaticResource SecondaryButtonStyle}" 
-                            Click="BtnAnuluj_Click" Width="179"/>
+                            Click="BtnAnuluj_Click" Width="140"/>
                 </StackPanel>
             </Border>
         </Grid>

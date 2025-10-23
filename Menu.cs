@@ -151,7 +151,8 @@ namespace Kalendarz1
                 [21] = "AnalizaTygodniowa",
                 [22] = "NotatkiZeSpotkan",
                 [23] = "PlanTygodniowy",
-                [24] = "LiczenieMagazynu" // ✅ NOWE UPRAWNIENIE
+                [24] = "LiczenieMagazynu",
+                [25] = "PanelMagazyniera" // ✅ NOWE UPRAWNIENIE
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -192,7 +193,7 @@ namespace Kalendarz1
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
                 "OfertaCenowa", "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-                "LiczenieMagazynu" // ✅ NOWE
+                "LiczenieMagazynu", "PanelMagazyniera" // ✅ NOWE
             };
         }
 
@@ -223,14 +224,19 @@ namespace Kalendarz1
                         return window;
                     }, "🏭"),
                     new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
-                    // ✅ NOWY PRZYCISK LICZENIA MAGAZYNU
                     new MenuItemConfig("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", Color.FromArgb(156, 39, 176), () => {
                         return new Kalendarz1.MagazynLiczenie.Formularze.LiczenieStanuWindow(
                             connectionString,
                             connectionHandel,
                             App.UserID
                         );
-                    }, "📦")
+                    }, "📦"),
+                    // ✅ NOWY MODUŁ - Panel Magazyniera
+                    new MenuItemConfig("PanelMagazyniera", "Panel Magazyniera", "Kompleksowy panel do zarządzania wydaniami", Color.FromArgb(63, 81, 181), () => {
+                        var panel = new Kalendarz1.MagazynPanel();
+                        panel.UserID = App.UserID;
+                        return panel;
+                    }, "📱")
                 }
             };
 

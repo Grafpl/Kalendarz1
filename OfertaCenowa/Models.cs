@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
+using System.Collections.Generic;
 
 namespace Kalendarz1.OfertaCenowa
 {
@@ -118,5 +119,55 @@ namespace Kalendarz1.OfertaCenowa
         public string SWIFT { get; set; } = "";
         public string AdresBanku { get; set; } = "";
         public string Waluta { get; set; } = "";
+    }
+
+    /// <summary>
+    /// NOWA KLASA: Szablon zestawu towarów
+    /// </summary>
+    public class SzablonTowarow
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; } = "";
+        public string Opis { get; set; } = "";
+        public List<TowarSzablonu> Towary { get; set; } = new List<TowarSzablonu>();
+        
+        public override string ToString() => Nazwa;
+    }
+
+    /// <summary>
+    /// NOWA KLASA: Towar w szablonie (z domyślną ilością)
+    /// </summary>
+    public class TowarSzablonu
+    {
+        public int TowarId { get; set; }
+        public string Kod { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public string Katalog { get; set; } = "";
+        public string Opakowanie { get; set; } = "E2";
+        public decimal DomyslnaIlosc { get; set; } = 1;
+        public decimal DomyslnaCena { get; set; } = 0;
+    }
+
+    /// <summary>
+    /// NOWA KLASA: Szablon parametrów oferty
+    /// </summary>
+    public class SzablonParametrow
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; } = "";
+        public string TerminPlatnosci { get; set; } = "7 dni";
+        public int DniPlatnosci { get; set; } = 7;
+        public string WalutaKonta { get; set; } = "PLN";
+        public JezykOferty Jezyk { get; set; } = JezykOferty.Polski;
+        public TypLogo TypLogo { get; set; } = TypLogo.Okragle;
+        public bool PokazOpakowanie { get; set; } = true;
+        public bool PokazCene { get; set; } = true;
+        public bool PokazIlosc { get; set; } = false;
+        public bool PokazTerminPlatnosci { get; set; } = true;
+        public string TransportTyp { get; set; } = "wlasny"; // "wlasny" lub "klienta"
+        public bool DodajNotkeOCenach { get; set; } = false;
+        public string NotatkaCustom { get; set; } = "";
+        
+        public override string ToString() => Nazwa;
     }
 }

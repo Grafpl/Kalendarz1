@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -28,6 +28,9 @@ namespace Kalendarz1.OfertaCenowa
 
         private string _aktywnyKatalog = "67095";
         private KlientOferta? _wybranyKlient;
+        
+        // Manager szablonów
+        private readonly SzablonyManager _szablonyManager = new SzablonyManager();
 
         public OfertaHandlowaWindow()
         {
@@ -45,6 +48,9 @@ namespace Kalendarz1.OfertaCenowa
             txtPelnaNazwaProduktu.Text = "-";
 
             TowaryWOfercie.CollectionChanged += (s, e) => ObliczWartoscCalkowita();
+
+            // Inicjalizuj przykładowe szablony
+            InicjalizujSzablonyPrzykladowe();
 
             _isInitializing = false;
         }
@@ -408,7 +414,6 @@ namespace Kalendarz1.OfertaCenowa
                     sqlParameters.Add(new SqlParameter(paramName, towaryIds[i]));
                 }
 
-                // ZMIANA 1: Dodano CAST do DECIMAL(18,2)
                 string sql = $@"
                     SELECT 
                         DP.idtw AS TowarId,
@@ -429,7 +434,6 @@ namespace Kalendarz1.OfertaCenowa
                 await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    // ZMIANA 2: Bezpieczniejsza konwersja
                     cenySrednie.Add(rd.GetInt32(0), Convert.ToDecimal(rd[1]));
                 }
 
@@ -567,6 +571,326 @@ namespace Kalendarz1.OfertaCenowa
         {
             this.Close();
         }
+
+        // ===================================================================================
+        // NOWE METODY DO OBSŁUGI SZABLONÓW
+        // ===================================================================================
+
+        /// <summary>
+        /// Otwiera okno zarządzania szablonami towarów
+        /// </summary>
+        private void BtnZarzadzajSzablonami_TowarowClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var okno = new SzablonTowarowWindow(Towary.ToList());
+                okno.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania okna szablonów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Otwiera okno zarządzania szablonami parametrów
+        /// </summary>
+        private void BtnZarzadzajSzablonami_ParametrowClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var okno = new SzablonParametrowWindow();
+                okno.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania okna szablonów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Wczytuje szablon towarów i dodaje towary do oferty
+        /// </summary>
+        private void BtnWczytajSzablonTowarow_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var szablony = _szablonyManager.WczytajSzablonyTowarow();
+                
+                if (!szablony.Any())
+                {
+                    var wynik = MessageBox.Show(
+                        "Nie masz jeszcze żadnych zapisanych szablonów towarów.\n\nCzy chcesz utworzyć nowy szablon?",
+                        "Brak szablonów",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information
+                    );
+                    
+                    if (wynik == MessageBoxResult.Yes)
+                    {
+                        BtnZarzadzajSzablonami_TowarowClick(sender, e);
+                    }
+                    return;
+                }
+
+                // Okno wyboru szablonu
+                var oknoWyboru = new WyborSzablonuWindow(szablony.Cast<object>().ToList(), "Wybierz szablon towarów");
+                if (oknoWyboru.ShowDialog() == true && oknoWyboru.WybranyIndex >= 0)
+                {
+                    var wybrany = szablony[oknoWyboru.WybranyIndex];
+                    WczytajSzablonTowarowDoOferty(wybrany);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas wczytywania szablonu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Wczytuje szablon parametrów i ustawia wszystkie opcje
+        /// </summary>
+        private void BtnWczytajSzablonParametrow_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var szablony = _szablonyManager.WczytajSzablonyParametrow();
+                
+                if (!szablony.Any())
+                {
+                    var wynik = MessageBox.Show(
+                        "Nie masz jeszcze żadnych zapisanych szablonów parametrów.\n\nCzy chcesz utworzyć nowy szablon?",
+                        "Brak szablonów",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information
+                    );
+                    
+                    if (wynik == MessageBoxResult.Yes)
+                    {
+                        BtnZarzadzajSzablonami_ParametrowClick(sender, e);
+                    }
+                    return;
+                }
+
+                // Okno wyboru szablonu
+                var oknoWyboru = new WyborSzablonuWindow(szablony.Cast<object>().ToList(), "Wybierz szablon parametrów");
+                if (oknoWyboru.ShowDialog() == true && oknoWyboru.WybranyIndex >= 0)
+                {
+                    var wybrany = szablony[oknoWyboru.WybranyIndex];
+                    UstawParametryZSzablonu(wybrany);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas wczytywania szablonu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Wczytuje towary z szablonu do oferty
+        /// </summary>
+        private void WczytajSzablonTowarowDoOferty(SzablonTowarow szablon)
+        {
+            int dodano = 0;
+            int pominięto = 0;
+
+            foreach (var towarSzablonu in szablon.Towary)
+            {
+                // Sprawdź czy towar już jest w ofercie
+                if (TowaryWOfercie.Any(t => t.Id == towarSzablonu.TowarId))
+                {
+                    pominięto++;
+                    continue;
+                }
+
+                // Znajdź pełne dane towaru
+                var towarPelny = Towary.FirstOrDefault(t => t.Id == towarSzablonu.TowarId);
+                if (towarPelny == null)
+                {
+                    pominięto++;
+                    continue;
+                }
+
+                // Dodaj towar do oferty
+                TowaryWOfercie.Add(new TowarOferta
+                {
+                    Id = towarPelny.Id,
+                    Kod = towarPelny.Kod,
+                    Nazwa = towarPelny.Nazwa,
+                    Katalog = towarPelny.Katalog,
+                    Opakowanie = towarSzablonu.Opakowanie,
+                    Ilosc = towarSzablonu.DomyslnaIlosc,
+                    CenaJednostkowa = towarSzablonu.DomyslnaCena
+                });
+                dodano++;
+            }
+
+            if (dodano > 0)
+            {
+                MessageBox.Show(
+                    $"Wczytano szablon \"{szablon.Nazwa}\":\n✓ Dodano {dodano} produktów" + 
+                    (pominięto > 0 ? $"\n⚠ Pominięto {pominięto} (już w ofercie lub niedostępne)" : ""),
+                    "Szablon wczytany",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+            }
+            else
+            {
+                MessageBox.Show(
+                    "Nie dodano żadnych produktów. Wszystkie towary z szablonu już są w ofercie lub są niedostępne.",
+                    "Informacja",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+            }
+        }
+
+        /// <summary>
+        /// Ustawia parametry oferty na podstawie szablonu
+        /// </summary>
+        private void UstawParametryZSzablonu(SzablonParametrow szablon)
+        {
+            try
+            {
+                // Termin płatności
+                foreach (ComboBoxItem item in cboTerminPlatnosci.Items)
+                {
+                    if (item.Tag.ToString() == szablon.DniPlatnosci.ToString())
+                    {
+                        cboTerminPlatnosci.SelectedItem = item;
+                        break;
+                    }
+                }
+
+                // Konto bankowe
+                foreach (ComboBoxItem item in cboKontoBankowe.Items)
+                {
+                    if (item.Tag.ToString() == szablon.WalutaKonta)
+                    {
+                        cboKontoBankowe.SelectedItem = item;
+                        break;
+                    }
+                }
+
+                // Transport
+                rbTransportWlasny.IsChecked = szablon.TransportTyp == "wlasny";
+                rbTransportKlienta.IsChecked = szablon.TransportTyp == "klienta";
+
+                // Język
+                foreach (ComboBoxItem item in cboJezykPDF.Items)
+                {
+                    if (item.Tag.ToString() == szablon.Jezyk.ToString())
+                    {
+                        cboJezykPDF.SelectedItem = item;
+                        break;
+                    }
+                }
+
+                // Logo
+                rbLogoOkragle.IsChecked = szablon.TypLogo == TypLogo.Okragle;
+                rbLogoDlugie.IsChecked = szablon.TypLogo == TypLogo.Dlugie;
+
+                // Widoczność w PDF
+                chkPdfPokazOpakowanie.IsChecked = szablon.PokazOpakowanie;
+                chkPdfPokazCene.IsChecked = szablon.PokazCene;
+                chkPdfPokazIlosc.IsChecked = szablon.PokazIlosc;
+                chkPdfPokazTermin.IsChecked = szablon.PokazTerminPlatnosci;
+
+                // Notatki
+                if (szablon.DodajNotkeOCenach)
+                {
+                    string notatka = "Cena zależna od ilości kupionej.";
+                    if (!txtNotatki.Text.Contains(notatka))
+                    {
+                        if (string.IsNullOrWhiteSpace(txtNotatki.Text))
+                        {
+                            txtNotatki.Text = notatka;
+                        }
+                        else
+                        {
+                            txtNotatki.Text += $"\n{notatka}";
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(szablon.NotatkaCustom))
+                {
+                    if (!txtNotatki.Text.Contains(szablon.NotatkaCustom))
+                    {
+                        if (string.IsNullOrWhiteSpace(txtNotatki.Text))
+                        {
+                            txtNotatki.Text = szablon.NotatkaCustom;
+                        }
+                        else
+                        {
+                            txtNotatki.Text += $"\n{szablon.NotatkaCustom}";
+                        }
+                    }
+                }
+
+                MessageBox.Show(
+                    $"Wczytano szablon parametrów \"{szablon.Nazwa}\".\nWszystkie ustawienia zostały zaktualizowane.",
+                    "Szablon wczytany",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ustawiania parametrów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Inicjalizuje przykładowe szablony przy pierwszym uruchomieniu
+        /// </summary>
+        private void InicjalizujSzablonyPrzykladowe()
+        {
+            try
+            {
+                _szablonyManager.UtworzSzablonyPrzykladowe();
+            }
+            catch
+            {
+                // Ignoruj błędy inicjalizacji
+            }
+        }
+
+        /// <summary>
+        /// Obsługa checkboxa automatycznej notatki o cenach zależnych od kilogramów
+        /// </summary>
+        private void ChkDodajNotkeKilogramy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            string notatka = "Cena zależna od ilości kupionej.";
+            
+            if (chkDodajNotkeKilogramy.IsChecked == true)
+            {
+                // Dodaj notatkę jeśli jej nie ma
+                if (!txtNotatki.Text.Contains(notatka))
+                {
+                    if (string.IsNullOrWhiteSpace(txtNotatki.Text))
+                    {
+                        txtNotatki.Text = notatka;
+                    }
+                    else
+                    {
+                        txtNotatki.Text += $"\n{notatka}";
+                    }
+                }
+            }
+            else
+            {
+                // Usuń notatkę
+                txtNotatki.Text = txtNotatki.Text.Replace(notatka, "").Trim();
+                // Usuń podwójne puste linie
+                while (txtNotatki.Text.Contains("\n\n\n"))
+                {
+                    txtNotatki.Text = txtNotatki.Text.Replace("\n\n\n", "\n\n");
+                }
+            }
+        }
     }
 }
-

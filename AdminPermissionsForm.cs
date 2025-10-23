@@ -315,7 +315,7 @@ namespace Kalendarz1
                 MultiSelect = false,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                ReadOnly = false, // ZMIANA: było true
+                ReadOnly = false,
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 EnableHeadersVisualStyles = false
@@ -414,7 +414,7 @@ namespace Kalendarz1
                     "ZmianyUHodowcow", "Specyfikacje", "PlachtyAviloga"
                 },
                 ["Produkcja i Magazyn"] = new List<string> {
-                    "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni"
+                    "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni", "LiczenieMagazynu", "PanelMagazyniera"
                 },
                 ["Sprzedaż i CRM"] = new List<string> {
                     "CRM", "ZamowieniaOdbiorcow", "DokumentySprzedazy",
@@ -450,14 +450,32 @@ namespace Kalendarz1
                                 FOR XML PATH('')
                             ), 1, 2, '') AS Handlowcy
                         FROM operators o
-                        WHERE o.ID != '11111' 
-                        ORDER BY o.Name";
+                        ORDER BY o.ID";
 
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    usersGrid.DataSource = dt;
-                    usersCountLabel.Text = $"Łącznie: {dt.Rows.Count} użytkowników";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        usersGrid.DataSource = dt;
+
+                        if (usersGrid.Columns.Count > 0)
+                        {
+                            usersGrid.Columns["ID"].Width = 100;
+                            usersGrid.Columns["ID"].HeaderText = "ID Użytkownika";
+
+                            usersGrid.Columns["Name"].Width = 150;
+                            usersGrid.Columns["Name"].HeaderText = "Nazwa";
+
+                            if (usersGrid.Columns.Contains("Handlowcy"))
+                            {
+                                usersGrid.Columns["Handlowcy"].Width = 150;
+                                usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
+                            }
+                        }
+
+                        usersCountLabel.Text = $"Liczba użytkowników: {dt.Rows.Count}";
+                    }
                 }
             }
             catch (Exception ex)
@@ -472,23 +490,9 @@ namespace Kalendarz1
 
         private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
-            if (usersGrid.Columns.Count > 0)
+            if (usersGrid.Rows.Count > 0)
             {
-                if (usersGrid.Columns.Contains("ID"))
-                {
-                    usersGrid.Columns["ID"].HeaderText = "ID";
-                    usersGrid.Columns["ID"].Width = 80;
-                }
-                if (usersGrid.Columns.Contains("Name"))
-                {
-                    usersGrid.Columns["Name"].HeaderText = "Nazwa użytkownika";
-                    usersGrid.Columns["Name"].Width = 150;
-                }
-                if (usersGrid.Columns.Contains("Handlowcy"))
-                {
-                    usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
-                    usersGrid.Columns["Handlowcy"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-                }
+                usersGrid.Rows[0].Selected = true;
             }
         }
 
@@ -498,6 +502,7 @@ namespace Kalendarz1
             {
                 var modules = GetModulesList();
                 var permissions = new DataTable();
+                permissions.Columns.Add("Ikona", typeof(string));
                 permissions.Columns.Add("Kategoria", typeof(string));
                 permissions.Columns.Add("Moduł", typeof(string));
                 permissions.Columns.Add("Opis", typeof(string));
@@ -525,20 +530,26 @@ namespace Kalendarz1
                         if (position >= 0 && position < accessString.Length)
                             hasAccess = accessString[position] == '1';
 
-                        permissions.Rows.Add(module.Category, module.Key, module.Description, hasAccess);
+                        permissions.Rows.Add(module.Icon, module.Category, module.DisplayName, module.Description, hasAccess);
                     }
                 }
 
                 permissionsGrid.DataSource = permissions;
                 if (permissionsGrid.Columns.Count > 0)
                 {
-                    permissionsGrid.Columns["Kategoria"].Width = 200;
+                    // Kolumna Ikona
+                    permissionsGrid.Columns["Ikona"].Width = 50;
+                    permissionsGrid.Columns["Ikona"].ReadOnly = true;
+                    permissionsGrid.Columns["Ikona"].DefaultCellStyle.Font = new Font("Segoe UI Emoji", 14);
+                    permissionsGrid.Columns["Ikona"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+                    permissionsGrid.Columns["Kategoria"].Width = 180;
                     permissionsGrid.Columns["Kategoria"].ReadOnly = true;
 
                     permissionsGrid.Columns["Moduł"].Width = 200;
                     permissionsGrid.Columns["Moduł"].ReadOnly = true;
 
-                    permissionsGrid.Columns["Opis"].Width = 500;
+                    permissionsGrid.Columns["Opis"].Width = 450;
                     permissionsGrid.Columns["Opis"].ReadOnly = true;
 
                     permissionsGrid.Columns["Dostęp"].Width = 100;
@@ -556,38 +567,40 @@ namespace Kalendarz1
             return new List<ModuleInfo>
             {
                 // Zaopatrzenie i Zakupy
-                new ModuleInfo("DaneHodowcy", "Dane Hodowcy", "Zarządzanie danymi hodowców", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy", "Zakup paszy i piskląt", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("WstawieniaHodowcy", "Wstawienia", "Rejestracja wstawień u hodowców", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("DokumentyZakupu", "Dokumenty Zakupu", "Dokumenty zakupowe i umowy", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Tworzenie i zarządzanie specyfikacjami", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("PlatnosciHodowcy", "Płatności Hodowców", "Płatności dla hodowców", "Zaopatrzenie i Zakupy"),
-                new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmianę", "Zgłoszenia zmian u hodowców", "Zaopatrzenie i Zakupy"),
+                new ModuleInfo("DaneHodowcy", "Dane Hodowcy", "Zarządzanie danymi hodowców", "Zaopatrzenie i Zakupy", "📋"),
+                new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy", "Zakup paszy i piskląt", "Zaopatrzenie i Zakupy", "🌾"),
+                new ModuleInfo("WstawieniaHodowcy", "Wstawienia", "Rejestracja wstawień u hodowców", "Zaopatrzenie i Zakupy", "🐣"),
+                new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "Zaopatrzenie i Zakupy", "📅"),
+                new ModuleInfo("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "Zaopatrzenie i Zakupy", "🎯"),
+                new ModuleInfo("DokumentyZakupu", "Dokumenty Zakupu", "Dokumenty zakupowe i umowy", "Zaopatrzenie i Zakupy", "📄"),
+                new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Tworzenie i zarządzanie specyfikacjami", "Zaopatrzenie i Zakupy", "📝"),
+                new ModuleInfo("PlatnosciHodowcy", "Płatności Hodowców", "Płatności dla hodowców", "Zaopatrzenie i Zakupy", "💰"),
+                new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmianę", "Zgłoszenia zmian u hodowców", "Zaopatrzenie i Zakupy", "✏️"),
                 
                 // Produkcja i Magazyn
-                new ModuleInfo("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", "Produkcja i Magazyn"),
-                new ModuleInfo("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", "Produkcja i Magazyn"),
-                new ModuleInfo("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", "Produkcja i Magazyn"),
+                new ModuleInfo("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", "Produkcja i Magazyn", "✂️"),
+                new ModuleInfo("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", "Produkcja i Magazyn", "🏭"),
+                new ModuleInfo("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", "Produkcja i Magazyn", "❄️"),
+                new ModuleInfo("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", "Produkcja i Magazyn", "📦"),
+                new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Kompleksowy panel do zarządzania wydaniami", "Produkcja i Magazyn", "📱"),
                 
                 // Sprzedaż i CRM
-                new ModuleInfo("CRM", "CRM", "Zarządzaj relacjami z klientami", "Sprzedaż i CRM"),
-                new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Zarządzanie zamówieniami", "Sprzedaż i CRM"),
-                new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "Sprzedaż i CRM"),
-                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "Sprzedaż i CRM"),
-                new ModuleInfo("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", "Sprzedaż i CRM"),
-                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "Sprzedaż i CRM"),
-                new ModuleInfo("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "Sprzedaż i CRM"),
+                new ModuleInfo("CRM", "CRM", "Zarządzaj relacjami z klientami", "Sprzedaż i CRM", "👥"),
+                new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Zarządzanie zamówieniami", "Sprzedaż i CRM", "📦"),
+                new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "Sprzedaż i CRM", "🧾"),
+                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "Sprzedaż i CRM", "📈"),
+                new ModuleInfo("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", "Sprzedaż i CRM", "📊"),
+                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "Sprzedaż i CRM", "📊"),
+                new ModuleInfo("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "Sprzedaż i CRM", "💵"),
                 
                 // Opakowania i Transport
-                new ModuleInfo("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", "Opakowania i Transport"),
-                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", "Opakowania i Transport"),
-                new ModuleInfo("UstalanieTranportu", "Transport", "Organizuj i planuj transport", "Opakowania i Transport"),
+                new ModuleInfo("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", "Opakowania i Transport", "📊"),
+                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", "Opakowania i Transport", "📈"),
+                new ModuleInfo("UstalanieTranportu", "Transport", "Organizuj i planuj transport", "Opakowania i Transport", "🚚"),
                 
                 // Finanse i Zarządzanie
-                new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie"),
-                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie")
+                new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie", "💼"),
+                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝")
             };
         }
 
@@ -618,7 +631,9 @@ namespace Kalendarz1
                 [20] = "PrognozyUboju",
                 [21] = "AnalizaTygodniowa",
                 [22] = "NotatkiZeSpotkan",
-                [23] = "PlanTygodniowy"
+                [23] = "PlanTygodniowy",
+                [24] = "LiczenieMagazynu",
+                [25] = "PanelMagazyniera" // ✅ NOWE UPRAWNIENIE
             };
         }
 
@@ -636,14 +651,23 @@ namespace Kalendarz1
                 for (int i = 0; i < 50; i++) accessArray[i] = '0';
 
                 var accessMap = GetAccessMap();
+                var modulesList = GetModulesList();
 
                 foreach (DataGridViewRow row in permissionsGrid.Rows)
                 {
-                    string moduleName = row.Cells["Moduł"].Value?.ToString();
+                    string displayName = row.Cells["Moduł"].Value?.ToString();
                     bool hasAccess = Convert.ToBoolean(row.Cells["Dostęp"].Value);
 
-                    if (accessMap.ContainsKey(accessMap.FirstOrDefault(x => x.Value == moduleName).Key) && hasAccess)
-                        accessArray[accessMap.FirstOrDefault(x => x.Value == moduleName).Key] = '1';
+                    // Znajdź klucz modułu na podstawie DisplayName
+                    var module = modulesList.FirstOrDefault(m => m.DisplayName == displayName);
+                    if (module != null)
+                    {
+                        var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
+                        if (position >= 0 && hasAccess)
+                        {
+                            accessArray[position] = '1';
+                        }
+                    }
                 }
 
                 string newAccessString = new string(accessArray);
@@ -660,7 +684,7 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show("✓ Uprawnienia zostały zapisane pomyślnie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("✓ Uprawnienia zostały zapisane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -670,9 +694,13 @@ namespace Kalendarz1
 
         private void AddUserButton_Click(object sender, EventArgs e)
         {
-            var dialog = new AddUserDialog(connectionString);
-            if (dialog.ShowDialog() == DialogResult.OK)
-                LoadUsers();
+            using (var dialog = new AddUserDialog(connectionString))
+            {
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    LoadUsers();
+                }
+            }
         }
 
         private void DeleteUserButton_Click(object sender, EventArgs e)
@@ -686,8 +714,12 @@ namespace Kalendarz1
             string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
             string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
 
-            var result = MessageBox.Show($"Czy na pewno chcesz usunąć użytkownika:\n\n{userName} (ID: {userId})?\n\nZostaną również usunięte wszystkie przypisania handlowców.",
-                "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć użytkownika:\n\nID: {userId}\nNazwa: {userName}\n\nTa operacja jest nieodwracalna!",
+                "Potwierdzenie usunięcia",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
 
             if (result == DialogResult.Yes)
             {
@@ -696,16 +728,8 @@ namespace Kalendarz1
                     using (SqlConnection conn = new SqlConnection(connectionString))
                     {
                         conn.Open();
-
-                        string deleteHandlowcy = "DELETE FROM UserHandlowcy WHERE UserID = @userId";
-                        using (SqlCommand cmd = new SqlCommand(deleteHandlowcy, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@userId", userId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        string deleteUser = "DELETE FROM operators WHERE ID = @userId";
-                        using (SqlCommand cmd = new SqlCommand(deleteUser, conn))
+                        string query = "DELETE FROM operators WHERE ID = @userId";
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
                         {
                             cmd.Parameters.AddWithValue("@userId", userId);
                             cmd.ExecuteNonQuery();
@@ -808,13 +832,15 @@ namespace Kalendarz1
             public string DisplayName { get; set; }
             public string Description { get; set; }
             public string Category { get; set; }
+            public string Icon { get; set; }
 
-            public ModuleInfo(string key, string displayName, string description, string category)
+            public ModuleInfo(string key, string displayName, string description, string category, string icon)
             {
                 Key = key;
                 DisplayName = displayName;
                 Description = description;
                 Category = category;
+                Icon = icon;
             }
         }
     }
