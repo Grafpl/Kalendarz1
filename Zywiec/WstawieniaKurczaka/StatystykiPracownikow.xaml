@@ -6,7 +6,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Kalendarz1"
         mc:Ignorable="d"
-        Title="Statystyki Wstawien Kurczakow" 
+        Title="📊 Statystyki Wstawień Kurczaków" 
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Background="#F4F6F7">
@@ -46,42 +46,45 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Nagłówek -->
         <TextBlock Grid.Row="0" 
-                   Text="Statystyki Wstawien Kurczakow" 
+                   Text="📊 Statystyki Wstawień Kurczaków" 
                    FontSize="26" 
                    FontWeight="Bold" 
                    Foreground="#2C3E50" 
                    Margin="0,0,0,20"/>
 
+        <!-- Panel wyboru daty -->
         <Border Grid.Row="1" Background="White" CornerRadius="12" Padding="15" Margin="0,0,0,10">
             <Border.Effect>
                 <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
             </Border.Effect>
             <StackPanel>
-                <TextBlock Text="Wybor Okresu" FontSize="14" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
+                <TextBlock Text="🗓️ Wybór Okresu" FontSize="14" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
                 
+                <!-- Szybki wybór -->
                 <WrapPanel Margin="0,0,0,8">
-                    <Button x:Name="btnDzis" Content="Dzis" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnDzis" Content="📅 Dziś" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="Today"/>
-                    <Button x:Name="btnWczoraj" Content="Wczoraj" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnWczoraj" Content="📅 Wczoraj" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="Yesterday"/>
-                    <Button x:Name="btnTydzien" Content="Ten Tydzien" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnTydzien" Content="📊 Ten Tydzień" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="Week"/>
-                    <Button x:Name="btnPoprzedniTydzien" Content="Poprzedni Tydzien" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnPoprzedniTydzien" Content="📊 Poprzedni Tydzień" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="LastWeek"/>
-                    <Button x:Name="btnMiesiac" Content="Ten Miesiac" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnMiesiac" Content="📆 Ten Miesiąc" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="Month"/>
-                    <Button x:Name="btnPoprzedniMiesiac" Content="Poprzedni Miesiac" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnPoprzedniMiesiac" Content="📆 Poprzedni Miesiąc" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="LastMonth"/>
-                    <Button x:Name="btnRok" Content="2025" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnRok" Content="🗓️ 2025" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="Year"/>
-                    <Button x:Name="btnPoprzedniRok" Content="2024" Style="{StaticResource FilterButton}" 
+                    <Button x:Name="btnPoprzedniRok" Content="🗓️ 2024" Style="{StaticResource FilterButton}" 
                             Padding="12,6" FontSize="12" Margin="0,0,8,4" Click="FilterButton_Click" Tag="LastYear"/>
                 </WrapPanel>
 
+                <!-- Miesiące 2025 -->
                 <StackPanel Margin="0,4,0,8">
                     <TextBlock Text="2025:" FontSize="11" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,4"/>
                     <WrapPanel>
@@ -94,12 +97,13 @@
                         <Button Content="Lip" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-07"/>
                         <Button Content="Sie" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-08"/>
                         <Button Content="Wrz" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-09"/>
-                        <Button Content="Paz" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-10"/>
+                        <Button Content="Paź" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-10"/>
                         <Button Content="Lis" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-11"/>
                         <Button Content="Gru" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2025-12"/>
                     </WrapPanel>
                 </StackPanel>
 
+                <!-- Miesiące 2024 -->
                 <StackPanel Margin="0,4,0,0">
                     <TextBlock Text="2024:" FontSize="11" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,4"/>
                     <WrapPanel>
@@ -112,7 +116,7 @@
                         <Button Content="Lip" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-07"/>
                         <Button Content="Sie" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-08"/>
                         <Button Content="Wrz" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-09"/>
-                        <Button Content="Paz" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-10"/>
+                        <Button Content="Paź" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-10"/>
                         <Button Content="Lis" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-11"/>
                         <Button Content="Gru" Style="{StaticResource FilterButton}" Padding="10,5" FontSize="11" Margin="0,0,6,3" Click="FilterButton_Click" Tag="2024-12"/>
                     </WrapPanel>
@@ -120,6 +124,7 @@
             </StackPanel>
         </Border>
 
+        <!-- Podsumowanie -->
         <Grid Grid.Row="2" Margin="0,0,0,15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -133,7 +138,7 @@
                     <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Utworzone" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                    <TextBlock Text="📝 Utworzone" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
                     <TextBlock x:Name="txtTotalStworzone" Text="0" FontSize="32" FontWeight="Bold" Foreground="#5C8A3A"/>
                 </StackPanel>
             </Border>
@@ -143,7 +148,7 @@
                     <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Potwierdzone" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                    <TextBlock Text="✅ Potwierdzone" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
                     <TextBlock x:Name="txtTotalPotwierdzone" Text="0" FontSize="32" FontWeight="Bold" Foreground="#3498DB"/>
                 </StackPanel>
             </Border>
@@ -153,7 +158,7 @@
                     <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Oczekujace" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                    <TextBlock Text="⏳ Oczekujące" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
                     <TextBlock x:Name="txtTotalOczekujace" Text="0" FontSize="32" FontWeight="Bold" Foreground="#F39C12"/>
                 </StackPanel>
             </Border>
@@ -163,30 +168,33 @@
                     <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Procent Potwierdzonych" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
+                    <TextBlock Text="📊 % Potwierdzonych" FontSize="14" Foreground="#7F8C8D" Margin="0,0,0,5"/>
                     <TextBlock x:Name="txtProcentPotwierdzone" Text="0%" FontSize="32" FontWeight="Bold" Foreground="#9B59B6"/>
                 </StackPanel>
             </Border>
         </Grid>
 
+        <!-- Główne statystyki -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="3*"/>
             </Grid.ColumnDefinitions>
 
+            <!-- Lewa kolumna -->
             <Grid Grid.Column="0" Margin="0,0,10,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Kto utworzył -->
                 <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,10">
                     <Border.Effect>
                         <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                     </Border.Effect>
                     <StackPanel>
-                        <TextBlock Text="Kto Utworzyl Wstawienia" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
+                        <TextBlock Text="👥 Kto Utworzył Wstawienia" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -202,19 +210,18 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                                                    <TextBlock FontWeight="Bold" Foreground="#5C8A3A" Margin="5,0,0,0">
-                                                        <Run Text=" ("/>
-                                                        <Run Text="{Binding LiczbaAkcji}"/>
-                                                        <Run Text=")"/>
-                                                    </TextBlock>
-                                                    <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
-                                                        <Run Text=" - "/>
-                                                        <Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                </StackPanel>
+                                                <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="0" Click="BtnPracownikDetails_Click" Tag="{Binding NazwaPracownika}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
+                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline"/>
+                                                        <TextBlock FontWeight="Bold" Foreground="#5C8A3A" Margin="5,0,0,0">
+                                                            <Run Text=" ("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
+                                                            <Run Text=" - "/><Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Button>
                                                 <Border Grid.Row="1" Height="8" Background="#EAECEE" CornerRadius="4" Margin="0,5,0,0">
                                                     <Border HorizontalAlignment="Left" Background="{Binding Kolor}" CornerRadius="4" Width="{Binding ProcentWidth, Mode=OneWay}"/>
                                                 </Border>
@@ -227,12 +234,13 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Kto potwierdził -->
                 <Border Grid.Row="1" Background="White" CornerRadius="12" Padding="20">
                     <Border.Effect>
                         <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                     </Border.Effect>
                     <StackPanel>
-                        <TextBlock Text="Kto Potwierdzil Wstawienia" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
+                        <TextBlock Text="✅ Kto Potwierdził Wstawienia" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200"/>
@@ -248,19 +256,18 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E"/>
-                                                    <TextBlock FontWeight="Bold" Foreground="#3498DB" Margin="5,0,0,0">
-                                                        <Run Text=" ("/>
-                                                        <Run Text="{Binding LiczbaAkcji}"/>
-                                                        <Run Text=")"/>
-                                                    </TextBlock>
-                                                    <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
-                                                        <Run Text=" - "/>
-                                                        <Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                </StackPanel>
+                                                <Button Background="Transparent" BorderThickness="0" Cursor="Hand" HorizontalContentAlignment="Stretch" Padding="0" Click="BtnPracownikDetails_Click" Tag="{Binding NazwaPracownika}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="12" Height="12" Fill="{Binding Kolor}" Margin="0,0,8,0"/>
+                                                        <TextBlock Text="{Binding NazwaPracownika}" FontWeight="SemiBold" Foreground="#5D6D7E" TextDecorations="Underline"/>
+                                                        <TextBlock FontWeight="Bold" Foreground="#3498DB" Margin="5,0,0,0">
+                                                            <Run Text=" ("/><Run Text="{Binding LiczbaAkcji}"/><Run Text=")"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontStyle="Italic" Foreground="#7F8C8D" Margin="5,0,0,0">
+                                                            <Run Text=" - "/><Run Text="{Binding ProcentTekst, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Button>
                                                 <Border Grid.Row="1" Height="8" Background="#EAECEE" CornerRadius="4" Margin="0,5,0,0">
                                                     <Border HorizontalAlignment="Left" Background="{Binding Kolor}" CornerRadius="4" Width="{Binding ProcentWidth, Mode=OneWay}"/>
                                                 </Border>
@@ -274,289 +281,28 @@
                 </Border>
             </Grid>
 
+            <!-- Prawa kolumna - Tabela -->
             <Border Grid.Column="1" Background="White" CornerRadius="12" Padding="20" Margin="10,0,0,0">
                 <Border.Effect>
                     <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Szczegolowa Lista Wstawien" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
+                    <TextBlock Text="📋 Szczegółowa Lista Wstawień" FontSize="18" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,15"/>
                     <DataGrid x:Name="dgSzczegoly" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column" BorderThickness="0" Background="White" RowBackground="White" AlternatingRowBackground="#F8F9FA" FontSize="12">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="50"/>
                             <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="150"/>
                             <DataGridTextColumn Header="Data Wstawienia" Binding="{Binding DataWstawienia, StringFormat=dd.MM.yyyy}" Width="120"/>
-                            <DataGridTextColumn Header="Ilosc" Binding="{Binding IloscWstawienia}" Width="80"/>
-                            <DataGridTextColumn Header="Utworzyl" Binding="{Binding KtoStworzyl}" Width="120"/>
+                            <DataGridTextColumn Header="Ilość" Binding="{Binding IloscWstawienia}" Width="80"/>
+                            <DataGridTextColumn Header="Utworzył" Binding="{Binding KtoStworzyl}" Width="120"/>
                             <DataGridTextColumn Header="Data Utw." Binding="{Binding DataUtw, StringFormat=dd.MM.yyyy HH:mm}" Width="130"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
-                            <DataGridTextColumn Header="Potwierdzil" Binding="{Binding KtoPotwierdził}" Width="120"/>
+                            <DataGridTextColumn Header="Potwierdził" Binding="{Binding KtoPotwierdził}" Width="120"/>
                             <DataGridTextColumn Header="Data Potw." Binding="{Binding DataConf, StringFormat=dd.MM.yyyy HH:mm}" Width="130"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </StackPanel>
             </Border>
         </Grid>
-
-        <!-- SEKCJA ANALITYCZNA - Row 4 -->
-        <Border Grid.Row="4" Background="White" CornerRadius="12" Padding="20" Margin="0,15,0,0">
-            <Border.Effect>
-                <DropShadowEffect Color="#D5D8DC" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.3"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="400"/>
-                </Grid.RowDefinitions>
-
-                <!-- Naglowek z przyciskami widokow -->
-                <Grid Grid.Row="0" Margin="0,0,0,15">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0" Text="Zaawansowana Analityka" FontSize="18" FontWeight="Bold" Foreground="#34495E"/>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button x:Name="btnTrendy" Content="Trendy Miesieczne" Style="{StaticResource FilterButton}" Padding="12,6" FontSize="12" Margin="0,0,8,0" Click="AnalyticsView_Click" Tag="Trends"/>
-                        <Button x:Name="btnPorownanie" Content="Porownanie Okresow" Style="{StaticResource FilterButton}" Padding="12,6" FontSize="12" Margin="0,0,8,0" Click="AnalyticsView_Click" Tag="Compare"/>
-                        <Button x:Name="btnRanking" Content="Ranking Efektywnosci" Style="{StaticResource FilterButton}" Padding="12,6" FontSize="12" Margin="0,0,8,0" Click="AnalyticsView_Click" Tag="Ranking"/>
-                        <Button x:Name="btnInsights" Content="Insights i Wzrosty" Style="{StaticResource FilterButton}" Padding="12,6" FontSize="12" Click="AnalyticsView_Click" Tag="Insights"/>
-                    </StackPanel>
-                </Grid>
-
-                <!-- Obszar z widokami -->
-                <Grid Grid.Row="1">
-                    <!-- Widok: Trendy Miesieczne -->
-                    <Grid x:Name="viewTrendy" Visibility="Visible">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="300"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="0,0,10,0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Wykres Trendow - Ostatnie 12 Miesiecy" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,10"/>
-                                <Canvas x:Name="canvasTrendy" Grid.Row="1" Background="White"/>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="15">
-                            <StackPanel>
-                                <TextBlock Text="Top Pracownicy (12 mies.)" FontWeight="Bold" FontSize="13" Foreground="#34495E" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsTrendyLegenda">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,5">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="15"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <Rectangle Grid.Column="0" Width="12" Height="3" Fill="{Binding Kolor}"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding NazwaPracownika}" FontSize="11" Margin="5,0,5,0"/>
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding TotalnaLiczba}" FontWeight="Bold" FontSize="11" Foreground="#5C8A3A"/>
-                                                        <TextBlock Text="{Binding TrendIkona}" FontSize="11" Margin="5,0,0,0"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Widok: Porownanie Okresow -->
-                    <Grid x:Name="viewPorownanie" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="0,0,5,0">
-                            <StackPanel>
-                                <TextBlock x:Name="txtPorownanieObecny" Text="Biezacy Okres" FontWeight="Bold" FontSize="14" Foreground="#5C8A3A" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsPorownanieObecny">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,5">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding NazwaPracownika}" FontSize="12"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding LiczbaAkcji}" FontWeight="Bold" FontSize="12" Foreground="#5C8A3A"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="5,0">
-                            <StackPanel>
-                                <TextBlock x:Name="txtPorownaniePoprzedni" Text="Poprzedni Okres" FontWeight="Bold" FontSize="14" Foreground="#3498DB" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsPorownaniePoprzedni">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,5">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding NazwaPracownika}" FontSize="12"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding LiczbaAkcji}" FontWeight="Bold" FontSize="12" Foreground="#3498DB"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Column="2" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="5,0,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Zmiana (%)" FontWeight="Bold" FontSize="14" Foreground="#9B59B6" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsPorownanieZmiana">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,5">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding NazwaPracownika}" FontSize="12"/>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Zmiana}" FontWeight="Bold" FontSize="12" Foreground="{Binding ZmianaKolor}"/>
-                                                        <TextBlock Text="{Binding ZmianaIkona}" FontSize="12" Margin="3,0,0,0"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Widok: Ranking Efektywnosci -->
-                    <Grid x:Name="viewRanking" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="0,0,5,0">
-                            <StackPanel>
-                                <TextBlock Text="Top 10 - Utworzenia" FontWeight="Bold" FontSize="14" Foreground="#5C8A3A" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsRankingStworzone">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,6">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="30"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="40"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding Pozycja}" FontWeight="Bold" FontSize="14" Foreground="#BDC3C7" HorizontalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding NazwaPracownika}" FontSize="12" Margin="5,0"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding LiczbaAkcji}" FontWeight="Bold" FontSize="13" Foreground="#5C8A3A"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Medal}" FontSize="16" HorizontalAlignment="Center"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="5,0,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Top 10 - Potwierdzenia" FontWeight="Bold" FontSize="14" Foreground="#3498DB" Margin="0,0,0,10"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
-                                    <ItemsControl x:Name="itemsRankingPotwierdzone">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Grid Margin="0,6">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="30"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="40"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding Pozycja}" FontWeight="Bold" FontSize="14" Foreground="#BDC3C7" HorizontalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding NazwaPracownika}" FontSize="12" Margin="5,0"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding LiczbaAkcji}" FontWeight="Bold" FontSize="13" Foreground="#3498DB"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding Medal}" FontSize="16" HorizontalAlignment="Center"/>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Widok: Insights i Wzrosty -->
-                    <Grid x:Name="viewInsights" Visibility="Collapsed">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <WrapPanel>
-                                <Border Background="#E8F8F5" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="Najwiekszy Wzrost" FontWeight="Bold" FontSize="13" Foreground="#16A085" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtNajwiekszywzrost" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#FADBD8" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="Najwiekszy Spadek" FontWeight="Bold" FontSize="13" Foreground="#C0392B" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtNajwiekszyPpadek" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#EBF5FB" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="Najbardziej Stabilny" FontWeight="Bold" FontSize="13" Foreground="#2874A6" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtNajbardziejStabilny" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#FCF3CF" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="MVP Okresu" FontWeight="Bold" FontSize="13" Foreground="#D68910" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtMVP" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#F4ECF7" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="Srednia Dzienna" FontWeight="Bold" FontSize="13" Foreground="#7D3C98" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtSredniaDzienna" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#E8F6F3" CornerRadius="8" Padding="15" Margin="0,0,10,10" Width="280" Height="120">
-                                    <StackPanel>
-                                        <TextBlock Text="Prognoza Nastepnego Okresu" FontWeight="Bold" FontSize="13" Foreground="#138D75" Margin="0,0,0,8"/>
-                                        <TextBlock x:Name="txtPrognoza" TextWrapping="Wrap" FontSize="12" Foreground="#2C3E50"/>
-                                    </StackPanel>
-                                </Border>
-                            </WrapPanel>
-                        </ScrollViewer>
-                    </Grid>
-                </Grid>
-            </Grid>
-        </Border>
     </Grid>
 </Window>
