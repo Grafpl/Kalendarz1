@@ -130,6 +130,7 @@
     <Folder Include="Kalendarz1\" />
     <Folder Include="Magazyn\Panel\" />
     <Folder Include="Menu\" />
+    <Folder Include="KartotekaOdbiorcow\" />
     <Folder Include="Nowy folder2\" />
     <Folder Include="Nowy folder3\" />
     <Folder Include="Nowy folder4\" />

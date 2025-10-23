@@ -152,8 +152,10 @@ namespace Kalendarz1
                 [22] = "NotatkiZeSpotkan",
                 [23] = "PlanTygodniowy",
                 [24] = "LiczenieMagazynu",
-                [25] = "PanelMagazyniera" // ✅ NOWE UPRAWNIENIE
-            };
+                [25] = "PanelMagazyniera",
+                [26] = "KartotekaOdbiorcow" // ✅ NOWY MODUŁ - pozycja 26
+
+        };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
             {
@@ -186,15 +188,16 @@ namespace Kalendarz1
         private List<string> GetAllModules()
         {
             return new List<string>
-            {
-                "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
-                "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
-                "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-                "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
-                "OfertaCenowa", "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-                "LiczenieMagazynu", "PanelMagazyniera" // ✅ NOWE
-            };
+    {
+        "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
+        "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
+        "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
+        "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
+        "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
+        "OfertaCenowa", "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
+        "LiczenieMagazynu", "PanelMagazyniera",
+        "KartotekaOdbiorcow" // ✅ NOWY MODUŁ
+    };
         }
 
         private void SetupMenuItems()
@@ -243,19 +246,27 @@ namespace Kalendarz1
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
-                {
-                    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
-                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => {
-                        var window = new Kalendarz1.WPF.MainWindow();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "📦"),
-                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
-                    new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
-                    new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
-                    new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
-                },
+        {
+            new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
+            
+            // ✅ NOWY MODUŁ - Kartoteka Odbiorców
+            new MenuItemConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna kartoteka i dane CRM odbiorców", Color.FromArgb(59, 130, 246), () => {
+                var window = new Kalendarz1.KartotekaOdbiorcowWindow();
+                window.UserID = App.UserID;
+                return window;
+            }, "👤"),
+
+            new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => {
+                var window = new Kalendarz1.WPF.MainWindow();
+                window.UserID = App.UserID;
+                return window;
+            }, "📦"),
+            new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+            new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
+            new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
+            new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
+            new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+        },
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", Color.FromArgb(0, 151, 167), () => new WidokPojemnikiZestawienie(), "📊"),

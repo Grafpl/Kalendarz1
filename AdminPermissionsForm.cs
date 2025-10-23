@@ -452,30 +452,11 @@ namespace Kalendarz1
                         FROM operators o
                         ORDER BY o.ID";
 
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        SqlDataAdapter adapter = new SqlDataAdapter(cmd);
-                        DataTable dt = new DataTable();
-                        adapter.Fill(dt);
-                        usersGrid.DataSource = dt;
-
-                        if (usersGrid.Columns.Count > 0)
-                        {
-                            usersGrid.Columns["ID"].Width = 100;
-                            usersGrid.Columns["ID"].HeaderText = "ID Użytkownika";
-
-                            usersGrid.Columns["Name"].Width = 150;
-                            usersGrid.Columns["Name"].HeaderText = "Nazwa";
-
-                            if (usersGrid.Columns.Contains("Handlowcy"))
-                            {
-                                usersGrid.Columns["Handlowcy"].Width = 150;
-                                usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
-                            }
-                        }
-
-                        usersCountLabel.Text = $"Liczba użytkowników: {dt.Rows.Count}";
-                    }
+                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
+                    DataTable dt = new DataTable();
+                    adapter.Fill(dt);
+                    usersGrid.DataSource = dt;
+                    usersCountLabel.Text = $"Liczba użytkowników: {dt.Rows.Count}";
                 }
             }
             catch (Exception ex)
@@ -490,6 +471,29 @@ namespace Kalendarz1
 
         private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
+            // Ustaw szerokości kolumn po zakończeniu bindowania
+            if (usersGrid.Columns.Count > 0)
+            {
+                if (usersGrid.Columns.Contains("ID"))
+                {
+                    usersGrid.Columns["ID"].HeaderText = "ID Użytkownika";
+                    usersGrid.Columns["ID"].Width = 100;
+                }
+
+                if (usersGrid.Columns.Contains("Name"))
+                {
+                    usersGrid.Columns["Name"].HeaderText = "Nazwa";
+                    usersGrid.Columns["Name"].Width = 150;
+                }
+
+                if (usersGrid.Columns.Contains("Handlowcy"))
+                {
+                    usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
+                    usersGrid.Columns["Handlowcy"].Width = 150;
+                }
+            }
+
+            // Wybierz pierwszy wiersz jeśli istnieje
             if (usersGrid.Rows.Count > 0)
             {
                 usersGrid.Rows[0].Selected = true;
