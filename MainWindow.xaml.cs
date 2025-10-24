@@ -178,7 +178,7 @@ namespace Kalendarz1
                     new ModuleConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", "#F39C12", () => new Platnosci(), "💰"),
                     new ModuleConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", "#3498DB", () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
                     new ModuleConfig("Specyfikacje", "Specyfikacja Surowca", "Definiuj specyfikacje produktów", "#7F8C8D", () => new WidokSpecyfikacje(), "📝"),
-                    new ModuleConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "#7F8C8D", () => new WidokMatryca(), "🎯")
+                    new ModuleConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "#7F8C8D", () => new WidokMatrycaNowy(), "🎯")
                 },
                 ["Produkcja"] = new List<ModuleConfig>
                 {

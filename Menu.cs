@@ -216,7 +216,7 @@ namespace Kalendarz1
                     new MenuItemConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", Color.FromArgb(156, 204, 101), () => new Platnosci(), "💰"),
                     new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", Color.FromArgb(139, 195, 74), () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca", "Definiuj specyfikacje produktów", Color.FromArgb(120, 144, 156), () => new WidokSpecyfikacje(), "📝"),
-                    new MenuItemConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", Color.FromArgb(120, 144, 156), () => new WidokMatryca(), "🎯")
+                    new MenuItemConfig("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", Color.FromArgb(120, 144, 156), () => new WidokMatrycaNowy(), "🎯")
                 },
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
                 {
