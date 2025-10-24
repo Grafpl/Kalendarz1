@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -31,14 +31,20 @@ namespace Kalendarz1
         private Label lblTotalWeight;
         private Label lblTotalPieces;
 
-        private bool dragging = false;
-        private int rowIndexFromMouseDown;
-        private DataGridViewRow draggedRow;
+        // Data tables for ComboBoxes
+        private DataTable driverTable;
+        private DataTable carTable;
+        private DataTable trailerTable;
+        private DataTable wozekTable;
+
+        // Drag & Drop
+        private int dragRowIndex = -1;
 
         public WidokMatrycaNowy()
         {
             InitializeComponent();
             InitializeCustomUI();
+            LoadComboBoxData();
             DisplayData();
             UpdateStatistics();
         }
@@ -56,7 +62,7 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Top,
                 Height = 100,
-                BackColor = Color.FromArgb(92, 138, 58) // #5C8A3A - zielony z Menu1
+                BackColor = Color.FromArgb(92, 138, 58)
             };
 
             lblTitle = new Label
@@ -161,7 +167,7 @@ namespace Kalendarz1
 
             toolbarPanel.Controls.AddRange(new Control[] { dateGroup, actionsGroup, btnSaveToDatabase, statsPanel });
 
-            // DataGridView
+            // DataGridView - inicjalizacja podstawowa
             dataGridView1 = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -170,12 +176,14 @@ namespace Kalendarz1
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 GridColor = Color.FromArgb(230, 230, 230),
                 RowHeadersVisible = true,
-                AllowUserToAddRows = true,
-                AllowUserToDeleteRows = true,
+                RowHeadersWidth = 50,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
                 AllowUserToOrderColumns = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                AutoGenerateColumns = false,
                 ColumnHeadersHeight = 40,
                 RowTemplate = { Height = 35 },
                 Font = new Font("Segoe UI", 9.5F),
@@ -199,16 +207,16 @@ namespace Kalendarz1
                 {
                     BackColor = Color.FromArgb(250, 250, 250)
                 },
-                EnableHeadersVisualStyles = false
+                EnableHeadersVisualStyles = false,
+                AllowDrop = true
             };
 
-            // Events dla drag & drop
+            // Events dla drag & drop i edycji
             dataGridView1.MouseDown += DataGridView1_MouseDown;
-            dataGridView1.MouseMove += DataGridView1_MouseMove;
             dataGridView1.DragOver += DataGridView1_DragOver;
             dataGridView1.DragDrop += DataGridView1_DragDrop;
-            dataGridView1.AllowDrop = true;
             dataGridView1.SelectionChanged += (s, e) => UpdateStatistics();
+            dataGridView1.CellEndEdit += (s, e) => UpdateStatistics();
 
             // Dodanie kontrolek do formularza
             this.Controls.Add(dataGridView1);
@@ -286,109 +294,128 @@ namespace Kalendarz1
             };
         }
 
-        private void DisplayData()
+        private void LoadComboBoxData()
         {
             try
             {
-                // Sprawdzenie czy kontrolki są zainicjalizowane
-                if (dataGridView1 == null)
-                {
-                    MessageBox.Show(
-                        "Błąd krytyczny: DataGridView nie został zainicjalizowany.\n" +
-                        "Spróbuj ponownie otworzyć formularz.",
-                        "Błąd inicjalizacji",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
-                if (dateTimePicker1 == null)
-                {
-                    MessageBox.Show(
-                        "Błąd krytyczny: DateTimePicker nie został zainicjalizowany.\n" +
-                        "Spróbuj ponownie otworzyć formularz.",
-                        "Błąd inicjalizacji",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
 
-                    // Pobierz listę kierowców
+                    // Pobierz kierowców
                     string driverQuery = @"
                         SELECT GID, [Name]
                         FROM [LibraNet].[dbo].[Driver]
                         WHERE Deleted = 0
-                        ORDER BY name ASC";
-
+                        ORDER BY Name ASC";
                     SqlDataAdapter driverAdapter = new SqlDataAdapter(driverQuery, connection);
-                    DataTable driverTable = new DataTable();
+                    driverTable = new DataTable();
                     driverAdapter.Fill(driverTable);
 
-                    // Tabela CarID
+                    // Dodaj pusty wiersz na początku
+                    DataRow emptyDriverRow = driverTable.NewRow();
+                    emptyDriverRow["GID"] = DBNull.Value;
+                    emptyDriverRow["Name"] = "";
+                    driverTable.Rows.InsertAt(emptyDriverRow, 0);
+
+                    // Pobierz ciągniki
                     string carQuery = @"
                         SELECT DISTINCT ID
                         FROM dbo.CarTrailer
                         WHERE kind = '1'
                         ORDER BY ID DESC";
-
                     SqlDataAdapter carAdapter = new SqlDataAdapter(carQuery, connection);
-                    DataTable carTable = new DataTable();
+                    carTable = new DataTable();
                     carAdapter.Fill(carTable);
 
-                    // Tabela TrailerID
+                    // Dodaj pusty wiersz
+                    DataRow emptyCarRow = carTable.NewRow();
+                    emptyCarRow["ID"] = "";
+                    carTable.Rows.InsertAt(emptyCarRow, 0);
+
+                    // Pobierz naczepy
                     string trailerQuery = @"
                         SELECT DISTINCT ID
                         FROM dbo.CarTrailer
                         WHERE kind = '2'
                         ORDER BY ID DESC";
-
                     SqlDataAdapter trailerAdapter = new SqlDataAdapter(trailerQuery, connection);
-                    DataTable trailerTable = new DataTable();
+                    trailerTable = new DataTable();
                     trailerAdapter.Fill(trailerTable);
 
-                    // Tabela Wózek
-                    DataTable wozekTable = new DataTable();
+                    // Dodaj pusty wiersz
+                    DataRow emptyTrailerRow = trailerTable.NewRow();
+                    emptyTrailerRow["ID"] = "";
+                    trailerTable.Rows.InsertAt(emptyTrailerRow, 0);
+
+                    // Wózek
+                    wozekTable = new DataTable();
                     wozekTable.Columns.Add("WozekValue", typeof(string));
                     wozekTable.Rows.Add("");
                     wozekTable.Rows.Add("Wieziesz wozek");
                     wozekTable.Rows.Add("Przywozisz wozek");
                     wozekTable.Rows.Add("Wozek w obie strony");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Błąd podczas ładowania danych słownikowych:\n{ex.Message}",
+                    "Błąd",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void DisplayData()
+        {
+            try
+            {
+                if (dataGridView1 == null || dateTimePicker1 == null)
+                {
+                    MessageBox.Show(
+                        "Błąd krytyczny: Kontrolki nie zostały zainicjalizowane.",
+                        "Błąd",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Wyczyść obecne dane
+                dataGridView1.DataSource = null;
+                dataGridView1.Columns.Clear();
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
 
                     // Sprawdź czy są dane w FarmerCalc
-                    string checkQuery = @"
-                        SELECT COUNT(*) 
-                        FROM [LibraNet].[dbo].[FarmerCalc] 
-                        WHERE CalcDate = @SelectedDate";
-
+                    string checkQuery = "SELECT COUNT(*) FROM [LibraNet].[dbo].[FarmerCalc] WHERE CalcDate = @SelectedDate";
                     SqlCommand checkCommand = new SqlCommand(checkQuery, connection);
                     checkCommand.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
                     int count = (int)checkCommand.ExecuteScalar();
 
                     DataTable table = new DataTable();
-                    bool isFarmerCalc = false;
+                    bool isFarmerCalc = count > 0;
 
-                    if (count > 0)
+                    if (isFarmerCalc)
                     {
                         // Dane z FarmerCalc
                         string query = @"
-                            SELECT 
-                                ID, 
-                                LpDostawy, 
-                                CustomerGID, 
-                                WagaDek, 
-                                SztPoj, 
-                                DriverGID, 
-                                CarID, 
-                                TrailerID, 
-                                Wyjazd, 
-                                Zaladunek, 
+                            SELECT
+                                ID,
+                                LpDostawy,
+                                CustomerGID,
+                                WagaDek,
+                                SztPoj,
+                                DriverGID,
+                                CarID,
+                                TrailerID,
+                                Wyjazd,
+                                Zaladunek,
                                 Przyjazd,
                                 NotkaWozek
-                            FROM [LibraNet].[dbo].[FarmerCalc] 
+                            FROM [LibraNet].[dbo].[FarmerCalc]
                             WHERE CalcDate = @SelectedDate
                             ORDER BY LpDostawy";
 
@@ -396,11 +423,10 @@ namespace Kalendarz1
                         command.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
                         SqlDataAdapter adapter = new SqlDataAdapter(command);
                         adapter.Fill(table);
-                        isFarmerCalc = true;
                     }
                     else
                     {
-                        // Dane z HarmonogramDostaw - dodajemy wszystkie wymagane kolumny
+                        // Dane z HarmonogramDostaw
                         string query = @"
                             SELECT
                                 CAST(0 AS BIGINT) AS ID,
@@ -415,8 +441,8 @@ namespace Kalendarz1
                                 CAST(NULL AS DATETIME) AS Zaladunek,
                                 CAST(NULL AS DATETIME) AS Przyjazd,
                                 CAST(NULL AS VARCHAR(100)) AS NotkaWozek
-                            FROM dbo.HarmonogramDostaw 
-                            WHERE DataOdbioru = @StartDate 
+                            FROM dbo.HarmonogramDostaw
+                            WHERE DataOdbioru = @StartDate
                             AND Bufor = 'Potwierdzony'
                             ORDER BY Lp";
 
@@ -429,312 +455,184 @@ namespace Kalendarz1
                     if (table.Rows.Count == 0)
                     {
                         MessageBox.Show(
-                            "Brak danych do wyświetlenia na wybrany dzień.\n\n" +
-                            "Możliwe przyczyny:\n" +
-                            "• Brak potwierdzonych dostaw w Harmonogramie\n" +
-                            "• Nieprawidłowa data\n" +
-                            "• Dane jeszcze nie zostały wprowadzone",
+                            "Brak danych do wyświetlenia na wybrany dzień.",
                             "Informacja",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
-
-                        // Utwórz pustą tabelę z odpowiednią strukturą
-                        DataTable emptyTable = new DataTable();
-                        emptyTable.Columns.Add("ID", typeof(long));
-                        emptyTable.Columns.Add("LpDostawy", typeof(string));
-                        emptyTable.Columns.Add("CustomerGID", typeof(string));
-                        emptyTable.Columns.Add("WagaDek", typeof(decimal));
-                        emptyTable.Columns.Add("SztPoj", typeof(int));
-                        emptyTable.Columns.Add("DriverGID", typeof(string));
-                        emptyTable.Columns.Add("CarID", typeof(string));
-                        emptyTable.Columns.Add("TrailerID", typeof(string));
-                        emptyTable.Columns.Add("Wyjazd", typeof(DateTime));
-                        emptyTable.Columns.Add("Zaladunek", typeof(DateTime));
-                        emptyTable.Columns.Add("Przyjazd", typeof(DateTime));
-                        emptyTable.Columns.Add("NotkaWozek", typeof(string));
-
-                        dataGridView1.DataSource = emptyTable;
-                        UpdateStatistics();
-                        return;
                     }
 
-                    // Konfiguracja DataGridView
-                    // Zawieszamy layout podczas konfiguracji aby uniknąć błędów
-                    dataGridView1.SuspendLayout();
+                    // Konfiguruj kolumny PRZED ustawieniem DataSource
+                    SetupDataGridColumns();
 
-                    try
-                    {
-                        dataGridView1.DataSource = table;
+                    // Ustaw DataSource
+                    dataGridView1.DataSource = table;
 
-                        // Sprawdzenie czy kolumny zostały utworzone
-                        if (dataGridView1.Columns == null || dataGridView1.Columns.Count == 0)
-                        {
-                            MessageBox.Show(
-                                "Błąd: Nie udało się utworzyć kolumn w tabeli.\n" +
-                                "Sprawdź strukturę danych w bazie.",
-                                "Błąd konfiguracji",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Error);
-                            return;
-                        }
+                    // Konfiguruj widoczność i szerokości kolumn
+                    ConfigureColumnProperties();
 
-                        // Ukryj kolumnę ID jeśli istnieje
-                        if (dataGridView1.Columns.Contains("ID"))
-                        {
-                            dataGridView1.Columns["ID"].Visible = false;
-                        }
-
-                        ConfigureColumn("LpDostawy", "LP Dostawy", 100, true);
-                        ConfigureColumn("CustomerGID", "Hodowca", 200, false);
-                        ConfigureColumn("WagaDek", "Waga (kg)", 100, false);
-                        ConfigureColumn("SztPoj", "Sztuk", 100, false);
-
-                        // Konfiguracja kolumn z ComboBox
-                        ConfigureComboBoxColumn("DriverGID", "Kierowca", 180, driverTable, "Name", "GID", isFarmerCalc);
-                        ConfigureComboBoxColumn("CarID", "Ciągnik", 120, carTable, "ID", "ID", isFarmerCalc);
-                        ConfigureComboBoxColumn("TrailerID", "Naczepa", 120, trailerTable, "ID", "ID", isFarmerCalc);
-
-                        // Kolumny czasowe
-                        ConfigureTimeColumn("Wyjazd", "Wyjazd", 100, isFarmerCalc);
-                        ConfigureTimeColumn("Zaladunek", "Załadunek", 100, isFarmerCalc);
-                        ConfigureTimeColumn("Przyjazd", "Przyjazd", 100, isFarmerCalc);
-
-                        ConfigureComboBoxColumn("NotkaWozek", "Wózek", 150, wozekTable, "WozekValue", "WozekValue", isFarmerCalc);
-                    }
-                    finally
-                    {
-                        // Wznów layout po konfiguracji
-                        dataGridView1.ResumeLayout(true);
-                    }
-
-                    dataGridView1.Refresh();
                     UpdateStatistics();
                 }
-            }
-            catch (SqlException sqlEx)
-            {
-                MessageBox.Show(
-                    $"Błąd połączenia z bazą danych:\n\n" +
-                    $"Komunikat: {sqlEx.Message}\n" +
-                    $"Numer błędu: {sqlEx.Number}\n\n" +
-                    $"Sprawdź:\n" +
-                    $"• Czy serwer SQL jest dostępny (192.168.0.109)\n" +
-                    $"• Czy masz uprawnienia do bazy LibraNet\n" +
-                    $"• Czy tabele FarmerCalc i HarmonogramDostaw istnieją",
-                    "Błąd SQL",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-
-                System.Diagnostics.Debug.WriteLine($"SQL Error in DisplayData: {sqlEx.ToString()}");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Wystąpił błąd podczas ładowania danych:\n\n" +
-                    $"Typ: {ex.GetType().Name}\n" +
-                    $"Komunikat: {ex.Message}\n" +
-                    $"Źródło: {ex.Source}\n\n" +
-                    $"Stack Trace (dla debugowania):\n{ex.StackTrace}",
+                    $"Błąd podczas ładowania danych:\n\n{ex.Message}",
                     "Błąd",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-
-                System.Diagnostics.Debug.WriteLine($"Error in DisplayData: {ex.ToString()}");
-
-                // Próba ustawienia pustej tabeli aby aplikacja nie crashowała
-                try
-                {
-                    DataTable emptyTable = new DataTable();
-                    emptyTable.Columns.Add("ID", typeof(long));
-                    emptyTable.Columns.Add("LpDostawy", typeof(string));
-                    emptyTable.Columns.Add("CustomerGID", typeof(string));
-                    emptyTable.Columns.Add("WagaDek", typeof(decimal));
-                    emptyTable.Columns.Add("SztPoj", typeof(int));
-                    emptyTable.Columns.Add("DriverGID", typeof(string));
-                    emptyTable.Columns.Add("CarID", typeof(string));
-                    emptyTable.Columns.Add("TrailerID", typeof(string));
-                    emptyTable.Columns.Add("Wyjazd", typeof(DateTime));
-                    emptyTable.Columns.Add("Zaladunek", typeof(DateTime));
-                    emptyTable.Columns.Add("Przyjazd", typeof(DateTime));
-                    emptyTable.Columns.Add("NotkaWozek", typeof(string));
-
-                    dataGridView1.DataSource = emptyTable;
-                    UpdateStatistics();
-                }
-                catch
-                {
-                    // Jeśli nawet to się nie uda, po prostu ignoruj
-                }
             }
         }
 
-        private void ConfigureColumn(string columnName, string headerText, int width, bool readOnly)
+        private void SetupDataGridColumns()
         {
-            try
+            dataGridView1.Columns.Clear();
+            dataGridView1.AutoGenerateColumns = false;
+
+            // ID (ukryta)
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
             {
-                if (dataGridView1 == null || dataGridView1.Columns == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: DataGridView lub Columns jest null dla {columnName}");
-                    return;
-                }
+                Name = "ID",
+                DataPropertyName = "ID",
+                HeaderText = "ID",
+                Visible = false
+            });
 
-                if (!dataGridView1.Columns.Contains(columnName))
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: Kolumna {columnName} nie istnieje");
-                    return;
-                }
-
-                DataGridViewColumn column = dataGridView1.Columns[columnName];
-                if (column == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: Kolumna {columnName} jest null mimo że Contains zwraca true");
-                    return;
-                }
-
-                // Zawieszamy layout podczas konfiguracji
-                dataGridView1.SuspendLayout();
-
-                try
-                {
-                    column.HeaderText = headerText;
-
-                    // Zabezpieczenie przed błędem set_Thickness
-                    if (column.DataGridView != null && width > 0)
-                    {
-                        column.Width = width;
-                    }
-
-                    column.ReadOnly = readOnly;
-                }
-                finally
-                {
-                    dataGridView1.ResumeLayout(false);
-                }
-            }
-            catch (Exception ex)
+            // LP Dostawy
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd w ConfigureColumn dla {columnName}: {ex.Message}\n{ex.StackTrace}");
-                // Nie pokazuj MessageBox - to może być wywołane wiele razy
-            }
+                Name = "LpDostawy",
+                DataPropertyName = "LpDostawy",
+                HeaderText = "LP Dostawy",
+                Width = 100,
+                ReadOnly = true
+            });
+
+            // Hodowca
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "CustomerGID",
+                DataPropertyName = "CustomerGID",
+                HeaderText = "Hodowca",
+                Width = 200
+            });
+
+            // Waga (kg)
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "WagaDek",
+                DataPropertyName = "WagaDek",
+                HeaderText = "Waga (kg)",
+                Width = 100,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" }
+            });
+
+            // Sztuk
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "SztPoj",
+                DataPropertyName = "SztPoj",
+                HeaderText = "Sztuk",
+                Width = 100,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N0" }
+            });
+
+            // Kierowca (ComboBox)
+            var driverColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "DriverGID",
+                DataPropertyName = "DriverGID",
+                HeaderText = "Kierowca",
+                Width = 180,
+                DataSource = driverTable,
+                DisplayMember = "Name",
+                ValueMember = "GID",
+                DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing,
+                FlatStyle = FlatStyle.Flat
+            };
+            dataGridView1.Columns.Add(driverColumn);
+
+            // Ciągnik (ComboBox)
+            var carColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "CarID",
+                DataPropertyName = "CarID",
+                HeaderText = "Ciągnik",
+                Width = 120,
+                DataSource = carTable,
+                DisplayMember = "ID",
+                ValueMember = "ID",
+                DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing,
+                FlatStyle = FlatStyle.Flat
+            };
+            dataGridView1.Columns.Add(carColumn);
+
+            // Naczepa (ComboBox)
+            var trailerColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "TrailerID",
+                DataPropertyName = "TrailerID",
+                HeaderText = "Naczepa",
+                Width = 120,
+                DataSource = trailerTable,
+                DisplayMember = "ID",
+                ValueMember = "ID",
+                DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing,
+                FlatStyle = FlatStyle.Flat
+            };
+            dataGridView1.Columns.Add(trailerColumn);
+
+            // Wyjazd
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Wyjazd",
+                DataPropertyName = "Wyjazd",
+                HeaderText = "Wyjazd",
+                Width = 100,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm" }
+            });
+
+            // Załadunek
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Zaladunek",
+                DataPropertyName = "Zaladunek",
+                HeaderText = "Załadunek",
+                Width = 100,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm" }
+            });
+
+            // Przyjazd
+            dataGridView1.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Przyjazd",
+                DataPropertyName = "Przyjazd",
+                HeaderText = "Przyjazd",
+                Width = 100,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "HH:mm" }
+            });
+
+            // Wózek (ComboBox)
+            var wozekColumn = new DataGridViewComboBoxColumn
+            {
+                Name = "NotkaWozek",
+                DataPropertyName = "NotkaWozek",
+                HeaderText = "Wózek",
+                Width = 180,
+                DataSource = wozekTable,
+                DisplayMember = "WozekValue",
+                ValueMember = "WozekValue",
+                DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing,
+                FlatStyle = FlatStyle.Flat
+            };
+            dataGridView1.Columns.Add(wozekColumn);
         }
 
-        private void ConfigureComboBoxColumn(string columnName, string headerText, int width,
-            DataTable dataSource, string displayMember, string valueMember, bool hasData)
+        private void ConfigureColumnProperties()
         {
-            try
+            // Dodatkowa konfiguracja kolumn po ustawieniu DataSource
+            foreach (DataGridViewColumn column in dataGridView1.Columns)
             {
-                if (dataGridView1 == null || dataGridView1.Columns == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureComboBoxColumn: DataGridView jest null dla {columnName}");
-                    return;
-                }
-
-                if (!dataGridView1.Columns.Contains(columnName))
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureComboBoxColumn: Kolumna {columnName} nie istnieje");
-                    return;
-                }
-
-                int index = dataGridView1.Columns[columnName].Index;
-                string dataPropertyName = dataGridView1.Columns[columnName].DataPropertyName;
-
-                // Usuń starą kolumnę
-                dataGridView1.Columns.Remove(columnName);
-
-                // Utwórz nową kolumnę ComboBox
-                DataGridViewComboBoxColumn comboColumn = new DataGridViewComboBoxColumn
-                {
-                    Name = columnName,
-                    HeaderText = headerText,
-                    DataSource = dataSource,
-                    DisplayMember = displayMember,
-                    ValueMember = valueMember,
-                    DataPropertyName = string.IsNullOrEmpty(dataPropertyName) ? columnName : dataPropertyName,
-                    Width = width,
-                    DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing,
-                    FlatStyle = FlatStyle.Flat
-                };
-
-                // Wstaw kolumnę w odpowiednim miejscu
-                dataGridView1.Columns.Insert(index, comboColumn);
-
-                // Jeśli nie ma danych, wyczyść wartości
-                if (!hasData)
-                {
-                    foreach (DataGridViewRow row in dataGridView1.Rows)
-                    {
-                        if (!row.IsNewRow && row.Cells[columnName] != null)
-                        {
-                            row.Cells[columnName].Value = DBNull.Value;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd w ConfigureComboBoxColumn dla {columnName}: {ex.Message}\n{ex.StackTrace}");
-
-                // Komunikat tylko jeśli to poważny błąd
-                if (ex is ArgumentOutOfRangeException || ex is InvalidOperationException)
-                {
-                    MessageBox.Show(
-                        $"Uwaga: Nie udało się skonfigurować kolumny '{headerText}'.\n" +
-                        $"Kolumna może nie działać poprawnie.\n\n" +
-                        $"Szczegóły: {ex.Message}",
-                        "Ostrzeżenie konfiguracji",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                }
-            }
-        }
-
-        private void ConfigureTimeColumn(string columnName, string headerText, int width, bool hasData)
-        {
-            try
-            {
-                if (dataGridView1 == null || dataGridView1.Columns == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureTimeColumn: DataGridView jest null dla {columnName}");
-                    return;
-                }
-
-                if (!dataGridView1.Columns.Contains(columnName))
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureTimeColumn: Kolumna {columnName} nie istnieje");
-                    return;
-                }
-
-                DataGridViewColumn column = dataGridView1.Columns[columnName];
-                if (column == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureTimeColumn: Kolumna {columnName} jest null");
-                    return;
-                }
-
-                column.HeaderText = headerText;
-
-                // Zabezpieczenie przed błędem set_Thickness
-                if (column.DataGridView != null && width > 0)
-                {
-                    column.Width = width;
-                }
-
-                column.DefaultCellStyle.Format = "HH:mm";
-
-                if (!hasData)
-                {
-                    foreach (DataGridViewRow row in dataGridView1.Rows)
-                    {
-                        if (!row.IsNewRow && row.Cells[columnName] != null)
-                        {
-                            row.Cells[columnName].Value = DBNull.Value;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd w ConfigureTimeColumn dla {columnName}: {ex.Message}\n{ex.StackTrace}");
+                column.SortMode = DataGridViewColumnSortMode.NotSortable;
             }
         }
 
@@ -742,7 +640,7 @@ namespace Kalendarz1
         {
             try
             {
-                if (dataGridView1.DataSource == null || dataGridView1.Rows.Count == 0)
+                if (dataGridView1.DataSource == null)
                 {
                     lblRecordCount.Text = "Rekordów: 0";
                     lblTotalWeight.Text = "Waga: 0 kg";
@@ -750,35 +648,39 @@ namespace Kalendarz1
                     return;
                 }
 
-                int recordCount = 0;
+                DataTable dt = dataGridView1.DataSource as DataTable;
+                if (dt == null || dt.Rows.Count == 0)
+                {
+                    lblRecordCount.Text = "Rekordów: 0";
+                    lblTotalWeight.Text = "Waga: 0 kg";
+                    lblTotalPieces.Text = "Sztuk: 0";
+                    return;
+                }
+
+                int recordCount = dt.Rows.Count;
                 decimal totalWeight = 0;
                 int totalPieces = 0;
 
-                foreach (DataGridViewRow row in dataGridView1.Rows)
+                foreach (DataRow row in dt.Rows)
                 {
-                    if (!row.IsNewRow)
+                    if (row["WagaDek"] != null && row["WagaDek"] != DBNull.Value)
                     {
-                        recordCount++;
-
-                        if (row.Cells["WagaDek"].Value != null && row.Cells["WagaDek"].Value != DBNull.Value)
+                        if (decimal.TryParse(row["WagaDek"].ToString(), out decimal weight))
                         {
-                            if (decimal.TryParse(row.Cells["WagaDek"].Value.ToString(), out decimal weight))
-                            {
-                                totalWeight += weight;
-                            }
+                            totalWeight += weight;
                         }
+                    }
 
-                        if (row.Cells["SztPoj"].Value != null && row.Cells["SztPoj"].Value != DBNull.Value)
+                    if (row["SztPoj"] != null && row["SztPoj"] != DBNull.Value)
+                    {
+                        if (int.TryParse(row["SztPoj"].ToString(), out int pieces))
                         {
-                            if (int.TryParse(row.Cells["SztPoj"].Value.ToString(), out int pieces))
-                            {
-                                totalPieces += pieces;
-                            }
+                            totalPieces += pieces;
                         }
                     }
                 }
 
-                lblRecordCount.Text = $"Rekordów: {recordCount}";
+                lblRecordCount.Text = $"Rekordów: {recordCount:N0}";
                 lblTotalWeight.Text = $"Waga: {totalWeight:N0} kg";
                 lblTotalPieces.Text = $"Sztuk: {totalPieces:N0}";
             }
@@ -787,7 +689,6 @@ namespace Kalendarz1
                 lblRecordCount.Text = "Rekordów: Błąd";
                 lblTotalWeight.Text = "Waga: Błąd";
                 lblTotalPieces.Text = "Sztuk: Błąd";
-
                 System.Diagnostics.Debug.WriteLine($"Błąd w UpdateStatistics: {ex.Message}");
             }
         }
@@ -796,7 +697,6 @@ namespace Kalendarz1
         private void DateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
             DisplayData();
-            UpdateStatistics();
         }
 
         private void BtnPreviousDay_Click(object sender, EventArgs e)
@@ -811,19 +711,61 @@ namespace Kalendarz1
 
         private void BtnMoveUp_Click(object sender, EventArgs e)
         {
-            MoveRowUp();
+            MoveRow(-1);
         }
 
         private void BtnMoveDown_Click(object sender, EventArgs e)
         {
-            MoveRowDown();
+            MoveRow(1);
+        }
+
+        private void MoveRow(int direction)
+        {
+            try
+            {
+                if (dataGridView1.SelectedRows.Count == 0)
+                {
+                    MessageBox.Show("Proszę zaznaczyć wiersz do przesunięcia.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                int selectedIndex = dataGridView1.SelectedRows[0].Index;
+                int newIndex = selectedIndex + direction;
+
+                DataTable dt = dataGridView1.DataSource as DataTable;
+                if (dt == null || newIndex < 0 || newIndex >= dt.Rows.Count)
+                {
+                    return;
+                }
+
+                // Skopiuj dane wiersza
+                DataRow row = dt.Rows[selectedIndex];
+                DataRow newRow = dt.NewRow();
+                newRow.ItemArray = row.ItemArray.Clone() as object[];
+
+                // Usuń stary wiersz i wstaw w nowym miejscu
+                dt.Rows.RemoveAt(selectedIndex);
+                dt.Rows.InsertAt(newRow, newIndex);
+
+                // Zaznacz przesunięty wiersz
+                dataGridView1.ClearSelection();
+                dataGridView1.Rows[newIndex].Selected = true;
+                dataGridView1.FirstDisplayedScrollingRowIndex = newIndex;
+
+                UpdateStatistics();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas przesuwania wiersza:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnAddRow_Click(object sender, EventArgs e)
         {
             try
             {
-                if (dataGridView1.DataSource is DataTable dt)
+                DataTable dt = dataGridView1.DataSource as DataTable;
+                if (dt != null)
                 {
                     DataRow newRow = dt.NewRow();
                     dt.Rows.Add(newRow);
@@ -832,41 +774,29 @@ namespace Kalendarz1
                     // Zaznacz nowy wiersz
                     if (dataGridView1.Rows.Count > 0)
                     {
-                        int lastRowIndex = dataGridView1.Rows.Count - 2; // -2 bo ostatni to NewRow
-                        if (lastRowIndex >= 0)
-                        {
-                            dataGridView1.ClearSelection();
-                            dataGridView1.Rows[lastRowIndex].Selected = true;
-                            if (dataGridView1.Rows[lastRowIndex].Cells.Count > 0)
-                            {
-                                dataGridView1.CurrentCell = dataGridView1.Rows[lastRowIndex].Cells[1]; // Kolumna LpDostawy
-                            }
-                        }
+                        int lastIndex = dataGridView1.Rows.Count - 1;
+                        dataGridView1.ClearSelection();
+                        dataGridView1.Rows[lastIndex].Selected = true;
+                        dataGridView1.FirstDisplayedScrollingRowIndex = lastIndex;
                     }
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "Brak danych do edycji. Najpierw wybierz datę z danymi lub utwórz nowy harmonogram.",
-                        "Informacja",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Błąd podczas dodawania wiersza:\n{ex.Message}",
-                    "Błąd",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas dodawania wiersza:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void BtnDeleteRow_Click(object sender, EventArgs e)
         {
-            if (dataGridView1.SelectedRows.Count > 0 && !dataGridView1.SelectedRows[0].IsNewRow)
+            try
             {
+                if (dataGridView1.SelectedRows.Count == 0)
+                {
+                    MessageBox.Show("Proszę zaznaczyć wiersz do usunięcia.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
                 DialogResult result = MessageBox.Show(
                     "Czy na pewno chcesz usunąć zaznaczony wiersz?",
                     "Potwierdzenie usunięcia",
@@ -875,122 +805,32 @@ namespace Kalendarz1
 
                 if (result == DialogResult.Yes)
                 {
-                    dataGridView1.Rows.Remove(dataGridView1.SelectedRows[0]);
-                    UpdateStatistics();
-                }
-            }
-            else
-            {
-                MessageBox.Show(
-                    "Proszę zaznaczyć wiersz do usunięcia.",
-                    "Informacja",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-        }
-
-        private void MoveRowUp()
-        {
-            try
-            {
-                if (dataGridView1.SelectedRows.Count > 0)
-                {
-                    int rowIndex = dataGridView1.SelectedRows[0].Index;
-                    if (rowIndex > 0 && !dataGridView1.SelectedRows[0].IsNewRow)
+                    DataTable dt = dataGridView1.DataSource as DataTable;
+                    if (dt != null)
                     {
-                        DataTable dt = (DataTable)dataGridView1.DataSource;
-                        if (dt == null) return;
-
-                        DataRow row = dt.Rows[rowIndex];
-                        dt.Rows.RemoveAt(rowIndex);
-                        dt.Rows.InsertAt(row, rowIndex - 1);
-                        dataGridView1.ClearSelection();
-                        dataGridView1.Rows[rowIndex - 1].Selected = true;
-
-                        if (dataGridView1.Rows[rowIndex - 1].Cells.Count > 0)
-                        {
-                            dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex - 1].Cells[0];
-                        }
+                        int selectedIndex = dataGridView1.SelectedRows[0].Index;
+                        dt.Rows.RemoveAt(selectedIndex);
+                        UpdateStatistics();
                     }
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "Proszę zaznaczyć wiersz do przesunięcia.",
-                        "Informacja",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Błąd podczas przesuwania wiersza w górę:\n{ex.Message}",
-                    "Błąd",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-
-        private void MoveRowDown()
-        {
-            try
-            {
-                if (dataGridView1.SelectedRows.Count > 0)
-                {
-                    int rowIndex = dataGridView1.SelectedRows[0].Index;
-                    DataTable dt = (DataTable)dataGridView1.DataSource;
-                    if (dt == null) return;
-
-                    if (rowIndex < dt.Rows.Count - 1 && !dataGridView1.SelectedRows[0].IsNewRow)
-                    {
-                        DataRow row = dt.Rows[rowIndex];
-                        dt.Rows.RemoveAt(rowIndex);
-                        dt.Rows.InsertAt(row, rowIndex + 1);
-                        dataGridView1.ClearSelection();
-                        dataGridView1.Rows[rowIndex + 1].Selected = true;
-
-                        if (dataGridView1.Rows[rowIndex + 1].Cells.Count > 0)
-                        {
-                            dataGridView1.CurrentCell = dataGridView1.Rows[rowIndex + 1].Cells[0];
-                        }
-                    }
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "Proszę zaznaczyć wiersz do przesunięcia.",
-                        "Informacja",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Błąd podczas przesuwania wiersza w dół:\n{ex.Message}",
-                    "Błąd",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show($"Błąd podczas usuwania wiersza:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         // Drag & Drop functionality
         private void DataGridView1_MouseDown(object sender, MouseEventArgs e)
         {
-            rowIndexFromMouseDown = dataGridView1.HitTest(e.X, e.Y).RowIndex;
-            if (rowIndexFromMouseDown != -1 && e.Button == MouseButtons.Left)
+            if (e.Button == MouseButtons.Left)
             {
-                draggedRow = dataGridView1.Rows[rowIndexFromMouseDown];
-                dragging = true;
-            }
-        }
-
-        private void DataGridView1_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (dragging && e.Button == MouseButtons.Left)
-            {
-                dataGridView1.DoDragDrop(draggedRow, DragDropEffects.Move);
+                var hitTest = dataGridView1.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0 && hitTest.Type == DataGridViewHitTestType.RowHeader)
+                {
+                    dragRowIndex = hitTest.RowIndex;
+                    dataGridView1.DoDragDrop(dataGridView1.Rows[dragRowIndex], DragDropEffects.Move);
+                }
             }
         }
 
@@ -1001,28 +841,37 @@ namespace Kalendarz1
 
         private void DataGridView1_DragDrop(object sender, DragEventArgs e)
         {
-            Point clientPoint = dataGridView1.PointToClient(new Point(e.X, e.Y));
-            int targetIndex = dataGridView1.HitTest(clientPoint.X, clientPoint.Y).RowIndex;
-
-            if (targetIndex != -1 && targetIndex != rowIndexFromMouseDown && !draggedRow.IsNewRow)
+            try
             {
-                DataTable dt = (DataTable)dataGridView1.DataSource;
-                DataRow sourceRow = dt.Rows[rowIndexFromMouseDown];
-                DataRow newRow = dt.NewRow();
+                Point clientPoint = dataGridView1.PointToClient(new Point(e.X, e.Y));
+                int targetIndex = dataGridView1.HitTest(clientPoint.X, clientPoint.Y).RowIndex;
 
-                foreach (DataColumn col in dt.Columns)
+                if (targetIndex >= 0 && targetIndex != dragRowIndex)
                 {
-                    newRow[col] = sourceRow[col];
+                    DataTable dt = dataGridView1.DataSource as DataTable;
+                    if (dt != null)
+                    {
+                        DataRow row = dt.Rows[dragRowIndex];
+                        DataRow newRow = dt.NewRow();
+                        newRow.ItemArray = row.ItemArray.Clone() as object[];
+
+                        dt.Rows.RemoveAt(dragRowIndex);
+                        dt.Rows.InsertAt(newRow, targetIndex);
+
+                        dataGridView1.ClearSelection();
+                        dataGridView1.Rows[targetIndex].Selected = true;
+                        UpdateStatistics();
+                    }
                 }
-
-                dt.Rows.RemoveAt(rowIndexFromMouseDown);
-                dt.Rows.InsertAt(newRow, targetIndex);
-
-                dataGridView1.ClearSelection();
-                dataGridView1.Rows[targetIndex].Selected = true;
             }
-
-            dragging = false;
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas przeciągania wiersza:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                dragRowIndex = -1;
+            }
         }
 
         private void BtnSaveToDatabase_Click(object sender, EventArgs e)
@@ -1038,17 +887,24 @@ namespace Kalendarz1
 
             try
             {
+                DataTable dt = dataGridView1.DataSource as DataTable;
+                if (dt == null || dt.Rows.Count == 0)
+                {
+                    MessageBox.Show("Brak danych do zapisania.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    string sql = @"INSERT INTO dbo.FarmerCalc 
-                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek, 
-                         CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price, 
-                         Loss, PriceTypeID) 
-                        VALUES 
-                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek, 
-                         @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek, 
+                    string sql = @"INSERT INTO dbo.FarmerCalc
+                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek,
+                         CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
+                         Loss, PriceTypeID)
+                        VALUES
+                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek,
+                         @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
                          @Przyjazd, @Cena, @Ubytek, @TypCeny)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
@@ -1057,87 +913,84 @@ namespace Kalendarz1
                         {
                             int savedCount = 0;
 
-                            foreach (DataGridViewRow row in dataGridView1.Rows)
+                            foreach (DataRow row in dt.Rows)
                             {
-                                if (!row.IsNewRow)
+                                string Dostawca = row["CustomerGID"]?.ToString() ?? "";
+                                string Kierowca = row["DriverGID"]?.ToString() ?? "";
+                                string LpDostawy = row["LpDostawy"]?.ToString() ?? "";
+                                string SztPoj = row["SztPoj"]?.ToString() ?? "";
+                                string WagaDek = row["WagaDek"]?.ToString() ?? "";
+                                string Ciagnik = row["CarID"]?.ToString() ?? "";
+                                string Naczepa = row["TrailerID"]?.ToString() ?? "";
+                                string NotkaWozek = row["NotkaWozek"]?.ToString() ?? "";
+
+                                string StringPrzyjazd = row["Przyjazd"]?.ToString() ?? "";
+                                string StringZaladunek = row["Zaladunek"]?.ToString() ?? "";
+                                string StringWyjazd = row["Wyjazd"]?.ToString() ?? "";
+
+                                // Pobierz dodatkowe dane
+                                double Ubytek = 0.0;
+                                if (!string.IsNullOrWhiteSpace(LpDostawy))
                                 {
-                                    string Dostawca = row.Cells["CustomerGID"].Value?.ToString() ?? "";
-                                    string Kierowca = row.Cells["DriverGID"].Value?.ToString() ?? "";
-                                    string LpDostawy = row.Cells["LpDostawy"].Value?.ToString() ?? "";
-                                    string SztPoj = row.Cells["SztPoj"].Value?.ToString() ?? "";
-                                    string WagaDek = row.Cells["WagaDek"].Value?.ToString() ?? "";
-                                    string Ciagnik = row.Cells["CarID"].Value?.ToString() ?? "";
-                                    string Naczepa = row.Cells["TrailerID"].Value?.ToString() ?? "";
-                                    string NotkaWozek = row.Cells["NotkaWozek"].Value?.ToString() ?? "";
+                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek);
+                                }
 
-                                    string StringPrzyjazd = row.Cells["Przyjazd"].Value?.ToString() ?? "";
-                                    string StringZaladunek = row.Cells["Zaladunek"].Value?.ToString() ?? "";
-                                    string StringWyjazd = row.Cells["Wyjazd"].Value?.ToString() ?? "";
+                                double Cena = 0.0;
+                                if (!string.IsNullOrWhiteSpace(LpDostawy))
+                                {
+                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena);
+                                }
 
-                                    // Pobierz dodatkowe dane
-                                    double Ubytek = 0.0;
-                                    if (!string.IsNullOrWhiteSpace(LpDostawy))
-                                    {
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Ubytek"), out Ubytek);
-                                    }
+                                string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
+                                int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
 
-                                    double Cena = 0.0;
-                                    if (!string.IsNullOrWhiteSpace(LpDostawy))
-                                    {
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "Cena"), out Cena);
-                                    }
+                                int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
+                                int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
 
-                                    string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(LpDostawy, "TypCeny");
-                                    int intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                // Formatowanie godzin
+                                StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
+                                StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
+                                StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
 
-                                    int userId = zapytaniasql.ZnajdzIdKierowcy(Kierowca);
-                                    int userId2 = zapytaniasql.ZnajdzIdHodowcy(Dostawca);
+                                DateTime data = dateTimePicker1.Value;
+                                DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
+                                DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
+                                DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
 
-                                    // Formatowanie godzin
-                                    StringWyjazd = zapytaniasql.DodajDwukropek(StringWyjazd);
-                                    StringZaladunek = zapytaniasql.DodajDwukropek(StringZaladunek);
-                                    StringPrzyjazd = zapytaniasql.DodajDwukropek(StringPrzyjazd);
+                                // Znajdź nowe ID
+                                long maxLP;
+                                string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
+                                using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
+                                {
+                                    object result = command.ExecuteScalar();
+                                    maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
+                                }
 
-                                    DateTime data = dateTimePicker1.Value;
-                                    DateTime combinedDateTimeWyjazd = ZapytaniaSQL.CombineDateAndTime(StringWyjazd, data);
-                                    DateTime combinedDateTimeZaladunek = ZapytaniaSQL.CombineDateAndTime(StringZaladunek, data);
-                                    DateTime combinedDateTimePrzyjazd = ZapytaniaSQL.CombineDateAndTime(StringPrzyjazd, data);
+                                // Wstaw do bazy
+                                using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@ID", maxLP);
+                                    cmd.Parameters.AddWithValue("@Dostawca", userId2);
+                                    cmd.Parameters.AddWithValue("@Kierowca", userId);
+                                    cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy) ? DBNull.Value : LpDostawy);
+                                    cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? DBNull.Value : (object)decimal.Parse(SztPoj));
+                                    cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? DBNull.Value : (object)decimal.Parse(WagaDek));
+                                    cmd.Parameters.AddWithValue("@Date", data);
 
-                                    // Znajdź nowe ID
-                                    long maxLP;
-                                    string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
-                                    using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
-                                    {
-                                        object result = command.ExecuteScalar();
-                                        maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
-                                    }
+                                    cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
+                                    cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
+                                    cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
 
-                                    // Wstaw do bazy
-                                    using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
-                                    {
-                                        cmd.Parameters.AddWithValue("@ID", maxLP);
-                                        cmd.Parameters.AddWithValue("@Dostawca", userId2);
-                                        cmd.Parameters.AddWithValue("@Kierowca", userId);
-                                        cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(LpDostawy) ? DBNull.Value : LpDostawy);
-                                        cmd.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj) ? DBNull.Value : decimal.Parse(SztPoj));
-                                        cmd.Parameters.AddWithValue("@WagaDek", string.IsNullOrEmpty(WagaDek) ? DBNull.Value : decimal.Parse(WagaDek));
-                                        cmd.Parameters.AddWithValue("@Date", data);
+                                    cmd.Parameters.AddWithValue("@Cena", Cena);
+                                    cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
+                                    cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
 
-                                        cmd.Parameters.AddWithValue("@Wyjazd", combinedDateTimeWyjazd);
-                                        cmd.Parameters.AddWithValue("@Zaladunek", combinedDateTimeZaladunek);
-                                        cmd.Parameters.AddWithValue("@Przyjazd", combinedDateTimePrzyjazd);
+                                    cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? DBNull.Value : (object)Ciagnik);
+                                    cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? DBNull.Value : (object)Naczepa);
+                                    cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek) ? DBNull.Value : (object)NotkaWozek);
 
-                                        cmd.Parameters.AddWithValue("@Cena", Cena);
-                                        cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
-                                        cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
-
-                                        cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? DBNull.Value : Ciagnik);
-                                        cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? DBNull.Value : Naczepa);
-                                        cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(NotkaWozek) ? DBNull.Value : NotkaWozek);
-
-                                        cmd.ExecuteNonQuery();
-                                        savedCount++;
-                                    }
+                                    cmd.ExecuteNonQuery();
+                                    savedCount++;
                                 }
                             }
 
