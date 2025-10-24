@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Wybierz dni dla duplikatu"
         Height="550" Width="400"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
         Background="#F5F7FA"
         FontFamily="Segoe UI">
 

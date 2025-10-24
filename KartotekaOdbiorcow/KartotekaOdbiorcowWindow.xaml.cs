@@ -153,10 +153,8 @@ namespace Kalendarz1
         private void BtnNowyOdbiorca_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new DodajOdbiorcaDialog(UserID, _connLibraNet, _connHandel);
-            if (dialog.ShowDialog() == true)
-            {
-                WczytajOdbiorcow();
-            }
+            dialog.OdbiorcaDodany += (s, ev) => WczytajOdbiorcow();
+            dialog.Show();
         }
 
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e)
@@ -226,10 +224,8 @@ namespace Kalendarz1
             }
 
             var dialog = new DodajKontaktDialog(wybranyOdbiorcaID.Value, UserID, _connLibraNet);
-            if (dialog.ShowDialog() == true)
-            {
-                WczytajKontakty();
-            }
+            dialog.KontaktZapisany += (s, ev) => WczytajKontakty();
+            dialog.Show();
         }
 
         private void BtnEdytujKontakt_Click(object sender, RoutedEventArgs e)
@@ -238,10 +234,8 @@ namespace Kalendarz1
             {
                 int kontaktID = Convert.ToInt32(row["KontaktID"]);
                 var dialog = new DodajKontaktDialog(wybranyOdbiorcaID.Value, UserID, _connLibraNet, kontaktID);
-                if (dialog.ShowDialog() == true)
-                {
-                    WczytajKontakty();
-                }
+                dialog.KontaktZapisany += (s, ev) => WczytajKontakty();
+                dialog.Show();
             }
             else
             {
@@ -378,7 +372,7 @@ namespace Kalendarz1
             }
 
             var dialog = new DodajNotatkeDialog();
-            if (dialog.ShowDialog() == true)
+            dialog.NotatkaZapisana += (s, ev) =>
             {
                 try
                 {
@@ -403,7 +397,8 @@ namespace Kalendarz1
                 {
                     MessageBox.Show($"Błąd podczas dodawania notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
+            };
+            dialog.Show();
         }
 
         #endregion
@@ -417,10 +412,8 @@ namespace Kalendarz1
             if (!wybranyOdbiorcaID.HasValue) return;
 
             var dialog = new UstawLokalizacjeDialog(wybranyOdbiorcaID.Value, _connLibraNet);
-            if (dialog.ShowDialog() == true)
-            {
-                WczytajLokalizacje();
-            }
+            dialog.LokalizacjaZapisana += (s, ev) => WczytajLokalizacje();
+            dialog.Show();
         }
 
         #endregion

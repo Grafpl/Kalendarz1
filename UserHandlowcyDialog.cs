@@ -30,6 +30,8 @@ namespace Kalendarz1
         private List<string> allHandlowcy = new List<string>();
         private List<string> assignedHandlowcy = new List<string>();
 
+        public event EventHandler HandlowcyZapisani;
+
         public UserHandlowcyDialog(string libraConnString, string handelConnString, string uid, string uname)
         {
             libraConnectionString = libraConnString;
@@ -46,10 +48,10 @@ namespace Kalendarz1
             // Form settings
             this.Text = $"Zarządzanie handlowcami - {userName}";
             this.Size = new Size(900, 650);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            this.MaximizeBox = true;
+            this.MinimizeBox = true;
             this.BackColor = ColorTranslator.FromHtml("#F5F7FA");
 
             // ========== HEADER ==========
@@ -410,7 +412,7 @@ namespace Kalendarz1
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                this.DialogResult = DialogResult.OK;
+                HandlowcyZapisani?.Invoke(this, EventArgs.Empty);
                 this.Close();
             }
             catch (Exception ex)

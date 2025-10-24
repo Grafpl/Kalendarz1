@@ -5,6 +5,7 @@ namespace Kalendarz1.WPF
     public partial class NoteWindow : Window
     {
         public string NoteText { get; private set; }
+        public event EventHandler NoteSaved;
 
         public NoteWindow(string currentNote = "")
         {
@@ -16,13 +17,12 @@ namespace Kalendarz1.WPF
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             NoteText = txtNote.Text;
-            DialogResult = true;
+            NoteSaved?.Invoke(this, EventArgs.Empty);
             Close();
         }
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
             Close();
         }
     }

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Utwórz zamówienia cykliczne"
         Height="500" Width="450"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#F5F7FA"
         FontFamily="Segoe UI">

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Edytuj notatkę do zamówienia"
         Height="300" Width="500"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#F5F7FA"
         FontFamily="Segoe UI">
