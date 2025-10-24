@@ -11,6 +11,7 @@ namespace Kalendarz1.WPF
     {
         public List<DateTime> SelectedDates { get; private set; } = new();
         public bool CopyNotes { get; private set; } = false;
+        public event EventHandler DatesSelected;
 
         private ObservableCollection<DayItem> _days = new();
 
@@ -87,13 +88,12 @@ namespace Kalendarz1.WPF
             }
 
             CopyNotes = chkCopyNotes.IsChecked == true;
-            DialogResult = true;
+            DatesSelected?.Invoke(this, EventArgs.Empty);
             Close();
         }
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
             Close();
         }
     }

@@ -821,13 +821,9 @@ namespace Kalendarz1
             string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
             string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
 
-            using (var dialog = new UserHandlowcyDialog(connectionString, handelConnectionString, userId, userName))
-            {
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    LoadUsers();
-                }
-            }
+            var dialog = new UserHandlowcyDialog(connectionString, handelConnectionString, userId, userName);
+            dialog.HandlowcyZapisani += (s, ev) => LoadUsers();
+            dialog.Show();
         }
 
         private class ModuleInfo

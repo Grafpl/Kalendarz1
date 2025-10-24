@@ -19,6 +19,8 @@ namespace Kalendarz1
         private ComboBox cmbTypKontaktu;
         private CheckBox chkGlowny;
 
+        public event EventHandler KontaktZapisany;
+
         public DodajKontaktDialog(int odbiorcaID, string userID, string connString, int? kontaktID = null)
         {
             _odbiorcaID = odbiorcaID;
@@ -29,7 +31,7 @@ namespace Kalendarz1
             Title = kontaktID.HasValue ? "Edytuj Kontakt" : "Dodaj Nowy Kontakt";
             Width = 600;
             Height = 550;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             InicjalizujUI();
             
@@ -142,13 +144,13 @@ namespace Kalendarz1
 
             // Przyciski
             var panel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            
+
             var btnZapisz = new Button { Content = "Zapisz", Width = 100, Height = 35, Margin = new Thickness(0, 0, 10, 0) };
             btnZapisz.Click += BtnZapisz_Click;
             panel.Children.Add(btnZapisz);
-            
+
             var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 35 };
-            btnAnuluj.Click += (s, e) => DialogResult = false;
+            btnAnuluj.Click += (s, e) => Close();
             panel.Children.Add(btnAnuluj);
 
             Grid.SetRow(panel, row);
@@ -252,7 +254,8 @@ namespace Kalendarz1
                     }
                 }
 
-                DialogResult = true;
+                KontaktZapisany?.Invoke(this, EventArgs.Empty);
+                Close();
             }
             catch (Exception ex)
             {
@@ -269,12 +272,14 @@ namespace Kalendarz1
         private TextBox txtNotatka;
         public string TrescNotatki => txtNotatka.Text;
 
+        public event EventHandler NotatkaZapisana;
+
         public DodajNotatkeDialog()
         {
             Title = "Dodaj Notatkę CRM";
             Width = 600;
             Height = 350;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             var grid = new Grid { Margin = new Thickness(20) };
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -303,13 +308,13 @@ namespace Kalendarz1
             grid.Children.Add(txtNotatka);
 
             // Przyciski
-            var panel = new StackPanel 
-            { 
-                Orientation = Orientation.Horizontal, 
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 15, 0, 0)
             };
-            
+
             var btnZapisz = new Button { Content = "Zapisz", Width = 100, Height = 35, Margin = new Thickness(0, 0, 10, 0) };
             btnZapisz.Click += (s, e) =>
             {
@@ -318,12 +323,13 @@ namespace Kalendarz1
                     MessageBox.Show("Wprowadź treść notatki!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
-                DialogResult = true;
+                NotatkaZapisana?.Invoke(this, EventArgs.Empty);
+                Close();
             };
             panel.Children.Add(btnZapisz);
-            
+
             var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 35 };
-            btnAnuluj.Click += (s, e) => DialogResult = false;
+            btnAnuluj.Click += (s, e) => Close();
             panel.Children.Add(btnAnuluj);
 
             Grid.SetRow(panel, 2);
@@ -342,6 +348,8 @@ namespace Kalendarz1
         private string _connectionString;
         private TextBox txtSzerokosc, txtDlugosc;
 
+        public event EventHandler LokalizacjaZapisana;
+
         public UstawLokalizacjeDialog(int odbiorcaID, string connString)
         {
             _odbiorcaID = odbiorcaID;
@@ -350,7 +358,7 @@ namespace Kalendarz1
             Title = "Ustaw Lokalizację GPS";
             Width = 500;
             Height = 300;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             InicjalizujUI();
             WczytajAktualneLokalizacje();
@@ -397,19 +405,19 @@ namespace Kalendarz1
             grid.Children.Add(txtDlugosc);
 
             // Przyciski
-            var panel = new StackPanel 
-            { 
-                Orientation = Orientation.Horizontal, 
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 20, 0, 0)
             };
-            
+
             var btnZapisz = new Button { Content = "Zapisz", Width = 100, Height = 35, Margin = new Thickness(0, 0, 10, 0) };
             btnZapisz.Click += BtnZapisz_Click;
             panel.Children.Add(btnZapisz);
-            
+
             var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 35 };
-            btnAnuluj.Click += (s, e) => DialogResult = false;
+            btnAnuluj.Click += (s, e) => Close();
             panel.Children.Add(btnAnuluj);
 
             Grid.SetRow(panel, 3);
@@ -495,9 +503,10 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show($"Lokalizacja zapisana!\nOdległość od firmy: {odleglosc:N2} km", 
+                MessageBox.Show($"Lokalizacja zapisana!\nOdległość od firmy: {odleglosc:N2} km",
                     "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
+                LokalizacjaZapisana?.Invoke(this, EventArgs.Empty);
+                Close();
             }
             catch (Exception ex)
             {
@@ -535,9 +544,11 @@ namespace Kalendarz1
         private string _userID;
         private string _connLibraNet;
         private string _connHandel;
-        
+
         private TextBox txtNazwaSkrot, txtPelnaNazwa, txtNIP;
         private ComboBox cmbOdbiorcyHandel;
+
+        public event EventHandler OdbiorcaDodany;
 
         public DodajOdbiorcaDialog(string userID, string connLibra, string connHandel)
         {
@@ -548,7 +559,7 @@ namespace Kalendarz1
             Title = "Dodaj Nowego Odbiorcy";
             Width = 700;
             Height = 400;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             InicjalizujUI();
             WczytajOdbiorcowZHandel();
@@ -634,13 +645,13 @@ namespace Kalendarz1
 
             // Przyciski
             var panel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            
+
             var btnDodaj = new Button { Content = "Dodaj", Width = 100, Height = 35, Margin = new Thickness(0, 0, 10, 0) };
             btnDodaj.Click += BtnDodaj_Click;
             panel.Children.Add(btnDodaj);
-            
+
             var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 35 };
-            btnAnuluj.Click += (s, e) => DialogResult = false;
+            btnAnuluj.Click += (s, e) => Close();
             panel.Children.Add(btnAnuluj);
 
             Grid.SetRow(panel, row);
@@ -738,7 +749,8 @@ namespace Kalendarz1
                 }
 
                 MessageBox.Show("Odbiorca został dodany pomyślnie!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
+                OdbiorcaDodany?.Invoke(this, EventArgs.Empty);
+                Close();
             }
             catch (Exception ex)
             {

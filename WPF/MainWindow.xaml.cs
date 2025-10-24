@@ -1048,31 +1048,35 @@ namespace Kalendarz1.WPF
             await DisplayOrderDetailsAsync(id);
 
             var dlg = new MultipleDatePickerWindow("Wybierz dni dla duplikatu zamówienia");
-            if (dlg.ShowDialog() == true && dlg.SelectedDates.Any())
+            dlg.DatesSelected += async (s, ev) =>
             {
-                try
+                if (dlg.SelectedDates.Any())
                 {
-                    int created = 0;
-                    foreach (var date in dlg.SelectedDates)
+                    try
                     {
-                        await DuplicateOrderAsync(_currentOrderId.Value, date, dlg.CopyNotes);
-                        created++;
+                        int created = 0;
+                        foreach (var date in dlg.SelectedDates)
+                        {
+                            await DuplicateOrderAsync(_currentOrderId.Value, date, dlg.CopyNotes);
+                            created++;
                     }
 
-                    MessageBox.Show($"Zamówienie zostało zduplikowane na {created} dni.\n" +
-                                  $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show($"Zamówienie zostało zduplikowane na {created} dni.\n" +
+                                      $"Od {dlg.SelectedDates.Min():yyyy-MM-dd} do {dlg.SelectedDates.Max():yyyy-MM-dd}",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    _selectedDate = dlg.SelectedDates.First();
-                    UpdateDayButtonDates();
-                    await RefreshAllDataAsync();
+                        _selectedDate = dlg.SelectedDates.First();
+                        UpdateDayButtonDates();
+                        await RefreshAllDataAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas duplikowania: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
+            };
+            dlg.Show();
         }
 
         private async void MenuCykliczne_Click(object sender, RoutedEventArgs e)
@@ -1163,7 +1167,7 @@ namespace Kalendarz1.WPF
             }
 
             var noteWindow = new NoteWindow(currentNote);
-            if (noteWindow.ShowDialog() == true)
+            noteWindow.NoteSaved += async (s, ev) =>
             {
                 try
                 {
@@ -1185,7 +1189,8 @@ namespace Kalendarz1.WPF
                     MessageBox.Show($"Błąd podczas zapisywania notatki: {ex.Message}",
                         "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
+            };
+            noteWindow.Show();
         }
 
         private async void MenuAnuluj_Click(object sender, RoutedEventArgs e)
