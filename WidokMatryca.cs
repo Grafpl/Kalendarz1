@@ -459,42 +459,53 @@ namespace Kalendarz1
                     }
 
                     // Konfiguracja DataGridView
-                    dataGridView1.DataSource = table;
+                    // Zawieszamy layout podczas konfiguracji aby uniknąć błędów
+                    dataGridView1.SuspendLayout();
 
-                    // Sprawdzenie czy kolumny zostały utworzone
-                    if (dataGridView1.Columns == null || dataGridView1.Columns.Count == 0)
+                    try
                     {
-                        MessageBox.Show(
-                            "Błąd: Nie udało się utworzyć kolumn w tabeli.\n" +
-                            "Sprawdź strukturę danych w bazie.",
-                            "Błąd konfiguracji",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                        return;
-                    }
+                        dataGridView1.DataSource = table;
 
-                    // Ukryj kolumnę ID jeśli istnieje
-                    if (dataGridView1.Columns.Contains("ID"))
+                        // Sprawdzenie czy kolumny zostały utworzone
+                        if (dataGridView1.Columns == null || dataGridView1.Columns.Count == 0)
+                        {
+                            MessageBox.Show(
+                                "Błąd: Nie udało się utworzyć kolumn w tabeli.\n" +
+                                "Sprawdź strukturę danych w bazie.",
+                                "Błąd konfiguracji",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        // Ukryj kolumnę ID jeśli istnieje
+                        if (dataGridView1.Columns.Contains("ID"))
+                        {
+                            dataGridView1.Columns["ID"].Visible = false;
+                        }
+
+                        ConfigureColumn("LpDostawy", "LP Dostawy", 100, true);
+                        ConfigureColumn("CustomerGID", "Hodowca", 200, false);
+                        ConfigureColumn("WagaDek", "Waga (kg)", 100, false);
+                        ConfigureColumn("SztPoj", "Sztuk", 100, false);
+
+                        // Konfiguracja kolumn z ComboBox
+                        ConfigureComboBoxColumn("DriverGID", "Kierowca", 180, driverTable, "Name", "GID", isFarmerCalc);
+                        ConfigureComboBoxColumn("CarID", "Ciągnik", 120, carTable, "ID", "ID", isFarmerCalc);
+                        ConfigureComboBoxColumn("TrailerID", "Naczepa", 120, trailerTable, "ID", "ID", isFarmerCalc);
+
+                        // Kolumny czasowe
+                        ConfigureTimeColumn("Wyjazd", "Wyjazd", 100, isFarmerCalc);
+                        ConfigureTimeColumn("Zaladunek", "Załadunek", 100, isFarmerCalc);
+                        ConfigureTimeColumn("Przyjazd", "Przyjazd", 100, isFarmerCalc);
+
+                        ConfigureComboBoxColumn("NotkaWozek", "Wózek", 150, wozekTable, "WozekValue", "WozekValue", isFarmerCalc);
+                    }
+                    finally
                     {
-                        dataGridView1.Columns["ID"].Visible = false;
+                        // Wznów layout po konfiguracji
+                        dataGridView1.ResumeLayout(true);
                     }
-
-                    ConfigureColumn("LpDostawy", "LP Dostawy", 100, true);
-                    ConfigureColumn("CustomerGID", "Hodowca", 200, false);
-                    ConfigureColumn("WagaDek", "Waga (kg)", 100, false);
-                    ConfigureColumn("SztPoj", "Sztuk", 100, false);
-
-                    // Konfiguracja kolumn z ComboBox
-                    ConfigureComboBoxColumn("DriverGID", "Kierowca", 180, driverTable, "Name", "GID", isFarmerCalc);
-                    ConfigureComboBoxColumn("CarID", "Ciągnik", 120, carTable, "ID", "ID", isFarmerCalc);
-                    ConfigureComboBoxColumn("TrailerID", "Naczepa", 120, trailerTable, "ID", "ID", isFarmerCalc);
-
-                    // Kolumny czasowe
-                    ConfigureTimeColumn("Wyjazd", "Wyjazd", 100, isFarmerCalc);
-                    ConfigureTimeColumn("Zaladunek", "Załadunek", 100, isFarmerCalc);
-                    ConfigureTimeColumn("Przyjazd", "Przyjazd", 100, isFarmerCalc);
-
-                    ConfigureComboBoxColumn("NotkaWozek", "Wózek", 150, wozekTable, "WozekValue", "WozekValue", isFarmerCalc);
 
                     dataGridView1.Refresh();
                     UpdateStatistics();
@@ -580,9 +591,25 @@ namespace Kalendarz1
                     return;
                 }
 
-                column.HeaderText = headerText;
-                column.Width = width;
-                column.ReadOnly = readOnly;
+                // Zawieszamy layout podczas konfiguracji
+                dataGridView1.SuspendLayout();
+
+                try
+                {
+                    column.HeaderText = headerText;
+
+                    // Zabezpieczenie przed błędem set_Thickness
+                    if (column.DataGridView != null && width > 0)
+                    {
+                        column.Width = width;
+                    }
+
+                    column.ReadOnly = readOnly;
+                }
+                finally
+                {
+                    dataGridView1.ResumeLayout(false);
+                }
             }
             catch (Exception ex)
             {
@@ -685,7 +712,13 @@ namespace Kalendarz1
                 }
 
                 column.HeaderText = headerText;
-                column.Width = width;
+
+                // Zabezpieczenie przed błędem set_Thickness
+                if (column.DataGridView != null && width > 0)
+                {
+                    column.Width = width;
+                }
+
                 column.DefaultCellStyle.Format = "HH:mm";
 
                 if (!hasData)
