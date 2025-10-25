@@ -12,9 +12,21 @@
 
   <ItemGroup>
     <Compile Remove="Kalendarz\**" />
+    <Compile Remove="Menu\**" />
+    <Compile Remove="Nowy folder2\**" />
+    <Compile Remove="Nowy folder3\**" />
     <EmbeddedResource Remove="Kalendarz\**" />
+    <EmbeddedResource Remove="Menu\**" />
+    <EmbeddedResource Remove="Nowy folder2\**" />
+    <EmbeddedResource Remove="Nowy folder3\**" />
     <None Remove="Kalendarz\**" />
+    <None Remove="Menu\**" />
+    <None Remove="Nowy folder2\**" />
+    <None Remove="Nowy folder3\**" />
     <Page Remove="Kalendarz\**" />
+    <Page Remove="Menu\**" />
+    <Page Remove="Nowy folder2\**" />
+    <Page Remove="Nowy folder3\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -129,12 +141,7 @@
   <ItemGroup>
     <Folder Include="Kalendarz1\" />
     <Folder Include="Magazyn\Panel\" />
-    <Folder Include="Menu\" />
     <Folder Include="KartotekaOdbiorcow\" />
-    <Folder Include="Nowy folder2\" />
-    <Folder Include="Nowy folder3\" />
-    <Folder Include="Nowy folder4\" />
-    <Folder Include="Nowy folder\" />
     <Folder Include="Transport\Widoki\" />
   </ItemGroup>
 
