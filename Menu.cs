@@ -153,9 +153,10 @@ namespace Kalendarz1
                 [23] = "PlanTygodniowy",
                 [24] = "LiczenieMagazynu",
                 [25] = "PanelMagazyniera",
-                [26] = "KartotekaOdbiorcow" // ✅ NOWY MODUŁ - pozycja 26
+                [26] = "KartotekaOdbiorcow", // ✅ NOWY MODUŁ - pozycja 26
+                [27] = "AnalizaWydajnosci" // ✅ NOWY MODUŁ - pozycja 27
 
-        };
+            };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
             {
@@ -188,15 +189,14 @@ namespace Kalendarz1
         private List<string> GetAllModules()
         {
             return new List<string>
-    {
+   {
         "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
         "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
         "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
         "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-        "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad",
-        "OfertaCenowa", "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-        "LiczenieMagazynu", "PanelMagazyniera",
-        "KartotekaOdbiorcow" // ✅ NOWY MODUŁ
+        "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
+        "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
+        "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci"
     };
         }
 
@@ -239,7 +239,11 @@ namespace Kalendarz1
                         var panel = new Kalendarz1.MagazynPanel();
                         panel.UserID = App.UserID;
                         return panel;
-                    }, "📱")
+                    }, "📱"),
+                     new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie żywiec vs tuszka",
+                        Color.FromArgb(155, 89, 182),
+                        () => new AnalizaWydajnosciKrojenia(connectionHandel), "📊")
+
                 }
             };
 
