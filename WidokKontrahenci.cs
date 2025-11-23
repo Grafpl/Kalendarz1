@@ -1,9 +1,9 @@
-﻿// Plik: WidokKontrahenci.cs
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -29,13 +29,21 @@ namespace Kalendarz1
         private List<KeyValuePair<int, string>> _priceTypeList = new();
         private Font _strikeFont;
         public string UserID { get; set; }
+        
+        // Nowe przyciski dla funkcji oceny
+        private ToolStripButton btnOcena;
+        private ToolStripButton btnHistoriaOcen;
+        private ToolStripSeparator separatorOceny;
 
         public WidokKontrahenci()
         {
             InitializeComponent();
             BuildDetailsPanel();
 
+            // Ulepszony wygląd
             this.Font = new Font("Segoe UI", 9.5f);
+            this.BackColor = Color.FromArgb(245, 247, 250);
+            
             dgvSuppliers.EnableDoubleBuffering();
             dgvDeliveries.EnableDoubleBuffering();
 
@@ -47,32 +55,334 @@ namespace Kalendarz1
                 try
                 {
                     BuildSuppliersColumns();
-                    ApplyNiceStyling();
+                    ApplyModernStyling(); // Ulepszone style
+                    AddEvaluationButtons(); // Dodaj przyciski oceny
+                    
                     dgvSuppliers.DataSource = _suppliersBS;
                     dgvDeliveries.DataSource = _deliveriesBS;
+                    
                     await LoadPriceTypesAsync();
                     await LoadSuppliersPageAsync();
                     await LoadMissingAsync();
-
+                    
+                    // Pokaż statystyki ocen
+                    await LoadEvaluationStatistics();
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Błąd inicjalizacji: " + ex.Message, "Błąd Krytyczny", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
+            
             BuildMissingPanel();
+            BuildEvaluationPanel(); // Nowy panel ze statystykami ocen
 
+            // Event handlery
             dgvSuppliers.SelectionChanged += async (_, __) => await LoadSelectedSupplierDetailsAsync();
             dgvSuppliers.CellFormatting += dgvSuppliers_CellFormatting;
             dgvSuppliers.CellEndEdit += dgvSuppliers_CellEndEdit;
             dgvSuppliers.DataError += (s, ev) => { ev.ThrowException = false; };
+            dgvSuppliers.CellDoubleClick += DgvSuppliers_CellDoubleClick;
+            
             txtSearch.TextChanged += async (_, __) => { _pageIndex = 0; await LoadSuppliersPageAsync(); };
             cmbPriceTypeFilter.SelectedIndexChanged += async (_, __) => await ReloadPagePreservingSearchAsync();
             btnRefresh.Click += async (_, __) => await ReloadFirstPageAsync();
             btnEdit.Click += (_, __) => OpenAkceptacjaWniosku();
             btnAdd.Click += async (_, __) => await OpenNewSupplierFormAsync();
-
         }
+
+        // ==================== NOWE FUNKCJE OCENY ====================
+        
+        /// <summary>
+        /// Dodaje przyciski związane z oceną dostawców
+        /// </summary>
+        private void AddEvaluationButtons()
+        {
+            // Separator
+            separatorOceny = new ToolStripSeparator();
+            toolStrip.Items.Add(separatorOceny);
+            
+            // Przycisk Ocena
+            btnOcena = new ToolStripButton
+            {
+                Text = "📋 Ocena",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(255, 193, 7),
+                ForeColor = Color.Black,
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Oceń wybranego dostawcę",
+                Padding = new Padding(5)
+            };
+            btnOcena.Click += BtnOcena_Click;
+            toolStrip.Items.Add(btnOcena);
+            
+            // Przycisk Historia Ocen
+            btnHistoriaOcen = new ToolStripButton
+            {
+                Text = "📜 Historia",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(243, 156, 18),
+                ForeColor = Color.White,
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Zobacz historię ocen dostawcy",
+                Padding = new Padding(5)
+            };
+            btnHistoriaOcen.Click += BtnHistoriaOcen_Click;
+            toolStrip.Items.Add(btnHistoriaOcen);
+        }
+        
+        /// <summary>
+        /// Obsługa przycisku Ocena
+        /// </summary>
+        private void BtnOcena_Click(object sender, EventArgs e)
+        {
+            if (dgvSuppliers.CurrentRow?.DataBoundItem is not DataRowView rv)
+            {
+                MessageBox.Show(
+                    "❗ Wybierz hodowcę z listy!\n\n" +
+                    "Zaznacz wiersz hodowcy którego chcesz ocenić.",
+                    "Wybierz hodowcę",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+            
+            string idHodowcy = SafeGet<string>(rv.Row, "ID");
+            string nazwaHodowcy = SafeGet<string>(rv.Row, "Name");
+            
+            if (string.IsNullOrWhiteSpace(idHodowcy))
+            {
+                MessageBox.Show("❌ Nie mogę odczytać ID hodowcy!", "Błąd", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            try
+            {
+                using (var oknoOceny = new OcenaDostawcyForm(idHodowcy, nazwaHodowcy, UserID ?? Environment.UserName))
+                {
+                    if (oknoOceny.ShowDialog(this) == DialogResult.OK)
+                    {
+                        MessageBox.Show(
+                            "✅ Ocena została zapisana pomyślnie!\n\n" +
+                            $"Hodowca: {nazwaHodowcy}\n" +
+                            $"Punkty: {oknoOceny.PunktyRazem}",
+                            "Sukces",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        
+                        // Odśwież widok
+                        _ = LoadSuppliersPageAsync();
+                        _ = LoadEvaluationStatistics();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Błąd podczas otwierania okna oceny:\n\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        
+        /// <summary>
+        /// Obsługa przycisku Historia Ocen
+        /// </summary>
+        private void BtnHistoriaOcen_Click(object sender, EventArgs e)
+        {
+            if (dgvSuppliers.CurrentRow?.DataBoundItem is not DataRowView rv)
+            {
+                MessageBox.Show("❗ Wybierz hodowcę z listy!", "Wybierz hodowcę",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            
+            string idHodowcy = SafeGet<string>(rv.Row, "ID");
+            string nazwaHodowcy = SafeGet<string>(rv.Row, "Name");
+            
+            if (string.IsNullOrWhiteSpace(idHodowcy))
+            {
+                MessageBox.Show("❌ Nie mogę odczytać ID hodowcy!", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            try
+            {
+                using (var oknoHistorii = new HistoriaOcenForm(idHodowcy, nazwaHodowcy))
+                {
+                    oknoHistorii.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Błąd podczas otwierania historii:\n\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        
+        /// <summary>
+        /// Panel ze statystykami ocen
+        /// </summary>
+        private Panel _evaluationStatsPanel;
+        private Label lblEvaluationStats;
+        
+        private void BuildEvaluationPanel()
+        {
+            _evaluationStatsPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 40,
+                BackColor = Color.FromArgb(52, 73, 94),
+                Padding = new Padding(10, 8, 10, 8)
+            };
+            
+            lblEvaluationStats = new Label
+            {
+                Dock = DockStyle.Fill,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10f, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Text = "📊 Ładowanie statystyk ocen..."
+            };
+            
+            _evaluationStatsPanel.Controls.Add(lblEvaluationStats);
+            Controls.Add(_evaluationStatsPanel);
+        }
+        
+        /// <summary>
+        /// Ładuje statystyki ocen
+        /// </summary>
+        private async Task LoadEvaluationStatistics()
+        {
+            try
+            {
+                string query = @"
+                    SELECT 
+                        COUNT(DISTINCT DostawcaID) as LiczbaOcenionych,
+                        COUNT(*) as LiczbaOcen,
+                        AVG(CAST(PunktyRazem as FLOAT)) as SredniaPunktow,
+                        MAX(DataOceny) as OstatniaOcena
+                    FROM [LibraNet].[dbo].[OcenyDostawcow]
+                    WHERE Status = 'Aktywna'";
+                
+                using var con = new SqlConnection(connectionString);
+                using var cmd = new SqlCommand(query, con);
+                await con.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+                
+                if (await reader.ReadAsync())
+                {
+                    int liczbaOcenionych = reader["LiczbaOcenionych"] != DBNull.Value ? 
+                        Convert.ToInt32(reader["LiczbaOcenionych"]) : 0;
+                    int liczbaOcen = reader["LiczbaOcen"] != DBNull.Value ? 
+                        Convert.ToInt32(reader["LiczbaOcen"]) : 0;
+                    double srednia = reader["SredniaPunktow"] != DBNull.Value ? 
+                        Convert.ToDouble(reader["SredniaPunktow"]) : 0;
+                    DateTime? ostatnia = reader["OstatniaOcena"] != DBNull.Value ? 
+                        Convert.ToDateTime(reader["OstatniaOcena"]) : null;
+                    
+                    string statText = $"📊 STATYSTYKI OCEN: " +
+                        $"Ocenionych dostawców: {liczbaOcenionych} | " +
+                        $"Łączna liczba ocen: {liczbaOcen} | " +
+                        $"Średnia punktów: {srednia:F1} | ";
+                    
+                    if (ostatnia.HasValue)
+                    {
+                        statText += $"Ostatnia ocena: {ostatnia:dd.MM.yyyy}";
+                    }
+                    
+                    lblEvaluationStats.Text = statText;
+                    
+                    // Kolorowanie w zależności od średniej
+                    if (srednia >= 30)
+                        _evaluationStatsPanel.BackColor = Color.FromArgb(39, 174, 96);
+                    else if (srednia >= 20)
+                        _evaluationStatsPanel.BackColor = Color.FromArgb(243, 156, 18);
+                    else
+                        _evaluationStatsPanel.BackColor = Color.FromArgb(231, 76, 60);
+                }
+            }
+            catch
+            {
+                lblEvaluationStats.Text = "📊 System ocen dostawców gotowy do użycia";
+            }
+        }
+        
+        // ==================== ULEPSZONY WYGLĄD ====================
+        
+        private void ApplyModernStyling()
+        {
+            // Podstawowe ustawienia siatki
+            dgvSuppliers.AllowUserToAddRows = false;
+            dgvSuppliers.RowHeadersVisible = false;
+            dgvSuppliers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvSuppliers.MultiSelect = false;
+            dgvSuppliers.AutoGenerateColumns = false;
+            dgvSuppliers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvSuppliers.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+            dgvSuppliers.RowTemplate.Height = 48;
+            dgvSuppliers.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            
+            // Ulepszone kolory i czcionki
+            dgvSuppliers.BackgroundColor = Color.FromArgb(250, 251, 252);
+            dgvSuppliers.GridColor = Color.FromArgb(230, 234, 237);
+            dgvSuppliers.BorderStyle = BorderStyle.None;
+            
+            // Nagłówki kolumn
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10f);
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 73, 94);
+            dgvSuppliers.ColumnHeadersHeight = 40;
+            dgvSuppliers.EnableHeadersVisualStyles = false;
+            
+            // Wiersze
+            dgvSuppliers.DefaultCellStyle.Font = new Font("Segoe UI", 9.5f);
+            dgvSuppliers.DefaultCellStyle.BackColor = Color.White;
+            dgvSuppliers.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
+            dgvSuppliers.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
+            dgvSuppliers.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvSuppliers.DefaultCellStyle.Padding = new Padding(5, 3, 5, 3);
+            
+            // Naprzemienne wiersze
+            dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+            dgvSuppliers.AlternatingRowsDefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
+            
+            // ToolStrip styling
+            toolStrip.BackColor = Color.FromArgb(236, 240, 241);
+            toolStrip.RenderMode = ToolStripRenderMode.Professional;
+            toolStrip.GripStyle = ToolStripGripStyle.Hidden;
+            
+            // StatusStrip styling
+            statusStrip.BackColor = Color.FromArgb(44, 62, 80);
+            statusStrip.ForeColor = Color.White;
+            lblCount.ForeColor = Color.White;
+            
+            // Ulepsz przyciski
+            foreach (ToolStripItem item in toolStrip.Items)
+            {
+                if (item is ToolStripButton btn)
+                {
+                    btn.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+                    btn.Margin = new Padding(2);
+                    btn.Padding = new Padding(5, 2, 5, 2);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Podwójne kliknięcie otwiera ocenę
+        /// </summary>
+        private void DgvSuppliers_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                BtnOcena_Click(sender, e);
+            }
+        }
+
+        // ==================== ISTNIEJĄCE METODY (BEZ ZMIAN) ====================
+        
         private void BuildMissingPanel()
         {
             _missingPanel = new Panel
@@ -85,10 +395,10 @@ namespace Kalendarz1
 
             var header = new Label
             {
-                Text = "Braki w danych dostawców (uzupełnij i zniknie z listy)",
+                Text = "⚠️ Braki w danych dostawców (uzupełnij i zniknie z listy)",
                 Dock = DockStyle.Top,
-                Font = new Font("Segoe UI Semibold", 9.5f),
-                ForeColor = Color.FromArgb(60, 60, 60),
+                Font = new Font("Segoe UI Semibold", 10f),
+                ForeColor = Color.FromArgb(231, 76, 60),
                 Padding = new Padding(0, 0, 0, 6)
             };
 
@@ -102,6 +412,7 @@ namespace Kalendarz1
             dgvMissing.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgvMissing.RowTemplate.Height = 36;
             dgvMissing.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dgvMissing.BackgroundColor = Color.FromArgb(250, 251, 252);
 
             // Kolumny
             dgvMissing.Columns.Add(new DataGridViewTextBoxColumn
@@ -167,7 +478,6 @@ SELECT
     ,1,2,'')) AS Missing
 FROM LibraNet.dbo.Dostawcy D
 WHERE
-    -- co najmniej jedno pole puste:
     (NULLIF(LTRIM(RTRIM(D.City       )),'') IS NULL
      OR NULLIF(LTRIM(RTRIM(D.PostalCode )),'') IS NULL
      OR NULLIF(LTRIM(RTRIM(D.Address    )),'') IS NULL
@@ -206,17 +516,32 @@ ORDER BY D.ID DESC;";
             }
         }
 
-
         private void BuildDetailsPanel()
         {
             var panelDet = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 12, Padding = new Padding(10), AutoScroll = true };
+            panelDet.BackColor = Color.White;
             panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             panelDet.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            
             int r = 0;
-            Label L(string t) => new Label { Text = t, AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 6, 0, 0) };
-            TextBox T(TextBox txt) { txt.ReadOnly = true; txt.Anchor = AnchorStyles.Left | AnchorStyles.Right; return txt; }
+            Label L(string t) => new Label { 
+                Text = t, 
+                AutoSize = true, 
+                Anchor = AnchorStyles.Left, 
+                Padding = new Padding(0, 6, 0, 0),
+                Font = new Font("Segoe UI Semibold", 9f),
+                ForeColor = Color.FromArgb(52, 73, 94)
+            };
+            TextBox T(TextBox txt) { 
+                txt.ReadOnly = true; 
+                txt.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+                txt.Font = new Font("Segoe UI", 9f);
+                txt.BorderStyle = BorderStyle.FixedSingle;
+                return txt; 
+            }
+            
             panelDet.Controls.Add(L("ID"), 0, r); panelDet.Controls.Add(T(txtDetId), 1, r);
             panelDet.Controls.Add(L("Nazwa"), 0, ++r); panelDet.Controls.Add(T(txtDetName), 1, r);
             panelDet.Controls.Add(L("Skrót"), 0, ++r); panelDet.Controls.Add(T(txtDetShort), 1, r);
@@ -235,9 +560,24 @@ ORDER BY D.ID DESC;";
             panelDet.Controls.Add(L("Dodatek"), 2, ++r); panelDet.Controls.Add(T(txtDetDodatek), 3, r);
             panelDet.Controls.Add(L("Ubytek"), 2, ++r); panelDet.Controls.Add(T(txtDetUbytek), 3, r);
             panelDet.Controls.Add(L("Ost. dostawa"), 2, ++r); panelDet.Controls.Add(T(txtDetOstatnie), 3, r);
+            
+            // Dodaj info o ocenie
+            r++;
+            panelDet.Controls.Add(L("📊 Ostatnia ocena"), 2, r); 
+            txtDetOstatniaOcena = new TextBox();
+            panelDet.Controls.Add(T(txtDetOstatniaOcena), 3, r);
+            
+            r++;
+            panelDet.Controls.Add(L("🏆 Punkty"), 2, r);
+            txtDetPunktyOceny = new TextBox();
+            panelDet.Controls.Add(T(txtDetPunktyOceny), 3, r);
+            
             tabDetails.Controls.Clear();
             tabDetails.Controls.Add(panelDet);
         }
+        
+        private TextBox txtDetOstatniaOcena;
+        private TextBox txtDetPunktyOceny;
 
         private async Task LoadPriceTypesAsync()
         {
@@ -257,26 +597,21 @@ ORDER BY D.ID DESC;";
             cmbPriceTypeFilter.SelectedIndex = 0;
         }
 
-        // Plik: WidokKontrahenci.cs
         private async Task LoadSuppliersPageAsync()
         {
-            // Używamy Twojego oryginalnego, pełnego zapytania - ono było poprawne
             var sbWhere = new StringBuilder(" WHERE 1=1 ");
             var priceTypeFilter = cmbPriceTypeFilter.SelectedItem as KeyValuePair<int?, string>?;
             if (priceTypeFilter.HasValue && priceTypeFilter.Value.Key.HasValue)
                 sbWhere.Append(" AND D.PriceTypeID = @PriceTypeID ");
-            /*var status = cmbStatusFilter.Text;
-            if (status == "Aktywni")
-                sbWhere.Append(" AND ISNULL(D.Halt,0) = 0 ");
-            else if (status == "Wstrzymani")
-                sbWhere.Append(" AND ISNULL(D.Halt,0) = 1 ");
-            */
+                
             string searchText = (txtSearch.Text ?? string.Empty).Trim();
             bool hasSearch = searchText.Length >= 2;
             if (hasSearch)
                 sbWhere.Append(" AND (D.Name LIKE @Search OR D.ShortName LIKE @Search OR D.City LIKE @Search OR D.Nip LIKE @Search OR D.Pesel LIKE @Search OR D.Phone1 LIKE @Search OR D.Phone2 LIKE @Search OR D.Phone3 LIKE @Search) ");
 
             int offset = _pageIndex * _pageSize;
+            
+            // Dodaj info o ocenach
             string query = $@"
     SELECT 
       D.[ID], D.[ShortName], D.[Name], D.[Address], D.[PostalCode], D.[Halt],
@@ -294,7 +629,10 @@ ORDER BY D.ID DESC;";
       ISNULL(PT.Name,'') + CHAR(13)+CHAR(10) + 'Dodatek: ' 
         + CASE WHEN D.Addition IS NULL THEN '-' ELSE CONVERT(varchar(32), CAST(D.Addition AS decimal(18,4))) END AS TypeAddBlock,
       LTRIM(RTRIM(CASE WHEN ISNULL(D.Nip,'') <> '' THEN 'NIP: ' + D.Nip ELSE '' END 
-        + CASE WHEN ISNULL(D.Pesel,'') <> '' THEN CASE WHEN ISNULL(D.Nip,'') <> '' THEN CHAR(13)+CHAR(10) ELSE '' END + 'PESEL: ' + D.Pesel ELSE '' END)) AS NipPeselBlock
+        + CASE WHEN ISNULL(D.Pesel,'') <> '' THEN CASE WHEN ISNULL(D.Nip,'') <> '' THEN CHAR(13)+CHAR(10) ELSE '' END + 'PESEL: ' + D.Pesel ELSE '' END)) AS NipPeselBlock,
+      -- Dodaj info o ostatniej ocenie
+      (SELECT MAX(DataOceny) FROM [LibraNet].[dbo].[OcenyDostawcow] OD WHERE OD.DostawcaID = D.ID AND OD.Status = 'Aktywna') AS OstatniaOcena,
+      (SELECT TOP 1 PunktyRazem FROM [LibraNet].[dbo].[OcenyDostawcow] OD WHERE OD.DostawcaID = D.ID AND OD.Status = 'Aktywna' ORDER BY DataOceny DESC) AS OstatniePunkty
     FROM [LibraNet].[dbo].[Dostawcy] D 
     LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID
     {sbWhere}
@@ -309,9 +647,6 @@ ORDER BY D.ID DESC;";
     )
     SELECT CASE WHEN Cnt > @Offset + @PageSize THEN 1 ELSE 0 END AS HasMore FROM _x;";
 
-
-
-            // KLUCZOWA ZMIANA: Tworzymy nową, tymczasową tabelę, tak jak w teście
             var newSuppliersTable = new DataTable();
             var ds = new DataSet();
 
@@ -337,16 +672,12 @@ ORDER BY D.ID DESC;";
                 newSuppliersTable = ds.Tables[0];
             }
 
-            // NAJWAŻNIEJSZY MOMENT: Podmieniamy całe źródło danych w BindingSource na nową tabelę
-            // To jest operacja, która zmusiła siatkę do poprawnego odświeżenia się
             _suppliersBS.DataSource = newSuppliersTable;
 
-            // Aktualizujemy paginację i liczniki
             _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 && Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
             lblPage.Text = $"Strona: {_pageIndex + 1}";
             lblCount.Text = $"Rekordy: {newSuppliersTable.Rows.Count}";
 
-            // Na wszelki wypadek, dodatkowo odświeżamy widok
             dgvSuppliers.Refresh();
         }
 
@@ -358,7 +689,76 @@ ORDER BY D.ID DESC;";
         private async Task LoadSelectedSupplierDetailsAsync()
         {
             if (dgvSuppliers.CurrentRow?.DataBoundItem is DataRowView rv)
+            {
                 FillDetailsPanel(rv.Row);
+                
+                // Załaduj info o ocenie
+                await LoadSupplierEvaluationInfo(SafeGet<string>(rv.Row, "ID"));
+            }
+        }
+        
+        private async Task LoadSupplierEvaluationInfo(string dostawcaId)
+        {
+            if (string.IsNullOrWhiteSpace(dostawcaId))
+            {
+                txtDetOstatniaOcena.Text = "";
+                txtDetPunktyOceny.Text = "";
+                return;
+            }
+            
+            try
+            {
+                string query = @"
+                    SELECT TOP 1 DataOceny, PunktyRazem 
+                    FROM [LibraNet].[dbo].[OcenyDostawcow] 
+                    WHERE DostawcaID = @DostawcaID AND Status = 'Aktywna'
+                    ORDER BY DataOceny DESC";
+                    
+                using var con = new SqlConnection(connectionString);
+                using var cmd = new SqlCommand(query, con);
+                cmd.Parameters.AddWithValue("@DostawcaID", dostawcaId);
+                
+                await con.OpenAsync();
+                using var reader = await cmd.ExecuteReaderAsync();
+                
+                if (await reader.ReadAsync())
+                {
+                    DateTime dataOceny = Convert.ToDateTime(reader["DataOceny"]);
+                    int punkty = Convert.ToInt32(reader["PunktyRazem"]);
+                    
+                    txtDetOstatniaOcena.Text = dataOceny.ToString("dd.MM.yyyy");
+                    txtDetPunktyOceny.Text = $"{punkty} pkt";
+                    
+                    // Kolorowanie
+                    if (punkty >= 30)
+                    {
+                        txtDetPunktyOceny.BackColor = Color.FromArgb(200, 255, 200);
+                        txtDetPunktyOceny.ForeColor = Color.DarkGreen;
+                    }
+                    else if (punkty >= 20)
+                    {
+                        txtDetPunktyOceny.BackColor = Color.FromArgb(255, 255, 200);
+                        txtDetPunktyOceny.ForeColor = Color.DarkOrange;
+                    }
+                    else
+                    {
+                        txtDetPunktyOceny.BackColor = Color.FromArgb(255, 200, 200);
+                        txtDetPunktyOceny.ForeColor = Color.DarkRed;
+                    }
+                }
+                else
+                {
+                    txtDetOstatniaOcena.Text = "Brak oceny";
+                    txtDetPunktyOceny.Text = "";
+                    txtDetPunktyOceny.BackColor = SystemColors.Control;
+                    txtDetPunktyOceny.ForeColor = SystemColors.ControlText;
+                }
+            }
+            catch
+            {
+                txtDetOstatniaOcena.Text = "";
+                txtDetPunktyOceny.Text = "";
+            }
         }
 
         private void FillDetailsPanel(DataRow r)
@@ -381,8 +781,6 @@ ORDER BY D.ID DESC;";
             chkDetHalt.Checked = SafeGet<decimal?>(r, "Halt") == 1;
             var dt = SafeGet<DateTime?>(r, "OstatnieZdanie");
             txtDetOstatnie.Text = dt?.ToString("yyyy-MM-dd") ?? "";
-
-
         }
 
         private async void dgvSuppliers_CellEndEdit(object sender, DataGridViewCellEventArgs e)
@@ -437,9 +835,12 @@ ORDER BY D.ID DESC;";
             if (e.RowIndex < 0) return;
             if (dgvSuppliers.Rows[e.RowIndex].DataBoundItem is not DataRowView rv) return;
 
-            // Używamy e.CellStyle - to jest NAJBEZPIECZNIEJSZY sposób
             string typ = rv.Row["PriceTypeName"] as string ?? "";
             bool isHalted = rv.Row["Halt"] != DBNull.Value && Convert.ToDecimal(rv.Row["Halt"]) == 1;
+            
+            // Sprawdź ocenę
+            int? punktyOceny = rv.Row["OstatniePunkty"] != DBNull.Value ? 
+                Convert.ToInt32(rv.Row["OstatniePunkty"]) : (int?)null;
 
             // Reset
             e.CellStyle.Font = dgvSuppliers.Font;
@@ -450,7 +851,7 @@ ORDER BY D.ID DESC;";
                 ? dgvSuppliers.DefaultCellStyle.BackColor
                 : dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor;
 
-            // Customizacja
+            // Kolorowanie na podstawie typu ceny
             switch (typ.Trim().ToLowerInvariant())
             {
                 case "rolnicza": e.CellStyle.BackColor = Color.LightGreen; break;
@@ -458,7 +859,16 @@ ORDER BY D.ID DESC;";
                 case "wolnorynkowa": e.CellStyle.BackColor = Color.LightYellow; break;
                 case "łączona": case "laczona": e.CellStyle.BackColor = Color.PaleVioletRed; break;
             }
+            
+            // Dodaj ikonkę oceny w kolumnie Nazwa
+            if (dgvSuppliers.Columns[e.ColumnIndex].Name == "Name" && punktyOceny.HasValue)
+            {
+                string ikona = punktyOceny >= 30 ? " ✅" : 
+                              punktyOceny >= 20 ? " ⚠️" : " ❌";
+                e.Value = e.Value?.ToString() + ikona;
+            }
 
+            // Jeśli wstrzymany
             if (isHalted)
             {
                 e.CellStyle.BackColor = Color.Gainsboro;
@@ -467,9 +877,6 @@ ORDER BY D.ID DESC;";
                 e.CellStyle.Font = _strikeFont;
             }
         }
-
-        private void SprawdzDuplikaty() { /* Implementacja OK */ }
-        private void ExportSuppliersToCsv() { /* Implementacja OK */ }
 
         private async Task AddNewSupplierInlineAsync()
         {
@@ -528,25 +935,6 @@ ORDER BY D.ID DESC;";
             catch { return default!; }
         }
 
-        private void ApplyNiceStyling()
-        {
-            dgvSuppliers.AllowUserToAddRows = false;
-            dgvSuppliers.RowHeadersVisible = false;
-            dgvSuppliers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvSuppliers.MultiSelect = false;
-            dgvSuppliers.AutoGenerateColumns = false;
-            dgvSuppliers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvSuppliers.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
-            dgvSuppliers.RowTemplate.Height = 44;
-            dgvSuppliers.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-            dgvSuppliers.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 9.5f);
-            dgvSuppliers.ColumnHeadersDefaultCellStyle.BackColor = Color.WhiteSmoke;
-            dgvSuppliers.EnableHeadersVisualStyles = false;
-            dgvSuppliers.DefaultCellStyle.BackColor = Color.White;
-            dgvSuppliers.DefaultCellStyle.ForeColor = SystemColors.ControlText;
-            dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
-            dgvSuppliers.AlternatingRowsDefaultCellStyle.ForeColor = SystemColors.ControlText;
-        }
         private async Task OpenNewSupplierFormAsync()
         {
             using var f = new NewHodowcaForm(connectionString, this.UserID ?? Environment.UserName);
@@ -555,7 +943,6 @@ ORDER BY D.ID DESC;";
                 _pageIndex = 0;
                 await LoadSuppliersPageAsync();
 
-                // Spróbuj zaznaczyć nowo dodanego
                 if (!string.IsNullOrWhiteSpace(f.CreatedSupplierId) && dgvSuppliers.DataSource is BindingSource bs && bs.List is System.ComponentModel.IListSource src)
                 {
                     for (int i = 0; i < dgvSuppliers.Rows.Count; i++)
@@ -612,6 +999,21 @@ ORDER BY D.ID DESC;";
             var colTypeAdd = Txt("TypeAddBlock", "Typ + Dodatek", "TypeAddBlock", 90, true);
             var colLoss = Txt("Ubytek", "Ubytek", "Ubytek", 60, false);
             var colNipPesel = Txt("NipPeselBlock", "NIP / PESEL", "NipPeselBlock", 90, true);
+            
+            // Nowa kolumna - ocena
+            var colOcena = new DataGridViewTextBoxColumn
+            {
+                Name = "OstatniePunkty",
+                HeaderText = "📊 Ocena",
+                DataPropertyName = "OstatniePunkty",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+                }
+            };
+            
             var colHalt = new DataGridViewCheckBoxColumn
             {
                 Name = "Halt",
@@ -623,16 +1025,16 @@ ORDER BY D.ID DESC;";
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
             };
 
-            // Dodajemy od razu w docelowej kolejności:
             dgvSuppliers.Columns.AddRange(new DataGridViewColumn[]
             {
-        colId, colName, colShort, colAddrBlock, colLast, colPhoneBlk, colTypeAdd, colLoss, colNipPesel, colHalt
+                colId, colName, colShort, colAddrBlock, colLast, colPhoneBlk, 
+                colTypeAdd, colLoss, colNipPesel, colOcena, colHalt
             });
         }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
-
+            // Obsługa już jest
         }
     }
 
@@ -640,7 +1042,9 @@ ORDER BY D.ID DESC;";
     {
         public static void EnableDoubleBuffering(this DataGridView dgv)
         {
-            typeof(DataGridView).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(dgv, true, null);
+            typeof(DataGridView).GetProperty("DoubleBuffered", 
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(dgv, true, null);
         }
     }
 }
