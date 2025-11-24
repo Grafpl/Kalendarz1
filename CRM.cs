@@ -191,8 +191,8 @@ namespace Kalendarz1
                         CzyReczny = true
                     };
 
-                    var ofertaWindow = new OfertaHandlowaWindow(klient);
-                    ofertaWindow.Show();
+                    //var ofertaWindow = new OfertaHandlowaWindow(klient);
+                    //ofertaWindow.Show();
                 }
                 catch (Exception ex)
                 {

@@ -6,13 +6,10 @@ using System.Windows.Forms;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using System.IO;
-using iTextSharp.text;
-using iTextSharp.text.pdf;
 using System.Diagnostics;
 
-// DODAJ TEN ALIAS:
+// Aliasy dla uniknięcia konfliktów
 using Rectangle = System.Drawing.Rectangle;
-using iTextRectangle = iTextSharp.text.Rectangle;
 
 namespace Kalendarz1
 {
@@ -62,6 +59,8 @@ namespace Kalendarz1
         // Przyciski
         private Button btnZapisz;
         private Button btnGenerujPDF;
+        private Button btnGenerujPustyPDF;
+        private Button btnHistoria;
         private Button btnAnuluj;
         
         public OcenaDostawcyForm(string dostawcaId, string dostawcaNazwa, string userId, int? ocenaId = null)
@@ -77,108 +76,159 @@ namespace Kalendarz1
         
         private void InitializeComponent()
         {
-            this.Text = "📋 Ocena Dostawcy Żywca";
-            this.Size = new Size(1200, 800);
+            this.Text = "📋 Ocena Dostawcy Żywca - System Jakości";
+            this.Size = new Size(1400, 850);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Font = new System.Drawing.Font("Segoe UI", 9.5f);
             this.BackColor = Color.FromArgb(245, 247, 250);
+            this.Icon = SystemIcons.Application;
             
-            // Panel nagłówka
+            // Panel nagłówka z gradientem
             panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 100,
-                BackColor = Color.FromArgb(52, 73, 94),
-                Padding = new Padding(20)
+                Height = 120,
+                BackColor = Color.FromArgb(30, 58, 95)
+            };
+            panelHeader.Paint += (s, e) =>
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(
+                    panelHeader.ClientRectangle,
+                    Color.FromArgb(30, 58, 95),
+                    Color.FromArgb(74, 111, 165),
+                    LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, panelHeader.ClientRectangle);
+                }
             };
             
             lblTitle = new Label
             {
                 Text = "PROCEDURY ZAKŁADOWE - OCENA DOSTAWCÓW",
-                Font = new System.Drawing.Font("Segoe UI", 16f, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(20, 10)
+                Location = new Point(25, 15)
             };
             
             lblDostawca = new Label
             {
                 Text = $"Dostawca: {_dostawcaNazwa} (ID: {_dostawcaId})",
-                Font = new System.Drawing.Font("Segoe UI", 11f),
+                Font = new System.Drawing.Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(189, 195, 199),
                 AutoSize = true,
-                Location = new Point(20, 45)
+                Location = new Point(25, 50)
             };
             
             lblNumerRaportu = new Label
             {
                 Text = "Nr raportu:",
-                Font = new System.Drawing.Font("Segoe UI", 10f),
+                Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(600, 20)
+                Location = new Point(700, 25)
             };
             
             txtNumerRaportu = new TextBox
             {
-                Location = new Point(700, 18),
-                Width = 150,
+                Location = new Point(800, 23),
+                Width = 180,
                 ReadOnly = true,
-                BackColor = Color.FromArgb(236, 240, 241)
+                BackColor = Color.FromArgb(236, 240, 241),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold)
             };
             
             lblDataOceny = new Label
             {
                 Text = "Data oceny:",
-                Font = new System.Drawing.Font("Segoe UI", 10f),
+                Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(600, 50)
+                Location = new Point(700, 55)
             };
             
             dpDataOceny = new DateTimePicker
             {
-                Location = new Point(700, 48),
-                Width = 150,
-                Format = DateTimePickerFormat.Short
-            };
-            
-            panelHeader.Controls.AddRange(new Control[] { lblTitle, lblDostawca, lblNumerRaportu, txtNumerRaportu, lblDataOceny, dpDataOceny });
-            
-            // TabControl
-            tabControl = new TabControl
-            {
-                Dock = DockStyle.Fill,
+                Location = new Point(800, 53),
+                Width = 180,
+                Format = DateTimePickerFormat.Short,
                 Font = new System.Drawing.Font("Segoe UI", 10f)
             };
             
-            // Tab 1: Samoocena
-            tabSamoocena = new TabPage
+            // Dodaj logo jeśli istnieje
+            try
             {
-                Text = "📝 Samoocena Dostawcy",
+                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
+                if (File.Exists(logoPath))
+                {
+                    PictureBox logo = new PictureBox
+                    {
+                        Location = new Point(1000, 10),
+                        Size = new Size(100, 100),
+                        SizeMode = PictureBoxSizeMode.Zoom,
+                        Image = Image.FromFile(logoPath)
+                    };
+                    panelHeader.Controls.Add(logo);
+                }
+            }
+            catch { }
+            
+            panelHeader.Controls.AddRange(new Control[] { lblTitle, lblDostawca, lblNumerRaportu, txtNumerRaportu, lblDataOceny, dpDataOceny });
+            
+            // TabControl z ulepszonym wyglądem
+            tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+                Font = new System.Drawing.Font("Segoe UI", 10f),
+                ItemSize = new Size(200, 40),
+                SizeMode = TabSizeMode.Fixed,
+                DrawMode = TabDrawMode.OwnerDrawFixed
+            };
+            
+            tabControl.DrawItem += (sender, e) =>
+            {
+                TabPage page = tabControl.TabPages[e.Index];
+                Rectangle tabBounds = e.Bounds;
+                
+                if (e.Index == tabControl.SelectedIndex)
+                {
+                    using (Brush brush = new SolidBrush(Color.FromArgb(52, 152, 219)))
+                    {
+                        e.Graphics.FillRectangle(brush, tabBounds);
+                    }
+                    TextRenderer.DrawText(e.Graphics, page.Text, new Font("Segoe UI", 11f, FontStyle.Bold),
+                        tabBounds, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+                else
+                {
+                    using (Brush brush = new SolidBrush(Color.FromArgb(236, 240, 241)))
+                    {
+                        e.Graphics.FillRectangle(brush, tabBounds);
+                    }
+                    TextRenderer.DrawText(e.Graphics, page.Text, new Font("Segoe UI", 10f),
+                        tabBounds, Color.FromArgb(52, 73, 94), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+            };
+            
+            // Zakładki
+            tabSamoocena = new TabPage("📝 Samoocena hodowcy")
+            {
                 BackColor = Color.White,
                 AutoScroll = true
             };
-            
             CreateSamoocenaTab();
             
-            // Tab 2: Lista kontrolna
-            tabListaKontrolna = new TabPage
+            tabListaKontrolna = new TabPage("✅ Lista kontrolna")
             {
-                Text = "🚚 Lista Kontrolna Audytu",
                 BackColor = Color.White,
                 AutoScroll = true
             };
-            
             CreateListaKontrolnaTab();
             
-            // Tab 3: Podsumowanie
-            tabPodsumowanie = new TabPage
+            tabPodsumowanie = new TabPage("📊 Podsumowanie")
             {
-                Text = "📊 Podsumowanie",
                 BackColor = Color.White
             };
-            
             CreatePodsumowanieTab();
             
             tabControl.TabPages.AddRange(new TabPage[] { tabSamoocena, tabListaKontrolna, tabPodsumowanie });
@@ -195,8 +245,8 @@ namespace Kalendarz1
             btnZapisz = new Button
             {
                 Text = "💾 Zapisz",
-                Size = new Size(120, 35),
-                Location = new Point(20, 12),
+                Size = new Size(120, 40),
+                Location = new Point(20, 10),
                 BackColor = Color.FromArgb(39, 174, 96),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -208,9 +258,9 @@ namespace Kalendarz1
             
             btnGenerujPDF = new Button
             {
-                Text = "📄 Generuj PDF",
-                Size = new Size(130, 35),
-                Location = new Point(150, 12),
+                Text = "📄 Raport PDF",
+                Size = new Size(140, 40),
+                Location = new Point(150, 10),
                 BackColor = Color.FromArgb(52, 152, 219),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -220,22 +270,50 @@ namespace Kalendarz1
             btnGenerujPDF.FlatAppearance.BorderSize = 0;
             btnGenerujPDF.Click += BtnGenerujPDF_Click;
             
+            btnGenerujPustyPDF = new Button
+            {
+                Text = "📝 Pusty formularz",
+                Size = new Size(160, 40),
+                Location = new Point(300, 10),
+                BackColor = Color.FromArgb(243, 156, 18),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnGenerujPustyPDF.FlatAppearance.BorderSize = 0;
+            btnGenerujPustyPDF.Click += BtnGenerujPustyPDF_Click;
+            
+            btnHistoria = new Button
+            {
+                Text = "📚 Historia ocen",
+                Size = new Size(140, 40),
+                Location = new Point(470, 10),
+                BackColor = Color.FromArgb(155, 89, 182),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnHistoria.FlatAppearance.BorderSize = 0;
+            btnHistoria.Click += BtnHistoria_Click;
+            
             btnAnuluj = new Button
             {
                 Text = "❌ Anuluj",
-                Size = new Size(110, 35),
+                Size = new Size(110, 40),
                 BackColor = Color.FromArgb(149, 165, 166),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            btnAnuluj.Location = new Point(this.ClientSize.Width - btnAnuluj.Width - 40, 12);
+            btnAnuluj.Location = new Point(this.ClientSize.Width - btnAnuluj.Width - 40, 10);
             btnAnuluj.Anchor = AnchorStyles.Right | AnchorStyles.Top;
             btnAnuluj.FlatAppearance.BorderSize = 0;
             btnAnuluj.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             
-            panelButtons.Controls.AddRange(new Control[] { btnZapisz, btnGenerujPDF, btnAnuluj });
+            panelButtons.Controls.AddRange(new Control[] { btnZapisz, btnGenerujPDF, btnGenerujPustyPDF, btnHistoria, btnAnuluj });
             
             // Dodaj kontrolki do formularza
             this.Controls.Add(tabControl);
@@ -262,20 +340,31 @@ namespace Kalendarz1
             Label lblInfo = new Label
             {
                 Text = "SAMOOCENA DOSTAWCY - HODOWCY (wypełnia hodowca)",
-                Font = new System.Drawing.Font("Segoe UI", 12f, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 Location = new Point(20, y),
                 AutoSize = true
             };
             tabSamoocena.Controls.Add(lblInfo);
-            y += 40;
+            y += 35;
+            
+            Label lblPunktacja = new Label
+            {
+                Text = "Każde pytanie: 3 punkty za odpowiedź TAK, 0 punktów za NIE",
+                Font = new System.Drawing.Font("Segoe UI", 9f, FontStyle.Italic),
+                ForeColor = Color.FromArgb(52, 152, 219),
+                Location = new Point(20, y),
+                AutoSize = true
+            };
+            tabSamoocena.Controls.Add(lblPunktacja);
+            y += 30;
             
             for (int i = 0; i < pytaniaSamoocena.Length; i++)
             {
                 Panel panelPytanie = new Panel
                 {
                     Location = new Point(20, y),
-                    Size = new Size(1100, 35),
+                    Size = new Size(1300, 40),
                     BackColor = (i % 2 == 0) ? Color.FromArgb(248, 249, 250) : Color.White,
                     BorderStyle = BorderStyle.FixedSingle
                 };
@@ -283,24 +372,28 @@ namespace Kalendarz1
                 Label lblPytanie = new Label
                 {
                     Text = pytaniaSamoocena[i],
-                    Location = new Point(10, 8),
-                    Size = new Size(800, 20),
-                    Font = new System.Drawing.Font("Segoe UI", 9.5f)
+                    Location = new Point(10, 10),
+                    Size = new Size(900, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f)
                 };
                 
                 chkSamoocena_TAK[i] = new CheckBox
                 {
                     Text = "TAK",
-                    Location = new Point(850, 7),
+                    Location = new Point(950, 10),
                     Size = new Size(60, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(39, 174, 96),
                     Tag = i
                 };
                 
                 chkSamoocena_NIE[i] = new CheckBox
                 {
                     Text = "NIE",
-                    Location = new Point(920, 7),
+                    Location = new Point(1050, 10),
                     Size = new Size(60, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(231, 76, 60),
                     Tag = i
                 };
                 
@@ -322,7 +415,7 @@ namespace Kalendarz1
                 panelPytanie.Controls.AddRange(new Control[] { lblPytanie, chkSamoocena_TAK[i], chkSamoocena_NIE[i] });
                 tabSamoocena.Controls.Add(panelPytanie);
                 
-                y += 40;
+                y += 45;
             }
         }
         
@@ -363,62 +456,95 @@ namespace Kalendarz1
             Label lblInfo = new Label
             {
                 Text = "LISTA KONTROLNA AUDYTU DOSTAWCY ŻYWCA",
-                Font = new System.Drawing.Font("Segoe UI", 12f, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 Location = new Point(20, y),
                 AutoSize = true
             };
             panelScroll.Controls.Add(lblInfo);
-            y += 30;
+            y += 35;
             
             Label lblInfo2 = new Label
             {
                 Text = "Pytania 1-5: wypełnia HODOWCA (3 pkt za TAK) | Pytania 6-20: wypełnia KIEROWCA (1 pkt za TAK)",
-                Font = new System.Drawing.Font("Segoe UI", 9f, FontStyle.Italic),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(231, 76, 60),
                 Location = new Point(20, y),
                 AutoSize = true
             };
             panelScroll.Controls.Add(lblInfo2);
-            y += 30;
+            y += 35;
             
             for (int i = 0; i < pytaniaKontrola.Length; i++)
             {
                 Panel panelPytanie = new Panel
                 {
                     Location = new Point(20, y),
-                    Size = new Size(1100, 35),
+                    Size = new Size(1300, 40),
                     BackColor = (i < 5) ? Color.FromArgb(255, 250, 205) : 
                                (i % 2 == 0) ? Color.FromArgb(248, 249, 250) : Color.White,
                     BorderStyle = BorderStyle.FixedSingle
                 };
                 
+                if (i < 5)
+                {
+                    // Dodaj etykietę dla pytań hodowcy
+                    Label lblHodowca = new Label
+                    {
+                        Text = "HODOWCA",
+                        Location = new Point(1150, 10),
+                        Size = new Size(80, 20),
+                        Font = new System.Drawing.Font("Segoe UI", 9f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(243, 156, 18),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    panelPytanie.Controls.Add(lblHodowca);
+                }
+                else
+                {
+                    // Dodaj etykietę dla pytań kierowcy
+                    Label lblKierowca = new Label
+                    {
+                        Text = "KIEROWCA",
+                        Location = new Point(1150, 10),
+                        Size = new Size(80, 20),
+                        Font = new System.Drawing.Font("Segoe UI", 9f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(52, 152, 219),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    panelPytanie.Controls.Add(lblKierowca);
+                }
+                
                 Label lblPytanie = new Label
                 {
                     Text = pytaniaKontrola[i],
-                    Location = new Point(10, 8),
-                    Size = new Size(800, 20),
-                    Font = new System.Drawing.Font("Segoe UI", 9.5f)
+                    Location = new Point(10, 10),
+                    Size = new Size(900, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f)
                 };
                 
                 chkKontrola_TAK[i] = new CheckBox
                 {
                     Text = "TAK",
-                    Location = new Point(850, 7),
+                    Location = new Point(950, 10),
                     Size = new Size(60, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(39, 174, 96),
                     Tag = i
                 };
                 
                 chkKontrola_NIE[i] = new CheckBox
                 {
                     Text = "NIE",
-                    Location = new Point(920, 7),
+                    Location = new Point(1050, 10),
                     Size = new Size(60, 20),
+                    Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(231, 76, 60),
                     Tag = i
                 };
                 
                 int index = i;
-                chkKontrola_TAK[i].CheckedChanged += (s, e) =>
+                chkKontrola_TAK[i].CheckedChanged += (s, e) => 
                 {
                     if (chkKontrola_TAK[index].Checked)
                         chkKontrola_NIE[index].Checked = false;
@@ -435,490 +561,557 @@ namespace Kalendarz1
                 panelPytanie.Controls.AddRange(new Control[] { lblPytanie, chkKontrola_TAK[i], chkKontrola_NIE[i] });
                 panelScroll.Controls.Add(panelPytanie);
                 
-                y += 40;
+                y += 45;
             }
-            
-            // Pytanie o dokumentację
-            y += 20;
-            Panel panelDokumentacja = new Panel
-            {
-                Location = new Point(20, y),
-                Size = new Size(1100, 35),
-                BackColor = Color.FromArgb(230, 230, 250),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            
-            Label lblDokumentacja = new Label
-            {
-                Text = "21. Czy do dostawy dostarczono świadectwo zdrowia?",
-                Location = new Point(10, 8),
-                Size = new Size(800, 20),
-                Font = new System.Drawing.Font("Segoe UI", 9.5f, FontStyle.Bold)
-            };
-            
-            chkDokumentacja_TAK = new CheckBox
-            {
-                Text = "TAK",
-                Location = new Point(850, 7),
-                Size = new Size(60, 20)
-            };
-            
-            chkDokumentacja_NIE = new CheckBox
-            {
-                Text = "NIE",
-                Location = new Point(920, 7),
-                Size = new Size(60, 20)
-            };
-            
-            chkDokumentacja_TAK.CheckedChanged += (s, e) =>
-            {
-                if (chkDokumentacja_TAK.Checked)
-                    chkDokumentacja_NIE.Checked = false;
-            };
-            
-            chkDokumentacja_NIE.CheckedChanged += (s, e) =>
-            {
-                if (chkDokumentacja_NIE.Checked)
-                    chkDokumentacja_TAK.Checked = false;
-            };
-            
-            panelDokumentacja.Controls.AddRange(new Control[] { lblDokumentacja, chkDokumentacja_TAK, chkDokumentacja_NIE });
-            panelScroll.Controls.Add(panelDokumentacja);
             
             tabListaKontrolna.Controls.Add(panelScroll);
         }
         
         private void CreatePodsumowanieTab()
         {
-            // Panel punktów
+            int y = 20;
+            
+            // Nagłówek
+            Label lblTitle = new Label
+            {
+                Text = "PODSUMOWANIE OCENY",
+                Font = new System.Drawing.Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(44, 62, 80),
+                Location = new Point(20, y),
+                AutoSize = true
+            };
+            tabPodsumowanie.Controls.Add(lblTitle);
+            y += 40;
+            
+            // Panel punktacji
             Panel panelPunkty = new Panel
             {
-                Location = new Point(50, 50),
-                Size = new Size(500, 200),
+                Location = new Point(20, y),
+                Size = new Size(500, 250),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(232, 245, 233)
+                BackColor = Color.FromArgb(248, 249, 250)
             };
             
-            Label lblTytulPunkty = new Label
+            Label lblPunkty1 = new Label
             {
-                Text = "📊 PODSUMOWANIE PUNKTÓW",
-                Location = new Point(20, 20),
-                Size = new Size(460, 30),
-                Font = new System.Drawing.Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(27, 94, 32),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            
-            Label lblPunkty1_5 = new Label
-            {
-                Text = "Punkty za pytania 1-5:",
-                Location = new Point(20, 70),
-                Size = new Size(200, 25),
-                Font = new System.Drawing.Font("Segoe UI", 11f)
+                Text = "Punkty Sekcja I (Samoocena, max 24 pkt):",
+                Location = new Point(10, 20),
+                Size = new Size(300, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold)
             };
             
             txtPunkty1_5 = new TextBox
             {
-                Location = new Point(250, 70),
-                Size = new Size(100, 25),
+                Location = new Point(320, 18),
+                Size = new Size(80, 25),
                 ReadOnly = true,
+                BackColor = Color.White,
                 Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
-                TextAlign = HorizontalAlignment.Center,
-                BackColor = Color.White
+                TextAlign = HorizontalAlignment.Center
             };
             
-            Label lblPunkty6_20 = new Label
+            Label lblPunkty2 = new Label
             {
-                Text = "Punkty za pytania 6-20:",
-                Location = new Point(20, 105),
-                Size = new Size(200, 25),
-                Font = new System.Drawing.Font("Segoe UI", 11f)
+                Text = "Punkty Sekcja II (Lista kontrolna, max 30 pkt):",
+                Location = new Point(10, 60),
+                Size = new Size(300, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold)
             };
             
             txtPunkty6_20 = new TextBox
             {
-                Location = new Point(250, 105),
-                Size = new Size(100, 25),
+                Location = new Point(320, 58),
+                Size = new Size(80, 25),
                 ReadOnly = true,
+                BackColor = Color.White,
                 Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
-                TextAlign = HorizontalAlignment.Center,
-                BackColor = Color.White
+                TextAlign = HorizontalAlignment.Center
+            };
+            
+            // Linia separująca
+            Panel separator = new Panel
+            {
+                Location = new Point(10, 100),
+                Size = new Size(480, 2),
+                BackColor = Color.FromArgb(52, 73, 94)
             };
             
             Label lblPunktyRazem = new Label
             {
-                Text = "SUMA PUNKTÓW:",
-                Location = new Point(20, 145),
-                Size = new Size(200, 30),
-                Font = new System.Drawing.Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(27, 94, 32)
+                Text = "ŁĄCZNA SUMA PUNKTÓW (max 60 pkt):",
+                Location = new Point(10, 120),
+                Size = new Size(300, 30),
+                Font = new System.Drawing.Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
             
             txtPunktyRazem = new TextBox
             {
-                Location = new Point(250, 145),
-                Size = new Size(100, 30),
+                Location = new Point(320, 118),
+                Size = new Size(100, 35),
                 ReadOnly = true,
+                BackColor = Color.FromArgb(39, 174, 96),
+                ForeColor = Color.White,
                 Font = new System.Drawing.Font("Segoe UI", 14f, FontStyle.Bold),
-                TextAlign = HorizontalAlignment.Center,
-                BackColor = Color.FromArgb(76, 175, 80),
-                ForeColor = Color.White
+                TextAlign = HorizontalAlignment.Center
+            };
+            
+            // Status oceny
+            Label lblStatus = new Label
+            {
+                Location = new Point(10, 170),
+                Size = new Size(480, 60),
+                Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.FixedSingle
             };
             
             panelPunkty.Controls.AddRange(new Control[] { 
-                lblTytulPunkty, lblPunkty1_5, txtPunkty1_5, 
-                lblPunkty6_20, txtPunkty6_20, lblPunktyRazem, txtPunktyRazem 
+                lblPunkty1, txtPunkty1_5, 
+                lblPunkty2, txtPunkty6_20,
+                separator,
+                lblPunktyRazem, txtPunktyRazem,
+                lblStatus
             });
             
-            // Panel skali oceny
-            Panel panelSkala = new Panel
+            tabPodsumowanie.Controls.Add(panelPunkty);
+            
+            // Panel dokumentacji
+            Panel panelDokumentacja = new Panel
             {
-                Location = new Point(600, 50),
-                Size = new Size(400, 200),
+                Location = new Point(540, y),
+                Size = new Size(400, 150),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(255, 249, 196)
+                BackColor = Color.FromArgb(248, 249, 250)
             };
             
-            Label lblSkala = new Label
+            Label lblDokumentacja = new Label
             {
-                Text = "📋 SKALA OCENY",
-                Location = new Point(20, 20),
-                Size = new Size(360, 30),
-                Font = new System.Drawing.Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(245, 127, 23),
-                TextAlign = ContentAlignment.MiddleCenter
+                Text = "DOKUMENTACJA WETERYNARYJNA",
+                Location = new Point(10, 10),
+                Size = new Size(380, 25),
+                Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(44, 62, 80)
             };
             
-            Label lblSkala1 = new Label
+            Label lblDokInfo = new Label
             {
-                Text = "🟢 30+ punktów - BARDZO DOBRA",
-                Location = new Point(20, 70),
-                Size = new Size(360, 25),
-                Font = new System.Drawing.Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(27, 94, 32)
+                Text = "Czy przedstawiono wymaganą dokumentację?",
+                Location = new Point(10, 40),
+                Size = new Size(380, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10f)
             };
             
-            Label lblSkala2 = new Label
+            chkDokumentacja_TAK = new CheckBox
             {
-                Text = "🟡 20-29 punktów - DOBRA",
-                Location = new Point(20, 100),
-                Size = new Size(360, 25),
-                Font = new System.Drawing.Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(245, 127, 23)
+                Text = "TAK (6 pkt)",
+                Location = new Point(50, 70),
+                Size = new Size(120, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(39, 174, 96)
             };
             
-            Label lblSkala3 = new Label
+            chkDokumentacja_NIE = new CheckBox
             {
-                Text = "🔴 Poniżej 20 punktów - NIEZADOWALAJĄCA",
-                Location = new Point(20, 130),
-                Size = new Size(360, 25),
-                Font = new System.Drawing.Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(198, 40, 40)
+                Text = "NIE (0 pkt)",
+                Location = new Point(200, 70),
+                Size = new Size(120, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(231, 76, 60)
             };
             
-            panelSkala.Controls.AddRange(new Control[] { lblSkala, lblSkala1, lblSkala2, lblSkala3 });
+            chkDokumentacja_TAK.CheckedChanged += (s, e) =>
+            {
+                if (chkDokumentacja_TAK.Checked)
+                    chkDokumentacja_NIE.Checked = false;
+                CalculatePoints();
+            };
             
-            // Panel uwag
+            chkDokumentacja_NIE.CheckedChanged += (s, e) =>
+            {
+                if (chkDokumentacja_NIE.Checked)
+                    chkDokumentacja_TAK.Checked = false;
+                CalculatePoints();
+            };
+            
+            panelDokumentacja.Controls.AddRange(new Control[] { 
+                lblDokumentacja, lblDokInfo,
+                chkDokumentacja_TAK, chkDokumentacja_NIE
+            });
+            
+            tabPodsumowanie.Controls.Add(panelDokumentacja);
+            
+            // Uwagi
+            y += 280;
             Label lblUwagi = new Label
             {
-                Text = "📝 UWAGI:",
-                Location = new Point(50, 270),
-                Size = new Size(100, 25),
+                Text = "UWAGI I ZALECENIA:",
+                Location = new Point(20, y),
+                Size = new Size(200, 25),
                 Font = new System.Drawing.Font("Segoe UI", 11f, FontStyle.Bold)
             };
+            tabPodsumowanie.Controls.Add(lblUwagi);
             
             txtUwagi = new TextBox
             {
-                Location = new Point(50, 300),
-                Size = new Size(950, 150),
+                Location = new Point(20, y + 30),
+                Size = new Size(920, 120),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
                 Font = new System.Drawing.Font("Segoe UI", 10f)
             };
+            tabPodsumowanie.Controls.Add(txtUwagi);
             
-            tabPodsumowanie.Controls.AddRange(new Control[] { panelPunkty, panelSkala, lblUwagi, txtUwagi });
+            txtPunktyRazem.TextChanged += (s, e) =>
+            {
+                if (int.TryParse(txtPunktyRazem.Text, out int punkty))
+                {
+                    if (punkty >= 30)
+                    {
+                        lblStatus.Text = "✅ OCENA: BARDZO DOBRY";
+                        lblStatus.BackColor = Color.FromArgb(39, 174, 96);
+                        lblStatus.ForeColor = Color.White;
+                    }
+                    else if (punkty >= 20)
+                    {
+                        lblStatus.Text = "⚠️ OCENA: DOBRY";
+                        lblStatus.BackColor = Color.FromArgb(243, 156, 18);
+                        lblStatus.ForeColor = Color.White;
+                    }
+                    else
+                    {
+                        lblStatus.Text = "❌ OCENA: NIEZADOWALAJĄCY";
+                        lblStatus.BackColor = Color.FromArgb(231, 76, 60);
+                        lblStatus.ForeColor = Color.White;
+                    }
+                }
+            };
+        }
+        
+        private async void LoadData()
+        {
+            await GenerateReportNumber();
+            
+            if (_ocenaId.HasValue)
+            {
+                await LoadExistingEvaluation();
+            }
+        }
+        
+        private async Task GenerateReportNumber()
+        {
+            try
+            {
+                string query = @"
+                    SELECT COUNT(*) + 1 
+                    FROM [dbo].[OcenyDostawcow] 
+                    WHERE YEAR(DataOceny) = @Rok";
+                    
+                using var connection = new SqlConnection(connectionString);
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Rok", DateTime.Now.Year);
+                
+                await connection.OpenAsync();
+                int numerKolejny = (int)await command.ExecuteScalarAsync();
+                
+                txtNumerRaportu.Text = $"OD/{DateTime.Now.Year}/{numerKolejny:D4}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania numeru: {ex.Message}");
+                txtNumerRaportu.Text = $"OD/{DateTime.Now.Year}/XXXX";
+            }
+        }
+        
+        private async Task LoadExistingEvaluation()
+        {
+            try
+            {
+                string query = @"
+                    SELECT * FROM [dbo].[OcenyDostawcow] 
+                    WHERE ID = @ID";
+                    
+                using var connection = new SqlConnection(connectionString);
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@ID", _ocenaId.Value);
+                
+                await connection.OpenAsync();
+                using var reader = await command.ExecuteReaderAsync();
+                
+                if (await reader.ReadAsync())
+                {
+                    txtNumerRaportu.Text = reader["NumerRaportu"]?.ToString();
+                    dpDataOceny.Value = Convert.ToDateTime(reader["DataOceny"]);
+                    txtUwagi.Text = reader["Uwagi"]?.ToString();
+                    
+                    // Załaduj odpowiedzi samooceny
+                    for (int i = 1; i <= 8; i++)
+                    {
+                        string columnName = $"Samoocena_P{i}";
+                        if (reader[columnName] != DBNull.Value)
+                        {
+                            bool value = Convert.ToBoolean(reader[columnName]);
+                            if (value)
+                                chkSamoocena_TAK[i - 1].Checked = true;
+                            else
+                                chkSamoocena_NIE[i - 1].Checked = true;
+                        }
+                    }
+                    
+                    // Załaduj odpowiedzi kontrolne
+                    for (int i = 1; i <= 20; i++)
+                    {
+                        string columnName = $"Kontrolna_P{i}";
+                        if (reader[columnName] != DBNull.Value)
+                        {
+                            bool value = Convert.ToBoolean(reader[columnName]);
+                            if (value)
+                                chkKontrola_TAK[i - 1].Checked = true;
+                            else
+                                chkKontrola_NIE[i - 1].Checked = true;
+                        }
+                    }
+                    
+                    // Załaduj dokumentację
+                    if (reader["DokumentacjaWeterynaryjna"] != DBNull.Value)
+                    {
+                        bool dok = Convert.ToBoolean(reader["DokumentacjaWeterynaryjna"]);
+                        if (dok)
+                            chkDokumentacja_TAK.Checked = true;
+                        else
+                            chkDokumentacja_NIE.Checked = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania danych: {ex.Message}");
+            }
         }
         
         private void CalculatePoints()
         {
-            int punkty1_5 = 0;
-            int punkty6_20 = 0;
+            int punktySekcja1 = 0;
+            int punktySekcja2 = 0;
             
-            // Punkty za pytania 1-5 (lista kontrolna)
+            // Sekcja I - Samoocena (8 pytań po 3 punkty)
+            for (int i = 0; i < 8; i++)
+            {
+                if (chkSamoocena_TAK[i].Checked)
+                    punktySekcja1 += 3;
+            }
+            
+            // Sekcja II - Lista kontrolna
+            // Pierwsze 5 pytań (hodowca) - po 3 punkty
             for (int i = 0; i < 5; i++)
             {
                 if (chkKontrola_TAK[i].Checked)
-                    punkty1_5 += 3;
+                    punktySekcja2 += 3;
             }
             
-            // Punkty za pytania 6-20 (lista kontrolna)
+            // Pozostałe 15 pytań (kierowca) - po 1 punkcie
             for (int i = 5; i < 20; i++)
             {
                 if (chkKontrola_TAK[i].Checked)
-                    punkty6_20 += 1;
+                    punktySekcja2 += 1;
             }
             
-            int suma = punkty1_5 + punkty6_20;
+            // Dokumentacja - 6 punktów
+            int punktyDokumentacja = chkDokumentacja_TAK.Checked ? 6 : 0;
             
-            if (txtPunkty1_5 != null)
-                txtPunkty1_5.Text = punkty1_5.ToString();
-            if (txtPunkty6_20 != null)
-                txtPunkty6_20.Text = punkty6_20.ToString();
-            if (txtPunktyRazem != null)
-            {
-                txtPunktyRazem.Text = suma.ToString();
-                PunktyRazem = suma;
-                
-                // Kolorowanie wyniku
-                if (suma >= 30)
-                {
-                    txtPunktyRazem.BackColor = Color.FromArgb(76, 175, 80);
-                    txtPunktyRazem.ForeColor = Color.White;
-                }
-                else if (suma >= 20)
-                {
-                    txtPunktyRazem.BackColor = Color.FromArgb(255, 193, 7);
-                    txtPunktyRazem.ForeColor = Color.Black;
-                }
-                else
-                {
-                    txtPunktyRazem.BackColor = Color.FromArgb(244, 67, 54);
-                    txtPunktyRazem.ForeColor = Color.White;
-                }
-            }
-        }
-        
-        private void LoadData()
-        {
-            GenerateReportNumber();
-            dpDataOceny.Value = DateTime.Now;
+            // Aktualizacja pól
+            txtPunkty1_5.Text = punktySekcja1.ToString();
+            txtPunkty6_20.Text = punktySekcja2.ToString();
             
-            if (_ocenaId.HasValue)
-            {
-                // Załaduj istniejącą ocenę
-                LoadExistingEvaluation();
-            }
+            PunktyRazem = punktySekcja1 + punktySekcja2 + punktyDokumentacja;
+            txtPunktyRazem.Text = PunktyRazem.ToString();
         }
         
-        private void GenerateReportNumber()
-        {
-            try
-            {
-                int rok = DateTime.Now.Year;
-                string query = @"
-                    SELECT ISNULL(MAX(CAST(SUBSTRING(NumerRaportu, 9, 2) AS INT)), 0) + 1
-                    FROM [LibraNet].[dbo].[OcenyDostawcow] 
-                    WHERE NumerRaportu LIKE '%/' + @Year";
-                    
-                using var connection = new SqlConnection(connectionString);
-                using var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@Year", rok.ToString());
-                
-                connection.Open();
-                object result = command.ExecuteScalar();
-                int numerKolejny = result != DBNull.Value ? Convert.ToInt32(result) : 1;
-                
-                txtNumerRaportu.Text = $"PZ-Z-10-{numerKolejny:00}/{rok}";
-            }
-            catch
-            {
-                txtNumerRaportu.Text = $"PZ-Z-10-XX/{DateTime.Now.Year}";
-            }
-        }
-        
-        private void LoadExistingEvaluation()
-        {
-            // Implementacja ładowania istniejącej oceny
-        }
-
         private async void BtnZapisz_Click(object sender, EventArgs e)
         {
             try
             {
-                if (MessageBox.Show("Czy na pewno chcesz zapisać ocenę?", "Potwierdzenie",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                    return;
-
-                string query = @"
-            INSERT INTO [LibraNet].[dbo].[OcenyDostawcow]
-            (DostawcaID, DataOceny, NumerRaportu, WersjaFormularza,
-             CzyPIW, MiejsceSrodkowDezynfekcyjnych, CzyWywozObornika,
-             MiejsceWeterynarii, TerenUporzadkowany, ObuwieOchronne,
-             OdziezOchronna, MatyDezynfekcyjne, SrodkiDezynfekcyjneDorazne,
-             PosiadaWNI, FermaOpieka, StadoWolneOdSalmonelli,
-             KurnikMytyDezynfekowany, PadleUsuwane, ZaladunekZgodnyZPlanem,
-             DostepDoPlanu, WjazdWybetowany, WjazdOswietlony,
-             PodjazdOswietlony, PodjazdWybetowany, KurnikDostosowyDoZaladunku,
-             ZapewnionaIdentyfikowalnosc, PoczesaWylapywaniaBrojlerowOswietlenie,
-             SciolkaSucha, KuryCzyste, KurySuche, PodczasZaladunkuPuste,
-             TechnikaLapania, IloscOsobDoZaladunku,
-             PunktySekcja1_5, PunktySekcja6_20, PunktyRazem,
-             Uwagi, OceniajacyUserID, DataUtworzenia, Status)
-            VALUES
-            (@DostawcaID, @DataOceny, @NumerRaportu, '04',
-             @CzyPIW, @MiejsceDezynf, @Obornik, @Weterynaria, @Teren, 
-             @Obuwie, @Odziez, @Maty, @SrodkiDez,
-             @Q1, @Q2, @Q3, @Q4, @Q5, @Q6, @Q7, @Q8, @Q9, @Q10,
-             @Q11, @Q12, @Q13, @Q14, @Q15, @Q16, @Q17, @Q18, @Q19, @Q20,
-             @Punkty1_5, @Punkty6_20, @PunktyRazem,
-             @Uwagi, @UserID, GETDATE(), 'Aktywna')";
-
+                string query;
+                if (_ocenaId.HasValue)
+                {
+                    query = @"
+                        UPDATE [dbo].[OcenyDostawcow] SET
+                            DataOceny = @DataOceny,
+                            PunktySekcja1 = @PunktySekcja1,
+                            PunktySekcja2 = @PunktySekcja2,
+                            PunktyRazem = @PunktyRazem,
+                            Uwagi = @Uwagi,
+                            DokumentacjaWeterynaryjna = @Dokumentacja,
+                            DataModyfikacji = @DataModyfikacji,
+                            Samoocena_P1 = @S1, Samoocena_P2 = @S2, Samoocena_P3 = @S3, Samoocena_P4 = @S4,
+                            Samoocena_P5 = @S5, Samoocena_P6 = @S6, Samoocena_P7 = @S7, Samoocena_P8 = @S8,
+                            Kontrolna_P1 = @K1, Kontrolna_P2 = @K2, Kontrolna_P3 = @K3, Kontrolna_P4 = @K4,
+                            Kontrolna_P5 = @K5, Kontrolna_P6 = @K6, Kontrolna_P7 = @K7, Kontrolna_P8 = @K8,
+                            Kontrolna_P9 = @K9, Kontrolna_P10 = @K10, Kontrolna_P11 = @K11, Kontrolna_P12 = @K12,
+                            Kontrolna_P13 = @K13, Kontrolna_P14 = @K14, Kontrolna_P15 = @K15, Kontrolna_P16 = @K16,
+                            Kontrolna_P17 = @K17, Kontrolna_P18 = @K18, Kontrolna_P19 = @K19, Kontrolna_P20 = @K20
+                        WHERE ID = @ID";
+                }
+                else
+                {
+                    query = @"
+                        INSERT INTO [dbo].[OcenyDostawcow]
+                            (DostawcaID, NumerRaportu, DataOceny, PunktySekcja1, PunktySekcja2, PunktyRazem,
+                             OceniajacyUserID, Uwagi, DokumentacjaWeterynaryjna, DataUtworzenia, Status,
+                             Samoocena_P1, Samoocena_P2, Samoocena_P3, Samoocena_P4, Samoocena_P5, 
+                             Samoocena_P6, Samoocena_P7, Samoocena_P8,
+                             Kontrolna_P1, Kontrolna_P2, Kontrolna_P3, Kontrolna_P4, Kontrolna_P5,
+                             Kontrolna_P6, Kontrolna_P7, Kontrolna_P8, Kontrolna_P9, Kontrolna_P10,
+                             Kontrolna_P11, Kontrolna_P12, Kontrolna_P13, Kontrolna_P14, Kontrolna_P15,
+                             Kontrolna_P16, Kontrolna_P17, Kontrolna_P18, Kontrolna_P19, Kontrolna_P20)
+                        VALUES
+                            (@DostawcaID, @NumerRaportu, @DataOceny, @PunktySekcja1, @PunktySekcja2, @PunktyRazem,
+                             @UserID, @Uwagi, @Dokumentacja, @DataUtworzenia, @Status,
+                             @S1, @S2, @S3, @S4, @S5, @S6, @S7, @S8,
+                             @K1, @K2, @K3, @K4, @K5, @K6, @K7, @K8, @K9, @K10,
+                             @K11, @K12, @K13, @K14, @K15, @K16, @K17, @K18, @K19, @K20)";
+                }
+                
                 using var connection = new SqlConnection(connectionString);
                 using var command = new SqlCommand(query, connection);
-
+                
                 // Parametry podstawowe
                 command.Parameters.AddWithValue("@DostawcaID", _dostawcaId);
-                command.Parameters.AddWithValue("@DataOceny", dpDataOceny.Value);
                 command.Parameters.AddWithValue("@NumerRaportu", txtNumerRaportu.Text);
-
-                // Samoocena - POPRAWIONE!
-                command.Parameters.AddWithValue("@CzyPIW", chkSamoocena_TAK[0].Checked);
-                command.Parameters.AddWithValue("@MiejsceDezynf", chkSamoocena_TAK[1].Checked);
-                command.Parameters.AddWithValue("@Obornik", chkSamoocena_TAK[2].Checked);
-                command.Parameters.AddWithValue("@Weterynaria", chkSamoocena_TAK[3].Checked);
-                command.Parameters.AddWithValue("@Teren", chkSamoocena_TAK[4].Checked);
-                command.Parameters.AddWithValue("@Obuwie", chkSamoocena_TAK[5].Checked);
-                command.Parameters.AddWithValue("@Odziez", chkSamoocena_TAK[6].Checked);
-                command.Parameters.AddWithValue("@Maty", chkSamoocena_TAK[7].Checked);
-                command.Parameters.AddWithValue("@SrodkiDez", chkSamoocena_TAK[7].Checked);
-
-                // Lista kontrolna (pytania 1-20)
+                command.Parameters.AddWithValue("@DataOceny", dpDataOceny.Value);
+                command.Parameters.AddWithValue("@PunktySekcja1", Convert.ToInt32(txtPunkty1_5.Text));
+                command.Parameters.AddWithValue("@PunktySekcja2", Convert.ToInt32(txtPunkty6_20.Text));
+                command.Parameters.AddWithValue("@PunktyRazem", PunktyRazem);
+                command.Parameters.AddWithValue("@UserID", _userId);
+                command.Parameters.AddWithValue("@Uwagi", txtUwagi.Text ?? "");
+                command.Parameters.AddWithValue("@Dokumentacja", chkDokumentacja_TAK.Checked);
+                command.Parameters.AddWithValue("@Status", PunktyRazem >= 20 ? "Zaakceptowany" : "Odrzucony");
+                
+                if (_ocenaId.HasValue)
+                {
+                    command.Parameters.AddWithValue("@ID", _ocenaId.Value);
+                    command.Parameters.AddWithValue("@DataModyfikacji", DateTime.Now);
+                }
+                else
+                {
+                    command.Parameters.AddWithValue("@DataUtworzenia", DateTime.Now);
+                }
+                
+                // Parametry samooceny
+                for (int i = 0; i < 8; i++)
+                {
+                    command.Parameters.AddWithValue($"@S{i + 1}", chkSamoocena_TAK[i].Checked);
+                }
+                
+                // Parametry kontrolne
                 for (int i = 0; i < 20; i++)
                 {
-                    command.Parameters.AddWithValue($"@Q{i + 1}", chkKontrola_TAK[i].Checked);
+                    command.Parameters.AddWithValue($"@K{i + 1}", chkKontrola_TAK[i].Checked);
                 }
-
-                // Punkty
-                command.Parameters.AddWithValue("@Punkty1_5", int.Parse(txtPunkty1_5.Text ?? "0"));
-                command.Parameters.AddWithValue("@Punkty6_20", int.Parse(txtPunkty6_20.Text ?? "0"));
-                command.Parameters.AddWithValue("@PunktyRazem", int.Parse(txtPunktyRazem.Text ?? "0"));
-
-                // Dodatkowe
-                command.Parameters.AddWithValue("@Uwagi", txtUwagi.Text ?? "");
-                command.Parameters.AddWithValue("@UserID", _userId);
-
+                
                 await connection.OpenAsync();
                 await command.ExecuteNonQueryAsync();
-
-                MessageBox.Show("✅ Ocena została zapisana pomyślnie!", "Sukces",
+                
+                MessageBox.Show("Ocena została zapisana pomyślnie!", "Sukces", 
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-
+                
                 DialogResult = DialogResult.OK;
-                Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Błąd zapisu: {ex.Message}", "Błąd",
+                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
+        
         private void BtnGenerujPDF_Click(object sender, EventArgs e)
         {
             try
             {
-                string fileName = $"Ocena_{txtNumerRaportu.Text.Replace("/", "_").Replace("-", "_")}.pdf";
-                string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
-                
-                Document document = new Document(PageSize.A4, 25, 25, 30, 30);
-                PdfWriter writer = PdfWriter.GetInstance(document, new FileStream(filePath, FileMode.Create));
-                
-                document.Open();
-                
-                // Czcionki
-                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
-                var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12);
-                var normalFont = FontFactory.GetFont(FontFactory.HELVETICA, 10);
-                var smallFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
-                
-                // Nagłówek
-                document.Add(new Paragraph("PROCEDURY ZAKŁADOWE", titleFont) { Alignment = Element.ALIGN_CENTER });
-                document.Add(new Paragraph("OCENA DOSTAWCÓW", titleFont) { Alignment = Element.ALIGN_CENTER });
-                document.Add(new Paragraph("\n"));
-                
-                // Informacje podstawowe
-                document.Add(new Paragraph($"Data: {dpDataOceny.Value:dd.MM.yyyy}", normalFont));
-                document.Add(new Paragraph($"Nr raportu: {txtNumerRaportu.Text}", normalFont));
-                document.Add(new Paragraph($"Dostawca: {_dostawcaNazwa} (ID: {_dostawcaId})", headerFont));
-                document.Add(new Paragraph("\n"));
-                
-                // Tabela samooceny
-                document.Add(new Paragraph("SAMOOCENA DOSTAWCY:", headerFont));
-                PdfPTable tableSamoocena = new PdfPTable(3);
-                tableSamoocena.WidthPercentage = 100;
-                tableSamoocena.SetWidths(new float[] { 70f, 15f, 15f });
-                
-                tableSamoocena.AddCell(new PdfPCell(new Phrase("Pytanie", headerFont)) { BackgroundColor = BaseColor.LIGHT_GRAY });
-                tableSamoocena.AddCell(new PdfPCell(new Phrase("TAK", headerFont)) { BackgroundColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER });
-                tableSamoocena.AddCell(new PdfPCell(new Phrase("NIE", headerFont)) { BackgroundColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER });
-                
-                string[] pytaniaSamoocenaPDF = new string[]
+                SaveFileDialog saveDialog = new SaveFileDialog
                 {
-                    "1. Czy gospodarstwo jest zgłoszone w PIW?",
-                    "2. Czy znajduje się miejsce do składowania środków dezynfekcyjnych?",
-                    "3. Czy obornik jest wywożony z gospodarstwa?",
-                    "4. Czy znajdują się miejsca dla produktów leczniczych?",
-                    "5. Czy teren jest uporządkowany?",
-                    "6. Czy znajduje się odzież ochronna?",
-                    "7. Czy znajdują się maty dezynfekcyjne?",
-                    "8. Czy posiada środki dezynfekcyjne?"
+                    Filter = "PDF Files (*.pdf)|*.pdf",
+                    FileName = $"Ocena_{_dostawcaNazwa.Replace(" ", "_")}_{DateTime.Now:yyyy_MM_dd}.pdf",
+                    Title = "Zapisz raport PDF"
                 };
                 
-                for (int i = 0; i < 8; i++)
+                if (saveDialog.ShowDialog() == DialogResult.OK)
                 {
-                    tableSamoocena.AddCell(new PdfPCell(new Phrase(pytaniaSamoocenaPDF[i], smallFont)));
-                    tableSamoocena.AddCell(new PdfPCell(new Phrase(chkSamoocena_TAK[i].Checked ? "X" : "", normalFont)) 
-                        { HorizontalAlignment = Element.ALIGN_CENTER });
-                    tableSamoocena.AddCell(new PdfPCell(new Phrase(chkSamoocena_NIE[i].Checked ? "X" : "", normalFont)) 
-                        { HorizontalAlignment = Element.ALIGN_CENTER });
+                    // Przygotuj dane dla generatora
+                    bool[] samoocena = new bool[8];
+                    for (int i = 0; i < 8; i++)
+                        samoocena[i] = chkSamoocena_TAK[i].Checked;
+                    
+                    bool[] kontrolna = new bool[20];
+                    for (int i = 0; i < 20; i++)
+                        kontrolna[i] = chkKontrola_TAK[i].Checked;
+                    
+                    /* Użyj istniejącego generatora OcenaPDFGenerator
+                    var generator = new OcenaPDFGenerator();
+                    generator.GenerujRaport(
+                        saveDialog.FileName,
+                        txtNumerRaportu.Text,
+                        dpDataOceny.Value,
+                        _dostawcaNazwa,
+                        _dostawcaId,
+                        txtUwagi.Text,
+                        Convert.ToInt32(txtPunkty1_5.Text),
+                        Convert.ToInt32(txtPunkty6_20.Text),
+                        PunktyRazem,
+                        samoocena,
+                        kontrolna,
+                        chkDokumentacja_TAK.Checked
+                    );
+                    */
+                    
+                    MessageBox.Show("PDF został wygenerowany pomyślnie!", "Sukces", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    // Otwórz PDF
+                    Process.Start(new ProcessStartInfo(saveDialog.FileName) { UseShellExecute = true });
                 }
-                
-                document.Add(tableSamoocena);
-                document.Add(new Paragraph("\n"));
-                
-                // Podsumowanie punktów
-                document.Add(new Paragraph($"SUMA PUNKTÓW: {txtPunktyRazem.Text}", titleFont));
-                document.Add(new Paragraph($"Punkty 1-5: {txtPunkty1_5.Text}", normalFont));
-                document.Add(new Paragraph($"Punkty 6-20: {txtPunkty6_20.Text}", normalFont));
-                
-                // Uwagi
-                if (!string.IsNullOrWhiteSpace(txtUwagi.Text))
-                {
-                    document.Add(new Paragraph("\nUWAGI:", headerFont));
-                    document.Add(new Paragraph(txtUwagi.Text, normalFont));
-                }
-
-                // Podpisy
-                document.Add(new Paragraph("\n\n\n"));
-                PdfPTable tableSignatures = new PdfPTable(2);
-                tableSignatures.WidthPercentage = 100;
-
-                tableSignatures.AddCell(new PdfPCell(new Phrase("_______________________", normalFont))
-                { Border = iTextRectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER });
-
-                tableSignatures.AddCell(new PdfPCell(new Phrase("_______________________", normalFont))
-                { Border = iTextRectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER });
-
-                tableSignatures.AddCell(new PdfPCell(new Phrase("PODPIS HODOWCY", headerFont))
-                { Border = iTextRectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER });
-
-                tableSignatures.AddCell(new PdfPCell(new Phrase("PODPIS KIEROWCY", headerFont))
-                { Border = iTextRectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER });
-
-                document.Add(tableSignatures);
-
-                document.Close();
-                
-                Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
-                
-                MessageBox.Show($"✅ PDF został wygenerowany!\nLokalizacja: {filePath}", "Sukces", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Błąd generowania PDF: {ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd generowania PDF: {ex.Message}", "Błąd", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+        
+        private void BtnGenerujPustyPDF_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                SaveFileDialog saveDialog = new SaveFileDialog
+                {
+                    Filter = "PDF Files (*.pdf)|*.pdf",
+                    FileName = $"Formularz_Oceny_Dostawcy_{DateTime.Now:yyyy_MM_dd}.pdf",
+                    Title = "Zapisz pusty formularz PDF"
+                };
+                
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    var generator = new BlankOcenaFormPDFGenerator();
+                    generator.GenerujPustyFormularz(saveDialog.FileName);
+                    
+                    MessageBox.Show("Pusty formularz PDF został wygenerowany pomyślnie!\nMożesz go teraz wydrukować i przekazać hodowcy do wypełnienia.", 
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    // Otwórz PDF
+                    Process.Start(new ProcessStartInfo(saveDialog.FileName) { UseShellExecute = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania pustego formularza: {ex.Message}", "Błąd", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        
+        private void BtnHistoria_Click(object sender, EventArgs e)
+        {
+            var historiaForm = new HistoriaOcenWindow(_dostawcaId);
+            historiaForm.ShowDialog();
         }
     }
 }
