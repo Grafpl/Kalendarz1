@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.Windows;
+using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
@@ -128,10 +129,7 @@ namespace Kalendarz1
             
             double srednia = liczbaOcen > 0 ? (double)sumaWszystkich / liczbaOcen : 0;
             
-            txtStatystyki.Text = $"Liczba ocen: {liczbaOcen} | " +
-                                 $"Średnia: {srednia:F1} pkt | " +
-                                 $"Najwyższa: {najwyzsza} pkt | " +
-                                 $"Najniższa: {najnizsza} pkt";
+            txtStatystyki.Text = $"Ocen: {liczbaOcen} | Śr: {srednia:F1} | Max: {najwyzsza} | Min: {najnizsza}";
         }
         
         /// <summary>
@@ -144,20 +142,35 @@ namespace Kalendarz1
     }
     
     /// <summary>
-    /// Konwerter punktów na kolor (do kolorowania wierszy)
+    /// Konwerter punktów na kolor (do kolorowania wierszy) - zwraca SolidColorBrush
     /// </summary>
     public class PointsToColorConverter : System.Windows.Data.IValueConverter
     {
+        // Predefiniowane kolory
+        private static readonly SolidColorBrush GreenBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x8B, 0x57));    // Szmaragdowy
+        private static readonly SolidColorBrush GoldBrush = new SolidColorBrush(Color.FromRgb(0xD4, 0xAF, 0x37));     // Złoty
+        private static readonly SolidColorBrush RedBrush = new SolidColorBrush(Color.FromRgb(0xDC, 0x14, 0x3C));      // Karmazynowy
+        private static readonly SolidColorBrush GrayBrush = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));     // Szary
+
+        static PointsToColorConverter()
+        {
+            // Zamrożenie brushy dla lepszej wydajności
+            GreenBrush.Freeze();
+            GoldBrush.Freeze();
+            RedBrush.Freeze();
+            GrayBrush.Freeze();
+        }
+
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (value == null || value == DBNull.Value)
-                return "White";
+                return GrayBrush;
                 
             int punkty = System.Convert.ToInt32(value);
             
-            if (punkty >= 30) return "Green";
-            if (punkty >= 20) return "Yellow";
-            return "Red";
+            if (punkty >= 30) return GreenBrush;   // Bardzo dobry
+            if (punkty >= 20) return GoldBrush;    // Dobry
+            return RedBrush;                        // Niezadowalający
         }
         
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)

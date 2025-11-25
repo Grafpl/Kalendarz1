@@ -263,7 +263,7 @@ namespace Kalendarz1.OfertaCenowa
 
                 column.Item().PaddingTop(15).Element(c => DodajTabeleProduktow(c, skalaWierszy));
 
-                if (!_parametry.PokazTylkoCeny && _parametry.PokazIlosc)
+                if (!_parametry.PokazCene && _parametry.PokazIlosc)
                 {
                     column.Item().PaddingTop(8).Element(DodajPodsumowanie);
                 }
@@ -284,7 +284,7 @@ namespace Kalendarz1.OfertaCenowa
 
         private void DodajTabeleProduktow(IContainer container, float skala)
         {
-            bool tylkoCena = _parametry.PokazTylkoCeny;
+            bool tylkoCena = _parametry.PokazCene;
             int paddingKomorek = (int)(5 * skala);
             int fontSizeHeader = (int)(9 * skala);
             int fontSizeData = (int)(8 * skala);

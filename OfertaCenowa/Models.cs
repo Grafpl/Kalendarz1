@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalendarz1.OfertaCenowa
 {
     /// <summary>
-    /// Language enumeration for PDF generation
+    /// Język oferty PDF
     /// </summary>
     public enum JezykOferty
     {
@@ -13,16 +13,16 @@ namespace Kalendarz1.OfertaCenowa
     }
 
     /// <summary>
-    /// Logo type enumeration for PDF generation
+    /// Typ logo w PDF
     /// </summary>
     public enum TypLogo
     {
-        Okragle,    // logo.png
-        Dlugie      // logo-2-green.png
+        Okragle,
+        Dlugie
     }
 
     /// <summary>
-    /// Model klienta dla oferty / Client model for offer
+    /// Model klienta dla oferty
     /// </summary>
     public class KlientOferta : INotifyPropertyChanged
     {
@@ -37,23 +37,23 @@ namespace Kalendarz1.OfertaCenowa
         public bool CzyReczny { get; set; } = false;
 
         public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
+        protected virtual void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
     }
 
     /// <summary>
-    /// Model towaru dla oferty / Product model for offer
+    /// Model towaru dla oferty
     /// </summary>
     public class TowarOferta : INotifyPropertyChanged
     {
         public int Id { get; set; }
-        public string Kod { get; set; } = ""; // Kod towaru (krótki)
-        public string Nazwa { get; set; } = ""; // Pełna nazwa towaru
+        public string Kod { get; set; } = "";
+        public string Nazwa { get; set; } = "";
         public string Katalog { get; set; } = "";
         public string Opakowanie { get; set; } = "E2";
+
+        // WAŻNE: Właściwość do wyświetlania w ComboBox
+        public string NazwaZKodem => $"{Kod} - {Nazwa}";
 
         private decimal _ilosc;
         public decimal Ilosc
@@ -82,34 +82,30 @@ namespace Kalendarz1.OfertaCenowa
         public decimal Wartosc => Ilosc * CenaJednostkowa;
 
         public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
+        protected virtual void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
     }
 
     /// <summary>
-    /// Parametry oferty / Offer parameters
+    /// Parametry oferty
     /// </summary>
     public class ParametryOferty
     {
-        public string TerminPlatnosci { get; set; } = "7 dni";
-        public int DniPlatnosci { get; set; } = 7;
+        public string TerminPlatnosci { get; set; } = "14 dni";
+        public int DniPlatnosci { get; set; } = 14;
+        public int DniWaznosci { get; set; } = 1;
         public string WalutaKonta { get; set; } = "PLN";
-        public bool PokazTylkoCeny { get; set; } = false;
         public JezykOferty Jezyk { get; set; } = JezykOferty.Polski;
         public TypLogo TypLogo { get; set; } = TypLogo.Okragle;
-
-        // Parametry kontroli widoczności w PDF / PDF visibility control parameters
         public bool PokazOpakowanie { get; set; } = true;
         public bool PokazCene { get; set; } = true;
-        public bool PokazIlosc { get; set; } = true;
+        public bool PokazIlosc { get; set; } = false;
         public bool PokazTerminPlatnosci { get; set; } = true;
+        public string WystawiajacyNazwa { get; set; } = "";
     }
 
     /// <summary>
-    /// Dane konta bankowego / Bank account data
+    /// Dane konta bankowego
     /// </summary>
     public class DaneKonta
     {
@@ -122,7 +118,7 @@ namespace Kalendarz1.OfertaCenowa
     }
 
     /// <summary>
-    /// NOWA KLASA: Szablon zestawu towarów
+    /// Szablon zestawu towarów
     /// </summary>
     public class SzablonTowarow
     {
@@ -130,12 +126,11 @@ namespace Kalendarz1.OfertaCenowa
         public string Nazwa { get; set; } = "";
         public string Opis { get; set; } = "";
         public List<TowarSzablonu> Towary { get; set; } = new List<TowarSzablonu>();
-        
         public override string ToString() => Nazwa;
     }
 
     /// <summary>
-    /// NOWA KLASA: Towar w szablonie (z domyślną ilością)
+    /// Towar w szablonie
     /// </summary>
     public class TowarSzablonu
     {
@@ -149,7 +144,7 @@ namespace Kalendarz1.OfertaCenowa
     }
 
     /// <summary>
-    /// NOWA KLASA: Szablon parametrów oferty
+    /// Szablon parametrów oferty
     /// </summary>
     public class SzablonParametrow
     {
@@ -164,10 +159,9 @@ namespace Kalendarz1.OfertaCenowa
         public bool PokazCene { get; set; } = true;
         public bool PokazIlosc { get; set; } = false;
         public bool PokazTerminPlatnosci { get; set; } = true;
-        public string TransportTyp { get; set; } = "wlasny"; // "wlasny" lub "klienta"
+        public string TransportTyp { get; set; } = "wlasny";
         public bool DodajNotkeOCenach { get; set; } = false;
         public string NotatkaCustom { get; set; } = "";
-        
         public override string ToString() => Nazwa;
     }
 }

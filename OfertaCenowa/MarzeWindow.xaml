@@ -1,0 +1,83 @@
+<Window x:Class="Kalendarz1.OfertaCenowa.MarzeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Marże" Height="450" Width="550"
+        WindowStartupLocation="CenterOwner" Background="#F4F6F9">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PrimaryGreenBrush" Color="#4B833C"/>
+    </Window.Resources>
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="📊 Szybkie marże" FontSize="14" FontWeight="Bold" Margin="0,0,0,5"/>
+                <TextBlock Text="Wybierz produkty i ustaw marżę automatycznie" FontSize="10" Foreground="#7F8C8D" TextWrapping="Wrap"/>
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Grid.Column="0" Text="Marża:" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBox x:Name="txtMarza" Grid.Column="2" Text="20" FontSize="11" Padding="8,6" HorizontalContentAlignment="Center"/>
+                    <TextBlock Grid.Column="4" Text="%" FontSize="11" VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+        
+        <Border Grid.Row="1" Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6">
+            <DataGrid x:Name="dgProdukty" AutoGenerateColumns="False" HeadersVisibility="Column" 
+                      GridLinesVisibility="Horizontal" BorderThickness="0" AlternatingRowBackground="#F9FAFB" 
+                      FontSize="10" RowHeight="36">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PrimaryGreenBrush}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="FontSize" Value="10"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Binding="{Binding Zaznaczony, UpdateSourceTrigger=PropertyChanged}" Width="40"/>
+                    <DataGridTextColumn Header="Kod" Binding="{Binding Kod}" Width="80" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Margin" Value="5,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Margin" Value="5,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Ilość" Binding="{Binding Ilosc}" Width="70" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Zaznacz wszystkie" Click="BtnZaznaczWszystkie_Click" Padding="12,8" Margin="0,0,8,0" FontSize="10" Background="#F3F4F6" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Odznacz wszystkie" Click="BtnOdznaczWszystkie_Click" Padding="12,8" Margin="0,0,8,0" FontSize="10" Background="#F3F4F6" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="✅ Zastosuj" Click="BtnZastosuj_Click" Padding="15,8" FontSize="11" Foreground="White" Background="{StaticResource PrimaryGreenBrush}" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

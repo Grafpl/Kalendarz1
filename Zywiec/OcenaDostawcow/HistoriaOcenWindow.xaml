@@ -7,11 +7,10 @@
         mc:Ignorable="d"
         Title="📊 Historia Ocen Dostawcy" 
         Height="600" Width="1000"
-        WindowStartupLocation="CenterScreen"
-        Icon="Logo.png">
+        WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
-        <!-- DODANY BRAKUJĄCY KONWERTER -->
+        <!-- Konwerter punktów na kolor -->
         <local:PointsToColorConverter x:Key="PointsToColorConverter"/>
         
         <!-- Style dla nagłówka -->
@@ -29,12 +28,14 @@
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" 
                                 CornerRadius="5"
-                                BorderThickness="0">
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" 
                                             VerticalAlignment="Center"/>
                         </Border>
@@ -65,26 +66,30 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <!-- Logo -->
-                <Image Grid.Column="0" 
-                       Source="Logo.png" 
-                       Height="60" 
-                       Margin="20,0"
-                       VerticalAlignment="Center"/>
+                <!-- Logo placeholder -->
+                <Border Grid.Column="0" 
+                        Width="100" Height="60" 
+                        Margin="20,0"
+                        Background="#D4AF37"
+                        CornerRadius="5"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="LOGO" 
+                               FontWeight="Bold" 
+                               FontSize="16"
+                               Foreground="#1E3A5F"
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center"/>
+                </Border>
                 
-                <!-- Informacje o dostawcy -->
+                <!-- Informacje o dostawcy - NAZWA DOPASOWANA DO C# -->
                 <StackPanel Grid.Column="1" 
                             VerticalAlignment="Center" 
                             HorizontalAlignment="Center">
-                    <TextBlock x:Name="txtDostawcaNazwa" 
+                    <TextBlock x:Name="txtNazwaDostawcy" 
                                Text="Nazwa dostawcy" 
                                FontSize="24" 
                                FontWeight="Bold" 
-                               Foreground="White"/>
-                    <TextBlock x:Name="txtDostawcaInfo" 
-                               Text="ID: ---" 
-                               FontSize="14" 
-                               Foreground="#D4AF37"
+                               Foreground="White"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
                 
@@ -95,29 +100,24 @@
                         Margin="20" 
                         Padding="15">
                     <StackPanel>
-                        <TextBlock Text="ŚREDNIA OCENA" 
+                        <TextBlock Text="STATYSTYKI" 
                                    FontSize="10" 
                                    FontWeight="Bold" 
                                    Foreground="#1E3A5F"/>
-                        <TextBlock x:Name="txtSrednia" 
-                                   Text="0.0" 
-                                   FontSize="28" 
-                                   FontWeight="Bold" 
+                        <TextBlock x:Name="txtStatystyki" 
+                                   Text="Brak ocen" 
+                                   FontSize="11" 
                                    Foreground="#1E3A5F" 
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock x:Name="txtLiczbaOcen" 
-                                   Text="Ocen: 0" 
-                                   FontSize="10" 
-                                   Foreground="#1E3A5F" 
-                                   HorizontalAlignment="Center"/>
+                                   TextWrapping="Wrap"
+                                   MaxWidth="200"/>
                     </StackPanel>
                 </Border>
             </Grid>
         </Border>
         
-        <!-- Lista ocen -->
+        <!-- Lista ocen - NAZWA DOPASOWANA DO C# -->
         <DataGrid Grid.Row="1" 
-                  x:Name="dgvHistoria" 
+                  x:Name="dgHistoria" 
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
@@ -128,7 +128,8 @@
                   BorderThickness="0"
                   RowHeight="45"
                   FontSize="11"
-                  Margin="10">
+                  Margin="10"
+                  AlternationCount="2">
             
             <DataGrid.Resources>
                 <Style TargetType="DataGridColumnHeader">
@@ -138,6 +139,7 @@
                     <Setter Property="Height" Value="40"/>
                     <Setter Property="FontSize" Value="12"/>
                     <Setter Property="Padding" Value="10,0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 </Style>
                 <Style TargetType="DataGridRow">
                     <Setter Property="Background" Value="White"/>
@@ -149,6 +151,11 @@
                             <Setter Property="Background" Value="#E8F4F8"/>
                         </Trigger>
                     </Style.Triggers>
+                </Style>
+                <Style TargetType="DataGridCell">
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="Padding" Value="5"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
                 </Style>
             </DataGrid.Resources>
             
@@ -168,7 +175,7 @@
                 
                 <!-- Data oceny -->
                 <DataGridTextColumn Header="📅 Data oceny" 
-                                    Binding="{Binding DataOceny, StringFormat='{}{0:yyyy-MM-dd}'}" 
+                                    Binding="{Binding DataOceny, StringFormat=yyyy-MM-dd}" 
                                     Width="120">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
@@ -178,15 +185,52 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 
-                <!-- Punkty z kolorami -->
+                <!-- Nr raportu -->
+                <DataGridTextColumn Header="Nr raportu" 
+                                    Binding="{Binding NumerRaportu}" 
+                                    Width="100">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                
+                <!-- Punkty Sekcja 1-5 -->
+                <DataGridTextColumn Header="Sek. 1-5" 
+                                    Binding="{Binding PunktySekcja1_5}" 
+                                    Width="70">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                
+                <!-- Punkty Sekcja 6-20 -->
+                <DataGridTextColumn Header="Sek. 6-20" 
+                                    Binding="{Binding PunktySekcja6_20}" 
+                                    Width="70">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                
+                <!-- Punkty RAZEM z kolorami -->
                 <DataGridTemplateColumn Header="🏆 Punkty" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding PunktyRazem, Converter={StaticResource PointsToColorConverter}}"
                                     CornerRadius="15"
                                     Padding="10,5"
-                                    Margin="5">
-                                <TextBlock Text="{Binding PunktyRazem, StringFormat='{}{0} pkt'}"
+                                    Margin="5"
+                                    HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding PunktyRazem, StringFormat={}{0} pkt}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            FontWeight="Bold"
@@ -196,23 +240,17 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 
-                <!-- Ocena słowna -->
-                <DataGridTextColumn Header="📊 Ocena" 
-                                    Binding="{Binding OcenaSlowna}" 
-                                    Width="150">
+                <!-- Oceniający -->
+                <DataGridTextColumn Header="👤 Oceniający" 
+                                    Binding="{Binding OceniajacyUserID}" 
+                                    Width="120">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                             <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontWeight" Value="Bold"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                
-                <!-- Użytkownik -->
-                <DataGridTextColumn Header="👤 Oceniający" 
-                                    Binding="{Binding UserID}" 
-                                    Width="150"/>
                 
                 <!-- Uwagi -->
                 <DataGridTextColumn Header="📝 Uwagi" 
@@ -228,22 +266,17 @@
                 </DataGridTextColumn>
                 
                 <!-- Status -->
-                <DataGridTemplateColumn Header="Status" Width="80">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Border Background="{Binding StatusColor}"
-                                    CornerRadius="10"
-                                    Padding="5,2"
-                                    Margin="2">
-                                <TextBlock Text="{Binding Status}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           FontSize="9"
-                                           Foreground="White"/>
-                            </Border>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Status" 
+                                    Binding="{Binding Status}" 
+                                    Width="80">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
         
@@ -282,7 +315,7 @@
                     <Border Background="#DC143C" 
                             CornerRadius="5" 
                             Padding="8,3">
-                        <TextBlock Text="Niezadowalający: 20 pkt" 
+                        <TextBlock Text="Niezadowalający: &lt;20 pkt" 
                                    Foreground="White" 
                                    FontSize="10"/>
                     </Border>
@@ -292,15 +325,6 @@
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 
                             HorizontalAlignment="Right">
-                    <Button x:Name="btnGenerujRaport" 
-                            Content="📄 Generuj raport PDF" 
-                            Style="{StaticResource ActionButton}"
-                            Click="BtnGenerujRaport_Click"/>
-                    <Button x:Name="btnExportExcel" 
-                            Content="📊 Export do Excel" 
-                            Style="{StaticResource ActionButton}"
-                            Background="#217346"
-                            Click="BtnExportExcel_Click"/>
                     <Button x:Name="btnZamknij" 
                             Content="❌ Zamknij" 
                             Style="{StaticResource ActionButton}"

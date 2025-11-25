@@ -1,565 +1,466 @@
-using System;
-using System.IO;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using System.Drawing;
-using System.Windows.Forms;
+using System;
+using System.IO;
 
 namespace Kalendarz1
 {
+    /// <summary>
+    /// Generator pustego formularza oceny dostawcy - WERSJA DZIAŁAJĄCA
+    /// Bazuje na sprawdzonym wzorcu z OcenaPDFGenerator_v3
+    /// </summary>
     public class BlankOcenaFormPDFGenerator
     {
-        // Elegancka kolorystyka premium
-        private readonly string ColorNavy = "#1E3A5F";      // Granatowy główny
-        private readonly string ColorGold = "#D4AF37";      // Złoty premium
-        private readonly string ColorEmerald = "#2E8B57";   // Szmaragdowy
-        private readonly string ColorCrimson = "#DC143C";   // Karmazynowy
-        private readonly string ColorSilver = "#C0C0C0";    // Srebrny
-        private readonly string ColorPearl = "#F8F8F8";     // Perłowy tło
-        private readonly string ColorCharcoal = "#36454F";  // Grafitowy tekst
+        #region Kolory
 
-        private bool _showPoints = true;  // Czy pokazywać punktację
+        private readonly string ColorPrimary = "#1E3A5F";       // Granatowy
+        private readonly string ColorPrimaryLight = "#2E5A8F";
+        private readonly string ColorGold = "#D4AF37";          // Złoty
+        private readonly string ColorGreen = "#2E8B57";         // Zielony
+        private readonly string ColorRed = "#DC143C";           // Czerwony
+        private readonly string ColorGray = "#808080";          // Szary
+        private readonly string ColorLightGray = "#F5F5F5";     // Jasny szary
+        private readonly string ColorWhite = "#FFFFFF";
+        private readonly string ColorText = "#333333";
 
+        #endregion
+
+        #region Pytania
+
+        private readonly string[] PytaniaSamoocena = new[]
+        {
+            "Czy gospodarstwo jest zgłoszone w PIW (Powiatowy Inspektorat Weterynarii)?",
+            "Czy w gospodarstwie znajduje się wydzielone miejsce do składowania środków dezynfekcyjnych?",
+            "Czy obornik jest systematycznie wywożony z gospodarstwa?",
+            "Czy w gospodarstwie znajdują się miejsca do przechowywania produktów leczniczych weterynaryjnych?",
+            "Czy teren wokół fermy jest uporządkowany oraz zabezpieczony przed dostępem osób postronnych?",
+            "Czy w gospodarstwie znajduje się odzież i obuwie przeznaczone tylko do użycia w gospodarstwie?",
+            "Czy w gospodarstwie znajdują się maty dezynfekcyjne przy wejściach do budynków inwentarskich?",
+            "Czy gospodarstwo posiada środki dezynfekcyjne w ilości niezbędnej do przeprowadzenia dezynfekcji?"
+        };
+
+        private readonly string[] PytaniaHodowca = new[]
+        {
+            "Czy gospodarstwo posiada aktualny numer WNI (Weterynaryjny Numer Identyfikacyjny)?",
+            "Czy ferma objęta jest stałą opieką lekarsko-weterynaryjną?",
+            "Czy stado jest wolne od salmonelli (potwierdzone badaniami)?",
+            "Czy kurnik jest dokładnie myty i dezynfekowany przed wstawieniem każdej partii piskląt?",
+            "Czy padłe ptaki usuwane są codziennie? Czy ferma posiada chłodnię na sztuki padłe?"
+        };
+
+        private readonly string[] PytaniaKierowca = new[]
+        {
+            "Czy jest niecka dezynfekcyjna przy wjeździe na teren gospodarstwa?",
+            "Czy są śluzy dezynfekcyjne?",
+            "Czy wentylacja w kurniku działa prawidłowo?",
+            "Czy oświetlenie jest odpowiednie i równomierne?",
+            "Czy temperatura jest właściwa dla wieku ptaków?",
+            "Czy jest odpowiednia obsada ptaków (zgodna z normami)?",
+            "Czy ściółka jest sucha i czysta?",
+            "Czy ptaki wyglądają zdrowo i są aktywne?",
+            "Czy dostęp do paszy i wody jest swobodny?",
+            "Czy linia pojenia jest czysta i sprawna?",
+            "Czy załadunek odbywa się zgodnie z dobrymi praktykami?",
+            "Czy skrzynki/kontenery są czyste i zdezynfekowane?",
+            "Czy czas załadunku jest optymalny?",
+            "Czy stosowana jest właściwa technika łapania ptaków?",
+            "Czy przestrzegane są zasady dobrostanu podczas transportu?"
+        };
+
+        #endregion
+
+        private bool _showPoints = true;
+
+        /// <summary>
+        /// Generuje pusty formularz PDF do ręcznego wypełnienia
+        /// </summary>
+        /// <param name="outputPath">Ścieżka do pliku PDF</param>
+        /// <param name="showPoints">Czy pokazywać punktację</param>
         public void GenerujPustyFormularz(string outputPath, bool showPoints = true)
         {
             _showPoints = showPoints;
-            
+
+            // Ustaw licencję QuestPDF
             QuestPDF.Settings.License = LicenseType.Community;
 
+            // Tworzenie dokumentu - DOKŁADNIE jak w działającym OcenaPDFGenerator_v3
             Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(15, Unit.Millimetre);
-                    page.DefaultTextStyle(x => x.FontSize(11).FontColor(ColorCharcoal));
+                    page.Margin(25);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Calibri).FontColor(ColorText));
 
-                    // Nagłówek
-                    page.Header().Element(BuildHeader);
-                    
-                    // Zawartość
-                    page.Content().Element(BuildContent);
-                    
-                    // Stopka
-                    page.Footer().Element(BuildFooter);
+                    page.Header().Element(ComposeHeader);
+                    page.Content().Element(ComposeContent);
+                    page.Footer().Element(ComposeFooter);
                 });
-            }).GeneratePdf(outputPath);
+            })
+            .GeneratePdf(outputPath);
         }
 
-        private void BuildHeader(IContainer container)
+        #region Nagłówek
+
+        private void ComposeHeader(IContainer container)
         {
             container.Column(column =>
             {
-                // Gradient header z logo
-                column.Item().Height(80).Background(ColorNavy).Row(row =>
+                // Pasek tytułowy
+                column.Item().Background(ColorPrimary).Padding(12).Row(row =>
                 {
-                    // Logo po lewej
-                    row.RelativeItem(2).Padding(10).AlignLeft().Column(col =>
-                    {
-                        string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
-                        if (File.Exists(logoPath))
-                        {
-                            col.Item().Height(60).Width(120).Image(logoPath);
-                        }
-                        else
-                        {
-                            col.Item().Height(60).Width(120)
-                               .Background(Colors.White)
-                               .Border(2).BorderColor(ColorGold)
-                               .AlignCenter().AlignMiddle()
-                               .Text("LOGO")
-                               .FontColor(ColorNavy)
-                               .Bold().FontSize(20);
-                        }
-                    });
-                    
-                    // Tytuł w środku
-                    row.RelativeItem(4).AlignCenter().AlignMiddle().Column(col =>
+                    row.ConstantItem(100).Height(45).Background(ColorWhite).Padding(5)
+                        .AlignCenter().AlignMiddle()
+                        .Text("LOGO").FontSize(14).Bold().FontColor(ColorPrimary);
+
+                    row.RelativeItem().PaddingLeft(15).AlignMiddle().Column(col =>
                     {
                         col.Item().Text("FORMULARZ OCENY DOSTAWCY")
-                            .FontColor(Colors.White)
-                            .Bold().FontSize(20);
-                        col.Item().PaddingTop(5).Text("SYSTEM ZARZĄDZANIA JAKOŚCIĄ")
-                            .FontColor(ColorGold)
-                            .SemiBold().FontSize(12);
+                            .FontSize(16).Bold().FontColor(ColorWhite);
+                        col.Item().Text("System Zarządzania Jakością Dostaw Żywca")
+                            .FontSize(9).FontColor(ColorGold);
                     });
-                    
-                    // Nr raportu po prawej
-                    row.RelativeItem(2).Padding(10).AlignRight().AlignMiddle()
-                       .Container().Background(ColorGold).Padding(10).Column(col =>
-                       {
-                           col.Item().Text("Nr raportu:").FontColor(ColorNavy).Bold().FontSize(10);
-                           col.Item().Height(30).Background(Colors.White)
-                              .Border(1).BorderColor(ColorNavy);
-                       });
+
+                    row.ConstantItem(120).AlignRight().AlignMiddle().Column(col =>
+                    {
+                        col.Item().Text("Nr raportu:").FontSize(8).FontColor(ColorGold);
+                        col.Item().Height(20).Background(ColorWhite).Border(1).BorderColor(ColorGold);
+                    });
                 });
-                
-                column.Item().PaddingTop(10);
+
+                // Pasek danych
+                column.Item().Background(ColorLightGray).Border(1).BorderColor(ColorPrimary)
+                    .Padding(8).Row(row =>
+                    {
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Row(r =>
+                            {
+                                r.ConstantItem(80).Text("Dostawca:").Bold().FontSize(9);
+                                r.RelativeItem().Height(18).Background(ColorWhite)
+                                    .Border(1).BorderColor(ColorGray);
+                            });
+                            col.Item().PaddingTop(3).Row(r =>
+                            {
+                                r.ConstantItem(80).Text("Adres:").Bold().FontSize(9);
+                                r.RelativeItem().Height(18).Background(ColorWhite)
+                                    .Border(1).BorderColor(ColorGray);
+                            });
+                        });
+
+                        row.ConstantItem(15);
+
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Row(r =>
+                            {
+                                r.ConstantItem(70).Text("Data oceny:").Bold().FontSize(9);
+                                r.RelativeItem().Height(18).Background(ColorWhite)
+                                    .Border(1).BorderColor(ColorGray);
+                            });
+                            col.Item().PaddingTop(3).Row(r =>
+                            {
+                                r.ConstantItem(70).Text("NIP:").Bold().FontSize(9);
+                                r.RelativeItem().Height(18).Background(ColorWhite)
+                                    .Border(1).BorderColor(ColorGray);
+                            });
+                        });
+                    });
+
+                column.Item().Height(8);
             });
         }
 
-        private void BuildContent(IContainer container)
+        #endregion
+
+        #region Zawartość
+
+        private void ComposeContent(IContainer container)
         {
             container.Column(column =>
             {
-                // Dane dostawcy z większymi polami
-                column.Item().Element(BuildSupplierData);
-                column.Item().PaddingTop(15);
-                
-                // Sekcja I - Samoocena hodowcy
-                column.Item().Element(c => BuildSectionI(c));
-                column.Item().PageBreak();
-                
-                // Sekcja II - Lista kontrolna część 1
-                column.Item().Element(c => BuildSectionII_Part1(c));
-                column.Item().PageBreak();
-                
-                // Sekcja II - Lista kontrolna część 2
-                column.Item().Element(c => BuildSectionII_Part2(c));
-                column.Item().PaddingTop(15);
-                
-                // Sekcja III - Dokumentacja
-                column.Item().Element(c => BuildSectionIII(c));
-                column.Item().PaddingTop(15);
-                
+                // SEKCJA I - Samoocena hodowcy
+                column.Item().Element(c => ComposeSectionHeader(c, "SEKCJA I", "SAMOOCENA HODOWCY", 
+                    _showPoints ? "Wypełnia Hodowca | 3 punkty za TAK | Max: 24 pkt" : "Wypełnia Hodowca", ColorGreen));
+                column.Item().Element(c => ComposeQuestionTable(c, PytaniaSamoocena, 1, 3));
+                column.Item().Height(12);
+
+                // SEKCJA II część 1 - Hodowca
+                column.Item().Element(c => ComposeSectionHeader(c, "SEKCJA II", "LISTA KONTROLNA - HODOWCA", 
+                    _showPoints ? "Wypełnia Hodowca | 3 punkty za TAK | Max: 15 pkt" : "Wypełnia Hodowca", ColorGold));
+                column.Item().Element(c => ComposeQuestionTable(c, PytaniaHodowca, 1, 3));
+                column.Item().Height(12);
+
+                // SEKCJA II część 2 - Kierowca
+                column.Item().Element(c => ComposeSectionHeader(c, "SEKCJA II", "LISTA KONTROLNA - KIEROWCA", 
+                    _showPoints ? "Wypełnia Kierowca | 1 punkt za TAK | Max: 15 pkt" : "Wypełnia Kierowca", ColorPrimary));
+                column.Item().Element(c => ComposeQuestionTable(c, PytaniaKierowca, 6, 1));
+                column.Item().Height(12);
+
+                // SEKCJA III - Dokumentacja
+                column.Item().Element(ComposeDokumentacja);
+                column.Item().Height(12);
+
                 // Podsumowanie
-                column.Item().Element(BuildSummary);
-                column.Item().PaddingTop(15);
-                
+                column.Item().Element(ComposePodsumowanie);
+                column.Item().Height(12);
+
                 // Podpisy
-                column.Item().Element(BuildSignatures);
+                column.Item().Element(ComposePodpisy);
             });
         }
 
-        private void BuildSupplierData(IContainer container)
+        private void ComposeSectionHeader(IContainer container, string numer, string tytul, string opis, string kolor)
         {
-            container.Background(ColorPearl).Border(2).BorderColor(ColorNavy).Padding(15).Column(column =>
+            container.Background(kolor).Padding(8).Row(row =>
             {
-                column.Item().Text("DANE DOSTAWCY").Bold().FontSize(14).FontColor(ColorNavy);
-                column.Item().PaddingTop(10);
-                
-                column.Item().Row(row =>
+                row.RelativeItem().Column(col =>
                 {
-                    row.RelativeItem(2).Column(col =>
-                    {
-                        // Większe pola do wypełnienia
-                        BuildLargeField(col, "Nazwa dostawcy:", 40);
-                        BuildLargeField(col, "Adres:", 40);
-                        BuildLargeField(col, "Miasto:", 35);
-                    });
-                    
-                    row.ConstantItem(20); // Odstęp
-                    
-                    row.RelativeItem(2).Column(col =>
-                    {
-                        BuildLargeField(col, "NIP:", 35);
-                        BuildLargeField(col, "Telefon:", 35);
-                        BuildLargeField(col, "Data oceny:", 35);
-                    });
+                    col.Item().Text($"{numer}: {tytul}").FontSize(11).Bold().FontColor(ColorWhite);
+                    col.Item().Text(opis).FontSize(8).FontColor(ColorWhite);
                 });
             });
         }
 
-        private void BuildLargeField(ColumnDescriptor column, string label, int height)
+        private void ComposeQuestionTable(IContainer container, string[] pytania, int startNum, int punkty)
         {
-            column.Item().PaddingBottom(10).Row(row =>
+            container.Border(1).BorderColor(ColorGray).Column(column =>
             {
-                row.ConstantItem(120).Text(label).FontSize(10).SemiBold();
-                row.RelativeItem().Height(height).Background(Colors.White)
-                   .Border(1).BorderColor(ColorSilver)
-                   .PaddingLeft(5).AlignMiddle();
-            });
-        }
-
-        private void BuildSectionI(IContainer container)
-        {
-            container.Column(column =>
-            {
-                // Nagłówek sekcji
-                column.Item().Background(ColorEmerald).Padding(10).Row(row =>
-                {
-                    row.RelativeItem().Text("SEKCJA I - SAMOOCENA HODOWCY")
-                        .FontColor(Colors.White).Bold().FontSize(12);
-                    if (_showPoints)
+                // Nagłówek tabeli
+                column.Item().Background(ColorLightGray).BorderBottom(1).BorderColor(ColorGray)
+                    .Padding(5).Row(row =>
                     {
-                        row.ConstantItem(150).AlignRight()
-                            .Text("Max 24 punkty (8 × 3 pkt)")
-                            .FontColor(ColorGold).SemiBold();
-                    }
-                });
-                
-                // Pytania
-                column.Item().Border(1).BorderColor(ColorSilver);
-                
-                string[] pytaniaSamooceny = new[]
-                {
-                    "Czy gospodarstwo jest zgłoszone w Powiatowym Inspektoracie Weterynarii?",
-                    "Czy znajduje się wydzielone miejsce do składowania środków dezynfekcyjnych?",
-                    "Czy obornik jest systematycznie wywożony z terenu gospodarstwa?",
-                    "Czy są wydzielone miejsca do przechowywania produktów leczniczych weterynaryjnych?",
-                    "Czy teren gospodarstwa jest uporządkowany i zabezpieczony przed dostępem osób postronnych?",
-                    "Czy jest odzież ochronna i obuwie do użycia tylko w gospodarstwie?",
-                    "Czy są maty dezynfekcyjne przy wejściach do budynków inwentarskich?",
-                    "Czy są środki dezynfekcyjne w odpowiedniej ilości i ważności?"
-                };
-                
-                for (int i = 0; i < pytaniaSamooceny.Length; i++)
-                {
-                    BuildQuestionRow(column, i + 1, pytaniaSamooceny[i], _showPoints ? "3/0" : "", 
-                        i % 2 == 0 ? Colors.White : ColorPearl);
-                }
-            });
-        }
-
-        private void BuildSectionII_Part1(IContainer container)
-        {
-            container.Column(column =>
-            {
-                // Nagłówek sekcji
-                column.Item().Background(ColorNavy).Padding(10).Row(row =>
-                {
-                    row.RelativeItem().Text("SEKCJA II - LISTA KONTROLNA (Część 1: HODOWCA)")
-                        .FontColor(Colors.White).Bold().FontSize(12);
-                    if (_showPoints)
-                    {
-                        row.ConstantItem(150).AlignRight()
-                            .Text("Max 15 punktów (5 × 3 pkt)")
-                            .FontColor(ColorGold).SemiBold();
-                    }
-                });
-                
-                column.Item().Border(1).BorderColor(ColorSilver);
-                
-                string[] pytaniaHodowca = new[]
-                {
-                    "Czy gospodarstwo posiada numer WNI (Weterynaryjny Numer Identyfikacyjny)?",
-                    "Czy ferma objęta jest stałą opieką lekarsko-weterynaryjną?",
-                    "Czy stado jest wolne od salmonelli (badania w kierunku salmonelli)?",
-                    "Czy kurnik jest myty i dezynfekowany przed wstawieniem nowej partii piskląt?",
-                    "Czy padłe ptaki są usuwane codziennie? Czy jest chłodnia/magazyn do ich przechowywania?"
-                };
-                
-                for (int i = 0; i < pytaniaHodowca.Length; i++)
-                {
-                    BuildQuestionRow(column, i + 1, pytaniaHodowca[i], _showPoints ? "3/0" : "", 
-                        i % 2 == 0 ? Colors.White : ColorPearl, "HODOWCA", ColorGold);
-                }
-            });
-        }
-
-        private void BuildSectionII_Part2(IContainer container)
-        {
-            container.Column(column =>
-            {
-                // Nagłówek sekcji
-                column.Item().Background(ColorNavy).Padding(10).Row(row =>
-                {
-                    row.RelativeItem().Text("SEKCJA II - LISTA KONTROLNA (Część 2: KIEROWCA)")
-                        .FontColor(Colors.White).Bold().FontSize(12);
-                    if (_showPoints)
-                    {
-                        row.ConstantItem(150).AlignRight()
-                            .Text("Max 15 punktów (15 × 1 pkt)")
-                            .FontColor(ColorGold).SemiBold();
-                    }
-                });
-                
-                column.Item().Border(1).BorderColor(ColorSilver);
-                
-                string[] pytaniaKierowca = new[]
-                {
-                    "Czy jest niecki dezynfekcyjna przy wjeździe na teren gospodarstwa?",
-                    "Czy są śluzy dezynfekcyjne?",
-                    "Czy wentylacja w kurniku działa prawidłowo?",
-                    "Czy oświetlenie jest odpowiednie i równomierne?",
-                    "Czy temperatura jest właściwa dla wieku ptaków?",
-                    "Czy jest odpowiednia obsada ptaków (zgodna z normami)?",
-                    "Czy ściółka jest sucha i czysta?",
-                    "Czy ptaki wyglądają zdrowo i są aktywne?",
-                    "Czy dostęp do paszy i wody jest swobodny?",
-                    "Czy linia pojenia jest czysta i sprawna?",
-                    "Czy załadunek odbywa się zgodnie z dobrymi praktykami?",
-                    "Czy skrzynki/kontenery są czyste i zdezynfekowane?",
-                    "Czy czas załadunku jest optymalny?",
-                    "Czy stosowana jest właściwa technika łapania ptaków?",
-                    "Czy przestrzegane są zasady dobrostanu podczas transportu?"
-                };
-                
-                for (int i = 0; i < pytaniaKierowca.Length; i++)
-                {
-                    BuildQuestionRow(column, i + 6, pytaniaKierowca[i], _showPoints ? "1/0" : "", 
-                        i % 2 == 0 ? Colors.White : ColorPearl, "KIEROWCA", ColorNavy);
-                }
-            });
-        }
-
-        private void BuildSectionIII(IContainer container)
-        {
-            container.Column(column =>
-            {
-                // Nagłówek sekcji
-                column.Item().Background(ColorCrimson).Padding(10).Row(row =>
-                {
-                    row.RelativeItem().Text("SEKCJA III - DOKUMENTACJA WETERYNARYJNO-ZOOTECHNICZNA")
-                        .FontColor(Colors.White).Bold().FontSize(12);
-                    if (_showPoints)
-                    {
-                        row.ConstantItem(100).AlignRight()
-                            .Text("Max 6 punktów")
-                            .FontColor(ColorGold).SemiBold();
-                    }
-                });
-                
-                column.Item().Border(1).BorderColor(ColorSilver).Background(ColorPearl).Padding(15).Column(col =>
-                {
-                    col.Item().Row(row =>
-                    {
-                        row.RelativeItem(2).Column(c =>
-                        {
-                            BuildCheckItem(c, "☐ Książka leczenia zwierząt");
-                            BuildCheckItem(c, "☐ Ewidencja padłych sztuk");
-                            BuildCheckItem(c, "☐ Dokumenty WNI");
-                        });
-                        row.RelativeItem(2).Column(c =>
-                        {
-                            BuildCheckItem(c, "☐ Wyniki badań salmonelli");
-                            BuildCheckItem(c, "☐ Świadectwa zdrowia");
-                            BuildCheckItem(c, "☐ Karty leczenia");
-                        });
-                    });
-                    
-                    col.Item().PaddingTop(15).Text("Uwagi:")
-                        .Bold().FontSize(11).FontColor(ColorNavy);
-                    col.Item().Height(80).Background(Colors.White).Border(1).BorderColor(ColorSilver);
-                });
-            });
-        }
-
-        private void BuildQuestionRow(ColumnDescriptor column, int number, string question, 
-            string points, string bgColor, string label = null, string labelColor = null)
-        {
-            column.Item().Background(bgColor).Border(0.5f).BorderColor(ColorSilver).Padding(8).Row(row =>
-            {
-                // Numer
-                row.ConstantItem(30).AlignCenter().AlignMiddle()
-                    .Text($"{number}.").Bold().FontSize(11);
-                
-                // Etykieta (jeśli jest)
-                if (!string.IsNullOrEmpty(label))
-                {
-                    row.ConstantItem(80).AlignCenter()
-                       .Container().Background(labelColor).Padding(3)
-                       .AlignCenter().AlignMiddle()
-                       .Text(label).FontColor(Colors.White).Bold().FontSize(9);
-                }
-                
-                // Pytanie
-                row.RelativeItem(5).PaddingLeft(5).AlignMiddle()
-                    .Text(question).FontSize(10);
-                
-                // Większe checkboxy
-                row.ConstantItem(80).AlignCenter().AlignMiddle().Row(r =>
-                {
-                    r.RelativeItem().AlignCenter().Column(c =>
-                    {
-                        c.Item().Text("TAK").Bold().FontSize(9).FontColor(ColorEmerald);
-                        c.Item().Height(25).Width(25).Background(Colors.White)
-                         .Border(2).BorderColor(ColorEmerald);
-                    });
-                    r.ConstantItem(10);
-                    r.RelativeItem().AlignCenter().Column(c =>
-                    {
-                        c.Item().Text("NIE").Bold().FontSize(9).FontColor(ColorCrimson);
-                        c.Item().Height(25).Width(25).Background(Colors.White)
-                         .Border(2).BorderColor(ColorCrimson);
-                    });
-                });
-                
-                // Punkty (jeśli pokazywać)
-                if (_showPoints && !string.IsNullOrEmpty(points))
-                {
-                    row.ConstantItem(50).AlignCenter().AlignMiddle()
-                        .Container().Background(ColorGold).Padding(3)
-                        .AlignCenter().Text(points).Bold().FontSize(9).FontColor(ColorNavy);
-                }
-                
-                // Pole na punkty
-                row.ConstantItem(40).AlignCenter().AlignMiddle()
-                    .Height(25).Width(35).Background(Colors.White)
-                    .Border(1).BorderColor(ColorCharcoal);
-            });
-        }
-
-        private void BuildCheckItem(ColumnDescriptor column, string text)
-        {
-            column.Item().PaddingBottom(8).Text(text).FontSize(11);
-        }
-
-        private void BuildSummary(IContainer container)
-        {
-            container.Background(ColorPearl).Border(2).BorderColor(ColorNavy).Padding(15).Column(column =>
-            {
-                column.Item().Text("PODSUMOWANIE PUNKTACJI").Bold().FontSize(14).FontColor(ColorNavy);
-                column.Item().PaddingTop(10);
-                
-                column.Item().Row(row =>
-                {
-                    // Tabela punktacji
-                    row.RelativeItem(3).Column(col =>
-                    {
+                        row.ConstantItem(25).AlignCenter().Text("Nr").Bold().FontSize(8);
+                        row.RelativeItem().Text("Pytanie").Bold().FontSize(8);
+                        row.ConstantItem(35).AlignCenter().Text("TAK").Bold().FontSize(8).FontColor(ColorGreen);
+                        row.ConstantItem(35).AlignCenter().Text("NIE").Bold().FontSize(8).FontColor(ColorRed);
                         if (_showPoints)
                         {
-                            BuildSummaryRow(col, "Sekcja I - Samoocena", "_____ / 24 pkt");
-                            BuildSummaryRow(col, "Sekcja II - Lista kontrolna (Hodowca)", "_____ / 15 pkt");
-                            BuildSummaryRow(col, "Sekcja II - Lista kontrolna (Kierowca)", "_____ / 15 pkt");
-                            BuildSummaryRow(col, "Sekcja III - Dokumentacja", "_____ / 6 pkt");
+                            row.ConstantItem(35).AlignCenter().Text("Pkt").Bold().FontSize(8);
                         }
-                        else
-                        {
-                            BuildSummaryRow(col, "Sekcja I - Samoocena", "_____");
-                            BuildSummaryRow(col, "Sekcja II - Lista kontrolna (Hodowca)", "_____");
-                            BuildSummaryRow(col, "Sekcja II - Lista kontrolna (Kierowca)", "_____");
-                            BuildSummaryRow(col, "Sekcja III - Dokumentacja", "_____");
-                        }
-                        
-                        col.Item().PaddingTop(10).BorderTop(2).BorderColor(ColorNavy);
-                        BuildSummaryRow(col, "SUMA PUNKTÓW", _showPoints ? "_____ / 60 pkt" : "_____", true);
+                        row.ConstantItem(30).AlignCenter().Text("Wynik").Bold().FontSize(8);
                     });
-                    
-                    row.ConstantItem(30);
-                    
+
+                // Wiersze z pytaniami
+                for (int i = 0; i < pytania.Length; i++)
+                {
+                    var bgColor = i % 2 == 0 ? ColorWhite : ColorLightGray;
+                    int numer = startNum + i;
+
+                    column.Item().Background(bgColor).BorderBottom(1).BorderColor(ColorLightGray)
+                        .Padding(4).Row(row =>
+                        {
+                            row.ConstantItem(25).AlignCenter().AlignMiddle()
+                                .Text($"{numer}.").FontSize(9).Bold();
+
+                            row.RelativeItem().AlignMiddle().PaddingRight(5)
+                                .Text(pytania[i]).FontSize(8);
+
+                            // Checkbox TAK
+                            row.ConstantItem(35).AlignCenter().AlignMiddle()
+                                .Width(16).Height(16).Border(2).BorderColor(ColorGreen);
+
+                            // Checkbox NIE
+                            row.ConstantItem(35).AlignCenter().AlignMiddle()
+                                .Width(16).Height(16).Border(2).BorderColor(ColorRed);
+
+                            // Punkty
+                            if (_showPoints)
+                            {
+                                row.ConstantItem(35).AlignCenter().AlignMiddle()
+                                    .Background(ColorGold).Padding(2)
+                                    .Text($"{punkty}/0").FontSize(8).Bold().FontColor(ColorPrimary);
+                            }
+
+                            // Pole wynik
+                            row.ConstantItem(30).AlignCenter().AlignMiddle()
+                                .Width(22).Height(16).Border(1).BorderColor(ColorText);
+                        });
+                }
+            });
+        }
+
+        private void ComposeDokumentacja(IContainer container)
+        {
+            container.Border(1).BorderColor(ColorRed).Column(column =>
+            {
+                column.Item().Background(ColorRed).Padding(8).Row(row =>
+                {
+                    row.RelativeItem().Text("SEKCJA III: DOKUMENTACJA WETERYNARYJNO-ZOOTECHNICZNA")
+                        .FontSize(11).Bold().FontColor(ColorWhite);
+                    if (_showPoints)
+                    {
+                        row.ConstantItem(80).AlignRight()
+                            .Text("Max: 6 pkt").FontSize(9).FontColor(ColorGold);
+                    }
+                });
+
+                column.Item().Padding(10).Column(col =>
+                {
+                    col.Item().Text("Sprawdź dostępność następujących dokumentów:").FontSize(9).Bold();
+                    col.Item().PaddingTop(8).Row(row =>
+                    {
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("☐ Książka leczenia zwierząt").FontSize(9);
+                            c.Item().PaddingTop(3).Text("☐ Ewidencja padłych sztuk").FontSize(9);
+                            c.Item().PaddingTop(3).Text("☐ Dokumenty WNI").FontSize(9);
+                        });
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("☐ Wyniki badań salmonelli").FontSize(9);
+                            c.Item().PaddingTop(3).Text("☐ Świadectwa zdrowia").FontSize(9);
+                            c.Item().PaddingTop(3).Text("☐ Karty leczenia").FontSize(9);
+                        });
+                    });
+
+                    col.Item().PaddingTop(10).Text("Uwagi i zalecenia:").FontSize(9).Bold();
+                    col.Item().PaddingTop(3).Height(50).Border(1).BorderColor(ColorGray).Background(ColorWhite);
+                });
+            });
+        }
+
+        private void ComposePodsumowanie(IContainer container)
+        {
+            container.Border(2).BorderColor(ColorPrimary).Column(column =>
+            {
+                column.Item().Background(ColorPrimary).Padding(8)
+                    .Text("PODSUMOWANIE PUNKTACJI").FontSize(12).Bold().FontColor(ColorWhite);
+
+                column.Item().Padding(10).Row(row =>
+                {
+                    // Tabela punktów
+                    row.RelativeItem(3).Column(col =>
+                    {
+                        ComposeSumRow(col, "Sekcja I - Samoocena hodowcy", _showPoints ? "/ 24" : "");
+                        ComposeSumRow(col, "Sekcja II - Lista kontrolna (Hodowca)", _showPoints ? "/ 15" : "");
+                        ComposeSumRow(col, "Sekcja II - Lista kontrolna (Kierowca)", _showPoints ? "/ 15" : "");
+                        ComposeSumRow(col, "Sekcja III - Dokumentacja", _showPoints ? "/ 6" : "");
+
+                        col.Item().PaddingTop(8).BorderTop(2).BorderColor(ColorPrimary);
+                        col.Item().PaddingTop(5).Row(r =>
+                        {
+                            r.RelativeItem().Text("SUMA PUNKTÓW:").FontSize(11).Bold();
+                            r.ConstantItem(80).AlignRight()
+                                .Text(_showPoints ? "_______ / 60 pkt" : "_______").FontSize(11).Bold();
+                        });
+                    });
+
+                    row.ConstantItem(15);
+
                     // Skala ocen
                     row.RelativeItem(2).Column(col =>
                     {
-                        col.Item().Text("SKALA OCEN:").Bold().FontSize(11).FontColor(ColorNavy);
-                        col.Item().PaddingTop(10);
-                        
-                        if (_showPoints)
-                        {
-                            BuildScaleItem(col, "≥ 30 pkt", "BARDZO DOBRY", ColorEmerald);
-                            BuildScaleItem(col, "20-29 pkt", "DOBRY", ColorGold);
-                            BuildScaleItem(col, "< 20 pkt", "NIEZADOWALAJĄCY", ColorCrimson);
-                        }
-                        else
-                        {
-                            BuildScaleItem(col, "", "BARDZO DOBRY", ColorEmerald);
-                            BuildScaleItem(col, "", "DOBRY", ColorGold);
-                            BuildScaleItem(col, "", "NIEZADOWALAJĄCY", ColorCrimson);
-                        }
-                        
-                        col.Item().PaddingTop(15).Height(40).Background(Colors.White)
-                           .Border(2).BorderColor(ColorNavy)
-                           .AlignCenter().AlignMiddle()
-                           .Text("OCENA: _________")
-                           .Bold().FontSize(12);
+                        col.Item().Text("SKALA OCEN:").FontSize(10).Bold();
+                        col.Item().PaddingTop(5);
+
+                        col.Item().Background(ColorGreen).Padding(5)
+                            .Text(_showPoints ? "≥ 30 pkt = BARDZO DOBRY" : "BARDZO DOBRY")
+                            .FontSize(9).Bold().FontColor(ColorWhite);
+
+                        col.Item().PaddingTop(2).Background(ColorGold).Padding(5)
+                            .Text(_showPoints ? "20-29 pkt = DOBRY" : "DOBRY")
+                            .FontSize(9).Bold().FontColor(ColorWhite);
+
+                        col.Item().PaddingTop(2).Background(ColorRed).Padding(5)
+                            .Text(_showPoints ? "< 20 pkt = NIEZADOWALAJĄCY" : "NIEZADOWALAJĄCY")
+                            .FontSize(9).Bold().FontColor(ColorWhite);
+
+                        col.Item().PaddingTop(8).Height(30).Border(2).BorderColor(ColorPrimary)
+                            .AlignCenter().AlignMiddle()
+                            .Text("OCENA: ____________").FontSize(10).Bold();
                     });
                 });
             });
         }
 
-        private void BuildSummaryRow(ColumnDescriptor column, string label, string value, bool isBold = false)
+        private void ComposeSumRow(ColumnDescriptor col, string label, string max)
         {
-            column.Item().PaddingVertical(5).Row(row =>
+            col.Item().PaddingVertical(3).Row(row =>
             {
-                row.RelativeItem(3).Text(label)
-                    .FontSize(isBold ? 12 : 11)
-                    .Bold(isBold)
-                    .FontColor(isBold ? ColorNavy : ColorCharcoal);
-                row.RelativeItem(2).AlignRight().Text(value)
-                    .FontSize(isBold ? 12 : 11)
-                    .Bold(isBold)
-                    .FontColor(isBold ? ColorNavy : ColorCharcoal);
+                row.RelativeItem().Text(label).FontSize(9);
+                row.ConstantItem(80).AlignRight().Text($"_______ {max}").FontSize(9);
             });
         }
 
-        private void BuildScaleItem(ColumnDescriptor column, string range, string grade, string color)
-        {
-            column.Item().PaddingBottom(8).Row(row =>
-            {
-                if (!string.IsNullOrEmpty(range))
-                {
-                    row.ConstantItem(80).Text(range).FontSize(10);
-                }
-                row.RelativeItem().Container().Background(color).Padding(5)
-                   .AlignCenter().Text(grade)
-                   .FontColor(Colors.White).Bold().FontSize(10);
-            });
-        }
-
-        private void BuildSignatures(IContainer container)
+        private void ComposePodpisy(IContainer container)
         {
             container.Column(column =>
             {
-                column.Item().Text("PODPISY I ZATWIERDZENIE")
-                    .Bold().FontSize(12).FontColor(ColorNavy);
-                column.Item().PaddingTop(15);
-                
-                column.Item().Row(row =>
+                column.Item().Text("PODPISY I ZATWIERDZENIE").FontSize(11).Bold().FontColor(ColorPrimary);
+                column.Item().PaddingTop(8).Row(row =>
                 {
-                    BuildSignatureBox(row.RelativeItem(), "Hodowca", "Imię i nazwisko / Data / Podpis");
-                    row.ConstantItem(20);
-                    BuildSignatureBox(row.RelativeItem(), "Kierowca", "Imię i nazwisko / Data / Podpis");
-                    row.ConstantItem(20);
-                    BuildSignatureBox(row.RelativeItem(), "Zatwierdzający", "Imię i nazwisko / Data / Podpis");
+                    ComposeSignBox(row.RelativeItem(), "HODOWCA", "Data i podpis");
+                    row.ConstantItem(10);
+                    ComposeSignBox(row.RelativeItem(), "KIEROWCA", "Data i podpis");
+                    row.ConstantItem(10);
+                    ComposeSignBox(row.RelativeItem(), "ZATWIERDZAJĄCY", "Data i podpis");
                 });
             });
         }
 
-        private void BuildSignatureBox(IContainer container, string title, string subtitle)
+        private void ComposeSignBox(IContainer container, string tytul, string opis)
         {
-            container.Column(column =>
+            container.Border(1).BorderColor(ColorGray).Column(col =>
             {
-                column.Item().Text(title.ToUpper())
-                    .Bold().FontSize(10).FontColor(ColorNavy);
-                column.Item().Text(subtitle)
-                    .FontSize(8).FontColor(Colors.Grey);
-                column.Item().PaddingTop(5).Height(60)
-                    .Background(Colors.White)
-                    .Border(1).BorderColor(ColorSilver);
+                col.Item().Background(ColorLightGray).Padding(5)
+                    .Text(tytul).FontSize(9).Bold().FontColor(ColorPrimary);
+                col.Item().Padding(3).Text(opis).FontSize(7).FontColor(ColorGray);
+                col.Item().Height(45).Background(ColorWhite);
             });
         }
 
-        private void BuildFooter(IContainer container)
+        #endregion
+
+        #region Stopka
+
+        private void ComposeFooter(IContainer container)
         {
-            container.Background(ColorCharcoal).Padding(10).Row(row =>
+            container.Background(ColorPrimary).Padding(8).Row(row =>
             {
                 row.RelativeItem().AlignLeft().Text(text =>
                 {
-                    text.Span("Dokument wygenerowany: ").FontColor(Colors.White).FontSize(8);
-                    text.Span(DateTime.Now.ToString("yyyy-MM-dd HH:mm"))
-                        .FontColor(ColorGold).FontSize(8);
+                    text.Span("Wygenerowano: ").FontSize(8).FontColor(ColorWhite);
+                    text.Span(DateTime.Now.ToString("yyyy-MM-dd HH:mm")).FontSize(8).FontColor(ColorGold);
                 });
-                
-                row.RelativeItem().AlignCenter().Text("System Zarządzania Jakością ISO 9001:2015")
-                    .FontColor(Colors.White).FontSize(8);
-                
+
+                row.RelativeItem().AlignCenter()
+                    .Text("System Oceny Dostawców Żywca").FontSize(8).FontColor(ColorWhite);
+
                 row.RelativeItem().AlignRight().Text(text =>
                 {
-                    text.Span("Strona ").FontColor(Colors.White).FontSize(8);
-                    text.CurrentPageNumber().FontColor(ColorGold).FontSize(8);
-                    text.Span(" z ").FontColor(Colors.White).FontSize(8);
-                    text.TotalPages().FontColor(ColorGold).FontSize(8);
+                    text.Span("Strona ").FontSize(8).FontColor(ColorWhite);
+                    text.CurrentPageNumber().FontSize(8).FontColor(ColorGold);
+                    text.Span(" z ").FontSize(8).FontColor(ColorWhite);
+                    text.TotalPages().FontSize(8).FontColor(ColorGold);
                 });
             });
         }
+
+        #endregion
     }
-    
-    // Klasa pomocnicza do dialogu
+
+    /// <summary>
+    /// Klasa pomocnicza do pytania o opcje formularza - wersja Windows Forms
+    /// </summary>
     public static class FormularzDialog
     {
+        /// <summary>
+        /// Pyta użytkownika czy pokazać punktację na formularzu
+        /// </summary>
         public static bool ZapytajOPunktacje()
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.Forms.MessageBox.Show(
                 "Czy wyświetlić punktację na formularzu?\n\n" +
                 "TAK - pokaże wartości punktów za każde pytanie\n" +
                 "NIE - wydrukuje formularz bez punktacji (tylko pola do wypełnienia)",
                 "Opcje wydruku formularza",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question,
-                MessageBoxDefaultButton.Button1);
-                
-            return result == DialogResult.Yes;
+                System.Windows.Forms.MessageBoxButtons.YesNo,
+                System.Windows.Forms.MessageBoxIcon.Question,
+                System.Windows.Forms.MessageBoxDefaultButton.Button1);
+
+            return result == System.Windows.Forms.DialogResult.Yes;
         }
     }
 }

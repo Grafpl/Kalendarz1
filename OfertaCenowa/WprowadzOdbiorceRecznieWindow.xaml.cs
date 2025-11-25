@@ -1,6 +1,4 @@
-using System;
 using System.Windows;
-using System.Windows.Controls;
 
 namespace Kalendarz1.OfertaCenowa
 {
@@ -16,7 +14,6 @@ namespace Kalendarz1.OfertaCenowa
 
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
         {
-            // Walidacja
             if (string.IsNullOrWhiteSpace(txtNazwa.Text))
             {
                 MessageBox.Show("Podaj nazwę firmy.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -24,10 +21,9 @@ namespace Kalendarz1.OfertaCenowa
                 return;
             }
 
-            // Utwórz odbiorcę
             Odbiorca = new OdbiorcaOferta
             {
-                Id = $"RECZNY_{DateTime.Now.Ticks}",
+                Id = $"RECZNY_{System.DateTime.Now.Ticks}",
                 Nazwa = txtNazwa.Text.Trim(),
                 NIP = txtNIP.Text.Trim(),
                 Adres = txtAdres.Text.Trim(),
@@ -36,7 +32,9 @@ namespace Kalendarz1.OfertaCenowa
                 Telefon = txtTelefon.Text.Trim(),
                 Email = txtEmail.Text.Trim(),
                 OsobaKontaktowa = txtOsobaKontaktowa.Text.Trim(),
-                Wojewodztwo = (cboWojewodztwo.SelectedItem as ComboBoxItem)?.Content.ToString() ?? cboWojewodztwo.Text,
+                Wojewodztwo = cboWojewodztwo.SelectedItem != null 
+                    ? (cboWojewodztwo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content.ToString() ?? cboWojewodztwo.Text 
+                    : cboWojewodztwo.Text,
                 Zrodlo = "RECZNY",
                 Status = "Wprowadzony ręcznie"
             };

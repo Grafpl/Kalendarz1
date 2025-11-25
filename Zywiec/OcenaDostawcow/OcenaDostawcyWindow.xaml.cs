@@ -6,8 +6,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-// USUNIĘTO: using System.Windows.Forms; (powodował błędy)
-// USUNIĘTO: using iTextSharp... (teraz używamy QuestPDF przez klasę pomocniczą)
 
 namespace Kalendarz1
 {
@@ -183,74 +181,46 @@ namespace Kalendarz1
             if (chkQ5_TAK?.IsChecked == true) punkty1_5 += 3;
 
             // PYTANIA 6-20: każde TAK = 1 punkt
-            if (chkQ6_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ7_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ8_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ9_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ10_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ11_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ12_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ13_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ14_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ15_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ16_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ17_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ18_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ19_TAK?.IsChecked == true) punkty6_20 += 1;
-            if (chkQ20_TAK?.IsChecked == true) punkty6_20 += 1;
+            for (int i = 6; i <= 20; i++)
+            {
+                var chk = this.FindName($"chkQ{i}_TAK") as CheckBox;
+                if (chk?.IsChecked == true) punkty6_20 += 1;
+            }
 
+            // Wyświetl wyniki
             txtPunkty1_5.Text = punkty1_5.ToString();
             txtPunkty6_20.Text = punkty6_20.ToString();
-
-            int suma = punkty1_5 + punkty6_20;
-            txtPunktyRazem.Text = suma.ToString();
+            txtPunktyRazem.Text = (punkty1_5 + punkty6_20).ToString();
 
             // Kolorowanie wyniku
-            if (suma >= 30)
-            {
-                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
-                txtPunktyRazem.Foreground = Brushes.White;
-            }
-            else if (suma >= 20)
-            {
-                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(255, 193, 7));
-                txtPunktyRazem.Foreground = Brushes.Black;
-            }
+            int razem = punkty1_5 + punkty6_20;
+            if (razem >= 30)
+                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(0x2E, 0x8B, 0x57)); // Zielony
+            else if (razem >= 20)
+                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(0xD4, 0xAF, 0x37)); // Złoty
             else
-            {
-                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(244, 67, 54));
-                txtPunktyRazem.Foreground = Brushes.White;
-            }
+                txtPunktyRazem.Background = new SolidColorBrush(Color.FromRgb(0xDC, 0x14, 0x3C)); // Czerwony
+
+            txtPunktyRazem.Foreground = Brushes.White;
         }
 
         // ==========================================
-        // ZAPIS DANYCH
+        // ZAPIS DO BAZY
         // ==========================================
         private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
         {
+            if (!dpDataOceny.SelectedDate.HasValue)
+            {
+                MessageBox.Show("Proszę wybrać datę oceny!", "Brak daty",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
-                if (!dpDataOceny.SelectedDate.HasValue)
-                {
-                    MessageBox.Show("❗ Wybierz datę oceny!", "Uwaga",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                var wynik = MessageBox.Show(
-                    $"Czy na pewno chcesz zapisać ocenę?\n\n" +
-                    $"Hodowca: {txtNazwaDostawcy.Text}\n" +
-                    $"Punkty: {txtPunktyRazem.Text}\n" +
-                    $"Data: {dpDataOceny.SelectedDate:dd.MM.yyyy}",
-                    "Potwierdzenie zapisu",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (wynik != MessageBoxResult.Yes) return;
-
                 string zapytanie = @"
                     INSERT INTO [dbo].[OcenyDostawcow]
-                    (DostawcaID, DataOceny, NumerRaportu, WersjaFormularza,
+                    (DostawcaID, DataOceny, NumerRaportu, NrProcedury,
                      CzyPIW, MiejsceSrodkowDezynfekcyjnych, CzyWywozObornika,
                      MiejsceWeterynarii, TerenUporzadkowany, ObuwieOchronne,
                      OdziezOchronna, MatyDezynfekcyjne, SrodkiDezynfekcyjneDorazne,
@@ -324,30 +294,99 @@ namespace Kalendarz1
         }
 
         // ==========================================
-        // GENEROWANIE PDF (NOWY SYSTEM)
+        // GENEROWANIE PDF
         // ==========================================
 
-        // Przycisk "Generuj PDF" (Wypełniony)
+        /// <summary>
+        /// Przycisk "Generuj PDF" (Wypełniony raport)
+        /// </summary>
         private void BtnGenerujPDF_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show(
                 "Czy wygenerować wypełniony raport PDF?", "Generowanie PDF",
                 MessageBoxButton.YesNo, MessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes) GenerujDokumentPDF(false);
+            if (result == MessageBoxResult.Yes)
+            {
+                GenerujWypelnionyPDF();
+            }
         }
 
-        // Przycisk "Drukuj Pusty" (Jeśli dodasz go w XAML)
+        /// <summary>
+        /// PRZYCISK "DRUKUJ PUSTY" - generuje pusty formularz
+        /// </summary>
         private void BtnDrukujPusty_Click(object sender, RoutedEventArgs e)
         {
-            GenerujDokumentPDF(true);
+            // Pytanie o punktację
+            var result = MessageBox.Show(
+                "Czy wyświetlić punktację na formularzu?\n\n" +
+                "TAK - pokaże wartości punktów\n" +
+                "NIE - formularz bez punktacji",
+                "Opcje formularza",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question,
+                MessageBoxResult.Yes);
+
+            bool showPoints = (result == MessageBoxResult.Yes);
+
+            // Ścieżka pliku na pulpicie
+            string nazwaPliku = $"Formularz_Oceny_PUSTY_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            string sciezka = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), nazwaPliku);
+
+            try
+            {
+                // GENEROWANIE PDF
+                var generator = new BlankOcenaFormPDFGenerator();
+                generator.GenerujPustyFormularz(sciezka, showPoints);
+
+                // Sprawdzenie czy plik istnieje i ma rozmiar > 0
+                if (File.Exists(sciezka))
+                {
+                    var info = new FileInfo(sciezka);
+                    if (info.Length > 0)
+                    {
+                        // Otwórz PDF
+                        Process.Start(new ProcessStartInfo(sciezka) { UseShellExecute = true });
+                        
+                        MessageBox.Show(
+                            $"✅ Formularz wygenerowany!\n\n" +
+                            $"Plik: {nazwaPliku}\n" +
+                            $"Rozmiar: {info.Length:N0} bajtów\n" +
+                            $"Lokalizacja: Pulpit",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            $"❌ Plik PDF ma rozmiar 0 KB!\n\n" +
+                            $"Ścieżka: {sciezka}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"❌ Plik PDF nie został utworzony!\n\n" +
+                        $"Ścieżka: {sciezka}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"❌ BŁĄD:\n\n{ex.Message}\n\nTyp: {ex.GetType().Name}",
+                    "Błąd generowania PDF", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        private void GenerujDokumentPDF(bool czyPusty)
+        /// <summary>
+        /// Generuje wypełniony raport PDF z aktualnymi danymi
+        /// </summary>
+        private void GenerujWypelnionyPDF()
         {
             try
             {
-                // 1. Zbieranie danych
+                // 1. Zbieranie danych z formularza
                 bool[] samoocena = new bool[8];
                 samoocena[0] = chkPIW_TAK.IsChecked == true;
                 samoocena[1] = chkDezynf_TAK.IsChecked == true;
@@ -372,12 +411,11 @@ namespace Kalendarz1
                 int.TryParse(txtPunktyRazem.Text, out int pRazem);
 
                 // 2. Ścieżka pliku
-                string suffix = czyPusty ? "_PUSTY" : "";
                 string numerBezZnakow = txtNumerRaportu.Text.Replace("/", "_").Replace("-", "_");
-                string nazwaPliku = $"Ocena_{numerBezZnakow}{suffix}.pdf";
+                string nazwaPliku = $"Ocena_{numerBezZnakow}.pdf";
                 string sciezka = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), nazwaPliku);
 
-                // 3. Generowanie przez klasę pomocniczą
+                // 3. Generowanie przez OcenaPDFGenerator
                 var generator = new OcenaPDFGenerator();
                 generator.GenerujPdf(
                     sciezka,
@@ -390,10 +428,10 @@ namespace Kalendarz1
                     dokumentacja,
                     p1_5, p6_20, pRazem,
                     txtUwagi.Text,
-                    czyPusty
+                    false  // czyPusty = false
                 );
 
-                // 4. Otwarcie
+                // 4. Otwarcie pliku
                 Process.Start(new ProcessStartInfo(sciezka) { UseShellExecute = true });
                 MessageBox.Show($"✅ PDF wygenerowany!\n{nazwaPliku}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -403,12 +441,18 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Otwiera okno historii ocen dla bieżącego dostawcy
+        /// </summary>
         private void BtnHistoria_Click(object sender, RoutedEventArgs e)
         {
             var oknoHistorii = new HistoriaOcenWindow(_dostawcaId);
             oknoHistorii.ShowDialog();
         }
 
+        /// <summary>
+        /// Anuluje i zamyka okno
+        /// </summary>
         private void BtnAnuluj_Click(object sender, RoutedEventArgs e)
         {
             var wynik = MessageBox.Show(
@@ -424,6 +468,9 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Ładuje istniejącą ocenę do edycji
+        /// </summary>
         private async void LoadExistingOcena()
         {
             // Miejsce na logikę ładowania istniejącej oceny do edycji
