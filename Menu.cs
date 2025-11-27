@@ -154,7 +154,8 @@ namespace Kalendarz1
                 [24] = "LiczenieMagazynu",
                 [25] = "PanelMagazyniera",
                 [26] = "KartotekaOdbiorcow", // ✅ NOWY MODUŁ - pozycja 26
-                [27] = "AnalizaWydajnosci" // ✅ NOWY MODUŁ - pozycja 27
+                [27] = "AnalizaWydajnosci", // ✅ NOWY MODUŁ - pozycja 27
+                [28] = "PanelReklamacji" // ✅ NOWY MODUŁ - pozycja 28
 
             };
 
@@ -196,7 +197,8 @@ namespace Kalendarz1
         "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
         "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
         "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-        "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci"
+        "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
+        "PanelReklamacji"
     };
         }
 
@@ -269,7 +271,8 @@ namespace Kalendarz1
             new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
             new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
             new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
-            new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵")
+            new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵"),
+            new MenuItemConfig("PanelReklamacji", "Panel Reklamacji", "Zarządzaj reklamacjami od odbiorców", Color.FromArgb(229, 57, 53), () => new FormPanelReklamacji(connectionHandel, App.UserID), "⚠️")
         },
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
