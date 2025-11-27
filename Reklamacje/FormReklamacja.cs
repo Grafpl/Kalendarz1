@@ -11,7 +11,11 @@ namespace Kalendarz1
 {
     public partial class FormReklamacja : Form
     {
-        private string connectionString;
+        // Connection string do Handel (.112) - pobieranie towarów z faktury
+        private string connectionStringHandel;
+        // Connection string do LibraNet (.109) - zapis reklamacji
+        private string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         private int idDokumentu;
         private int idKontrahenta;
         private string numerDokumentu;
@@ -38,9 +42,9 @@ namespace Kalendarz1
         private DataTable dtTowary;
         private DataTable dtPartie;
 
-        public FormReklamacja(string connString, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
+        public FormReklamacja(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
         {
-            connectionString = connString;
+            connectionStringHandel = connStringHandel;
             idDokumentu = dokId;
             idKontrahenta = kontrId;
             numerDokumentu = nrDok;
@@ -359,20 +363,20 @@ namespace Kalendarz1
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringHandel))
                 {
                     conn.Open();
 
-                    // POPRAWIONE: Używamy prawidłowych nazw tabel z Twojej bazy
+                    // Pobieranie towarów z faktury - serwer .112 baza Handel
                     string query = @"
-                        SELECT 
+                        SELECT
                             DP.id,
                             DP.kod AS Symbol,
                             TW.kod AS Nazwa,
                             DP.ilosc AS Ilosc,
                             DP.ilosc AS Waga
-                        FROM [HANDEL].[HM].[DP] DP
-                        LEFT JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                        FROM [HM].[DP] DP
+                        LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
                         WHERE DP.super = @IdDokumentu
                         ORDER BY DP.lp";
 
@@ -419,20 +423,20 @@ namespace Kalendarz1
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringLibraNet))
                 {
                     conn.Open();
 
-                    // POPRAWIONE: Próbujemy wczytać partie, ale nie blokujemy jeśli nie ma tabeli
+                    // Pobieranie partii z LibraNet (.109)
                     string query = @"
-                        SELECT 
+                        SELECT
                             [guid],
                             [Partia],
                             [CustomerID],
                             [CustomerName],
                             [CreateData],
                             [CreateGodzina]
-                        FROM [LibraNet].[dbo].[PartiaDostawca]
+                        FROM [dbo].[PartiaDostawca]
                         WHERE [CreateData] >= DATEADD(DAY, -14, GETDATE())
                         ORDER BY [CreateData] DESC, [CreateGodzina] DESC";
 
@@ -596,18 +600,18 @@ namespace Kalendarz1
                     }
                 }
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringLibraNet))
                 {
                     conn.Open();
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
                         try
                         {
-                            // 1. Zapisz główny rekord reklamacji
+                            // 1. Zapisz główny rekord reklamacji w LibraNet (.109)
                             string queryReklamacja = @"
-                                INSERT INTO [HANDEL].[dbo].[Reklamacje] 
+                                INSERT INTO [dbo].[Reklamacje]
                                 (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status)
-                                VALUES 
+                                VALUES
                                 (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, 'Nowa');
                                 SELECT SCOPE_IDENTITY();";
 
@@ -626,9 +630,9 @@ namespace Kalendarz1
 
                             // 2. Zapisz towary
                             string queryTowary = @"
-                                INSERT INTO [HANDEL].[dbo].[ReklamacjeTowary] 
+                                INSERT INTO [dbo].[ReklamacjeTowary]
                                 (IdReklamacji, IdTowaru, Symbol, Nazwa, Ilosc, Waga)
-                                VALUES 
+                                VALUES
                                 (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Ilosc, @Waga)";
 
                             for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
@@ -654,9 +658,9 @@ namespace Kalendarz1
                             if (checkedListBoxPartie.CheckedItems.Count > 0 && dtPartie != null && dtPartie.Rows.Count > 0)
                             {
                                 string queryPartie = @"
-                                    INSERT INTO [HANDEL].[dbo].[ReklamacjePartie] 
+                                    INSERT INTO [dbo].[ReklamacjePartie]
                                     (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
-                                    VALUES 
+                                    VALUES
                                     (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
 
                                 for (int i = 0; i < checkedListBoxPartie.CheckedIndices.Count; i++)
@@ -689,9 +693,9 @@ namespace Kalendarz1
                                 Directory.CreateDirectory(folderReklamacji);
 
                                 string queryZdjecia = @"
-                                    INSERT INTO [HANDEL].[dbo].[ReklamacjeZdjecia] 
+                                    INSERT INTO [dbo].[ReklamacjeZdjecia]
                                     (IdReklamacji, NazwaPliku, SciezkaPliku)
-                                    VALUES 
+                                    VALUES
                                     (@IdReklamacji, @NazwaPliku, @SciezkaPliku)";
 
                                 foreach (string sciezkaZrodlowa in sciezkiZdjec)

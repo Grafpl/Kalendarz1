@@ -300,7 +300,7 @@ namespace Kalendarz1
                             Status,
                             UserID,
                             OsobaRozpatrujaca
-                        FROM [HANDEL].[dbo].[Reklamacje]
+                        FROM [dbo].[Reklamacje]
                         WHERE DataZgloszenia BETWEEN @DataOd AND @DataDo";
 
                     if (cmbFiltrStatus.SelectedIndex > 0)
@@ -520,7 +520,7 @@ namespace Kalendarz1
                             {
                                 conn.Open();
                                 string query = @"
-                                    UPDATE [HANDEL].[dbo].[Reklamacje]
+                                    UPDATE [dbo].[Reklamacje]
                                     SET Status = @Status,
                                         OsobaRozpatrujaca = @Osoba,
                                         DataModyfikacji = GETDATE()
@@ -563,7 +563,7 @@ namespace Kalendarz1
                             Status,
                             COUNT(*) AS Liczba,
                             SUM(SumaKg) AS SumaKg
-                        FROM [HANDEL].[dbo].[Reklamacje]
+                        FROM [dbo].[Reklamacje]
                         WHERE DataZgloszenia >= @DataOd
                         GROUP BY Status
                         ORDER BY 

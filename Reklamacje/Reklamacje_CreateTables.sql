@@ -1,11 +1,11 @@
 -- ============================================
 -- SKRYPT SQL: TABELE I PROCEDURY DLA MODUŁU REKLAMACJI
--- Baza danych: HANDEL
+-- Baza danych: LibraNet (serwer 192.168.0.109)
 -- Autor: System Kalendarz1
 -- Data: 2025
 -- ============================================
 
-USE [HANDEL]
+USE [LibraNet]
 GO
 
 -- ============================================
@@ -17,7 +17,7 @@ BEGIN
         [Id] INT IDENTITY(1,1) NOT NULL,
         [DataZgloszenia] DATETIME NOT NULL DEFAULT GETDATE(),
         [UserID] NVARCHAR(50) NOT NULL,                    -- Handlowiec zgłaszający
-        [IdDokumentu] INT NOT NULL,                        -- ID faktury z HM.ND
+        [IdDokumentu] INT NOT NULL,                        -- ID faktury z HM.ND (serwer .112)
         [NumerDokumentu] NVARCHAR(100) NOT NULL,           -- Numer faktury
         [IdKontrahenta] INT NOT NULL,                      -- ID kontrahenta z HM.KH
         [NazwaKontrahenta] NVARCHAR(255) NOT NULL,         -- Nazwa firmy
@@ -37,6 +37,8 @@ BEGIN
 
     PRINT 'Utworzono tabelę Reklamacje'
 END
+ELSE
+    PRINT 'Tabela Reklamacje już istnieje'
 GO
 
 -- ============================================
@@ -53,7 +55,7 @@ BEGIN
         [Nazwa] NVARCHAR(255) NULL,
         [Ilosc] DECIMAL(18,2) NULL,
         [Waga] DECIMAL(18,2) NULL,
-        [PrzycznaReklamacji] NVARCHAR(500) NULL,           -- Opcjonalny opis problemu dla pozycji
+        [PrzyczynaReklamacji] NVARCHAR(500) NULL,          -- Opcjonalny opis problemu dla pozycji
         CONSTRAINT [PK_ReklamacjeTowary] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_ReklamacjeTowary_Reklamacje] FOREIGN KEY([IdReklamacji])
             REFERENCES [dbo].[Reklamacje] ([Id]) ON DELETE CASCADE
@@ -61,6 +63,8 @@ BEGIN
 
     PRINT 'Utworzono tabelę ReklamacjeTowary'
 END
+ELSE
+    PRINT 'Tabela ReklamacjeTowary już istnieje'
 GO
 
 -- ============================================
@@ -84,6 +88,8 @@ BEGIN
 
     PRINT 'Utworzono tabelę ReklamacjePartie'
 END
+ELSE
+    PRINT 'Tabela ReklamacjePartie już istnieje'
 GO
 
 -- ============================================
@@ -106,6 +112,8 @@ BEGIN
 
     PRINT 'Utworzono tabelę ReklamacjeZdjecia'
 END
+ELSE
+    PRINT 'Tabela ReklamacjeZdjecia już istnieje'
 GO
 
 -- ============================================
@@ -130,6 +138,8 @@ BEGIN
 
     PRINT 'Utworzono tabelę ReklamacjeHistoria'
 END
+ELSE
+    PRINT 'Tabela ReklamacjeHistoria już istnieje'
 GO
 
 -- ============================================
@@ -230,7 +240,7 @@ BEGIN
 
     -- 2. Towary w reklamacji
     SELECT
-        Id, IdTowaru, Symbol, Nazwa, Ilosc, Waga, PrzycznaReklamacji
+        Id, IdTowaru, Symbol, Nazwa, Ilosc, Waga, PrzyczynaReklamacji
     FROM [dbo].[ReklamacjeTowary]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY Id;
@@ -379,6 +389,7 @@ GO
 -- ============================================
 PRINT '=========================================='
 PRINT 'Skrypt zakończony pomyślnie!'
+PRINT 'Baza: LibraNet (serwer 192.168.0.109)'
 PRINT 'Utworzono:'
 PRINT '  - Tabela: Reklamacje'
 PRINT '  - Tabela: ReklamacjeTowary'

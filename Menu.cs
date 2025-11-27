@@ -1,4 +1,5 @@
 ﻿using Kalendarz1.OfertaCenowa;
+using Kalendarz1.Reklamacje;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -272,7 +273,7 @@ namespace Kalendarz1
             new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
             new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
             new MenuItemConfig("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", Color.FromArgb(13, 71, 161), () => new OfertaHandlowaWindow(), "💵"),
-            new MenuItemConfig("PanelReklamacji", "Panel Reklamacji", "Zarządzaj reklamacjami od odbiorców", Color.FromArgb(229, 57, 53), () => new FormPanelReklamacji(connectionHandel, App.UserID), "⚠️")
+            new MenuItemConfig("PanelReklamacji", "Panel Reklamacji", "Zarządzaj reklamacjami od odbiorców", Color.FromArgb(229, 57, 53), () => new FormPanelReklamacji(connectionString, App.UserID), "⚠️")
         },
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
