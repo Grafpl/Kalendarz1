@@ -1,4 +1,5 @@
 ﻿using Kalendarz1.OfertaCenowa;
+using Kalendarz1.Opakowania.Views;  // ✅ DODANE - nowe okna opakowań WPF
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -157,7 +158,6 @@ namespace Kalendarz1
                 [27] = "AnalizaWydajnosci",
                 [28] = "RezerwacjaKlas",
                 [29] = "DashboardWyczerpalnosci",
-                // ✅ NOWE MODUŁY - Oferty
                 [30] = "ListaOfert",
                 [31] = "DashboardOfert"
             };
@@ -202,7 +202,6 @@ namespace Kalendarz1
                 "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
                 "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
-                // ✅ NOWE MODUŁY - Oferty
                 "ListaOfert", "DashboardOfert"
             };
         }
@@ -271,22 +270,19 @@ namespace Kalendarz1
                     }, "📦"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
-                    
-                    // ✅ OFERTY HANDLOWE - Nowa oferta
+
                     new MenuItemConfig("OfertaCenowa", "Nowa Oferta", "Twórz profesjonalne oferty cenowe", Color.FromArgb(13, 71, 161), () => {
                         var window = new OfertaHandlowaWindow();
                         window.UserID = App.UserID;
                         return window;
                     }, "💵"),
-                    
-                    // ✅ NOWE - Lista wszystkich ofert
+
                     new MenuItemConfig("ListaOfert", "Lista Ofert", "Przeglądaj historię wszystkich ofert", Color.FromArgb(30, 64, 175), () => {
                         var window = new OfertyListaWindow();
                         window.UserID = App.UserID;
                         return window;
                     }, "📋"),
-                    
-                    // ✅ NOWE - Dashboard statystyk ofert
+
                     new MenuItemConfig("DashboardOfert", "Dashboard Ofert", "Statystyki i analiza ofert handlowych", Color.FromArgb(79, 70, 229), () => {
                         return new OfertyDashboardWindow();
                     }, "📊"),
@@ -304,16 +300,29 @@ namespace Kalendarz1
                             return window;
                         }, "📊"),
                 },
+
+                // ✅ ZAKTUALIZOWANA SEKCJA OPAKOWANIA - NOWE OKNA WPF
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", Color.FromArgb(0, 151, 167), () => new WidokPojemnikiZestawienie(), "📊"),
-                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", Color.FromArgb(0, 131, 143), () => new WidokPojemniki(), "📈"),
+                    // ✅ NOWE OKNO WPF - Zestawienie opakowań wg typu
+                    new MenuItemConfig("PodsumowanieSaldOpak", "Zestawienie Opakowań", "Zestawienie sald wg typu opakowania",
+                        Color.FromArgb(75, 131, 60),  // Zielony
+                        () => new ZestawienieOpakowanWindow(),
+                        "📦"),
+                    
+                    // ✅ NOWE OKNO WPF - Salda wszystkich opakowań odbiorców
+                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Odbiorców", "Wszystkie opakowania dla kontrahentów",
+                        Color.FromArgb(204, 47, 55),  // Czerwony
+                        () => new SaldaWszystkichOpakowanWindow(),
+                        "📊"),
+
                     new MenuItemConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", Color.FromArgb(255, 111, 0), () => {
                         var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
                         var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
                         return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
                     }, "🚚")
                 },
+
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", Color.FromArgb(96, 125, 139), () => new WidokSprzeZakup(), "💼"),

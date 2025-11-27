@@ -197,8 +197,7 @@ namespace Kalendarz1
                 },
                 ["Opakowania"] = new List<ModuleConfig>
                 {
-                    new ModuleConfig("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", "#00BCD4", () => new WidokPojemnikiZestawienie(), "📊"),
-                    new ModuleConfig("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", "#00838F", () => new WidokPojemniki(), "📈"),
+                    
                     new ModuleConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", "#F39C12", () => { var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True"; var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString); return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID); }, "🚚")
                 },
                 ["Finanse"] = new List<ModuleConfig>
