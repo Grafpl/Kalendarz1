@@ -110,7 +110,7 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>WidokPanelProdukcjaNew.resx</DependentUpon>
     </Compile>
-    <Compile Update="WidokPojemnikiZestawienie.cs">
+    <Compile Update="Opakowania\WidokPojemnikiZestawienie.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="WidokZamowienia.cs" />
