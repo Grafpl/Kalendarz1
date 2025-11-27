@@ -1,37 +1,69 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 
 namespace Kalendarz1.OfertaCenowa
 {
-    public partial class SzablonTowarowWindow : Window
+    /// <summary>
+    /// Wiersz produktu w szablonie (do wyświetlania w UI)
+    /// </summary>
+    public class ProduktWSzablonie : INotifyPropertyChanged
     {
-        private readonly SzablonyManager _manager;
-        private ObservableCollection<SzablonTowarow> _szablony;
-        private SzablonTowarow? _aktualnyszablon;
-        private readonly List<TowarOferta> _dostepneTowary;
+        public int Lp { get; set; }
+        public int TowarId { get; set; }
+        public string Kod { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public string Katalog { get; set; } = "";
+        public decimal Ilosc { get; set; }
+        public decimal Cena { get; set; }
+        public string Opakowanie { get; set; } = "E2";
 
-        public SzablonTowarowWindow(List<TowarOferta> dostepneTowary)
+        public string IloscStr => Ilosc == 0 ? "-" : $"{Ilosc:N0} kg";
+        public string CenaStr => Cena == 0 ? "-" : $"{Cena:N2} zł";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>
+    /// Okno zarządzania szablonami towarów
+    /// </summary>
+    public partial class SzablonTowarowWindow : Window, INotifyPropertyChanged
+    {
+        private readonly SzablonyManager _szablonyManager = new();
+        private readonly ObservableCollection<TowarOferta> _dostepneTowary;
+        private ObservableCollection<SzablonTowarow> _szablony = new();
+        private ObservableCollection<ProduktWSzablonie> _produktyWSzablonie = new();
+        private SzablonTowarow? _aktualnyDoEdycji = null;
+        private bool _trybEdycji = false;
+
+        public ObservableCollection<TowarOferta> FiltrowaneTowary { get; set; }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public SzablonTowarowWindow(ObservableCollection<TowarOferta> dostepneTowary)
         {
             InitializeComponent();
-            _manager = new SzablonyManager();
+            DataContext = this;
+
             _dostepneTowary = dostepneTowary;
-            _szablony = new ObservableCollection<SzablonTowarow>();
-            
-            LoadSzablony();
+            FiltrowaneTowary = new ObservableCollection<TowarOferta>(dostepneTowary);
+
+            WczytajSzablony();
+            OdswiezListeProdukow();
         }
 
-        private void LoadSzablony()
+        private void WczytajSzablony()
         {
-            var szablony = _manager.WczytajSzablonyTowarow();
-            _szablony.Clear();
-            foreach (var szablon in szablony)
-            {
-                _szablony.Add(szablon);
-            }
+            var szablony = _szablonyManager.WczytajSzablonyTowarow();
+            _szablony = new ObservableCollection<SzablonTowarow>(szablony);
             lstSzablony.ItemsSource = _szablony;
         }
 
@@ -39,162 +71,205 @@ namespace Kalendarz1.OfertaCenowa
         {
             if (lstSzablony.SelectedItem is SzablonTowarow szablon)
             {
-                _aktualnyszablon = szablon;
-                WczytajSzablon(szablon);
-                panelEdycji.IsEnabled = true;
-                btnZapisz.IsEnabled = true;
+                btnUsunSzablon.IsEnabled = true;
+                WczytajSzablonDoEdycji(szablon);
             }
             else
             {
-                panelEdycji.IsEnabled = false;
-                btnZapisz.IsEnabled = false;
+                btnUsunSzablon.IsEnabled = false;
             }
         }
 
-        private void WczytajSzablon(SzablonTowarow szablon)
+        private void WczytajSzablonDoEdycji(SzablonTowarow szablon)
         {
+            _trybEdycji = true;
+            _aktualnyDoEdycji = szablon;
+
             txtNazwaSzablonu.Text = szablon.Nazwa;
             txtOpisSzablonu.Text = szablon.Opis;
-            dgTowaryWSzablonie.ItemsSource = new ObservableCollection<TowarSzablonu>(szablon.Towary);
+
+            _produktyWSzablonie.Clear();
+            int lp = 1;
+            foreach (var towar in szablon.Towary)
+            {
+                _produktyWSzablonie.Add(new ProduktWSzablonie
+                {
+                    Lp = lp++,
+                    TowarId = towar.TowarId,
+                    Kod = towar.Kod,
+                    Nazwa = towar.Nazwa,
+                    Katalog = towar.Katalog,
+                    Ilosc = towar.DomyslnaIlosc,
+                    Cena = towar.DomyslnaCena,
+                    Opakowanie = towar.Opakowanie
+                });
+            }
+
+            OdswiezListeProdukow();
         }
 
-        private void BtnNowySzablon_Click(object sender, RoutedEventArgs e)
+        private void BtnNowyMBtn_Click(object sender, RoutedEventArgs e)
         {
-            var nowySzablon = new SzablonTowarow
-            {
-                Id = 0,
-                Nazwa = "Nowy szablon",
-                Opis = "",
-                Towary = new List<TowarSzablonu>()
-            };
+            _trybEdycji = false;
+            _aktualnyDoEdycji = null;
 
-            _aktualnyszablon = nowySzablon;
-            WczytajSzablon(nowySzablon);
-            panelEdycji.IsEnabled = true;
-            btnZapisz.IsEnabled = true;
+            txtNazwaSzablonu.Text = "";
+            txtOpisSzablonu.Text = "";
+            _produktyWSzablonie.Clear();
+
+            lstSzablony.SelectedItem = null;
+            btnUsunSzablon.IsEnabled = false;
+
+            OdswiezListeProdukow();
             txtNazwaSzablonu.Focus();
-            txtNazwaSzablonu.SelectAll();
         }
 
-        private void BtnDodajTowarDoSzablonu_Click(object sender, RoutedEventArgs e)
+        private void BtnDodajDoSzablonu_Click(object sender, RoutedEventArgs e)
         {
-            if (_aktualnyszablon == null) return;
-
-            var oknoWyboru = new WyborTowarowWindow(_dostepneTowary);
-            if (oknoWyboru.ShowDialog() == true && oknoWyboru.WybraneTowary.Any())
+            if (cboDodajProdukt.SelectedItem is not TowarOferta towar)
             {
-                var aktualneLista = dgTowaryWSzablonie.ItemsSource as ObservableCollection<TowarSzablonu> 
-                    ?? new ObservableCollection<TowarSzablonu>();
+                MessageBox.Show("Wybierz produkt z listy.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-                foreach (var towar in oknoWyboru.WybraneTowary)
-                {
-                    // Sprawdź czy towar już nie jest w szablonie
-                    if (!aktualneLista.Any(t => t.TowarId == towar.Id))
-                    {
-                        aktualneLista.Add(new TowarSzablonu
-                        {
-                            TowarId = towar.Id,
-                            Kod = towar.Kod,
-                            Nazwa = towar.Nazwa,
-                            Katalog = towar.Katalog,
-                            Opakowanie = towar.Opakowanie,
-                            DomyslnaIlosc = 1,
-                            DomyslnaCena = 0
-                        });
-                    }
-                }
+            // Sprawdź czy już jest
+            if (_produktyWSzablonie.Any(p => p.TowarId == towar.Id))
+            {
+                MessageBox.Show("Ten produkt jest już w szablonie.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-                dgTowaryWSzablonie.ItemsSource = aktualneLista;
-                dgTowaryWSzablonie.Items.Refresh();
+            // Parsuj wartości
+            decimal ilosc = 0;
+            decimal cena = 0;
+
+            if (!string.IsNullOrWhiteSpace(txtDodajIlosc.Text))
+                decimal.TryParse(txtDodajIlosc.Text.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out ilosc);
+
+            if (!string.IsNullOrWhiteSpace(txtDodajCena.Text))
+                decimal.TryParse(txtDodajCena.Text.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out cena);
+
+            string opakowanie = (cboDodajOpakowanie.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "E2";
+
+            _produktyWSzablonie.Add(new ProduktWSzablonie
+            {
+                Lp = _produktyWSzablonie.Count + 1,
+                TowarId = towar.Id,
+                Kod = towar.Kod,
+                Nazwa = towar.Nazwa,
+                Katalog = towar.Katalog,
+                Ilosc = ilosc,
+                Cena = cena,
+                Opakowanie = opakowanie
+            });
+
+            // Wyczyść pola
+            cboDodajProdukt.SelectedItem = null;
+            txtDodajIlosc.Text = "0";
+            txtDodajCena.Text = "0";
+            cboDodajOpakowanie.SelectedIndex = 0;
+
+            OdswiezListeProdukow();
+        }
+
+        private void BtnUsunZSzablonu_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is ProduktWSzablonie produkt)
+            {
+                _produktyWSzablonie.Remove(produkt);
+                PrzenumerujProdukty();
+                OdswiezListeProdukow();
             }
         }
 
-        private void BtnUsunTowarZSzablonu_Click(object sender, RoutedEventArgs e)
+        private void PrzenumerujProdukty()
         {
-            if (sender is Button btn && btn.DataContext is TowarSzablonu towar)
-            {
-                var lista = dgTowaryWSzablonie.ItemsSource as ObservableCollection<TowarSzablonu>;
-                if (lista != null)
-                {
-                    lista.Remove(towar);
-                    dgTowaryWSzablonie.Items.Refresh();
-                }
-            }
+            int lp = 1;
+            foreach (var p in _produktyWSzablonie)
+                p.Lp = lp++;
+        }
+
+        private void OdswiezListeProdukow()
+        {
+            icProduktyWSzablonie.ItemsSource = null;
+            icProduktyWSzablonie.ItemsSource = _produktyWSzablonie;
+            placeholderBrakProduktow.Visibility = _produktyWSzablonie.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void BtnZapiszSzablon_Click(object sender, RoutedEventArgs e)
         {
-            if (_aktualnyszablon == null) return;
+            string nazwa = txtNazwaSzablonu.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(txtNazwaSzablonu.Text))
+            if (string.IsNullOrEmpty(nazwa))
             {
-                MessageBox.Show("Podaj nazwę szablonu.", "Błąd walidacji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Podaj nazwę szablonu.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                txtNazwaSzablonu.Focus();
                 return;
             }
 
-            var towary = dgTowaryWSzablonie.ItemsSource as ObservableCollection<TowarSzablonu>;
-            if (towary == null || !towary.Any())
+            if (_produktyWSzablonie.Count == 0)
             {
-                MessageBox.Show("Dodaj przynajmniej jeden towar do szablonu.", "Błąd walidacji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Dodaj przynajmniej jeden produkt do szablonu.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            _aktualnyszablon.Nazwa = txtNazwaSzablonu.Text;
-            _aktualnyszablon.Opis = txtOpisSzablonu.Text;
-            _aktualnyszablon.Towary = towary.ToList();
+            // Utwórz lub aktualizuj szablon
+            var szablon = _trybEdycji && _aktualnyDoEdycji != null
+                ? _aktualnyDoEdycji
+                : new SzablonTowarow { Id = _szablony.Count > 0 ? _szablony.Max(s => s.Id) + 1 : 1 };
 
-            try
+            szablon.Nazwa = nazwa;
+            szablon.Opis = txtOpisSzablonu.Text.Trim();
+            szablon.Towary = _produktyWSzablonie.Select(p => new TowarSzablonu
             {
-                _manager.ZapiszSzablonTowarow(_aktualnyszablon);
-                MessageBox.Show("Szablon został zapisany pomyślnie!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadSzablony();
-            }
-            catch (Exception ex)
+                TowarId = p.TowarId,
+                Kod = p.Kod,
+                Nazwa = p.Nazwa,
+                Katalog = p.Katalog,
+                DomyslnaIlosc = p.Ilosc,
+                DomyslnaCena = p.Cena,
+                Opakowanie = p.Opakowanie
+            }).ToList();
+
+            if (!_trybEdycji)
             {
-                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                _szablony.Add(szablon);
             }
+
+            // Zapisz wszystkie szablony
+            _szablonyManager.ZapiszSzablonyTowarow(_szablony.ToList());
+
+            MessageBox.Show($"Szablon \"{nazwa}\" został zapisany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Odśwież listę
+            lstSzablony.ItemsSource = null;
+            lstSzablony.ItemsSource = _szablony;
         }
 
         private void BtnUsunSzablon_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int id)
+            if (lstSzablony.SelectedItem is SzablonTowarow szablon)
             {
-                var szablon = _szablony.FirstOrDefault(s => s.Id == id);
-                if (szablon == null) return;
+                var result = MessageBox.Show($"Czy na pewno usunąć szablon \"{szablon.Nazwa}\"?",
+                    "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
-                var wynik = MessageBox.Show(
-                    $"Czy na pewno chcesz usunąć szablon \"{szablon.Nazwa}\"?",
-                    "Potwierdzenie usunięcia",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question
-                );
-
-                if (wynik == MessageBoxResult.Yes)
+                if (result == MessageBoxResult.Yes)
                 {
-                    try
-                    {
-                        _manager.UsunSzablonTowarow(id);
-                        LoadSzablony();
-                        
-                        // Wyczyść panel edycji
-                        _aktualnyszablon = null;
-                        txtNazwaSzablonu.Clear();
-                        txtOpisSzablonu.Clear();
-                        dgTowaryWSzablonie.ItemsSource = null;
-                        panelEdycji.IsEnabled = false;
-                        btnZapisz.IsEnabled = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Błąd podczas usuwania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    _szablony.Remove(szablon);
+                    _szablonyManager.ZapiszSzablonyTowarow(_szablony.ToList());
+
+                    // Wyczyść edycję
+                    BtnNowyMBtn_Click(sender, e);
+
+                    lstSzablony.ItemsSource = null;
+                    lstSzablony.ItemsSource = _szablony;
                 }
             }
         }
 
-        private void BtnZamknij_Click(object sender, RoutedEventArgs e)
+        private void BtnAnuluj_Click(object sender, RoutedEventArgs e)
         {
-            this.Close();
+            Close();
         }
     }
 }

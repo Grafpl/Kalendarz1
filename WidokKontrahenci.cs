@@ -41,12 +41,11 @@ namespace Kalendarz1
         {
             InitializeComponent();
 
-            // Ulepszony wygląd
+            // Ulepszony wygląd okna
             this.Font = new Font("Segoe UI", 10f);
-            this.BackColor = Color.FromArgb(245, 247, 250);
-
-            // Maksymalizuj okno
+            this.BackColor = Color.FromArgb(240, 243, 247);
             this.WindowState = FormWindowState.Maximized;
+            this.Text = "📋 KARTOTEKA HODOWCÓW - System Zarządzania Dostawcami";
 
             dgvSuppliers.EnableDoubleBuffering();
             dgvDeliveries.EnableDoubleBuffering();
@@ -61,6 +60,7 @@ namespace Kalendarz1
                     BuildSuppliersColumns();
                     ApplyModernStyling();
                     AddEvaluationButtons();
+                    CustomizeToolStrip();
 
                     dgvSuppliers.DataSource = _suppliersBS;
                     dgvDeliveries.DataSource = _deliveriesBS;
@@ -72,8 +72,8 @@ namespace Kalendarz1
                     if (tabsRight.TabPages.Contains(tabDetails))
                         tabsRight.TabPages.Remove(tabDetails);
 
-                    // Ustaw szerokość paneli
-                    split.SplitterDistance = (int)(this.Width * 0.75);
+                    // Szerszy panel dostaw (65% hodowcy, 35% dostawy)
+                    split.SplitterDistance = (int)(this.Width * 0.65);
                 }
                 catch (Exception ex)
                 {
@@ -95,6 +95,44 @@ namespace Kalendarz1
             btnAdd.Click += async (_, __) => await OpenNewSupplierFormAsync();
         }
 
+        /// <summary>
+        /// Dostosowuje ToolStrip - usuwa "Strona 1" i poprawia wygląd
+        /// </summary>
+        private void CustomizeToolStrip()
+        {
+            // Ukryj lblPage (Strona 1)
+            if (lblPage != null)
+            {
+                lblPage.Visible = false;
+            }
+
+            // Stylizacja paska narzędzi
+            toolStrip.BackColor = Color.FromArgb(52, 73, 94);
+            toolStrip.ForeColor = Color.White;
+            toolStrip.Padding = new Padding(10, 8, 10, 8);
+            toolStrip.GripStyle = ToolStripGripStyle.Hidden;
+
+            // Stylizacja przycisków
+            foreach (ToolStripItem item in toolStrip.Items)
+            {
+                if (item is ToolStripButton btn)
+                {
+                    btn.ForeColor = Color.White;
+                    btn.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+                    btn.Padding = new Padding(12, 6, 12, 6);
+                    btn.Margin = new Padding(3, 0, 3, 0);
+                }
+            }
+
+            // Stylizacja pola wyszukiwania
+            if (txtSearch != null)
+            {
+                txtSearch.Font = new Font("Segoe UI", 11f);
+                txtSearch.BackColor = Color.White;
+                txtSearch.ForeColor = Color.FromArgb(44, 62, 80);
+            }
+        }
+
         // ==================== FUNKCJE OCENY I GENEROWANIA PDF ====================
 
         private void AddEvaluationButtons()
@@ -108,12 +146,12 @@ namespace Kalendarz1
             {
                 Text = "📋 OCENA",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                BackColor = Color.FromArgb(255, 193, 7),
-                ForeColor = Color.Black,
+                BackColor = Color.FromArgb(241, 196, 15),
+                ForeColor = Color.FromArgb(44, 62, 80),
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
                 ToolTipText = "Oceń wybranego dostawcę",
-                Padding = new Padding(8, 5, 8, 5),
-                Margin = new Padding(2)
+                Padding = new Padding(12, 6, 12, 6),
+                Margin = new Padding(3, 0, 3, 0)
             };
             btnOcena.Click += BtnOcena_Click;
             toolStrip.Items.Add(btnOcena);
@@ -123,12 +161,12 @@ namespace Kalendarz1
             {
                 Text = "📜 HISTORIA",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                BackColor = Color.FromArgb(243, 156, 18),
+                BackColor = Color.FromArgb(230, 126, 34),
                 ForeColor = Color.White,
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
                 ToolTipText = "Zobacz historię ocen dostawcy",
-                Padding = new Padding(8, 5, 8, 5),
-                Margin = new Padding(2)
+                Padding = new Padding(12, 6, 12, 6),
+                Margin = new Padding(3, 0, 3, 0)
             };
             btnHistoriaOcen.Click += BtnHistoriaOcen_Click;
             toolStrip.Items.Add(btnHistoriaOcen);
@@ -145,8 +183,8 @@ namespace Kalendarz1
                 ForeColor = Color.White,
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
                 ToolTipText = "Generuj pusty formularz oceny do wydruku",
-                Padding = new Padding(8, 5, 8, 5),
-                Margin = new Padding(2)
+                Padding = new Padding(12, 6, 12, 6),
+                Margin = new Padding(3, 0, 3, 0)
             };
             btnGenerujPustyFormularz.Click += BtnGenerujPustyFormularz_Click;
             toolStrip.Items.Add(btnGenerujPustyFormularz);
@@ -160,8 +198,8 @@ namespace Kalendarz1
                 ForeColor = Color.White,
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
                 ToolTipText = "Generuj formularze dla wszystkich aktywnych dostawców",
-                Padding = new Padding(8, 5, 8, 5),
-                Margin = new Padding(2)
+                Padding = new Padding(12, 6, 12, 6),
+                Margin = new Padding(3, 0, 3, 0)
             };
             btnGenerujFormularzeDlaWszystkich.Click += BtnGenerujFormularzeDlaWszystkich_Click;
             toolStrip.Items.Add(btnGenerujFormularzeDlaWszystkich);
@@ -230,7 +268,6 @@ namespace Kalendarz1
 
             try
             {
-                // Bez using - WPF Window nie implementuje IDisposable
                 var oknoHistorii = new HistoriaOcenWindow(idHodowcy);
                 oknoHistorii.ShowDialog();
             }
@@ -244,7 +281,6 @@ namespace Kalendarz1
         {
             try
             {
-                // Zapytaj o punktację
                 bool pokazPunkty = FormularzDialog.ZapytajOPunktacje();
 
                 SaveFileDialog saveDialog = new SaveFileDialog
@@ -259,23 +295,35 @@ namespace Kalendarz1
                     var generator = new BlankOcenaFormPDFGenerator();
                     generator.GenerujPustyFormularz(saveDialog.FileName, pokazPunkty);
 
-                    MessageBox.Show(
-                        "✅ Formularz PDF został wygenerowany!\n\n" +
-                        "Gotowy do wydruku i wypełnienia.",
-                        "Sukces",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-
-                    try
+                    if (File.Exists(saveDialog.FileName))
                     {
-                        Process.Start(new ProcessStartInfo(saveDialog.FileName) { UseShellExecute = true });
+                        var fileInfo = new FileInfo(saveDialog.FileName);
+                        if (fileInfo.Length > 0)
+                        {
+                            MessageBox.Show(
+                                $"✅ Formularz PDF został wygenerowany!\n\n" +
+                                $"Rozmiar: {fileInfo.Length:N0} bajtów",
+                                "Sukces",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
+                            try
+                            {
+                                Process.Start(new ProcessStartInfo(saveDialog.FileName) { UseShellExecute = true });
+                            }
+                            catch { }
+                        }
+                        else
+                        {
+                            MessageBox.Show("❌ Plik PDF ma rozmiar 0 KB!", "Błąd",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
-                    catch { }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"❌ Błąd: {ex.Message}\n\n{ex.StackTrace}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -290,7 +338,6 @@ namespace Kalendarz1
                     MessageBoxIcon.Question) != DialogResult.Yes)
                     return;
 
-                // Zapytaj o punktację
                 bool pokazPunkty = FormularzDialog.ZapytajOPunktacje();
 
                 using (FolderBrowserDialog folderDialog = new FolderBrowserDialog())
@@ -384,7 +431,7 @@ namespace Kalendarz1
 
         private void ApplyModernStyling()
         {
-            // GridView styling
+            // ============ GŁÓWNY GRID DOSTAWCÓW - PREMIUM DESIGN ============
             dgvSuppliers.AllowUserToAddRows = false;
             dgvSuppliers.RowHeadersVisible = false;
             dgvSuppliers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
@@ -392,44 +439,82 @@ namespace Kalendarz1
             dgvSuppliers.AutoGenerateColumns = false;
             dgvSuppliers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgvSuppliers.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
-            dgvSuppliers.RowTemplate.Height = 50;
+            dgvSuppliers.RowTemplate.Height = 60;
             dgvSuppliers.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
-            // Kolory
-            dgvSuppliers.BackgroundColor = Color.FromArgb(250, 251, 252);
-            dgvSuppliers.GridColor = Color.FromArgb(230, 234, 237);
+            // Tło grida
+            dgvSuppliers.BackgroundColor = Color.FromArgb(241, 245, 249);
+            dgvSuppliers.GridColor = Color.FromArgb(203, 213, 225);
             dgvSuppliers.BorderStyle = BorderStyle.None;
 
-            // Nagłówki
+            // Nagłówki - granatowe eleganckie
             dgvSuppliers.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
-            dgvSuppliers.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(30, 58, 95);
             dgvSuppliers.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvSuppliers.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 73, 94);
-            dgvSuppliers.ColumnHeadersHeight = 45;
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(30, 58, 95);
+            dgvSuppliers.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 10, 0);
+            dgvSuppliers.ColumnHeadersHeight = 55;
+            dgvSuppliers.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             dgvSuppliers.EnableHeadersVisualStyles = false;
 
-            // Wiersze
+            // Wiersze - czyste białe
             dgvSuppliers.DefaultCellStyle.Font = new Font("Segoe UI", 10f);
             dgvSuppliers.DefaultCellStyle.BackColor = Color.White;
-            dgvSuppliers.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
-            dgvSuppliers.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
+            dgvSuppliers.DefaultCellStyle.ForeColor = Color.FromArgb(30, 41, 59);
+            dgvSuppliers.DefaultCellStyle.SelectionBackColor = Color.FromArgb(59, 130, 246);
             dgvSuppliers.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgvSuppliers.DefaultCellStyle.Padding = new Padding(5, 3, 5, 3);
+            dgvSuppliers.DefaultCellStyle.Padding = new Padding(10, 8, 10, 8);
 
-            dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
+            // Alternatywne wiersze - delikatny szary
+            dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
 
-            // ToolStrip
-            toolStrip.BackColor = Color.FromArgb(236, 240, 241);
-            toolStrip.RenderMode = ToolStripRenderMode.Professional;
-            toolStrip.GripStyle = ToolStripGripStyle.Hidden;
-            toolStrip.Padding = new Padding(0, 5, 0, 5);
-            toolStrip.Font = new Font("Segoe UI", 10f);
+            // ============ GRID DOSTAW - ELEGANCKI DESIGN ============
+            dgvDeliveries.AllowUserToAddRows = false;
+            dgvDeliveries.RowHeadersVisible = false;
+            dgvDeliveries.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvDeliveries.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvDeliveries.RowTemplate.Height = 50;
+            dgvDeliveries.BackgroundColor = Color.FromArgb(241, 245, 249);
+            dgvDeliveries.GridColor = Color.FromArgb(203, 213, 225);
+            dgvDeliveries.BorderStyle = BorderStyle.None;
 
-            // StatusStrip
-            statusStrip.BackColor = Color.FromArgb(44, 62, 80);
+            // Nagłówki dostaw - złoty akcent
+            dgvDeliveries.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
+            dgvDeliveries.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(212, 175, 55);
+            dgvDeliveries.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(30, 58, 95);
+            dgvDeliveries.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 10, 0);
+            dgvDeliveries.ColumnHeadersHeight = 50;
+            dgvDeliveries.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dgvDeliveries.EnableHeadersVisualStyles = false;
+
+            // Wiersze dostaw
+            dgvDeliveries.DefaultCellStyle.Font = new Font("Segoe UI", 10f);
+            dgvDeliveries.DefaultCellStyle.BackColor = Color.White;
+            dgvDeliveries.DefaultCellStyle.ForeColor = Color.FromArgb(30, 41, 59);
+            dgvDeliveries.DefaultCellStyle.SelectionBackColor = Color.FromArgb(251, 191, 36);
+            dgvDeliveries.DefaultCellStyle.SelectionForeColor = Color.FromArgb(30, 58, 95);
+            dgvDeliveries.DefaultCellStyle.Padding = new Padding(10, 8, 10, 8);
+            dgvDeliveries.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(254, 252, 232);
+
+            // ============ STATUS BAR - ELEGANCKI ============
+            statusStrip.BackColor = Color.FromArgb(30, 58, 95);
             statusStrip.ForeColor = Color.White;
-            lblCount.ForeColor = Color.White;
-            lblCount.Font = new Font("Segoe UI", 10f);
+            statusStrip.Font = new Font("Segoe UI", 10f);
+            statusStrip.Padding = new Padding(10, 0, 10, 0);
+            lblCount.ForeColor = Color.FromArgb(212, 175, 55);
+            lblCount.Font = new Font("Segoe UI Semibold", 11f);
+
+            // ============ LABEL DOSTAW - DUŻY I WIDOCZNY ============
+            if (lblDeliveries != null)
+            {
+                lblDeliveries.Font = new Font("Segoe UI Semibold", 13f);
+                lblDeliveries.ForeColor = Color.FromArgb(212, 175, 55);
+                lblDeliveries.BackColor = Color.FromArgb(30, 58, 95);
+                lblDeliveries.Padding = new Padding(10, 8, 10, 8);
+                lblDeliveries.AutoSize = false;
+                lblDeliveries.Height = 45;
+                lblDeliveries.TextAlign = ContentAlignment.MiddleLeft;
+            }
         }
 
         /// <summary>
@@ -443,12 +528,16 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Ładuje historię dostaw ZGRUPOWANĄ PO DNIACH
+        /// Każdy wiersz = suma z danego dnia (ile aut)
+        /// </summary>
         private async Task LoadDeliveriesAsync()
         {
             if (dgvSuppliers.CurrentRow?.DataBoundItem is not DataRowView rv)
             {
                 dgvDeliveries.DataSource = null;
-                lblDeliveries.Text = "Wybierz dostawcę aby zobaczyć historię dostaw";
+                lblDeliveries.Text = "📦 Wybierz hodowcę aby zobaczyć dostawy";
                 return;
             }
 
@@ -461,22 +550,22 @@ namespace Kalendarz1
                 return;
             }
 
-            lblDeliveries.Text = $"Historia dostaw - {dostawcaNazwa}:";
-
-            string query = @"
-                SELECT TOP 100
-                    PD.PartNo as [Nr Partii],
-                    PD.CreateData as [Data],
-                    PD.Quantity as [Ilość],
-                    PD.Weight as [Waga kg],
-                    PD.Price as [Cena],
-                    PD.Value as [Wartość]
-                FROM [LibraNet].[dbo].[PartiaDostawca] PD
-                WHERE PD.CustomerID = @DostawcaID
-                ORDER BY PD.CreateData DESC";
+            lblDeliveries.Text = $"📦 DOSTAWY - {dostawcaNazwa}";
 
             try
             {
+                // Zapytanie zgrupowane po dniach - ile aut (wierszy) każdego dnia
+                string query = @"
+                    SELECT 
+                        CAST(PD.CreateData AS DATE) AS [Data],
+                        D.Name AS [Hodowca],
+                        COUNT(*) AS [Ilość aut]
+                    FROM [LibraNet].[dbo].[PartiaDostawca] PD
+                    LEFT JOIN [LibraNet].[dbo].[Dostawcy] D ON D.ID = PD.CustomerID
+                    WHERE PD.CustomerID = @DostawcaID
+                    GROUP BY CAST(PD.CreateData AS DATE), D.Name
+                    ORDER BY CAST(PD.CreateData AS DATE) DESC";
+
                 using var con = new SqlConnection(connectionString);
                 using var cmd = new SqlCommand(query, con);
                 cmd.Parameters.AddWithValue("@DostawcaID", dostawcaId);
@@ -490,17 +579,31 @@ namespace Kalendarz1
                 // Formatowanie kolumn
                 if (dgvDeliveries.Columns.Count > 0)
                 {
-                    dgvDeliveries.Columns["Data"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                    dgvDeliveries.Columns["Ilość"].DefaultCellStyle.Format = "N0";
-                    dgvDeliveries.Columns["Waga kg"].DefaultCellStyle.Format = "N2";
-                    dgvDeliveries.Columns["Cena"].DefaultCellStyle.Format = "N2";
-                    dgvDeliveries.Columns["Wartość"].DefaultCellStyle.Format = "N2";
-                    dgvDeliveries.AutoResizeColumns();
+                    if (dgvDeliveries.Columns.Contains("Data"))
+                    {
+                        dgvDeliveries.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy (dddd)";
+                        dgvDeliveries.Columns["Data"].DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
+                        dgvDeliveries.Columns["Data"].FillWeight = 60;
+                    }
+                    if (dgvDeliveries.Columns.Contains("Hodowca"))
+                    {
+                        dgvDeliveries.Columns["Hodowca"].Visible = false; // Ukryj - już wiemy kto
+                    }
+                    if (dgvDeliveries.Columns.Contains("Ilość aut"))
+                    {
+                        dgvDeliveries.Columns["Ilość aut"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                        dgvDeliveries.Columns["Ilość aut"].DefaultCellStyle.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
+                        dgvDeliveries.Columns["Ilość aut"].DefaultCellStyle.ForeColor = Color.FromArgb(30, 58, 95);
+                        dgvDeliveries.Columns["Ilość aut"].DefaultCellStyle.BackColor = Color.FromArgb(254, 243, 199);
+                        dgvDeliveries.Columns["Ilość aut"].FillWeight = 40;
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 dgvDeliveries.DataSource = null;
+                lblDeliveries.Text = $"📦 DOSTAWY - {dostawcaNazwa} (błąd)";
+                System.Diagnostics.Debug.WriteLine($"LoadDeliveriesAsync error: {ex.Message}");
             }
         }
 
@@ -551,7 +654,8 @@ namespace Kalendarz1
       (SELECT TOP 1 PunktyRazem FROM [LibraNet].[dbo].[OcenyDostawcow] OD 
        WHERE OD.DostawcaID = D.ID AND OD.Status = 'Aktywna' ORDER BY DataOceny DESC) AS OstatniePunkty,
       (SELECT MAX(DataOceny) FROM [LibraNet].[dbo].[OcenyDostawcow] OD 
-       WHERE OD.DostawcaID = D.ID AND OD.Status = 'Aktywna') AS OstatniaOcena
+       WHERE OD.DostawcaID = D.ID AND OD.Status = 'Aktywna') AS OstatniaOcena,
+      (SELECT COUNT(*) FROM [LibraNet].[dbo].[PartiaDostawca] PD WHERE PD.CustomerID = D.ID) AS LiczbaPartii
     FROM [LibraNet].[dbo].[Dostawcy] D 
     LEFT JOIN [LibraNet].[dbo].[PriceType] PT ON PT.ID = D.PriceTypeID
     {sbWhere}
@@ -593,8 +697,7 @@ namespace Kalendarz1
 
             _suppliersBS.DataSource = newSuppliersTable;
             _hasMore = (ds.Tables.Count > 1 && ds.Tables[1].Rows.Count > 0 && Convert.ToInt32(ds.Tables[1].Rows[0]["HasMore"]) == 1);
-            lblPage.Text = $"Strona: {_pageIndex + 1}";
-            lblCount.Text = $"Rekordów: {newSuppliersTable.Rows.Count}";
+            lblCount.Text = $"📊 Hodowców: {newSuppliersTable.Rows.Count}";
 
             dgvSuppliers.Refresh();
         }
@@ -669,28 +772,49 @@ namespace Kalendarz1
                 ? dgvSuppliers.DefaultCellStyle.BackColor
                 : dgvSuppliers.AlternatingRowsDefaultCellStyle.BackColor;
 
-            // Kolorowanie na podstawie typu ceny
+            // Kolorowanie na podstawie typu ceny - subtelne pastelowe
             switch (typ.Trim().ToLowerInvariant())
             {
-                case "rolnicza": e.CellStyle.BackColor = Color.FromArgb(200, 255, 200); break;
-                case "ministerialna": e.CellStyle.BackColor = Color.FromArgb(200, 220, 255); break;
-                case "wolnorynkowa": e.CellStyle.BackColor = Color.FromArgb(255, 255, 200); break;
-                case "łączona": case "laczona": e.CellStyle.BackColor = Color.FromArgb(255, 200, 220); break;
+                case "rolnicza":
+                    e.CellStyle.BackColor = Color.FromArgb(220, 252, 231); // Zielony pastelowy
+                    break;
+                case "ministerialna":
+                    e.CellStyle.BackColor = Color.FromArgb(219, 234, 254); // Niebieski pastelowy
+                    break;
+                case "wolnorynkowa":
+                    e.CellStyle.BackColor = Color.FromArgb(254, 249, 195); // Żółty pastelowy
+                    break;
+                case "łączona":
+                case "laczona":
+                    e.CellStyle.BackColor = Color.FromArgb(252, 231, 243); // Różowy pastelowy
+                    break;
             }
 
-            // Dodaj ikonkę oceny w kolumnie Nazwa
-            if (dgvSuppliers.Columns[e.ColumnIndex].Name == "Name" && punktyOceny.HasValue)
+            // Kolorowanie kolumny oceny
+            if (dgvSuppliers.Columns[e.ColumnIndex].Name == "OstatniePunkty" && punktyOceny.HasValue)
             {
-                string ikona = punktyOceny >= 30 ? " ✅" :
-                              punktyOceny >= 20 ? " ⚠️" : " ❌";
-                e.Value = e.Value?.ToString() + ikona;
+                if (punktyOceny >= 30)
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(34, 197, 94);
+                    e.CellStyle.ForeColor = Color.White;
+                }
+                else if (punktyOceny >= 20)
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(234, 179, 8);
+                    e.CellStyle.ForeColor = Color.White;
+                }
+                else
+                {
+                    e.CellStyle.BackColor = Color.FromArgb(239, 68, 68);
+                    e.CellStyle.ForeColor = Color.White;
+                }
             }
 
             // Jeśli wstrzymany
             if (isHalted)
             {
-                e.CellStyle.BackColor = Color.Gainsboro;
-                e.CellStyle.ForeColor = Color.DarkGray;
+                e.CellStyle.BackColor = Color.FromArgb(226, 232, 240);
+                e.CellStyle.ForeColor = Color.FromArgb(148, 163, 184);
                 _strikeFont ??= new Font(dgvSuppliers.Font, FontStyle.Strikeout);
                 e.CellStyle.Font = _strikeFont;
             }
@@ -756,35 +880,73 @@ namespace Kalendarz1
                 return c;
             }
 
-            var colId = Txt("ID", "ID", "ID", 40, false);
-            var colName = Txt("Name", "📋 Nazwa", "Name", 150, true);
-            var colShort = Txt("ShortName", "Skrót", "ShortName", 80, true);
-            var colAddrBlock = Txt("AddrBlock", "📍 Adres", "AddrBlock", 140, true);
-            var colPhoneBlk = Txt("PhoneBlock", "📞 Telefon", "PhoneBlock", 100, true);
-
-            var colLast = new DataGridViewTextBoxColumn
+            // ID - mała szara kolumna
+            var colId = new DataGridViewTextBoxColumn
             {
-                Name = "OstatnieZdanie",
-                HeaderText = "📦 Ostatnia dostawa",
-                DataPropertyName = "OstatnieZdanie",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "dd.MM.yyyy" }
-            };
-
-            // Kolumna oceny z kolorem
-            var colOcena = new DataGridViewTextBoxColumn
-            {
-                Name = "OstatniePunkty",
-                HeaderText = "⭐ OCENA",
-                DataPropertyName = "OstatniePunkty",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
+                Name = "ID",
+                HeaderText = "ID",
+                DataPropertyName = "ID",
+                Width = 55,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    Alignment = DataGridViewContentAlignment.MiddleCenter,
-                    Font = new Font("Segoe UI", 11f, FontStyle.Bold)
+                    Font = new Font("Consolas", 9f),
+                    ForeColor = Color.FromArgb(100, 116, 139),
+                    Alignment = DataGridViewContentAlignment.MiddleCenter
                 }
             };
 
+            // Nazwa - główna kolumna
+            var colName = Txt("Name", "🏠 HODOWCA", "Name", 200, true);
+            colName.DefaultCellStyle.Font = new Font("Segoe UI Semibold", 11f);
+            colName.DefaultCellStyle.ForeColor = Color.FromArgb(30, 58, 95);
+
+            // Skrót
+            var colShort = Txt("ShortName", "SKRÓT", "ShortName", 60, false);
+            colShort.DefaultCellStyle.Font = new Font("Segoe UI", 9f);
+            colShort.DefaultCellStyle.ForeColor = Color.FromArgb(100, 116, 139);
+
+            // Adres
+            var colAddrBlock = Txt("AddrBlock", "📍 ADRES", "AddrBlock", 180, true);
+            colAddrBlock.DefaultCellStyle.Font = new Font("Segoe UI", 9f);
+            colAddrBlock.DefaultCellStyle.ForeColor = Color.FromArgb(71, 85, 105);
+
+            // Telefon
+            var colPhoneBlk = Txt("PhoneBlock", "📞 TELEFON", "PhoneBlock", 100, true);
+            colPhoneBlk.DefaultCellStyle.Font = new Font("Segoe UI", 10f);
+
+            // Ostatnia dostawa
+            var colLast = new DataGridViewTextBoxColumn
+            {
+                Name = "OstatnieZdanie",
+                HeaderText = "📦 DOSTAWA",
+                DataPropertyName = "OstatnieZdanie",
+                Width = 100,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "dd.MM.yyyy",
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 9f)
+                }
+            };
+
+            // Kolumna oceny - wyróżniona
+            var colOcena = new DataGridViewTextBoxColumn
+            {
+                Name = "OstatniePunkty",
+                HeaderText = "⭐",
+                DataPropertyName = "OstatniePunkty",
+                Width = 60,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 14f, FontStyle.Bold)
+                }
+            };
+
+            // Checkbox wstrzymany
             var colHalt = new DataGridViewCheckBoxColumn
             {
                 Name = "Halt",

@@ -1,496 +1,666 @@
-﻿using QuestPDF.Fluent;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json;
 
 namespace Kalendarz1.OfertaCenowa
 {
     public class OfertaPDFGenerator
     {
-        private KlientOferta _klient;
-        private List<TowarOferta> _towary;
-        private string _notatki;
-        private string _transport;
-        private ParametryOferty _parametry;
-        private JezykOferty _jezyk;
+        private byte[]? _logoOkragle;
+        private byte[]? _logoDlugie;
+        private byte[]? _aktualneLogo;
+        private TypLogo _aktualnyTypLogo;
+        private readonly string _plikTlumaczen;
+        private Dictionary<string, string> _tlumaczenia = new();
 
-        private readonly string ColorGreen = "#4B833C";
-        private readonly string ColorGreenLight = "#6EAD5A";
-        private readonly string ColorRed = "#CC2F37";
-        private readonly string ColorText = "#374151";
-        private readonly string ColorGray = "#9CA3AF";
-        private readonly string ColorBorder = "#E5E7EB";
-        private readonly string ColorBackground = "#F9FAFB";
-        private readonly string ColorHighlight = "#FEF3C7";
+        // Kolory firmowe
+        private static readonly string KolorZielony = "#4B833C";
+        private static readonly string KolorZielonyJasny = "#E8F5E9";
+        private static readonly string KolorZielonyCiemny = "#2E5A28";
+        private static readonly string KolorCzerwony = "#CC2F37";
+        private static readonly string KolorCzerwonyJasny = "#FEF2F2";
+        private static readonly string KolorSzary = "#6B7280";
+        private static readonly string KolorSzaryJasny = "#F9FAFB";
+        private static readonly string KolorSzaryCiemny = "#374151";
 
-        private readonly Dictionary<string, DaneKonta> KontaBankowe = new Dictionary<string, DaneKonta>
+        // Dane firmy
+        private const string FIRMA_NAZWA = "Ubojnia Drobiu \"PIÓRKOWSCY\"";
+        private const string FIRMA_PELNA = "Ubojnia Drobiu \"PIÓRKOWSCY\" Jerzy Piórkowski";
+        private const string FIRMA_ADRES = "Koziołki 40";
+        private const string FIRMA_MIASTO = "95-061 Dmosin";
+        private const string FIRMA_NIP = "726-16-25-406";
+        private const string FIRMA_REGON = "750045476";
+        private const string FIRMA_TEL = "+48 46 874 71 70";
+        private const string FIRMA_FAX = "+48 46 874 60 01";
+        private const string FIRMA_EMAIL = "sekretariat@piorkowscy.com.pl";
+        private const string FIRMA_WWW = "www.piorkowscy.com.pl";
+        private const string FIRMA_OPIS_PL = "Rodzinna firma z ponad 28-letnią tradycją w branży drobiarskiej. Specjalizujemy się w uboju i przetwórstwie mięsa drobiowego najwyższej jakości.";
+        private const string FIRMA_OPIS_EN = "Family company with over 28 years of tradition in the poultry industry. We specialize in slaughter and processing of highest quality poultry meat.";
+
+        // Konta bankowe
+        private const string KONTO_PLN = "60 1240 3060 1111 0010 4888 9213";
+        private const string KONTO_EUR = "70 1240 3060 1978 0010 4888 9721";
+
+        public OfertaPDFGenerator()
         {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            // Wczytaj oba logo z Embedded Resources
+            _logoOkragle = WczytajLogoZZasobow("logo.png");
+            _logoDlugie = WczytajLogoZZasobow("logo2white");
+
+            _plikTlumaczen = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "OfertaHandlowa", "tlumaczenia.json");
+
+            WczytajTlumaczenia();
+        }
+
+        private byte[]? WczytajLogoZZasobow(string nazwaLogo)
+        {
+            try
             {
-                "PLN", new DaneKonta
+                // Sprawdź różne assembly (główne i wykonywane)
+                var assemblies = new[] 
+                { 
+                    Assembly.GetExecutingAssembly(),
+                    Assembly.GetEntryAssembly(),
+                    Assembly.GetCallingAssembly()
+                }.Where(a => a != null).Distinct().ToList();
+
+                foreach (var assembly in assemblies)
                 {
-                    NumerKonta = "60 1240 3060 1111 0010 4888 9213",
-                    IBAN = "PL60 1240 3060 1111 0010 4888 9213",
-                    NazwaBanku = "Bank Pekao S.A.",
-                    SWIFT = "PKOPPLPW",
-                    AdresBanku = "ul. Grzybowska 53/57, 00-844 Warszawa",
-                    Waluta = "PLN"
+                    if (assembly == null) continue;
+                    
+                    var allResources = assembly.GetManifestResourceNames();
+                    
+                    // Szukaj zasobu zawierającego podaną nazwę
+                    string? resourceName = allResources
+                        .FirstOrDefault(name => name.ToLower().Contains(nazwaLogo.ToLower().Replace(".png", "")));
+
+                    if (resourceName != null)
+                    {
+                        using var stream = assembly.GetManifestResourceStream(resourceName);
+                        if (stream != null)
+                        {
+                            using var ms = new MemoryStream();
+                            stream.CopyTo(ms);
+                            var bytes = ms.ToArray();
+                            if (bytes.Length > 0)
+                            {
+                                return bytes;
+                            }
+                        }
+                    }
                 }
-            },
-            {
-                "EUR", new DaneKonta
+
+                // Fallback: próbuj wczytać z folderu aplikacji
+                var exeAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+                string appFolder = Path.GetDirectoryName(exeAssembly.Location) ?? AppDomain.CurrentDomain.BaseDirectory;
+                
+                var possiblePaths = new[]
                 {
-                    NumerKonta = "70 1240 3060 1978 0010 4888 9721",
-                    IBAN = "PL70 1240 3060 1978 0010 4888 9721",
-                    NazwaBanku = "Bank Pekao S.A.",
-                    SWIFT = "PKOPPLPW",
-                    AdresBanku = "ul. Grzybowska 53/57, 00-844 Warszawa",
-                    Waluta = "EUR"
+                    Path.Combine(appFolder, nazwaLogo),
+                    Path.Combine(appFolder, nazwaLogo + ".png"),
+                    Path.Combine(appFolder, "Resources", nazwaLogo),
+                    Path.Combine(appFolder, "Resources", nazwaLogo + ".png")
+                };
+
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        return File.ReadAllBytes(logoPath);
+                    }
                 }
             }
-        };
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania logo {nazwaLogo}: {ex.Message}");
+            }
 
-        // Słownik tłumaczeń produktów PL -> EN
-        private readonly Dictionary<string, string> TlumaczeniaProduktow = new Dictionary<string, string>
+            return null;
+        }
+
+        private void WczytajTlumaczenia()
         {
-            // Części kurczaka
-            {"KURCZAK CALY", "WHOLE CHICKEN"},
-            {"KURCZAK CAŁY", "WHOLE CHICKEN"},
-            {"KURCZAK", "CHICKEN"},
-            {"FILET", "FILLET"},
-            {"FILET Z SKOR", "FILLET WITH SKIN"},
-            {"FILET Z SKÓRĄ", "FILLET WITH SKIN"},
-            {"UDZIEC", "THIGH"},
-            {"UDŹCE", "THIGH"},
-            {"SKRZYDLA", "WINGS"},
-            {"SKRZYDŁO", "WING"},
-            {"PODUDZIE", "DRUMSTICK"},
-            {"PIERSI", "BREAST"},
-            {"PIERŚ", "BREAST"},
-            {"KORPUS", "CARCASS"},
-            {"NOGA", "LEG"},
-            {"NÓŻKA", "LEG"},
-            {"PODBIODRKI", "OYSTER MEAT"},
-            {"PODBRÓDEK", "OYSTER MEAT"},
-            {"WĄTROBKI", "LIVER"},
-            {"WĄTROBA", "LIVER"},
-            {"SERCA", "HEARTS"},
-            {"SERCE", "HEART"},
-            {"ZOLADKI", "GIZZARDS"},
-            {"ŻOŁĄDKI", "GIZZARDS"},
-            {"ŻOŁĄDEK", "GIZZARD"},
-            
-            // Przetwory
-            {"SZYNKA", "HAM"},
-            {"KIELBASA", "SAUSAGE"},
-            {"KIEŁBASA", "SAUSAGE"},
-            {"KABANOS", "KABANOS"},
-            {"PARÓWKA", "FRANKFURTER"},
-            
-            // Ogólne
-            {"ŚWIEŻE", "FRESH"},
-            {"SWIEZE", "FRESH"},
-            {"MROŻONE", "FROZEN"},
-            {"MROZONE", "FROZEN"},
-            {"PAKOWANE", "PACKED"},
-            {"BEZ SKÓRY", "SKINLESS"},
-            {"BEZ SKORY", "SKINLESS"},
-            {"ZE SKÓRĄ", "WITH SKIN"},
-            {"ZE SKORA", "WITH SKIN"},
-            {"MIELONE", "MINCED"},
-            {"CALE", "WHOLE"},
-            {"CAŁE", "WHOLE"},
-            {"PORCJOWANE", "PORTIONED"},
-        };
+            try
+            {
+                if (File.Exists(_plikTlumaczen))
+                {
+                    string json = File.ReadAllText(_plikTlumaczen);
+                    var slownik = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                    if (slownik != null)
+                        _tlumaczenia = slownik;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania tłumaczeń: {ex.Message}");
+            }
+        }
 
-        public void GenerujPDF(string sciezka, KlientOferta klient, List<TowarOferta> towary, string notatki, string transport, ParametryOferty parametry)
+        private string PobierzNazweProduktu(TowarOferta produkt, JezykOferty jezyk)
         {
-            _klient = klient;
-            _towary = towary;
-            _notatki = notatki;
-            _transport = transport;
-            _parametry = parametry;
-            _jezyk = parametry.Jezyk;
+            if (jezyk == JezykOferty.English && _tlumaczenia.TryGetValue(produkt.Kod, out var nazwaEN))
+            {
+                if (!string.IsNullOrEmpty(nazwaEN))
+                    return nazwaEN;
+            }
+            return produkt.Nazwa;
+        }
 
-            QuestPDF.Settings.License = LicenseType.Community;
+        public void GenerujPDF(string sciezka, KlientOferta klient, List<TowarOferta> produkty,
+            string notatki, string transport, ParametryOferty parametry)
+        {
+            bool czyAngielski = parametry.Jezyk == JezykOferty.English;
+            var txt = PobierzTeksty(czyAngielski);
+
+            // Wybierz odpowiednie logo na podstawie typu
+            _aktualnyTypLogo = parametry.TypLogo;
+            _aktualneLogo = parametry.TypLogo == TypLogo.Dlugie ? _logoDlugie : _logoOkragle;
+
+            string transportTekst = txt["transportWlasny"];
+            string numerOferty = $"OF/{DateTime.Now:yyyyMMdd}/{DateTime.Now:HHmm}";
+            DateTime dataWaznosci = DateTime.Now.AddDays(parametry.DniWaznosci);
+            bool maUwagi = !string.IsNullOrWhiteSpace(notatki);
 
             Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(25); // Zmniejszone marginesy
-                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Calibri).FontColor(ColorText));
+                    page.Margin(0);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Segoe UI"));
 
-                    page.Header().Element(DodajNaglowek);
-                    page.Content().Element(DodajTresc);
-                    page.Footer().Element(DodajStopke);
+                    page.Header().Element(c => GenerujNaglowek(c, parametry, txt, numerOferty, czyAngielski));
+                    page.Content().Element(c => GenerujTresc(c, klient, produkty, notatki, transportTekst, parametry, txt, maUwagi));
+                    page.Footer().Element(c => GenerujStopke(c, parametry, txt, dataWaznosci));
                 });
-            })
-            .GeneratePdf(sciezka);
+            }).GeneratePdf(sciezka);
         }
 
-        private string T(string pl, string en)
+        private Dictionary<string, string> PobierzTeksty(bool czyAngielski)
         {
-            return _jezyk == JezykOferty.Polski ? pl : en;
-        }
-
-        private string TlumaczProdukt(string nazwaPL)
-        {
-            if (_jezyk == JezykOferty.Polski)
-                return nazwaPL;
-
-            string nazwaTrans = nazwaPL.ToUpper();
-            foreach (var tlum in TlumaczeniaProduktow)
+            return new Dictionary<string, string>
             {
-                nazwaTrans = nazwaTrans.Replace(tlum.Key, tlum.Value);
-            }
-
-            // Jeśli tekst się nie zmienił (nie było tłumaczenia), zwróć oryginalny tekst z zachowaniem wielkości liter
-            if (nazwaTrans == nazwaPL.ToUpper())
-                return nazwaPL;
-
-            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(nazwaTrans.ToLower());
+                ["tytul"] = czyAngielski ? "COMMERCIAL OFFER" : "OFERTA HANDLOWA",
+                ["numer"] = czyAngielski ? "Offer No." : "Nr oferty",
+                ["data"] = czyAngielski ? "Issue date" : "Data wystawienia",
+                ["wazna"] = czyAngielski ? "Valid until" : "Oferta ważna do",
+                ["odbiorca"] = czyAngielski ? "RECIPIENT" : "ODBIORCA",
+                ["dostawca"] = czyAngielski ? "SUPPLIER" : "DOSTAWCA",
+                ["nip"] = "NIP",
+                ["regon"] = "REGON",
+                ["adres"] = czyAngielski ? "Address" : "Adres",
+                ["produkty"] = czyAngielski ? "OFFERED PRODUCTS" : "OFEROWANE PRODUKTY",
+                ["lp"] = czyAngielski ? "No." : "Lp.",
+                ["nazwa"] = czyAngielski ? "Product name" : "Nazwa produktu",
+                ["opakowanie"] = czyAngielski ? "Pack." : "Opak.",
+                ["ilosc"] = czyAngielski ? "Qty (kg)" : "Ilość (kg)",
+                ["cena"] = czyAngielski ? "Price" : "Cena",
+                ["wartosc"] = czyAngielski ? "Value" : "Wartość",
+                ["suma"] = czyAngielski ? "TOTAL VALUE" : "WARTOŚĆ CAŁKOWITA",
+                ["warunki"] = czyAngielski ? "TERMS AND CONDITIONS" : "WARUNKI HANDLOWE",
+                ["terminPlatnosci"] = czyAngielski ? "Payment terms" : "Termin płatności",
+                ["transport"] = czyAngielski ? "Delivery" : "Transport",
+                ["transportWlasny"] = czyAngielski ? "Seller's transport (included in price)" : "Transport własny (w cenie)",
+                ["konto"] = czyAngielski ? "Bank account" : "Rachunek bankowy",
+                ["uwagi"] = czyAngielski ? "ADDITIONAL NOTES" : "UWAGI DODATKOWE",
+                ["wystawil"] = czyAngielski ? "Prepared by" : "Ofertę sporządził",
+                ["cenyNetto"] = czyAngielski ? "* All prices are net (excluding VAT)" : "* Wszystkie ceny są cenami netto (bez VAT)",
+                ["dziekujemy"] = czyAngielski ? "Thank you for your interest in our products!" : "Dziękujemy za zainteresowanie naszymi produktami!",
+                ["kg"] = "kg",
+                ["zl"] = czyAngielski ? "PLN" : "zł",
+                ["pozycji"] = czyAngielski ? "items" : "pozycji",
+                ["zapraszamy"] = czyAngielski ? "We invite you to cooperate!" : "Zapraszamy do współpracy!",
+                ["firmaOpis"] = czyAngielski ? FIRMA_OPIS_EN : FIRMA_OPIS_PL,
+                ["tel"] = czyAngielski ? "Phone" : "Tel",
+                ["fax"] = "Fax"
+            };
         }
 
-        private void DodajNaglowek(IContainer container)
+        private void GenerujNaglowek(IContainer container, ParametryOferty parametry,
+            Dictionary<string, string> txt, string numerOferty, bool czyAngielski)
         {
-            container.Column(column =>
+            container.Column(col =>
             {
-                column.Item().Row(row =>
+                // Górny pasek z logo i danymi firmy
+                col.Item().Background(Color.FromHex(KolorZielony)).Padding(15).Row(row =>
                 {
-                    // Wybór rozmiaru i logo na podstawie typu
-                    if (_parametry.TypLogo == TypLogo.Okragle)
+                    if (_aktualnyTypLogo == TypLogo.Dlugie && _aktualneLogo != null && _aktualneLogo.Length > 0)
                     {
-                        // Logo okrągłe (logo.png) - mniejsze, kwadratowe
-                        row.ConstantItem(100).Height(100).Element(container =>
+                        // DŁUGIE LOGO - logo2white.png, 280px, wyrównane w lewo
+                        row.RelativeItem().Column(logoCol =>
                         {
-                            try
-                            {
-                                string logoPath = @"C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo.png";
-                                if (File.Exists(logoPath))
-                                {
-                                    var bytes = File.ReadAllBytes(logoPath);
-                                    container.Image(bytes);
-                                }
-                            }
-                            catch { /* Błąd logo jest ignorowany */ }
+                            // Logo wyrównane w lewo
+                            logoCol.Item().AlignLeft().Width(280).Image(_aktualneLogo);
+                            
+                            // Formułka pod logo - ta sama szerokość co logo
+                            logoCol.Item().PaddingTop(8).Width(280).Text(txt["firmaOpis"])
+                                .FontSize(9).FontColor(Colors.White).Light();
+                        });
+
+                        // Dane kontaktowe po prawej
+                        row.ConstantItem(160).AlignRight().AlignMiddle().Column(kontaktCol =>
+                        {
+                            kontaktCol.Item().Text($"Tel: {FIRMA_TEL}").FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text($"Fax: {FIRMA_FAX}").FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text(FIRMA_EMAIL).FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text(FIRMA_WWW).FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().PaddingTop(5).Text($"NIP: {FIRMA_NIP}").FontSize(8).FontColor(Colors.White).Light();
                         });
                     }
                     else
                     {
-                        // Logo długie (logo-2-green.png) - większe, panoramiczne
-                        row.ConstantItem(280).Height(100).Element(container =>
+                        // OKRĄGŁE LOGO - logo.png + nazwa firmy i opis
+                        row.ConstantItem(90).Column(logoCol =>
                         {
-                            try
+                            if (_aktualneLogo != null && _aktualneLogo.Length > 0)
                             {
-                                string logoPath = @"C:\Users\PC\source\repos\Grafpl\Kalendarz1\logo-2-green.png";
-                                if (File.Exists(logoPath))
-                                {
-                                    var bytes = File.ReadAllBytes(logoPath);
-                                    container.Image(bytes);
-                                }
+                                logoCol.Item().Width(80).Image(_aktualneLogo);
                             }
-                            catch { /* Błąd logo jest ignorowany */ }
+                            else
+                            {
+                                logoCol.Item().Width(70).Height(70).Background(Colors.White)
+                                    .AlignCenter().AlignMiddle()
+                                    .Text("LOGO").FontSize(12).Bold().FontColor(Color.FromHex(KolorZielony));
+                            }
+                        });
+
+                        // Nazwa firmy i opis
+                        row.RelativeItem().PaddingLeft(15).Column(firmaCol =>
+                        {
+                            firmaCol.Item().Text(FIRMA_NAZWA).FontSize(18).Bold().FontColor(Colors.White);
+                            firmaCol.Item().PaddingTop(3).Text(txt["firmaOpis"]).FontSize(9).FontColor(Colors.White).Light();
+                            firmaCol.Item().PaddingTop(8).Text($"{FIRMA_ADRES}, {FIRMA_MIASTO}").FontSize(9).FontColor(Colors.White);
+                        });
+
+                        // Dane kontaktowe po prawej
+                        row.ConstantItem(160).AlignRight().Column(kontaktCol =>
+                        {
+                            kontaktCol.Item().Text($"Tel: {FIRMA_TEL}").FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text($"Fax: {FIRMA_FAX}").FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text(FIRMA_EMAIL).FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().Text(FIRMA_WWW).FontSize(9).FontColor(Colors.White);
+                            kontaktCol.Item().PaddingTop(5).Text($"NIP: {FIRMA_NIP}").FontSize(8).FontColor(Colors.White).Light();
+                        });
+                    }
+                });
+
+                // Czerwona linia akcentowa
+                col.Item().Height(3).Background(Color.FromHex(KolorCzerwony));
+
+                // Pasek z tytułem oferty
+                col.Item().Background(Color.FromHex(KolorZielonyCiemny)).PaddingVertical(10).PaddingHorizontal(20).Row(row =>
+                {
+                    row.RelativeItem().Column(tytulCol =>
+                    {
+                        tytulCol.Item().Text(txt["tytul"]).FontSize(18).Bold().FontColor(Colors.White);
+                    });
+
+                    row.ConstantItem(220).AlignRight().Column(daneCol =>
+                    {
+                        daneCol.Item().Row(r =>
+                        {
+                            r.AutoItem().Text($"{txt["numer"]}: ").FontSize(10).FontColor(Colors.White).Light();
+                            r.AutoItem().Text(numerOferty).FontSize(10).Bold().FontColor(Colors.White);
+                        });
+                        daneCol.Item().Row(r =>
+                        {
+                            r.AutoItem().Text($"{txt["data"]}: ").FontSize(10).FontColor(Colors.White).Light();
+                            r.AutoItem().Text(DateTime.Now.ToString("dd.MM.yyyy")).FontSize(10).FontColor(Colors.White);
+                        });
+                    });
+                });
+            });
+        }
+
+        private void GenerujTresc(IContainer container, KlientOferta klient, List<TowarOferta> produkty,
+            string notatki, string transport, ParametryOferty parametry, Dictionary<string, string> txt, bool maUwagi)
+        {
+            container.PaddingHorizontal(25).PaddingVertical(15).Column(col =>
+            {
+                // Sekcja odbiorcy i dostawcy obok siebie
+                col.Item().Row(row =>
+                {
+                    // ODBIORCA - lewa strona
+                    row.RelativeItem().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(odbCol =>
+                    {
+                        // Nagłówek z czerwonym akcentem
+                        odbCol.Item().Row(headerRow =>
+                        {
+                            headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                            headerRow.RelativeItem().Background(Color.FromHex(KolorZielonyJasny)).Padding(8)
+                                .Text(txt["odbiorca"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+                        });
+
+                        odbCol.Item().Padding(10).Column(daneCol =>
+                        {
+                            daneCol.Item().Text(klient.Nazwa).FontSize(11).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
+
+                            if (!string.IsNullOrEmpty(klient.NIP))
+                                daneCol.Item().PaddingTop(3).Text($"{txt["nip"]}: {klient.NIP}")
+                                    .FontSize(9).FontColor(Color.FromHex(KolorSzary));
+
+                            string adres = $"{klient.Adres}".Trim();
+                            string miejscowosc = $"{klient.KodPocztowy} {klient.Miejscowosc}".Trim();
+
+                            if (!string.IsNullOrEmpty(adres))
+                                daneCol.Item().PaddingTop(2).Text(adres).FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                            if (!string.IsNullOrEmpty(miejscowosc))
+                                daneCol.Item().Text(miejscowosc).FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                        });
+                    });
+
+                    row.ConstantItem(15);
+
+                    // DOSTAWCA - prawa strona (dane firmy + kto sporządził)
+                    row.RelativeItem().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(dostCol =>
+                    {
+                        // Nagłówek z czerwonym akcentem
+                        dostCol.Item().Row(headerRow =>
+                        {
+                            headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                            headerRow.RelativeItem().Background(Color.FromHex(KolorZielonyJasny)).Padding(8)
+                                .Text(txt["dostawca"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+                        });
+
+                        dostCol.Item().Padding(10).Column(daneCol =>
+                        {
+                            daneCol.Item().Text(FIRMA_NAZWA).FontSize(11).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
+                            daneCol.Item().PaddingTop(3).Text($"{txt["nip"]}: {FIRMA_NIP}").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                            daneCol.Item().Text($"{FIRMA_ADRES}, {FIRMA_MIASTO}").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                            
+                            // Kto sporządził - wyróżnione z większą spacją
+                            daneCol.Item().PaddingTop(12).Column(sporCol =>
+                            {
+                                sporCol.Item().Row(r =>
+                                {
+                                    r.AutoItem().Text($"{txt["wystawil"]}:  ").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                                    r.AutoItem().Text(parametry.WystawiajacyNazwa).FontSize(9).Bold().FontColor(Color.FromHex(KolorCzerwony));
+                                });
+
+                                // Email sporządzającego
+                                if (!string.IsNullOrEmpty(parametry.WystawiajacyEmail))
+                                {
+                                    sporCol.Item().PaddingTop(2).Text(parametry.WystawiajacyEmail)
+                                        .FontSize(8).FontColor(Color.FromHex(KolorZielony));
+                                }
+
+                                // Telefon sporządzającego
+                                if (!string.IsNullOrEmpty(parametry.WystawiajacyTelefon))
+                                {
+                                    sporCol.Item().PaddingTop(1).Text(parametry.WystawiajacyTelefon)
+                                        .FontSize(8).FontColor(Color.FromHex(KolorSzary));
+                                }
+                            });
+                        });
+                    });
+                });
+
+                col.Item().PaddingTop(15);
+
+                // Nagłówek tabeli produktów z czerwonym akcentem
+                col.Item().Row(headerRow =>
+                {
+                    headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                    headerRow.RelativeItem().Background(Color.FromHex(KolorZielony)).PaddingVertical(8).PaddingHorizontal(10).Row(prodRow =>
+                    {
+                        prodRow.RelativeItem().Text(txt["produkty"]).FontSize(11).Bold().FontColor(Colors.White);
+                        prodRow.ConstantItem(80).AlignRight().Text($"{produkty.Count} {txt["pozycji"]}")
+                            .FontSize(9).FontColor(Colors.White).Light();
+                    });
+                });
+
+                // Tabela produktów
+                col.Item().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Element(e =>
+                    GenerujTabeleProduktow(e, produkty, parametry, txt));
+
+                col.Item().PaddingTop(12);
+
+                // Warunki handlowe i uwagi
+                if (maUwagi)
+                {
+                    // Dwie kolumny jeśli są uwagi
+                    col.Item().Row(row =>
+                    {
+                        // Warunki handlowe - lewa
+                        row.RelativeItem().Element(e => GenerujWarunkiHandlowe(e, parametry, transport, txt));
+
+                        row.ConstantItem(12);
+
+                        // Uwagi - prawa
+                        row.ConstantItem(180).Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(uwagiCol =>
+                        {
+                            uwagiCol.Item().Row(headerRow =>
+                            {
+                                headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                                headerRow.RelativeItem().Background(Color.FromHex(KolorCzerwonyJasny)).Padding(8)
+                                    .Text(txt["uwagi"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorCzerwony));
+                            });
+
+                            uwagiCol.Item().Padding(10).Text(notatki).FontSize(8).Italic().FontColor(Color.FromHex(KolorSzary));
+                        });
+                    });
+                }
+                else
+                {
+                    // Warunki wyśrodkowane na całą szerokość jeśli brak uwag
+                    col.Item().AlignCenter().Width(350).Element(e => GenerujWarunkiHandlowe(e, parametry, transport, txt));
+                }
+
+                col.Item().PaddingTop(8);
+                col.Item().Text(txt["cenyNetto"]).FontSize(7).Italic().FontColor(Color.FromHex(KolorSzary));
+            });
+        }
+
+        private void GenerujWarunkiHandlowe(IContainer container, ParametryOferty parametry, string transport, Dictionary<string, string> txt)
+        {
+            container.Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(warCol =>
+            {
+                warCol.Item().Row(headerRow =>
+                {
+                    headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                    headerRow.RelativeItem().Background(Color.FromHex(KolorZielonyJasny)).Padding(8)
+                        .Text(txt["warunki"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+                });
+
+                warCol.Item().Padding(12).Column(listaCol =>
+                {
+                    // Termin płatności - tabela z odstępem
+                    if (parametry.PokazTerminPlatnosci)
+                    {
+                        listaCol.Item().Table(t =>
+                        {
+                            t.ColumnsDefinition(c =>
+                            {
+                                c.ConstantColumn(110);
+                                c.RelativeColumn();
+                            });
+                            t.Cell().Text($"{txt["terminPlatnosci"]}:").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                            t.Cell().Text(parametry.TerminPlatnosci).FontSize(9).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
                         });
                     }
 
-                    row.RelativeItem();
-                    row.ConstantItem(230).AlignRight().Column(col =>
+                    // Transport - tabela z odstępem
+                    listaCol.Item().PaddingTop(6).Table(t =>
                     {
-                        col.Item().Text("Ubojnia Drobiu Piórkowscy").Bold().FontSize(11).FontColor(ColorGreen);
-                        col.Item().PaddingTop(2).Text("Koziołki 40, 95-061 Dmosin").FontSize(8).FontColor(ColorGray);
-                        col.Item().Text("NIP: 726-162-54-06").FontSize(8).FontColor(ColorGray);
-                        col.Item().Text("tel: +48 46 874 71 70").FontSize(8).FontColor(ColorGray);
-                        col.Item().Text("www.piorkowscy.com.pl").FontSize(8).FontColor(ColorGreen).Bold();
-                    });
-                });
-                column.Item().PaddingTop(8).Row(row =>
-                {
-                    row.RelativeItem().Height(3).Background(ColorGreen);
-                    row.ConstantItem(80).Height(3).Background(ColorRed);
-                });
-            });
-        }
-
-        private void DodajTresc(IContainer container)
-        {
-            int iloscTowarow = _towary.Count;
-            float skalaWierszy = iloscTowarow > 15 ? 0.7f : iloscTowarow > 10 ? 0.85f : 1.0f;
-
-            container.PaddingVertical(12).Column(column =>
-            {
-                column.Item().Row(row =>
-                {
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text(T("Oferta Handlowa", "Commercial Offer")).FontSize(24).Bold().FontColor(ColorGreen);
-                        col.Item().PaddingTop(2).Text($"{T("Numer", "Number")}: OFR/{DateTime.Now:yyyy/MM/dd/HHmm}").FontSize(9).FontColor(ColorGray);
-                    });
-                    row.ConstantItem(160).AlignRight().Column(col =>
-                    {
-                        col.Item().Text(T("Data wystawienia:", "Issue date:")).FontSize(8).FontColor(ColorGray);
-
-                        // Formatowanie daty w zależności od języka
-                        string dataStr;
-                        if (_jezyk == JezykOferty.English)
+                        t.ColumnsDefinition(c =>
                         {
-                            dataStr = DateTime.Now.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("en-US"));
-                        }
-                        else
-                        {
-                            dataStr = DateTime.Now.ToString("dd MMMM yyyy", CultureInfo.GetCultureInfo("pl-PL")) + " r.";
-                        }
-
-                        col.Item().PaddingTop(2).Text(dataStr).Bold().FontSize(10).FontColor(ColorGreen);
-                    });
-                });
-
-                column.Item().PaddingTop(15).Border(2).BorderColor(ColorGreen).Background(ColorBackground).Padding(18).Column(col =>
-                {
-                    col.Item().Text(T("Nabywca:", "Buyer:")).FontSize(10).FontColor(ColorGray).Bold();
-                    col.Item().PaddingTop(5).Text(_klient.Nazwa).Bold().FontSize(16).FontColor(ColorGreen);
-                    if (!string.IsNullOrWhiteSpace(_klient.Adres))
-                        col.Item().PaddingTop(3).Text(_klient.Adres).FontSize(11);
-                    if (!string.IsNullOrWhiteSpace(_klient.KodPocztowy))
-                        col.Item().Text($"{_klient.KodPocztowy} {_klient.Miejscowosc}").FontSize(11);
-                    if (!string.IsNullOrWhiteSpace(_klient.NIP))
-                        col.Item().PaddingTop(3).Text($"NIP: {_klient.NIP}").FontSize(11).FontColor(ColorGray);
-                });
-
-                column.Item().PaddingTop(15).Element(c => DodajTabeleProduktow(c, skalaWierszy));
-
-                if (!_parametry.PokazCene && _parametry.PokazIlosc)
-                {
-                    column.Item().PaddingTop(8).Element(DodajPodsumowanie);
-                }
-
-                column.Item().PaddingTop(15).Element(DodajWarunkiHandlowe);
-
-                if (!string.IsNullOrWhiteSpace(_notatki))
-                {
-                    column.Item().PaddingTop(10).Border(1).BorderColor(ColorGreen).BorderLeft(3).Background("#F0FDF4")
-                        .Padding(8).Column(col =>
-                        {
-                            col.Item().Text($"📝 {T("Dodatkowe uwagi:", "Additional notes:")}").Bold().FontSize(9).FontColor(ColorGreen);
-                            col.Item().PaddingTop(3).Text(_notatki).FontSize(8);
+                            c.ConstantColumn(110);
+                            c.RelativeColumn();
                         });
-                }
+                        t.Cell().Text($"{txt["transport"]}:").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                        t.Cell().Text(transport).FontSize(9).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
+                    });
+
+                    // Konto bankowe
+                    listaCol.Item().PaddingTop(6).Table(t =>
+                    {
+                        t.ColumnsDefinition(c =>
+                        {
+                            c.ConstantColumn(110);
+                            c.RelativeColumn();
+                        });
+                        t.Cell().Text($"{txt["konto"]}:").FontSize(9).FontColor(Color.FromHex(KolorSzary));
+
+                        string konto = parametry.WalutaKonta == "EUR" ? KONTO_EUR : KONTO_PLN;
+                        t.Cell().Column(kCol =>
+                        {
+                            kCol.Item().Text($"{konto}").FontSize(8).FontColor(Color.FromHex(KolorSzaryCiemny));
+                            kCol.Item().Text($"({parametry.WalutaKonta})").FontSize(8).FontColor(Color.FromHex(KolorSzary));
+                        });
+                    });
+                });
             });
         }
 
-        private void DodajTabeleProduktow(IContainer container, float skala)
+        private void GenerujTabeleProduktow(IContainer container, List<TowarOferta> produkty,
+            ParametryOferty parametry, Dictionary<string, string> txt)
         {
-            bool tylkoCena = _parametry.PokazCene;
-            int paddingKomorek = (int)(5 * skala);
-            int fontSizeHeader = (int)(9 * skala);
-            int fontSizeData = (int)(8 * skala);
+            bool pokazIlosc = parametry.PokazIlosc;
+            bool pokazCene = parametry.PokazCene;
+            bool pokazOpakowanie = parametry.PokazOpakowanie;
+            bool pokazWartosc = pokazIlosc && pokazCene;
 
             container.Table(table =>
             {
-                List<string> kolumny = new List<string> { "Lp.", T("Nazwa produktu", "Product name") };
-
-                if (!tylkoCena && _parametry.PokazIlosc) kolumny.Add(T("Ilość (kg)", "Quantity (kg)"));
-                if (_parametry.PokazCene) kolumny.Add(T("Cena jedn. (zł)", "Unit price (PLN)"));
-                if (_parametry.PokazOpakowanie) kolumny.Add(T("Opakowanie", "Packaging"));
-                if (!tylkoCena && _parametry.PokazIlosc) kolumny.Add(T("Wartość (zł)", "Value (PLN)"));
-
                 table.ColumnsDefinition(columns =>
                 {
-                    columns.ConstantColumn(30);
-                    columns.RelativeColumn(4);
-
-                    if (!tylkoCena && _parametry.PokazIlosc) columns.RelativeColumn(1.3f);
-                    if (_parametry.PokazCene) columns.RelativeColumn(1.3f);
-                    if (_parametry.PokazOpakowanie) columns.RelativeColumn(1.3f);
-                    if (!tylkoCena && _parametry.PokazIlosc) columns.RelativeColumn(1.5f);
+                    columns.ConstantColumn(25);
+                    columns.RelativeColumn();
+                    if (pokazOpakowanie) columns.ConstantColumn(50);
+                    if (pokazIlosc) columns.ConstantColumn(55);
+                    if (pokazCene) columns.ConstantColumn(60);
+                    if (pokazWartosc) columns.ConstantColumn(75);
                 });
 
+                // Nagłówek tabeli
                 table.Header(header =>
                 {
-                    header.Cell().Background(ColorGreen).Padding(paddingKomorek).Text("Lp.").FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
-                    header.Cell().Background(ColorGreen).Padding(paddingKomorek).Text(T("Nazwa produktu", "Product name")).FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
+                    var headerStyle = TextStyle.Default.FontSize(8).Bold().FontColor(Colors.White);
+                    var headerBg = Color.FromHex(KolorSzaryCiemny);
 
-                    if (!tylkoCena && _parametry.PokazIlosc)
-                        header.Cell().Background(ColorGreen).Padding(paddingKomorek).AlignRight().Text(T("Ilość (kg)", "Qty (kg)")).FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
-
-                    if (_parametry.PokazCene)
-                        header.Cell().Background(ColorGreen).Padding(paddingKomorek).AlignRight().Text(T("Cena (zł)", "Price (PLN)")).FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
-
-                    if (_parametry.PokazOpakowanie)
-                        header.Cell().Background(ColorGreen).Padding(paddingKomorek).AlignCenter().Text(T("Opak.", "Pack.")).FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
-
-                    if (!tylkoCena && _parametry.PokazIlosc)
-                        header.Cell().Background(ColorGreen).Padding(paddingKomorek).AlignRight().Text(T("Wartość (zł)", "Value (PLN)")).FontColor("#FFFFFF").Bold().FontSize(fontSizeHeader);
+                    header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4).AlignCenter()
+                        .Text(txt["lp"]).Style(headerStyle);
+                    header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4)
+                        .Text(txt["nazwa"]).Style(headerStyle);
+                    if (pokazOpakowanie)
+                        header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4).AlignCenter()
+                            .Text(txt["opakowanie"]).Style(headerStyle);
+                    if (pokazIlosc)
+                        header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4).AlignRight()
+                            .Text(txt["ilosc"]).Style(headerStyle);
+                    if (pokazCene)
+                        header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4).AlignRight()
+                            .Text(txt["cena"]).Style(headerStyle);
+                    if (pokazWartosc)
+                        header.Cell().Background(headerBg).PaddingVertical(5).PaddingHorizontal(4).AlignRight()
+                            .Text(txt["wartosc"]).Style(headerStyle);
                 });
 
+                // Wiersze produktów
                 int lp = 1;
-                foreach (var towar in _towary)
+                decimal suma = 0;
+
+                foreach (var p in produkty)
                 {
-                    var bgColor = lp % 2 == 0 ? ColorBackground : "#FFFFFF";
+                    var bgColor = lp % 2 == 0 ? Color.FromHex(KolorSzaryJasny) : Colors.White;
+                    decimal wartosc = p.Ilosc * p.CenaJednostkowa;
+                    suma += wartosc;
 
-                    table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek).AlignCenter()
-                        .Text(lp++.ToString()).FontSize(fontSizeData);
+                    string nazwaProduktu = PobierzNazweProduktu(p, parametry.Jezyk);
 
-                    table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek)
-                        .Text(TlumaczProdukt(towar.Nazwa)).FontSize(fontSizeData).FontColor(ColorText);
+                    table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4).AlignCenter()
+                        .Text(lp.ToString()).FontSize(8).FontColor(Color.FromHex(KolorSzary));
 
-                    if (!tylkoCena && _parametry.PokazIlosc)
-                        table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek).AlignRight()
-                            .Text(towar.Ilosc.ToString("N0")).FontSize(fontSizeData);
+                    table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4)
+                        .Text(nazwaProduktu).FontSize(8).FontColor(Color.FromHex(KolorSzaryCiemny));
 
-                    if (_parametry.PokazCene)
-                        table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek).AlignRight()
-                            .Text(towar.CenaJednostkowa.ToString("N2")).FontSize(fontSizeData).Bold().FontColor(ColorGreen);
+                    if (pokazOpakowanie)
+                        table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4).AlignCenter()
+                            .Text(p.Opakowanie).FontSize(8).FontColor(Color.FromHex(KolorSzary));
 
-                    if (_parametry.PokazOpakowanie)
-                        table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek).AlignCenter()
-                            .Text(towar.Opakowanie).FontSize((int)(7 * skala)).FontColor(ColorGray);
+                    if (pokazIlosc)
+                        table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4).AlignRight()
+                            .Text(p.Ilosc > 0 ? $"{p.Ilosc:N0}" : "—").FontSize(8);
 
-                    if (!tylkoCena && _parametry.PokazIlosc)
-                        table.Cell().Background(bgColor).BorderBottom(1).BorderColor(ColorBorder).Padding(paddingKomorek).AlignRight()
-                            .Text(towar.Wartosc.ToString("N2")).FontSize(fontSizeData).Bold().FontColor(ColorGreen);
+                    if (pokazCene)
+                        table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4).AlignRight()
+                            .Text(p.CenaJednostkowa > 0 ? $"{p.CenaJednostkowa:N2}" : "—").FontSize(8);
+
+                    if (pokazWartosc)
+                        table.Cell().Background(bgColor).PaddingVertical(4).PaddingHorizontal(4).AlignRight()
+                            .Text(wartosc > 0 ? $"{wartosc:N2} {txt["zl"]}" : "—")
+                            .FontSize(8).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+
+                    lp++;
+                }
+
+                // Wiersz sumy
+                if (pokazWartosc && suma > 0)
+                {
+                    int colspan = 1;
+                    if (pokazOpakowanie) colspan++;
+                    if (pokazIlosc) colspan++;
+                    if (pokazCene) colspan++;
+
+                    table.Cell().ColumnSpan((uint)colspan).Background(Color.FromHex(KolorZielony)).PaddingVertical(6).PaddingHorizontal(8).AlignRight()
+                        .Text(txt["suma"]).FontSize(10).Bold().FontColor(Colors.White);
+
+                    table.Cell().Background(Color.FromHex(KolorZielony)).PaddingVertical(6).PaddingHorizontal(8).AlignRight()
+                        .Text($"{suma:N2} {txt["zl"]}").FontSize(11).Bold().FontColor(Colors.White);
                 }
             });
         }
 
-        private void DodajPodsumowanie(IContainer container)
+        private void GenerujStopke(IContainer container, ParametryOferty parametry, Dictionary<string, string> txt, DateTime dataWaznosci)
         {
-            decimal netto = _towary.Sum(t => t.Wartosc);
-            decimal vat = netto * 0.05m;
-            decimal brutto = netto + vat;
-
-            container.AlignRight().Width(260).Column(col =>
-            {
-                col.Item().Row(row =>
-                {
-                    row.RelativeItem().Text(T("Suma netto:", "Net total:")).FontSize(9);
-                    row.ConstantItem(100).AlignRight().Text($"{netto:N2} zł").FontSize(9);
-                });
-                col.Item().PaddingTop(2).Row(row =>
-                {
-                    row.RelativeItem().Text(T("Podatek VAT (5%):", "VAT tax (5%):")).FontSize(9);
-                    row.ConstantItem(100).AlignRight().Text($"{vat:N2} zł").FontSize(9);
-                });
-                col.Item().PaddingTop(5).BorderTop(2).BorderColor(ColorGreen).PaddingTop(5).Row(row =>
-                {
-                    row.RelativeItem().Text(T("Do zapłaty:", "To pay:")).Bold().FontSize(11).FontColor(ColorGreen);
-                    row.ConstantItem(100).AlignRight().Background(ColorGreen).Padding(6).AlignCenter()
-                       .Text($"{brutto:N2} zł").FontColor("#FFFFFF").Bold().FontSize(12);
-                });
-            });
-        }
-
-        private void DodajWarunkiHandlowe(IContainer container)
-        {
-            var daneKonta = KontaBankowe[_parametry.WalutaKonta];
-            DateTime dataWystawienia = DateTime.Now;
-            DateTime terminPlatnosci = _parametry.DniPlatnosci > 0
-                ? dataWystawienia.AddDays(_parametry.DniPlatnosci)
-                : dataWystawienia;
-
-            // Tłumaczenie terminu płatności
-            string terminPlatnosciTekst = _parametry.TerminPlatnosci;
-            if (_jezyk == JezykOferty.English)
-            {
-                if (terminPlatnosciTekst.Contains("Przedpłata"))
-                {
-                    terminPlatnosciTekst = "Prepayment";
-                }
-                else if (terminPlatnosciTekst.Contains("dni"))
-                {
-                    // Zamiana "7 dni" na "7 days"
-                    terminPlatnosciTekst = terminPlatnosciTekst.Replace(" dni", " days");
-                }
-            }
-
             container.Column(col =>
             {
-                col.Item().Text(T("Warunki handlowe:", "Commercial terms:")).Bold().FontSize(11).FontColor(ColorGreen);
-
-                col.Item().PaddingTop(8).Border(2).BorderColor(ColorGreen).Background(ColorBackground).Padding(12).Row(row =>
+                // Podziękowanie
+                col.Item().PaddingHorizontal(25).PaddingBottom(8).Row(row =>
                 {
-                    row.RelativeItem().Column(leftCol =>
+                    row.RelativeItem().Column(dziekCol =>
                     {
-                        leftCol.Item().Row(r =>
-                        {
-                            r.ConstantItem(110).Text($"🚚 {T("Transport:", "Transport:")}").FontSize(8).FontColor(ColorGray).Bold();
-
-                            string transportTekst = _transport;
-                            if (_jezyk == JezykOferty.English)
-                            {
-                                if (_transport.Contains("własny"))
-                                    transportTekst = "Own transport";
-                                else if (_transport.Contains("klienta"))
-                                    transportTekst = "Customer transport";
-                            }
-
-                            r.RelativeItem().Text(transportTekst).Bold().FontSize(9).FontColor(ColorGreen);
-                        });
-
-                        if (_parametry.PokazTerminPlatnosci)
-                        {
-                            leftCol.Item().PaddingTop(5).Row(r =>
-                            {
-                                r.ConstantItem(110).Text($"💳 {T("Termin płatności:", "Payment term:")}").FontSize(8).FontColor(ColorGray).Bold();
-                                r.RelativeItem().Text(terminPlatnosciTekst).Bold().FontSize(9).FontColor(ColorGreen);
-                            });
-
-                            if (_parametry.DniPlatnosci > 0)
-                            {
-                                leftCol.Item().PaddingTop(3).Row(r =>
-                                {
-                                    r.ConstantItem(110).Text($"📅 {T("Zapłata do:", "Payment by:")}").FontSize(8).FontColor(ColorGray).Bold();
-                                    r.RelativeItem().Text(terminPlatnosci.ToString("dd.MM.yyyy")).Bold().FontSize(9).FontColor(ColorRed);
-                                });
-                            }
-                        }
-                    });
-
-                    row.ConstantItem(240).BorderLeft(2).BorderColor(ColorGreen).PaddingLeft(12).Column(rightCol =>
-                    {
-                        rightCol.Item().Text($"💰 {T("Dane do przelewu:", "Bank details:")}").Bold().FontSize(9).FontColor(ColorGreen);
-
-                        rightCol.Item().PaddingTop(5).Row(r =>
-                        {
-                            r.ConstantItem(55).Text(T("Bank:", "Bank:")).FontSize(8).FontColor(ColorGray);
-                            r.RelativeItem().Text(daneKonta.NazwaBanku).FontSize(8).Bold();
-                        });
-
-                        rightCol.Item().PaddingTop(2).Row(r =>
-                        {
-                            r.ConstantItem(55).Text("SWIFT:").FontSize(8).FontColor(ColorGray);
-                            r.RelativeItem().Text(daneKonta.SWIFT).FontSize(8).Bold().FontColor(ColorGreen);
-                        });
-
-                        rightCol.Item().PaddingTop(2).Row(r =>
-                        {
-                            r.ConstantItem(55).Text($"{T("Konto", "Account")} {daneKonta.Waluta}:").FontSize(8).FontColor(ColorGray);
-                            r.RelativeItem().Text(daneKonta.IBAN).FontSize(8).Bold().FontColor(ColorGreen);
-                        });
-
-                        rightCol.Item().PaddingTop(2).Text(daneKonta.AdresBanku).FontSize(7).FontColor(ColorGray);
+                        dziekCol.Item().Text(txt["dziekujemy"]).FontSize(9).Italic()
+                            .FontColor(Color.FromHex(KolorZielony));
+                        dziekCol.Item().PaddingTop(2).Text(txt["zapraszamy"]).FontSize(10).Bold()
+                            .FontColor(Color.FromHex(KolorZielonyCiemny));
                     });
                 });
 
-                col.Item().PaddingTop(8).Background(ColorHighlight).Padding(6).BorderLeft(3).BorderColor(ColorGreen)
-                    .Text($"⏱️ {T("Oferta ważna 7 dni od daty wystawienia. Ceny nie zawierają podatku VAT.", "Offer valid for 7 days from issue date. Prices do not include VAT tax.")}")
-                   .FontSize(8).Italic().FontColor(ColorGray);
-            });
-        }
+                // Dolny pasek z danymi firmy
+                col.Item().Background(Color.FromHex(KolorZielonyCiemny)).PaddingVertical(10).PaddingHorizontal(25).Row(row =>
+                {
+                    row.RelativeItem().Column(firmaCol =>
+                    {
+                        firmaCol.Item().Text(FIRMA_PELNA).FontSize(8).Bold().FontColor(Colors.White);
+                        firmaCol.Item().Text($"{FIRMA_ADRES}, {FIRMA_MIASTO} | NIP: {FIRMA_NIP} | REGON: {FIRMA_REGON}")
+                            .FontSize(7).FontColor(Colors.White).Light();
+                    });
 
-        private void DodajStopke(IContainer container)
-        {
-            container.AlignCenter().Text(text =>
-            {
-                text.DefaultTextStyle(x => x.FontSize(7).FontColor(ColorGray));
-                text.Span(T("W razie pytań pozostajemy do dyspozycji. Strona ", "For any questions we remain at your disposal. Page "));
-                text.CurrentPageNumber();
-                text.Span(T(" z ", " of "));
-                text.TotalPages();
+                    row.ConstantItem(170).AlignRight().Column(kontaktCol =>
+                    {
+                        kontaktCol.Item().Text($"Tel: {FIRMA_TEL} | {FIRMA_EMAIL}").FontSize(7).FontColor(Colors.White);
+                        kontaktCol.Item().Text(FIRMA_WWW).FontSize(7).FontColor(Colors.White).Light();
+                    });
+                });
+
+                // Data ważności w czerwonym pasku
+                col.Item().Background(Color.FromHex(KolorCzerwony)).PaddingVertical(4).PaddingHorizontal(25).Row(row =>
+                {
+                    row.RelativeItem().AlignCenter()
+                        .Text($"{txt["wazna"]}: {dataWaznosci:dd.MM.yyyy}")
+                        .FontSize(8).FontColor(Colors.White);
+                });
             });
         }
     }

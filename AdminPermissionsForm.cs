@@ -165,9 +165,14 @@ namespace Kalendarz1
             leftPanel.Controls.Add(deleteUserButton);
 
             manageHandlowcyButton = CreateStyledButton("👔 Zarządzaj handlowcami", ColorTranslator.FromHtml("#9B59B6"),
-                new Point(25, 585), new Size(400, 48));
+    new Point(25, 585), new Size(195, 48));
             manageHandlowcyButton.Click += ManageHandlowcyButton_Click;
             leftPanel.Controls.Add(manageHandlowcyButton);
+
+            var editContactButton = CreateStyledButton("📞 Dane kontaktowe", ColorTranslator.FromHtml("#3498DB"),
+                new Point(230, 585), new Size(195, 48));
+            editContactButton.Click += EditContactButton_Click;
+            leftPanel.Controls.Add(editContactButton);
 
             loadingBar = new ProgressBar
             {
@@ -404,27 +409,34 @@ namespace Kalendarz1
             }
         }
 
+        // ============================================================
+        // ZSYNCHRONIZOWANE KATEGORIE MODUŁÓW - KLUCZ DO UPRAWNIEŃ
+        // ============================================================
         private List<string> GetModulesByCategory(string categoryName)
         {
             var categories = new Dictionary<string, List<string>>
             {
                 ["Zaopatrzenie i Zakupy"] = new List<string> {
-                    "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy",
-                    "TerminyDostawyZywca", "DokumentyZakupu", "PlatnosciHodowcy",
-                    "ZmianyUHodowcow", "Specyfikacje", "PlachtyAviloga"
+                    "Dane Hodowcy", "Zakup Paszy", "Wstawienia",
+                    "Kalendarz Dostaw", "Dokumenty Zakupu", "Płatności Hodowców",
+                    "Wnioski o Zmianę", "Specyfikacja Surowca", "Transport Avilog"
                 },
                 ["Produkcja i Magazyn"] = new List<string> {
-                    "KalkulacjaKrojenia", "ProdukcjaPodglad", "PrzychodMrozni", "LiczenieMagazynu", "PanelMagazyniera"
+                    "Kalkulacja Krojenia", "Podgląd Produkcji", "Mroźnia",
+                    "Liczenie Magazynu", "Panel Magazyniera", "Analiza Wydajności",
+                    "Wyczerpalność Klas"  // ✅ NOWY MODUŁ
                 },
                 ["Sprzedaż i CRM"] = new List<string> {
-                    "CRM", "ZamowieniaOdbiorcow", "DokumentySprzedazy",
-                    "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa", "OfertaCenowa"
+                    "CRM", "Kartoteka Odbiorców", "Zamówienia Mięsa",
+                    "Rozkład Klas Wagowych",  // ✅ NOWY MODUŁ
+                    "Faktury Sprzedaży", "Prognoza Uboju", "Plan Produkcji",
+                    "Dashboard Analityczny", "Oferty Handlowe"
                 },
                 ["Opakowania i Transport"] = new List<string> {
-                    "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu"
+                    "Salda Zbiorcze", "Salda Odbiorcy", "Transport"
                 },
                 ["Finanse i Zarządzanie"] = new List<string> {
-                    "DaneFinansowe", "NotatkiZeSpotkan"
+                    "Wynik Finansowy", "Notatki ze Spotkań"
                 }
             };
             return categories.ContainsKey(categoryName) ? categories[categoryName] : new List<string>();
@@ -450,13 +462,14 @@ namespace Kalendarz1
                                 FOR XML PATH('')
                             ), 1, 2, '') AS Handlowcy
                         FROM operators o
-                        ORDER BY o.ID";
+                        ORDER BY o.Name";
 
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    usersGrid.DataSource = dt;
-                    usersCountLabel.Text = $"Liczba użytkowników: {dt.Rows.Count}";
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        usersGrid.DataSource = dt;
+                    }
                 }
             }
             catch (Exception ex)
@@ -471,32 +484,9 @@ namespace Kalendarz1
 
         private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
-            // Ustaw szerokości kolumn po zakończeniu bindowania
-            if (usersGrid.Columns.Count > 0)
+            if (usersGrid.DataSource is DataTable dt)
             {
-                if (usersGrid.Columns.Contains("ID"))
-                {
-                    usersGrid.Columns["ID"].HeaderText = "ID Użytkownika";
-                    usersGrid.Columns["ID"].Width = 100;
-                }
-
-                if (usersGrid.Columns.Contains("Name"))
-                {
-                    usersGrid.Columns["Name"].HeaderText = "Nazwa";
-                    usersGrid.Columns["Name"].Width = 150;
-                }
-
-                if (usersGrid.Columns.Contains("Handlowcy"))
-                {
-                    usersGrid.Columns["Handlowcy"].HeaderText = "Przypisani handlowcy";
-                    usersGrid.Columns["Handlowcy"].Width = 150;
-                }
-            }
-
-            // Wybierz pierwszy wiersz jeśli istnieje
-            if (usersGrid.Rows.Count > 0)
-            {
-                usersGrid.Rows[0].Selected = true;
+                usersCountLabel.Text = $"Łącznie: {dt.Rows.Count} użytkowników";
             }
         }
 
@@ -541,7 +531,6 @@ namespace Kalendarz1
                 permissionsGrid.DataSource = permissions;
                 if (permissionsGrid.Columns.Count > 0)
                 {
-                    // Kolumna Ikona
                     permissionsGrid.Columns["Ikona"].Width = 50;
                     permissionsGrid.Columns["Ikona"].ReadOnly = true;
                     permissionsGrid.Columns["Ikona"].DefaultCellStyle.Font = new Font("Segoe UI Emoji", 14);
@@ -566,6 +555,9 @@ namespace Kalendarz1
             }
         }
 
+        // ============================================================
+        // ZSYNCHRONIZOWANA LISTA MODUŁÓW - MUSI ODPOWIADAĆ Menu.cs
+        // ============================================================
         private List<ModuleInfo> GetModulesList()
         {
             return new List<ModuleInfo>
@@ -587,10 +579,16 @@ namespace Kalendarz1
                 new ModuleInfo("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", "Produkcja i Magazyn", "❄️"),
                 new ModuleInfo("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", "Produkcja i Magazyn", "📦"),
                 new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Kompleksowy panel do zarządzania wydaniami", "Produkcja i Magazyn", "📱"),
+                new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie żywiec vs tuszka", "Produkcja i Magazyn", "📊"),
+                // ✅ NOWY MODUŁ - Dashboard Wyczerpalności
+                new ModuleInfo("DashboardWyczerpalnosci", "Wyczerpalność Klas", "Podgląd dostępności klas wagowych tuszki", "Produkcja i Magazyn", "📉"),
                 
                 // Sprzedaż i CRM
                 new ModuleInfo("CRM", "CRM", "Zarządzaj relacjami z klientami", "Sprzedaż i CRM", "👥"),
+                new ModuleInfo("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna kartoteka i dane CRM odbiorców", "Sprzedaż i CRM", "👤"),
                 new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Zarządzanie zamówieniami", "Sprzedaż i CRM", "📦"),
+                // ✅ NOWY MODUŁ - Rezerwacja Klas Wagowych
+                new ModuleInfo("RezerwacjaKlas", "Rozkład Klas Wagowych", "Twórz zamówienia z podziałem na klasy wagowe", "Sprzedaż i CRM", "🐔"),
                 new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "Sprzedaż i CRM", "🧾"),
                 new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "Sprzedaż i CRM", "📈"),
                 new ModuleInfo("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", "Sprzedaż i CRM", "📊"),
@@ -608,6 +606,10 @@ namespace Kalendarz1
             };
         }
 
+        // ============================================================
+        // ZSYNCHRONIZOWANA MAPA DOSTĘPU - POZYCJA W STRINGU ACCESS
+        // Musi odpowiadać ParseAccessString w Menu.cs!
+        // ============================================================
         private Dictionary<int, string> GetAccessMap()
         {
             return new Dictionary<int, string>
@@ -637,7 +639,12 @@ namespace Kalendarz1
                 [22] = "NotatkiZeSpotkan",
                 [23] = "PlanTygodniowy",
                 [24] = "LiczenieMagazynu",
-                [25] = "PanelMagazyniera" // ✅ NOWE UPRAWNIENIE
+                [25] = "PanelMagazyniera",
+                [26] = "KartotekaOdbiorcow",
+                [27] = "AnalizaWydajnosci",
+                // ✅ NOWE MODUŁY - Klasy Wagowe
+                [28] = "RezerwacjaKlas",
+                [29] = "DashboardWyczerpalnosci"
             };
         }
 
@@ -662,7 +669,6 @@ namespace Kalendarz1
                     string displayName = row.Cells["Moduł"].Value?.ToString();
                     bool hasAccess = Convert.ToBoolean(row.Cells["Dostęp"].Value);
 
-                    // Znajdź klucz modułu na podstawie DisplayName
                     var module = modulesList.FirstOrDefault(m => m.DisplayName == displayName);
                     if (module != null)
                     {
@@ -825,7 +831,21 @@ namespace Kalendarz1
             dialog.HandlowcyZapisani += (s, ev) => LoadUsers();
             dialog.Show();
         }
+        private void EditContactButton_Click(object sender, EventArgs e)
+        {
+            if (usersGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Wybierz użytkownika, któremu chcesz edytować dane kontaktowe.",
+                    "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
+            string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
+            string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+
+            var dialog = new EditOperatorContactDialog(connectionString, userId, userName);
+            dialog.ShowDialog();
+        }
         private class ModuleInfo
         {
             public string Key { get; set; }

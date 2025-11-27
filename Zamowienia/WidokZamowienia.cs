@@ -1,5 +1,5 @@
-﻿// Plik: WidokZamowienia.cs
-// WERSJA 21.0 - Dodano cenę, Hallal, własny odbiór + poprawki
+// Plik: WidokZamowienia.cs
+// WERSJA 23.0 - Rozbudowany pasek klas wagowych z dokładnymi informacjami ile zabrano
 #nullable enable
 using Microsoft.Data.SqlClient;
 using System;
@@ -60,6 +60,11 @@ namespace Kalendarz1
         private Label? lblSumaPojemnikow;
         private Label? lblSumaKg;
 
+        // Pasek klas wagowych w podsumowaniu
+        private Panel? panelKlasyWagowe;
+        private Panel? pnlKlasyPasek;
+        private Label? lblKlasyInfo;
+
         private Panel? panelTransport;
         private ProgressBar? progressSolowka;
         private ProgressBar? progressTir;
@@ -76,6 +81,9 @@ namespace Kalendarz1
 
         private DateTimePicker? dateTimePickerProdukcji;
         private Label? lblGodzinaLabel;
+
+        // Klasy wagowe dla tuszki (Kurczak A)
+        private RozkladKlasWagowych? _rozkladKlasKurczakA;
 
         public WidokZamowienia() : this(App.UserID ?? string.Empty, null) { }
         public WidokZamowienia(int? idZamowienia) : this(App.UserID ?? string.Empty, idZamowienia) { }
@@ -900,6 +908,26 @@ namespace Kalendarz1
             cKodKopia.DefaultCellStyle.ForeColor = Color.FromArgb(31, 41, 55);
             cKodKopia.DefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
             cKodKopia.HeaderText = "Towar";
+
+            // Event CellClick dla podwójnego kliknięcia na Tuszkę
+            dataGridViewZamowienie.CellDoubleClick += DataGridViewZamowienie_CellDoubleClick;
+        }
+
+        private void DataGridViewZamowienie_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+
+            var row = (dataGridViewZamowienie.Rows[e.RowIndex].DataBoundItem as DataRowView)?.Row;
+            if (row == null) return;
+
+            string kodTowaru = row.Field<string>("Kod") ?? "";
+            bool isTuszka = kodTowaru.ToUpper().Contains("KURCZAK A") || kodTowaru.ToUpper().Contains("TUSZKA");
+            decimal ilosc = row.Field<decimal?>("Ilosc") ?? 0;
+
+            if (isTuszka && ilosc > 0)
+            {
+                PokazDialogKlasWagowych(ilosc);
+            }
         }
         private void DataGridViewZamowienie_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
         {
@@ -1147,6 +1175,18 @@ namespace Kalendarz1
 
             _view.RowFilter = $"Katalog = '{_aktywnyKatalog}'";
 
+            // Wczytaj rezerwacje klas - najpierw z tabeli w bazie
+            _rozkladKlasKurczakA = await RezerwacjeKlasManager.PobierzRezerwacjeZamowieniaAsync(_connLibra, id);
+            
+            // Jeśli nie ma w tabeli, spróbuj sparsować z notatki (kompatybilność wsteczna)
+            if (_rozkladKlasKurczakA == null)
+            {
+                _rozkladKlasKurczakA = ParseRozkladZNotatki(textBoxUwagi.Text);
+            }
+
+            // Aktualizuj pasek klas wagowych
+            AktualizujPasekKlasWagowych();
+
             _blokujObslugeZmian = false;
             RecalcSum();
         }
@@ -1156,6 +1196,41 @@ namespace Kalendarz1
             {
                 ShowWarning(msg, "Błąd danych");
                 return;
+            }
+
+            // Sprawdź czy Tuszka A ma rozkład klas
+            decimal iloscTuszkiA = 0;
+            foreach (DataRow r in _dt.Rows)
+            {
+                string kod = r.Field<string>("Kod") ?? "";
+                if (kod.ToUpper().Contains("KURCZAK A") || kod.ToUpper().Contains("TUSZKA"))
+                {
+                    iloscTuszkiA = r.Field<decimal?>("Ilosc") ?? 0;
+                    break;
+                }
+            }
+
+            if (iloscTuszkiA > 0 && (_rozkladKlasKurczakA == null || _rozkladKlasKurczakA.SumaProcent == 0))
+            {
+                var wynik = MessageBox.Show(this,
+                    $"🐔 Zamówiłeś {iloscTuszkiA:N0} kg Tuszki A, ale nie rozdzieliłeś jej na klasy wagowe!\n\n" +
+                    "Czy chcesz teraz rozdzielić?\n\n" +
+                    "• TAK - otwórz okno rozdzielania\n" +
+                    "• NIE - zapisz bez rozdzielenia",
+                    "Brak rozkładu klas wagowych",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Warning);
+
+                if (wynik == DialogResult.Yes)
+                {
+                    PokazDialogKlasWagowych(iloscTuszkiA);
+                    return; // Wróć - user może anulować dialog
+                }
+                else if (wynik == DialogResult.Cancel)
+                {
+                    return; // Anuluj zapis
+                }
+                // DialogResult.No - kontynuuj zapis bez rozkładu
             }
 
             decimal sumaPaletCalkowita = 0m;
@@ -1407,6 +1482,41 @@ namespace Kalendarz1
             }
 
             await tr.CommitAsync();
+
+            // === ZAPIS REZERWACJI KLAS WAGOWYCH ===
+            // Po zapisie zamówienia zapisujemy rezerwacje do osobnej tabeli
+            if (_rozkladKlasKurczakA != null && _rozkladKlasKurczakA.SumaPojemnikow > 0)
+            {
+                try
+                {
+                    // Pobierz nazwę odbiorcy
+                    string? odbiorcaNazwa = null;
+                    if (!string.IsNullOrEmpty(_selectedKlientId))
+                    {
+                        var klient = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
+                        odbiorcaNazwa = klient?.Nazwa;
+                    }
+
+                    // Pobierz handlowca
+                    string? handlowiec = null;
+                    var cbHandlowiec = this.Controls.Find("cbHandlowiecFilter", true).FirstOrDefault() as ComboBox;
+                    if (cbHandlowiec?.SelectedItem != null)
+                        handlowiec = cbHandlowiec.SelectedItem.ToString();
+
+                    await RezerwacjeKlasManager.ZapiszRezerwacjeAsync(
+                        _connLibra,
+                        orderId,
+                        dataProdukcji,
+                        _rozkladKlasKurczakA,
+                        handlowiec,
+                        odbiorcaNazwa);
+                }
+                catch (Exception exRez)
+                {
+                    // Nie przerywaj zapisu zamówienia z powodu błędu rezerwacji
+                    System.Diagnostics.Debug.WriteLine($"Błąd zapisu rezerwacji: {exRez.Message}");
+                }
+            }
         }
         #endregion
 
@@ -1775,22 +1885,25 @@ namespace Kalendarz1
 
         #region Panel Podsumowania
 
+
         private void CreateSummaryPanel()
         {
             panelSummary = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 60,
+                Height = 75,
                 BackColor = Color.FromArgb(92, 138, 58),
                 Parent = dataGridViewZamowienie.Parent
             };
 
+            // Lewa strona - statystyki
             var flowPanel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Left,
+                Width = 520,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                Padding = new Padding(30, 15, 30, 15)
+                Padding = new Padding(20, 12, 20, 12)
             };
 
             lblSumaPalet = CreateSummaryLabel("PALETY", "0");
@@ -1803,12 +1916,197 @@ namespace Kalendarz1
             flowPanel.Controls.Add(CreateSeparator());
             flowPanel.Controls.Add(lblSumaKg);
 
+            // Prawa strona - panel informacyjny klas wagowych (rozbudowany)
+            panelKlasyWagowe = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(15, 5, 20, 5)
+            };
+
+            var lblKlasyTitle = new Label
+            {
+                Text = "KLASY WAGOWE TUSZKI",
+                Font = new Font("Segoe UI", 8f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(200, 230, 190),
+                Location = new Point(10, 3),
+                AutoSize = true
+            };
+
+            // Pasek postępu klas - szerszy
+            pnlKlasyPasek = new Panel
+            {
+                Location = new Point(10, 20),
+                Size = new Size(320, 22),
+                BackColor = Color.FromArgb(60, 100, 40)
+            };
+            pnlKlasyPasek.Paint += PaintKlasyPasek;
+
+            // Linia szczegółów - ile pojemników zabrano per klasa
+            lblKlasyInfo = new Label
+            {
+                Text = "Kliknij 2x na Kurczak A",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(200, 230, 190),
+                Location = new Point(10, 46),
+                Size = new Size(450, 22),
+                AutoSize = false
+            };
+
+            panelKlasyWagowe.Controls.Add(lblKlasyTitle);
+            panelKlasyWagowe.Controls.Add(pnlKlasyPasek);
+            panelKlasyWagowe.Controls.Add(lblKlasyInfo);
+
             panelSummary.Controls.Add(flowPanel);
+            panelSummary.Controls.Add(panelKlasyWagowe);
 
             if (dataGridViewZamowienie != null)
             {
-                dataGridViewZamowienie.Height -= 60;
+                dataGridViewZamowienie.Height -= 75;
             }
+        }
+
+        private static readonly Dictionary<int, Color> KLASY_KOLORY = new()
+        {
+            { 5, Color.FromArgb(220, 38, 38) },   // Czerwony
+            { 6, Color.FromArgb(234, 88, 12) },   // Pomarańczowy
+            { 7, Color.FromArgb(202, 138, 4) },   // Żółty
+            { 8, Color.FromArgb(101, 163, 13) },  // Limonka
+            { 9, Color.FromArgb(22, 163, 74) },   // Zielony
+            { 10, Color.FromArgb(8, 145, 178) },  // Cyan
+            { 11, Color.FromArgb(37, 99, 235) },  // Niebieski
+            { 12, Color.FromArgb(124, 58, 237) }, // Fioletowy
+        };
+
+        private void PaintKlasyPasek(object? sender, PaintEventArgs e)
+        {
+            if (pnlKlasyPasek == null) return;
+
+            int width = pnlKlasyPasek.Width;
+            int height = pnlKlasyPasek.Height;
+
+            // Tło
+            using var bgBrush = new SolidBrush(Color.FromArgb(50, 80, 35));
+            e.Graphics.FillRectangle(bgBrush, 0, 0, width, height);
+
+            if (_rozkladKlasKurczakA == null || _rozkladKlasKurczakA.SumaPojemnikow == 0)
+            {
+                // Puste - pokaż tekst zachęcający
+                using var font = new Font("Segoe UI", 8f);
+                using var brush = new SolidBrush(Color.FromArgb(150, 180, 140));
+                e.Graphics.DrawString("Kliknij 2x na wiersz Kurczak A", font, brush, 60, 4);
+                return;
+            }
+
+            // Rysuj segmenty klas proporcjonalnie do pojemników
+            int x = 0;
+            int sumaPojemnikow = _rozkladKlasKurczakA.SumaPojemnikow;
+
+            foreach (var kv in _rozkladKlasKurczakA.KlasyPojemniki.Where(k => k.Value > 0).OrderBy(k => k.Key))
+            {
+                int segmentWidth = (int)(width * kv.Value / (decimal)sumaPojemnikow);
+                if (segmentWidth < 1) segmentWidth = 1;
+
+                if (KLASY_KOLORY.TryGetValue(kv.Key, out var kolor))
+                {
+                    using var brush = new SolidBrush(kolor);
+                    e.Graphics.FillRectangle(brush, x, 0, segmentWidth, height);
+
+                    // Etykieta klasy jeśli segment wystarczająco szeroki
+                    if (segmentWidth > 30)
+                    {
+                        using var font = new Font("Segoe UI", 8f, FontStyle.Bold);
+                        string txt = $"{kv.Key}";
+                        var textSize = e.Graphics.MeasureString(txt, font);
+                        int textX = x + (segmentWidth - (int)textSize.Width) / 2;
+                        e.Graphics.DrawString(txt, font, Brushes.White, textX, 3);
+                    }
+                }
+
+                x += segmentWidth;
+            }
+
+            // Ramka
+            using var pen = new Pen(Color.FromArgb(100, 140, 80), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, width - 1, height - 1);
+        }
+
+        private void AktualizujPasekKlasWagowych()
+        {
+            if (lblKlasyInfo == null || pnlKlasyPasek == null) return;
+
+            if (_rozkladKlasKurczakA == null || _rozkladKlasKurczakA.SumaPojemnikow == 0)
+            {
+                lblKlasyInfo.Text = "Kliknij 2x na wiersz Kurczak A aby rozdzielić na klasy wagowe";
+                lblKlasyInfo.ForeColor = Color.FromArgb(180, 210, 170);
+                lblKlasyInfo.Font = new Font("Segoe UI", 9f);
+            }
+            else
+            {
+                int sumaPoj = _rozkladKlasKurczakA.SumaPojemnikow;
+                decimal sumaKg = sumaPoj * 15m;
+                decimal palety = sumaPoj / 36m;
+                
+                // Pobierz ilość zamówioną tuszki z grida
+                decimal zamowioneKgTuszki = 0;
+                foreach (DataRow r in _dt.Rows)
+                {
+                    string kod = r.Field<string>("Kod") ?? "";
+                    if (kod.Contains("Kurczak A") || kod.Contains("TUSZKA") || kod.Contains("Tuszka"))
+                    {
+                        zamowioneKgTuszki = r.Field<decimal>("Ilosc");
+                        break;
+                    }
+                }
+
+                int zamowionePoj = zamowioneKgTuszki > 0 ? (int)Math.Ceiling(zamowioneKgTuszki / 15m) : 0;
+                int roznica = zamowionePoj > 0 ? sumaPoj - zamowionePoj : 0;
+                
+                // Buduj szczegółowy tekst z ilościami pojemników per klasa
+                var szczegoly = _rozkladKlasKurczakA.KlasyPojemniki
+                    .Where(k => k.Value > 0)
+                    .OrderBy(k => k.Key)
+                    .Select(k => $"Kl.{k.Key}:{k.Value}")
+                    .ToList();
+
+                string rozbicie = string.Join("  ", szczegoly);
+                
+                // Informacja o różnicy
+                string roznicaText = "";
+                if (zamowionePoj > 0)
+                {
+                    if (roznica == 0)
+                        roznicaText = " ✓";
+                    else if (roznica > 0)
+                        roznicaText = $" (+{roznica})";
+                    else
+                        roznicaText = $" ({roznica})";
+                }
+
+                // Pełna informacja: suma + kilogramy + rozbicie na klasy
+                lblKlasyInfo.Text = $"Zabrano: {sumaPoj} poj. ({sumaKg:N0} kg){roznicaText}  │  {rozbicie}";
+                
+                // Kolor w zależności od tego czy się zgadza
+                if (zamowionePoj > 0 && roznica == 0)
+                {
+                    lblKlasyInfo.ForeColor = Color.FromArgb(180, 255, 180); // Jasny zielony - OK
+                }
+                else if (roznica > 0)
+                {
+                    lblKlasyInfo.ForeColor = Color.FromArgb(255, 220, 150); // Pomarańczowy - za dużo
+                }
+                else if (roznica < 0)
+                {
+                    lblKlasyInfo.ForeColor = Color.FromArgb(255, 200, 150); // Żółto-pomarańczowy - za mało
+                }
+                else
+                {
+                    lblKlasyInfo.ForeColor = Color.White; // Biały - domyślnie
+                }
+                
+                lblKlasyInfo.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            }
+
+            pnlKlasyPasek.Invalidate();
         }
 
         private Label CreateSummaryLabel(string title, string value)
@@ -2068,7 +2366,7 @@ namespace Kalendarz1
             dataGridViewZamowienie.RowPostPaint += DataGridViewZamowienie_RowPostPaint;
             dataGridViewZamowienie.ColumnWidthChanged += (s, e) => dataGridViewZamowienie.Invalidate();
             dataGridViewZamowienie.CurrentCellDirtyStateChanged += DataGridViewZamowienie_CurrentCellDirtyStateChanged;
-            dataGridViewZamowienie.CellFormatting += DataGridViewZamowienie_CellFormatting;  // DODAJ TĘ LINIĘ
+            dataGridViewZamowienie.CellFormatting += DataGridViewZamowienie_CellFormatting;
 
             txtSzukajOdbiorcy.TextChanged += TxtSzukajOdbiorcy_TextChanged;
             txtSzukajOdbiorcy.KeyDown += TxtSzukajOdbiorcy_KeyDown;
@@ -2498,6 +2796,137 @@ namespace Kalendarz1
             TextRenderer.DrawText(g, text, font, new Point(0, 2), Color.FromArgb(107, 114, 128));
             return bmp;
         }
+
+        #region Klasy Wagowe dla Kurczak A
+
+        /// <summary>
+        /// Wyświetla dialog wyboru klas wagowych dla tuszki (Kurczak A)
+        /// </summary>
+        private void PokazDialogKlasWagowych(decimal iloscKg)
+        {
+            if (iloscKg <= 0) return;
+
+            // Pobierz datę produkcji
+            DateTime dataProdukcji = dateTimePickerProdukcji?.Value.Date ?? DateTime.Today;
+
+            // Przekaż dane do dialogu
+            using var dialog = new KlasyWagoweDialog(
+                iloscKg, 
+                dataProdukcji, 
+                _connLibra, 
+                _rozkladKlasKurczakA, 
+                _idZamowieniaDoEdycji);
+
+            if (dialog.ShowDialog(this) == DialogResult.OK && dialog.Zatwierdzono)
+            {
+                _rozkladKlasKurczakA = dialog.Rozklad;
+                AktualizujNotatkeKlasami();
+                AktualizujPasekKlasWagowych();
+            }
+        }
+
+        /// <summary>
+        /// Aktualizuje pole notatki o informację o rozkładzie klas
+        /// </summary>
+        private void AktualizujNotatkeKlasami()
+        {
+            if (_rozkladKlasKurczakA == null || textBoxUwagi == null) return;
+
+            string notatkaKlas = _rozkladKlasKurczakA.ToNotatkString();
+            if (string.IsNullOrEmpty(notatkaKlas)) return;
+
+            string obecnaNotatka = textBoxUwagi.Text ?? "";
+
+            // Usuń starą notatkę o klasach jeśli istnieje
+            int startIndex = obecnaNotatka.IndexOf("[Klasy:");
+            if (startIndex >= 0)
+            {
+                int endIndex = obecnaNotatka.IndexOf("]", startIndex);
+                if (endIndex >= 0)
+                {
+                    obecnaNotatka = obecnaNotatka.Remove(startIndex, endIndex - startIndex + 1).Trim();
+                }
+            }
+
+            // Dodaj nową notatkę o klasach na początku
+            textBoxUwagi.Text = string.IsNullOrEmpty(obecnaNotatka)
+                ? notatkaKlas
+                : $"{notatkaKlas} {obecnaNotatka}";
+        }
+
+        /// <summary>
+        /// Parsuje rozkład klas z notatki (przy edycji zamówienia)
+        /// </summary>
+        private RozkladKlasWagowych? ParseRozkladZNotatki(string notatka)
+        {
+            if (string.IsNullOrEmpty(notatka)) return null;
+
+            // Szukaj wzorca: [Klasy: Kl.5:20%(10poj), Kl.6:15%(8poj), ...]
+            int startIndex = notatka.IndexOf("[Klasy:");
+            if (startIndex < 0) return null;
+
+            int endIndex = notatka.IndexOf("]", startIndex);
+            if (endIndex < 0) return null;
+
+            string klasyCzesc = notatka.Substring(startIndex + 7, endIndex - startIndex - 7);
+
+            var rozklad = new RozkladKlasWagowych();
+            var parts = klasyCzesc.Split(',');
+
+            foreach (var part in parts)
+            {
+                var trimmed = part.Trim();
+                // Format nowy: Kl.5:20%(10poj) lub stary: Kl.5:100poj lub Kl.5:100kg
+                if (trimmed.StartsWith("Kl."))
+                {
+                    var colonIndex = trimmed.IndexOf(':');
+                    if (colonIndex > 3)
+                    {
+                        if (int.TryParse(trimmed.Substring(3, colonIndex - 3), out int klasa) &&
+                            klasa >= 5 && klasa <= 12)
+                        {
+                            var valueStr = trimmed.Substring(colonIndex + 1);
+                            
+                            // Nowy format z procentami: 20%(10poj)
+                            if (valueStr.Contains("%"))
+                            {
+                                var procentIndex = valueStr.IndexOf('%');
+                                if (decimal.TryParse(valueStr.Substring(0, procentIndex), out decimal procent))
+                                {
+                                    rozklad.KlasyProcent[klasa] = procent;
+                                    
+                                    // Spróbuj też wyciągnąć pojemniki
+                                    var pojStart = valueStr.IndexOf('(');
+                                    var pojEnd = valueStr.IndexOf("poj");
+                                    if (pojStart >= 0 && pojEnd > pojStart)
+                                    {
+                                        if (int.TryParse(valueStr.Substring(pojStart + 1, pojEnd - pojStart - 1), out int poj))
+                                        {
+                                            rozklad.KlasyPojemniki[klasa] = poj;
+                                        }
+                                    }
+                                }
+                            }
+                            // Stary format: poj lub kg
+                            else
+                            {
+                                valueStr = valueStr.Replace("poj", "").Replace("kg", "").Replace("(", "").Replace(")", "").Trim();
+                                if (int.TryParse(valueStr, out int wartosc))
+                                {
+                                    rozklad.KlasyPojemniki[klasa] = wartosc;
+                                    // Szacuj procent (zakładając że notatka była dla tego samego zamówienia)
+                                    rozklad.KlasyProcent[klasa] = 12.5m; // domyślnie równo
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return rozklad.SumaProcent > 0 || rozklad.SumaPojemnikow > 0 ? rozklad : null;
+        }
+
+        #endregion
 
         private void RecalcSum()
         {

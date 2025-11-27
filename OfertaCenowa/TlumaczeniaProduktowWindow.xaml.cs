@@ -11,21 +11,6 @@ using System.Diagnostics;
 
 namespace Kalendarz1.OfertaCenowa
 {
-    public class TlumaczenieProduktu : INotifyPropertyChanged
-    {
-        private string _kod = "";
-        private string _nazwaPL = "";
-        private string _nazwaEN = "";
-
-        public string Kod { get => _kod; set { _kod = value; OnPropertyChanged(); } }
-        public string NazwaPL { get => _nazwaPL; set { _nazwaPL = value; OnPropertyChanged(); } }
-        public string NazwaEN { get => _nazwaEN; set { _nazwaEN = value; OnPropertyChanged(); } }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string? name = null)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
-
     public partial class TlumaczeniaProduktowWindow : Window
     {
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";

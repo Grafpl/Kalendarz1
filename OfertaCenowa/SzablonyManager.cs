@@ -7,220 +7,182 @@ using System.Text.Json;
 namespace Kalendarz1.OfertaCenowa
 {
     /// <summary>
-    /// Manager do zarządzania szablonami towarów i parametrów
+    /// Manager szablonów - obsługuje zapisywanie i wczytywanie szablonów
     /// </summary>
     public class SzablonyManager
     {
-        private static readonly string _folderSzablonow = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Kalendarz1",
-            "Szablony"
-        );
-
-        private static readonly string _plikSzablonowTowarow = Path.Combine(_folderSzablonow, "szablony_towarow.json");
-        private static readonly string _plikSzablonowParametrow = Path.Combine(_folderSzablonow, "szablony_parametrow.json");
+        private readonly string _folderSzablonow;
+        private readonly string _plikSzablonowTowarow;
+        private readonly string _plikSzablonowParametrow;
 
         public SzablonyManager()
         {
-            if (!Directory.Exists(_folderSzablonow))
-            {
-                Directory.CreateDirectory(_folderSzablonow);
-            }
+            _folderSzablonow = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OfertaHandlowa", "Szablony");
+            Directory.CreateDirectory(_folderSzablonow);
+
+            _plikSzablonowTowarow = Path.Combine(_folderSzablonow, "szablony_towarow.json");
+            _plikSzablonowParametrow = Path.Combine(_folderSzablonow, "szablony_parametrow.json");
         }
 
-        #region Szablony Towarów
+        // =====================================================
+        // SZABLONY TOWARÓW
+        // =====================================================
 
-        /// <summary>
-        /// Zapisuje szablon towarów
-        /// </summary>
-        public void ZapiszSzablonTowarow(SzablonTowarow szablon)
-        {
-            var szablony = WczytajSzablonyTowarow();
-            
-            // Jeśli szablon o tym ID już istnieje, zastąp go
-            var istniejacy = szablony.FirstOrDefault(s => s.Id == szablon.Id);
-            if (istniejacy != null)
-            {
-                szablony.Remove(istniejacy);
-            }
-            else
-            {
-                // Dla nowego szablonu, ustaw nowe ID
-                szablon.Id = szablony.Any() ? szablony.Max(s => s.Id) + 1 : 1;
-            }
-
-            szablony.Add(szablon);
-            ZapiszDoPliku(_plikSzablonowTowarow, szablony);
-        }
-
-        /// <summary>
-        /// Wczytuje wszystkie szablony towarów
-        /// </summary>
         public List<SzablonTowarow> WczytajSzablonyTowarow()
         {
-            return WczytajZPliku<SzablonTowarow>(_plikSzablonowTowarow);
+            try
+            {
+                if (File.Exists(_plikSzablonowTowarow))
+                {
+                    string json = File.ReadAllText(_plikSzablonowTowarow);
+                    var szablony = JsonSerializer.Deserialize<List<SzablonTowarow>>(json);
+                    return szablony ?? new List<SzablonTowarow>();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania szablonów towarów: {ex.Message}");
+            }
+
+            return new List<SzablonTowarow>();
         }
 
-        /// <summary>
-        /// Usuwa szablon towarów
-        /// </summary>
+        public void ZapiszSzablonyTowarow(List<SzablonTowarow> szablony)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(szablony, options);
+                File.WriteAllText(_plikSzablonowTowarow, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania szablonów towarów: {ex.Message}");
+            }
+        }
+
+        public void DodajSzablonTowarow(SzablonTowarow szablon)
+        {
+            var szablony = WczytajSzablonyTowarow();
+            szablon.Id = szablony.Count > 0 ? szablony[^1].Id + 1 : 1;
+            szablony.Add(szablon);
+            ZapiszSzablonyTowarow(szablony);
+        }
+
         public void UsunSzablonTowarow(int id)
         {
             var szablony = WczytajSzablonyTowarow();
             szablony.RemoveAll(s => s.Id == id);
-            ZapiszDoPliku(_plikSzablonowTowarow, szablony);
+            ZapiszSzablonyTowarow(szablony);
         }
 
-        #endregion
+        // =====================================================
+        // SZABLONY PARAMETRÓW
+        // =====================================================
 
-        #region Szablony Parametrów
+        public List<SzablonParametrow> WczytajSzablonyParametrow()
+        {
+            try
+            {
+                if (File.Exists(_plikSzablonowParametrow))
+                {
+                    string json = File.ReadAllText(_plikSzablonowParametrow);
+                    var szablony = JsonSerializer.Deserialize<List<SzablonParametrow>>(json);
+                    return szablony ?? new List<SzablonParametrow>();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania szablonów parametrów: {ex.Message}");
+            }
 
-        /// <summary>
-        /// Zapisuje szablon parametrów
-        /// </summary>
+            return new List<SzablonParametrow>();
+        }
+
+        public void ZapiszSzablonyParametrow(List<SzablonParametrow> szablony)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(szablony, options);
+                File.WriteAllText(_plikSzablonowParametrow, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania szablonów parametrów: {ex.Message}");
+            }
+        }
+
         public void ZapiszSzablonParametrow(SzablonParametrow szablon)
         {
             var szablony = WczytajSzablonyParametrow();
+            var istniejacy = szablony.FindIndex(s => s.Id == szablon.Id);
             
-            var istniejacy = szablony.FirstOrDefault(s => s.Id == szablon.Id);
-            if (istniejacy != null)
+            if (istniejacy >= 0)
             {
-                szablony.Remove(istniejacy);
+                szablony[istniejacy] = szablon;
             }
             else
             {
-                szablon.Id = szablony.Any() ? szablony.Max(s => s.Id) + 1 : 1;
+                szablon.Id = szablony.Count > 0 ? szablony.Max(s => s.Id) + 1 : 1;
+                szablony.Add(szablon);
             }
-
-            szablony.Add(szablon);
-            ZapiszDoPliku(_plikSzablonowParametrow, szablony);
+            
+            ZapiszSzablonyParametrow(szablony);
         }
 
-        /// <summary>
-        /// Wczytuje wszystkie szablony parametrów
-        /// </summary>
-        public List<SzablonParametrow> WczytajSzablonyParametrow()
-        {
-            return WczytajZPliku<SzablonParametrow>(_plikSzablonowParametrow);
-        }
-
-        /// <summary>
-        /// Usuwa szablon parametrów
-        /// </summary>
         public void UsunSzablonParametrow(int id)
         {
             var szablony = WczytajSzablonyParametrow();
             szablony.RemoveAll(s => s.Id == id);
-            ZapiszDoPliku(_plikSzablonowParametrow, szablony);
+            ZapiszSzablonyParametrow(szablony);
         }
 
-        #endregion
+        // =====================================================
+        // PRZYKŁADOWE SZABLONY
+        // =====================================================
 
-        #region Metody pomocnicze
-
-        private void ZapiszDoPliku<T>(string sciezka, List<T> dane)
-        {
-            var opcje = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            };
-
-            string json = JsonSerializer.Serialize(dane, opcje);
-            File.WriteAllText(sciezka, json);
-        }
-
-        private List<T> WczytajZPliku<T>(string sciezka)
-        {
-            if (!File.Exists(sciezka))
-            {
-                return new List<T>();
-            }
-
-            try
-            {
-                string json = File.ReadAllText(sciezka);
-                return JsonSerializer.Deserialize<List<T>>(json) ?? new List<T>();
-            }
-            catch
-            {
-                return new List<T>();
-            }
-        }
-
-        #endregion
-
-        #region Szablony domyślne
-
-        /// <summary>
-        /// Tworzy przykładowe szablony dla nowych użytkowników
-        /// </summary>
         public void UtworzSzablonyPrzykladowe()
         {
-            // Sprawdź czy już istnieją jakieś szablony
-            if (WczytajSzablonyTowarow().Any() || WczytajSzablonyParametrow().Any())
-            {
-                return; // Już są szablony, nie nadpisuj
-            }
+            // Sprawdź czy już istnieją
+            if (WczytajSzablonyParametrow().Count > 0) return;
 
-            // Szablon parametrów: "Standardowa oferta PL"
-            var szablonStandardowy = new SzablonParametrow
+            // Utwórz przykładowe szablony parametrów
+            var szablonyParametrow = new List<SzablonParametrow>
             {
-                Nazwa = "Standardowa oferta PL",
-                TerminPlatnosci = "7 dni",
-                DniPlatnosci = 7,
-                WalutaKonta = "PLN",
-                Jezyk = JezykOferty.Polski,
-                TypLogo = TypLogo.Okragle,
-                PokazOpakowanie = false,
-                PokazCene = true,
-                PokazIlosc = false,
-                PokazTerminPlatnosci = true,
-                TransportTyp = "wlasny",
-                DodajNotkeOCenach = true,
-                NotatkaCustom = ""
+                new SzablonParametrow
+                {
+                    Id = 1,
+                    Nazwa = "Standardowy PL",
+                    TerminPlatnosci = "14 dni",
+                    DniPlatnosci = 14,
+                    WalutaKonta = "PLN",
+                    Jezyk = JezykOferty.Polski,
+                    TypLogo = TypLogo.Okragle,
+                    PokazOpakowanie = true,
+                    PokazCene = true,
+                    PokazIlosc = false,
+                    PokazTerminPlatnosci = true,
+                    TransportTyp = "wlasny"
+                },
+                new SzablonParametrow
+                {
+                    Id = 2,
+                    Nazwa = "Export EN",
+                    TerminPlatnosci = "30 dni",
+                    DniPlatnosci = 30,
+                    WalutaKonta = "EUR",
+                    Jezyk = JezykOferty.English,
+                    TypLogo = TypLogo.Dlugie,
+                    PokazOpakowanie = true,
+                    PokazCene = true,
+                    PokazIlosc = true,
+                    PokazTerminPlatnosci = true,
+                    TransportTyp = "klienta"
+                }
             };
-            ZapiszSzablonParametrow(szablonStandardowy);
 
-            // Szablon parametrów: "Oferta eksportowa EN"
-            var szablonEksport = new SzablonParametrow
-            {
-                Nazwa = "Oferta eksportowa EN",
-                TerminPlatnosci = "14 dni",
-                DniPlatnosci = 14,
-                WalutaKonta = "EUR",
-                Jezyk = JezykOferty.English,
-                TypLogo = TypLogo.Dlugie,
-                PokazOpakowanie = true,
-                PokazCene = true,
-                PokazIlosc = true,
-                PokazTerminPlatnosci = true,
-                TransportTyp = "klienta",
-                DodajNotkeOCenach = false,
-                NotatkaCustom = "Price validity: 7 days"
-            };
-            ZapiszSzablonParametrow(szablonEksport);
-
-            // Szablon parametrów: "Tylko ceny (bez ilości)"
-            var szablonCenyOnly = new SzablonParametrow
-            {
-                Nazwa = "Tylko ceny (bez ilości)",
-                TerminPlatnosci = "7 dni",
-                DniPlatnosci = 7,
-                WalutaKonta = "PLN",
-                Jezyk = JezykOferty.Polski,
-                TypLogo = TypLogo.Okragle,
-                PokazOpakowanie = false,
-                PokazCene = true,
-                PokazIlosc = false,
-                PokazTerminPlatnosci = false,
-                TransportTyp = "wlasny",
-                DodajNotkeOCenach = true,
-                NotatkaCustom = "Ceny orientacyjne. Ostateczna cena zależy od zamówionej ilości."
-            };
-            ZapiszSzablonParametrow(szablonCenyOnly);
+            ZapiszSzablonyParametrow(szablonyParametrow);
         }
-
-        #endregion
     }
 }

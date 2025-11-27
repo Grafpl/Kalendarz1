@@ -1,83 +1,203 @@
 <Window x:Class="Kalendarz1.OfertaCenowa.MarzeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Marże" Height="450" Width="550"
-        WindowStartupLocation="CenterOwner" Background="#F4F6F9">
+        Title="📊 Marże produktów" 
+        Height="550" Width="950"
+        WindowStartupLocation="CenterOwner"
+        Background="#F4F6F9">
+
     <Window.Resources>
         <SolidColorBrush x:Key="PrimaryGreenBrush" Color="#4B833C"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="LightTextBrush" Color="#7F8C8D"/>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryGreenBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+        </Style>
+
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#E8F5E9"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryGreenBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C8E6C9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
-    <Grid Margin="15">
+
+    <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
-        <Border Grid.Row="0" Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="📊 Szybkie marże" FontSize="14" FontWeight="Bold" Margin="0,0,0,5"/>
-                <TextBlock Text="Wybierz produkty i ustaw marżę automatycznie" FontSize="10" Foreground="#7F8C8D" TextWrapping="Wrap"/>
-                <Grid Margin="0,10,0,0">
+
+        <!-- Nagłówek -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="📊 Kalkulacja marż" FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="Ceny zakupu i średnie sprzedaży pobrane dla KAŻDEGO towaru osobno z ostatnich 30 dni" 
+                       FontSize="12" Foreground="{StaticResource LightTextBrush}" Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Podsumowanie -->
+        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="15" Margin="0,0,0,15">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Średnia marża: " FontSize="14" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtSredniaMarza" Text="-" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtBezCeny" Text="" FontSize="11" Foreground="{StaticResource LightTextBrush}" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Border Background="#FEF3C7" CornerRadius="4" Padding="8,4" Margin="0,0,10,0">
+                        <TextBlock Text="🟡 &lt;5% niska" FontSize="10" Foreground="#92400E"/>
+                    </Border>
+                    <Border Background="#D1FAE5" CornerRadius="4" Padding="8,4" Margin="0,0,10,0">
+                        <TextBlock Text="🟢 5-15% dobra" FontSize="10" Foreground="#065F46"/>
+                    </Border>
+                    <Border Background="#DCFCE7" CornerRadius="4" Padding="8,4">
+                        <TextBlock Text="🟢 &gt;15% wysoka" FontSize="10" Foreground="#14532D"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabela -->
+        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek tabeli -->
+                <Grid Grid.Row="0" Background="{StaticResource PrimaryGreenBrush}">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="80"/>
                         <ColumnDefinition Width="100"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="100"/>
                     </Grid.ColumnDefinitions>
-                    
-                    <TextBlock Grid.Column="0" Text="Marża:" FontSize="11" VerticalAlignment="Center"/>
-                    <TextBox x:Name="txtMarza" Grid.Column="2" Text="20" FontSize="11" Padding="8,6" HorizontalContentAlignment="Center"/>
-                    <TextBlock Grid.Column="4" Text="%" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="Lp" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Produkt" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12"/>
+                    <TextBlock Grid.Column="2" Text="Ilość" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="Cena zakupu" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center" ToolTip="Ostatnia cena zakupu dla tego towaru"/>
+                    <TextBlock Grid.Column="4" Text="Śr. sprzedaży" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center" ToolTip="Średnia cena sprzedaży tego towaru z 30 dni"/>
+                    <TextBlock Grid.Column="5" Text="Cena sprzedaży" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="6" Text="Marża" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="7" Text="Akcje" Foreground="White" FontWeight="SemiBold" FontSize="11" Padding="8,12" HorizontalAlignment="Center"/>
                 </Grid>
-            </StackPanel>
+
+                <!-- Wiersze -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Wiersze}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#F3F4F6" BorderThickness="0,0,0,1" Padding="0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="50"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="100"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Lp -->
+                                        <TextBlock Grid.Column="0" Text="{Binding Id}" FontSize="11" Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        <!-- Produkt -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
+                                            <TextBlock Text="{Binding Nazwa}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Kod}" FontSize="10" Foreground="{StaticResource LightTextBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- Ilość -->
+                                        <TextBlock Grid.Column="2" Text="{Binding IloscStr}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        <!-- Cena zakupu -->
+                                        <TextBlock Grid.Column="3" Text="{Binding CenaZakupuStr}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#6B7280"/>
+
+                                        <!-- Średnia sprzedaży -->
+                                        <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SredniaSprzedazyStr}" FontSize="12" Foreground="#3B82F6" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- Cena sprzedaży (edytowalna) -->
+                                        <TextBox Grid.Column="5" 
+                                                 Text="{Binding CenaSprzedazyStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 FontSize="13" 
+                                                 FontWeight="SemiBold"
+                                                 HorizontalContentAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 Margin="8,2"
+                                                 Padding="8,6"
+                                                 PreviewTextInput="TxtCena_PreviewTextInput"
+                                                 TextChanged="TxtCena_TextChanged"/>
+
+                                        <!-- Marża -->
+                                        <Border Grid.Column="6" Background="{Binding MarzaKolor}" CornerRadius="4" Padding="8,4" Margin="4" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.2"/>
+                                        <TextBlock Grid.Column="6" Text="{Binding MarzaStr}" FontSize="13" FontWeight="Bold" Foreground="{Binding MarzaKolor}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        <!-- Akcje -->
+                                        <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Button Content="📊" Style="{StaticResource SmallButtonStyle}" Click="BtnUzyjSredniej_Click" Tag="{Binding}" ToolTip="Użyj średniej sprzedaży" Margin="0,0,4,0"/>
+                                            <Button Content="+10%" Style="{StaticResource SmallButtonStyle}" Click="BtnDodajMarze_Click" Tag="{Binding}" ToolTip="Dodaj 10% do ceny zakupu"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
         </Border>
-        
-        <Border Grid.Row="1" Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6">
-            <DataGrid x:Name="dgProdukty" AutoGenerateColumns="False" HeadersVisibility="Column" 
-                      GridLinesVisibility="Horizontal" BorderThickness="0" AlternatingRowBackground="#F9FAFB" 
-                      FontSize="10" RowHeight="36">
-                <DataGrid.ColumnHeaderStyle>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="{StaticResource PrimaryGreenBrush}"/>
-                        <Setter Property="Foreground" Value="White"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="FontSize" Value="10"/>
-                        <Setter Property="Padding" Value="8,6"/>
-                    </Style>
-                </DataGrid.ColumnHeaderStyle>
-                <DataGrid.Columns>
-                    <DataGridCheckBoxColumn Binding="{Binding Zaznaczony, UpdateSourceTrigger=PropertyChanged}" Width="40"/>
-                    <DataGridTextColumn Header="Kod" Binding="{Binding Kod}" Width="80" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Margin" Value="5,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Margin" Value="5,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="Ilość" Binding="{Binding Ilosc}" Width="70" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-        
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="Zaznacz wszystkie" Click="BtnZaznaczWszystkie_Click" Padding="12,8" Margin="0,0,8,0" FontSize="10" Background="#F3F4F6" BorderThickness="0" Cursor="Hand"/>
-            <Button Content="Odznacz wszystkie" Click="BtnOdznaczWszystkie_Click" Padding="12,8" Margin="0,0,8,0" FontSize="10" Background="#F3F4F6" BorderThickness="0" Cursor="Hand"/>
-            <Button Content="✅ Zastosuj" Click="BtnZastosuj_Click" Padding="15,8" FontSize="11" Foreground="White" Background="{StaticResource PrimaryGreenBrush}" BorderThickness="0" Cursor="Hand"/>
+
+        <!-- Przyciski -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="❌ Anuluj" Style="{StaticResource SecondaryButtonStyle}" Click="BtnAnuluj_Click" Margin="0,0,10,0"/>
+            <Button Content="✅ Zastosuj ceny" Style="{StaticResource PrimaryButtonStyle}" Click="BtnZastosuj_Click"/>
         </StackPanel>
     </Grid>
 </Window>

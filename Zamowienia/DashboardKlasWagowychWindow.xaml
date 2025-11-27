@@ -1,0 +1,286 @@
+<Window x:Class="Kalendarz1.DashboardKlasWagowychWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="📊 Dashboard Klas Wagowych" 
+        Height="900" Width="1500"
+        WindowState="Maximized"
+        Background="#F8FAF6"
+        FontFamily="Segoe UI">
+    
+    <Window.Resources>
+        <!-- Kolory -->
+        <SolidColorBrush x:Key="PrimaryGreen" Color="#5C8A3A"/>
+        <SolidColorBrush x:Key="HeaderGreen" Color="#374F28"/>
+        <SolidColorBrush x:Key="SuccessGreen" Color="#16A34A"/>
+        <SolidColorBrush x:Key="WarningOrange" Color="#EA580C"/>
+        <SolidColorBrush x:Key="DangerRed" Color="#DC2626"/>
+        <SolidColorBrush x:Key="BorderLight" Color="#DCE4D4"/>
+        <SolidColorBrush x:Key="TextDark" Color="#323C28"/>
+        <SolidColorBrush x:Key="TextLight" Color="#64735A"/>
+        
+        <!-- Kolory klas -->
+        <SolidColorBrush x:Key="Klasa5Color" Color="#DC2626"/>
+        <SolidColorBrush x:Key="Klasa6Color" Color="#EA580C"/>
+        <SolidColorBrush x:Key="Klasa7Color" Color="#CA8A04"/>
+        <SolidColorBrush x:Key="Klasa8Color" Color="#65A30D"/>
+        <SolidColorBrush x:Key="Klasa9Color" Color="#16A34A"/>
+        <SolidColorBrush x:Key="Klasa10Color" Color="#0891B2"/>
+        <SolidColorBrush x:Key="Klasa11Color" Color="#2563EB"/>
+        <SolidColorBrush x:Key="Klasa12Color" Color="#7C3AED"/>
+        
+        <!-- Styl przycisku toolbar -->
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#F0F5EE"/>
+            <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E5EBE0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#D5DDD0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Styl przycisku akcji -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Styl małego przycisku -->
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F0F5EE"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Styl karty klasy -->
+        <Style x:Key="KlasaCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Width" Value="130"/>
+            <Setter Property="Height" Value="90"/>
+            <Setter Property="Margin" Value="4"/>
+        </Style>
+        
+        <!-- Styl wiersza zamówienia -->
+        <Style x:Key="ZamowienieRowStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        
+        <!-- Styl TextBox dla klasy -->
+        <Style x:Key="KlasaTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Width" Value="65"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLight}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryGreen}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="{StaticResource PrimaryGreen}" Padding="25,15">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="📊 Dashboard Klas Wagowych" 
+                               FontSize="24" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Rozdzielanie pojemników na klasy wagowe dla wszystkich zamówień" 
+                               FontSize="12" Foreground="#DCE8D0" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- TOOLBAR -->
+        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource BorderLight}" 
+                BorderThickness="0,0,0,1" Padding="15,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Data produkcji:" FontSize="13" FontWeight="SemiBold" 
+                           Foreground="{StaticResource TextDark}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                
+                <DatePicker x:Name="dpData" Width="180" FontSize="13" VerticalAlignment="Center"
+                            SelectedDateChanged="DpData_SelectedDateChanged"/>
+                
+                <Button Content="◀" Style="{StaticResource ToolbarButtonStyle}" 
+                        Width="38" Margin="10,0,0,0" Click="BtnPoprzedni_Click"/>
+                <Button Content="▶" Style="{StaticResource ToolbarButtonStyle}" 
+                        Width="38" Margin="4,0,0,0" Click="BtnNastepny_Click"/>
+                
+                <Button Content="📅 Dzisiaj" Style="{StaticResource ActionButtonStyle}" 
+                        Background="{StaticResource PrimaryGreen}" Margin="15,0,0,0" Click="BtnDzisiaj_Click"/>
+                
+                <Button Content="🔄 Odśwież" Style="{StaticResource ActionButtonStyle}" 
+                        Background="#3B82F6" Margin="8,0,0,0" Click="BtnOdswiez_Click"/>
+                
+                <Button Content="💾 Zapisz wszystko" Style="{StaticResource ActionButtonStyle}" 
+                        Background="{StaticResource SuccessGreen}" Margin="8,0,0,0" 
+                        FontSize="13" Click="BtnZapiszWszystko_Click"/>
+            </StackPanel>
+        </Border>
+        
+        <!-- PANEL PODSUMOWANIA KLAS -->
+        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource BorderLight}" 
+                BorderThickness="0,0,0,1" Padding="15,10">
+            <StackPanel x:Name="pnlKlasyPodsumowanie" Orientation="Horizontal">
+                <!-- Karty klas generowane dynamicznie -->
+            </StackPanel>
+        </Border>
+        
+        <!-- LISTA ZAMÓWIEŃ -->
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="15,10">
+            <StackPanel x:Name="pnlZamowienia">
+                <!-- Nagłówek -->
+                <Border Background="{StaticResource HeaderGreen}" CornerRadius="4,4,0,0" Padding="10,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="75"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="KLIENT" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Grid.Column="1" Text="Kl.5" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Kl.6" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Kl.7" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="Kl.8" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="Kl.9" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="6" Text="Kl.10" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="7" Text="Kl.11" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="8" Text="Kl.12" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="9" Text="SUMA" Foreground="White" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="10" Text="AKCJE" Foreground="White" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Wiersze zamówień - generowane dynamicznie -->
+                <ItemsControl x:Name="icZamowienia">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Template dla wiersza zamówienia -->
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- STATUS BAR -->
+        <Border Grid.Row="4" x:Name="borderStatus" Background="{StaticResource HeaderGreen}" Padding="15,12">
+            <TextBlock x:Name="txtStatus" Text="Ładowanie..." 
+                       Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
+        </Border>
+    </Grid>
+</Window>

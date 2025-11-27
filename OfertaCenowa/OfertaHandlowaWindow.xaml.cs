@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -49,18 +50,16 @@ namespace Kalendarz1.OfertaCenowa
     }
 
     // =====================================================
-    // MODEL WIERSZA TOWARU - PROSTY I BEZAWARYJNY
+    // MODEL WIERSZA TOWARU - Z TYPEM ŚWIEŻY/MROŻONY
     // =====================================================
     public class TowarWiersz : INotifyPropertyChanged
     {
         private int _lp;
-        private int _towarId;
-        private string _kod = "";
-        private string _nazwa = "";
-        private string _katalog = "";
+        private TowarOferta? _wybranyTowar;
         private decimal _ilosc;
         private decimal _cena;
         private string _opakowanie = "E2";
+        private int _typProduktuIndex = 0; // 0 = świeży, 1 = mrożony
 
         public int Lp
         {
@@ -68,39 +67,64 @@ namespace Kalendarz1.OfertaCenowa
             set { _lp = value; OnPropertyChanged(); }
         }
 
-        public int TowarId
+        public TowarOferta? WybranyTowar
         {
-            get => _towarId;
+            get => _wybranyTowar;
             set
             {
-                if (_towarId != value)
+                if (_wybranyTowar != value)
                 {
-                    _towarId = value;
+                    _wybranyTowar = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(TowarId));
+                    OnPropertyChanged(nameof(Kod));
+                    OnPropertyChanged(nameof(Nazwa));
+                    OnPropertyChanged(nameof(Katalog));
                     OnPropertyChanged(nameof(CzyWypelniony));
                     OnPropertyChanged(nameof(UsunWidocznosc));
                     OnPropertyChanged(nameof(WyswietlanaNazwa));
+                    OnPropertyChanged(nameof(TloWiersza));
+                    OnPropertyChanged(nameof(CboBackground));
+                    OnPropertyChanged(nameof(TxtBackground));
+                    
+                    TowarZmieniony?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
 
-        public string Kod
+        public event EventHandler? TowarZmieniony;
+        public event EventHandler? TypZmieniony;
+
+        public int TowarId => _wybranyTowar?.Id ?? 0;
+        public string Kod => _wybranyTowar?.Kod ?? "";
+        public string Nazwa => _wybranyTowar?.Nazwa ?? "";
+        public string Katalog => _wybranyTowar?.Katalog ?? "";
+
+        // TYP PRODUKTU: 0 = świeży, 1 = mrożony
+        public int TypProduktuIndex
         {
-            get => _kod;
-            set { _kod = value ?? ""; OnPropertyChanged(); OnPropertyChanged(nameof(WyswietlanaNazwa)); }
+            get => _typProduktuIndex;
+            set
+            {
+                if (_typProduktuIndex != value)
+                {
+                    int staryTyp = _typProduktuIndex;
+                    _typProduktuIndex = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CzyMrozony));
+                    OnPropertyChanged(nameof(TypProduktuEmoji));
+                    
+                    // Wywołaj event tylko jeśli produkt jest wybrany
+                    if (_wybranyTowar != null)
+                    {
+                        TypZmieniony?.Invoke(this, EventArgs.Empty);
+                    }
+                }
+            }
         }
 
-        public string Nazwa
-        {
-            get => _nazwa;
-            set { _nazwa = value ?? ""; OnPropertyChanged(); OnPropertyChanged(nameof(WyswietlanaNazwa)); }
-        }
-
-        public string Katalog
-        {
-            get => _katalog;
-            set { _katalog = value ?? ""; OnPropertyChanged(); }
-        }
+        public bool CzyMrozony => _typProduktuIndex == 1;
+        public string TypProduktuEmoji => CzyMrozony ? "❄️" : "🥩";
 
         public decimal Ilosc
         {
@@ -134,7 +158,6 @@ namespace Kalendarz1.OfertaCenowa
             set { _opakowanie = value ?? "E2"; OnPropertyChanged(); }
         }
 
-        // Właściwości tekstowe z automatyczną konwersją przecinka na kropkę
         public string IloscTekst
         {
             get => _ilosc == 0 ? "" : _ilosc.ToString("G29");
@@ -159,14 +182,25 @@ namespace Kalendarz1.OfertaCenowa
             }
         }
 
-        // Właściwości obliczane
         public decimal Wartosc => Ilosc * Cena;
         public string WartoscTekst => Wartosc == 0 ? "" : $"{Wartosc:N2} zł";
         public string WyswietlanaNazwa => string.IsNullOrEmpty(Kod) ? "" : $"{Kod} - {Nazwa}";
-        public bool CzyWypelniony => TowarId > 0 && !string.IsNullOrEmpty(Kod);
+        public bool CzyWypelniony => _wybranyTowar != null && TowarId > 0;
         public Visibility UsunWidocznosc => CzyWypelniony ? Visibility.Visible : Visibility.Hidden;
         public string IloscStr => Ilosc == 0 ? "" : $"{Ilosc:N0} kg";
         public string CenaJednostkowaStr => Cena == 0 ? "" : $"{Cena:N2}";
+
+        public SolidColorBrush TloWiersza => CzyWypelniony 
+            ? new SolidColorBrush(Color.FromRgb(255, 255, 255)) 
+            : new SolidColorBrush(Color.FromRgb(250, 251, 252));
+        
+        public SolidColorBrush CboBackground => CzyWypelniony 
+            ? new SolidColorBrush(Colors.White) 
+            : new SolidColorBrush(Color.FromRgb(249, 250, 251));
+        
+        public SolidColorBrush TxtBackground => CzyWypelniony 
+            ? new SolidColorBrush(Colors.White) 
+            : new SolidColorBrush(Color.FromRgb(243, 244, 246));
 
         public TowarOferta ToTowarOferta() => new TowarOferta
         {
@@ -189,29 +223,41 @@ namespace Kalendarz1.OfertaCenowa
     // =====================================================
     public partial class OfertaHandlowaWindow : Window, INotifyPropertyChanged
     {
-        // === POŁĄCZENIA Z BAZĄ ===
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _connLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
-        // === KOLEKCJE DANYCH ===
         public ObservableCollection<OdbiorcaOferta> WynikiWyszukiwania { get; set; } = new();
         public ObservableCollection<OdbiorcaOferta> WybraniOdbiorcy { get; set; } = new();
         public ObservableCollection<TowarOferta> DostepneTowary { get; set; } = new();
         public ObservableCollection<TowarOferta> FiltrowaneTowary { get; set; } = new();
+        public ObservableCollection<TowarOferta> TowarySwiezy { get; set; } = new();
+        public ObservableCollection<TowarOferta> TowaryMrozone { get; set; } = new();
         public ObservableCollection<TowarWiersz> TowaryWOfercie { get; set; } = new();
         public List<string> OpakowanieLista { get; set; } = new() { "E2", "Karton", "Poliblok" };
 
-        // === POLA PRYWATNE ===
         private int _aktualnyKrok = 1;
-        private string _aktywnyKatalog = "67095";
         private readonly SzablonyManager _szablonyManager = new();
+        private readonly OfertaRepository _ofertaRepository = new();
         private string _nazwaOperatora = "";
+        private string _emailOperatora = "";
+        private string _telefonOperatora = "";
         private string _userId = "";
         private DispatcherTimer? _searchTimer;
 
+        // Publiczna właściwość UserID (ustawiana z MENU)
+        public string UserID
+        {
+            get => _userId;
+            set
+            {
+                _userId = value;
+                // Załaduj nazwę operatora po ustawieniu UserID
+                _ = LoadOperatorAsync();
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        // === KONSTRUKTORY ===
         public OfertaHandlowaWindow() : this(null, "") { }
         public OfertaHandlowaWindow(KlientOferta? klient) : this(klient, "") { }
 
@@ -221,38 +267,38 @@ namespace Kalendarz1.OfertaCenowa
             DataContext = this;
             _userId = userId;
 
-            // Inicjalizacja wyszukiwania odbiorców
             lstWynikiWyszukiwania.ItemsSource = WynikiWyszukiwania;
             _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
             _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); WyszukajOdbiorcow(); };
 
-            // Inicjalizacja tabeli produktów
             TowaryWOfercie.CollectionChanged += TowaryWOfercie_CollectionChanged;
 
-            // Ładowanie danych
             LoadDataAsync();
             _szablonyManager.UtworzSzablonyPrzykladowe();
 
-            // Dodanie klienta jeśli podany
+            // ✅ ULEPSZONE: Obsługa klienta przekazanego z CRM lub innego źródła
             if (klient != null)
             {
                 var odbiorca = new OdbiorcaOferta
                 {
                     Id = klient.Id,
                     Nazwa = klient.Nazwa,
-                    NIP = klient.NIP,
-                    Adres = klient.Adres,
-                    KodPocztowy = klient.KodPocztowy,
-                    Miejscowosc = klient.Miejscowosc,
-                    Zrodlo = klient.CzyReczny ? "RECZNY" : "HANDEL"
+                    NIP = klient.NIP ?? "",
+                    Adres = klient.Adres ?? "",
+                    KodPocztowy = klient.KodPocztowy ?? "",
+                    Miejscowosc = klient.Miejscowosc ?? "",
+                    Telefon = klient.Telefon ?? "",
+                    OsobaKontaktowa = klient.OsobaKontaktowa ?? "",
+                    Zrodlo = klient.CzyReczny ? "CRM" : "HANDEL" // CRM jeśli ręczny (z CRM)
                 };
                 WybraniOdbiorcy.Add(odbiorca);
                 OdswiezListeWybranychOdbiorcow();
+                
+                // Automatycznie przejdź do kroku 2 jeśli klient przekazany
+                _aktualnyKrok = 2;
             }
 
-            // Dodaj pierwszy pusty wiersz
             DodajNowyPustyWiersz();
-
             AktualizujWidokKroku();
         }
 
@@ -266,7 +312,6 @@ namespace Kalendarz1.OfertaCenowa
             {
                 await LoadOperatorAsync();
                 await LoadTowaryAsync();
-                FiltrujTowary();
             }
             catch (Exception ex)
             {
@@ -279,6 +324,8 @@ namespace Kalendarz1.OfertaCenowa
             if (string.IsNullOrEmpty(_userId))
             {
                 _nazwaOperatora = "Nieznany";
+                _emailOperatora = "";
+                _telefonOperatora = "";
                 txtWystawiajacy.Text = _nazwaOperatora;
                 return;
             }
@@ -287,15 +334,40 @@ namespace Kalendarz1.OfertaCenowa
             {
                 await using var cn = new SqlConnection(_connLibraNet);
                 await cn.OpenAsync();
+
+                // Pobierz nazwę operatora
                 await using var cmd = new SqlCommand("SELECT Name FROM [LibraNet].[dbo].[operators] WHERE ID = @id", cn);
                 cmd.Parameters.AddWithValue("@id", _userId);
                 var result = await cmd.ExecuteScalarAsync();
                 _nazwaOperatora = result?.ToString() ?? "Nieznany";
                 txtWystawiajacy.Text = _nazwaOperatora;
+
+                // Pobierz dane kontaktowe (email, telefon)
+                try
+                {
+                    await using var cmdKontakt = new SqlCommand(
+                        "SELECT Email, Telefon FROM [LibraNet].[dbo].[OperatorzyKontakt] WHERE OperatorID = @id", cn);
+                    cmdKontakt.Parameters.AddWithValue("@id", _userId);
+
+                    await using var reader = await cmdKontakt.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        _emailOperatora = reader["Email"]?.ToString() ?? "";
+                        _telefonOperatora = reader["Telefon"]?.ToString() ?? "";
+                    }
+                }
+                catch
+                {
+                    // Tabela może nie istnieć - ignoruj
+                    _emailOperatora = "";
+                    _telefonOperatora = "";
+                }
             }
             catch
             {
                 _nazwaOperatora = "Nieznany";
+                _emailOperatora = "";
+                _telefonOperatora = "";
                 txtWystawiajacy.Text = _nazwaOperatora;
             }
         }
@@ -303,6 +375,9 @@ namespace Kalendarz1.OfertaCenowa
         private async Task LoadTowaryAsync()
         {
             DostepneTowary.Clear();
+            TowarySwiezy.Clear();
+            TowaryMrozone.Clear();
+            
             try
             {
                 await using var cn = new SqlConnection(_connHandel);
@@ -316,28 +391,26 @@ namespace Kalendarz1.OfertaCenowa
                     string kod = rd["Kod"]?.ToString() ?? "";
                     if (excludedProducts.Any(excluded => kod.ToUpper().Contains(excluded))) continue;
 
-                    DostepneTowary.Add(new TowarOferta
+                    var towar = new TowarOferta
                     {
                         Id = rd.GetInt32(0),
                         Kod = kod,
                         Nazwa = rd["Nazwa"]?.ToString() ?? "",
                         Katalog = rd["katalog"]?.ToString() ?? "",
                         Opakowanie = "E2"
-                    });
+                    };
+                    
+                    DostepneTowary.Add(towar);
+                    
+                    if (towar.Katalog == "67095")
+                        TowarySwiezy.Add(towar);
+                    else if (towar.Katalog == "67153")
+                        TowaryMrozone.Add(towar);
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Błąd ładowania towarów: {ex.Message}");
-            }
-        }
-
-        private void FiltrujTowary()
-        {
-            FiltrowaneTowary.Clear();
-            foreach (var towar in DostepneTowary.Where(t => t.Katalog == _aktywnyKatalog))
-            {
-                FiltrowaneTowary.Add(towar);
             }
         }
 
@@ -477,6 +550,100 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         // =====================================================
+        // ✅ NOWA FUNKCJA: Checkbox "Do wysłania oferta"
+        // =====================================================
+
+        /// <summary>
+        /// Obsługa checkboxa - filtruj tylko klientów CRM ze statusem "Do wysłania oferta"
+        /// </summary>
+        private async void ChkTylkoDoWyslaniaOferty_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkTylkoDoWyslaniaOferty.IsChecked == true)
+            {
+                // Zaznaczony - wczytaj klientów CRM ze statusem "Do wysłania oferta"
+                txtSzukajOdbiorcy.Text = "";
+                rbZrodloCRM.IsChecked = true;
+                await WczytajKlientowDoWyslaniaOfertaAsync();
+            }
+            else
+            {
+                // Odznaczony - wyczyść wyniki
+                WynikiWyszukiwania.Clear();
+                placeholderBrakWynikow.Visibility = Visibility.Visible;
+            }
+        }
+
+        /// <summary>
+        /// Wczytuje wszystkich klientów CRM ze statusem "Do wysłania oferta"
+        /// </summary>
+        private async Task WczytajKlientowDoWyslaniaOfertaAsync()
+        {
+            const string sql = @"SELECT ID, NAZWA, KOD, MIASTO, ULICA, NUMER, NR_LOK, TELEFON_K, Imie, Nazwisko, Stanowisko, Wojewodztwo, Status 
+                FROM [LibraNet].[dbo].[OdbiorcyCRM] 
+                WHERE Status = 'Do wysłania oferta'
+                ORDER BY NAZWA";
+
+            try
+            {
+                WynikiWyszukiwania.Clear();
+                placeholderBrakWynikow.Visibility = Visibility.Collapsed;
+
+                await using var cn = new SqlConnection(_connLibraNet);
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+
+                int count = 0;
+                while (await rd.ReadAsync())
+                {
+                    string ulica = rd["ULICA"]?.ToString() ?? "";
+                    string numer = rd["NUMER"]?.ToString() ?? "";
+                    string nrLok = rd["NR_LOK"]?.ToString() ?? "";
+                    string adres = ulica;
+                    if (!string.IsNullOrEmpty(numer)) adres += " " + numer;
+                    if (!string.IsNullOrEmpty(nrLok)) adres += "/" + nrLok;
+
+                    string imie = rd["Imie"]?.ToString() ?? "";
+                    string nazwisko = rd["Nazwisko"]?.ToString() ?? "";
+
+                    WynikiWyszukiwania.Add(new OdbiorcaOferta
+                    {
+                        Id = rd["ID"]?.ToString() ?? "",
+                        Nazwa = rd["NAZWA"]?.ToString() ?? "",
+                        NIP = "",
+                        Adres = adres.Trim(),
+                        KodPocztowy = rd["KOD"]?.ToString() ?? "",
+                        Miejscowosc = rd["MIASTO"]?.ToString() ?? "",
+                        Telefon = rd["TELEFON_K"]?.ToString() ?? "",
+                        OsobaKontaktowa = $"{imie} {nazwisko}".Trim(),
+                        Stanowisko = rd["Stanowisko"]?.ToString() ?? "",
+                        Wojewodztwo = rd["Wojewodztwo"]?.ToString() ?? "",
+                        Status = rd["Status"]?.ToString() ?? "",
+                        Zrodlo = "CRM"
+                    });
+                    count++;
+                }
+
+                if (count == 0)
+                {
+                    placeholderBrakWynikow.Visibility = Visibility.Visible;
+                    MessageBox.Show("Brak klientów CRM ze statusem 'Do wysłania oferta'.", 
+                        "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"Znaleziono {count} klientów CRM oczekujących na ofertę.", 
+                        "📧 Do wysłania oferta", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd wczytywania klientów CRM: {ex.Message}");
+                MessageBox.Show($"Błąd wczytywania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // =====================================================
         // ZARZĄDZANIE ODBIORCAMI
         // =====================================================
 
@@ -596,10 +763,63 @@ namespace Kalendarz1.OfertaCenowa
         // ZARZĄDZANIE PRODUKTAMI
         // =====================================================
 
-        private void RbTypProduktu_Checked(object sender, RoutedEventArgs e)
+        private void ChkZamienWszystkieNaMrozone_Changed(object sender, RoutedEventArgs e)
         {
-            _aktywnyKatalog = rbSwiezy?.IsChecked == true ? "67095" : "67153";
-            FiltrujTowary();
+            bool naMrozone = chkZamienWszystkieNaMrozone.IsChecked == true;
+            int zamienione = 0;
+            int brakMapowania = 0;
+            
+            foreach (var wiersz in TowaryWOfercie.Where(w => w.CzyWypelniony).ToList())
+            {
+                // Pomijaj jeśli już jest w odpowiednim stanie
+                if (wiersz.CzyMrozony == naMrozone) continue;
+                
+                int? noweId = naMrozone 
+                    ? MapowanieSwiezyMrozonyWindow.PobierzIdMrozonego(wiersz.TowarId)
+                    : MapowanieSwiezyMrozonyWindow.PobierzIdSwiezego(wiersz.TowarId);
+                
+                if (noweId.HasValue)
+                {
+                    var nowyTowar = DostepneTowary.FirstOrDefault(t => t.Id == noweId.Value);
+                    if (nowyTowar != null)
+                    {
+                        // Zachowaj wartości
+                        decimal ilosc = wiersz.Ilosc;
+                        decimal cena = wiersz.Cena;
+                        string opakowanie = wiersz.Opakowanie;
+
+                        // Odsubskrybuj
+                        wiersz.TypZmieniony -= TowarWiersz_TypZmieniony;
+                        
+                        // Zmień produkt i typ
+                        wiersz.WybranyTowar = nowyTowar;
+                        wiersz.TypProduktuIndex = naMrozone ? 1 : 0;
+                        
+                        // Przywróć wartości
+                        wiersz.Ilosc = ilosc;
+                        wiersz.Cena = cena;
+                        wiersz.Opakowanie = opakowanie;
+
+                        // Ponownie subskrybuj
+                        wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+                        
+                        zamienione++;
+                    }
+                }
+                else
+                {
+                    brakMapowania++;
+                }
+            }
+            
+            AktualizujPodsumowanieTowary();
+            
+            if (brakMapowania > 0)
+            {
+                string typ = naMrozone ? "mrożonych" : "świeżych";
+                MessageBox.Show($"Zamieniono {zamienione} produktów.\n\n{brakMapowania} produktów nie ma zmapowanych odpowiedników {typ}.\nUżyj '🥩↔️❄️ Mapowanie' aby je zmapować.",
+                    "Zamiana produktów", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void DodajNowyPustyWiersz()
@@ -607,11 +827,107 @@ namespace Kalendarz1.OfertaCenowa
             var nowyWiersz = new TowarWiersz
             {
                 Lp = TowaryWOfercie.Count + 1,
-                Opakowanie = "E2"
+                Opakowanie = "E2",
+                TypProduktuIndex = rbDomyslnyMrozony?.IsChecked == true ? 1 : 0
             };
 
             nowyWiersz.PropertyChanged += TowarWiersz_PropertyChanged;
+            nowyWiersz.TowarZmieniony += TowarWiersz_TowarZmieniony;
+            nowyWiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+            
             TowaryWOfercie.Add(nowyWiersz);
+        }
+
+        private void TowarWiersz_TypZmieniony(object? sender, EventArgs e)
+        {
+            if (sender is TowarWiersz wiersz && wiersz.CzyWypelniony)
+            {
+                ZamienProduktNaOdpowiednik(wiersz);
+            }
+        }
+
+        private void ZamienProduktNaOdpowiednik(TowarWiersz wiersz)
+        {
+            if (wiersz.WybranyTowar == null) return;
+
+            int? noweId = null;
+            
+            if (wiersz.CzyMrozony)
+            {
+                // Świeży → Mrożony: pobierz ID mrożonego odpowiednika
+                noweId = MapowanieSwiezyMrozonyWindow.PobierzIdMrozonego(wiersz.TowarId);
+            }
+            else
+            {
+                // Mrożony → Świeży: pobierz ID świeżego odpowiednika
+                noweId = MapowanieSwiezyMrozonyWindow.PobierzIdSwiezego(wiersz.TowarId);
+            }
+
+            if (noweId.HasValue)
+            {
+                var nowyTowar = DostepneTowary.FirstOrDefault(t => t.Id == noweId.Value);
+                if (nowyTowar != null)
+                {
+                    // Zachowaj ilość, cenę i opakowanie
+                    decimal ilosc = wiersz.Ilosc;
+                    decimal cena = wiersz.Cena;
+                    string opakowanie = wiersz.Opakowanie;
+
+                    // Tymczasowo odsubskrybuj żeby uniknąć pętli
+                    wiersz.TypZmieniony -= TowarWiersz_TypZmieniony;
+                    
+                    // Zmień produkt (to nie wywoła TypZmieniony bo odsubskrybowaliśmy)
+                    wiersz.WybranyTowar = nowyTowar;
+                    
+                    // Przywróć wartości
+                    wiersz.Ilosc = ilosc;
+                    wiersz.Cena = cena;
+                    wiersz.Opakowanie = opakowanie;
+
+                    // Ponownie subskrybuj
+                    wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+
+                    AktualizujPodsumowanieTowary();
+                }
+                else
+                {
+                    MessageBox.Show($"Nie znaleziono odpowiednika dla: {wiersz.Nazwa}", 
+                        "Brak mapowania", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else
+            {
+                string typ = wiersz.CzyMrozony ? "mrożonego" : "świeżego";
+                MessageBox.Show($"Brak zmapowanego odpowiednika {typ} dla:\n{wiersz.Nazwa}\n\nUżyj przycisku '🥩↔️❄️ Mapowanie' aby zmapować produkty.", 
+                    "Brak mapowania", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                // Przywróć poprzedni typ
+                wiersz.TypZmieniony -= TowarWiersz_TypZmieniony;
+                wiersz.TypProduktuIndex = wiersz.CzyMrozony ? 0 : 1;
+                wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+            }
+        }
+
+        private void TowarWiersz_TowarZmieniony(object? sender, EventArgs e)
+        {
+            if (sender is TowarWiersz wiersz && wiersz.CzyWypelniony)
+            {
+                // Ustaw domyślny typ produktu
+                wiersz.TypProduktuIndex = rbDomyslnyMrozony?.IsChecked == true ? 1 : 0;
+                
+                if (TowaryWOfercie.LastOrDefault() == wiersz)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => 
+                    {
+                        DodajNowyPustyWiersz();
+                        AktualizujPodsumowanieTowary();
+                    }), DispatcherPriority.Background);
+                }
+                else
+                {
+                    AktualizujPodsumowanieTowary();
+                }
+            }
         }
 
         private void TowaryWOfercie_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -624,39 +940,11 @@ namespace Kalendarz1.OfertaCenowa
         {
             if (sender is TowarWiersz wiersz)
             {
-                // Gdy wybrano towar w ostatnim wierszu - dodaj nowy pusty
-                if (e.PropertyName == nameof(TowarWiersz.TowarId) && wiersz.CzyWypelniony)
-                {
-                    if (TowaryWOfercie.LastOrDefault() == wiersz)
-                    {
-                        Dispatcher.BeginInvoke(new Action(() => DodajNowyPustyWiersz()), DispatcherPriority.Background);
-                    }
-                }
-
-                // Aktualizuj podsumowanie przy zmianie wartości
                 if (e.PropertyName == nameof(TowarWiersz.Wartosc) ||
                     e.PropertyName == nameof(TowarWiersz.Ilosc) ||
                     e.PropertyName == nameof(TowarWiersz.Cena))
                 {
                     AktualizujPodsumowanieTowary();
-                }
-            }
-        }
-
-        private void CboTowar_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (sender is ComboBox cbo && cbo.SelectedItem is TowarOferta wybranyTowar)
-            {
-                var wiersz = cbo.DataContext as TowarWiersz;
-                if (wiersz != null && wybranyTowar.Id > 0)
-                {
-                    wiersz.TowarId = wybranyTowar.Id;
-                    wiersz.Kod = wybranyTowar.Kod;
-                    wiersz.Nazwa = wybranyTowar.Nazwa;
-                    wiersz.Katalog = wybranyTowar.Katalog;
-
-                    if (string.IsNullOrEmpty(wiersz.Opakowanie))
-                        wiersz.Opakowanie = "E2";
                 }
             }
         }
@@ -681,11 +969,79 @@ namespace Kalendarz1.OfertaCenowa
             return true;
         }
 
+        // NAWIGACJA: Enter w polu Ilość -> przejdź do Ilości następnego wiersza
+        private void TxtIlosc_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox txt && txt.Tag is TowarWiersz wiersz)
+            {
+                int index = TowaryWOfercie.IndexOf(wiersz);
+                if (index >= 0 && index < TowaryWOfercie.Count - 1)
+                {
+                    // Znajdź TextBox ilości w następnym wierszu
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var nextWiersz = TowaryWOfercie[index + 1];
+                        // Znajdź wszystkie TextBoxy i ustaw focus na odpowiedni
+                        FocusujPoleWWierszu(index + 1, "Ilosc");
+                    }), DispatcherPriority.Background);
+                }
+                e.Handled = true;
+            }
+        }
+
+        // NAWIGACJA: Enter w polu Cena -> przejdź do Ceny następnego wiersza
+        private void TxtCena_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && sender is TextBox txt && txt.Tag is TowarWiersz wiersz)
+            {
+                int index = TowaryWOfercie.IndexOf(wiersz);
+                if (index >= 0 && index < TowaryWOfercie.Count - 1)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        FocusujPoleWWierszu(index + 1, "Cena");
+                    }), DispatcherPriority.Background);
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void FocusujPoleWWierszu(int indeksWiersza, string typPola)
+        {
+            // Znajdź ItemsControl i odpowiedni wiersz
+            var container = icTowary.ItemContainerGenerator.ContainerFromIndex(indeksWiersza) as ContentPresenter;
+            if (container != null)
+            {
+                container.ApplyTemplate();
+                var border = VisualTreeHelper.GetChild(container, 0) as Border;
+                if (border != null)
+                {
+                    var grid = border.Child as Grid;
+                    if (grid != null)
+                    {
+                        // Kolumna 3 = Ilość, Kolumna 4 = Cena
+                        int kolumna = typPola == "Ilosc" ? 3 : 4;
+                        foreach (var child in grid.Children)
+                        {
+                            if (child is TextBox tb && Grid.GetColumn(tb) == kolumna)
+                            {
+                                tb.Focus();
+                                tb.SelectAll();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         private void BtnUsunWiersz_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is TowarWiersz wiersz)
             {
                 wiersz.PropertyChanged -= TowarWiersz_PropertyChanged;
+                wiersz.TowarZmieniony -= TowarWiersz_TowarZmieniony;
+                wiersz.TypZmieniony -= TowarWiersz_TypZmieniony;
                 TowaryWOfercie.Remove(wiersz);
 
                 if (!TowaryWOfercie.Any() || TowaryWOfercie.All(w => w.CzyWypelniony))
@@ -709,55 +1065,163 @@ namespace Kalendarz1.OfertaCenowa
             txtLiczbaPozycji.Text = liczba.ToString();
             txtSumaTowarow.Text = $"{suma:N2} zł";
             txtWartoscCalkowita.Text = $"{suma:N2} zł";
+
+            // Aktualizuj średnią cenę
+            AktualizujSredniaCena();
         }
 
-        private void BtnWczytajSzablonTowarow_Click(object sender, RoutedEventArgs e)
+        private void AktualizujSredniaCena()
         {
-            var szablony = _szablonyManager.WczytajSzablonyTowarow();
-            if (!szablony.Any())
+            // Sprawdź czy kontrolki są zainicjalizowane
+            if (txtSredniaCena == null || txtSredniaCenaPoMarzy == null || txtGlobalnaMarza == null)
+                return;
+
+            var wypelnioneWiersze = TowaryWOfercie.Where(w => w.CzyWypelniony && w.Cena > 0).ToList();
+            
+            if (wypelnioneWiersze.Count == 0)
             {
-                MessageBox.Show("Brak zapisanych szablonów towarów.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                txtSredniaCena.Text = "0,00 zł";
+                txtSredniaCenaPoMarzy.Text = "";
                 return;
             }
 
-            var okno = new WyborSzablonuWindow(szablony.Cast<object>().ToList(), "Wybierz szablon towarów");
+            decimal sredniaCena = wypelnioneWiersze.Average(w => w.Cena);
+            txtSredniaCena.Text = $"{sredniaCena:N2} zł";
+
+            // Oblicz cenę po marży
+            if (decimal.TryParse(txtGlobalnaMarza.Text.Replace(",", "."), 
+                System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                out decimal marza) && marza != 0)
+            {
+                decimal sredniaPoMarzy = sredniaCena * (1 + marza / 100);
+                string znak = marza > 0 ? "+" : "";
+                txtSredniaCenaPoMarzy.Text = $"→ {sredniaPoMarzy:N2} zł ({znak}{marza:N1}%)";
+            }
+            else
+            {
+                txtSredniaCenaPoMarzy.Text = "";
+            }
+        }
+
+        private void TxtGlobalnaMarza_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            // Pozwól tylko na cyfry, przecinek, kropkę i minus
+            string tekst = e.Text;
+            bool dozwolone = tekst.All(c => char.IsDigit(c) || c == ',' || c == '.' || c == '-');
+            e.Handled = !dozwolone;
+        }
+
+        private void TxtGlobalnaMarza_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Aktualizuj podgląd średniej ceny po marży (jeśli kontrolki zainicjalizowane)
+            if (txtSredniaCena != null)
+                AktualizujSredniaCena();
+        }
+
+        private void BtnZastosujMarze_Click(object sender, RoutedEventArgs e)
+        {
+            string marzaTekst = txtGlobalnaMarza.Text.Replace(",", ".").Trim();
+            
+            if (!decimal.TryParse(marzaTekst, 
+                System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                out decimal marzaProcent))
+            {
+                MessageBox.Show("Podaj prawidłową wartość marży (np. 10 dla 10%).", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (marzaProcent == 0)
+            {
+                MessageBox.Show("Marża wynosi 0% - ceny pozostaną bez zmian.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var wypelnioneWiersze = TowaryWOfercie.Where(w => w.CzyWypelniony && w.Cena > 0).ToList();
+
+            if (wypelnioneWiersze.Count == 0)
+            {
+                MessageBox.Show("Brak produktów z cenami do zmiany.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            decimal mnoznik = 1 + marzaProcent / 100;
+            int zmieniono = 0;
+
+            foreach (var wiersz in wypelnioneWiersze)
+            {
+                decimal nowaCena = Math.Round(wiersz.Cena * mnoznik, 2);
+                wiersz.Cena = nowaCena;
+                wiersz.CenaTekst = nowaCena.ToString("N2", System.Globalization.CultureInfo.InvariantCulture).Replace(",", ".");
+                zmieniono++;
+            }
+
+            // Reset marży po zastosowaniu
+            txtGlobalnaMarza.Text = "0";
+            AktualizujPodsumowanieTowary();
+
+            string kierunek = marzaProcent > 0 ? "podniesione" : "obniżone";
+            MessageBox.Show($"Ceny zostały {kierunek} o {Math.Abs(marzaProcent):N1}% dla {zmieniono} produktów.", 
+                "Marża zastosowana", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // NOWY: Otwórz okno wyboru szablonu (nie od razu edytor)
+        private void BtnWczytajSzablonTowarow_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new WyborSzablonuTowarowWindow(DostepneTowary);
             okno.Owner = this;
 
-            if (okno.ShowDialog() == true && okno.WybranyIndex >= 0)
+            if (okno.ShowDialog() == true && okno.WybranySzablon != null)
             {
-                var szablon = szablony[okno.WybranyIndex];
-
-                foreach (var w in TowaryWOfercie)
-                    w.PropertyChanged -= TowarWiersz_PropertyChanged;
-                TowaryWOfercie.Clear();
-
-                foreach (var towarSzablonu in szablon.Towary)
-                {
-                    var towarBaza = DostepneTowary.FirstOrDefault(t => t.Id == towarSzablonu.TowarId);
-                    if (towarBaza != null)
-                    {
-                        var wiersz = new TowarWiersz
-                        {
-                            Lp = TowaryWOfercie.Count + 1,
-                            TowarId = towarBaza.Id,
-                            Kod = towarBaza.Kod,
-                            Nazwa = towarBaza.Nazwa,
-                            Katalog = towarBaza.Katalog,
-                            Ilosc = towarSzablonu.DomyslnaIlosc,
-                            Cena = towarSzablonu.DomyslnaCena,
-                            Opakowanie = towarSzablonu.Opakowanie
-                        };
-                        wiersz.PropertyChanged += TowarWiersz_PropertyChanged;
-                        TowaryWOfercie.Add(wiersz);
-                    }
-                }
-
-                DodajNowyPustyWiersz();
-                AktualizujPodsumowanieTowary();
-
-                MessageBox.Show($"Wczytano szablon: {szablon.Nazwa}\nLiczba produktów: {szablon.Towary.Count}",
-                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                WczytajSzablonTowarow(okno.WybranySzablon);
             }
+        }
+
+        private void WczytajSzablonTowarow(SzablonTowarow szablon)
+        {
+            foreach (var w in TowaryWOfercie)
+            {
+                w.PropertyChanged -= TowarWiersz_PropertyChanged;
+                w.TowarZmieniony -= TowarWiersz_TowarZmieniony;
+                w.TypZmieniony -= TowarWiersz_TypZmieniony;
+            }
+            TowaryWOfercie.Clear();
+
+            foreach (var towarSzablonu in szablon.Towary)
+            {
+                var towarBaza = DostepneTowary.FirstOrDefault(t => t.Id == towarSzablonu.TowarId);
+                if (towarBaza != null)
+                {
+                    var wiersz = new TowarWiersz
+                    {
+                        Lp = TowaryWOfercie.Count + 1,
+                        WybranyTowar = towarBaza,
+                        Ilosc = towarSzablonu.DomyslnaIlosc,
+                        Cena = towarSzablonu.DomyslnaCena,
+                        Opakowanie = towarSzablonu.Opakowanie,
+                        TypProduktuIndex = rbDomyslnyMrozony?.IsChecked == true ? 1 : 0
+                    };
+                    wiersz.PropertyChanged += TowarWiersz_PropertyChanged;
+                    wiersz.TowarZmieniony += TowarWiersz_TowarZmieniony;
+                    wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+                    TowaryWOfercie.Add(wiersz);
+                }
+            }
+
+            DodajNowyPustyWiersz();
+            AktualizujPodsumowanieTowary();
+
+            MessageBox.Show($"Wczytano szablon: {szablon.Nazwa}\nLiczba produktów: {szablon.Towary.Count}",
+                "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // NOWY: Otwórz okno mapowania świeży-mrożony
+        private void BtnMapowanie_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new MapowanieSwiezyMrozonyWindow(TowarySwiezy, TowaryMrozone);
+            okno.Owner = this;
+            okno.ShowDialog();
         }
 
         private void BtnMarze_Click(object sender, RoutedEventArgs e)
@@ -784,11 +1248,16 @@ namespace Kalendarz1.OfertaCenowa
             okno.Owner = this;
             if (okno.ShowDialog() == true)
             {
-                for (int i = 0; i < towaryDoMarzy.Count && i < TowaryWOfercie.Count; i++)
+                // Pobierz zaktualizowane ceny z okna marż
+                var zaktualizowaneTowary = okno.PobierzTowaryZCenami();
+                
+                foreach (var zaktualizowany in zaktualizowaneTowary)
                 {
-                    var wiersz = TowaryWOfercie.FirstOrDefault(w => w.TowarId == towaryDoMarzy[i].Id);
-                    if (wiersz != null)
-                        wiersz.Cena = towaryDoMarzy[i].CenaJednostkowa;
+                    var wiersz = TowaryWOfercie.FirstOrDefault(w => w.TowarId == zaktualizowany.Id);
+                    if (wiersz != null && zaktualizowany.CenaJednostkowa > 0)
+                    {
+                        wiersz.Cena = zaktualizowany.CenaJednostkowa;
+                    }
                 }
                 AktualizujPodsumowanieTowary();
             }
@@ -899,7 +1368,7 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         // =====================================================
-        // PODSUMOWANIE I GENEROWANIE PDF
+        // PODSUMOWANIE I GENEROWANIE
         // =====================================================
 
         private void BtnWczytajSzablonParametrow_Click(object sender, RoutedEventArgs e)
@@ -969,43 +1438,99 @@ namespace Kalendarz1.OfertaCenowa
             decimal suma = produkty.Sum(w => w.Wartosc);
             txtPodSuma.Text = $"{suma:N2} zł";
 
-            int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "1");
+            int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1");
+
+            bool pokazCene = chkPdfPokazCene.IsChecked == true;
+            bool pokazIlosc = chkPdfPokazIlosc.IsChecked == true;
+            bool pokazOpakowanie = chkPdfPokazOpakowanie.IsChecked == true;
+
+            txtEmailTresc.Text = GenerujTrescEmaila(produkty, dniWaznosci, suma, pokazCene, pokazIlosc, pokazOpakowanie);
+        }
+
+        private string GenerujTrescEmaila(List<TowarWiersz> produkty, int dniWaznosci, decimal suma, 
+            bool pokazCene, bool pokazIlosc, bool pokazOpakowanie)
+        {
             string dniSlowo = dniWaznosci == 1 ? "dzień" : "dni";
+            bool pokazWartosc = pokazIlosc && pokazCene;
+            
+            var sb = new StringBuilder();
+            sb.AppendLine("Szanowni Państwo,");
+            sb.AppendLine();
+            sb.AppendLine("W załączeniu przesyłam ofertę cenową.");
+            sb.AppendLine($"Oferta ważna {dniWaznosci} {dniSlowo}.");
+            sb.AppendLine();
+            sb.AppendLine("═══════════════════════════════════════");
+            sb.AppendLine("              CENNIK PRODUKTÓW");
+            sb.AppendLine("═══════════════════════════════════════");
+            sb.AppendLine();
 
-            txtEmailTresc.Text = $@"Szanowni Państwo,
+            int lp = 1;
+            foreach (var p in produkty)
+            {
+                sb.AppendLine($"{lp}. {p.Nazwa} {p.TypProduktuEmoji}");
+                
+                if (pokazCene && p.Cena > 0)
+                    sb.AppendLine($"   Cena: {p.Cena:N2} zł/kg");
+                
+                if (pokazIlosc && p.Ilosc > 0)
+                    sb.AppendLine($"   Ilość: {p.Ilosc:N0} kg");
+                
+                if (pokazWartosc && p.Wartosc > 0)
+                    sb.AppendLine($"   Wartość: {p.Wartosc:N2} zł");
+                
+                if (pokazOpakowanie)
+                    sb.AppendLine($"   Opakowanie: {p.Opakowanie}");
+                
+                sb.AppendLine();
+                lp++;
+            }
 
-W załączeniu oferta cenowa.
-Ważna {dniWaznosci} {dniSlowo}.
+            if (pokazWartosc && suma > 0)
+            {
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine($"SUMA: {suma:N2} zł");
+            }
+            
+            sb.AppendLine("═══════════════════════════════════════");
+            sb.AppendLine();
+            sb.AppendLine("Ceny nie zawierają podatku VAT.");
+            sb.AppendLine();
+            sb.AppendLine("Z poważaniem,");
+            sb.AppendLine(_nazwaOperatora);
+            sb.AppendLine("Ubojnia Drobiu \"Piórkowscy\"");
+            sb.AppendLine("Koziołki 40, 95-061 Dmosin");
+            sb.AppendLine("Tel: +48 46 874 71 70");
 
-Z poważaniem,
-{_nazwaOperatora}
-Ubojnia Drobiu ""Piórkowscy""";
+            return sb.ToString();
         }
 
         private void BtnTylkoPDF_Click(object sender, RoutedEventArgs e) => GenerujPDF(false);
         private void BtnGenerujIWyslij_Click(object sender, RoutedEventArgs e) => GenerujPDF(true);
 
-        private void GenerujPDF(bool otworzEmail)
+        private async void GenerujPDF(bool otworzEmail)
         {
             try
             {
                 var odbiorca = WybraniOdbiorcy.First();
                 var klient = odbiorca.ToKlientOferta();
-                int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "1");
+                
+                int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1");
 
                 var parametry = new ParametryOferty
                 {
                     TerminPlatnosci = (cboTerminPlatnosci.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "1 dzień",
-                    DniPlatnosci = int.Parse((cboTerminPlatnosci.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "1"),
+                    DniPlatnosci = int.Parse((cboTerminPlatnosci.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1"),
                     DniWaznosci = dniWaznosci,
-                    WalutaKonta = (cboKontoBankowe.SelectedItem as ComboBoxItem)?.Tag.ToString() ?? "PLN",
-                    Jezyk = (cboJezykPDF.SelectedItem as ComboBoxItem)?.Tag.ToString() == "English" ? JezykOferty.English : JezykOferty.Polski,
-                    TypLogo = (cboTypLogo.SelectedItem as ComboBoxItem)?.Tag.ToString() == "Dlugie" ? TypLogo.Dlugie : TypLogo.Okragle,
+                    WalutaKonta = (cboKontoBankowe.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "PLN",
+                    Jezyk = (cboJezykPDF.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "English" ? JezykOferty.English : JezykOferty.Polski,
+                    TypLogo = (cboTypLogo.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "Dlugie" ? TypLogo.Dlugie : TypLogo.Okragle,
                     PokazOpakowanie = chkPdfPokazOpakowanie.IsChecked == true,
                     PokazCene = chkPdfPokazCene.IsChecked == true,
                     PokazIlosc = chkPdfPokazIlosc.IsChecked == true,
                     PokazTerminPlatnosci = chkPdfPokazTermin.IsChecked == true,
-                    WystawiajacyNazwa = _nazwaOperatora
+                    WystawiajacyNazwa = _nazwaOperatora,
+                    WystawiajacyEmail = _emailOperatora,
+                    WystawiajacyTelefon = _telefonOperatora
                 };
 
                 var produkty = TowaryWOfercie
@@ -1025,8 +1550,11 @@ Ubojnia Drobiu ""Piórkowscy""";
                 var generator = new OfertaPDFGenerator();
                 generator.GenerujPDF(sciezka, klient, produkty, txtNotatki.Text, transport, parametry);
 
+                // Zapisz ofertę do bazy danych
+                await ZapiszOferteDoBazyAsync(klient, produkty, parametry, txtNotatki.Text, transport, sciezka, nazwaPliku);
+
                 if (otworzEmail)
-                    OtworzEmailZZalacznikiem(sciezka, klient, dniWaznosci);
+                    OtworzEmailZZalacznikiem(sciezka, klient, dniWaznosci, produkty);
                 else
                 {
                     Process.Start(new ProcessStartInfo(sciezka) { UseShellExecute = true });
@@ -1046,6 +1574,9 @@ Ubojnia Drobiu ""Piórkowscy""";
                         nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
                         sciezka = Path.Combine(folder, nazwaPliku);
                         generator.GenerujPDF(sciezka, kolejnyKlient, produkty, txtNotatki.Text, transport, parametry);
+                        
+                        // Zapisz też kolejną ofertę do bazy
+                        await ZapiszOferteDoBazyAsync(kolejnyKlient, produkty, parametry, txtNotatki.Text, transport, sciezka, nazwaPliku);
                     }
 
                     Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
@@ -1057,21 +1588,71 @@ Ubojnia Drobiu ""Piórkowscy""";
             }
         }
 
-        private void OtworzEmailZZalacznikiem(string sciezkaPDF, KlientOferta klient, int dniWaznosci)
+        private void OtworzEmailZZalacznikiem(string sciezkaPDF, KlientOferta klient, int dniWaznosci, List<TowarOferta> produkty)
         {
             try
             {
+                bool pokazCene = chkPdfPokazCene.IsChecked == true;
+                bool pokazIlosc = chkPdfPokazIlosc.IsChecked == true;
+                bool pokazOpakowanie = chkPdfPokazOpakowanie.IsChecked == true;
+                bool pokazWartosc = pokazIlosc && pokazCene;
+                
                 string temat = Uri.EscapeDataString("Oferta cenowa - Piórkowscy");
                 string dniSlowo = dniWaznosci == 1 ? "dzień" : "dni";
-                string tresc = Uri.EscapeDataString($@"Szanowni Państwo,
+                
+                var sb = new StringBuilder();
+                sb.AppendLine("Szanowni Państwo,");
+                sb.AppendLine();
+                sb.AppendLine("W załączeniu przesyłam ofertę cenową.");
+                sb.AppendLine($"Oferta ważna {dniWaznosci} {dniSlowo}.");
+                sb.AppendLine();
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine("              CENNIK PRODUKTÓW");
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine();
 
-W załączeniu oferta cenowa.
-Ważna {dniWaznosci} {dniSlowo}.
+                decimal suma = 0;
+                int lp = 1;
+                foreach (var p in produkty)
+                {
+                    sb.AppendLine($"{lp}. {p.Nazwa}");
+                    
+                    if (pokazCene && p.CenaJednostkowa > 0)
+                        sb.AppendLine($"   Cena: {p.CenaJednostkowa:N2} zł/kg");
+                    
+                    if (pokazIlosc && p.Ilosc > 0)
+                        sb.AppendLine($"   Ilość: {p.Ilosc:N0} kg");
+                    
+                    decimal wartosc = p.Ilosc * p.CenaJednostkowa;
+                    
+                    if (pokazWartosc && wartosc > 0)
+                        sb.AppendLine($"   Wartość: {wartosc:N2} zł");
+                    
+                    if (pokazOpakowanie)
+                        sb.AppendLine($"   Opakowanie: {p.Opakowanie}");
+                    
+                    sb.AppendLine();
+                    suma += wartosc;
+                    lp++;
+                }
 
-Z poważaniem,
-{_nazwaOperatora}
-Ubojnia Drobiu ""Piórkowscy""
-Tel: +48 24 254 00 00");
+                if (pokazWartosc && suma > 0)
+                {
+                    sb.AppendLine("═══════════════════════════════════════");
+                    sb.AppendLine($"SUMA: {suma:N2} zł");
+                }
+                
+                sb.AppendLine("═══════════════════════════════════════");
+                sb.AppendLine();
+                sb.AppendLine("Ceny nie zawierają podatku VAT.");
+                sb.AppendLine();
+                sb.AppendLine("Z poważaniem,");
+                sb.AppendLine(_nazwaOperatora);
+                sb.AppendLine("Ubojnia Drobiu \"Piórkowscy\"");
+                sb.AppendLine("Koziołki 40, 95-061 Dmosin");
+                sb.AppendLine("Tel: +48 46 874 71 70");
+
+                string tresc = Uri.EscapeDataString(sb.ToString());
 
                 string mailtoUrl = $"mailto:?subject={temat}&body={tresc}";
                 Process.Start(new ProcessStartInfo(mailtoUrl) { UseShellExecute = true });
@@ -1100,6 +1681,48 @@ Tel: +48 24 254 00 00");
         private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void MaximizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+        // =====================================================
+        // ZAPIS OFERTY DO BAZY DANYCH
+        // =====================================================
+
+        private async Task ZapiszOferteDoBazyAsync(
+            KlientOferta klient,
+            List<TowarOferta> produkty,
+            ParametryOferty parametry,
+            string notatki,
+            string transport,
+            string sciezkaPliku,
+            string nazwaPliku)
+        {
+            try
+            {
+                var (ofertaId, numerOferty) = await _ofertaRepository.ZapiszOferteAsync(
+                    klient: klient,
+                    produkty: produkty,
+                    parametry: parametry,
+                    notatki: notatki,
+                    transport: transport,
+                    handlowiecId: _userId,
+                    handlowiecNazwa: _nazwaOperatora,
+                    handlowiecEmail: _emailOperatora,
+                    handlowiecTelefon: _telefonOperatora,
+                    sciezkaPliku: sciezkaPliku,
+                    nazwaPliku: nazwaPliku
+                );
+
+                System.Diagnostics.Debug.WriteLine($"✅ Oferta zapisana: {numerOferty} (ID: {ofertaId})");
+            }
+            catch (Exception ex)
+            {
+                // Loguj błąd ale nie przerywaj - PDF już wygenerowany
+                System.Diagnostics.Debug.WriteLine($"❌ Błąd zapisu oferty do bazy: {ex.Message}");
+                
+                // Opcjonalnie: pokaż ostrzeżenie użytkownikowi
+                // MessageBox.Show($"Uwaga: Oferta została wygenerowana, ale nie została zapisana w bazie danych.\n\nBłąd: {ex.Message}", 
+                //     "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
     }
 
     // =====================================================

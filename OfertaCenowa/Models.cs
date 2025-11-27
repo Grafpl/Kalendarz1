@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Kalendarz1.OfertaCenowa
 {
@@ -102,6 +103,8 @@ namespace Kalendarz1.OfertaCenowa
         public bool PokazIlosc { get; set; } = false;
         public bool PokazTerminPlatnosci { get; set; } = true;
         public string WystawiajacyNazwa { get; set; } = "";
+        public string WystawiajacyEmail { get; set; } = "";
+        public string WystawiajacyTelefon { get; set; } = "";
     }
 
     /// <summary>
@@ -126,6 +129,7 @@ namespace Kalendarz1.OfertaCenowa
         public string Nazwa { get; set; } = "";
         public string Opis { get; set; } = "";
         public List<TowarSzablonu> Towary { get; set; } = new List<TowarSzablonu>();
+        public int LiczbaTowrow => Towary?.Count ?? 0;
         public override string ToString() => Nazwa;
     }
 
@@ -163,5 +167,29 @@ namespace Kalendarz1.OfertaCenowa
         public bool DodajNotkeOCenach { get; set; } = false;
         public string NotatkaCustom { get; set; } = "";
         public override string ToString() => Nazwa;
+    }
+
+    /// <summary>
+    /// Tłumaczenie produktu na angielski
+    /// </summary>
+    public class TlumaczenieProduktu : INotifyPropertyChanged
+    {
+        private int _idTowaru;
+        private string _kodTowaru = "";
+        private string _nazwaPL = "";
+        private string _nazwaEN = "";
+
+        public int IdTowaru { get => _idTowaru; set { _idTowaru = value; OnPropertyChanged(); } }
+        public string KodTowaru { get => _kodTowaru; set { _kodTowaru = value; OnPropertyChanged(); OnPropertyChanged(nameof(Kod)); } }
+
+        // Alias dla kompatybilności
+        public string Kod { get => _kodTowaru; set { _kodTowaru = value; OnPropertyChanged(); OnPropertyChanged(nameof(KodTowaru)); } }
+
+        public string NazwaPL { get => _nazwaPL; set { _nazwaPL = value; OnPropertyChanged(); } }
+        public string NazwaEN { get => _nazwaEN; set { _nazwaEN = value; OnPropertyChanged(); } }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

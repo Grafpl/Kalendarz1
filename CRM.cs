@@ -41,8 +41,6 @@ namespace Kalendarz1
             DodajHoverEffect(button2);
             DodajHoverEffect(button3);
             DodajHoverEffect(buttonDodajNotatke);
-
-            // UWAGA: Wywołanie InicjalizujContextMenu() zostało przeniesione do CRM_Load
         }
 
         private void InitializeFilters()
@@ -77,25 +75,33 @@ namespace Kalendarz1
             odbiorcaContextMenuStrip.Font = new Font("Segoe UI", 9.5F);
 
             // --- Akcje Główne ---
-            var googleMenuItem = new ToolStripMenuItem("Wyszukaj w Google", SystemIcons.Information.ToBitmap(), GoogleMenuItem_Click);
-            var trasaMenuItem = new ToolStripMenuItem("Pokaż trasę na mapie", SystemIcons.Application.ToBitmap(), TrasaMenuItem_Click);
-            var ofertaMenuItem = new ToolStripMenuItem("Utwórz ofertę cenową", SystemIcons.Hand.ToBitmap(), OfertaMenuItem_Click);
-            ofertaMenuItem.Font = new Font(this.Font, FontStyle.Bold);
+            var googleMenuItem = new ToolStripMenuItem("🔍 Wyszukaj w Google", null, GoogleMenuItem_Click);
+            var trasaMenuItem = new ToolStripMenuItem("🗺️ Pokaż trasę na mapie", null, TrasaMenuItem_Click);
+
+            // ✅ POPRAWIONA INTEGRACJA Z OFERTAMI
+            var ofertaMenuItem = new ToolStripMenuItem("💵 Utwórz ofertę cenową", null, OfertaMenuItem_Click);
+            ofertaMenuItem.Font = new Font(ofertaMenuItem.Font, FontStyle.Bold);
+            ofertaMenuItem.BackColor = Color.FromArgb(232, 245, 233);
+
+            // ✅ NOWY - Edycja danych kontaktowych
+            var edytujKontaktMenuItem = new ToolStripMenuItem("✏️ Edytuj dane kontaktowe", null, EdytujKontaktMenuItem_Click);
+            edytujKontaktMenuItem.BackColor = Color.FromArgb(235, 245, 255);
 
             // --- Zmiana Statusu (dynamiczne podmenu) ---
-            var statusParentMenuItem = new ToolStripMenuItem("Zmień status", SystemIcons.Warning.ToBitmap());
+            var statusParentMenuItem = new ToolStripMenuItem("📋 Zmień status", null);
             var statusItems = ((DataGridViewComboBoxColumn)dataGridViewOdbiorcy.Columns["StatusColumn"]).Items;
             foreach (var status in statusItems)
             {
                 var statusMenuItem = new ToolStripMenuItem(status.ToString(), null, StatusMenuItem_Click);
-                statusMenuItem.Tag = status.ToString(); // Zapisujemy status w Tagu
+                statusMenuItem.Tag = status.ToString();
                 statusParentMenuItem.DropDownItems.Add(statusMenuItem);
             }
 
             // --- Kopiowanie Danych ---
-            var copyParentMenuItem = new ToolStripMenuItem("Kopiuj do schowka", SystemIcons.Question.ToBitmap());
+            var copyParentMenuItem = new ToolStripMenuItem("📋 Kopiuj do schowka", null);
             var copyNipMenuItem = new ToolStripMenuItem("Kopiuj NIP", null, (s, e) => CopyDataToClipboard("NIP", "NIP"));
             var copyPhoneMenuItem = new ToolStripMenuItem("Kopiuj Telefon", null, (s, e) => CopyDataToClipboard("Telefon_K", "Telefon"));
+            var copyEmailMenuItem = new ToolStripMenuItem("Kopiuj Email", null, (s, e) => CopyDataToClipboard("Email", "Email"));
             var copyAddressMenuItem = new ToolStripMenuItem("Kopiuj Adres", null, (s, e) =>
             {
                 if (clickedRowIndex >= 0)
@@ -111,11 +117,12 @@ namespace Kalendarz1
                     }
                 }
             });
-            copyParentMenuItem.DropDownItems.AddRange(new ToolStripItem[] { copyNipMenuItem, copyPhoneMenuItem, copyAddressMenuItem });
+            copyParentMenuItem.DropDownItems.AddRange(new ToolStripItem[] { copyNipMenuItem, copyPhoneMenuItem, copyEmailMenuItem, copyAddressMenuItem });
 
 
             // --- Składanie Menu ---
             odbiorcaContextMenuStrip.Items.Add(ofertaMenuItem);
+            odbiorcaContextMenuStrip.Items.Add(edytujKontaktMenuItem);
             odbiorcaContextMenuStrip.Items.Add(new ToolStripSeparator());
             odbiorcaContextMenuStrip.Items.Add(googleMenuItem);
             odbiorcaContextMenuStrip.Items.Add(trasaMenuItem);
@@ -125,6 +132,44 @@ namespace Kalendarz1
 
 
             dataGridViewOdbiorcy.CellMouseDown += DataGridViewOdbiorcy_CellMouseDown;
+        }
+
+        // ✅ NOWA METODA - Edycja danych kontaktowych
+        private void EdytujKontaktMenuItem_Click(object sender, EventArgs e)
+        {
+            if (clickedRowIndex < 0) return;
+
+            var row = dataGridViewOdbiorcy.Rows[clickedRowIndex];
+            DataRowView rowView = row.DataBoundItem as DataRowView;
+            if (rowView == null || rowView["ID"] == DBNull.Value) return;
+
+            int idOdbiorcy = Convert.ToInt32(rowView["ID"]);
+            string nazwaKlienta = row.Cells["Nazwa"].Value?.ToString() ?? "";
+
+            var okno = new EdycjaKontaktuWindow
+            {
+                KlientID = idOdbiorcy,
+                KlientNazwa = nazwaKlienta,
+                OperatorID = operatorID
+            };
+
+            if (okno.ShowDialog() == true && okno.ZapisanoZmiany)
+            {
+                // Odśwież wiersz w DataGrid
+                if (rowView.Row.Table.Columns.Contains("Email"))
+                    rowView["Email"] = okno.NowyEmail ?? "";
+                if (rowView.Row.Table.Columns.Contains("TELEFON_K"))
+                    rowView["TELEFON_K"] = okno.NowyTelefon ?? "";
+                if (rowView.Row.Table.Columns.Contains("Imie"))
+                    rowView["Imie"] = okno.NoweImie ?? "";
+                if (rowView.Row.Table.Columns.Contains("Nazwisko"))
+                    rowView["Nazwisko"] = okno.NoweNazwisko ?? "";
+
+                dataGridViewOdbiorcy.InvalidateRow(clickedRowIndex);
+
+                // Odśwież historię
+                WczytajHistorieZmian(idOdbiorcy);
+            }
         }
 
         private void DataGridViewOdbiorcy_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
@@ -172,32 +217,74 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// ✅ POPRAWIONA METODA - Otwiera okno oferty z danymi klienta CRM
+        /// </summary>
         private void OfertaMenuItem_Click(object sender, EventArgs e)
         {
             if (clickedRowIndex < 0) return;
 
             DataRowView rowView = dataGridViewOdbiorcy.Rows[clickedRowIndex].DataBoundItem as DataRowView;
-            if (rowView != null)
-            {
-                try
-                {
-                    var klient = new KlientOferta
-                    {
-                        Nazwa = rowView["NAZWA"]?.ToString() ?? "",
-                        NIP = rowView.Row.Table.Columns.Contains("NIP") ? rowView["NIP"]?.ToString() : "",
-                        Adres = rowView["ULICA"]?.ToString() ?? "",
-                        KodPocztowy = rowView["KOD"]?.ToString() ?? "",
-                        Miejscowosc = rowView["MIASTO"]?.ToString() ?? "",
-                        CzyReczny = true
-                    };
+            if (rowView == null) return;
 
-                    //var ofertaWindow = new OfertaHandlowaWindow(klient);
-                    //ofertaWindow.Show();
-                }
-                catch (Exception ex)
+            try
+            {
+                // Pobierz dane klienta z wiersza CRM
+                string nazwa = rowView["NAZWA"]?.ToString() ?? "";
+                string kod = rowView["KOD"]?.ToString() ?? "";
+                string miasto = rowView["MIASTO"]?.ToString() ?? "";
+                string ulica = rowView["ULICA"]?.ToString() ?? "";
+                string numer = rowView.Row.Table.Columns.Contains("NUMER") ? rowView["NUMER"]?.ToString() ?? "" : "";
+                string nrLok = rowView.Row.Table.Columns.Contains("NR_LOK") ? rowView["NR_LOK"]?.ToString() ?? "" : "";
+                string telefon = rowView["TELEFON_K"]?.ToString() ?? "";
+                string imie = rowView.Row.Table.Columns.Contains("Imie") ? rowView["Imie"]?.ToString() ?? "" : "";
+                string nazwisko = rowView.Row.Table.Columns.Contains("Nazwisko") ? rowView["Nazwisko"]?.ToString() ?? "" : "";
+                int idCRM = Convert.ToInt32(rowView["ID"]);
+
+                // Zbuduj pełny adres
+                string adres = ulica;
+                if (!string.IsNullOrEmpty(numer)) adres += " " + numer;
+                if (!string.IsNullOrEmpty(nrLok)) adres += "/" + nrLok;
+
+                // Utwórz obiekt klienta
+                var klient = new KlientOferta
                 {
-                    MessageBox.Show($"Wystąpił błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    Id = idCRM.ToString(),
+                    Nazwa = nazwa,
+                    NIP = "", // CRM nie ma NIP
+                    Adres = adres.Trim(),
+                    KodPocztowy = kod,
+                    Miejscowosc = miasto,
+                    Telefon = telefon,
+                    OsobaKontaktowa = $"{imie} {nazwisko}".Trim(),
+                    CzyReczny = true // Oznacz jako ręczny (z CRM)
+                };
+
+                // ✅ Otwórz okno oferty z przekazanym klientem
+                var ofertaWindow = new OfertaHandlowaWindow(klient, operatorID);
+                ofertaWindow.UserID = operatorID;
+                ofertaWindow.ShowDialog();
+
+                // Po zamknięciu oferty - zapytaj czy zmienić status
+                var currentStatus = rowView["Status"]?.ToString() ?? "";
+                if (currentStatus == "Do wysłania oferta")
+                {
+                    var result = MessageBox.Show(
+                        $"Oferta została utworzona dla:\n{nazwa}\n\nCzy zmienić status klienta na 'Zgoda na dalszy kontakt'?",
+                        "Zmiana statusu",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        AktualizujStatusWBazie(idCRM, "Zgoda na dalszy kontakt", currentStatus);
+                        WczytajOdbiorcow();
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd tworzenia oferty:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -339,11 +426,45 @@ namespace Kalendarz1
                 formZadania.ShowDialog();
             });
 
+            // ✅ NOWY PRZYCISK - Edytuj dane kontaktowe
+            var btnEdytujKontakt = StworzPrzycisk("✏️ Edytuj", Color.FromArgb(59, 130, 246), (s, e) => {
+                if (dataGridViewOdbiorcy.CurrentRow != null)
+                {
+                    clickedRowIndex = dataGridViewOdbiorcy.CurrentRow.Index;
+                    EdytujKontaktMenuItem_Click(s, e);
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz klienta z listy.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            });
+
+            // ✅ NOWY PRZYCISK - Oferta dla wybranego klienta
+            var btnOferta = StworzPrzycisk("💵 Oferta", Color.FromArgb(75, 131, 60), (s, e) => {
+                if (dataGridViewOdbiorcy.CurrentRow != null)
+                {
+                    clickedRowIndex = dataGridViewOdbiorcy.CurrentRow.Index;
+                    OfertaMenuItem_Click(s, e);
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz klienta z listy.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            });
+
+            // ✅ NOWY PRZYCISK - Filtruj "Do wysłania oferta"
+            var btnDoWyslania = StworzPrzycisk("📧 Do wysłania", Color.FromArgb(211, 84, 0), (s, e) => {
+                comboBoxStatusFilter.SelectedItem = "Do wysłania oferta";
+            });
+
             flowLayoutButtons.Controls.Add(btnOdswiez);
             flowLayoutButtons.Controls.Add(btnHistoria);
             flowLayoutButtons.Controls.Add(btnMapa);
             flowLayoutButtons.Controls.Add(btnDodaj);
             flowLayoutButtons.Controls.Add(btnZadania);
+            flowLayoutButtons.Controls.Add(btnEdytujKontakt);
+            flowLayoutButtons.Controls.Add(btnOferta);
+            flowLayoutButtons.Controls.Add(btnDoWyslania);
 
             if (operatorID == "11111")
             {
@@ -614,6 +735,7 @@ namespace Kalendarz1
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "MIASTO", DataPropertyName = "MIASTO", HeaderText = "Miasto", FillWeight = 8, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ulica", DataPropertyName = "ULICA", HeaderText = "Ulica", FillWeight = 7, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefon_K", DataPropertyName = "TELEFON_K", HeaderText = "Telefon", FillWeight = 8, ReadOnly = true, DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = Color.FromArgb(44, 62, 80) } });
+            dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Email", DataPropertyName = "Email", HeaderText = "📧 Email", FillWeight = 12, ReadOnly = true, DefaultCellStyle = new DataGridViewCellStyle { Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(59, 130, 246) } });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Wojewodztwo", DataPropertyName = "Wojewodztwo", HeaderText = "Województwo", FillWeight = 9, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "Powiat", DataPropertyName = "Powiat", HeaderText = "Powiat", FillWeight = 9, ReadOnly = true });
             dataGridViewOdbiorcy.Columns.Add(new DataGridViewTextBoxColumn { Name = "PKD_Opis", DataPropertyName = "PKD_Opis", HeaderText = "Branza (PKD)", FillWeight = 12, ReadOnly = true });
@@ -705,6 +827,8 @@ namespace Kalendarz1
             "Próba kontaktu" => new SugestiaKroku { TypZadania = "Telefon", Opis = "Proba ponownego kontaktu telefonicznego", Termin = DateTime.Now.AddDays(2), Priorytet = 2 },
             "Nawiązano kontakt" => new SugestiaKroku { TypZadania = "Email", Opis = "Wyslac prezentacje firmy i oferty", Termin = DateTime.Now.AddDays(1), Priorytet = 3 },
             "Zgoda na dalszy kontakt" => new SugestiaKroku { TypZadania = "Oferta", Opis = "Przygotowac spersonalizowana oferte", Termin = DateTime.Now.AddHours(4), Priorytet = 3 },
+            // ✅ NOWA SUGESTIA dla statusu "Do wysłania oferta"
+            "Do wysłania oferta" => new SugestiaKroku { TypZadania = "Oferta", Opis = "Utworzyć i wysłać ofertę cenową (PPM → Utwórz ofertę)", Termin = DateTime.Now.AddHours(2), Priorytet = 3 },
             _ => null
         };
 
@@ -917,4 +1041,3 @@ namespace Kalendarz1
 
     public class SugestiaKroku { public string TypZadania { get; set; } public string Opis { get; set; } public DateTime Termin { get; set; } public int Priorytet { get; set; } }
 }
-
