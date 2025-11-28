@@ -149,16 +149,19 @@ namespace Kalendarz1
 
                             specyfikacjeData.Add(specRow);
                         }
+                        UpdateStatistics();
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
                     {
+                        UpdateStatistics();
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
             }
             catch (Exception ex)
             {
+                UpdateStatus($"Błąd: {ex.Message}");
             }
         }
 
@@ -177,7 +180,234 @@ namespace Kalendarz1
             if (dataGridView1.SelectedItem != null)
             {
                 selectedRow = dataGridView1.SelectedItem as SpecyfikacjaRow;
+                UpdateDetailsPanel();
             }
+        }
+
+        private void UpdateDetailsPanel()
+        {
+            if (selectedRow == null)
+            {
+                lblSelectedDostawca.Text = "Wybierz dostawę z listy";
+                ClearDetailsPanel();
+                return;
+            }
+
+            // Nagłówek
+            lblSelectedDostawca.Text = $"{selectedRow.Nr}. {selectedRow.RealDostawca ?? selectedRow.Dostawca}";
+
+            // Informacje podstawowe
+            txtID.Text = selectedRow.ID.ToString();
+            txtNr.Text = selectedRow.Nr.ToString();
+            txtRealDostawca.Text = selectedRow.RealDostawca ?? "-";
+
+            // Deklaracje
+            txtSztukiDek.Text = selectedRow.SztukiDek.ToString();
+            txtPadle.Text = selectedRow.Padle.ToString();
+            txtCH.Text = selectedRow.CH.ToString();
+            txtNW.Text = selectedRow.NW.ToString();
+            txtZM.Text = selectedRow.ZM.ToString();
+            txtLUMEL.Text = selectedRow.LUMEL.ToString();
+
+            // Wagi hodowcy
+            txtBruttoH.Text = selectedRow.BruttoHodowcy ?? "-";
+            txtTaraH.Text = selectedRow.TaraHodowcy ?? "-";
+            txtNettoH.Text = selectedRow.NettoHodowcy ?? "-";
+
+            // Wagi ubojni
+            txtBruttoU.Text = selectedRow.BruttoUbojni ?? "-";
+            txtTaraU.Text = selectedRow.TaraUbojni ?? "-";
+            txtNettoU.Text = selectedRow.NettoUbojni ?? "-";
+
+            // Wybijak
+            txtSztWybijak.Text = selectedRow.SztukiWybijak.ToString();
+            txtKgWybijak.Text = selectedRow.KilogramyWybijak.ToString("F2");
+
+            // Cena i ubytek
+            txtCena.Text = selectedRow.Cena.ToString("F2");
+            txtTypCeny.Text = selectedRow.TypCeny ?? "-";
+            txtUbytek.Text = selectedRow.Ubytek.ToString("F2");
+            chkPiK.IsChecked = selectedRow.PiK;
+        }
+
+        private void ClearDetailsPanel()
+        {
+            txtID.Text = "";
+            txtNr.Text = "";
+            txtRealDostawca.Text = "";
+            txtSztukiDek.Text = "";
+            txtPadle.Text = "";
+            txtCH.Text = "";
+            txtNW.Text = "";
+            txtZM.Text = "";
+            txtLUMEL.Text = "";
+            txtBruttoH.Text = "";
+            txtTaraH.Text = "";
+            txtNettoH.Text = "";
+            txtBruttoU.Text = "";
+            txtTaraU.Text = "";
+            txtNettoU.Text = "";
+            txtSztWybijak.Text = "";
+            txtKgWybijak.Text = "";
+            txtCena.Text = "";
+            txtTypCeny.Text = "";
+            txtUbytek.Text = "";
+            chkPiK.IsChecked = false;
+        }
+
+        private void BtnSaveRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Wybierz wiersz do zapisania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                // Aktualizuj obiekt z pól
+                int.TryParse(txtNr.Text, out int nr);
+                selectedRow.Nr = nr;
+
+                int.TryParse(txtSztukiDek.Text, out int sztDek);
+                selectedRow.SztukiDek = sztDek;
+
+                int.TryParse(txtPadle.Text, out int padle);
+                selectedRow.Padle = padle;
+
+                int.TryParse(txtCH.Text, out int ch);
+                selectedRow.CH = ch;
+
+                int.TryParse(txtNW.Text, out int nw);
+                selectedRow.NW = nw;
+
+                int.TryParse(txtZM.Text, out int zm);
+                selectedRow.ZM = zm;
+
+                int.TryParse(txtLUMEL.Text, out int lumel);
+                selectedRow.LUMEL = lumel;
+
+                int.TryParse(txtSztWybijak.Text, out int sztWyb);
+                selectedRow.SztukiWybijak = sztWyb;
+
+                decimal.TryParse(txtKgWybijak.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal kgWyb);
+                selectedRow.KilogramyWybijak = kgWyb;
+
+                decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal cena);
+                selectedRow.Cena = cena;
+
+                decimal.TryParse(txtUbytek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal ubytek);
+                selectedRow.Ubytek = ubytek;
+
+                selectedRow.PiK = chkPiK.IsChecked ?? false;
+
+                // Zapisz do bazy
+                SaveRowToDatabase(selectedRow);
+
+                // Odśwież widok
+                dataGridView1.Items.Refresh();
+                UpdateStatistics();
+                UpdateStatus($"Zapisano zmiany dla wiersza ID: {selectedRow.ID}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveRowToDatabase(SpecyfikacjaRow row)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = @"UPDATE dbo.FarmerCalc SET
+                    CarLp = @Nr,
+                    DeclI1 = @SztukiDek,
+                    DeclI2 = @Padle,
+                    DeclI3 = @CH,
+                    DeclI4 = @NW,
+                    DeclI5 = @ZM,
+                    LumQnt = @LUMEL,
+                    ProdQnt = @SztukiWybijak,
+                    ProdWgt = @KgWybijak,
+                    Price = @Cena,
+                    Loss = @Ubytek,
+                    IncDeadConf = @PiK
+                    WHERE ID = @ID";
+
+                using (SqlCommand cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@ID", row.ID);
+                    cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                    cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
+                    cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                    cmd.Parameters.AddWithValue("@CH", row.CH);
+                    cmd.Parameters.AddWithValue("@NW", row.NW);
+                    cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                    cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                    cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
+                    cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
+                    cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
+                    cmd.Parameters.AddWithValue("@PiK", row.PiK);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                UpdateStatus("Zapisywanie wszystkich zmian...");
+                int savedCount = 0;
+
+                foreach (var row in specyfikacjeData)
+                {
+                    SaveRowToDatabase(row);
+                    savedCount++;
+                }
+
+                MessageBox.Show($"Zapisano {savedCount} rekordów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"Zapisano {savedCount} rekordów");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                UpdateStatus("Błąd zapisu");
+            }
+        }
+
+        private void UpdateStatistics()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                lblRecordCount.Text = "0";
+                lblSumaNetto.Text = "0 kg";
+                lblSumaSztuk.Text = "0";
+                return;
+            }
+
+            lblRecordCount.Text = specyfikacjeData.Count.ToString();
+
+            // Suma netto ubojni
+            decimal sumaNetto = 0;
+            foreach (var row in specyfikacjeData)
+            {
+                if (decimal.TryParse(row.NettoUbojni?.Replace(" ", "").Replace(",", ""), out decimal netto))
+                {
+                    sumaNetto += netto;
+                }
+            }
+            lblSumaNetto.Text = $"{sumaNetto:N0} kg";
+
+            // Suma sztuk LUMEL
+            int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
+            lblSumaSztuk.Text = sumaSztuk.ToString("N0");
         }
 
         private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -388,6 +618,11 @@ namespace Kalendarz1
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 UpdateStatus("Błąd pobierania danych LUMEL");
             }
+        }
+
+        private void BtnCloseLumel_Click(object sender, RoutedEventArgs e)
+        {
+            lumelPanel.Visibility = Visibility.Collapsed;
         }
 
         private void Button1_Click(object sender, RoutedEventArgs e)
