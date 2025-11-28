@@ -237,7 +237,6 @@
                         <DataGrid x:Name="dataGridDokumenty" 
                                   ItemsSource="{Binding Dokumenty}"
                                   Style="{StaticResource ModernDataGridStyle}"
-                                  ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeaderStyle}"
                                   CellStyle="{StaticResource ModernDataGridCellStyle}">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource ModernDataGridColumnHeaderStyle}">
