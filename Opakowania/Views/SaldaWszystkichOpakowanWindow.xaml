@@ -1,0 +1,436 @@
+<Window x:Class="Kalendarz1.Opakowania.Views.SaldaWszystkichOpakowanWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📦 Salda Wszystkich Opakowań" 
+        Width="1400" Height="900"
+        MinWidth="1100" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#ECF0F1"
+        FontFamily="Segoe UI"
+        WindowStyle="None">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Resources/OpakowaniaStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding OdswiezCommand}"/>
+        <KeyBinding Key="G" Modifiers="Ctrl" Command="{Binding ToggleGrupowanieCommand}"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{Binding EksportExcelCommand}"/>
+        <KeyBinding Key="P" Modifiers="Ctrl" Command="{Binding DrukujCommand}"/>
+        <KeyBinding Key="F" Modifiers="Ctrl" x:Name="FocusSzukaj"/>
+        <KeyBinding Key="Escape" Command="{Binding ZamknijCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============================================== -->
+        <!-- PASEK TYTUŁU -->
+        <!-- ============================================== -->
+        <Border Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#C0392B" Offset="0"/>
+                    <GradientStop Color="#E74C3C" Offset="0.5"/>
+                    <GradientStop Color="#5C8A3A" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid Height="50">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0">
+                    <TextBlock Text="📦" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="SALDA WSZYSTKICH OPAKOWAŃ" FontSize="16" FontWeight="Bold" 
+                                   Foreground="White"/>
+                        <TextBlock Text="{Binding NazwaHandlowca}" FontSize="11" Foreground="#CCFFFFFF"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="🗕" Style="{StaticResource WindowButtonStyle}" Click="MinimizeButton_Click" FontSize="14"/>
+                    <Button Content="🗖" Style="{StaticResource WindowButtonStyle}" Click="MaximizeButton_Click" FontSize="14"/>
+                    <Button Content="✕" Style="{StaticResource CloseButtonStyle}" Click="CloseButton_Click" FontSize="14"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- PASEK NARZĘDZI -->
+        <!-- ============================================== -->
+        <Border Grid.Row="1" Style="{StaticResource CardPanel}" Margin="12,12,12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="📅 STAN NA DZIEŃ" Style="{StaticResource LabelTextStyle}"/>
+                        <DatePicker SelectedDate="{Binding StanNaDzien}" Style="{StaticResource ModernDatePickerStyle}" Width="140"/>
+                    </StackPanel>
+                    
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="⏱️ SZYBKI FILTR" Style="{StaticResource LabelTextStyle}"/>
+                        <ComboBox ItemsSource="{Binding FiltryDat}" SelectedItem="{Binding WybranyFiltrDaty}"
+                                  DisplayMemberPath="Nazwa" Style="{StaticResource ModernComboBoxStyle}" Width="160"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,20,0" 
+                                Visibility="{Binding CzyAdmin, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="👤 HANDLOWIEC" Style="{StaticResource LabelTextStyle}"/>
+                        <ComboBox ItemsSource="{Binding Handlowcy}" SelectedItem="{Binding WybranyHandlowiec}"
+                                  DisplayMemberPath="Nazwa" Style="{StaticResource ModernComboBoxStyle}" Width="180"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Style="{StaticResource PrimaryButtonStyle}" Command="{Binding OdswiezCommand}" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔄" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="Odśwież"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding ToggleGrupowanieCommand}" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📁" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding CzyGrupowane, Converter={StaticResource BoolToGroupTextConverter}}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding EksportPDFCommand}" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📄" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="PDF"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding EksportExcelCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📊" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="Excel"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- PASEK WYSZUKIWANIA -->
+        <!-- ============================================== -->
+        <Border Grid.Row="2" Style="{StaticResource CardPanel}" Margin="12,0,12,6" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0">
+                    <TextBox x:Name="txtSzukaj" Text="{Binding FiltrTekst, UpdateSourceTrigger=PropertyChanged}" 
+                             Style="{StaticResource ModernTextBoxStyle}" Padding="40,10,12,10"/>
+                    <TextBlock Text="🔍" FontSize="16" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"
+                               Foreground="{StaticResource TextMutedBrush}"/>
+                </Grid>
+
+                <CheckBox Grid.Column="1" Content="👤 Tylko swoi" IsChecked="{Binding TylkoSwoi}" 
+                          Style="{StaticResource ModernCheckBoxStyle}" Margin="20,0,0,0" VerticalAlignment="Center"
+                          Visibility="{Binding CzyHandlowiec, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                <Border Grid.Column="2" Background="#E8F5E9" CornerRadius="8" Padding="12,6" Margin="20,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📊 " FontSize="14"/>
+                        <TextBlock Text="{Binding LiczbaKontrahentow}" FontWeight="Bold" Foreground="#27AE60"/>
+                        <TextBlock Text=" kontrahentów" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <!-- ============================================== -->
+        <Grid Grid.Row="3" Margin="12,0,12,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- DataGrid -->
+            <Border Grid.Column="0" Style="{StaticResource CardPanel}" Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#FFEBEE" CornerRadius="8" Padding="12,8" Margin="0,0,0,12">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Lista Sald Kontrahentów" FontSize="15" FontWeight="Bold" 
+                                           Foreground="#C62828" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="PPM → Opcje | Kliknij 2x → Szczegóły" FontSize="10" 
+                                       Foreground="{StaticResource TextMutedBrush}" FontStyle="Italic" 
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" BorderBrush="#E74C3C" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
+                        <DataGrid x:Name="dataGridSalda" 
+                                  ItemsSource="{Binding SaldaFiltered}"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  CellStyle="{StaticResource ModernDataGridCellStyle}"
+                                  MouseDoubleClick="DataGridSalda_MouseDoubleClick">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource ModernDataGridColumnHeaderStyle}">
+                                    <Setter Property="Background" Value="#E74C3C"/>
+                                    <Setter Property="BorderBrush" Value="#C0392B"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource ModernDataGridRowStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SaldoCalkowite, Converter={StaticResource ThresholdConverter}, ConverterParameter=Critical}" Value="True">
+                                            <Setter Property="Background" Value="#FFEBEE"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SaldoCalkowite, Converter={StaticResource ThresholdConverter}, ConverterParameter=Warning}" Value="True">
+                                            <Setter Property="Background" Value="#FFF3E0"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="📋 Szczegóły kontrahenta" Click="MenuSzczegoly_Click" FontWeight="SemiBold"/>
+                                    <Separator/>
+                                    <MenuItem Header="📞 Zadzwoń" Click="MenuZadzwon_Click"/>
+                                    <MenuItem Header="📧 Wyślij email" Click="MenuWyslijEmail_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="📄 Eksport PDF" Click="MenuEksportPDF_Click"/>
+                                    <MenuItem Header="📊 Eksport Excel" Click="MenuEksportExcel_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="*" MinWidth="180"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
+                                <DataGridTemplateColumn Header="E2" Width="70" SortMemberPath="E2">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding E2}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding E2, Converter={StaticResource SaldoToColorConverter}}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="H1" Width="70" SortMemberPath="H1">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding H1}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding H1, Converter={StaticResource SaldoToColorConverter}}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="EURO" Width="70" SortMemberPath="EURO">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding EURO}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding EURO, Converter={StaticResource SaldoToColorConverter}}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="PCV" Width="70" SortMemberPath="PCV">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding PCV}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding PCV, Converter={StaticResource SaldoToColorConverter}}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="DREW" Width="70" SortMemberPath="DREW">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DREW}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding DREW, Converter={StaticResource SaldoToColorConverter}}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="RAZEM" Width="90" SortMemberPath="SaldoCalkowite">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding SaldoCalkowite, Converter={StaticResource SaldoCardBackgroundConverter}}" 
+                                                    CornerRadius="6" Padding="6,2" Margin="-4,0">
+                                                <TextBlock Text="{Binding SaldoCalkowite}" FontWeight="Bold" HorizontalAlignment="Center"
+                                                           Foreground="{Binding SaldoCalkowite, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Akcje" Width="70">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource SmallButtonStyle}" Click="BtnSzczegoly_Click" 
+                                                    ToolTip="Zobacz szczegóły" Padding="6,4">
+                                                <TextBlock Text="👁️" FontSize="14"/>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Panel boczny -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    
+                    <!-- Karty sum -->
+                    <Border Style="{StaticResource CardPanel}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="📊 Podsumowanie Sald" FontSize="14" FontWeight="Bold" 
+                                       Foreground="#2C3E50" Margin="0,0,0,12"/>
+                            
+                            <!-- E2 -->
+                            <Border Background="#EBF5FF" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#3498DB" BorderThickness="0,0,0,3">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="📦 POJEMNIK E2" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D"/>
+                                        <TextBlock Text="{Binding SumaE2, Converter={StaticResource SaldoToTextConverter}}" 
+                                                   FontSize="20" FontWeight="Bold"
+                                                   Foreground="{Binding SumaE2, Converter={StaticResource SaldoToColorConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            
+                            <!-- H1 -->
+                            <Border Background="#FFF7ED" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#E67E22" BorderThickness="0,0,0,3">
+                                <StackPanel>
+                                    <TextBlock Text="🎨 PALETA H1" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D"/>
+                                    <TextBlock Text="{Binding SumaH1, Converter={StaticResource SaldoToTextConverter}}" 
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{Binding SumaH1, Converter={StaticResource SaldoToColorConverter}}"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- EURO -->
+                            <Border Background="#E8F5E9" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#27AE60" BorderThickness="0,0,0,3">
+                                <StackPanel>
+                                    <TextBlock Text="🟩 PALETA EURO" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D"/>
+                                    <TextBlock Text="{Binding SumaEURO, Converter={StaticResource SaldoToTextConverter}}" 
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{Binding SumaEURO, Converter={StaticResource SaldoToColorConverter}}"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- PCV -->
+                            <Border Background="#F3E8FF" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#9B59B6" BorderThickness="0,0,0,3">
+                                <StackPanel>
+                                    <TextBlock Text="🟪 PALETA PCV" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D"/>
+                                    <TextBlock Text="{Binding SumaPCV, Converter={StaticResource SaldoToTextConverter}}" 
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{Binding SumaPCV, Converter={StaticResource SaldoToColorConverter}}"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- DREW -->
+                            <Border Background="#FEF3C7" CornerRadius="8" Padding="12" BorderBrush="#F39C12" BorderThickness="0,0,0,3">
+                                <StackPanel>
+                                    <TextBlock Text="🟫 PALETA DREW" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D"/>
+                                    <TextBlock Text="{Binding SumaDREW, Converter={StaticResource SaldoToTextConverter}}" 
+                                               FontSize="20" FontWeight="Bold"
+                                               Foreground="{Binding SumaDREW, Converter={StaticResource SaldoToColorConverter}}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Legenda -->
+                    <Border Style="{StaticResource CardPanel}">
+                        <StackPanel>
+                            <TextBlock Text="📋 Legenda kolorów" FontSize="13" FontWeight="Bold" 
+                                       Foreground="#2C3E50" Margin="0,0,0,10"/>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Border Width="20" Height="20" Background="#FFEBEE" CornerRadius="4" Margin="0,0,10,0"/>
+                                <TextBlock Text="Saldo krytyczne (≥100)" FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Border Width="20" Height="20" Background="#FFF3E0" CornerRadius="4" Margin="0,0,10,0"/>
+                                <TextBlock Text="Saldo ostrzeżenie (≥50)" FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,8"/>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Border Width="20" Height="20" Background="#E74C3C" CornerRadius="4" Margin="0,0,10,0"/>
+                                <TextBlock Text="Kontrahent winny (wydane)" FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="20" Background="#27AE60" CornerRadius="4" Margin="0,0,10,0"/>
+                                <TextBlock Text="My winni (zwrot)" FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ============================================== -->
+        <!-- STOPKA -->
+        <!-- ============================================== -->
+        <Border Grid.Row="4" Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                BorderThickness="0,1,0,0" Padding="15,12">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
+                        <Run Text="📊 Wyświetlono: "/>
+                        <Run Text="{Binding LiczbaKontrahentow, FallbackValue=0}" FontWeight="Bold" Foreground="{StaticResource AccentRedBrush}"/>
+                        <Run Text=" kontrahentów"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="💡 F5: Odśwież | Ctrl+G: Grupuj | Ctrl+E: Excel | ESC: Zamknij" 
+                               FontSize="10" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <Button Style="{StaticResource PrimaryButtonStyle}" Click="BtnSzczegoly_Click" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="👁️" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="Szczegóły"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Content="Zamknij" Style="{StaticResource SecondaryButtonStyle}" Click="CloseButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================================== -->
+        <!-- LOADING OVERLAY -->
+        <!-- ============================================== -->
+        <Grid Grid.RowSpan="5" Background="#80FFFFFF" 
+              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Border Background="White" CornerRadius="12" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="0" Color="#000" Opacity="0.2" BlurRadius="20"/>
+                </Border.Effect>
+                <StackPanel>
+                    <ProgressBar IsIndeterminate="True" Width="200" Height="6"/>
+                    <TextBlock Text="⏳ Ładowanie danych..." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" 
+                               HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

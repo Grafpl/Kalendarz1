@@ -1,0 +1,325 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
+using Kalendarz1.Opakowania.Models;
+using Kalendarz1.Opakowania.Services;
+
+namespace Kalendarz1.Opakowania.ViewModels
+{
+    /// <summary>
+    /// ViewModel dla widoku zestawienia opakowań wszystkich kontrahentów
+    /// </summary>
+    public class ZestawienieOpakowanViewModel : ViewModelBase
+    {
+        private readonly OpakowaniaDataService _dataService;
+        private readonly string _userId;
+        private string _handlowiecFilter;
+
+        private DateTime _dataOd;
+        private DateTime _dataDo;
+        private TypOpakowania _wybranyTypOpakowania;
+        private ZestawienieSalda _wybranyKontrahent;
+        private string _filtrTekstowy;
+        private bool _pokazTylkoNiepotwierdzone;
+        private bool _isAdmin;
+
+        private ObservableCollection<ZestawienieSalda> _zestawienie;
+        private ObservableCollection<ZestawienieSalda> _zestawienieFiltrowane;
+
+        // Statystyki
+        private int _liczbKontrahentow;
+        private int _sumaSaldDodatnich;
+        private int _sumaSaldUjemnych;
+        private int _liczbaPotwierdzen;
+
+        public ZestawienieOpakowanViewModel(string userId)
+        {
+            _userId = userId;
+            _dataService = new OpakowaniaDataService();
+
+            // Domyślne wartości
+            _dataOd = new DateTime(DateTime.Now.Year - 1, 12, 31);
+            _dataDo = DateTime.Now;
+            _wybranyTypOpakowania = TypOpakowania.WszystkieTypy[0]; // Pojemnik E2
+
+            Zestawienie = new ObservableCollection<ZestawienieSalda>();
+            ZestawienieFiltrowane = new ObservableCollection<ZestawienieSalda>();
+
+            // Komendy
+            OdswiezCommand = new AsyncRelayCommand(OdswiezAsync);
+            GenerujPDFCommand = new AsyncRelayCommand(GenerujPDFAsync, () => WybranyKontrahent != null);
+            OtworzSzczegolyCommand = new RelayCommand(OtworzSzczegoly, _ => WybranyKontrahent != null);
+            DodajPotwierdzenieCommand = new RelayCommand(DodajPotwierdzenie, _ => WybranyKontrahent != null);
+            WybierzTypOpakowaniCommand = new RelayCommand(WybierzTypOpakowania);
+
+            // Inicjalizacja
+            InitializeAsync();
+        }
+
+        #region Properties
+
+        public DateTime DataOd
+        {
+            get => _dataOd;
+            set
+            {
+                if (SetProperty(ref _dataOd, value))
+                    OdswiezCommand.Execute(null);
+            }
+        }
+
+        public DateTime DataDo
+        {
+            get => _dataDo;
+            set
+            {
+                if (SetProperty(ref _dataDo, value))
+                    OdswiezCommand.Execute(null);
+            }
+        }
+
+        public TypOpakowania WybranyTypOpakowania
+        {
+            get => _wybranyTypOpakowania;
+            set
+            {
+                if (SetProperty(ref _wybranyTypOpakowania, value))
+                {
+                    OnPropertyChanged(nameof(TytulTypuOpakowania));
+                    OdswiezCommand.Execute(null);
+                }
+            }
+        }
+
+        public TypOpakowania[] WszystkieTypyOpakowan => TypOpakowania.WszystkieTypy;
+
+        public string TytulTypuOpakowania => WybranyTypOpakowania?.Nazwa ?? "Opakowania";
+
+        public ZestawienieSalda WybranyKontrahent
+        {
+            get => _wybranyKontrahent;
+            set
+            {
+                if (SetProperty(ref _wybranyKontrahent, value))
+                {
+                    ((RelayCommand)OtworzSzczegolyCommand).RaiseCanExecuteChanged();
+                    ((RelayCommand)DodajPotwierdzenieCommand).RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public string FiltrTekstowy
+        {
+            get => _filtrTekstowy;
+            set
+            {
+                if (SetProperty(ref _filtrTekstowy, value))
+                    FiltrujZestawienie();
+            }
+        }
+
+        public bool PokazTylkoNiepotwierdzone
+        {
+            get => _pokazTylkoNiepotwierdzone;
+            set
+            {
+                if (SetProperty(ref _pokazTylkoNiepotwierdzone, value))
+                    FiltrujZestawienie();
+            }
+        }
+
+        public bool IsAdmin
+        {
+            get => _isAdmin;
+            set => SetProperty(ref _isAdmin, value);
+        }
+
+        public string NazwaHandlowca => string.IsNullOrEmpty(_handlowiecFilter) ? "Wszyscy" : _handlowiecFilter;
+
+        public ObservableCollection<ZestawienieSalda> Zestawienie
+        {
+            get => _zestawienie;
+            set => SetProperty(ref _zestawienie, value);
+        }
+
+        public ObservableCollection<ZestawienieSalda> ZestawienieFiltrowane
+        {
+            get => _zestawienieFiltrowane;
+            set => SetProperty(ref _zestawienieFiltrowane, value);
+        }
+
+        // Statystyki
+        public int LiczbaKontrahentow
+        {
+            get => _liczbKontrahentow;
+            set => SetProperty(ref _liczbKontrahentow, value);
+        }
+
+        public int SumaSaldDodatnich
+        {
+            get => _sumaSaldDodatnich;
+            set => SetProperty(ref _sumaSaldDodatnich, value);
+        }
+
+        public int SumaSaldUjemnych
+        {
+            get => _sumaSaldUjemnych;
+            set => SetProperty(ref _sumaSaldUjemnych, value);
+        }
+
+        public int LiczbaPotwierdzen
+        {
+            get => _liczbaPotwierdzen;
+            set => SetProperty(ref _liczbaPotwierdzen, value);
+        }
+
+        #endregion
+
+        #region Commands
+
+        public ICommand OdswiezCommand { get; }
+        public ICommand GenerujPDFCommand { get; }
+        public ICommand OtworzSzczegolyCommand { get; }
+        public ICommand DodajPotwierdzenieCommand { get; }
+        public ICommand WybierzTypOpakowaniCommand { get; }
+
+        #endregion
+
+        #region Events
+
+        public event Action<ZestawienieSalda> OtworzSzczegolyRequested;
+        public event Action<ZestawienieSalda, TypOpakowania> DodajPotwierdzenieRequested;
+
+        #endregion
+
+        #region Methods
+
+        private async void InitializeAsync()
+        {
+            await ExecuteAsync(async () =>
+            {
+                // Sprawdź uprawnienia użytkownika
+                IsAdmin = _userId == "11111";
+
+                if (!IsAdmin)
+                {
+                    _handlowiecFilter = await _dataService.PobierzHandlowcaPoUserIdAsync(_userId);
+                }
+
+                OnPropertyChanged(nameof(NazwaHandlowca));
+
+                // Pobierz dane
+                await PobierzDaneAsync();
+            }, "Inicjalizacja...");
+        }
+
+        private async Task OdswiezAsync()
+        {
+            await ExecuteAsync(async () =>
+            {
+                await PobierzDaneAsync();
+            }, "Odświeżanie danych...");
+        }
+
+        private async Task PobierzDaneAsync()
+        {
+            if (WybranyTypOpakowania == null) return;
+
+            var dane = await _dataService.PobierzZestawienieSaldAsync(
+                DataOd, DataDo,
+                WybranyTypOpakowania.NazwaSystemowa,
+                _handlowiecFilter);
+
+            Zestawienie.Clear();
+            foreach (var item in dane)
+            {
+                Zestawienie.Add(item);
+            }
+
+            FiltrujZestawienie();
+            ObliczStatystyki();
+        }
+
+        private void FiltrujZestawienie()
+        {
+            var filtrowane = Zestawienie.AsEnumerable();
+
+            // Filtr tekstowy
+            if (!string.IsNullOrWhiteSpace(FiltrTekstowy))
+            {
+                var filtr = FiltrTekstowy.ToLower();
+                filtrowane = filtrowane.Where(z =>
+                    z.Kontrahent.ToLower().Contains(filtr) ||
+                    z.Handlowiec.ToLower().Contains(filtr));
+            }
+
+            // Filtr potwierdzeń
+            if (PokazTylkoNiepotwierdzone)
+            {
+                filtrowane = filtrowane.Where(z => !z.JestPotwierdzone);
+            }
+
+            ZestawienieFiltrowane.Clear();
+            foreach (var item in filtrowane)
+            {
+                ZestawienieFiltrowane.Add(item);
+            }
+        }
+
+        private void ObliczStatystyki()
+        {
+            var daneDoStatystyk = ZestawienieFiltrowane.Where(z => z.Kontrahent != "Suma").ToList();
+
+            LiczbaKontrahentow = daneDoStatystyk.Count;
+            SumaSaldDodatnich = daneDoStatystyk.Where(z => z.IloscDrugiZakres > 0).Sum(z => z.IloscDrugiZakres);
+            SumaSaldUjemnych = daneDoStatystyk.Where(z => z.IloscDrugiZakres < 0).Sum(z => Math.Abs(z.IloscDrugiZakres));
+            LiczbaPotwierdzen = daneDoStatystyk.Count(z => z.JestPotwierdzone);
+        }
+
+        private async Task GenerujPDFAsync()
+        {
+            if (WybranyKontrahent == null) return;
+
+            await ExecuteAsync(async () =>
+            {
+                // TODO: Implementacja generowania PDF
+                await Task.Delay(100);
+                MessageBox.Show($"Generowanie PDF dla: {WybranyKontrahent.Kontrahent}", "PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+            }, "Generowanie PDF...");
+        }
+
+        private void OtworzSzczegoly(object parameter)
+        {
+            if (WybranyKontrahent != null && WybranyKontrahent.KontrahentId > 0)
+            {
+                OtworzSzczegolyRequested?.Invoke(WybranyKontrahent);
+            }
+        }
+
+        private void DodajPotwierdzenie(object parameter)
+        {
+            if (WybranyKontrahent != null && WybranyKontrahent.KontrahentId > 0)
+            {
+                DodajPotwierdzenieRequested?.Invoke(WybranyKontrahent, WybranyTypOpakowania);
+            }
+        }
+
+        private void WybierzTypOpakowania(object parameter)
+        {
+            if (parameter is string kod)
+            {
+                WybranyTypOpakowania = TypOpakowania.WszystkieTypy.FirstOrDefault(t => t.Kod == kod)
+                    ?? TypOpakowania.WszystkieTypy[0];
+            }
+            else if (parameter is TypOpakowania typ)
+            {
+                WybranyTypOpakowania = typ;
+            }
+        }
+
+        #endregion
+    }
+}
