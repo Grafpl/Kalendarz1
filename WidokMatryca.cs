@@ -580,9 +580,35 @@ namespace Kalendarz1
                     return;
                 }
 
+                // Sprawdź czy kolumna jest w pełni zainicjalizowana (ma prawidłowy indeks)
+                if (column.Index < 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: Kolumna {columnName} ma nieprawidłowy indeks");
+                    return;
+                }
+
+                // Sprawdź czy DataGridView jest gotowy do modyfikacji
+                if (!dataGridView1.IsHandleCreated)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: DataGridView handle nie został jeszcze utworzony dla {columnName}");
+                    return;
+                }
+
                 column.HeaderText = headerText;
-                column.Width = width;
+
+                // Bezpieczne ustawianie szerokości - Width musi być > 0
+                if (width > 0)
+                {
+                    column.MinimumWidth = 2; // Minimalna wymagana szerokość
+                    column.Width = width;
+                }
+
                 column.ReadOnly = readOnly;
+            }
+            catch (InvalidOperationException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"InvalidOperationException w ConfigureColumn dla {columnName}: {ex.Message}");
+                // Kolumna może nie być jeszcze gotowa - ignoruj
             }
             catch (Exception ex)
             {
