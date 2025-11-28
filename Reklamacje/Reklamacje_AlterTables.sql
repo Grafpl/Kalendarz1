@@ -285,9 +285,13 @@ BEGIN
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania DESC;
 
-    -- 4. Zdjęcia
+    -- 4. Zdjęcia (z obsluga brakujacych kolumn)
     SELECT
-        Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez
+        Id,
+        ISNULL(NazwaPliku, '') AS NazwaPliku,
+        ISNULL(SciezkaPliku, '') AS SciezkaPliku,
+        DataDodania,
+        ISNULL(DodanePrzez, '') AS DodanePrzez
     FROM [dbo].[ReklamacjeZdjecia]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania;

@@ -446,7 +446,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Zglaszajacy" Binding="{Binding UserID}" Width="100"/>
+                                <DataGridTextColumn Header="Zglaszajacy" Binding="{Binding Zglaszajacy}" Width="140"/>
                                 <DataGridTextColumn Header="Rozpatruje" Binding="{Binding OsobaRozpatrujaca}" Width="100"/>
                             </DataGrid.Columns>
                             <DataGrid.ContextMenu>

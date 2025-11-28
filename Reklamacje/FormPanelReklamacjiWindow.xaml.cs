@@ -50,31 +50,33 @@ namespace Kalendarz1.Reklamacje
 
                     string query = @"
                         SELECT
-                            Id,
-                            DataZgloszenia,
-                            NumerDokumentu,
-                            NazwaKontrahenta,
-                            LEFT(ISNULL(Opis, ''), 100) + CASE WHEN LEN(ISNULL(Opis, '')) > 100 THEN '...' ELSE '' END AS Opis,
-                            ISNULL(SumaKg, 0) AS SumaKg,
-                            ISNULL(Status, 'Nowa') AS Status,
-                            UserID,
-                            OsobaRozpatrujaca
-                        FROM [dbo].[Reklamacje]
-                        WHERE DataZgloszenia BETWEEN @DataOd AND @DataDo";
+                            r.Id,
+                            r.DataZgloszenia,
+                            r.NumerDokumentu,
+                            r.NazwaKontrahenta,
+                            LEFT(ISNULL(r.Opis, ''), 100) + CASE WHEN LEN(ISNULL(r.Opis, '')) > 100 THEN '...' ELSE '' END AS Opis,
+                            ISNULL(r.SumaKg, 0) AS SumaKg,
+                            ISNULL(r.Status, 'Nowa') AS Status,
+                            ISNULL(o.Name, r.UserID) AS Zglaszajacy,
+                            ISNULL(o2.Name, r.OsobaRozpatrujaca) AS OsobaRozpatrujaca
+                        FROM [dbo].[Reklamacje] r
+                        LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
+                        LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
+                        WHERE r.DataZgloszenia BETWEEN @DataOd AND @DataDo";
 
                     string statusFilter = (cmbStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
                     {
-                        query += " AND Status = @Status";
+                        query += " AND r.Status = @Status";
                     }
 
                     string szukaj = txtSzukaj?.Text?.Trim();
                     if (!string.IsNullOrEmpty(szukaj))
                     {
-                        query += " AND (NumerDokumentu LIKE @Szukaj OR NazwaKontrahenta LIKE @Szukaj OR Opis LIKE @Szukaj)";
+                        query += " AND (r.NumerDokumentu LIKE @Szukaj OR r.NazwaKontrahenta LIKE @Szukaj OR r.Opis LIKE @Szukaj)";
                     }
 
-                    query += " ORDER BY DataZgloszenia DESC";
+                    query += " ORDER BY r.DataZgloszenia DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -104,7 +106,7 @@ namespace Kalendarz1.Reklamacje
                                     Opis = reader.IsDBNull(4) ? "" : reader.GetString(4),
                                     SumaKg = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
                                     Status = reader.IsDBNull(6) ? "Nowa" : reader.GetString(6),
-                                    UserID = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                    Zglaszajacy = reader.IsDBNull(7) ? "" : reader.GetString(7),
                                     OsobaRozpatrujaca = reader.IsDBNull(8) ? "" : reader.GetString(8)
                                 });
                             }
@@ -416,7 +418,7 @@ namespace Kalendarz1.Reklamacje
         public string Opis { get; set; }
         public decimal SumaKg { get; set; }
         public string Status { get; set; }
-        public string UserID { get; set; }
+        public string Zglaszajacy { get; set; }
         public string OsobaRozpatrujaca { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -303,10 +303,29 @@ namespace Kalendarz1.Reklamacje
                         if (reader.NextResult())
                         {
                             lbZdjecia.Items.Clear();
-                            while (reader.Read())
+                            try
                             {
-                                lbZdjecia.Items.Add($"{reader["NazwaPliku"]} | {reader["SciezkaPliku"]}");
+                                while (reader.Read())
+                                {
+                                    string nazwaPliku = "";
+                                    string sciezkaPliku = "";
+
+                                    // Sprawdz czy kolumna istnieje
+                                    for (int i = 0; i < reader.FieldCount; i++)
+                                    {
+                                        string colName = reader.GetName(i);
+                                        if (colName == "NazwaPliku" && !reader.IsDBNull(i))
+                                            nazwaPliku = reader.GetString(i);
+                                        else if (colName == "SciezkaPliku" && !reader.IsDBNull(i))
+                                            sciezkaPliku = reader.GetString(i);
+                                    }
+
+                                    if (!string.IsNullOrEmpty(nazwaPliku) || !string.IsNullOrEmpty(sciezkaPliku))
+                                        lbZdjecia.Items.Add($"{nazwaPliku} | {sciezkaPliku}");
+                                }
                             }
+                            catch { /* Ignoruj bledy odczytu zdjec */ }
+
                             if (lbZdjecia.Items.Count == 0)
                                 lbZdjecia.Items.Add("(brak zdjęć)");
                         }
