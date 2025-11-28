@@ -232,6 +232,9 @@ namespace Kalendarz1
                             if (iloscAut < 1) iloscAut = 1;
                         }
 
+                        // Pobierz oryginalne LP z HarmonogramDostaw
+                        string oryginalneLP = row["LpDostawy"]?.ToString() ?? "";
+
                         // Twórz tyle wierszy ile aut
                         for (int autoNr = 0; autoNr < iloscAut; autoNr++)
                         {
@@ -239,6 +242,7 @@ namespace Kalendarz1
                             {
                                 ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
                                 LpDostawy = lpCounter.ToString(),
+                                OryginalneLP = oryginalneLP,  // Oryginalne LP z HarmonogramDostaw do zapytań
                                 CustomerGID = customerGID,
                                 HodowcaNazwa = hodowcaNazwa,
                                 WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
@@ -667,12 +671,28 @@ namespace Kalendarz1
                                 double Cena = 0.0;
                                 int intTypCeny = -1;
 
-                                if (!string.IsNullOrWhiteSpace(row.LpDostawy))
+                                // Używamy OryginalneLP do pobierania danych z HarmonogramDostaw
+                                string lpDoZapytan = !string.IsNullOrEmpty(row.OryginalneLP) ? row.OryginalneLP : row.LpDostawy;
+
+                                if (!string.IsNullOrWhiteSpace(lpDoZapytan))
                                 {
-                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "Ubytek"), out Ubytek);
-                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "Cena"), out Cena);
-                                    string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "TypCeny");
-                                    intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                    try
+                                    {
+                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Ubytek"), out Ubytek);
+                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Cena"), out Cena);
+                                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "TypCeny");
+
+                                        // Tylko wywołuj ZnajdzIdCeny jeśli typCeny nie jest pusty
+                                        if (!string.IsNullOrWhiteSpace(typCeny))
+                                        {
+                                            intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dla LP {lpDoZapytan}: {ex.Message}");
+                                        // Kontynuuj z domyślnymi wartościami
+                                    }
                                 }
 
                                 int userId2 = row.IsFarmerCalc
@@ -797,6 +817,7 @@ namespace Kalendarz1
         private bool _isFarmerCalc;
         private int _autoNrUHodowcy;
         private int _iloscAutUHodowcy;
+        private string _oryginalneLP;
 
         public long ID
         {
@@ -910,6 +931,12 @@ namespace Kalendarz1
         {
             get => _iloscAutUHodowcy;
             set { _iloscAutUHodowcy = value; OnPropertyChanged(nameof(IloscAutUHodowcy)); }
+        }
+
+        public string OryginalneLP
+        {
+            get => _oryginalneLP;
+            set { _oryginalneLP = value; OnPropertyChanged(nameof(OryginalneLP)); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
