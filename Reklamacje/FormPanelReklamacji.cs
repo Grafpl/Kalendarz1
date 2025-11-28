@@ -536,25 +536,36 @@ namespace Kalendarz1
                 if (dgvReklamacje == null || dgvReklamacje.Columns == null || dgvReklamacje.Columns.Count == 0)
                     return;
 
+                // Wyłącz AutoSize przed konfiguracją kolumn
+                dgvReklamacje.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
                 // Pomocnicza funkcja do bezpiecznej konfiguracji kolumny
                 void KonfigurujKolumne(string nazwa, string naglowek, int szerokosc, string format = null)
                 {
-                    DataGridViewColumn col = null;
                     try
                     {
-                        col = dgvReklamacje.Columns[nazwa];
-                    }
-                    catch { }
+                        if (!dgvReklamacje.Columns.Contains(nazwa))
+                            return;
 
-                    if (col != null)
-                    {
+                        var col = dgvReklamacje.Columns[nazwa];
+                        if (col == null)
+                            return;
+
                         col.HeaderText = naglowek;
-                        col.Width = szerokosc;
+
+                        try
+                        {
+                            col.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                            col.Width = szerokosc;
+                        }
+                        catch { /* Ignoruj błędy ustawiania szerokości */ }
+
                         if (!string.IsNullOrEmpty(format))
                         {
                             col.DefaultCellStyle.Format = format;
                         }
                     }
+                    catch { /* Ignoruj błędy pojedynczej kolumny */ }
                 }
 
                 KonfigurujKolumne("Id", "ID", 60);
@@ -566,6 +577,16 @@ namespace Kalendarz1
                 KonfigurujKolumne("Status", "Status", 120);
                 KonfigurujKolumne("UserID", "Zgłaszający", 100);
                 KonfigurujKolumne("OsobaRozpatrujaca", "Rozpatruje", 100);
+
+                // Przywróć AutoSize dla ostatniej kolumny (wypełni resztę miejsca)
+                if (dgvReklamacje.Columns.Contains("OsobaRozpatrujaca"))
+                {
+                    try
+                    {
+                        dgvReklamacje.Columns["OsobaRozpatrujaca"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    }
+                    catch { }
+                }
             }
             catch (Exception ex)
             {
