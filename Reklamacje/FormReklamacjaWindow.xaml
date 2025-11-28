@@ -293,8 +293,24 @@
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      SelectionChanged="DgTowary_SelectionChanged">
+                                      SelectionMode="Single">
                                 <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Click="ChkTowar_Click"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <CheckBox x:Name="chkWszystkieTowary" Click="ChkWszystkieTowary_Click"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="Zaznacz wszystkie"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*"/>
                                     <DataGridTextColumn Header="Waga (kg)" Binding="{Binding Waga, StringFormat=N2}" Width="100">
                                         <DataGridTextColumn.ElementStyle>
@@ -362,8 +378,24 @@
                                       Style="{StaticResource ModernDataGrid}"
                                       ColumnHeaderStyle="{StaticResource BlueDataGridHeaderStyle}"
                                       CellStyle="{StaticResource DataGridCellStyle}"
-                                      SelectionChanged="DgPartie_SelectionChanged">
+                                      SelectionMode="Single">
                                 <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Click="ChkPartia_Click"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <CheckBox x:Name="chkWszystkiePartie" Click="ChkWszystkiePartie_Click"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="Zaznacz wszystkie"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Nr partii" Binding="{Binding NrPartii}" Width="100"/>
                                     <DataGridTextColumn Header="ID" Binding="{Binding IdDostawcy}" Width="60"/>
                                     <DataGridTextColumn Header="Nazwa dostawcy" Binding="{Binding NazwaDostawcy}" Width="*"/>

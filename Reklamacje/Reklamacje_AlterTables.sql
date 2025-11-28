@@ -226,10 +226,10 @@ BEGIN
     PRINT 'Dodano kolumne PoprzedniStatus'
 END
 
-IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'NowyStatus')
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'StatusNowy')
 BEGIN
-    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [NowyStatus] NVARCHAR(50) NULL
-    PRINT 'Dodano kolumne NowyStatus'
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [StatusNowy] NVARCHAR(50) NOT NULL DEFAULT 'Nowa'
+    PRINT 'Dodano kolumne StatusNowy'
 END
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'Komentarz')
@@ -294,7 +294,7 @@ BEGIN
 
     -- 5. Historia zmian
     SELECT
-        Id, DataZmiany, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji
+        Id, DataZmiany, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji
     FROM [dbo].[ReklamacjeHistoria]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataZmiany DESC;
@@ -339,7 +339,7 @@ BEGIN
 
     -- Dodaj wpis do historii
     INSERT INTO [dbo].[ReklamacjeHistoria]
-        (IdReklamacji, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji)
+        (IdReklamacji, UserID, PoprzedniStatus, StatusNowy, Komentarz, TypAkcji)
     VALUES
         (@IdReklamacji, @UserID, @PoprzedniStatus, @NowyStatus, @Komentarz, 'ZmianaStatusu');
 

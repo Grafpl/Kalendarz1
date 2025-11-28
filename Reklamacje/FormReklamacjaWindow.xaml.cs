@@ -177,20 +177,44 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
-        private void DgTowary_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Obsługa checkboxów dla towarów
+        private void ChkTowar_Click(object sender, RoutedEventArgs e)
         {
             AktualizujLiczniki();
         }
 
-        private void DgPartie_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ChkWszystkieTowary_Click(object sender, RoutedEventArgs e)
         {
+            var checkBox = sender as CheckBox;
+            bool isChecked = checkBox?.IsChecked ?? false;
+            foreach (var towar in towary)
+            {
+                towar.IsSelected = isChecked;
+            }
+            AktualizujLiczniki();
+        }
+
+        // Obsługa checkboxów dla partii
+        private void ChkPartia_Click(object sender, RoutedEventArgs e)
+        {
+            AktualizujLiczniki();
+        }
+
+        private void ChkWszystkiePartie_Click(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            bool isChecked = checkBox?.IsChecked ?? false;
+            foreach (var partia in partie)
+            {
+                partia.IsSelected = isChecked;
+            }
             AktualizujLiczniki();
         }
 
         private void AktualizujLiczniki()
         {
-            int liczbaTowary = dgTowary.SelectedItems.Count;
-            int liczbaPartii = dgPartie.SelectedItems.Count;
+            int liczbaTowary = towary.Count(t => t.IsSelected);
+            int liczbaPartii = partie.Count(p => p.IsSelected);
             int liczbaZdjec = sciezkiZdjec.Count;
 
             txtLicznikTowary.Text = $"{liczbaTowary} towar(ów)";
@@ -198,13 +222,8 @@ namespace Kalendarz1.Reklamacje
             txtLicznikZdjecia.Text = $"{liczbaZdjec} zdjęć";
 
             // Suma kg i wartości
-            decimal sumaKg = 0;
-            decimal sumaWartosc = 0;
-            foreach (TowarReklamacji towar in dgTowary.SelectedItems)
-            {
-                sumaKg += towar.Waga;
-                sumaWartosc += towar.Wartosc;
-            }
+            decimal sumaKg = towary.Where(t => t.IsSelected).Sum(t => t.Waga);
+            decimal sumaWartosc = towary.Where(t => t.IsSelected).Sum(t => t.Wartosc);
             txtSumaKg.Text = $"{sumaKg:N2} kg";
             txtSumaWartosc.Text = $"{sumaWartosc:N2} zł";
         }
@@ -335,7 +354,8 @@ namespace Kalendarz1.Reklamacje
         private void BtnZgloszReklamacje_Click(object sender, RoutedEventArgs e)
         {
             // Walidacja
-            if (dgTowary.SelectedItems.Count == 0)
+            var zaznaczoneTowary = towary.Where(t => t.IsSelected).ToList();
+            if (zaznaczoneTowary.Count == 0)
             {
                 MessageBox.Show("Zaznacz przynajmniej jeden towar do reklamacji!",
                     "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -351,13 +371,8 @@ namespace Kalendarz1.Reklamacje
             }
 
             // Oblicz sumy
-            decimal sumaKg = 0;
-            decimal sumaWartosc = 0;
-            foreach (TowarReklamacji towar in dgTowary.SelectedItems)
-            {
-                sumaKg += towar.Waga;
-                sumaWartosc += towar.Wartosc;
-            }
+            decimal sumaKg = zaznaczoneTowary.Sum(t => t.Waga);
+            decimal sumaWartosc = zaznaczoneTowary.Sum(t => t.Wartosc);
 
             // Pobierz typ i priorytet
             string typReklamacji = (cmbTypReklamacji.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Inne";
@@ -414,7 +429,7 @@ namespace Kalendarz1.Reklamacje
                                 VALUES
                                 (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Waga, @Cena, @Wartosc)";
 
-                            foreach (TowarReklamacji towar in dgTowary.SelectedItems)
+                            foreach (TowarReklamacji towar in zaznaczoneTowary)
                             {
                                 using (SqlCommand cmd = new SqlCommand(queryTowary, conn, transaction))
                                 {
@@ -430,7 +445,8 @@ namespace Kalendarz1.Reklamacje
                             }
 
                             // 3. Zapisz partie (jeśli są)
-                            if (dgPartie.SelectedItems.Count > 0)
+                            var zaznaczonePartie = partie.Where(p => p.IsSelected).ToList();
+                            if (zaznaczonePartie.Count > 0)
                             {
                                 string queryPartie = @"
                                     INSERT INTO [dbo].[ReklamacjePartie]
@@ -438,7 +454,7 @@ namespace Kalendarz1.Reklamacje
                                     VALUES
                                     (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
 
-                                foreach (PartiaDostawcy partia in dgPartie.SelectedItems)
+                                foreach (PartiaDostawcy partia in zaznaczonePartie)
                                 {
                                     using (SqlCommand cmd = new SqlCommand(queryPartie, conn, transaction))
                                     {
@@ -489,9 +505,9 @@ namespace Kalendarz1.Reklamacje
                             // 5. Dodaj wpis do historii
                             string queryHistoria = @"
                                 INSERT INTO [dbo].[ReklamacjeHistoria]
-                                (IdReklamacji, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji)
+                                (IdReklamacji, UserID, StatusNowy, Komentarz, TypAkcji)
                                 VALUES
-                                (@IdReklamacji, @UserID, NULL, 'Nowa', 'Utworzenie reklamacji', 'Utworzenie')";
+                                (@IdReklamacji, @UserID, 'Nowa', 'Utworzenie reklamacji', 'Utworzenie')";
 
                             using (SqlCommand cmd = new SqlCommand(queryHistoria, conn, transaction))
                             {
@@ -506,7 +522,7 @@ namespace Kalendarz1.Reklamacje
                                 $"Reklamacja nr {idReklamacji} została pomyślnie zgłoszona!\n\n" +
                                 $"Typ: {typReklamacji}\n" +
                                 $"Priorytet: {priorytet}\n" +
-                                $"Towarów: {dgTowary.SelectedItems.Count}\n" +
+                                $"Towarów: {zaznaczoneTowary.Count}\n" +
                                 $"Suma kg: {sumaKg:N2}\n" +
                                 $"Wartość: {sumaWartosc:N2} zł",
                                 "Sukces",
@@ -534,23 +550,47 @@ namespace Kalendarz1.Reklamacje
     }
 
     // Klasy pomocnicze
-    public class TowarReklamacji
+    public class TowarReklamacji : System.ComponentModel.INotifyPropertyChanged
     {
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
         public int ID { get; set; }
         public string Symbol { get; set; }
         public string Nazwa { get; set; }
         public decimal Waga { get; set; }
         public decimal Cena { get; set; }
         public decimal Wartosc { get; set; }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
     }
 
-    public class PartiaDostawcy
+    public class PartiaDostawcy : System.ComponentModel.INotifyPropertyChanged
     {
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
         public Guid GuidPartii { get; set; }
         public string GuidPartiiStr { get; set; }
         public string NrPartii { get; set; }
         public string IdDostawcy { get; set; }
         public string NazwaDostawcy { get; set; }
         public string DataUtworzenia { get; set; }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
     }
 }

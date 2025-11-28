@@ -908,9 +908,9 @@ namespace Kalendarz1
                             // 5. Dodaj wpis do historii
                             string queryHistoria = @"
                                 INSERT INTO [dbo].[ReklamacjeHistoria]
-                                (IdReklamacji, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji)
+                                (IdReklamacji, UserID, StatusNowy, Komentarz, TypAkcji)
                                 VALUES
-                                (@IdReklamacji, @UserID, NULL, 'Nowa', 'Utworzenie reklamacji', 'Utworzenie')";
+                                (@IdReklamacji, @UserID, 'Nowa', 'Utworzenie reklamacji', 'Utworzenie')";
 
                             using (SqlCommand cmd = new SqlCommand(queryHistoria, conn, transaction))
                             {
