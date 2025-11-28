@@ -35,6 +35,15 @@ namespace Kalendarz1
             matrycaData = new ObservableCollection<MatrycaRow>();
             dataGridMatryca.ItemsSource = matrycaData;
             dateTimePicker1.SelectedDate = DateTime.Today;
+
+            // Ustawienie ItemsSource dla ComboBox Wózek
+            colWozek.ItemsSource = new List<string>
+            {
+                "",
+                "Wieziesz wózek",
+                "Przywozisz wózek",
+                "Wózek w obie strony"
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

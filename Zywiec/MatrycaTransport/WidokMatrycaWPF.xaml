@@ -392,16 +392,7 @@
                             <DataGridComboBoxColumn x:Name="colWozek"
                                                     Header="Wózek"
                                                     SelectedValueBinding="{Binding NotkaWozek}"
-                                                    Width="150">
-                                <DataGridComboBoxColumn.ItemsSource>
-                                    <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
-                                        <sys:String></sys:String>
-                                        <sys:String>Wieziesz wózek</sys:String>
-                                        <sys:String>Przywozisz wózek</sys:String>
-                                        <sys:String>Wózek w obie strony</sys:String>
-                                    </x:Array>
-                                </DataGridComboBoxColumn.ItemsSource>
-                            </DataGridComboBoxColumn>
+                                                    Width="150"/>
 
                             <!-- Odległość (KM) -->
                             <DataGridTextColumn Header="KM" Binding="{Binding Odleglosc}" Width="70" IsReadOnly="True">
