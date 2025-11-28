@@ -1,5 +1,5 @@
 -- ============================================
--- SKRYPT ALTER: Dodanie brakujących kolumn
+-- SKRYPT ALTER: Dodanie WSZYSTKICH brakujących kolumn
 -- Baza danych: LibraNet (serwer 192.168.0.109)
 -- Uruchom jeśli tabele już istnieją
 -- ============================================
@@ -17,32 +17,54 @@ BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD [SumaWartosc] DECIMAL(18,2) NULL DEFAULT 0
     PRINT 'Dodano kolumne SumaWartosc'
 END
-ELSE
-    PRINT 'Kolumna SumaWartosc juz istnieje'
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'TypReklamacji')
 BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD [TypReklamacji] NVARCHAR(100) NULL
     PRINT 'Dodano kolumne TypReklamacji'
 END
-ELSE
-    PRINT 'Kolumna TypReklamacji juz istnieje'
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'Priorytet')
 BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD [Priorytet] NVARCHAR(20) NULL DEFAULT 'Normalny'
     PRINT 'Dodano kolumne Priorytet'
 END
-ELSE
-    PRINT 'Kolumna Priorytet juz istnieje'
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'KosztReklamacji')
 BEGIN
     ALTER TABLE [dbo].[Reklamacje] ADD [KosztReklamacji] DECIMAL(18,2) NULL DEFAULT 0
     PRINT 'Dodano kolumne KosztReklamacji'
 END
-ELSE
-    PRINT 'Kolumna KosztReklamacji juz istnieje'
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'Komentarz')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [Komentarz] NVARCHAR(MAX) NULL
+    PRINT 'Dodano kolumne Komentarz'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'Rozwiazanie')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [Rozwiazanie] NVARCHAR(MAX) NULL
+    PRINT 'Dodano kolumne Rozwiazanie'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'DataZamkniecia')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [DataZamkniecia] DATETIME NULL
+    PRINT 'Dodano kolumne DataZamkniecia'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'DataModyfikacji')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [DataModyfikacji] DATETIME NULL
+    PRINT 'Dodano kolumne DataModyfikacji'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND name = 'OsobaRozpatrujaca')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD [OsobaRozpatrujaca] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne OsobaRozpatrujaca'
+END
 
 GO
 
@@ -51,21 +73,47 @@ GO
 -- ============================================
 PRINT 'Sprawdzanie tabeli ReklamacjeTowary...'
 
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'Symbol')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeTowary] ADD [Symbol] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne Symbol'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'Nazwa')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeTowary] ADD [Nazwa] NVARCHAR(255) NULL
+    PRINT 'Dodano kolumne Nazwa'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'Waga')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeTowary] ADD [Waga] DECIMAL(18,2) NULL
+    PRINT 'Dodano kolumne Waga'
+END
+
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'Cena')
 BEGIN
     ALTER TABLE [dbo].[ReklamacjeTowary] ADD [Cena] DECIMAL(18,2) NULL
     PRINT 'Dodano kolumne Cena'
 END
-ELSE
-    PRINT 'Kolumna Cena juz istnieje'
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'Wartosc')
 BEGIN
     ALTER TABLE [dbo].[ReklamacjeTowary] ADD [Wartosc] DECIMAL(18,2) NULL
     PRINT 'Dodano kolumne Wartosc'
 END
-ELSE
-    PRINT 'Kolumna Wartosc juz istnieje'
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'PrzyczynaReklamacji')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeTowary] ADD [PrzyczynaReklamacji] NVARCHAR(500) NULL
+    PRINT 'Dodano kolumne PrzyczynaReklamacji'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeTowary]') AND name = 'IdTowaru')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeTowary] ADD [IdTowaru] INT NULL
+    PRINT 'Dodano kolumne IdTowaru'
+END
 
 GO
 
@@ -74,71 +122,232 @@ GO
 -- ============================================
 PRINT 'Sprawdzanie tabeli ReklamacjePartie...'
 
--- Sprawdź czy tabela istnieje
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND type in (N'U'))
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'GuidPartii')
 BEGIN
-    CREATE TABLE [dbo].[ReklamacjePartie](
-        [Id] INT IDENTITY(1,1) NOT NULL,
-        [IdReklamacji] INT NOT NULL,
-        [GuidPartii] UNIQUEIDENTIFIER NULL,
-        [NumerPartii] NVARCHAR(100) NULL,
-        [CustomerID] NVARCHAR(50) NULL,
-        [CustomerName] NVARCHAR(255) NULL,
-        [DataDodania] DATETIME NOT NULL DEFAULT GETDATE(),
-        CONSTRAINT [PK_ReklamacjePartie] PRIMARY KEY CLUSTERED ([Id] ASC),
-        CONSTRAINT [FK_ReklamacjePartie_Reklamacje] FOREIGN KEY([IdReklamacji])
-            REFERENCES [dbo].[Reklamacje] ([Id]) ON DELETE CASCADE
-    )
-    PRINT 'Utworzono tabele ReklamacjePartie'
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [GuidPartii] UNIQUEIDENTIFIER NULL
+    PRINT 'Dodano kolumne GuidPartii'
 END
-ELSE
-    PRINT 'Tabela ReklamacjePartie juz istnieje'
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'NumerPartii')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [NumerPartii] NVARCHAR(100) NULL
+    PRINT 'Dodano kolumne NumerPartii'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'CustomerID')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [CustomerID] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne CustomerID'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'CustomerName')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [CustomerName] NVARCHAR(255) NULL
+    PRINT 'Dodano kolumne CustomerName'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'DataDodania')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [DataDodania] DATETIME NULL DEFAULT GETDATE()
+    PRINT 'Dodano kolumne DataDodania'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjePartie]') AND name = 'IdReklamacji')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjePartie] ADD [IdReklamacji] INT NULL
+    PRINT 'Dodano kolumne IdReklamacji'
+END
 
 GO
 
 -- ============================================
--- 4. Sprawdź/Utwórz tabele pomocnicze
+-- 4. ALTER: Tabela ReklamacjeZdjecia
 -- ============================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND type in (N'U'))
+PRINT 'Sprawdzanie tabeli ReklamacjeZdjecia...'
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'NazwaPliku')
 BEGIN
-    CREATE TABLE [dbo].[ReklamacjeZdjecia](
-        [Id] INT IDENTITY(1,1) NOT NULL,
-        [IdReklamacji] INT NOT NULL,
-        [NazwaPliku] NVARCHAR(255) NOT NULL,
-        [SciezkaPliku] NVARCHAR(500) NOT NULL,
-        [DataDodania] DATETIME NOT NULL DEFAULT GETDATE(),
-        [DodanePrzez] NVARCHAR(50) NULL,
-        CONSTRAINT [PK_ReklamacjeZdjecia] PRIMARY KEY CLUSTERED ([Id] ASC),
-        CONSTRAINT [FK_ReklamacjeZdjecia_Reklamacje] FOREIGN KEY([IdReklamacji])
-            REFERENCES [dbo].[Reklamacje] ([Id]) ON DELETE CASCADE
-    )
-    PRINT 'Utworzono tabele ReklamacjeZdjecia'
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [NazwaPliku] NVARCHAR(255) NULL
+    PRINT 'Dodano kolumne NazwaPliku'
 END
-ELSE
-    PRINT 'Tabela ReklamacjeZdjecia juz istnieje'
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'SciezkaPliku')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [SciezkaPliku] NVARCHAR(500) NULL
+    PRINT 'Dodano kolumne SciezkaPliku'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'DataDodania')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [DataDodania] DATETIME NULL DEFAULT GETDATE()
+    PRINT 'Dodano kolumne DataDodania'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'DodanePrzez')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [DodanePrzez] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne DodanePrzez'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'IdReklamacji')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [IdReklamacji] INT NULL
+    PRINT 'Dodano kolumne IdReklamacji'
+END
 
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE [dbo].[ReklamacjeHistoria](
-        [Id] INT IDENTITY(1,1) NOT NULL,
-        [IdReklamacji] INT NOT NULL,
-        [DataZmiany] DATETIME NOT NULL DEFAULT GETDATE(),
-        [UserID] NVARCHAR(50) NOT NULL,
-        [PoprzedniStatus] NVARCHAR(50) NULL,
-        [NowyStatus] NVARCHAR(50) NOT NULL,
-        [Komentarz] NVARCHAR(MAX) NULL,
-        [TypAkcji] NVARCHAR(50) NULL,
-        CONSTRAINT [PK_ReklamacjeHistoria] PRIMARY KEY CLUSTERED ([Id] ASC),
-        CONSTRAINT [FK_ReklamacjeHistoria_Reklamacje] FOREIGN KEY([IdReklamacji])
-            REFERENCES [dbo].[Reklamacje] ([Id]) ON DELETE CASCADE
-    )
-    PRINT 'Utworzono tabele ReklamacjeHistoria'
-END
-ELSE
-    PRINT 'Tabela ReklamacjeHistoria juz istnieje'
+-- ============================================
+-- 5. ALTER: Tabela ReklamacjeHistoria
+-- ============================================
+PRINT 'Sprawdzanie tabeli ReklamacjeHistoria...'
 
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'IdReklamacji')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [IdReklamacji] INT NULL
+    PRINT 'Dodano kolumne IdReklamacji'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'DataZmiany')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [DataZmiany] DATETIME NULL DEFAULT GETDATE()
+    PRINT 'Dodano kolumne DataZmiany'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'UserID')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [UserID] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne UserID'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'PoprzedniStatus')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [PoprzedniStatus] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne PoprzedniStatus'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'NowyStatus')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [NowyStatus] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne NowyStatus'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'Komentarz')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [Komentarz] NVARCHAR(MAX) NULL
+    PRINT 'Dodano kolumne Komentarz'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeHistoria]') AND name = 'TypAkcji')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeHistoria] ADD [TypAkcji] NVARCHAR(50) NULL
+    PRINT 'Dodano kolumne TypAkcji'
+END
+
+GO
+
+-- ============================================
+-- 6. Ponowne utworzenie procedur składowanych
+-- ============================================
+PRINT 'Odtwarzanie procedur skladowanych...'
+
+-- Procedura sp_PobierzSzczegolyReklamacji
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_PobierzSzczegolyReklamacji')
+    DROP PROCEDURE sp_PobierzSzczegolyReklamacji
+GO
+
+CREATE PROCEDURE [dbo].[sp_PobierzSzczegolyReklamacji]
+    @IdReklamacji INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Podstawowe informacje o reklamacji
+    SELECT
+        Id, DataZgloszenia, UserID, IdDokumentu, NumerDokumentu,
+        IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status,
+        OsobaRozpatrujaca, Komentarz, Rozwiazanie, DataModyfikacji, DataZamkniecia,
+        TypReklamacji, Priorytet, KosztReklamacji
+    FROM [dbo].[Reklamacje]
+    WHERE Id = @IdReklamacji;
+
+    -- 2. Towary w reklamacji
+    SELECT
+        Id, IdTowaru, Symbol, Nazwa, Waga, Cena, Wartosc, PrzyczynaReklamacji
+    FROM [dbo].[ReklamacjeTowary]
+    WHERE IdReklamacji = @IdReklamacji
+    ORDER BY Id;
+
+    -- 3. Partie powiązane
+    SELECT
+        Id, GuidPartii, NumerPartii AS Partia, CustomerID, CustomerName, DataDodania
+    FROM [dbo].[ReklamacjePartie]
+    WHERE IdReklamacji = @IdReklamacji
+    ORDER BY DataDodania DESC;
+
+    -- 4. Zdjęcia
+    SELECT
+        Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez
+    FROM [dbo].[ReklamacjeZdjecia]
+    WHERE IdReklamacji = @IdReklamacji
+    ORDER BY DataDodania;
+
+    -- 5. Historia zmian
+    SELECT
+        Id, DataZmiany, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji
+    FROM [dbo].[ReklamacjeHistoria]
+    WHERE IdReklamacji = @IdReklamacji
+    ORDER BY DataZmiany DESC;
+END
+GO
+
+PRINT 'Utworzono procedure sp_PobierzSzczegolyReklamacji'
+GO
+
+-- Procedura sp_ZmienStatusReklamacji
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ZmienStatusReklamacji')
+    DROP PROCEDURE sp_ZmienStatusReklamacji
+GO
+
+CREATE PROCEDURE [dbo].[sp_ZmienStatusReklamacji]
+    @IdReklamacji INT,
+    @NowyStatus NVARCHAR(50),
+    @UserID NVARCHAR(50),
+    @Komentarz NVARCHAR(MAX) = NULL,
+    @Rozwiazanie NVARCHAR(MAX) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @PoprzedniStatus NVARCHAR(50);
+
+    -- Pobierz poprzedni status
+    SELECT @PoprzedniStatus = Status
+    FROM [dbo].[Reklamacje]
+    WHERE Id = @IdReklamacji;
+
+    -- Aktualizuj reklamację
+    UPDATE [dbo].[Reklamacje]
+    SET
+        Status = @NowyStatus,
+        OsobaRozpatrujaca = @UserID,
+        DataModyfikacji = GETDATE(),
+        DataZamkniecia = CASE WHEN @NowyStatus = 'Zamknieta' THEN GETDATE() ELSE DataZamkniecia END,
+        Komentarz = CASE WHEN @Komentarz IS NOT NULL THEN @Komentarz ELSE Komentarz END,
+        Rozwiazanie = CASE WHEN @Rozwiazanie IS NOT NULL THEN @Rozwiazanie ELSE Rozwiazanie END
+    WHERE Id = @IdReklamacji;
+
+    -- Dodaj wpis do historii
+    INSERT INTO [dbo].[ReklamacjeHistoria]
+        (IdReklamacji, UserID, PoprzedniStatus, NowyStatus, Komentarz, TypAkcji)
+    VALUES
+        (@IdReklamacji, @UserID, @PoprzedniStatus, @NowyStatus, @Komentarz, 'ZmianaStatusu');
+
+    SELECT 'OK' AS Wynik, @IdReklamacji AS IdReklamacji;
+END
+GO
+
+PRINT 'Utworzono procedure sp_ZmienStatusReklamacji'
 GO
 
 -- ============================================
@@ -146,5 +355,7 @@ GO
 -- ============================================
 PRINT '=========================================='
 PRINT 'Skrypt ALTER zakonczony pomyslnie!'
+PRINT 'Wszystkie brakujace kolumny dodane.'
+PRINT 'Procedury skladowane odtworzone.'
 PRINT '=========================================='
 GO
