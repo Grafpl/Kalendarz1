@@ -850,9 +850,9 @@ namespace Kalendarz1
                             {
                                 string queryPartie = @"
                                     INSERT INTO [dbo].[ReklamacjePartie]
-                                    (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
+                                    (IdReklamacji, GuidPartii, Partia, CustomerID, CustomerName)
                                     VALUES
-                                    (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
+                                    (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
 
                                 foreach (DataGridViewRow row in dgvPartie.SelectedRows)
                                 {
@@ -863,7 +863,7 @@ namespace Kalendarz1
                                         {
                                             cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
                                             cmd.Parameters.AddWithValue("@GuidPartii", dataRow["ID"] ?? DBNull.Value);
-                                            cmd.Parameters.AddWithValue("@NumerPartii", dataRow["Nr partii"] ?? DBNull.Value);
+                                            cmd.Parameters.AddWithValue("@Partia", dataRow["Nr partii"]?.ToString() ?? "");
                                             cmd.Parameters.AddWithValue("@CustomerID", dataRow["ID dostawcy"] ?? DBNull.Value);
                                             cmd.Parameters.AddWithValue("@CustomerName", dataRow["Nazwa dostawcy"] ?? DBNull.Value);
                                             cmd.ExecuteNonQuery();

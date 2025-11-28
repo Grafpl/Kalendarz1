@@ -450,9 +450,9 @@ namespace Kalendarz1.Reklamacje
                             {
                                 string queryPartie = @"
                                     INSERT INTO [dbo].[ReklamacjePartie]
-                                    (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
+                                    (IdReklamacji, GuidPartii, Partia, CustomerID, CustomerName)
                                     VALUES
-                                    (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
+                                    (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
 
                                 foreach (PartiaDostawcy partia in zaznaczonePartie)
                                 {
@@ -460,7 +460,7 @@ namespace Kalendarz1.Reklamacje
                                     {
                                         cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
                                         cmd.Parameters.AddWithValue("@GuidPartii", partia.GuidPartii != Guid.Empty ? (object)partia.GuidPartii : DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@NumerPartii", partia.NrPartii ?? (object)DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Partia", partia.NrPartii ?? "");
                                         cmd.Parameters.AddWithValue("@CustomerID", partia.IdDostawcy ?? (object)DBNull.Value);
                                         cmd.Parameters.AddWithValue("@CustomerName", partia.NazwaDostawcy ?? (object)DBNull.Value);
                                         cmd.ExecuteNonQuery();
