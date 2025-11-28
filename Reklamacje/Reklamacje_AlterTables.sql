@@ -8,6 +8,27 @@ USE [LibraNet]
 GO
 
 -- ============================================
+-- 0. USUNIECIE CHECK CONSTRAINT dla kolumny Status
+-- ============================================
+PRINT 'Usuwanie CHECK constraint dla Status...'
+
+IF EXISTS (SELECT * FROM sys.check_constraints WHERE name = 'CK_Reklamacje_Status')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] DROP CONSTRAINT [CK_Reklamacje_Status]
+    PRINT 'Usunieto constraint CK_Reklamacje_Status'
+END
+GO
+
+-- Dodaj nowy CHECK constraint z poprawnymi wartosciami
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE name = 'CK_Reklamacje_Status')
+BEGIN
+    ALTER TABLE [dbo].[Reklamacje] ADD CONSTRAINT [CK_Reklamacje_Status]
+    CHECK ([Status] IN ('Nowa', 'W trakcie', 'Zaakceptowana', 'Odrzucona', 'Zamknieta', 'Zamknięta'))
+    PRINT 'Dodano nowy constraint CK_Reklamacje_Status'
+END
+GO
+
+-- ============================================
 -- 1. ALTER: Tabela Reklamacje
 -- ============================================
 PRINT 'Sprawdzanie tabeli Reklamacje...'

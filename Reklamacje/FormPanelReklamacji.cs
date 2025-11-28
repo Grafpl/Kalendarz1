@@ -97,7 +97,7 @@ namespace Kalendarz1
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F)
             };
-            cmbFiltrStatus.Items.AddRange(new object[] { "Wszystkie", "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknięta" });
+            cmbFiltrStatus.Items.AddRange(new object[] { "Wszystkie", "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
             cmbFiltrStatus.SelectedIndex = 0;
             cmbFiltrStatus.SelectedIndexChanged += (s, e) => WczytajReklamacje();
             panelFiltry.Controls.Add(cmbFiltrStatus);
@@ -395,7 +395,7 @@ namespace Kalendarz1
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
-                    case "Zamknięta":
+                    case "Zamknieta":
                         e.CellStyle.BackColor = ColorTranslator.FromHtml("#95a5a6");
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
@@ -452,7 +452,7 @@ namespace Kalendarz1
                     DropDownStyle = ComboBoxStyle.DropDownList,
                     Font = new Font("Segoe UI", 10F)
                 };
-                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknięta" });
+                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
                 cmbStatus.SelectedItem = obecnyStatus;
                 formStatus.Controls.Add(cmbStatus);
 
@@ -617,7 +617,7 @@ namespace Kalendarz1
                                 WHEN 'W trakcie' THEN 2
                                 WHEN 'Zaakceptowana' THEN 3
                                 WHEN 'Odrzucona' THEN 4
-                                WHEN 'Zamknięta' THEN 5
+                                WHEN 'Zamknieta' THEN 5
                             END";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
