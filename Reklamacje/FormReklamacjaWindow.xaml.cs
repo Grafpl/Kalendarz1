@@ -63,14 +63,15 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
 
+                    // Pobierz towary z faktury - oblicz wartość jako ilość * cena
                     string query = @"
                         SELECT
                             DP.id AS ID,
                             DP.kod AS Symbol,
-                            TW.kod AS Nazwa,
-                            CAST(DP.ilosc AS DECIMAL(10,2)) AS Waga,
+                            ISNULL(TW.nazwa, TW.kod) AS Nazwa,
+                            CAST(ISNULL(DP.ilosc, 0) AS DECIMAL(10,2)) AS Waga,
                             CAST(ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Cena,
-                            CAST(ISNULL(DP.wartosc, DP.ilosc * ISNULL(DP.cena, 0)) AS DECIMAL(10,2)) AS Wartosc
+                            CAST(ISNULL(DP.ilosc, 0) * ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Wartosc
                         FROM [HM].[DP] DP
                         LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
                         WHERE DP.super = @IdDokumentu
@@ -131,7 +132,7 @@ namespace Kalendarz1.Reklamacje
 
                     string query = @"
                         SELECT
-                            [guid],
+                            CAST([guid] AS NVARCHAR(100)) AS GuidStr,
                             [Partia],
                             [CustomerID],
                             [CustomerName],
@@ -147,9 +148,14 @@ namespace Kalendarz1.Reklamacje
                             partie.Clear();
                             while (reader.Read())
                             {
+                                string guidStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                                Guid parsedGuid = Guid.Empty;
+                                Guid.TryParse(guidStr, out parsedGuid);
+
                                 partie.Add(new PartiaDostawcy
                                 {
-                                    GuidPartii = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0),
+                                    GuidPartii = parsedGuid,
+                                    GuidPartiiStr = guidStr,
                                     NrPartii = reader.IsDBNull(1) ? "" : reader.GetString(1),
                                     IdDostawcy = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                     NazwaDostawcy = reader.IsDBNull(3) ? "" : reader.GetString(3),
@@ -541,6 +547,7 @@ namespace Kalendarz1.Reklamacje
     public class PartiaDostawcy
     {
         public Guid GuidPartii { get; set; }
+        public string GuidPartiiStr { get; set; }
         public string NrPartii { get; set; }
         public string IdDostawcy { get; set; }
         public string NazwaDostawcy { get; set; }
