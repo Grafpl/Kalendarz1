@@ -330,28 +330,56 @@ namespace Kalendarz1
 
                 dgvReklamacje.DataSource = dtReklamacje;
 
+                // Konfiguracja kolumn z bezpiecznym sprawdzaniem
                 if (dgvReklamacje.Columns.Count > 0)
                 {
-                    dgvReklamacje.Columns["Id"].HeaderText = "ID";
-                    dgvReklamacje.Columns["Id"].Width = 60;
-                    dgvReklamacje.Columns["DataZgloszenia"].HeaderText = "Data zgłoszenia";
-                    dgvReklamacje.Columns["DataZgloszenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                    dgvReklamacje.Columns["DataZgloszenia"].Width = 150;
-                    dgvReklamacje.Columns["NumerDokumentu"].HeaderText = "Nr faktury";
-                    dgvReklamacje.Columns["NumerDokumentu"].Width = 120;
-                    dgvReklamacje.Columns["NazwaKontrahenta"].HeaderText = "Kontrahent";
-                    dgvReklamacje.Columns["NazwaKontrahenta"].Width = 250;
-                    dgvReklamacje.Columns["Opis"].HeaderText = "Opis";
-                    dgvReklamacje.Columns["Opis"].Width = 400;
-                    dgvReklamacje.Columns["SumaKg"].HeaderText = "Suma kg";
-                    dgvReklamacje.Columns["SumaKg"].DefaultCellStyle.Format = "N2";
-                    dgvReklamacje.Columns["SumaKg"].Width = 80;
-                    dgvReklamacje.Columns["Status"].HeaderText = "Status";
-                    dgvReklamacje.Columns["Status"].Width = 120;
-                    dgvReklamacje.Columns["UserID"].HeaderText = "Zgłaszający";
-                    dgvReklamacje.Columns["UserID"].Width = 100;
-                    dgvReklamacje.Columns["OsobaRozpatrujaca"].HeaderText = "Rozpatruje";
-                    dgvReklamacje.Columns["OsobaRozpatrujaca"].Width = 100;
+                    if (dgvReklamacje.Columns.Contains("Id"))
+                    {
+                        dgvReklamacje.Columns["Id"].HeaderText = "ID";
+                        dgvReklamacje.Columns["Id"].Width = 60;
+                    }
+                    if (dgvReklamacje.Columns.Contains("DataZgloszenia"))
+                    {
+                        dgvReklamacje.Columns["DataZgloszenia"].HeaderText = "Data zgłoszenia";
+                        dgvReklamacje.Columns["DataZgloszenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
+                        dgvReklamacje.Columns["DataZgloszenia"].Width = 150;
+                    }
+                    if (dgvReklamacje.Columns.Contains("NumerDokumentu"))
+                    {
+                        dgvReklamacje.Columns["NumerDokumentu"].HeaderText = "Nr faktury";
+                        dgvReklamacje.Columns["NumerDokumentu"].Width = 120;
+                    }
+                    if (dgvReklamacje.Columns.Contains("NazwaKontrahenta"))
+                    {
+                        dgvReklamacje.Columns["NazwaKontrahenta"].HeaderText = "Kontrahent";
+                        dgvReklamacje.Columns["NazwaKontrahenta"].Width = 250;
+                    }
+                    if (dgvReklamacje.Columns.Contains("Opis"))
+                    {
+                        dgvReklamacje.Columns["Opis"].HeaderText = "Opis";
+                        dgvReklamacje.Columns["Opis"].Width = 400;
+                    }
+                    if (dgvReklamacje.Columns.Contains("SumaKg"))
+                    {
+                        dgvReklamacje.Columns["SumaKg"].HeaderText = "Suma kg";
+                        dgvReklamacje.Columns["SumaKg"].DefaultCellStyle.Format = "N2";
+                        dgvReklamacje.Columns["SumaKg"].Width = 80;
+                    }
+                    if (dgvReklamacje.Columns.Contains("Status"))
+                    {
+                        dgvReklamacje.Columns["Status"].HeaderText = "Status";
+                        dgvReklamacje.Columns["Status"].Width = 120;
+                    }
+                    if (dgvReklamacje.Columns.Contains("UserID"))
+                    {
+                        dgvReklamacje.Columns["UserID"].HeaderText = "Zgłaszający";
+                        dgvReklamacje.Columns["UserID"].Width = 100;
+                    }
+                    if (dgvReklamacje.Columns.Contains("OsobaRozpatrujaca"))
+                    {
+                        dgvReklamacje.Columns["OsobaRozpatrujaca"].HeaderText = "Rozpatruje";
+                        dgvReklamacje.Columns["OsobaRozpatrujaca"].Width = 100;
+                    }
                 }
 
                 lblLicznik.Text = $"Reklamacji: {dtReklamacje.Rows.Count}";
