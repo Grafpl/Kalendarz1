@@ -1,0 +1,473 @@
+<Window x:Class="Kalendarz1.Transport.Widoki.HarmonogramTransportuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Harmonogram Transportu - Avilog"
+        Height="850" Width="1700"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#F5F5F5"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- Styl dla przyciskow glownych -->
+        <Style x:Key="MainButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl dla przyciskow pomocniczych -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
+            <Setter Property="Background" Value="#7F8C8D"/>
+        </Style>
+
+        <!-- Styl dla przyciskow nawigacji -->
+        <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
+            <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="Width" Value="45"/>
+            <Setter Property="FontSize" Value="16"/>
+        </Style>
+
+        <!-- Styl dla naglowkow DataGrid -->
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#4B732F"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+        </Style>
+
+        <!-- Styl dla komorek DataGrid -->
+        <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#C8E6C9"/>
+                    <Setter Property="Foreground" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl dla DataGrid -->
+        <Style x:Key="MainDataGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserReorderColumns" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="GridLinesVisibility" Value="All"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E0E0E0"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#BDBDBD"/>
+            <Setter Property="RowHeight" Value="38"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ColumnHeaderStyle" Value="{StaticResource DataGridHeaderStyle}"/>
+            <Setter Property="CellStyle" Value="{StaticResource DataGridCellStyle}"/>
+        </Style>
+
+        <!-- Style dla kolorowanych kolumn -->
+        <Style x:Key="WhiteColumnStyle" TargetType="TextBlock">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="BlueColumnStyle" TargetType="TextBlock">
+            <Setter Property="Background" Value="#E3F2FD"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="GreenColumnStyle" TargetType="TextBlock">
+            <Setter Property="Background" Value="#E8F5E9"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="OrangeColumnStyle" TargetType="TextBlock">
+            <Setter Property="Background" Value="#FFF3E0"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="PurpleColumnStyle" TargetType="TextBlock">
+            <Setter Property="Background" Value="#F3E5F5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGLOWEK -->
+        <Border Grid.Row="0" Background="#5C8A3A" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="HARMONOGRAM TRANSPORTU - AVILOG"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Planowanie dostaw brojlerow od hodowcow"
+                               FontSize="12"
+                               Foreground="#C8E6C9"
+                               VerticalAlignment="Center"
+                               Margin="0,0,20,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PASEK NARZEDZI -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Sekcja daty -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Data dostawy:"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#2C3E50"
+                               Margin="0,0,10,0"/>
+
+                    <Button Content="&#9664;"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="BtnPreviousDay_Click"
+                            ToolTip="Poprzedni dzien"/>
+
+                    <DatePicker x:Name="dateTimePicker1"
+                                SelectedDateChanged="DateTimePicker1_SelectedDateChanged"
+                                Width="150"
+                                FontSize="13"
+                                Padding="8,5"
+                                Margin="5,0"/>
+
+                    <Button Content="&#9654;"
+                            Style="{StaticResource NavButtonStyle}"
+                            Click="BtnNextDay_Click"
+                            ToolTip="Nastepny dzien"/>
+
+                    <TextBlock x:Name="lblDayName"
+                               Text="Poniedzialek"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="#5C8A3A"
+                               VerticalAlignment="Center"
+                               Margin="15,0,0,0"/>
+                </StackPanel>
+
+                <!-- Przyciski kolejnosci -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="30,0,0,0">
+                    <Button Content="Gora"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="BtnMoveUp_Click"
+                            Width="80"/>
+                    <Button Content="Dol"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="BtnMoveDown_Click"
+                            Width="80"/>
+                    <Button Content="+ Dodaj"
+                            Style="{StaticResource MainButtonStyle}"
+                            Click="BtnAddRow_Click"
+                            Width="90"
+                            Margin="10,5,5,5"/>
+                    <Button Content="- Usun"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Background="#E74C3C"
+                            Click="BtnDeleteRow_Click"
+                            Width="90"/>
+                </StackPanel>
+
+                <!-- Przyciski akcji -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="btnOdswiez"
+                            Content="Odswiez"
+                            Click="BtnRefresh_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Width="100"/>
+
+                    <Button x:Name="btnSpecyfikacja"
+                            Content="SPECYFIKACJA"
+                            Click="BtnSpecyfikacja_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#9B59B6"
+                            Width="130"/>
+
+                    <Button x:Name="btnZapisz"
+                            Content="ZAPISZ"
+                            Click="BtnSaveToDatabase_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Width="120"/>
+
+                    <Button x:Name="btnDrukuj"
+                            Content="DRUKUJ PDF"
+                            Click="BtnPrintPDF_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#3498DB"
+                            Width="120"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- GLOWNA TABELA DANYCH -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Margin="0,0,0,10">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+            </Border.Effect>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <DataGrid x:Name="dataGridView1"
+                          Style="{StaticResource MainDataGridStyle}"
+                          SelectionChanged="DataGridView1_SelectionChanged"
+                          CellEditEnding="DataGridView1_CellEditEnding"
+                          LoadingRow="DataGridView1_LoadingRow">
+
+                    <DataGrid.Columns>
+                        <!-- LP Dostawy -->
+                        <DataGridTextColumn Header="LP" Binding="{Binding LpDostawy}" Width="50" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource WhiteColumnStyle}">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Hodowca -->
+                        <DataGridTextColumn Header="Hodowca" Binding="{Binding HodowcaNazwa}" Width="150" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource WhiteColumnStyle}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Waga Deklarowana -->
+                        <DataGridTextColumn Header="Waga Dek." Binding="{Binding WagaDek, StringFormat={}{0:N0}}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource BlueColumnStyle}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Sztuki -->
+                        <DataGridTextColumn Header="Sztuk" Binding="{Binding SztPoj, StringFormat={}{0:N0}}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource BlueColumnStyle}"/>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Kierowca - ComboBox -->
+                        <DataGridComboBoxColumn Header="Kierowca"
+                                                x:Name="colKierowca"
+                                                SelectedValueBinding="{Binding DriverGID}"
+                                                DisplayMemberPath="Name"
+                                                SelectedValuePath="GID"
+                                                Width="180"/>
+
+                        <!-- Ciagnik - ComboBox -->
+                        <DataGridComboBoxColumn Header="Ciagnik"
+                                                x:Name="colCiagnik"
+                                                SelectedValueBinding="{Binding CarID}"
+                                                DisplayMemberPath="ID"
+                                                SelectedValuePath="ID"
+                                                Width="120"/>
+
+                        <!-- Naczepa - ComboBox -->
+                        <DataGridComboBoxColumn Header="Naczepa"
+                                                x:Name="colNaczepa"
+                                                SelectedValueBinding="{Binding TrailerID}"
+                                                DisplayMemberPath="ID"
+                                                SelectedValuePath="ID"
+                                                Width="120"/>
+
+                        <!-- Godziny transportu -->
+                        <DataGridTextColumn Header="Wyjazd" Binding="{Binding WyjazdGodzina, StringFormat={}{0:HH:mm}}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource GreenColumnStyle}"/>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Zaladunek" Binding="{Binding ZaladunekGodzina, StringFormat={}{0:HH:mm}}" Width="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource GreenColumnStyle}"/>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Przyjazd" Binding="{Binding PrzyjazdGodzina, StringFormat={}{0:HH:mm}}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource GreenColumnStyle}">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Wozek - ComboBox -->
+                        <DataGridComboBoxColumn Header="Wozek"
+                                                x:Name="colWozek"
+                                                SelectedValueBinding="{Binding NotkaWozek}"
+                                                Width="150">
+                            <DataGridComboBoxColumn.ItemsSource>
+                                <x:Array Type="{x:Type sys:String}"
+                                         xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                                    <sys:String></sys:String>
+                                    <sys:String>Wieziesz wozek</sys:String>
+                                    <sys:String>Przywozisz wozek</sys:String>
+                                    <sys:String>Wozek w obie strony</sys:String>
+                                </x:Array>
+                            </DataGridComboBoxColumn.ItemsSource>
+                        </DataGridComboBoxColumn>
+
+                        <!-- Dodatkowe informacje -->
+                        <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:F2}}" Width="70">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource OrangeColumnStyle}">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Ubytek %" Binding="{Binding Ubytek, StringFormat={}{0:F2}}" Width="75">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource OrangeColumnStyle}"/>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Status -->
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource PurpleColumnStyle}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Uwagi -->
+                        <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource WhiteColumnStyle}"/>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </ScrollViewer>
+        </Border>
+
+        <!-- STOPKA Z PODSUMOWANIEM -->
+        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="15">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Podsumowanie -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Rekordow: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="lblRecordCount" Text="0" FontWeight="Bold" Foreground="#5C8A3A"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Text="Suma wagi: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="lblTotalWeight" Text="0 kg" FontWeight="Bold" Foreground="#E67E22"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Suma sztuk: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="lblTotalPieces" Text="0" FontWeight="Bold" Foreground="#3498DB"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <TextBlock Text="Aut: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="lblCarsCount" Text="0" FontWeight="Bold" Foreground="#9B59B6"/>
+                </StackPanel>
+
+                <!-- Status -->
+                <TextBlock Grid.Column="4"
+                           x:Name="statusLabel"
+                           Text="Gotowy"
+                           HorizontalAlignment="Right"
+                           Foreground="#5C8A3A"
+                           FontWeight="SemiBold"
+                           FontSize="12"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

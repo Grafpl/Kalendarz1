@@ -580,14 +580,58 @@ namespace Kalendarz1
                     return;
                 }
 
-                column.HeaderText = headerText;
-                column.Width = width;
-                column.ReadOnly = readOnly;
+                // Sprawdź czy kolumna jest dołączona do DataGridView i czy DataGridView jest zainicjalizowany
+                if (column.DataGridView == null || !dataGridView1.IsHandleCreated)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ConfigureColumn: Kolumna {columnName} nie jest dołączona do DataGridView lub Handle nie jest utworzony");
+                    return;
+                }
+
+                // Użyj BeginInvoke aby uniknąć problemów z ustawianiem szerokości podczas bindingu
+                if (dataGridView1.InvokeRequired)
+                {
+                    dataGridView1.BeginInvoke(new Action(() =>
+                    {
+                        SafeSetColumnProperties(column, headerText, width, readOnly);
+                    }));
+                }
+                else
+                {
+                    SafeSetColumnProperties(column, headerText, width, readOnly);
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd w ConfigureColumn dla {columnName}: {ex.Message}\n{ex.StackTrace}");
                 // Nie pokazuj MessageBox - to może być wywołane wiele razy
+            }
+        }
+
+        private void SafeSetColumnProperties(DataGridViewColumn column, string headerText, int width, bool readOnly)
+        {
+            try
+            {
+                if (column == null || column.DataGridView == null)
+                    return;
+
+                column.HeaderText = headerText;
+
+                // Ustaw MinimumWidth przed Width aby uniknąć błędów
+                if (width > 0)
+                {
+                    column.MinimumWidth = Math.Min(width, 50);
+                    column.Width = width;
+                }
+
+                column.ReadOnly = readOnly;
+            }
+            catch (InvalidOperationException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SafeSetColumnProperties InvalidOperation: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SafeSetColumnProperties Error: {ex.Message}");
             }
         }
 
@@ -678,15 +722,20 @@ namespace Kalendarz1
                 }
 
                 DataGridViewColumn column = dataGridView1.Columns[columnName];
-                if (column == null)
+                if (column == null || column.DataGridView == null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ConfigureTimeColumn: Kolumna {columnName} jest null");
+                    System.Diagnostics.Debug.WriteLine($"ConfigureTimeColumn: Kolumna {columnName} jest null lub nie dołączona");
                     return;
                 }
 
-                column.HeaderText = headerText;
-                column.Width = width;
-                column.DefaultCellStyle.Format = "HH:mm";
+                // Bezpieczne ustawienie właściwości kolumny
+                SafeSetColumnProperties(column, headerText, width, false);
+
+                // Ustaw format daty
+                if (column.DefaultCellStyle != null)
+                {
+                    column.DefaultCellStyle.Format = "HH:mm";
+                }
 
                 if (!hasData)
                 {
