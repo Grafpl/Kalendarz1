@@ -234,10 +234,9 @@
                     </Border>
 
                     <Border Grid.Row="1" BorderBrush="#3498DB" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                        <DataGrid x:Name="dataGridDokumenty" 
+                        <DataGrid x:Name="dataGridDokumenty"
                                   ItemsSource="{Binding Dokumenty}"
                                   Style="{StaticResource ModernDataGridStyle}"
-                                  ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeaderStyle}"
                                   CellStyle="{StaticResource ModernDataGridCellStyle}">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource ModernDataGridColumnHeaderStyle}">

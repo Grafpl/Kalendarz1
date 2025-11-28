@@ -187,10 +187,9 @@
                     </Border>
 
                     <Border Grid.Row="1" BorderBrush="#E74C3C" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                        <DataGrid x:Name="dataGridSalda" 
+                        <DataGrid x:Name="dataGridSalda"
                                   ItemsSource="{Binding SaldaFiltered}"
                                   Style="{StaticResource ModernDataGridStyle}"
-                                  ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeaderStyle}"
                                   CellStyle="{StaticResource ModernDataGridCellStyle}"
                                   MouseDoubleClick="DataGridSalda_MouseDoubleClick">
                             <DataGrid.ColumnHeaderStyle>
