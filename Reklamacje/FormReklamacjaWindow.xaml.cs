@@ -7,6 +7,8 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 
 namespace Kalendarz1.Reklamacje
@@ -66,8 +68,9 @@ namespace Kalendarz1.Reklamacje
                             DP.id AS ID,
                             DP.kod AS Symbol,
                             TW.kod AS Nazwa,
-                            CAST(DP.ilosc AS DECIMAL(10,2)) AS Ilosc,
-                            CAST(DP.ilosc AS DECIMAL(10,2)) AS Waga
+                            CAST(DP.ilosc AS DECIMAL(10,2)) AS Waga,
+                            CAST(ISNULL(DP.cena, 0) AS DECIMAL(10,2)) AS Cena,
+                            CAST(ISNULL(DP.wartosc, DP.ilosc * ISNULL(DP.cena, 0)) AS DECIMAL(10,2)) AS Wartosc
                         FROM [HM].[DP] DP
                         LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
                         WHERE DP.super = @IdDokumentu
@@ -87,8 +90,9 @@ namespace Kalendarz1.Reklamacje
                                     ID = reader.GetInt32(0),
                                     Symbol = reader.IsDBNull(1) ? "" : reader.GetString(1),
                                     Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                    Ilosc = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
-                                    Waga = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4)
+                                    Waga = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
+                                    Cena = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
+                                    Wartosc = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5)
                                 });
                             }
                         }
@@ -110,13 +114,28 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
 
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = @"
+                        SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                        WHERE TABLE_NAME = 'PartiaDostawca'";
+
+                    using (SqlCommand cmdCheck = new SqlCommand(checkTable, conn))
+                    {
+                        int tableExists = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                        if (tableExists == 0)
+                        {
+                            txtPartieInfo.Text = "Tabela partii nie istnieje";
+                            return;
+                        }
+                    }
+
                     string query = @"
                         SELECT
                             [guid],
                             [Partia],
                             [CustomerID],
                             [CustomerName],
-                            CONVERT(VARCHAR, [CreateData], 104) + ' ' + LEFT([CreateGodzina], 8) AS DataUtw
+                            CONVERT(VARCHAR, [CreateData], 104) + ' ' + LEFT(CAST([CreateGodzina] AS VARCHAR), 8) AS DataUtw
                         FROM [dbo].[PartiaDostawca]
                         WHERE [CreateData] >= DATEADD(DAY, -14, GETDATE())
                         ORDER BY [CreateData] DESC, [CreateGodzina] DESC";
@@ -139,20 +158,25 @@ namespace Kalendarz1.Reklamacje
                             }
                         }
                     }
+
+                    if (partie.Count == 0)
+                    {
+                        txtPartieInfo.Text = "Brak partii z ostatnich 14 dni";
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Partie mogą nie istnieć - ignoruj błąd
+                txtPartieInfo.Text = $"Błąd: {ex.Message}";
             }
         }
 
-        private void DgTowary_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void DgTowary_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             AktualizujLiczniki();
         }
 
-        private void DgPartie_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void DgPartie_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             AktualizujLiczniki();
         }
@@ -167,16 +191,19 @@ namespace Kalendarz1.Reklamacje
             txtLicznikPartie.Text = $"{liczbaPartii} parti(i)";
             txtLicznikZdjecia.Text = $"{liczbaZdjec} zdjęć";
 
-            // Suma kg
+            // Suma kg i wartości
             decimal sumaKg = 0;
+            decimal sumaWartosc = 0;
             foreach (TowarReklamacji towar in dgTowary.SelectedItems)
             {
                 sumaKg += towar.Waga;
+                sumaWartosc += towar.Wartosc;
             }
             txtSumaKg.Text = $"{sumaKg:N2} kg";
+            txtSumaWartosc.Text = $"{sumaWartosc:N2} zł";
         }
 
-        private void ListZdjecia_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void ListZdjecia_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (listZdjecia.SelectedIndex >= 0 && listZdjecia.SelectedIndex < sciezkiZdjec.Count)
             {
@@ -188,17 +215,65 @@ namespace Kalendarz1.Reklamacje
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.EndInit();
                     imgPodglad.Source = bitmap;
+                    txtBrakZdjecia.Visibility = Visibility.Collapsed;
                     btnUsunZdjecie.IsEnabled = true;
                 }
                 catch
                 {
                     imgPodglad.Source = null;
+                    txtBrakZdjecia.Visibility = Visibility.Visible;
                 }
             }
             else
             {
                 imgPodglad.Source = null;
+                txtBrakZdjecia.Visibility = Visibility.Visible;
                 btnUsunZdjecie.IsEnabled = false;
+            }
+        }
+
+        private void ImgPodglad_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (listZdjecia.SelectedIndex >= 0 && listZdjecia.SelectedIndex < sciezkiZdjec.Count)
+            {
+                // Otwórz okno z powiększonym podglądem
+                var previewWindow = new Window
+                {
+                    Title = "Podgląd zdjęcia - kliknij aby zamknąć",
+                    WindowState = WindowState.Maximized,
+                    WindowStyle = WindowStyle.None,
+                    Background = System.Windows.Media.Brushes.Black,
+                    Cursor = Cursors.Hand
+                };
+
+                var image = new Image
+                {
+                    Stretch = System.Windows.Media.Stretch.Uniform,
+                    Margin = new Thickness(20)
+                };
+
+                try
+                {
+                    BitmapImage bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(sciezkiZdjec[listZdjecia.SelectedIndex]);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    image.Source = bitmap;
+                }
+                catch
+                {
+                    return;
+                }
+
+                previewWindow.Content = image;
+                previewWindow.MouseLeftButtonDown += (s, args) => previewWindow.Close();
+                previewWindow.KeyDown += (s, args) =>
+                {
+                    if (args.Key == Key.Escape) previewWindow.Close();
+                };
+
+                previewWindow.ShowDialog();
             }
         }
 
@@ -222,6 +297,12 @@ namespace Kalendarz1.Reklamacje
                     }
                 }
                 AktualizujLiczniki();
+
+                // Automatycznie zaznacz pierwsze zdjęcie
+                if (listZdjecia.Items.Count > 0 && listZdjecia.SelectedIndex < 0)
+                {
+                    listZdjecia.SelectedIndex = 0;
+                }
             }
         }
 
@@ -233,6 +314,7 @@ namespace Kalendarz1.Reklamacje
                 sciezkiZdjec.RemoveAt(index);
                 listZdjecia.Items.RemoveAt(index);
                 imgPodglad.Source = null;
+                txtBrakZdjecia.Visibility = Visibility.Visible;
                 btnUsunZdjecie.IsEnabled = false;
                 AktualizujLiczniki();
             }
@@ -262,22 +344,24 @@ namespace Kalendarz1.Reklamacje
                 return;
             }
 
-            // Oblicz sumę kg
+            // Oblicz sumy
             decimal sumaKg = 0;
+            decimal sumaWartosc = 0;
             foreach (TowarReklamacji towar in dgTowary.SelectedItems)
             {
                 sumaKg += towar.Waga;
+                sumaWartosc += towar.Wartosc;
             }
 
             // Pobierz typ i priorytet
-            string typReklamacji = (cmbTypReklamacji.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Inne";
+            string typReklamacji = (cmbTypReklamacji.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Inne";
             string priorytet = "Normalny";
-            if (cmbPriorytet.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+            if (cmbPriorytet.SelectedItem is ComboBoxItem item)
             {
-                var panel = item.Content as System.Windows.Controls.StackPanel;
+                var panel = item.Content as StackPanel;
                 if (panel != null && panel.Children.Count > 1)
                 {
-                    var textBlock = panel.Children[1] as System.Windows.Controls.TextBlock;
+                    var textBlock = panel.Children[1] as TextBlock;
                     priorytet = textBlock?.Text ?? "Normalny";
                 }
             }
@@ -296,9 +380,9 @@ namespace Kalendarz1.Reklamacje
                             // 1. Zapisz główny rekord reklamacji
                             string queryReklamacja = @"
                                 INSERT INTO [dbo].[Reklamacje]
-                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status, TypReklamacji, Priorytet)
+                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status, TypReklamacji, Priorytet)
                                 VALUES
-                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, 'Nowa', @TypReklamacji, @Priorytet);
+                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, @SumaWartosc, 'Nowa', @TypReklamacji, @Priorytet);
                                 SELECT SCOPE_IDENTITY();";
 
                             using (SqlCommand cmd = new SqlCommand(queryReklamacja, conn, transaction))
@@ -310,6 +394,7 @@ namespace Kalendarz1.Reklamacje
                                 cmd.Parameters.AddWithValue("@NazwaKontrahenta", nazwaKontrahenta);
                                 cmd.Parameters.AddWithValue("@Opis", txtOpis.Text.Trim());
                                 cmd.Parameters.AddWithValue("@SumaKg", sumaKg);
+                                cmd.Parameters.AddWithValue("@SumaWartosc", sumaWartosc);
                                 cmd.Parameters.AddWithValue("@TypReklamacji", typReklamacji);
                                 cmd.Parameters.AddWithValue("@Priorytet", priorytet);
 
@@ -319,9 +404,9 @@ namespace Kalendarz1.Reklamacje
                             // 2. Zapisz towary
                             string queryTowary = @"
                                 INSERT INTO [dbo].[ReklamacjeTowary]
-                                (IdReklamacji, IdTowaru, Symbol, Nazwa, Ilosc, Waga)
+                                (IdReklamacji, IdTowaru, Symbol, Nazwa, Waga, Cena, Wartosc)
                                 VALUES
-                                (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Ilosc, @Waga)";
+                                (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Waga, @Cena, @Wartosc)";
 
                             foreach (TowarReklamacji towar in dgTowary.SelectedItems)
                             {
@@ -331,8 +416,9 @@ namespace Kalendarz1.Reklamacje
                                     cmd.Parameters.AddWithValue("@IdTowaru", towar.ID);
                                     cmd.Parameters.AddWithValue("@Symbol", towar.Symbol ?? (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Nazwa", towar.Nazwa ?? (object)DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@Ilosc", towar.Ilosc);
                                     cmd.Parameters.AddWithValue("@Waga", towar.Waga);
+                                    cmd.Parameters.AddWithValue("@Cena", towar.Cena);
+                                    cmd.Parameters.AddWithValue("@Wartosc", towar.Wartosc);
                                     cmd.ExecuteNonQuery();
                                 }
                             }
@@ -415,7 +501,8 @@ namespace Kalendarz1.Reklamacje
                                 $"Typ: {typReklamacji}\n" +
                                 $"Priorytet: {priorytet}\n" +
                                 $"Towarów: {dgTowary.SelectedItems.Count}\n" +
-                                $"Suma kg: {sumaKg:N2}",
+                                $"Suma kg: {sumaKg:N2}\n" +
+                                $"Wartość: {sumaWartosc:N2} zł",
                                 "Sukces",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);
@@ -446,8 +533,9 @@ namespace Kalendarz1.Reklamacje
         public int ID { get; set; }
         public string Symbol { get; set; }
         public string Nazwa { get; set; }
-        public decimal Ilosc { get; set; }
         public decimal Waga { get; set; }
+        public decimal Cena { get; set; }
+        public decimal Wartosc { get; set; }
     }
 
     public class PartiaDostawcy

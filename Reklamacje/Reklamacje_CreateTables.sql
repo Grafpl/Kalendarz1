@@ -23,6 +23,7 @@ BEGIN
         [NazwaKontrahenta] NVARCHAR(255) NOT NULL,         -- Nazwa firmy
         [Opis] NVARCHAR(MAX) NOT NULL,                     -- Opis problemu
         [SumaKg] DECIMAL(18,2) NULL DEFAULT 0,             -- Suma kg reklamowanych towarów
+        [SumaWartosc] DECIMAL(18,2) NULL DEFAULT 0,        -- Suma wartości reklamowanych towarów
         [Status] NVARCHAR(50) NOT NULL DEFAULT 'Nowa',     -- Nowa, W trakcie, Zaakceptowana, Odrzucona, Zamknięta
         [OsobaRozpatrujaca] NVARCHAR(50) NULL,             -- Kto rozpatruje
         [Komentarz] NVARCHAR(MAX) NULL,                    -- Komentarz osoby rozpatrującej
@@ -53,8 +54,9 @@ BEGIN
         [IdTowaru] INT NOT NULL,                           -- ID pozycji z HM.DP
         [Symbol] NVARCHAR(100) NULL,
         [Nazwa] NVARCHAR(255) NULL,
-        [Ilosc] DECIMAL(18,2) NULL,
         [Waga] DECIMAL(18,2) NULL,
+        [Cena] DECIMAL(18,2) NULL,
+        [Wartosc] DECIMAL(18,2) NULL,
         [PrzyczynaReklamacji] NVARCHAR(500) NULL,          -- Opcjonalny opis problemu dla pozycji
         CONSTRAINT [PK_ReklamacjeTowary] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_ReklamacjeTowary_Reklamacje] FOREIGN KEY([IdReklamacji])
@@ -186,6 +188,7 @@ SELECT
     r.NazwaKontrahenta,
     r.Opis,
     r.SumaKg,
+    r.SumaWartosc,
     r.Status,
     r.OsobaRozpatrujaca,
     r.Komentarz,
@@ -232,7 +235,7 @@ BEGIN
     -- 1. Podstawowe informacje o reklamacji
     SELECT
         Id, DataZgloszenia, UserID, IdDokumentu, NumerDokumentu,
-        IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status,
+        IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, SumaWartosc, Status,
         OsobaRozpatrujaca, Komentarz, Rozwiazanie, DataModyfikacji, DataZamkniecia,
         TypReklamacji, Priorytet, KosztReklamacji
     FROM [dbo].[Reklamacje]
@@ -240,7 +243,7 @@ BEGIN
 
     -- 2. Towary w reklamacji
     SELECT
-        Id, IdTowaru, Symbol, Nazwa, Ilosc, Waga, PrzyczynaReklamacji
+        Id, IdTowaru, Symbol, Nazwa, Waga, Cena, Wartosc, PrzyczynaReklamacji
     FROM [dbo].[ReklamacjeTowary]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY Id;
@@ -343,6 +346,7 @@ BEGIN
         Status,
         COUNT(*) AS Liczba,
         SUM(SumaKg) AS SumaKg,
+        SUM(SumaWartosc) AS SumaWartosc,
         AVG(DATEDIFF(DAY, DataZgloszenia, ISNULL(DataZamkniecia, GETDATE()))) AS SredniCzasRozpatrywania
     FROM [dbo].[Reklamacje]
     WHERE DataZgloszenia BETWEEN @DataOd AND @DataDo
@@ -362,6 +366,7 @@ BEGIN
         IdKontrahenta,
         COUNT(*) AS LiczbaReklamacji,
         SUM(SumaKg) AS SumaKg,
+        SUM(SumaWartosc) AS SumaWartosc,
         SUM(KosztReklamacji) AS SumaKosztow
     FROM [dbo].[Reklamacje]
     WHERE DataZgloszenia BETWEEN @DataOd AND @DataDo
