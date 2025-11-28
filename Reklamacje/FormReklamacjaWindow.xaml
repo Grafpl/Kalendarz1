@@ -1,6 +1,9 @@
 <Window x:Class="Kalendarz1.Reklamacje.FormReklamacjaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
         Title="Nowe zgłoszenie reklamacji"
         Height="850" Width="1300"
         MinHeight="700" MinWidth="1100"
@@ -10,7 +13,7 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
-        <!-- STYLE PRZYCISKÓW - jak WidokWstawienia -->
+        <!-- STYL PRZYCISKÓW -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
             <Setter Property="Foreground" Value="White"/>
@@ -22,19 +25,19 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                        <Border x:Name="btnBorder" Background="{TemplateBinding Background}"
                                 CornerRadius="7" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
                             </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="#4B732F"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="#3A5C24"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -42,23 +45,28 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Style x:Key="SecondaryButton" TargetType="Button">
             <Setter Property="Background" Value="#f5f5f5"/>
             <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                        <Border x:Name="secBorder" Background="{TemplateBinding Background}"
                                 CornerRadius="7" Padding="{TemplateBinding Padding}"
                                 BorderBrush="#bdbdbd" BorderThickness="1">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
                             </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#eeeeee"/>
+                                <Setter TargetName="secBorder" Property="Background" Value="#eeeeee"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,21 +74,27 @@
             </Setter>
         </Style>
 
-        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Style x:Key="DangerButton" TargetType="Button">
             <Setter Property="Background" Value="#E74C3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                        <Border x:Name="dangerBorder" Background="{TemplateBinding Background}"
                                 CornerRadius="7" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
                             </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C0392B"/>
+                                <Setter TargetName="dangerBorder" Property="Background" Value="#C0392B"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -88,29 +102,7 @@
             </Setter>
         </Style>
 
-        <Style x:Key="InfoButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="Background" Value="#3498DB"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
-                                CornerRadius="7" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
-                            </Border.Effect>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2980B9"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- STYL KARTY - jak WidokWstawienia -->
+        <!-- STYL KARTY -->
         <Style x:Key="CardPanel" TargetType="Border">
             <Setter Property="Background" Value="White"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -133,7 +125,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                        <Border x:Name="textBorder" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="6">
@@ -141,8 +133,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#5C8A3A"/>
-                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                                <Setter TargetName="textBorder" Property="BorderBrush" Value="#5C8A3A"/>
+                                <Setter TargetName="textBorder" Property="BorderThickness" Value="2"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -157,7 +149,7 @@
             <Setter Property="Background" Value="White"/>
         </Style>
 
-        <!-- STYL DATAGRID - jak WidokWstawienia -->
+        <!-- STYL DATAGRID -->
         <Style x:Key="ModernDataGrid" TargetType="DataGrid">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -232,7 +224,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- NAGŁÓWEK -->
+        <!-- NAGLOWEK -->
         <Border Grid.Row="0" Style="{StaticResource CardPanel}" Padding="12,10" Margin="12,12,12,0">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -242,8 +234,8 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="NOWE ZGŁOSZENIE REKLAMACJI" FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
-                    <TextBlock Text="Wypełnij formularz aby zgłosić reklamację" FontSize="9" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                    <TextBlock Text="NOWE ZGLOSZENIE REKLAMACJI" FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+                    <TextBlock Text="Wypelnij formularz aby zglosic reklamacje" FontSize="9" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <!-- Info o fakturze -->
@@ -254,11 +246,11 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                            <TextBlock FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold">Kontrahent</TextBlock>
+                            <TextBlock Text="Kontrahent" FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                             <TextBlock x:Name="txtKontrahent" Text="" FontSize="11" FontWeight="Bold" Foreground="#2C3E50"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <TextBlock FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold">Faktura</TextBlock>
+                            <TextBlock Text="Faktura" FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold"/>
                             <TextBlock x:Name="txtFaktura" Text="" FontSize="11" FontWeight="Bold" Foreground="#5C8A3A"/>
                         </StackPanel>
                     </Grid>
@@ -266,7 +258,7 @@
             </Grid>
         </Border>
 
-        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <!-- GLOWNA ZAWARTOSC -->
         <Grid Grid.Row="1" Margin="6,6,6,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -290,12 +282,10 @@
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="TOWARY Z FAKTURY" FontSize="12" FontWeight="Bold" Foreground="#2E7D32"/>
-                                    <TextBlock Text=" - zaznacz produkty objęte reklamacją" FontSize="10" Foreground="#558b2f" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                                </StackPanel>
-                            </Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="TOWARY Z FAKTURY" FontSize="12" FontWeight="Bold" Foreground="#2E7D32"/>
+                                <TextBlock Text=" - zaznacz produkty objete reklamacja" FontSize="10" Foreground="#558b2f" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            </StackPanel>
                         </Border>
 
                         <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
@@ -322,7 +312,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
+                                    <DataGridTextColumn Header="Wartosc" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -338,11 +328,11 @@
                         <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="6" Padding="10,6" Margin="0,8,0,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Zaznaczono: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtLicznikTowary" Text="0 towar(ów)" FontSize="10" FontWeight="Bold" Foreground="#5C8A3A" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtLicznikTowary" Text="0 towar(ow)" FontSize="10" FontWeight="Bold" Foreground="#5C8A3A" VerticalAlignment="Center"/>
                                 <TextBlock Text="  |  Suma: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="txtSumaKg" Text="0,00 kg" FontSize="10" FontWeight="Bold" Foreground="#2E7D32" VerticalAlignment="Center"/>
-                                <TextBlock Text="  |  Wartość: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtSumaWartosc" Text="0,00 zł" FontSize="10" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                                <TextBlock Text="  |  Wartosc: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtSumaWartosc" Text="0,00 zl" FontSize="10" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -361,7 +351,7 @@
                             <Grid>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="PARTIE DOSTAWCY" FontSize="12" FontWeight="Bold" Foreground="#1565C0"/>
-                                    <TextBlock Text=" - wybierz partie powiązane (ostatnie 14 dni)" FontSize="10" Foreground="#1976D2" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                    <TextBlock Text=" - wybierz partie powiazane (ostatnie 14 dni)" FontSize="10" Foreground="#1976D2" VerticalAlignment="Center" Margin="5,0,0,0"/>
                                 </StackPanel>
                                 <TextBlock x:Name="txtPartieInfo" Text="" FontSize="9" Foreground="#E74C3C" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
@@ -408,11 +398,11 @@
 
                         <TextBlock Text="Typ reklamacji:" FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"/>
                         <ComboBox x:Name="cmbTypReklamacji" Style="{StaticResource ModernComboBox}" Margin="0,4,0,12">
-                            <ComboBoxItem Content="Jakość produktu" IsSelected="True"/>
-                            <ComboBoxItem Content="Ilość / Brak towaru"/>
+                            <ComboBoxItem Content="Jakosc produktu" IsSelected="True"/>
+                            <ComboBoxItem Content="Ilosc / Brak towaru"/>
                             <ComboBoxItem Content="Uszkodzenie w transporcie"/>
-                            <ComboBoxItem Content="Termin ważności"/>
-                            <ComboBoxItem Content="Niezgodność z zamówieniem"/>
+                            <ComboBoxItem Content="Termin waznosci"/>
+                            <ComboBoxItem Content="Niezgodnosc z zamowieniem"/>
                             <ComboBoxItem Content="Inne"/>
                         </ComboBox>
 
@@ -444,10 +434,10 @@
                             </ComboBoxItem>
                         </ComboBox>
 
-                        <TextBlock FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50">
-                            <Run Text="Opis problemu:"/>
-                            <Run Text=" *" Foreground="#E74C3C"/>
-                        </TextBlock>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Opis problemu:" FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            <TextBlock Text=" *" FontSize="10" Foreground="#E74C3C"/>
+                        </StackPanel>
                         <TextBox x:Name="txtOpis" Style="{StaticResource ModernTextBox}"
                                  Height="80" Margin="0,4,0,0"
                                  TextWrapping="Wrap" AcceptsReturn="True"
@@ -456,7 +446,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- KARTA: DOKUMENTACJA ZDJĘCIOWA -->
+                <!-- KARTA: DOKUMENTACJA ZDJECIOWA -->
                 <Border Grid.Row="1" Style="{StaticResource CardPanel}">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -467,7 +457,7 @@
 
                         <Border Grid.Row="0" Background="#FCE4EC" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="DOKUMENTACJA ZDJĘCIOWA" FontSize="12" FontWeight="Bold" Foreground="#C2185B"/>
+                                <TextBlock Text="DOKUMENTACJA ZDJECIOWA" FontSize="12" FontWeight="Bold" Foreground="#C2185B"/>
                                 <TextBlock Text=" (opcjonalnie)" FontSize="10" Foreground="#D81B60" VerticalAlignment="Center" Margin="5,0,0,0"/>
                             </StackPanel>
                         </Border>
@@ -478,20 +468,20 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Lista zdjęć -->
+                            <!-- Lista zdjec -->
                             <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Margin="0,0,5,0" ClipToBounds="True">
                                 <ListBox x:Name="listZdjecia"
                                          BorderThickness="0" Background="Transparent"
                                          SelectionChanged="ListZdjecia_SelectionChanged"/>
                             </Border>
 
-                            <!-- Podgląd zdjęcia -->
+                            <!-- Podglad zdjecia -->
                             <Border Grid.Column="1" BorderBrush="#C2185B" BorderThickness="2" CornerRadius="6" Margin="5,0,0,0"
                                     Background="#FAFAFA" ClipToBounds="True" Cursor="Hand"
                                     MouseLeftButtonDown="ImgPodglad_MouseLeftButtonDown">
                                 <Grid>
                                     <Image x:Name="imgPodglad" Stretch="Uniform" Margin="5"/>
-                                    <TextBlock x:Name="txtBrakZdjecia" Text="Brak zdjęcia"
+                                    <TextBlock x:Name="txtBrakZdjecia" Text="Brak zdjecia"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                FontSize="10" Foreground="#9E9E9E" FontStyle="Italic"/>
                                 </Grid>
@@ -502,12 +492,12 @@
                             <StackPanel Orientation="Horizontal">
                                 <Button Content="+ Dodaj" Style="{StaticResource PrimaryButton}"
                                         Padding="12,6" FontSize="10" Click="BtnDodajZdjecia_Click"/>
-                                <Button x:Name="btnUsunZdjecie" Content="- Usuń" Style="{StaticResource DangerButton}"
+                                <Button x:Name="btnUsunZdjecie" Content="- Usun" Style="{StaticResource DangerButton}"
                                         Margin="8,0,0,0" Padding="12,6" FontSize="10" IsEnabled="False" Click="BtnUsunZdjecie_Click"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <TextBlock Text="Dodano: " FontSize="10" Foreground="#7F8C8D"/>
-                                <TextBlock x:Name="txtLicznikZdjecia" Text="0 zdjęć" FontSize="10" FontWeight="Bold" Foreground="#C2185B"/>
+                                <TextBlock x:Name="txtLicznikZdjecia" Text="0 zdjec" FontSize="10" FontWeight="Bold" Foreground="#C2185B"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -524,14 +514,10 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Anuluj" Style="{StaticResource SecondaryButton}"
                             Width="100" Click="BtnAnuluj_Click"/>
-                    <Button Content="ZGŁOŚ REKLAMACJĘ" Style="{StaticResource PrimaryButton}"
+                    <Button Content="ZGLOS REKLAMACJE" Style="{StaticResource PrimaryButton}"
                             Width="180" Margin="12,0,0,0" FontSize="12" Click="BtnZgloszReklamacje_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
     </Grid>
-
-    <!-- Okno powiększonego podglądu zdjęcia -->
-    <Window.Resources>
-    </Window.Resources>
 </Window>
