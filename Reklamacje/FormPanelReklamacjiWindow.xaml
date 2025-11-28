@@ -321,7 +321,13 @@
                     <!-- Filtry -->
                     <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Padding="12,10">
                         <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -331,9 +337,9 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Filtr statusu -->
-                            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,15,0">
                                 <TextBlock Text="Status:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="cmbStatus" Width="150" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged">
+                                <ComboBox x:Name="cmbStatus" Width="130" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged">
                                     <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
                                     <ComboBoxItem Content="Nowa"/>
                                     <ComboBoxItem Content="W trakcie"/>
@@ -343,23 +349,51 @@
                                 </ComboBox>
                             </StackPanel>
 
+                            <!-- Filtr typu -->
+                            <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,15,0">
+                                <TextBlock Text="Typ:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbTyp" Width="150" FontSize="11" SelectionChanged="CmbTyp_SelectionChanged">
+                                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                    <ComboBoxItem Content="Jakosc produktu"/>
+                                    <ComboBoxItem Content="Ilosc / Brak towaru"/>
+                                    <ComboBoxItem Content="Uszkodzenie w transporcie"/>
+                                    <ComboBoxItem Content="Termin waznosci"/>
+                                    <ComboBoxItem Content="Niezgodnosc z zamowieniem"/>
+                                    <ComboBoxItem Content="Temperatura"/>
+                                    <ComboBoxItem Content="Ciala obce"/>
+                                    <ComboBoxItem Content="Inne"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Filtr priorytetu -->
+                            <StackPanel Grid.Column="2" Grid.Row="0" Margin="0,0,15,0">
+                                <TextBlock Text="Priorytet:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="cmbPriorytet" Width="110" FontSize="11" SelectionChanged="CmbPriorytet_SelectionChanged">
+                                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                    <ComboBoxItem Content="Niski"/>
+                                    <ComboBoxItem Content="Normalny"/>
+                                    <ComboBoxItem Content="Wysoki"/>
+                                    <ComboBoxItem Content="Krytyczny"/>
+                                </ComboBox>
+                            </StackPanel>
+
                             <!-- Data od -->
-                            <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                            <StackPanel Grid.Column="3" Grid.Row="0" Margin="0,0,10,0">
                                 <TextBlock Text="Data od:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                                <DatePicker x:Name="dpDataOd" Width="130" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
+                                <DatePicker x:Name="dpDataOd" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
                             <!-- Data do -->
-                            <StackPanel Grid.Column="2" Margin="0,0,20,0">
+                            <StackPanel Grid.Column="4" Grid.Row="0" Margin="0,0,15,0">
                                 <TextBlock Text="Data do:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
-                                <DatePicker x:Name="dpDataDo" Width="130" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
+                                <DatePicker x:Name="dpDataDo" Width="120" FontSize="11" SelectedDateChanged="DpData_SelectedDateChanged"/>
                             </StackPanel>
 
                             <!-- Wyszukiwanie -->
-                            <StackPanel Grid.Column="3" Margin="0,0,20,0">
+                            <StackPanel Grid.Column="5" Grid.Row="0" Margin="0,0,15,0">
                                 <TextBlock Text="Szukaj:" FontSize="10" FontWeight="SemiBold" Foreground="#7F8C8D" Margin="0,0,0,4"/>
                                 <Border Background="White" CornerRadius="6" BorderBrush="#BDC3C7" BorderThickness="1" Padding="8,6">
-                                    <Grid Width="250">
+                                    <Grid Width="180">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
@@ -371,14 +405,59 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Suma -->
-                            <Border Grid.Column="5" Background="#FFEBEE" CornerRadius="8" Padding="20,8">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Razem: " FontSize="14" Foreground="#C62828" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtLiczbaReklamacji" Text="0" FontSize="20" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
-                                    <TextBlock Text=" reklamacji" FontSize="14" Foreground="#C62828" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
+                            <!-- Przyciski eksportu -->
+                            <StackPanel Grid.Column="6" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,15,0">
+                                <Button x:Name="btnExportExcel" Content="Eksport Excel" Click="BtnExportExcel_Click"
+                                        Padding="12,8" Margin="0,0,10,0" FontSize="11"
+                                        Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button x:Name="btnStatystyki" Content="Statystyki" Click="BtnStatystyki_Click"
+                                        Padding="12,8" FontSize="11"
+                                        Background="#9B59B6" Foreground="White" BorderThickness="0" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Suma i koszty -->
+                            <StackPanel Grid.Column="7" Grid.Row="0" Orientation="Horizontal">
+                                <Border Background="#FFEBEE" CornerRadius="8" Padding="15,8" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Razem: " FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtLiczbaReklamacji" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#E8F5E9" CornerRadius="8" Padding="15,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Koszty: " FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtSumaKosztow" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#27AE60" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>
@@ -402,12 +481,40 @@
                                   SelectionChanged="DgReklamacje_SelectionChanged"
                                   MouseDoubleClick="DgReklamacje_MouseDoubleClick">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                                <DataGridTextColumn Header="Data zgloszenia" Binding="{Binding DataZgloszenia, StringFormat=yyyy-MM-dd HH:mm}" Width="140"/>
-                                <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerDokumentu}" Width="120"/>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataZgloszenia, StringFormat=yyyy-MM-dd}" Width="90"/>
+                                <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerDokumentu}" Width="100"/>
                                 <DataGridTextColumn Header="Kontrahent" Binding="{Binding NazwaKontrahenta}" Width="*"/>
-                                <DataGridTextColumn Header="Opis" Binding="{Binding Opis}" Width="300"/>
-                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="100">
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypReklamacji}" Width="120"/>
+                                <!-- Priorytet z kolorami -->
+                                <DataGridTemplateColumn Header="Priorytet" Width="90">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="priorytetBorder" CornerRadius="10" Padding="8,3" HorizontalAlignment="Center">
+                                                <TextBlock x:Name="priorytetText" Text="{Binding Priorytet}" FontWeight="SemiBold" FontSize="10"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding Priorytet}" Value="Niski">
+                                                    <Setter TargetName="priorytetBorder" Property="Background" Value="#E8F5E9"/>
+                                                    <Setter TargetName="priorytetText" Property="Foreground" Value="#2E7D32"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Priorytet}" Value="Normalny">
+                                                    <Setter TargetName="priorytetBorder" Property="Background" Value="#E3F2FD"/>
+                                                    <Setter TargetName="priorytetText" Property="Foreground" Value="#1976D2"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Priorytet}" Value="Wysoki">
+                                                    <Setter TargetName="priorytetBorder" Property="Background" Value="#FFF3E0"/>
+                                                    <Setter TargetName="priorytetText" Property="Foreground" Value="#EF6C00"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Priorytet}" Value="Krytyczny">
+                                                    <Setter TargetName="priorytetBorder" Property="Background" Value="#FFEBEE"/>
+                                                    <Setter TargetName="priorytetText" Property="Foreground" Value="#C62828"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="70">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -415,7 +522,16 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTemplateColumn Header="Status" Width="130">
+                                <DataGridTextColumn Header="Koszt" Binding="{Binding KosztReklamacji, StringFormat=N2}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#C62828"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Status" Width="110">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border x:Name="statusBorder" CornerRadius="12" Padding="10,4" HorizontalAlignment="Center">
@@ -446,15 +562,15 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Zglaszajacy" Binding="{Binding Zglaszajacy}" Width="140"/>
-                                <DataGridTextColumn Header="Rozpatruje" Binding="{Binding OsobaRozpatrujaca}" Width="100"/>
+                                <DataGridTextColumn Header="Zglaszajacy" Binding="{Binding Zglaszajacy}" Width="120"/>
                             </DataGrid.Columns>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Szczegoly reklamacji" Click="BtnSzczegoly_Click" FontWeight="SemiBold"/>
                                     <MenuItem Header="Zmien status" Click="BtnZmienStatus_Click"/>
+                                    <MenuItem Header="Dodaj koszt" Click="BtnDodajKoszt_Click"/>
                                     <Separator/>
-                                    <MenuItem Header="Eksportuj do Excel" Click="BtnEksport_Click"/>
+                                    <MenuItem Header="Eksportuj do Excel" Click="BtnExportExcel_Click"/>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                         </DataGrid>

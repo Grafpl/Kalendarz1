@@ -58,7 +58,10 @@ namespace Kalendarz1.Reklamacje
                             ISNULL(r.SumaKg, 0) AS SumaKg,
                             ISNULL(r.Status, 'Nowa') AS Status,
                             ISNULL(o.Name, r.UserID) AS Zglaszajacy,
-                            ISNULL(o2.Name, r.OsobaRozpatrujaca) AS OsobaRozpatrujaca
+                            ISNULL(o2.Name, r.OsobaRozpatrujaca) AS OsobaRozpatrujaca,
+                            ISNULL(r.TypReklamacji, 'Inne') AS TypReklamacji,
+                            ISNULL(r.Priorytet, 'Normalny') AS Priorytet,
+                            ISNULL(r.KosztReklamacji, 0) AS KosztReklamacji
                         FROM [dbo].[Reklamacje] r
                         LEFT JOIN [dbo].[operators] o ON r.UserID = o.ID
                         LEFT JOIN [dbo].[operators] o2 ON r.OsobaRozpatrujaca = o2.ID
@@ -68,6 +71,18 @@ namespace Kalendarz1.Reklamacje
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
                     {
                         query += " AND r.Status = @Status";
+                    }
+
+                    string typFilter = (cmbTyp?.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                    if (!string.IsNullOrEmpty(typFilter) && typFilter != "Wszystkie")
+                    {
+                        query += " AND r.TypReklamacji = @Typ";
+                    }
+
+                    string priorytetFilter = (cmbPriorytet?.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                    if (!string.IsNullOrEmpty(priorytetFilter) && priorytetFilter != "Wszystkie")
+                    {
+                        query += " AND r.Priorytet = @Priorytet";
                     }
 
                     string szukaj = txtSzukaj?.Text?.Trim();
@@ -86,6 +101,16 @@ namespace Kalendarz1.Reklamacje
                         if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "Wszystkie")
                         {
                             cmd.Parameters.AddWithValue("@Status", statusFilter);
+                        }
+
+                        if (!string.IsNullOrEmpty(typFilter) && typFilter != "Wszystkie")
+                        {
+                            cmd.Parameters.AddWithValue("@Typ", typFilter);
+                        }
+
+                        if (!string.IsNullOrEmpty(priorytetFilter) && priorytetFilter != "Wszystkie")
+                        {
+                            cmd.Parameters.AddWithValue("@Priorytet", priorytetFilter);
                         }
 
                         if (!string.IsNullOrEmpty(szukaj))
@@ -107,7 +132,10 @@ namespace Kalendarz1.Reklamacje
                                     SumaKg = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
                                     Status = reader.IsDBNull(6) ? "Nowa" : reader.GetString(6),
                                     Zglaszajacy = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                                    OsobaRozpatrujaca = reader.IsDBNull(8) ? "" : reader.GetString(8)
+                                    OsobaRozpatrujaca = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                                    TypReklamacji = reader.IsDBNull(9) ? "Inne" : reader.GetString(9),
+                                    Priorytet = reader.IsDBNull(10) ? "Normalny" : reader.GetString(10),
+                                    KosztReklamacji = reader.IsDBNull(11) ? 0 : reader.GetDecimal(11)
                                 });
                             }
                         }
@@ -115,6 +143,7 @@ namespace Kalendarz1.Reklamacje
                 }
 
                 txtLiczbaReklamacji.Text = reklamacje.Count.ToString();
+                AktualizujSumeKosztow();
             }
             catch (Exception ex)
             {
@@ -401,10 +430,218 @@ namespace Kalendarz1.Reklamacje
             }
         }
 
-        private void BtnEksport_Click(object sender, RoutedEventArgs e)
+        private void CmbTyp_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            MessageBox.Show("Funkcja eksportu do Excel zostanie dodana wkrotce.",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            WczytajReklamacje();
+        }
+
+        private void CmbPriorytet_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            WczytajReklamacje();
+        }
+
+        private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (reklamacje.Count == 0)
+                {
+                    MessageBox.Show("Brak danych do eksportu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "Plik CSV (*.csv)|*.csv",
+                    FileName = $"Reklamacje_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
+                    Title = "Eksportuj reklamacje"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    // Naglowki
+                    sb.AppendLine("ID;Data;Nr faktury;Kontrahent;Typ;Priorytet;Kg;Koszt;Status;Zglaszajacy");
+
+                    // Dane
+                    foreach (var r in reklamacje)
+                    {
+                        sb.AppendLine($"{r.Id};{r.DataZgloszenia:yyyy-MM-dd};{r.NumerDokumentu};{r.NazwaKontrahenta};{r.TypReklamacji};{r.Priorytet};{r.SumaKg:N2};{r.KosztReklamacji:N2};{r.Status};{r.Zglaszajacy}");
+                    }
+
+                    System.IO.File.WriteAllText(saveDialog.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+
+                    MessageBox.Show($"Eksportowano {reklamacje.Count} reklamacji do pliku:\n{saveDialog.FileName}",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad eksportu: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var stats = new System.Text.StringBuilder();
+                stats.AppendLine("=== STATYSTYKI REKLAMACJI ===\n");
+
+                // Statystyki ogolne
+                stats.AppendLine($"Liczba reklamacji: {reklamacje.Count}");
+                stats.AppendLine($"Suma kg: {reklamacje.Sum(r => r.SumaKg):N2} kg");
+                stats.AppendLine($"Suma kosztow: {reklamacje.Sum(r => r.KosztReklamacji):N2} zl\n");
+
+                // Wg statusu
+                stats.AppendLine("--- WG STATUSU ---");
+                foreach (var group in reklamacje.GroupBy(r => r.Status).OrderByDescending(g => g.Count()))
+                {
+                    stats.AppendLine($"  {group.Key}: {group.Count()} ({group.Sum(r => r.KosztReklamacji):N2} zl)");
+                }
+
+                // Wg typu
+                stats.AppendLine("\n--- WG TYPU ---");
+                foreach (var group in reklamacje.GroupBy(r => r.TypReklamacji).OrderByDescending(g => g.Count()))
+                {
+                    stats.AppendLine($"  {group.Key}: {group.Count()} ({group.Sum(r => r.SumaKg):N2} kg)");
+                }
+
+                // Wg priorytetu
+                stats.AppendLine("\n--- WG PRIORYTETU ---");
+                foreach (var group in reklamacje.GroupBy(r => r.Priorytet).OrderByDescending(g => g.Count()))
+                {
+                    stats.AppendLine($"  {group.Key}: {group.Count()}");
+                }
+
+                // Top kontrahenci
+                stats.AppendLine("\n--- TOP 5 KONTRAHENTOW ---");
+                int i = 1;
+                foreach (var group in reklamacje.GroupBy(r => r.NazwaKontrahenta).OrderByDescending(g => g.Count()).Take(5))
+                {
+                    stats.AppendLine($"  {i++}. {group.Key}: {group.Count()} reklamacji");
+                }
+
+                MessageBox.Show(stats.ToString(), "Statystyki reklamacji", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnDodajKoszt_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgReklamacje.SelectedItem is ReklamacjaItem item)
+            {
+                // Prosty dialog do wprowadzenia kosztu
+                var inputDialog = new Window
+                {
+                    Title = $"Dodaj koszt - Reklamacja #{item.Id}",
+                    Width = 400,
+                    Height = 200,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    ResizeMode = ResizeMode.NoResize
+                };
+
+                var panel = new StackPanel { Margin = new Thickness(20) };
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"Kontrahent: {item.NazwaKontrahenta}",
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"Aktualny koszt: {item.KosztReklamacji:N2} zl",
+                    Margin = new Thickness(0, 0, 0, 15)
+                });
+
+                panel.Children.Add(new TextBlock { Text = "Nowy koszt (zl):" });
+
+                var txtKoszt = new TextBox
+                {
+                    Text = item.KosztReklamacji.ToString("N2"),
+                    Margin = new Thickness(0, 5, 0, 15),
+                    Padding = new Thickness(8, 6, 8, 6),
+                    FontSize = 14
+                };
+                panel.Children.Add(txtKoszt);
+
+                var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+                var btnZapisz = new Button
+                {
+                    Content = "Zapisz",
+                    Padding = new Thickness(20, 8, 20, 8),
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0)
+                };
+
+                var btnAnuluj = new Button
+                {
+                    Content = "Anuluj",
+                    Padding = new Thickness(20, 8, 20, 8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0)
+                };
+
+                btnZapisz.Click += (s, args) =>
+                {
+                    if (decimal.TryParse(txtKoszt.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal koszt))
+                    {
+                        try
+                        {
+                            using (SqlConnection conn = new SqlConnection(connectionString))
+                            {
+                                conn.Open();
+                                using (SqlCommand cmd = new SqlCommand("UPDATE [dbo].[Reklamacje] SET KosztReklamacji = @Koszt, DataModyfikacji = GETDATE() WHERE Id = @Id", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@Koszt", koszt);
+                                    cmd.Parameters.AddWithValue("@Id", item.Id);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+                            inputDialog.DialogResult = true;
+                            inputDialog.Close();
+                            WczytajReklamacje();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Blad zapisu: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Wprowadz poprawna kwote.", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                };
+
+                btnAnuluj.Click += (s, args) => inputDialog.Close();
+
+                btnPanel.Children.Add(btnZapisz);
+                btnPanel.Children.Add(btnAnuluj);
+                panel.Children.Add(btnPanel);
+
+                inputDialog.Content = panel;
+                inputDialog.ShowDialog();
+            }
+            else
+            {
+                MessageBox.Show("Zaznacz reklamacje z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void AktualizujSumeKosztow()
+        {
+            decimal suma = reklamacje.Sum(r => r.KosztReklamacji);
+            txtSumaKosztow.Text = $"{suma:N2} zl";
         }
     }
 
@@ -420,6 +657,9 @@ namespace Kalendarz1.Reklamacje
         public string Status { get; set; }
         public string Zglaszajacy { get; set; }
         public string OsobaRozpatrujaca { get; set; }
+        public string TypReklamacji { get; set; }
+        public string Priorytet { get; set; }
+        public decimal KosztReklamacji { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
