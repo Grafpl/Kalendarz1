@@ -189,13 +189,33 @@ namespace Kalendarz1
                         // Pobierz dane hodowcy
                         if (!string.IsNullOrEmpty(customerGID))
                         {
-                            string idDostawcy = isFarmerCalc ? customerGID : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
-                            hodowcaNazwa = isFarmerCalc
-                                ? zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName")
-                                : customerGID;
-                            hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address");
-                            hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city");
-                            hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance");
+                            try
+                            {
+                                string idDostawcy = isFarmerCalc ? customerGID : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
+
+                                // Ustaw nazwę hodowcy
+                                if (isFarmerCalc && !string.IsNullOrEmpty(customerGID))
+                                {
+                                    hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName") ?? "";
+                                }
+                                else
+                                {
+                                    hodowcaNazwa = customerGID;
+                                }
+
+                                // Pobierz dodatkowe dane tylko jeśli idDostawcy jest prawidłowy
+                                if (!string.IsNullOrEmpty(idDostawcy) && idDostawcy != "-1" && idDostawcy != "0")
+                                {
+                                    hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
+                                    hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
+                                    hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance") ?? "";
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych hodowcy {customerGID}: {ex.Message}");
+                                // Kontynuuj bez danych hodowcy
+                            }
                         }
 
                         var matrycaRow = new MatrycaRow
