@@ -325,6 +325,22 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
+                            <!-- Numer auta u hodowcy -->
+                            <DataGridTemplateColumn Header="Auto" Width="55" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0}/{1}">
+                                                    <Binding Path="AutoNrUHodowcy"/>
+                                                    <Binding Path="IloscAutUHodowcy"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <!-- Waga deklarowana -->
                             <DataGridTextColumn Header="Waga Dek (kg)" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="100">
                                 <DataGridTextColumn.ElementStyle>

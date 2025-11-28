@@ -145,6 +145,7 @@ namespace Kalendarz1
                     else
                     {
                         // Dane z HarmonogramDostaw (nowe - z harmonogramu)
+                        // Pobieramy kolumnę Auta aby wiedzieć ile wierszy utworzyć
                         string query = @"
                             SELECT
                                 CAST(0 AS BIGINT) AS ID,
@@ -152,6 +153,7 @@ namespace Kalendarz1
                                 Dostawca AS CustomerGID,
                                 WagaDek,
                                 SztSzuflada AS SztPoj,
+                                ISNULL(Auta, 1) AS Auta,
                                 CAST(NULL AS INT) AS DriverGID,
                                 CAST(NULL AS VARCHAR(50)) AS CarID,
                                 CAST(NULL AS VARCHAR(50)) AS TrailerID,
@@ -178,6 +180,8 @@ namespace Kalendarz1
                     }
 
                     // Konwertuj na ObservableCollection
+                    int lpCounter = 1; // Licznik LP dla matrycy
+
                     foreach (DataRow row in table.Rows)
                     {
                         string customerGID = row["CustomerGID"]?.ToString() ?? "";
@@ -218,31 +222,48 @@ namespace Kalendarz1
                             }
                         }
 
-                        var matrycaRow = new MatrycaRow
+                        // Ile aut jedzie do tego hodowcy?
+                        // Dla danych z FarmerCalc - 1 wiersz (już zapisane)
+                        // Dla danych z HarmonogramDostaw - tyle ile kolumna Auta
+                        int iloscAut = 1;
+                        if (!isFarmerCalc && table.Columns.Contains("Auta"))
                         {
-                            ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
-                            LpDostawy = row["LpDostawy"]?.ToString() ?? "",
-                            CustomerGID = customerGID,
-                            HodowcaNazwa = hodowcaNazwa,
-                            WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
-                            SztPoj = row["SztPoj"] != DBNull.Value ? Convert.ToInt32(row["SztPoj"]) : 0,
-                            DriverGID = row["DriverGID"] != DBNull.Value ? Convert.ToInt32(row["DriverGID"]) : (int?)null,
-                            CarID = row["CarID"]?.ToString(),
-                            TrailerID = row["TrailerID"]?.ToString(),
-                            Wyjazd = row["Wyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Wyjazd"]) : (DateTime?)null,
-                            Zaladunek = row["Zaladunek"] != DBNull.Value ? Convert.ToDateTime(row["Zaladunek"]) : (DateTime?)null,
-                            Przyjazd = row["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Przyjazd"]) : (DateTime?)null,
-                            NotkaWozek = row["NotkaWozek"]?.ToString(),
-                            Adres = hodowcaAdres,
-                            Miejscowosc = hodowcaMiejscowosc,
-                            Odleglosc = hodowcaOdleglosc,
-                            IsFarmerCalc = isFarmerCalc
-                        };
+                            iloscAut = row["Auta"] != DBNull.Value ? Convert.ToInt32(row["Auta"]) : 1;
+                            if (iloscAut < 1) iloscAut = 1;
+                        }
 
-                        matrycaData.Add(matrycaRow);
+                        // Twórz tyle wierszy ile aut
+                        for (int autoNr = 0; autoNr < iloscAut; autoNr++)
+                        {
+                            var matrycaRow = new MatrycaRow
+                            {
+                                ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
+                                LpDostawy = lpCounter.ToString(),
+                                CustomerGID = customerGID,
+                                HodowcaNazwa = hodowcaNazwa,
+                                WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
+                                SztPoj = row["SztPoj"] != DBNull.Value ? Convert.ToInt32(row["SztPoj"]) : 0,
+                                DriverGID = row["DriverGID"] != DBNull.Value ? Convert.ToInt32(row["DriverGID"]) : (int?)null,
+                                CarID = row["CarID"]?.ToString(),
+                                TrailerID = row["TrailerID"]?.ToString(),
+                                Wyjazd = row["Wyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Wyjazd"]) : (DateTime?)null,
+                                Zaladunek = row["Zaladunek"] != DBNull.Value ? Convert.ToDateTime(row["Zaladunek"]) : (DateTime?)null,
+                                Przyjazd = row["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Przyjazd"]) : (DateTime?)null,
+                                NotkaWozek = row["NotkaWozek"]?.ToString(),
+                                Adres = hodowcaAdres,
+                                Miejscowosc = hodowcaMiejscowosc,
+                                Odleglosc = hodowcaOdleglosc,
+                                IsFarmerCalc = isFarmerCalc,
+                                AutoNrUHodowcy = autoNr + 1,  // Numer auta u hodowcy (1, 2, 3...)
+                                IloscAutUHodowcy = iloscAut   // Całkowita liczba aut u hodowcy
+                            };
+
+                            matrycaData.Add(matrycaRow);
+                            lpCounter++;
+                        }
                     }
 
-                    UpdateStatus($"Załadowano {table.Rows.Count} rekordów" + (isFarmerCalc ? " (z FarmerCalc)" : " (z Harmonogramu)"));
+                    UpdateStatus($"Załadowano {matrycaData.Count} wierszy (aut)" + (isFarmerCalc ? " (z FarmerCalc)" : " (z Harmonogramu)"));
                 }
             }
             catch (Exception ex)
@@ -774,6 +795,8 @@ namespace Kalendarz1
         private string _miejscowosc;
         private string _odleglosc;
         private bool _isFarmerCalc;
+        private int _autoNrUHodowcy;
+        private int _iloscAutUHodowcy;
 
         public long ID
         {
@@ -875,6 +898,18 @@ namespace Kalendarz1
         {
             get => _isFarmerCalc;
             set { _isFarmerCalc = value; OnPropertyChanged(nameof(IsFarmerCalc)); }
+        }
+
+        public int AutoNrUHodowcy
+        {
+            get => _autoNrUHodowcy;
+            set { _autoNrUHodowcy = value; OnPropertyChanged(nameof(AutoNrUHodowcy)); }
+        }
+
+        public int IloscAutUHodowcy
+        {
+            get => _iloscAutUHodowcy;
+            set { _iloscAutUHodowcy = value; OnPropertyChanged(nameof(IloscAutUHodowcy)); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
