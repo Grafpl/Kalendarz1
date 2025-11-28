@@ -331,56 +331,7 @@ namespace Kalendarz1
                 dgvReklamacje.DataSource = dtReklamacje;
 
                 // Konfiguracja kolumn z bezpiecznym sprawdzaniem
-                if (dgvReklamacje.Columns.Count > 0)
-                {
-                    if (dgvReklamacje.Columns.Contains("Id"))
-                    {
-                        dgvReklamacje.Columns["Id"].HeaderText = "ID";
-                        dgvReklamacje.Columns["Id"].Width = 60;
-                    }
-                    if (dgvReklamacje.Columns.Contains("DataZgloszenia"))
-                    {
-                        dgvReklamacje.Columns["DataZgloszenia"].HeaderText = "Data zgłoszenia";
-                        dgvReklamacje.Columns["DataZgloszenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                        dgvReklamacje.Columns["DataZgloszenia"].Width = 150;
-                    }
-                    if (dgvReklamacje.Columns.Contains("NumerDokumentu"))
-                    {
-                        dgvReklamacje.Columns["NumerDokumentu"].HeaderText = "Nr faktury";
-                        dgvReklamacje.Columns["NumerDokumentu"].Width = 120;
-                    }
-                    if (dgvReklamacje.Columns.Contains("NazwaKontrahenta"))
-                    {
-                        dgvReklamacje.Columns["NazwaKontrahenta"].HeaderText = "Kontrahent";
-                        dgvReklamacje.Columns["NazwaKontrahenta"].Width = 250;
-                    }
-                    if (dgvReklamacje.Columns.Contains("Opis"))
-                    {
-                        dgvReklamacje.Columns["Opis"].HeaderText = "Opis";
-                        dgvReklamacje.Columns["Opis"].Width = 400;
-                    }
-                    if (dgvReklamacje.Columns.Contains("SumaKg"))
-                    {
-                        dgvReklamacje.Columns["SumaKg"].HeaderText = "Suma kg";
-                        dgvReklamacje.Columns["SumaKg"].DefaultCellStyle.Format = "N2";
-                        dgvReklamacje.Columns["SumaKg"].Width = 80;
-                    }
-                    if (dgvReklamacje.Columns.Contains("Status"))
-                    {
-                        dgvReklamacje.Columns["Status"].HeaderText = "Status";
-                        dgvReklamacje.Columns["Status"].Width = 120;
-                    }
-                    if (dgvReklamacje.Columns.Contains("UserID"))
-                    {
-                        dgvReklamacje.Columns["UserID"].HeaderText = "Zgłaszający";
-                        dgvReklamacje.Columns["UserID"].Width = 100;
-                    }
-                    if (dgvReklamacje.Columns.Contains("OsobaRozpatrujaca"))
-                    {
-                        dgvReklamacje.Columns["OsobaRozpatrujaca"].HeaderText = "Rozpatruje";
-                        dgvReklamacje.Columns["OsobaRozpatrujaca"].Width = 100;
-                    }
-                }
+                KonfigurujKolumny();
 
                 lblLicznik.Text = $"Reklamacji: {dtReklamacje.Rows.Count}";
             }
@@ -575,6 +526,51 @@ namespace Kalendarz1
                         }
                     }
                 }
+            }
+        }
+
+        private void KonfigurujKolumny()
+        {
+            try
+            {
+                if (dgvReklamacje == null || dgvReklamacje.Columns == null || dgvReklamacje.Columns.Count == 0)
+                    return;
+
+                // Pomocnicza funkcja do bezpiecznej konfiguracji kolumny
+                void KonfigurujKolumne(string nazwa, string naglowek, int szerokosc, string format = null)
+                {
+                    DataGridViewColumn col = null;
+                    try
+                    {
+                        col = dgvReklamacje.Columns[nazwa];
+                    }
+                    catch { }
+
+                    if (col != null)
+                    {
+                        col.HeaderText = naglowek;
+                        col.Width = szerokosc;
+                        if (!string.IsNullOrEmpty(format))
+                        {
+                            col.DefaultCellStyle.Format = format;
+                        }
+                    }
+                }
+
+                KonfigurujKolumne("Id", "ID", 60);
+                KonfigurujKolumne("DataZgloszenia", "Data zgłoszenia", 150, "yyyy-MM-dd HH:mm");
+                KonfigurujKolumne("NumerDokumentu", "Nr faktury", 120);
+                KonfigurujKolumne("NazwaKontrahenta", "Kontrahent", 250);
+                KonfigurujKolumne("Opis", "Opis", 400);
+                KonfigurujKolumne("SumaKg", "Suma kg", 80, "N2");
+                KonfigurujKolumne("Status", "Status", 120);
+                KonfigurujKolumne("UserID", "Zgłaszający", 100);
+                KonfigurujKolumne("OsobaRozpatrujaca", "Rozpatruje", 100);
+            }
+            catch (Exception ex)
+            {
+                // Ignoruj błędy konfiguracji kolumn - to nie jest krytyczne
+                System.Diagnostics.Debug.WriteLine($"Błąd konfiguracji kolumn: {ex.Message}");
             }
         }
 
