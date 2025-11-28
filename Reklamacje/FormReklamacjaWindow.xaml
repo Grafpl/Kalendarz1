@@ -1,0 +1,446 @@
+<Window x:Class="Kalendarz1.Reklamacje.FormReklamacjaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowe zgłoszenie reklamacji"
+        Height="900" Width="1400"
+        MinHeight="750" MinWidth="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- STYLE PRZYCISKÓW -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#1a73e8"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="25,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1557b0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#bdc3c7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#f5f5f5"/>
+            <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}"
+                                BorderBrush="#bdbdbd" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#eeeeee"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#2e7d32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1b5e20"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#c62828"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#b71c1c"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- STYL KARTY -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.08" BlurRadius="10"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- STYL TEXTBOX -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="#e0e0e0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#1a73e8"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- STYL COMBOBOX -->
+        <Style x:Key="ModernComboBox" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <!-- STYL DATAGRID -->
+        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#e0e0e0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#f0f0f0"/>
+            <Setter Property="RowHeight" Value="40"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="SelectionMode" Value="Extended"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+        </Style>
+
+        <Style x:Key="DataGridColumnHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#2e7d32"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style x:Key="BlueDataGridColumnHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#1565c0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Padding="30,25">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1a73e8" Offset="0"/>
+                    <GradientStop Color="#0d47a1" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="NOWE ZGŁOSZENIE REKLAMACJI"
+                               FontSize="28" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Wypełnij formularz aby zgłosić reklamację dla wybranej faktury"
+                               FontSize="13" Foreground="#bbdefb" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <!-- Info o fakturze -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="#1565c0" CornerRadius="8" Padding="20,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Kontrahent: " FontSize="12" Foreground="#bbdefb"/>
+                            <TextBlock x:Name="txtKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                            <TextBlock Text="Faktura: " FontSize="12" Foreground="#bbdefb"/>
+                            <TextBlock x:Name="txtFaktura" Text="" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="25,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="400"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- LEWA KOLUMNA -->
+                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+
+                    <!-- KARTA: TOWARY Z FAKTURY -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Background="#e8f5e9" CornerRadius="6" Padding="15,10" Margin="-20,-20,-20,15">
+                                <StackPanel>
+                                    <TextBlock Text="TOWARY Z FAKTURY" FontSize="15" FontWeight="Bold" Foreground="#2e7d32"/>
+                                    <TextBlock Text="Zaznacz produkty objęte reklamacją (przytrzymaj Ctrl dla wielu)"
+                                               FontSize="11" Foreground="#558b2f" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <DataGrid x:Name="dgTowary"
+                                      Style="{StaticResource ModernDataGrid}"
+                                      Height="200"
+                                      ColumnHeaderStyle="{StaticResource DataGridColumnHeader}"
+                                      SelectionChanged="DgTowary_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="120"/>
+                                    <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*"/>
+                                    <DataGridTextColumn Header="Ilość" Binding="{Binding Ilosc, StringFormat=N2}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Waga (kg)" Binding="{Binding Waga, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="Zaznaczono: " FontSize="12" Foreground="#757575"/>
+                                <TextBlock x:Name="txtLicznikTowary" Text="0 towar(ów)"
+                                           FontSize="12" FontWeight="Bold" Foreground="#2e7d32"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- KARTA: PARTIE DOSTAWCY -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Background="#e3f2fd" CornerRadius="6" Padding="15,10" Margin="-20,-20,-20,15">
+                                <StackPanel>
+                                    <TextBlock Text="PARTIE DOSTAWCY" FontSize="15" FontWeight="Bold" Foreground="#1565c0"/>
+                                    <TextBlock Text="Wybierz partie powiązane z reklamacją (ostatnie 14 dni)"
+                                               FontSize="11" Foreground="#1976d2" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <DataGrid x:Name="dgPartie"
+                                      Style="{StaticResource ModernDataGrid}"
+                                      Height="180"
+                                      ColumnHeaderStyle="{StaticResource BlueDataGridColumnHeader}"
+                                      SelectionChanged="DgPartie_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Nr partii" Binding="{Binding NrPartii}" Width="100"/>
+                                    <DataGridTextColumn Header="ID" Binding="{Binding IdDostawcy}" Width="60"/>
+                                    <DataGridTextColumn Header="Nazwa dostawcy" Binding="{Binding NazwaDostawcy}" Width="*"/>
+                                    <DataGridTextColumn Header="Data utworzenia" Binding="{Binding DataUtworzenia}" Width="150"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="Zaznaczono: " FontSize="12" Foreground="#757575"/>
+                                <TextBlock x:Name="txtLicznikPartie" Text="0 parti(i)"
+                                           FontSize="12" FontWeight="Bold" Foreground="#1565c0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- PRAWA KOLUMNA -->
+                <StackPanel Grid.Column="1" Margin="15,0,0,0">
+
+                    <!-- KARTA: DANE REKLAMACJI -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Background="#fff3e0" CornerRadius="6" Padding="15,10" Margin="-20,-20,-20,15">
+                                <StackPanel>
+                                    <TextBlock Text="DANE REKLAMACJI" FontSize="15" FontWeight="Bold" Foreground="#ef6c00"/>
+                                    <TextBlock Text="Określ typ i priorytet zgłoszenia"
+                                               FontSize="11" Foreground="#f57c00" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="Typ reklamacji:" FontSize="12" FontWeight="SemiBold" Foreground="#424242"/>
+                            <ComboBox x:Name="cmbTypReklamacji" Style="{StaticResource ModernComboBox}" Margin="0,5,0,15">
+                                <ComboBoxItem Content="Jakość produktu" IsSelected="True"/>
+                                <ComboBoxItem Content="Ilość / Brak towaru"/>
+                                <ComboBoxItem Content="Uszkodzenie w transporcie"/>
+                                <ComboBoxItem Content="Termin ważności"/>
+                                <ComboBoxItem Content="Niezgodność z zamówieniem"/>
+                                <ComboBoxItem Content="Inne"/>
+                            </ComboBox>
+
+                            <TextBlock Text="Priorytet:" FontSize="12" FontWeight="SemiBold" Foreground="#424242"/>
+                            <ComboBox x:Name="cmbPriorytet" Style="{StaticResource ModernComboBox}" Margin="0,5,0,15">
+                                <ComboBoxItem>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#4caf50" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Niski"/>
+                                    </StackPanel>
+                                </ComboBoxItem>
+                                <ComboBoxItem IsSelected="True">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#2196f3" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Normalny"/>
+                                    </StackPanel>
+                                </ComboBoxItem>
+                                <ComboBoxItem>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#ff9800" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Wysoki"/>
+                                    </StackPanel>
+                                </ComboBoxItem>
+                                <ComboBoxItem>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="10" Height="10" Fill="#f44336" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Krytyczny"/>
+                                    </StackPanel>
+                                </ComboBoxItem>
+                            </ComboBox>
+
+                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#424242">
+                                <Run Text="Opis problemu:"/>
+                                <Run Text=" *" Foreground="#c62828"/>
+                            </TextBlock>
+                            <TextBox x:Name="txtOpis" Style="{StaticResource ModernTextBox}"
+                                     Height="100" Margin="0,5,0,0"
+                                     TextWrapping="Wrap" AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     VerticalContentAlignment="Top"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- KARTA: DOKUMENTACJA ZDJĘCIOWA -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Background="#fce4ec" CornerRadius="6" Padding="15,10" Margin="-20,-20,-20,15">
+                                <StackPanel>
+                                    <TextBlock Text="DOKUMENTACJA ZDJĘCIOWA" FontSize="15" FontWeight="Bold" Foreground="#c2185b"/>
+                                    <TextBlock Text="Dodaj zdjęcia dokumentujące problem (opcjonalnie)"
+                                               FontSize="11" Foreground="#d81b60" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ListBox x:Name="listZdjecia" Height="120"
+                                         BorderBrush="#e0e0e0" BorderThickness="1"
+                                         SelectionChanged="ListZdjecia_SelectionChanged"/>
+
+                                <Image x:Name="imgPodglad" Grid.Column="1"
+                                       Margin="10,0,0,0" Stretch="Uniform"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="+ Dodaj zdjęcia" Style="{StaticResource SuccessButton}"
+                                            Padding="15,8" FontSize="12" Click="BtnDodajZdjecia_Click"/>
+                                    <Button x:Name="btnUsunZdjecie" Content="- Usuń" Style="{StaticResource DangerButton}"
+                                            Margin="10,0,0,0" IsEnabled="False" Click="BtnUsunZdjecie_Click"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="Dodano: " FontSize="12" Foreground="#757575"/>
+                                    <TextBlock x:Name="txtLicznikZdjecia" Text="0 zdjęć"
+                                               FontSize="12" FontWeight="Bold" Foreground="#c2185b"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- KARTA: PODSUMOWANIE -->
+                    <Border Background="#e8f5e9" CornerRadius="8" Padding="20"
+                            BorderBrush="#2e7d32" BorderThickness="2">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.08" BlurRadius="10"/>
+                        </Border.Effect>
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="PODSUMOWANIE" FontSize="13" FontWeight="Bold" Foreground="#2e7d32" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Suma kg: " FontSize="18" Foreground="#424242"/>
+                                    <TextBlock x:Name="txtSumaKg" Text="0,00 kg"
+                                               FontSize="18" FontWeight="Bold" Foreground="#2e7d32"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- STOPKA -->
+        <Border Grid.Row="2" Background="White" Padding="30,20" BorderBrush="#e0e0e0" BorderThickness="0,1,0,0">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="Reklamacja zostanie zapisana w systemie i przekazana do rozpatrzenia"
+                               FontSize="12" Foreground="#757575"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Anuluj" Style="{StaticResource SecondaryButton}"
+                            Width="150" Click="BtnAnuluj_Click"/>
+                    <Button Content="ZGŁOŚ REKLAMACJĘ" Style="{StaticResource PrimaryButton}"
+                            Width="220" Margin="15,0,0,0" Click="BtnZgloszReklamacje_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
