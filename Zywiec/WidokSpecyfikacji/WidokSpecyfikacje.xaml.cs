@@ -1244,6 +1244,35 @@ namespace Kalendarz1
 
                 doc.Add(dataTable);
 
+                // === ŚREDNIA WAGA KURCZAKA - WYRÓŻNIONA SEKCJA ===
+                PdfPTable avgWeightTable = new PdfPTable(1);
+                avgWeightTable.WidthPercentage = 100;
+                avgWeightTable.SpacingBefore = 8f;
+                avgWeightTable.SpacingAfter = 8f;
+
+                PdfPCell avgWeightCell = new PdfPCell();
+                avgWeightCell.Border = PdfPCell.BOX;
+                avgWeightCell.BorderColor = new BaseColor(155, 89, 182); // Fioletowy
+                avgWeightCell.BorderWidth = 2f;
+                avgWeightCell.BackgroundColor = new BaseColor(245, 238, 248);
+                avgWeightCell.Padding = 12;
+                avgWeightCell.HorizontalAlignment = Element.ALIGN_CENTER;
+
+                Paragraph avgTitle = new Paragraph("ŚREDNIA WAGA KURCZAKA", new Font(polishFont, 11, Font.BOLD, new BaseColor(142, 68, 173)));
+                avgTitle.Alignment = Element.ALIGN_CENTER;
+                avgWeightCell.AddElement(avgTitle);
+
+                Paragraph avgValue = new Paragraph($"{sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 18, Font.BOLD, new BaseColor(142, 68, 173)));
+                avgValue.Alignment = Element.ALIGN_CENTER;
+                avgWeightCell.AddElement(avgValue);
+
+                Paragraph avgFormula = new Paragraph($"(Netto {sumaNetto:N0} kg ÷ {sumaSztWszystkie} szt)", new Font(polishFont, 9, Font.ITALIC, grayColor));
+                avgFormula.Alignment = Element.ALIGN_CENTER;
+                avgWeightCell.AddElement(avgFormula);
+
+                avgWeightTable.AddCell(avgWeightCell);
+                doc.Add(avgWeightTable);
+
                 // === PODSUMOWANIE FINANSOWE ===
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
@@ -1323,30 +1352,34 @@ namespace Kalendarz1
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
 
-                // === STOPKA Z PODPISAMI ===
+                // === PODPISY ===
                 // Pobierz nazwę wystawiającego z App.UserID
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
                 PdfPTable footerTable = new PdfPTable(2);
                 footerTable.WidthPercentage = 100;
-                footerTable.SpacingBefore = 20f;
+                footerTable.SpacingBefore = 25f;
                 footerTable.SetWidths(new float[] { 1f, 1f });
 
                 // Podpis Dostawcy (lewa strona)
-                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 10 };
-                signatureLeft.AddElement(new Paragraph("", new Font(polishFont, 8, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph("", new Font(polishFont, 8, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph(".........................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph($"Podpis Dostawcy: {sellerName}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph($"({sellerName})", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
+                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
+                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureLeft);
 
-                // Podpis Wystawiającego (prawa strona)
-                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 10 };
-                signatureRight.AddElement(new Paragraph("", new Font(polishFont, 8, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph("", new Font(polishFont, 8, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph(".........................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph($"Podpis Wystawiającego: {wystawiajacyNazwa}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                // Podpis Pracownika/Wystawiającego (prawa strona)
+                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
+                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
+                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureRight);
 
                 doc.Add(footerTable);
@@ -1354,7 +1387,7 @@ namespace Kalendarz1
                 // Informacja o zaokrągleniach
                 Paragraph infoP = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", new Font(polishFont, 7, Font.ITALIC, grayColor));
                 infoP.Alignment = Element.ALIGN_LEFT;
-                infoP.SpacingBefore = 5f;
+                infoP.SpacingBefore = 8f;
                 doc.Add(infoP);
 
                 doc.Close();
