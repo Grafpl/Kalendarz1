@@ -25,6 +25,12 @@ namespace Kalendarz1
         private List<DostawcaItem> listaDostawcow;
         private List<string> listaTypowCen = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
 
+        // Ustawienia PDF
+        private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
+        private static bool useDefaultPath = true;
+        private decimal sumaWartosc = 0;
+        private decimal sumaKG = 0;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -803,18 +809,121 @@ namespace Kalendarz1
             statusLabel.Text = message;
         }
 
-        private void GeneratePDFReport(List<int> ids)
+        // Ustawienia lokalizacji PDF
+        private void BtnPdfSettings_Click(object sender, RoutedEventArgs e)
         {
+            var result = MessageBox.Show(
+                $"Aktualna ścieżka zapisu PDF:\n{defaultPdfPath}\n\n" +
+                $"Używaj domyślnej ścieżki: {(useDefaultPath ? "TAK" : "NIE")}\n\n" +
+                "Czy chcesz zmienić ścieżkę zapisu?\n\n" +
+                "TAK - wybierz nowy folder\n" +
+                "NIE - użyj jednorazowej lokalizacji przy następnym zapisie",
+                "Ustawienia PDF",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var dialog = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "Wybierz folder do zapisywania PDF",
+                    SelectedPath = defaultPdfPath
+                };
+
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    defaultPdfPath = dialog.SelectedPath;
+                    useDefaultPath = true;
+                    MessageBox.Show($"Nowa domyślna ścieżka:\n{defaultPdfPath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else if (result == MessageBoxResult.No)
+            {
+                useDefaultPath = false;
+                MessageBox.Show("Przy następnym zapisie PDF zostaniesz zapytany o lokalizację.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Drukuj wszystkie specyfikacje z dnia
+        private void BtnPrintAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (specyfikacjeData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wydruku.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz wydrukować wszystkie specyfikacje z dnia?\n\n" +
+                $"Liczba unikalnych dostawców: {specyfikacjeData.Select(r => r.RealDostawca).Distinct().Count()}\n" +
+                $"Łączna liczba rekordów: {specyfikacjeData.Count}",
+                "Drukuj wszystkie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    UpdateStatus("Generowanie PDF dla wszystkich dostawców...");
+
+                    // Grupuj po dostawcy
+                    var grupy = specyfikacjeData.GroupBy(r => r.RealDostawca).ToList();
+                    int count = 0;
+
+                    foreach (var grupa in grupy)
+                    {
+                        List<int> ids = grupa.Select(r => r.ID).ToList();
+                        GeneratePDFReport(ids, false); // false = nie pokazuj MessageBox
+                        count++;
+                    }
+
+                    UpdateStatus($"Wygenerowano {count} plików PDF");
+                    MessageBox.Show($"Wygenerowano {count} plików PDF.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd podczas generowania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    UpdateStatus("Błąd generowania PDF");
+                }
+            }
+        }
+
+        private void GeneratePDFReport(List<int> ids, bool showMessage = true)
+        {
+            sumaWartosc = 0;
+            sumaKG = 0;
+
             Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                 zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
-                "ShortName");
+                "ShortName") ?? "Nieznany";
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(
                 ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
 
             string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
-            string directoryPath = Path.Combine(@"\\192.168.0.170\Public\Przel\", strDzienUbojowy);
+
+            // Wybierz ścieżkę
+            string directoryPath;
+            if (useDefaultPath)
+            {
+                directoryPath = Path.Combine(defaultPdfPath, strDzienUbojowy);
+            }
+            else
+            {
+                var dialog = new System.Windows.Forms.FolderBrowserDialog
+                {
+                    Description = "Wybierz folder do zapisania PDF",
+                    SelectedPath = defaultPdfPath
+                };
+
+                if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                    return;
+
+                directoryPath = Path.Combine(dialog.SelectedPath, strDzienUbojowy);
+                useDefaultPath = true; // Przywróć domyślne zachowanie
+            }
 
             if (!Directory.Exists(directoryPath))
             {
@@ -828,82 +937,273 @@ namespace Kalendarz1
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
+                // Fonty
+                BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
+                Font headerFont = new Font(baseFont, 15, Font.BOLD);
+                Font textFont = new Font(baseFont, 12, Font.NORMAL);
+                Font smallTextFont = new Font(baseFont, 8, Font.NORMAL);
+                Font tytulTablicy = new Font(baseFont, 13, Font.BOLD);
+                Font ItalicFont = new Font(baseFont, 8, Font.ITALIC);
+
                 // Nagłówek
-                var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
-                var normalFont = FontFactory.GetFont(FontFactory.HELVETICA, 10);
-                var boldFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10);
+                Paragraph header = new Paragraph("Rozliczenie przyjętego drobiu", headerFont);
+                header.Alignment = Element.ALIGN_CENTER;
+                doc.Add(header);
 
-                doc.Add(new Paragraph($"Specyfikacja dostaw - {sellerName}", headerFont));
-                doc.Add(new Paragraph($"Data uboju: {strDzienUbojowy}", normalFont));
-                doc.Add(new Paragraph(" "));
+                // Tabela informacyjna (3 kolumny)
+                PdfPTable infoTable = new PdfPTable(3);
+                infoTable.WidthPercentage = 100;
+                infoTable.SetWidths(new float[] { 1f, 1f, 1f });
 
-                // Tabela
-                PdfPTable table = new PdfPTable(13);
-                table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2 });
+                // Nabywca
+                PdfPCell sellerInfoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT };
+                string[] buyerLines = { "Nabywca:", "Ubojnia Drobiu \"Piórkowscy\"", "Koziołki 40, 95-061 Dmosin", "NIP: 726-162-54-06", "", "" };
+                foreach (string line in buyerLines)
+                    sellerInfoCell.AddElement(new Phrase(line, textFont));
+                infoTable.AddCell(sellerInfoCell);
 
-                // Nagłówki
-                AddTableHeader(table, "LP", boldFont);
-                AddTableHeader(table, "Szt.Dek", boldFont);
-                AddTableHeader(table, "Padłe", boldFont);
-                AddTableHeader(table, "LUMEL", boldFont);
-                AddTableHeader(table, "Brutto H", boldFont);
-                AddTableHeader(table, "Tara H", boldFont);
-                AddTableHeader(table, "Netto H", boldFont);
-                AddTableHeader(table, "Brutto U", boldFont);
-                AddTableHeader(table, "Tara U", boldFont);
-                AddTableHeader(table, "Netto U", boldFont);
-                AddTableHeader(table, "Cena", boldFont);
-                AddTableHeader(table, "PiK", boldFont);
-                AddTableHeader(table, "Wartość", boldFont);
+                // Szczegóły dostawy
+                PdfPCell deliveryInfoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER };
+                string[] deliveryLines = { "Szczegóły dostawy:", "Data Uboju " + strDzienUbojowy, "Waga loco Hodowca", "", "" };
+                foreach (string line in deliveryLines)
+                    deliveryInfoCell.AddElement(new Phrase(line, textFont));
+                infoTable.AddCell(deliveryInfoCell);
 
-                // Dane
-                foreach (var row in specyfikacjeData.Where(r => ids.Contains(r.ID)))
+                // Sprzedający
+                PdfPCell sellerDetailsCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT };
+                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
+                    zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "Address") ?? "";
+                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
+                    zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "PostalCode") ?? "";
+                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
+                    zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City") ?? "";
+                string[] sellerDetailsLines = { "Sprzedający:", sellerName, sellerStreet, sellerKod + ", " + sellerMiejsc, "", "" };
+                foreach (string line in sellerDetailsLines)
+                    sellerDetailsCell.AddElement(new Phrase(line, textFont));
+                infoTable.AddCell(sellerDetailsCell);
+
+                doc.Add(infoTable);
+                doc.Add(new Paragraph(" ", textFont) { SpacingBefore = 10f });
+
+                // TABELA 1: Informacje Transportowe
+                PdfPTable dataTable2 = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.3F, 0.3F, 0.3F, 0.20F, 0.3F, 0.20F, 0.3F });
+                dataTable2.WidthPercentage = 100;
+
+                // Nagłówki grupowe
+                AddMergedHeader(dataTable2, "Informacje Transportowe", tytulTablicy, 5);
+                AddMergedHeader(dataTable2, "Waga Hodowcy", tytulTablicy, 3);
+                AddMergedHeader(dataTable2, "Waga Ubojni", tytulTablicy, 3);
+                AddMergedHeader(dataTable2, "Ubytki transportowe ustalone i wyliczone", tytulTablicy, 5);
+
+                // Nagłówki kolumn
+                AddTableHeader(dataTable2, "Lp.", smallTextFont);
+                AddTableHeader(dataTable2, "Nr. Auta", smallTextFont);
+                AddTableHeader(dataTable2, "Nr. Naczepy", smallTextFont);
+                AddTableHeader(dataTable2, "Czas Przyjazdu", smallTextFont);
+                AddTableHeader(dataTable2, "Czas Załadunku", smallTextFont);
+                AddTableHeader(dataTable2, "Hodowca Brutto", smallTextFont);
+                AddTableHeader(dataTable2, "Hodowca Tara", smallTextFont);
+                AddTableHeader(dataTable2, "Hodowca Netto", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Brutto", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Tara", smallTextFont);
+                AddTableHeader(dataTable2, "Ubojnia Netto", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek wyl. [KG]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek wyl. [%]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek ust. [KG]", smallTextFont);
+                AddTableHeader(dataTable2, "Ubytek ust. [%]", smallTextFont);
+                AddTableHeader(dataTable2, "Różnica", smallTextFont);
+
+                // Dane tabeli 1
+                for (int i = 0; i < ids.Count; i++)
                 {
-                    AddTableData(table, normalFont,
-                        row.Nr.ToString(),
-                        row.SztukiDek.ToString(),
-                        row.Padle.ToString(),
-                        row.LUMEL.ToString(),
-                        row.BruttoHodowcy ?? "-",
-                        row.TaraHodowcy ?? "-",
-                        row.NettoHodowcy ?? "-",
-                        row.BruttoUbojni ?? "-",
-                        row.TaraUbojni ?? "-",
-                        row.NettoUbojni ?? "-",
-                        row.Cena.ToString("F2"),
-                        row.PiK ? "TAK" : "NIE",
-                        row.Wartosc.ToString("N0") + " zł"
-                    );
+                    int id = ids[i];
+                    string numerAuta = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "CarID") ?? "";
+                    string numerNaczepy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "TrailerID") ?? "";
+                    DateTime godzinaDojazdy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "DojazdHodowca");
+                    DateTime godzinaZaladunku = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
+
+                    decimal wagaUBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
+                    decimal wagaUTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
+                    decimal wagaUNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    decimal wagaHBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
+                    decimal wagaHTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
+                    decimal wagaHNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+
+                    decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    decimal ubytek = ubytekProc ?? 0;
+
+                    string strUbytekWylKG = "0 kg", strUbytekWyl = "0.00 %", strUbytekUstKG = "0 kg", strUbytekUst = "0.00 %", strRoznica = "0 kg";
+                    if (ubytek != 0 && wagaHNetto > 0)
+                    {
+                        decimal ubytekWylKG = wagaHNetto - wagaUNetto;
+                        decimal ubytekWylProc = (ubytekWylKG / wagaHNetto) * 100;
+                        decimal ubytekUstKG = wagaHNetto * ubytek;
+                        decimal roznica = ubytekWylKG - ubytekUstKG;
+
+                        strUbytekWylKG = ubytekWylKG.ToString("N0") + " kg";
+                        strUbytekWyl = ubytekWylProc.ToString("0.00") + " %";
+                        strUbytekUstKG = ubytekUstKG.ToString("N0") + " kg";
+                        strUbytekUst = (ubytek * 100).ToString("0.00") + " %";
+                        strRoznica = roznica.ToString("N0") + " kg";
+                    }
+
+                    AddTableData(dataTable2, smallTextFont, (i + 1).ToString(), numerAuta, numerNaczepy,
+                        godzinaDojazdy.ToString("HH:mm"), godzinaZaladunku.ToString("HH:mm"),
+                        wagaHBrutto.ToString("N0") + " kg", wagaHTara.ToString("N0") + " kg", wagaHNetto.ToString("N0") + " kg",
+                        wagaUBrutto.ToString("N0") + " kg", wagaUTara.ToString("N0") + " kg", wagaUNetto.ToString("N0") + " kg",
+                        strUbytekWylKG, strUbytekWyl, strUbytekUstKG, strUbytekUst, strRoznica);
                 }
 
-                doc.Add(table);
+                dataTable2.SpacingAfter = 10f;
+                doc.Add(dataTable2);
+
+                // TABELA 2: Rozliczenie
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.35F });
+                dataTable.WidthPercentage = 100;
+
+                AddMergedHeader(dataTable, "Waga samochodowa", tytulTablicy, 4);
+                AddMergedHeader(dataTable, "Rozliczenie sztuk", tytulTablicy, 5);
+                AddMergedHeader(dataTable, "Rozliczenie kilogramów", tytulTablicy, 9);
+
+                AddTableHeader(dataTable, "Lp.", smallTextFont);
+                AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
+                AddTableHeader(dataTable, "Waga Tara", smallTextFont);
+                AddTableHeader(dataTable, "Waga Netto", smallTextFont);
+                AddTableHeader(dataTable, "Sztuki Całość", smallTextFont);
+                AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
+                AddTableHeader(dataTable, "Sztuki Padłe", smallTextFont);
+                AddTableHeader(dataTable, "Konfiskaty", smallTextFont);
+                AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
+                AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Konf. [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Opas. [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Ubytek [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Klasa B [KG]", smallTextFont);
+                AddTableHeader(dataTable, "KG do Zapłaty", smallTextFont);
+                AddTableHeader(dataTable, "Cena netto", smallTextFont);
+                AddTableHeader(dataTable, "Wartość netto", smallTextFont);
+
+                // Dane tabeli 2
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    int id = ids[i];
+                    bool czyPiK = zapytaniasql.PobierzInformacjeZBazyDanych<bool>(id, "[LibraNet].[dbo].[FarmerCalc]", "IncDeadConf");
+                    decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    decimal ubytek = ubytekProc ?? 0;
+
+                    decimal wagaBrutto, wagaTara, wagaNetto;
+                    if (ubytek != 0)
+                    {
+                        wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
+                        wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
+                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    }
+                    else
+                    {
+                        wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
+                        wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
+                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    }
+
+                    int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
+                    int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
+                                     zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
+                                     zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
+                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
+                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+
+                    decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
+                    decimal padleKG = czyPiK ? 0 : Math.Round(padle * sredniaWaga, 0);
+                    decimal konfiskatyKG = czyPiK ? 0 : Math.Round(konfiskaty * sredniaWaga, 0);
+                    decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
+                    decimal ubytekKG = Math.Round(wagaNetto * ubytek, 0);
+                    decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
+
+                    decimal sumaDoZaplaty = czyPiK
+                        ? wagaNetto - opasienieKG - ubytekKG - klasaB
+                        : wagaNetto - padleKG - konfiskatyKG - opasienieKG - ubytekKG - klasaB;
+
+                    decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
+                    decimal wartosc = cena * sumaDoZaplaty;
+
+                    sumaWartosc += wartosc;
+                    sumaKG += sumaDoZaplaty;
+
+                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(),
+                        wagaBrutto.ToString("N0") + " kg", wagaTara.ToString("N0") + " kg", wagaNetto.ToString("N0") + " kg",
+                        sztWszystkie + " szt", sredniaWaga.ToString("0.00") + " kg",
+                        padle + " szt", konfiskaty + " szt", sztZdatne + " szt",
+                        wagaNetto.ToString("N0") + " kg",
+                        "- " + padleKG.ToString("N0") + " kg",
+                        "- " + konfiskatyKG.ToString("N0") + " kg",
+                        "- " + opasienieKG.ToString("N0") + " kg",
+                        "- " + ubytekKG.ToString("N0") + " kg",
+                        "- " + klasaB.ToString("N0") + " kg",
+                        sumaDoZaplaty.ToString("N0") + " kg",
+                        cena.ToString("0.00") + " zł/kg",
+                        Math.Round(wartosc, 0).ToString("N0") + " zł");
+                }
+
+                doc.Add(dataTable);
+
+                // Informacja
+                Paragraph italicText = new Paragraph("W celu uproszczenia wyliczeń, waga kurczaka wyrażona w kilogramach będzie zaokrąglana do pełnych kilogramów.", ItalicFont);
+                italicText.Alignment = Element.ALIGN_CENTER;
+                doc.Add(italicText);
+
+                // Typ ceny
+                int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
+                string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
+                Paragraph typCenaP = new Paragraph($"Typ Ceny: {typCeny}", ItalicFont) { Alignment = Element.ALIGN_RIGHT };
+                doc.Add(typCenaP);
+
+                // Podsumowanie
+                Paragraph summaryKG = new Paragraph($"Suma kilogramów: {sumaKG:N0} kg", textFont) { Alignment = Element.ALIGN_RIGHT };
+                doc.Add(summaryKG);
+                Paragraph summaryZL = new Paragraph($"Suma wartości netto: {sumaWartosc:N0} zł", textFont) { Alignment = Element.ALIGN_RIGHT };
+                doc.Add(summaryZL);
+
                 doc.Close();
             }
 
-            MessageBox.Show($"Wygenerowano dokument PDF:\n{Path.GetFileName(filePath)}\n\nŚcieżka:\n{filePath}",
-                "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (showMessage)
+            {
+                MessageBox.Show($"Wygenerowano dokument PDF:\n{Path.GetFileName(filePath)}\n\nŚcieżka:\n{filePath}",
+                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
-        private void AddTableHeader(PdfPTable table, string columnName, iTextSharp.text.Font font)
+        private void AddMergedHeader(PdfPTable table, string text, Font font, int colspan)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font))
+            {
+                Colspan = colspan,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                HorizontalAlignment = Element.ALIGN_CENTER
+            };
+            table.AddCell(cell);
+        }
+
+        private void AddTableHeader(PdfPTable table, string columnName, Font font)
         {
             PdfPCell cell = new PdfPCell(new Phrase(columnName, font))
             {
                 BackgroundColor = BaseColor.LIGHT_GRAY,
                 HorizontalAlignment = Element.ALIGN_CENTER,
-                Padding = 5
+                Padding = 3
             };
             table.AddCell(cell);
         }
 
-        private void AddTableData(PdfPTable table, iTextSharp.text.Font font, params string[] values)
+        private void AddTableData(PdfPTable table, Font font, params string[] values)
         {
             foreach (string value in values)
             {
                 PdfPCell cell = new PdfPCell(new Phrase(value, font))
                 {
                     HorizontalAlignment = Element.ALIGN_CENTER,
-                    Padding = 4
+                    Padding = 2
                 };
                 table.AddCell(cell);
             }
