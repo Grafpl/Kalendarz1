@@ -459,13 +459,25 @@ namespace Kalendarz1.Opakowania.Converters
         {
             if (value is TypOpakowania typ)
             {
-                return typ switch
+                return typ.Kod switch
                 {
-                    TypOpakowania.E2 => "📦",
-                    TypOpakowania.H1 => "🎨",
-                    TypOpakowania.EURO => "🟩",
-                    TypOpakowania.PCV => "🟪",
-                    TypOpakowania.DREW => "🟫",
+                    "E2" => "📦",
+                    "H1" => "🎨",
+                    "EURO" => "🟩",
+                    "PCV" => "🟪",
+                    "DREW" => "🟫",
+                    _ => "📦"
+                };
+            }
+            if (value is string kod)
+            {
+                return kod switch
+                {
+                    "E2" => "📦",
+                    "H1" => "🎨",
+                    "EURO" => "🟩",
+                    "PCV" => "🟪",
+                    "DREW" => "🟫",
                     _ => "📦"
                 };
             }
@@ -485,19 +497,21 @@ namespace Kalendarz1.Opakowania.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            string kod = null;
             if (value is TypOpakowania typ)
+                kod = typ.Kod;
+            else if (value is string s)
+                kod = s;
+
+            return kod switch
             {
-                return typ switch
-                {
-                    TypOpakowania.E2 => new SolidColorBrush(Color.FromRgb(52, 152, 219)), // #3498DB
-                    TypOpakowania.H1 => new SolidColorBrush(Color.FromRgb(230, 126, 34)), // #E67E22
-                    TypOpakowania.EURO => new SolidColorBrush(Color.FromRgb(39, 174, 96)), // #27AE60
-                    TypOpakowania.PCV => new SolidColorBrush(Color.FromRgb(155, 89, 182)), // #9B59B6
-                    TypOpakowania.DREW => new SolidColorBrush(Color.FromRgb(243, 156, 18)), // #F39C12
-                    _ => new SolidColorBrush(Color.FromRgb(127, 140, 141)) // #7F8C8D
-                };
-            }
-            return new SolidColorBrush(Color.FromRgb(127, 140, 141));
+                "E2" => new SolidColorBrush(Color.FromRgb(52, 152, 219)), // #3498DB
+                "H1" => new SolidColorBrush(Color.FromRgb(230, 126, 34)), // #E67E22
+                "EURO" => new SolidColorBrush(Color.FromRgb(39, 174, 96)), // #27AE60
+                "PCV" => new SolidColorBrush(Color.FromRgb(155, 89, 182)), // #9B59B6
+                "DREW" => new SolidColorBrush(Color.FromRgb(243, 156, 18)), // #F39C12
+                _ => new SolidColorBrush(Color.FromRgb(127, 140, 141)) // #7F8C8D
+            };
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -513,19 +527,21 @@ namespace Kalendarz1.Opakowania.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            string kod = null;
             if (value is TypOpakowania typ)
+                kod = typ.Kod;
+            else if (value is string s)
+                kod = s;
+
+            return kod switch
             {
-                return typ switch
-                {
-                    TypOpakowania.E2 => new SolidColorBrush(Color.FromRgb(235, 245, 255)), // #EBF5FF
-                    TypOpakowania.H1 => new SolidColorBrush(Color.FromRgb(255, 247, 237)), // #FFF7ED
-                    TypOpakowania.EURO => new SolidColorBrush(Color.FromRgb(232, 245, 233)), // #E8F5E9
-                    TypOpakowania.PCV => new SolidColorBrush(Color.FromRgb(243, 232, 255)), // #F3E8FF
-                    TypOpakowania.DREW => new SolidColorBrush(Color.FromRgb(254, 243, 199)), // #FEF3C7
-                    _ => new SolidColorBrush(Color.FromRgb(248, 249, 250)) // #F8F9FA
-                };
-            }
-            return new SolidColorBrush(Color.FromRgb(248, 249, 250));
+                "E2" => new SolidColorBrush(Color.FromRgb(235, 245, 255)), // #EBF5FF
+                "H1" => new SolidColorBrush(Color.FromRgb(255, 247, 237)), // #FFF7ED
+                "EURO" => new SolidColorBrush(Color.FromRgb(232, 245, 233)), // #E8F5E9
+                "PCV" => new SolidColorBrush(Color.FromRgb(243, 232, 255)), // #F3E8FF
+                "DREW" => new SolidColorBrush(Color.FromRgb(254, 243, 199)), // #FEF3C7
+                _ => new SolidColorBrush(Color.FromRgb(248, 249, 250)) // #F8F9FA
+            };
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -325,6 +325,22 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
+                            <!-- Numer auta u hodowcy -->
+                            <DataGridTemplateColumn Header="Auto" Width="55" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0}/{1}">
+                                                    <Binding Path="AutoNrUHodowcy"/>
+                                                    <Binding Path="IloscAutUHodowcy"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <!-- Waga deklarowana -->
                             <DataGridTextColumn Header="Waga Dek (kg)" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
@@ -392,16 +408,7 @@
                             <DataGridComboBoxColumn x:Name="colWozek"
                                                     Header="Wózek"
                                                     SelectedValueBinding="{Binding NotkaWozek}"
-                                                    Width="150">
-                                <DataGridComboBoxColumn.ItemsSource>
-                                    <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
-                                        <sys:String></sys:String>
-                                        <sys:String>Wieziesz wózek</sys:String>
-                                        <sys:String>Przywozisz wózek</sys:String>
-                                        <sys:String>Wózek w obie strony</sys:String>
-                                    </x:Array>
-                                </DataGridComboBoxColumn.ItemsSource>
-                            </DataGridComboBoxColumn>
+                                                    Width="150"/>
 
                             <!-- Odległość (KM) -->
                             <DataGridTextColumn Header="KM" Binding="{Binding Odleglosc}" Width="70" IsReadOnly="True">

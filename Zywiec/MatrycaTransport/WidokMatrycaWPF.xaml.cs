@@ -35,6 +35,15 @@ namespace Kalendarz1
             matrycaData = new ObservableCollection<MatrycaRow>();
             dataGridMatryca.ItemsSource = matrycaData;
             dateTimePicker1.SelectedDate = DateTime.Today;
+
+            // Ustawienie ItemsSource dla ComboBox Wózek
+            colWozek.ItemsSource = new List<string>
+            {
+                "",
+                "Wieziesz wózek",
+                "Przywozisz wózek",
+                "Wózek w obie strony"
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -136,6 +145,7 @@ namespace Kalendarz1
                     else
                     {
                         // Dane z HarmonogramDostaw (nowe - z harmonogramu)
+                        // Pobieramy kolumnę Auta aby wiedzieć ile wierszy utworzyć
                         string query = @"
                             SELECT
                                 CAST(0 AS BIGINT) AS ID,
@@ -143,6 +153,7 @@ namespace Kalendarz1
                                 Dostawca AS CustomerGID,
                                 WagaDek,
                                 SztSzuflada AS SztPoj,
+                                ISNULL(Auta, 1) AS Auta,
                                 CAST(NULL AS INT) AS DriverGID,
                                 CAST(NULL AS VARCHAR(50)) AS CarID,
                                 CAST(NULL AS VARCHAR(50)) AS TrailerID,
@@ -169,6 +180,8 @@ namespace Kalendarz1
                     }
 
                     // Konwertuj na ObservableCollection
+                    int lpCounter = 1; // Licznik LP dla matrycy
+
                     foreach (DataRow row in table.Rows)
                     {
                         string customerGID = row["CustomerGID"]?.ToString() ?? "";
@@ -180,40 +193,81 @@ namespace Kalendarz1
                         // Pobierz dane hodowcy
                         if (!string.IsNullOrEmpty(customerGID))
                         {
-                            string idDostawcy = isFarmerCalc ? customerGID : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
-                            hodowcaNazwa = isFarmerCalc
-                                ? zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName")
-                                : customerGID;
-                            hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address");
-                            hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city");
-                            hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance");
+                            try
+                            {
+                                string idDostawcy = isFarmerCalc ? customerGID : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
+
+                                // Ustaw nazwę hodowcy
+                                if (isFarmerCalc && !string.IsNullOrEmpty(customerGID))
+                                {
+                                    hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName") ?? "";
+                                }
+                                else
+                                {
+                                    hodowcaNazwa = customerGID;
+                                }
+
+                                // Pobierz dodatkowe dane tylko jeśli idDostawcy jest prawidłowy
+                                if (!string.IsNullOrEmpty(idDostawcy) && idDostawcy != "-1" && idDostawcy != "0")
+                                {
+                                    hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
+                                    hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
+                                    hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance") ?? "";
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych hodowcy {customerGID}: {ex.Message}");
+                                // Kontynuuj bez danych hodowcy
+                            }
                         }
 
-                        var matrycaRow = new MatrycaRow
+                        // Ile aut jedzie do tego hodowcy?
+                        // Dla danych z FarmerCalc - 1 wiersz (już zapisane)
+                        // Dla danych z HarmonogramDostaw - tyle ile kolumna Auta
+                        int iloscAut = 1;
+                        if (!isFarmerCalc && table.Columns.Contains("Auta"))
                         {
-                            ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
-                            LpDostawy = row["LpDostawy"]?.ToString() ?? "",
-                            CustomerGID = customerGID,
-                            HodowcaNazwa = hodowcaNazwa,
-                            WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
-                            SztPoj = row["SztPoj"] != DBNull.Value ? Convert.ToInt32(row["SztPoj"]) : 0,
-                            DriverGID = row["DriverGID"] != DBNull.Value ? Convert.ToInt32(row["DriverGID"]) : (int?)null,
-                            CarID = row["CarID"]?.ToString(),
-                            TrailerID = row["TrailerID"]?.ToString(),
-                            Wyjazd = row["Wyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Wyjazd"]) : (DateTime?)null,
-                            Zaladunek = row["Zaladunek"] != DBNull.Value ? Convert.ToDateTime(row["Zaladunek"]) : (DateTime?)null,
-                            Przyjazd = row["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Przyjazd"]) : (DateTime?)null,
-                            NotkaWozek = row["NotkaWozek"]?.ToString(),
-                            Adres = hodowcaAdres,
-                            Miejscowosc = hodowcaMiejscowosc,
-                            Odleglosc = hodowcaOdleglosc,
-                            IsFarmerCalc = isFarmerCalc
-                        };
+                            iloscAut = row["Auta"] != DBNull.Value ? Convert.ToInt32(row["Auta"]) : 1;
+                            if (iloscAut < 1) iloscAut = 1;
+                        }
 
-                        matrycaData.Add(matrycaRow);
+                        // Pobierz oryginalne LP z HarmonogramDostaw
+                        string oryginalneLP = row["LpDostawy"]?.ToString() ?? "";
+
+                        // Twórz tyle wierszy ile aut
+                        for (int autoNr = 0; autoNr < iloscAut; autoNr++)
+                        {
+                            var matrycaRow = new MatrycaRow
+                            {
+                                ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
+                                LpDostawy = lpCounter.ToString(),
+                                OryginalneLP = oryginalneLP,  // Oryginalne LP z HarmonogramDostaw do zapytań
+                                CustomerGID = customerGID,
+                                HodowcaNazwa = hodowcaNazwa,
+                                WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
+                                SztPoj = row["SztPoj"] != DBNull.Value ? Convert.ToInt32(row["SztPoj"]) : 0,
+                                DriverGID = row["DriverGID"] != DBNull.Value ? Convert.ToInt32(row["DriverGID"]) : (int?)null,
+                                CarID = row["CarID"]?.ToString(),
+                                TrailerID = row["TrailerID"]?.ToString(),
+                                Wyjazd = row["Wyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Wyjazd"]) : (DateTime?)null,
+                                Zaladunek = row["Zaladunek"] != DBNull.Value ? Convert.ToDateTime(row["Zaladunek"]) : (DateTime?)null,
+                                Przyjazd = row["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(row["Przyjazd"]) : (DateTime?)null,
+                                NotkaWozek = row["NotkaWozek"]?.ToString(),
+                                Adres = hodowcaAdres,
+                                Miejscowosc = hodowcaMiejscowosc,
+                                Odleglosc = hodowcaOdleglosc,
+                                IsFarmerCalc = isFarmerCalc,
+                                AutoNrUHodowcy = autoNr + 1,  // Numer auta u hodowcy (1, 2, 3...)
+                                IloscAutUHodowcy = iloscAut   // Całkowita liczba aut u hodowcy
+                            };
+
+                            matrycaData.Add(matrycaRow);
+                            lpCounter++;
+                        }
                     }
 
-                    UpdateStatus($"Załadowano {table.Rows.Count} rekordów" + (isFarmerCalc ? " (z FarmerCalc)" : " (z Harmonogramu)"));
+                    UpdateStatus($"Załadowano {matrycaData.Count} wierszy (aut)" + (isFarmerCalc ? " (z FarmerCalc)" : " (z Harmonogramu)"));
                 }
             }
             catch (Exception ex)
@@ -617,12 +671,28 @@ namespace Kalendarz1
                                 double Cena = 0.0;
                                 int intTypCeny = -1;
 
-                                if (!string.IsNullOrWhiteSpace(row.LpDostawy))
+                                // Używamy OryginalneLP do pobierania danych z HarmonogramDostaw
+                                string lpDoZapytan = !string.IsNullOrEmpty(row.OryginalneLP) ? row.OryginalneLP : row.LpDostawy;
+
+                                if (!string.IsNullOrWhiteSpace(lpDoZapytan))
                                 {
-                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "Ubytek"), out Ubytek);
-                                    double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "Cena"), out Cena);
-                                    string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(row.LpDostawy, "TypCeny");
-                                    intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                    try
+                                    {
+                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Ubytek"), out Ubytek);
+                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Cena"), out Cena);
+                                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "TypCeny");
+
+                                        // Tylko wywołuj ZnajdzIdCeny jeśli typCeny nie jest pusty
+                                        if (!string.IsNullOrWhiteSpace(typCeny))
+                                        {
+                                            intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dla LP {lpDoZapytan}: {ex.Message}");
+                                        // Kontynuuj z domyślnymi wartościami
+                                    }
                                 }
 
                                 int userId2 = row.IsFarmerCalc
@@ -745,6 +815,9 @@ namespace Kalendarz1
         private string _miejscowosc;
         private string _odleglosc;
         private bool _isFarmerCalc;
+        private int _autoNrUHodowcy;
+        private int _iloscAutUHodowcy;
+        private string _oryginalneLP;
 
         public long ID
         {
@@ -846,6 +919,24 @@ namespace Kalendarz1
         {
             get => _isFarmerCalc;
             set { _isFarmerCalc = value; OnPropertyChanged(nameof(IsFarmerCalc)); }
+        }
+
+        public int AutoNrUHodowcy
+        {
+            get => _autoNrUHodowcy;
+            set { _autoNrUHodowcy = value; OnPropertyChanged(nameof(AutoNrUHodowcy)); }
+        }
+
+        public int IloscAutUHodowcy
+        {
+            get => _iloscAutUHodowcy;
+            set { _iloscAutUHodowcy = value; OnPropertyChanged(nameof(IloscAutUHodowcy)); }
+        }
+
+        public string OryginalneLP
+        {
+            get => _oryginalneLP;
+            set { _oryginalneLP = value; OnPropertyChanged(nameof(OryginalneLP)); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

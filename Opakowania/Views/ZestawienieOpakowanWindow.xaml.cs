@@ -142,12 +142,21 @@ namespace Kalendarz1.Opakowania.Views
 
         private void MenuEksportExcel_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.EksportExcelCommand?.Execute(null);
+            // TODO: Implementacja eksportu Excel
+            MessageBox.Show("Funkcja eksportu do Excel zostanie wkrótce zaimplementowana.", "Eksport Excel", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void MenuEksportPDF_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.EksportPDFCommand?.Execute(null);
+            // Użyj istniejącej komendy GenerujPDF jeśli jest wybrany kontrahent
+            if (_viewModel.WybranyKontrahent != null)
+            {
+                _viewModel.GenerujPDFCommand?.Execute(null);
+            }
+            else
+            {
+                MessageBox.Show("Wybierz kontrahenta, aby wygenerować PDF.", "Eksport PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         #endregion
