@@ -275,42 +275,53 @@ namespace Kalendarz1
         private void DataGridView1_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
-            if (cell != null && !cell.IsEditing && !cell.IsReadOnly)
+            if (cell == null || cell.IsEditing) return;
+
+            // Sprawdź czy kolumna jest edytowalna (sprawdź kolumnę, nie komórkę)
+            var column = cell.Column;
+            if (column == null) return;
+
+            // Dla DataGridTemplateColumn sprawdź czy ma CellEditingTemplate
+            bool isEditable = !column.IsReadOnly;
+            if (column is DataGridTemplateColumn templateColumn)
             {
-                // Pobierz wiersz i ustaw CurrentCell (bez SelectedItem bo SelectionUnit=Cell)
-                var row = FindVisualParent<DataGridRow>(cell);
-                if (row != null)
-                {
-                    dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
-                    // Zaktualizuj selectedRow dla innych operacji
-                    selectedRow = row.Item as SpecyfikacjaRow;
-                }
-
-                if (!cell.IsFocused)
-                {
-                    cell.Focus();
-                }
-
-                // Rozpocznij edycję z opóźnieniem dla template columns
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    if (!cell.IsEditing)
-                    {
-                        dataGridView1.BeginEdit();
-
-                        // Dla template columns - znajdź i aktywuj TextBox
-                        Dispatcher.BeginInvoke(new Action(() =>
-                        {
-                            var textBox = FindVisualChild<TextBox>(cell);
-                            if (textBox != null)
-                            {
-                                textBox.Focus();
-                                textBox.SelectAll();
-                            }
-                        }), System.Windows.Threading.DispatcherPriority.Input);
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Background);
+                isEditable = templateColumn.CellEditingTemplate != null;
             }
+
+            if (!isEditable) return;
+
+            // Pobierz wiersz i ustaw CurrentCell
+            var row = FindVisualParent<DataGridRow>(cell);
+            if (row != null)
+            {
+                dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
+                selectedRow = row.Item as SpecyfikacjaRow;
+            }
+
+            if (!cell.IsFocused)
+            {
+                cell.Focus();
+            }
+
+            // Rozpocznij edycję z opóźnieniem
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!cell.IsEditing)
+                {
+                    dataGridView1.BeginEdit();
+
+                    // Dla template columns - znajdź i aktywuj TextBox
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var textBox = FindVisualChild<TextBox>(cell);
+                        if (textBox != null)
+                        {
+                            textBox.Focus();
+                            textBox.SelectAll();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
