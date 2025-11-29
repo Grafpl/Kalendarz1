@@ -264,16 +264,6 @@ namespace Kalendarz1
             }
         }
 
-        private void DataGridView1_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            var row = e.Row.Item as SpecyfikacjaRow;
-            if (row != null && row.PiK)
-            {
-                // Wiersze z PiK mają inny kolor - padłe i konfiskaty NIE są odejmowane
-                e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Jasny pomarańczowy
-            }
-        }
-
         private void UpdateDatabaseRow(SpecyfikacjaRow row, string columnName)
         {
             try

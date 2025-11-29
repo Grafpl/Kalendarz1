@@ -10,6 +10,9 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <!-- BooleanToVisibility converter -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
         <!-- Główny styl przycisków -->
         <Style x:Key="MainButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#5C8A3A"/>
@@ -80,6 +83,91 @@
 
         <Style x:Key="CenaHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
             <Setter Property="Background" Value="#1976D2"/>
+        </Style>
+
+        <!-- Style dla komórek -->
+        <Style x:Key="CellStyleOrange" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#FFF3E0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FFE0B2"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStyleYellow" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#FFECB3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FFD54F"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStyleGreen" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#C8E6C9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#A5D6A7"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStyleGreenDark" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#A5D6A7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#81C784"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStylePurple" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#E1BEE7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#CE93D8"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStyleBlue" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#BBDEFB"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#90CAF9"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CellStyleRed" TargetType="DataGridCell">
+            <Setter Property="Background" Value="#FFCDD2"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#EF9A9A"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -175,15 +263,14 @@
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
-                      RowHeight="40"
+                      RowHeight="36"
                       Background="White"
                       BorderThickness="0"
                       FontSize="12"
                       AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
-                      SelectionChanged="DataGridView1_SelectionChanged"
-                      LoadingRow="DataGridView1_LoadingRow">
+                      SelectionChanged="DataGridView1_SelectionChanged">
 
                 <DataGrid.Columns>
                     <!-- LP -->
@@ -200,13 +287,18 @@
 
                     <!-- Dostawca - ComboBox -->
                     <DataGridTemplateColumn Header="Dostawca" Width="150">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E8F5E9"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Dostawca}"
                                            VerticalAlignment="Center"
                                            Padding="5,0"
-                                           FontWeight="SemiBold"
-                                           Background="#E8F5E9"/>
+                                           FontWeight="SemiBold"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
@@ -215,140 +307,216 @@
                                           SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
-                                          Background="#C8E6C9"
                                           Loaded="CboDostawca_Loaded"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- DEKLARACJE - edytowalne (pomarańczowy nagłówek) -->
+                    <!-- Szt.Dek -->
                     <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleOrange}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Background" Value="#FFF3E0"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#FFE0B2"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
-                    <DataGridTextColumn Header="Padłe" Binding="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="55" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- Padłe - skreślone gdy PiK -->
+                    <DataGridTemplateColumn Header="Padłe" Width="55" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#FFCCBC"/>
-                                <Setter Property="Foreground" Value="#BF360C"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#FFAB91"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Padle}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#BF360C"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PiK}" Value="True">
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="CH" Binding="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- CH - skreślone gdy PiK -->
+                    <DataGridTemplateColumn Header="CH" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#FFF3E0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#FFE0B2"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CH}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PiK}" Value="True">
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="NW" Binding="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- NW - skreślone gdy PiK -->
+                    <DataGridTemplateColumn Header="NW" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#FFF3E0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#FFE0B2"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding NW}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PiK}" Value="True">
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="ZM" Binding="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- ZM - skreślone gdy PiK -->
+                    <DataGridTemplateColumn Header="ZM" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#FFF3E0"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#FFE0B2"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ZM}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PiK}" Value="True">
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
+                    <!-- LUMEL -->
                     <DataGridTextColumn Header="LUMEL" Binding="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
+                                        CellStyle="{StaticResource CellStylePurple}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#8E24AA"/>
-                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="Foreground" Value="#7B1FA2"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#CE93D8"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- WAGI HODOWCY - tylko do odczytu (z Avilog) -->
+                    <!-- WAGI HODOWCY -->
                     <DataGridTextColumn Header="Brutto H" Binding="{Binding BruttoHodowcy}" Width="80"
-                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiHodowcyHeaderStyle}">
+                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiHodowcyHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="Background" Value="#FFECB3"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
                     <DataGridTextColumn Header="Tara H" Binding="{Binding TaraHodowcy}" Width="70"
-                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiHodowcyHeaderStyle}">
+                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiHodowcyHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="Background" Value="#FFECB3"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
                     <DataGridTextColumn Header="Netto H" Binding="{Binding NettoHodowcy}" Width="85"
                                         IsReadOnly="True" HeaderStyle="{StaticResource WagiHodowcyHeaderStyle}">
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#FFE0B2"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -356,38 +524,38 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Foreground" Value="#E65100"/>
-                                <Setter Property="Background" Value="#FFE0B2"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- WAGI UBOJNI - tylko do odczytu (z Avilog) -->
+                    <!-- WAGI UBOJNI -->
                     <DataGridTextColumn Header="Brutto U" Binding="{Binding BruttoUbojni}" Width="80"
-                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}">
+                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleGreen}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="Background" Value="#C8E6C9"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
                     <DataGridTextColumn Header="Tara U" Binding="{Binding TaraUbojni}" Width="70"
-                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}">
+                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleGreen}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="Background" Value="#C8E6C9"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
                     <DataGridTextColumn Header="Netto U" Binding="{Binding NettoUbojni}" Width="85"
-                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}">
+                                        IsReadOnly="True" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleGreenDark}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -395,48 +563,38 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Foreground" Value="#1B5E20"/>
-                                <Setter Property="Background" Value="#A5D6A7"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- WYBIJAK - edytowalne (fioletowy nagłówek) -->
+                    <!-- WYBIJAK -->
                     <DataGridTextColumn Header="Szt.Wyb" Binding="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                                        Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}"
+                                        CellStyle="{StaticResource CellStylePurple}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Background" Value="#E1BEE7"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#CE93D8"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
                     <DataGridTextColumn Header="KG Wyb" Binding="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
-                                        Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                                        Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}"
+                                        CellStyle="{StaticResource CellStylePurple}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="Background" Value="#E1BEE7"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#CE93D8"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- CENA I UBYTEK - edytowalne (niebieski nagłówek) -->
+                    <!-- CENA -->
                     <DataGridTextColumn Header="Cena" Binding="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
-                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleBlue}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -444,38 +602,38 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Foreground" Value="#1565C0"/>
-                                <Setter Property="Background" Value="#BBDEFB"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#90CAF9"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
                     <!-- Typ Ceny - ComboBox -->
-                    <DataGridTemplateColumn Header="Typ Ceny" Width="110" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                    <DataGridTemplateColumn Header="Typ Ceny" Width="100" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#BBDEFB"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding TypCeny}"
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Center"
-                                           Background="#BBDEFB"
                                            FontSize="11"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <ComboBox SelectedItem="{Binding TypCeny, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          Background="#90CAF9"
                                           Loaded="CboTypCeny_Loaded"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
+                    <!-- Ubytek -->
                     <DataGridTextColumn Header="Ubytek%" Binding="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
-                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleRed}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -483,17 +641,11 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="Foreground" Value="#C62828"/>
-                                <Setter Property="Background" Value="#FFCDD2"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.EditingElementStyle>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Background" Value="#EF9A9A"/>
-                            </Style>
-                        </DataGridTextColumn.EditingElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- PiK checkbox - Padłe i Konfiskaty wliczone -->
+                    <!-- PiK checkbox -->
                     <DataGridCheckBoxColumn Header="PiK" Binding="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             Width="45" HeaderStyle="{StaticResource CenaHeaderStyle}">
                         <DataGridCheckBoxColumn.ElementStyle>
@@ -504,9 +656,10 @@
                         </DataGridCheckBoxColumn.ElementStyle>
                     </DataGridCheckBoxColumn>
 
-                    <!-- Wartość obliczona -->
+                    <!-- Wartość -->
                     <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N0} zł}"
-                                        Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                                        Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleGreenDark}">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -514,7 +667,6 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Foreground" Value="#1B5E20"/>
-                                <Setter Property="Background" Value="#A5D6A7"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
@@ -522,7 +674,7 @@
             </DataGrid>
         </Border>
 
-        <!-- PANEL LUMEL (ukryty domyślnie) -->
+        <!-- PANEL LUMEL -->
         <Border x:Name="lumelPanel"
                 Grid.Row="2"
                 Background="White"
@@ -615,10 +767,18 @@
 
                 <!-- Legenda PiK -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,20,0">
-                    <TextBlock Text="PiK = Padłe i Konfiskaty wliczone (NIE odejmowane od zapłaty)"
+                    <TextBlock Text="PiK ="
                                Foreground="#C62828"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text=" Padłe/CH/NW/ZM "
+                               Foreground="#C62828"
+                               FontWeight="Bold"
+                               TextDecorations="Strikethrough"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="(wliczone, nie odejmowane)"
+                               Foreground="#666"
                                FontStyle="Italic"
-                               FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
