@@ -344,21 +344,40 @@ namespace Kalendarz1
         // Rozpocznij edycję po naciśnięciu klawisza (cyfry, litery)
         private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            var cell = dataGridView1.CurrentCell;
-            if (cell.Column != null && !cell.Column.IsReadOnly)
+            var cellInfo = dataGridView1.CurrentCell;
+            if (cellInfo.Column == null) return;
+
+            // Sprawdź czy kolumna jest edytowalna (tak samo jak w PreviewMouseLeftButtonDown)
+            bool isEditable = !cellInfo.Column.IsReadOnly;
+            if (cellInfo.Column is DataGridTemplateColumn templateColumn)
             {
-                var dataGridCell = GetDataGridCell(cell);
-                if (dataGridCell != null && !dataGridCell.IsEditing)
+                isEditable = templateColumn.CellEditingTemplate != null;
+            }
+
+            if (!isEditable) return;
+
+            var dataGridCell = GetDataGridCell(cellInfo);
+            if (dataGridCell != null && !dataGridCell.IsEditing)
+            {
+                // Sprawdź czy to jest klawisz alfanumeryczny
+                if ((e.Key >= Key.D0 && e.Key <= Key.D9) ||
+                    (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
+                    (e.Key >= Key.A && e.Key <= Key.Z) ||
+                    e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
+                    e.Key == Key.Decimal || e.Key == Key.OemMinus || e.Key == Key.Subtract)
                 {
-                    // Sprawdź czy to jest klawisz alfanumeryczny
-                    if ((e.Key >= Key.D0 && e.Key <= Key.D9) ||
-                        (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
-                        (e.Key >= Key.A && e.Key <= Key.Z) ||
-                        e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
-                        e.Key == Key.Decimal || e.Key == Key.OemMinus || e.Key == Key.Subtract)
+                    dataGridView1.BeginEdit();
+
+                    // Dla template columns - znajdź i aktywuj TextBox
+                    Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        dataGridView1.BeginEdit();
-                    }
+                        var textBox = FindVisualChild<TextBox>(dataGridCell);
+                        if (textBox != null)
+                        {
+                            textBox.Focus();
+                            textBox.SelectAll();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Input);
                 }
             }
         }

@@ -479,6 +479,9 @@ namespace Kalendarz1
             zapytaniasql.UpdateCzas(id2Specyfikacji, "WyjazdHodowca", wyjazdHodowcaData);
             zapytaniasql.UpdateCzas(id2Specyfikacji, "Przyjazd", powrotZakladData);
             zapytaniasql.UpdateCzas(id2Specyfikacji, "KoniecUslugi", koniecUslugiData);
+
+            // Zamknij okno po zapisaniu
+            this.Close();
         }
     }
 }
