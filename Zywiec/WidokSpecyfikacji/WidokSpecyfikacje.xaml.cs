@@ -958,23 +958,43 @@ namespace Kalendarz1
                 Font ItalicFont = new Font(baseFont, 8, Font.ITALIC, BaseColor.GRAY);
                 Font summaryFont = new Font(baseFont, 12, Font.BOLD, darkGreenColor);
 
-                // === NAGŁÓWEK ===
-                PdfPTable headerTable = new PdfPTable(2);
-                headerTable.WidthPercentage = 100;
-                headerTable.SetWidths(new float[] { 4f, 1.5f });
-                headerTable.SpacingAfter = 15f;
+                // === NAGŁÓWEK Z LOGO ===
+                // Pobierz info o wadze wcześniej
+                decimal? ubytekProcFirst = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                string wagaTyp = (ubytekProcFirst ?? 0) != 0 ? "Waga loco Hodowca" : "Waga loco Ubojnia";
 
-                // Tytuł po lewej
-                PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE };
-                Paragraph title = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", titleFont) { Alignment = Element.ALIGN_LEFT };
-                Paragraph subtitle = new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_LEFT };
+                PdfPTable headerTable = new PdfPTable(3);
+                headerTable.WidthPercentage = 100;
+                headerTable.SetWidths(new float[] { 1.2f, 3.5f, 1.3f });
+                headerTable.SpacingAfter = 10f;
+
+                // Logo po lewej
+                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                try
+                {
+                    string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
+                    if (File.Exists(logoPath))
+                    {
+                        iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
+                        logo.ScaleToFit(100f, 50f);
+                        logoCell.AddElement(logo);
+                    }
+                }
+                catch { }
+                headerTable.AddCell(logoCell);
+
+                // Tytuł na środku
+                PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                Paragraph title = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", titleFont) { Alignment = Element.ALIGN_CENTER };
+                Paragraph subtitle = new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_CENTER };
                 titleCell.AddElement(title);
                 titleCell.AddElement(subtitle);
                 headerTable.AddCell(titleCell);
 
-                // Numer dokumentu po prawej
+                // Numer dokumentu i waga po prawej
                 PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
                 docNumCell.AddElement(new Paragraph($"Nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
+                docNumCell.AddElement(new Paragraph(wagaTyp, new Font(baseFont, 8, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_RIGHT });
                 headerTable.AddCell(docNumCell);
 
                 doc.Add(headerTable);
@@ -1017,22 +1037,6 @@ namespace Kalendarz1
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
-
-                // === INFORMACJA O WADZE ===
-                decimal? ubytekProcFirst = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "Loss");
-                string wagaTyp = (ubytekProcFirst ?? 0) != 0 ? "Waga loco Hodowca" : "Waga loco Ubojnia";
-
-                PdfPTable wagaTable = new PdfPTable(1);
-                wagaTable.WidthPercentage = 100;
-                wagaTable.SpacingAfter = 10f;
-                PdfPCell wagaCell = new PdfPCell(new Phrase(wagaTyp, new Font(baseFont, 11, Font.BOLD | Font.ITALIC, blueColor)))
-                {
-                    Border = PdfPCell.NO_BORDER,
-                    HorizontalAlignment = Element.ALIGN_CENTER,
-                    Padding = 5
-                };
-                wagaTable.AddCell(wagaCell);
-                doc.Add(wagaTable);
 
                 // === GŁÓWNA TABELA ROZLICZENIA ===
                 // 16 kolumn: 4 waga + 4 sztuki + 8 kilogramów (bez ubytku)
@@ -1160,69 +1164,62 @@ namespace Kalendarz1
 
                 doc.Add(dataTable);
 
-                // === WZÓR OBLICZENIA ===
-                doc.Add(new Paragraph(" ") { SpacingBefore = 10f });
-
-                PdfPTable formulaTable = new PdfPTable(1);
-                formulaTable.WidthPercentage = 100;
-                formulaTable.SpacingAfter = 10f;
-
-                Font formulaTitleFont = new Font(baseFont, 9, Font.BOLD, darkGreenColor);
-                Font formulaFont = new Font(baseFont, 10, Font.NORMAL);
-                Font formulaBoldFont = new Font(baseFont, 10, Font.BOLD, blueColor);
-
-                PdfPCell formulaCell = new PdfPCell
-                {
-                    Border = PdfPCell.BOX,
-                    BorderColor = lightGreenColor,
-                    BackgroundColor = new BaseColor(248, 255, 248),
-                    Padding = 10
-                };
-
-                Paragraph formulaTitle = new Paragraph("Sposób obliczenia:", formulaTitleFont);
-                formulaCell.AddElement(formulaTitle);
-
-                Paragraph formulaLine = new Paragraph();
-                formulaLine.Add(new Chunk("Do zapłaty = ", formulaFont));
-                formulaLine.Add(new Chunk("Netto", formulaBoldFont));
-                formulaLine.Add(new Chunk(" - ", formulaFont));
-                formulaLine.Add(new Chunk("Padłe", formulaBoldFont));
-                formulaLine.Add(new Chunk(" - ", formulaFont));
-                formulaLine.Add(new Chunk("Konfiskaty", formulaBoldFont));
-                formulaLine.Add(new Chunk(" - ", formulaFont));
-                formulaLine.Add(new Chunk("Opasienie", formulaBoldFont));
-                formulaLine.Add(new Chunk(" - ", formulaFont));
-                formulaLine.Add(new Chunk("Klasa B", formulaBoldFont));
-                formulaCell.AddElement(formulaLine);
-
-                // Przykład z wartościami
-                Paragraph exampleLine = new Paragraph();
-                exampleLine.Add(new Chunk($"Do zapłaty = {sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = ", formulaFont));
-                exampleLine.Add(new Chunk($"{sumaKG:N0} kg", new Font(baseFont, 11, Font.BOLD, greenColor)));
-                formulaCell.AddElement(exampleLine);
-
-                formulaTable.AddCell(formulaCell);
-                doc.Add(formulaTable);
-
-                // === PODSUMOWANIE ===
-                // Typ ceny
+                // === PODSUMOWANIE I WZORY (kompaktowo) ===
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
 
-                // Ramka podsumowania
-                PdfPTable summaryTable = new PdfPTable(2);
-                summaryTable.WidthPercentage = 40;
-                summaryTable.HorizontalAlignment = Element.ALIGN_RIGHT;
+                // Średnia cena (jeśli różne ceny, pokaż średnią)
+                decimal avgCena = sumaKG > 0 ? sumaWartosc / sumaKG : 0;
 
-                AddSummaryRow(summaryTable, "Typ ceny:", typCeny, textFont, ItalicFont);
-                AddSummaryRow(summaryTable, "Suma kilogramów:", $"{sumaKG:N0} kg", textFontBold, summaryFont);
-                AddSummaryRow(summaryTable, "SUMA WARTOŚCI:", $"{sumaWartosc:N0} zł", summaryFont, new Font(baseFont, 14, Font.BOLD, greenColor));
+                // Tabela podsumowania z wartościami i wzorami
+                PdfPTable summaryTable = new PdfPTable(2);
+                summaryTable.WidthPercentage = 100;
+                summaryTable.SetWidths(new float[] { 1.5f, 1f });
+                summaryTable.SpacingBefore = 5f;
+
+                // Lewa kolumna - wzory (małe)
+                Font miniFont = new Font(baseFont, 7, Font.NORMAL, BaseColor.GRAY);
+                Font miniBoldFont = new Font(baseFont, 7, Font.BOLD, BaseColor.DARK_GRAY);
+
+                PdfPCell formulaCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 5, VerticalAlignment = Element.ALIGN_BOTTOM };
+
+                Paragraph formula1 = new Paragraph();
+                formula1.Add(new Chunk("Do zapłaty = Netto - Padłe - Konfiskaty - Opasienie - Kl.B", miniFont));
+                formulaCell.AddElement(formula1);
+
+                Paragraph formula1Example = new Paragraph();
+                formula1Example.Add(new Chunk($"= {sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = ", miniFont));
+                formula1Example.Add(new Chunk($"{sumaKG:N0} kg", miniBoldFont));
+                formulaCell.AddElement(formula1Example);
+
+                Paragraph formula2 = new Paragraph();
+                formula2.Add(new Chunk($"Wartość = Do zapłaty × Cena = {sumaKG:N0} × {avgCena:0.00} = ", miniFont));
+                formula2.Add(new Chunk($"{sumaWartosc:N0} zł", miniBoldFont));
+                formulaCell.AddElement(formula2);
+
+                summaryTable.AddCell(formulaCell);
+
+                // Prawa kolumna - podsumowanie (duże, czytelne)
+                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, Padding = 8, BackgroundColor = new BaseColor(248, 255, 248) };
+
+                Paragraph pTypCeny = new Paragraph($"Typ ceny: {typCeny}", new Font(baseFont, 9, Font.ITALIC, BaseColor.DARK_GRAY));
+                sumCell.AddElement(pTypCeny);
+
+                Paragraph pCena = new Paragraph($"Cena: {avgCena:0.00} zł/kg", new Font(baseFont, 10, Font.NORMAL));
+                sumCell.AddElement(pCena);
+
+                Paragraph pKG = new Paragraph($"Suma kg: {sumaKG:N0} kg", new Font(baseFont, 11, Font.BOLD, blueColor));
+                sumCell.AddElement(pKG);
+
+                Paragraph pWartosc = new Paragraph($"WARTOŚĆ: {sumaWartosc:N0} zł", new Font(baseFont, 14, Font.BOLD, greenColor));
+                sumCell.AddElement(pWartosc);
+
+                summaryTable.AddCell(sumCell);
 
                 doc.Add(summaryTable);
 
-                // Informacja na dole
-                doc.Add(new Paragraph(" ") { SpacingBefore = 10f });
-                Paragraph italicText = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", ItalicFont) { Alignment = Element.ALIGN_CENTER };
+                // Stopka
+                Paragraph italicText = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", new Font(baseFont, 7, Font.ITALIC, BaseColor.GRAY)) { Alignment = Element.ALIGN_CENTER, SpacingBefore = 5f };
                 doc.Add(italicText);
 
                 doc.Close();
