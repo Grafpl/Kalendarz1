@@ -277,13 +277,13 @@ namespace Kalendarz1
             var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
             if (cell != null && !cell.IsEditing && !cell.IsReadOnly)
             {
-                // Pobierz wiersz
+                // Pobierz wiersz i ustaw CurrentCell (bez SelectedItem bo SelectionUnit=Cell)
                 var row = FindVisualParent<DataGridRow>(cell);
                 if (row != null)
                 {
-                    // Zaznacz wiersz i komórkę
-                    dataGridView1.SelectedItem = row.Item;
                     dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
+                    // Zaktualizuj selectedRow dla innych operacji
+                    selectedRow = row.Item as SpecyfikacjaRow;
                 }
 
                 if (!cell.IsFocused)
@@ -292,27 +292,24 @@ namespace Kalendarz1
                 }
 
                 // Rozpocznij edycję z opóźnieniem dla template columns
-                if (dataGridView1.SelectionUnit != DataGridSelectionUnit.FullRow)
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    if (!cell.IsEditing)
                     {
-                        if (!cell.IsEditing)
-                        {
-                            dataGridView1.BeginEdit();
+                        dataGridView1.BeginEdit();
 
-                            // Dla template columns - znajdź i aktywuj TextBox
-                            Dispatcher.BeginInvoke(new Action(() =>
+                        // Dla template columns - znajdź i aktywuj TextBox
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            var textBox = FindVisualChild<TextBox>(cell);
+                            if (textBox != null)
                             {
-                                var textBox = FindVisualChild<TextBox>(cell);
-                                if (textBox != null)
-                                {
-                                    textBox.Focus();
-                                    textBox.SelectAll();
-                                }
-                            }), System.Windows.Threading.DispatcherPriority.Input);
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-                }
+                                textBox.Focus();
+                                textBox.SelectAll();
+                            }
+                        }), System.Windows.Threading.DispatcherPriority.Input);
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
             }
         }
 
