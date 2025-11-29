@@ -746,22 +746,37 @@ namespace Kalendarz1
 
         private void Button1_Click(object sender, RoutedEventArgs e)
         {
-            if (selectedRow != null)
+            // Pobierz aktualnie wybrany wiersz z CurrentCell
+            SpecyfikacjaRow currentRow = selectedRow;
+            if (currentRow == null && dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item is SpecyfikacjaRow row)
+            {
+                currentRow = row;
+            }
+
+            if (currentRow != null)
             {
                 try
                 {
-                    UpdateStatus("Generowanie PDF...");
+                    UpdateStatus($"Generowanie PDF dla: {currentRow.RealDostawca}...");
 
-                    // Zbierz wszystkie ID dla tego samego dostawcy
-                    List<int> ids = specyfikacjeData
-                        .Where(r => r.RealDostawca == selectedRow.RealDostawca)
-                        .Select(r => r.ID)
+                    // Zbierz wszystkie ID dla tego samego dostawcy (RealDostawca)
+                    var wierszeDoPDF = specyfikacjeData
+                        .Where(r => r.RealDostawca == currentRow.RealDostawca)
                         .ToList();
+
+                    List<int> ids = wierszeDoPDF.Select(r => r.ID).ToList();
 
                     if (ids.Count > 0)
                     {
                         GeneratePDFReport(ids);
-                        UpdateStatus("PDF wygenerowany pomyślnie");
+
+                        // Oznacz wszystkie wiersze tego dostawcy jako wydrukowane
+                        foreach (var wiersz in wierszeDoPDF)
+                        {
+                            wiersz.Wydrukowano = true;
+                        }
+
+                        UpdateStatus($"PDF wygenerowany dla: {currentRow.RealDostawca}");
                     }
                 }
                 catch (Exception ex)
@@ -875,6 +890,13 @@ namespace Kalendarz1
                     {
                         List<int> ids = grupa.Select(r => r.ID).ToList();
                         GeneratePDFReport(ids, false); // false = nie pokazuj MessageBox
+
+                        // Oznacz wszystkie wiersze tej grupy jako wydrukowane
+                        foreach (var wiersz in grupa)
+                        {
+                            wiersz.Wydrukowano = true;
+                        }
+
                         count++;
                     }
 
@@ -1361,6 +1383,13 @@ namespace Kalendarz1
         private string _typCeny;
         private bool _piK;
         private decimal _ubytek;
+        private bool _wydrukowano;
+
+        public bool Wydrukowano
+        {
+            get => _wydrukowano;
+            set { _wydrukowano = value; OnPropertyChanged(nameof(Wydrukowano)); }
+        }
 
         public int ID
         {

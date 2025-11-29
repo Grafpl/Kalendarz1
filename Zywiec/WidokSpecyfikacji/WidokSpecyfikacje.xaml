@@ -333,6 +333,21 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
+                    <!-- Wydrukowano - znaczek V -->
+                    <DataGridTemplateColumn Header="✓" Width="30" IsReadOnly="True">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="✓"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="Bold"
+                                           FontSize="16"
+                                           Foreground="#4CAF50"
+                                           Visibility="{Binding Wydrukowano, Converter={StaticResource BoolToVis}}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
                     <!-- Dostawca - ComboBox -->
                     <DataGridTemplateColumn Header="Dostawca" Width="150">
                         <DataGridTemplateColumn.CellStyle>
