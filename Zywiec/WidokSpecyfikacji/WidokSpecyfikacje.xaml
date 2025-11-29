@@ -201,15 +201,47 @@
 
                     <Border Background="#4B732F" CornerRadius="6" Padding="15,8" Margin="30,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Data:"
-                                       Foreground="#C8E6C9"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,10,0"/>
+                            <!-- Strzałka wstecz -->
+                            <Button Content="◀"
+                                    x:Name="btnPrevDay"
+                                    Click="BtnPrevDay_Click"
+                                    Background="Transparent"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="16"
+                                    Cursor="Hand"
+                                    Padding="8,0"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Poprzedni dzień"/>
+
                             <DatePicker x:Name="dateTimePicker1"
                                         SelectedDateChanged="DateTimePicker1_SelectedDateChanged"
                                         Width="140"
                                         FontSize="14"
-                                        Background="White"/>
+                                        Background="White"
+                                        Margin="5,0"/>
+
+                            <!-- Strzałka naprzód -->
+                            <Button Content="▶"
+                                    x:Name="btnNextDay"
+                                    Click="BtnNextDay_Click"
+                                    Background="Transparent"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="16"
+                                    Cursor="Hand"
+                                    Padding="8,0"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Następny dzień"/>
+
+                            <!-- Pełna data z dniem tygodnia -->
+                            <TextBlock x:Name="lblFullDate"
+                                       Text=""
+                                       Foreground="White"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Margin="15,0,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -259,7 +291,7 @@
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       SelectionMode="Single"
-                      SelectionUnit="FullRow"
+                      SelectionUnit="Cell"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
@@ -270,7 +302,9 @@
                       AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
-                      SelectionChanged="DataGridView1_SelectionChanged">
+                      SelectionChanged="DataGridView1_SelectionChanged"
+                      PreviewMouseLeftButtonDown="DataGridView1_PreviewMouseLeftButtonDown"
+                      PreviewKeyDown="DataGridView1_PreviewKeyDown">
 
                 <DataGrid.Columns>
                     <!-- LP -->

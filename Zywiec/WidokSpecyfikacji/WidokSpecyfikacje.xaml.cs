@@ -71,7 +71,36 @@ namespace Kalendarz1
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
+            UpdateFullDateLabel();
             UpdateStatus("Dane załadowane pomyślnie");
+        }
+
+        private void UpdateFullDateLabel()
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                var date = dateTimePicker1.SelectedDate.Value;
+                // Polska nazwa dnia tygodnia
+                string[] dniTygodnia = { "Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota" };
+                string dzienTygodnia = dniTygodnia[(int)date.DayOfWeek];
+                lblFullDate.Text = $"{dzienTygodnia}, {date:dd MMMM yyyy}";
+            }
+        }
+
+        private void BtnPrevDay_Click(object sender, RoutedEventArgs e)
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                dateTimePicker1.SelectedDate = dateTimePicker1.SelectedDate.Value.AddDays(-1);
+            }
+        }
+
+        private void BtnNextDay_Click(object sender, RoutedEventArgs e)
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                dateTimePicker1.SelectedDate = dateTimePicker1.SelectedDate.Value.AddDays(1);
+            }
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -113,6 +142,7 @@ namespace Kalendarz1
             if (dateTimePicker1.SelectedDate.HasValue)
             {
                 LoadData(dateTimePicker1.SelectedDate.Value);
+                UpdateFullDateLabel();
             }
         }
 
@@ -205,23 +235,27 @@ namespace Kalendarz1
             return string.Empty;
         }
 
-        // Event handler dla ComboBox Dostawcy
+        // Event handler dla ComboBox Dostawcy - automatyczne rozwijanie
         private void CboDostawca_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             if (comboBox != null)
             {
                 comboBox.ItemsSource = listaDostawcow;
+                // Automatyczne rozwinięcie listy
+                comboBox.IsDropDownOpen = true;
             }
         }
 
-        // Event handler dla ComboBox Typ Ceny
+        // Event handler dla ComboBox Typ Ceny - automatyczne rozwijanie
         private void CboTypCeny_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             if (comboBox != null)
             {
                 comboBox.ItemsSource = listaTypowCen;
+                // Automatyczne rozwinięcie listy
+                comboBox.IsDropDownOpen = true;
             }
         }
 
@@ -231,6 +265,75 @@ namespace Kalendarz1
             {
                 selectedRow = dataGridView1.SelectedItem as SpecyfikacjaRow;
             }
+            else if (dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item != null)
+            {
+                selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+            }
+        }
+
+        // Edycja po jednym kliknięciu
+        private void DataGridView1_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+            if (cell != null && !cell.IsEditing && !cell.IsReadOnly)
+            {
+                if (!cell.IsFocused)
+                {
+                    cell.Focus();
+                }
+
+                // Rozpocznij edycję
+                if (dataGridView1.SelectionUnit != DataGridSelectionUnit.FullRow)
+                {
+                    if (!cell.IsEditing)
+                    {
+                        dataGridView1.BeginEdit();
+                    }
+                }
+            }
+        }
+
+        // Rozpocznij edycję po naciśnięciu klawisza (cyfry, litery)
+        private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var cell = dataGridView1.CurrentCell;
+            if (cell.Column != null && !cell.Column.IsReadOnly)
+            {
+                var dataGridCell = GetDataGridCell(cell);
+                if (dataGridCell != null && !dataGridCell.IsEditing)
+                {
+                    // Sprawdź czy to jest klawisz alfanumeryczny
+                    if ((e.Key >= Key.D0 && e.Key <= Key.D9) ||
+                        (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
+                        (e.Key >= Key.A && e.Key <= Key.Z) ||
+                        e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
+                        e.Key == Key.Decimal || e.Key == Key.OemMinus || e.Key == Key.Subtract)
+                    {
+                        dataGridView1.BeginEdit();
+                    }
+                }
+            }
+        }
+
+        private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parentObject = VisualTreeHelper.GetParent(child);
+            if (parentObject == null) return null;
+            if (parentObject is T parent) return parent;
+            return FindVisualParent<T>(parentObject);
+        }
+
+        private DataGridCell GetDataGridCell(DataGridCellInfo cellInfo)
+        {
+            if (cellInfo.IsValid)
+            {
+                var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
+                if (cellContent != null)
+                {
+                    return FindVisualParent<DataGridCell>(cellContent);
+                }
+            }
+            return null;
         }
 
         private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
