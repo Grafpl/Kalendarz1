@@ -769,6 +769,46 @@ namespace Kalendarz1.Zywiec.RaportyStatystyki
 
         #endregion
 
+        #region Termin Zaplaty
+
+        private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
+
+        private void CboHodowca_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cboHodowca.SelectedValue != null)
+            {
+                string hodowcaGID = cboHodowca.SelectedValue.ToString();
+                int termin = zapytaniasql.GetTerminZaplaty(hodowcaGID);
+                txtTerminZaplaty.Text = termin.ToString();
+            }
+        }
+
+        private void BtnZapiszTermin_Click(object sender, RoutedEventArgs e)
+        {
+            if (cboHodowca.SelectedValue == null)
+            {
+                MessageBox.Show("Wybierz hodowce.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (!int.TryParse(txtTerminZaplaty.Text, out int terminDni) || terminDni < 0)
+            {
+                MessageBox.Show("Wprowadz poprawna liczbe dni (>= 0).", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string hodowcaGID = cboHodowca.SelectedValue.ToString();
+            string hodowcaNazwa = ((DostawcaRaport)cboHodowca.SelectedItem).ShortName;
+
+            if (zapytaniasql.UpdateTerminZaplaty(hodowcaGID, terminDni))
+            {
+                MessageBox.Show($"Termin zaplaty dla {hodowcaNazwa} zostal ustawiony na {terminDni} dni.",
+                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        #endregion
+
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             this.Close();

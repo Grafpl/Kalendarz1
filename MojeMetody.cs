@@ -2039,8 +2039,82 @@ END";
                     MessageBox.Show("Error fetching data: " + ex.Message);
                 }
             }
-        
 
+
+        /// <summary>
+        /// Upewnia się, że kolumna TerminZaplaty istnieje w tabeli Dostawcy
+        /// </summary>
+        public void EnsureTerminZaplatyColumnExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = @"
+                        IF NOT EXISTS (SELECT 1 FROM sys.columns
+                                       WHERE object_id = OBJECT_ID('dbo.Dostawcy')
+                                       AND name = 'TerminZaplaty')
+                        BEGIN
+                            ALTER TABLE dbo.Dostawcy ADD TerminZaplaty INT NULL DEFAULT 14;
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd tworzenia kolumny TerminZaplaty: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera termin zapłaty dla hodowcy (domyślnie 14 dni)
+        /// </summary>
+        public int GetTerminZaplaty(string idDostawcy)
+        {
+            try
+            {
+                string terminStr = PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "TerminZaplaty");
+                if (!string.IsNullOrEmpty(terminStr) && int.TryParse(terminStr, out int termin))
+                {
+                    return termin;
+                }
+            }
+            catch { }
+            return 14; // Domyślna wartość
+        }
+
+        /// <summary>
+        /// Aktualizuje termin zapłaty dla hodowcy
+        /// </summary>
+        public bool UpdateTerminZaplaty(string idDostawcy, int terminDni)
+        {
+            try
+            {
+                EnsureTerminZaplatyColumnExists();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = "UPDATE dbo.Dostawcy SET TerminZaplaty = @Termin WHERE ID = @ID";
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", idDostawcy);
+                        cmd.Parameters.AddWithValue("@Termin", terminDni);
+                        int affected = cmd.ExecuteNonQuery();
+                        return affected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd aktualizacji terminu zapłaty: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
 
     }
     public void stylGridaPodstawowy(DataGridView grid)

@@ -154,7 +154,19 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="40,0,0,0">
                                         <TextBlock Text="Hodowca:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,15,0"/>
                                         <ComboBox x:Name="cboHodowca" Width="250" VerticalAlignment="Center"
-                                                  DisplayMemberPath="ShortName" SelectedValuePath="GID"/>
+                                                  DisplayMemberPath="ShortName" SelectedValuePath="GID"
+                                                  SelectionChanged="CboHodowca_SelectionChanged"/>
+
+                                        <!-- Termin zaplaty -->
+                                        <TextBlock Text="Termin zaplaty:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,10,0"/>
+                                        <TextBox x:Name="txtTerminZaplaty" Width="50" VerticalAlignment="Center"
+                                                 TextAlignment="Center" FontSize="13"/>
+                                        <TextBlock Text="dni" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                        <Button x:Name="btnZapiszTermin" Content="Zapisz"
+                                                VerticalAlignment="Center" Margin="10,0,0,0"
+                                                Padding="12,6" FontSize="11"
+                                                Background="#1976D2" Foreground="White"
+                                                Click="BtnZapiszTermin_Click"/>
                                     </StackPanel>
 
                                     <!-- Przycisk generowania -->
