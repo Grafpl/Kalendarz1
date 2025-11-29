@@ -1,6 +1,7 @@
 ﻿using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
+using Kalendarz1.Zywiec.RaportyStatystyki;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -162,7 +163,8 @@ namespace Kalendarz1
                 [30] = "ListaOfert",
                 [31] = "DashboardOfert",
                 [32] = "PanelReklamacji",
-                [33] = "ReklamacjeJakosc"
+                [33] = "ReklamacjeJakosc",
+                [34] = "RaportyHodowcow"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -206,7 +208,7 @@ namespace Kalendarz1
                 "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
-                "PanelReklamacji", "ReklamacjeJakosc"
+                "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow"
             };
         }
 
@@ -226,6 +228,7 @@ namespace Kalendarz1
                     new MenuItemConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", Color.FromArgb(156, 204, 101), () => new Platnosci(), "💰"),
                     new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", Color.FromArgb(139, 195, 74), () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca", "Definiuj specyfikacje produktów", Color.FromArgb(120, 144, 156), () => new WidokSpecyfikacje(), "📝"),
+                    new MenuItemConfig("RaportyHodowcow", "Raporty Hodowców", "Raporty i statystyki hodowców", Color.FromArgb(103, 58, 183), () => new RaportyStatystykiWindow(), "📊"),
                     new MenuItemConfig("PlachtyAviloga", "Matryca Transportu (WPF)", "Planowanie transportu żywca - nowy widok", Color.FromArgb(46, 125, 50), () => new WidokMatrycaWPF(), "🚚")
                 },
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
