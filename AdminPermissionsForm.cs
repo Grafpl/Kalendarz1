@@ -604,7 +604,11 @@ namespace Kalendarz1
                 
                 // Finanse i Zarządzanie
                 new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie", "💼"),
-                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝")
+                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝"),
+
+                // Reklamacje
+                new ModuleInfo("PanelReklamacji", "Panel Reklamacji", "Przeglądaj i zgłaszaj reklamacje", "Reklamacje", "⚠️"),
+                new ModuleInfo("ReklamacjeJakosc", "Reklamacje - Dział Jakości", "Zarządzaj statusami i rozwiązaniami reklamacji", "Reklamacje", "✅")
             };
         }
 
@@ -637,7 +641,9 @@ namespace Kalendarz1
                 [22] = "NotatkiZeSpotkan",
                 [23] = "PlanTygodniowy",
                 [24] = "LiczenieMagazynu",
-                [25] = "PanelMagazyniera" // ✅ NOWE UPRAWNIENIE
+                [25] = "PanelMagazyniera",
+                [26] = "PanelReklamacji",
+                [27] = "ReklamacjeJakosc"
             };
         }
 

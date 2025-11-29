@@ -17,6 +17,7 @@ namespace Kalendarz1.Reklamacje
         private string userId;
         private ObservableCollection<ReklamacjaItem> reklamacje = new ObservableCollection<ReklamacjaItem>();
         private bool isInitialized = false;
+        private bool isJakosc = false; // Czy użytkownik ma uprawnienia działu jakości
 
         public FormPanelReklamacjiWindow(string connString, string user)
         {
@@ -25,14 +26,60 @@ namespace Kalendarz1.Reklamacje
 
             InitializeComponent();
 
+            // Sprawdz uprawnienia
+            SprawdzUprawnieniaJakosc();
+
             // Ustaw domyslne daty
             dpDataOd.SelectedDate = DateTime.Now.AddMonths(-1);
             dpDataDo.SelectedDate = DateTime.Now;
 
             dgReklamacje.ItemsSource = reklamacje;
 
+            // Ukryj/pokaz kontrolki na podstawie uprawnien
+            UstawWidocznoscKontrolek();
+
             isInitialized = true;
             Loaded += Window_Loaded;
+        }
+
+        private void SprawdzUprawnieniaJakosc()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand("SELECT Access FROM operators WHERE ID = @UserId", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                        {
+                            string accessString = result.ToString();
+                            // Pozycja 27 = ReklamacjeJakosc
+                            if (accessString.Length > 27 && accessString[27] == '1')
+                            {
+                                isJakosc = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                isJakosc = false;
+            }
+        }
+
+        private void UstawWidocznoscKontrolek()
+        {
+            // Przyciski zmiany statusu - tylko dla jakosci
+            if (btnZmienStatus != null) btnZmienStatus.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
+            if (btnZaakceptuj != null) btnZaakceptuj.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
+            if (btnOdrzuc != null) btnOdrzuc.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
+
+            // Statystyki - tylko dla jakosci
+            if (btnStatystyki != null) btnStatystyki.Visibility = isJakosc ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -278,6 +325,13 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnZmienStatus_Click(object sender, RoutedEventArgs e)
         {
+            if (!isJakosc)
+            {
+                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
+                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 var dialog = new Window
@@ -358,6 +412,13 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnZaakceptuj_Click(object sender, RoutedEventArgs e)
         {
+            if (!isJakosc)
+            {
+                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
+                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 if (MessageBox.Show($"Czy na pewno chcesz zaakceptowac reklamacje #{item.Id}?",
@@ -372,6 +433,13 @@ namespace Kalendarz1.Reklamacje
 
         private void BtnOdrzuc_Click(object sender, RoutedEventArgs e)
         {
+            if (!isJakosc)
+            {
+                MessageBox.Show("Nie masz uprawnien do zmiany statusu reklamacji.\nTa funkcja jest dostepna tylko dla dzialu jakosci.",
+                    "Brak uprawnien", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (dgReklamacje.SelectedItem is ReklamacjaItem item)
             {
                 if (MessageBox.Show($"Czy na pewno chcesz odrzucic reklamacje #{item.Id}?",
