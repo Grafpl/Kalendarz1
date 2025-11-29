@@ -2116,8 +2116,7 @@ END";
             }
         }
 
-    }
-    public void stylGridaPodstawowy(DataGridView grid)
+        public void stylGridaPodstawowy(DataGridView grid)
         {
             // Automatyczne dopasowanie szerokości kolumn
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
