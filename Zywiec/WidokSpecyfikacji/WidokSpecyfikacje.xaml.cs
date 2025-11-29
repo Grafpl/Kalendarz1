@@ -1247,35 +1247,6 @@ namespace Kalendarz1
 
                 doc.Add(dataTable);
 
-                // === ŚREDNIA WAGA KURCZAKA - WYRÓŻNIONA SEKCJA ===
-                PdfPTable avgWeightTable = new PdfPTable(1);
-                avgWeightTable.WidthPercentage = 100;
-                avgWeightTable.SpacingBefore = 8f;
-                avgWeightTable.SpacingAfter = 8f;
-
-                PdfPCell avgWeightCell = new PdfPCell();
-                avgWeightCell.Border = PdfPCell.BOX;
-                avgWeightCell.BorderColor = new BaseColor(155, 89, 182); // Fioletowy
-                avgWeightCell.BorderWidth = 2f;
-                avgWeightCell.BackgroundColor = new BaseColor(245, 238, 248);
-                avgWeightCell.Padding = 12;
-                avgWeightCell.HorizontalAlignment = Element.ALIGN_CENTER;
-
-                Paragraph avgTitle = new Paragraph("ŚREDNIA WAGA KURCZAKA", new Font(polishFont, 11, Font.BOLD, new BaseColor(142, 68, 173)));
-                avgTitle.Alignment = Element.ALIGN_CENTER;
-                avgWeightCell.AddElement(avgTitle);
-
-                Paragraph avgValue = new Paragraph($"{sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 18, Font.BOLD, new BaseColor(142, 68, 173)));
-                avgValue.Alignment = Element.ALIGN_CENTER;
-                avgWeightCell.AddElement(avgValue);
-
-                Paragraph avgFormula = new Paragraph($"(Netto {sumaNetto:N0} kg ÷ {sumaSztWszystkie} szt)", new Font(polishFont, 9, Font.ITALIC, grayColor));
-                avgFormula.Alignment = Element.ALIGN_CENTER;
-                avgWeightCell.AddElement(avgFormula);
-
-                avgWeightTable.AddCell(avgWeightCell);
-                doc.Add(avgWeightTable);
-
                 // === PODSUMOWANIE FINANSOWE ===
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
@@ -1338,6 +1309,7 @@ namespace Kalendarz1
                 PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = new BaseColor(245, 255, 245) };
                 sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 sumCell.AddElement(new Paragraph(" ", legendaFont));
+                sumCell.AddElement(new Paragraph($"Średnia waga: {sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 11, Font.BOLD, new BaseColor(142, 68, 173))));
                 sumCell.AddElement(new Paragraph($"Typ ceny: {typCeny}", new Font(polishFont, 9, Font.ITALIC, grayColor)));
                 sumCell.AddElement(new Paragraph($"Cena jednostkowa: {avgCena:0.00} zł/kg", new Font(polishFont, 10, Font.NORMAL)));
                 sumCell.AddElement(new Paragraph($"Suma kilogramów: {sumaKG:N0} kg", new Font(polishFont, 11, Font.BOLD, blueColor)));
