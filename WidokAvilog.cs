@@ -175,24 +175,28 @@ namespace Kalendarz1
                     SqlDataReader reader = command.ExecuteReader();
                     if (reader.Read())
                     {
-
                         if (!reader.IsDBNull(reader.GetOrdinal("CustomerGID")))
                         {
                             string dostawcaInfo = reader["CustomerGID"]?.ToString();
                             string dostawcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(dostawcaInfo, "ShortName");
-                            Dostawca.Text = dostawcaNazwa.ToString(); // Konwersja wartości int na string
+                            if (Dostawca != null)
+                            {
+                                Dostawca.Text = dostawcaNazwa ?? string.Empty;
+                            }
                         }
 
                         if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
                         {
                             string dostawcaInfo = reader["CustomerRealGID"]?.ToString();
                             string dostawcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(dostawcaInfo, "ShortName");
-                            RealDostawca.Text = dostawcaNazwa.ToString(); // Konwersja wartości int na string
+                            if (RealDostawca != null)
+                            {
+                                RealDostawca.Text = dostawcaNazwa ?? string.Empty;
+                            }
                         }
                     }
                     else
                     {
-                        // Obsłuż przypadki, gdy brak danych dla określonego identyfikatora
                         Console.WriteLine("Brak danych dla określonego identyfikatora.");
                     }
                 }

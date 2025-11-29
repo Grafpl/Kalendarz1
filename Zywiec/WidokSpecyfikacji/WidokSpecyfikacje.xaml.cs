@@ -277,20 +277,60 @@ namespace Kalendarz1
             var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
             if (cell != null && !cell.IsEditing && !cell.IsReadOnly)
             {
+                // Pobierz wiersz
+                var row = FindVisualParent<DataGridRow>(cell);
+                if (row != null)
+                {
+                    // Zaznacz wiersz i komórkę
+                    dataGridView1.SelectedItem = row.Item;
+                    dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
+                }
+
                 if (!cell.IsFocused)
                 {
                     cell.Focus();
                 }
 
-                // Rozpocznij edycję
+                // Rozpocznij edycję z opóźnieniem dla template columns
                 if (dataGridView1.SelectionUnit != DataGridSelectionUnit.FullRow)
                 {
-                    if (!cell.IsEditing)
+                    Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        dataGridView1.BeginEdit();
-                    }
+                        if (!cell.IsEditing)
+                        {
+                            dataGridView1.BeginEdit();
+
+                            // Dla template columns - znajdź i aktywuj TextBox
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                var textBox = FindVisualChild<TextBox>(cell);
+                                if (textBox != null)
+                                {
+                                    textBox.Focus();
+                                    textBox.SelectAll();
+                                }
+                            }), System.Windows.Threading.DispatcherPriority.Input);
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T found)
+                    return found;
+
+                var result = FindVisualChild<T>(child);
+                if (result != null)
+                    return result;
+            }
+            return null;
         }
 
         // Rozpocznij edycję po naciśnięciu klawisza (cyfry, litery)
