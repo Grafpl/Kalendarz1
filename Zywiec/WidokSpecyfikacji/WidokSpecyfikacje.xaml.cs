@@ -916,7 +916,7 @@ namespace Kalendarz1
             sumaWartosc = 0;
             sumaKG = 0;
 
-            Document doc = new Document(PageSize.A4.Rotate(), 30, 30, 20, 20);
+            Document doc = new Document(PageSize.A4.Rotate(), 25, 25, 20, 20);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                 zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
@@ -966,43 +966,96 @@ namespace Kalendarz1
                 BaseColor lightGreenColor = new BaseColor(200, 230, 201); // #C8E6C9
                 BaseColor orangeColor = new BaseColor(245, 124, 0);     // #F57C00
                 BaseColor blueColor = new BaseColor(25, 118, 210);      // #1976D2
+                BaseColor grayColor = new BaseColor(128, 128, 128);
 
-                // Fonty
-                BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
-                Font titleFont = new Font(baseFont, 20, Font.BOLD, greenColor);
-                Font subtitleFont = new Font(baseFont, 12, Font.NORMAL, BaseColor.DARK_GRAY);
-                Font headerFont = new Font(baseFont, 11, Font.BOLD, BaseColor.WHITE);
-                Font textFont = new Font(baseFont, 10, Font.NORMAL);
-                Font textFontBold = new Font(baseFont, 10, Font.BOLD);
-                Font smallTextFont = new Font(baseFont, 8, Font.NORMAL);
-                Font smallTextFontBold = new Font(baseFont, 8, Font.BOLD);
-                Font tytulTablicy = new Font(baseFont, 10, Font.BOLD, BaseColor.WHITE);
-                Font ItalicFont = new Font(baseFont, 8, Font.ITALIC, BaseColor.GRAY);
-                Font summaryFont = new Font(baseFont, 12, Font.BOLD, darkGreenColor);
+                // === CZCIONKA Z POLSKIMI ZNAKAMI ===
+                // Próbuj załadować Arial, jeśli nie - użyj systemowej czcionki z polskimi znakami
+                BaseFont polishFont;
+                try
+                {
+                    string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    if (File.Exists(arialPath))
+                    {
+                        polishFont = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    else
+                    {
+                        // Fallback do czcionki systemowej
+                        polishFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
+                    }
+                }
+                catch
+                {
+                    polishFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
+                }
+
+                // Fonty z polską czcionką
+                Font titleFont = new Font(polishFont, 18, Font.BOLD, greenColor);
+                Font subtitleFont = new Font(polishFont, 11, Font.NORMAL, BaseColor.DARK_GRAY);
+                Font headerFont = new Font(polishFont, 10, Font.BOLD, BaseColor.WHITE);
+                Font textFont = new Font(polishFont, 9, Font.NORMAL);
+                Font textFontBold = new Font(polishFont, 9, Font.BOLD);
+                Font smallTextFont = new Font(polishFont, 8, Font.NORMAL);
+                Font smallTextFontBold = new Font(polishFont, 8, Font.BOLD);
+                Font tytulTablicy = new Font(polishFont, 9, Font.BOLD, BaseColor.WHITE);
+                Font legendaFont = new Font(polishFont, 7, Font.NORMAL, grayColor);
+                Font legendaBoldFont = new Font(polishFont, 7, Font.BOLD, BaseColor.DARK_GRAY);
 
                 // === NAGŁÓWEK Z LOGO ===
-                // Pobierz info o wadze wcześniej
                 decimal? ubytekProcFirst = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                 string wagaTyp = (ubytekProcFirst ?? 0) != 0 ? "Waga loco Hodowca" : "Waga loco Ubojnia";
 
                 PdfPTable headerTable = new PdfPTable(3);
                 headerTable.WidthPercentage = 100;
-                headerTable.SetWidths(new float[] { 1.2f, 3.5f, 1.3f });
-                headerTable.SpacingAfter = 10f;
+                headerTable.SetWidths(new float[] { 1.5f, 3f, 1.5f });
+                headerTable.SpacingAfter = 8f;
 
-                // Logo po lewej
-                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                // Logo po lewej - POPRAWIONE
+                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5 };
                 try
                 {
-                    string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
-                    if (File.Exists(logoPath))
+                    // Szukaj logo w kilku lokalizacjach
+                    string[] logoPaths = new string[]
                     {
-                        iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
-                        logo.ScaleToFit(100f, 50f);
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png"),
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "logo-2-green.png"),
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images", "logo-2-green.png"),
+                        @"C:\logo-2-green.png"
+                    };
+
+                    string foundLogoPath = null;
+                    foreach (var path in logoPaths)
+                    {
+                        if (File.Exists(path))
+                        {
+                            foundLogoPath = path;
+                            break;
+                        }
+                    }
+
+                    if (foundLogoPath != null)
+                    {
+                        iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
+                        logo.ScaleToFit(120f, 60f);
+                        logo.Alignment = Element.ALIGN_LEFT;
                         logoCell.AddElement(logo);
                     }
+                    else
+                    {
+                        // Jeśli brak logo - wyświetl nazwę firmy
+                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 14, Font.BOLD, greenColor));
+                        firmName.Alignment = Element.ALIGN_LEFT;
+                        logoCell.AddElement(firmName);
+                        Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 8, Font.NORMAL, grayColor));
+                        firmSub.Alignment = Element.ALIGN_LEFT;
+                        logoCell.AddElement(firmSub);
+                    }
                 }
-                catch { }
+                catch
+                {
+                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 14, Font.BOLD, greenColor));
+                    logoCell.AddElement(firmName);
+                }
                 headerTable.AddCell(logoCell);
 
                 // Tytuł na środku
@@ -1013,10 +1066,11 @@ namespace Kalendarz1
                 titleCell.AddElement(subtitle);
                 headerTable.AddCell(titleCell);
 
-                // Numer dokumentu i waga po prawej
-                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
-                docNumCell.AddElement(new Paragraph($"Nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
-                docNumCell.AddElement(new Paragraph(wagaTyp, new Font(baseFont, 8, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_RIGHT });
+                // Numer dokumentu i info po prawej
+                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 5 };
+                docNumCell.AddElement(new Paragraph($"Dokument nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
+                docNumCell.AddElement(new Paragraph(wagaTyp, new Font(polishFont, 9, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_RIGHT });
+                docNumCell.AddElement(new Paragraph($"Ilość dostaw: {ids.Count}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_RIGHT });
                 headerTable.AddCell(docNumCell);
 
                 doc.Add(headerTable);
@@ -1024,20 +1078,20 @@ namespace Kalendarz1
                 // === LINIA ROZDZIELAJĄCA ===
                 PdfPTable lineTable = new PdfPTable(1);
                 lineTable.WidthPercentage = 100;
-                PdfPCell lineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0, PaddingBottom = 5f };
+                PdfPCell lineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0, PaddingBottom = 3f };
                 lineTable.AddCell(lineCell);
-                lineTable.SpacingAfter = 15f;
+                lineTable.SpacingAfter = 10f;
                 doc.Add(lineTable);
 
-                // === SEKCJA STRON ===
+                // === SEKCJA STRON (NABYWCA / SPRZEDAJĄCY) ===
                 PdfPTable partiesTable = new PdfPTable(2);
                 partiesTable.WidthPercentage = 100;
                 partiesTable.SetWidths(new float[] { 1f, 1f });
-                partiesTable.SpacingAfter = 20f;
+                partiesTable.SpacingAfter = 12f;
 
                 // Nabywca (lewa strona)
-                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = lightGreenColor, Padding = 10, BackgroundColor = new BaseColor(248, 255, 248) };
-                buyerCell.AddElement(new Paragraph("NABYWCA", new Font(baseFont, 10, Font.BOLD, greenColor)));
+                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = new BaseColor(248, 255, 248) };
+                buyerCell.AddElement(new Paragraph("NABYWCA", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
                 buyerCell.AddElement(new Paragraph("NIP: 726-162-54-06", textFont));
@@ -1051,8 +1105,8 @@ namespace Kalendarz1
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                     zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City") ?? "";
 
-                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, Padding = 10, BackgroundColor = new BaseColor(255, 253, 248) };
-                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(baseFont, 10, Font.BOLD, orangeColor)));
+                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = new BaseColor(255, 253, 248) };
+                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
@@ -1061,32 +1115,31 @@ namespace Kalendarz1
                 doc.Add(partiesTable);
 
                 // === GŁÓWNA TABELA ROZLICZENIA ===
-                // 16 kolumn: 4 waga + 4 sztuki + 8 kilogramów (bez ubytku)
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.4F, 0.6F, 0.6F, 0.6F, 0.6F, 0.5F, 0.5F, 0.5F, 0.6F, 0.6F, 0.6F, 0.6F, 0.6F, 0.7F, 0.7F, 0.8F });
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.35F, 0.55F, 0.55F, 0.6F, 0.55F, 0.45F, 0.5F, 0.5F, 0.6F, 0.55F, 0.55F, 0.55F, 0.5F, 0.65F, 0.55F, 0.75F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
-                AddColoredMergedHeader(dataTable, "WAGA", tytulTablicy, 4, greenColor);
+                AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK", tytulTablicy, 4, orangeColor);
-                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW", tytulTablicy, 8, blueColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
 
                 // Nagłówki kolumn - WAGA
                 AddColoredTableHeader(dataTable, "Lp.", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Brutto", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
-                // Nagłówki kolumn - SZTUKI (zmienione nazwy)
-                AddColoredTableHeader(dataTable, "Dostarczono", smallTextFontBold, new BaseColor(230, 126, 34));
+                // Nagłówki kolumn - SZTUKI
+                AddColoredTableHeader(dataTable, "Dostarcz.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
-                AddColoredTableHeader(dataTable, "Konfiskaty", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
-                // Nagłówki kolumn - KILOGRAMY (bez ubytku)
+                // Nagłówki kolumn - KILOGRAMY
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Konfiskaty", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Opasienie", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Kl. B", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Do zapłaty", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, new BaseColor(41, 128, 185));
 
@@ -1129,7 +1182,6 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    // Obliczenie Do zapłaty: Netto - Padłe - Konfiskaty - Opasienie - Klasa B
                     decimal doZaplaty = czyPiK
                         ? wagaNetto - opasienieKG - klasaB
                         : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
@@ -1150,10 +1202,8 @@ namespace Kalendarz1
                     sumaKonfiskaty += konfiskaty;
                     sumaSztZdatne += sztZdatne;
 
-                    // Naprzemienne kolory wierszy
-                    BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(245, 245, 245);
+                    BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(248, 248, 248);
 
-                    // Dane wiersza (16 kolumn - bez ubytku)
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
                         wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
                         sztWszystkie.ToString(), padle.ToString(), konfiskaty.ToString(), sztZdatne.ToString(),
@@ -1168,10 +1218,9 @@ namespace Kalendarz1
                 }
 
                 // === WIERSZ SUMY ===
-                BaseColor sumRowColor = new BaseColor(220, 237, 200); // jasna zieleń
-                Font sumFont = new Font(baseFont, 9, Font.BOLD);
+                BaseColor sumRowColor = new BaseColor(220, 237, 200);
+                Font sumFont = new Font(polishFont, 8, Font.BOLD);
 
-                // Dodaj wiersz sumy (16 kolumn)
                 AddStyledTableData(dataTable, sumFont, sumRowColor, "SUMA",
                     "", "", "",
                     sumaSztWszystkie.ToString(), sumaPadle.ToString(), sumaKonfiskaty.ToString(), sumaSztZdatne.ToString(),
@@ -1186,63 +1235,124 @@ namespace Kalendarz1
 
                 doc.Add(dataTable);
 
-                // === PODSUMOWANIE I WZORY (kompaktowo) ===
+                // === PODSUMOWANIE FINANSOWE ===
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
-
-                // Średnia cena (jeśli różne ceny, pokaż średnią)
                 decimal avgCena = sumaKG > 0 ? sumaWartosc / sumaKG : 0;
 
-                // Tabela podsumowania z wartościami i wzorami
                 PdfPTable summaryTable = new PdfPTable(2);
                 summaryTable.WidthPercentage = 100;
-                summaryTable.SetWidths(new float[] { 1.5f, 1f });
-                summaryTable.SpacingBefore = 5f;
+                summaryTable.SetWidths(new float[] { 1.8f, 1.2f });
+                summaryTable.SpacingBefore = 8f;
 
-                // Lewa kolumna - wzory (małe)
-                Font miniFont = new Font(baseFont, 7, Font.NORMAL, BaseColor.GRAY);
-                Font miniBoldFont = new Font(baseFont, 7, Font.BOLD, BaseColor.DARK_GRAY);
-
-                PdfPCell formulaCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 5, VerticalAlignment = Element.ALIGN_BOTTOM };
+                // Lewa kolumna - wzory i obliczenia
+                PdfPCell formulaCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(220, 220, 220), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                formulaCell.AddElement(new Paragraph("SPOSÓB OBLICZENIA:", new Font(polishFont, 9, Font.BOLD, BaseColor.DARK_GRAY)));
+                formulaCell.AddElement(new Paragraph(" ", legendaFont));
 
                 Paragraph formula1 = new Paragraph();
-                formula1.Add(new Chunk("Do zapłaty = Netto - Padłe - Konfiskaty - Opasienie - Kl.B", miniFont));
+                formula1.Add(new Chunk("1. Kilogramy do zapłaty = ", legendaBoldFont));
+                formula1.Add(new Chunk("Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B", legendaFont));
                 formulaCell.AddElement(formula1);
 
                 Paragraph formula1Example = new Paragraph();
-                formula1Example.Add(new Chunk($"= {sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = ", miniFont));
-                formula1Example.Add(new Chunk($"{sumaKG:N0} kg", miniBoldFont));
+                formula1Example.Add(new Chunk($"   = {sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = ", legendaFont));
+                formula1Example.Add(new Chunk($"{sumaKG:N0} kg", legendaBoldFont));
                 formulaCell.AddElement(formula1Example);
 
+                formulaCell.AddElement(new Paragraph(" ", legendaFont));
+
                 Paragraph formula2 = new Paragraph();
-                formula2.Add(new Chunk($"Wartość = Do zapłaty × Cena = {sumaKG:N0} × {avgCena:0.00} = ", miniFont));
-                formula2.Add(new Chunk($"{sumaWartosc:N0} zł", miniBoldFont));
+                formula2.Add(new Chunk("2. Wartość = ", legendaBoldFont));
+                formula2.Add(new Chunk("Kilogramy do zapłaty × Cena za kg", legendaFont));
                 formulaCell.AddElement(formula2);
+
+                Paragraph formula2Example = new Paragraph();
+                formula2Example.Add(new Chunk($"   = {sumaKG:N0} kg × {avgCena:0.00} zł = ", legendaFont));
+                formula2Example.Add(new Chunk($"{sumaWartosc:N0} zł", legendaBoldFont));
+                formulaCell.AddElement(formula2Example);
 
                 summaryTable.AddCell(formulaCell);
 
-                // Prawa kolumna - podsumowanie (duże, czytelne)
-                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, Padding = 8, BackgroundColor = new BaseColor(248, 255, 248) };
+                // Prawa kolumna - podsumowanie
+                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = new BaseColor(245, 255, 245) };
+                sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
+                sumCell.AddElement(new Paragraph(" ", legendaFont));
+                sumCell.AddElement(new Paragraph($"Typ ceny: {typCeny}", new Font(polishFont, 9, Font.ITALIC, grayColor)));
+                sumCell.AddElement(new Paragraph($"Cena jednostkowa: {avgCena:0.00} zł/kg", new Font(polishFont, 10, Font.NORMAL)));
+                sumCell.AddElement(new Paragraph($"Suma kilogramów: {sumaKG:N0} kg", new Font(polishFont, 11, Font.BOLD, blueColor)));
+                sumCell.AddElement(new Paragraph(" ", legendaFont));
 
-                Paragraph pTypCeny = new Paragraph($"Typ ceny: {typCeny}", new Font(baseFont, 9, Font.ITALIC, BaseColor.DARK_GRAY));
-                sumCell.AddElement(pTypCeny);
-
-                Paragraph pCena = new Paragraph($"Cena: {avgCena:0.00} zł/kg", new Font(baseFont, 10, Font.NORMAL));
-                sumCell.AddElement(pCena);
-
-                Paragraph pKG = new Paragraph($"Suma kg: {sumaKG:N0} kg", new Font(baseFont, 11, Font.BOLD, blueColor));
-                sumCell.AddElement(pKG);
-
-                Paragraph pWartosc = new Paragraph($"WARTOŚĆ: {sumaWartosc:N0} zł", new Font(baseFont, 14, Font.BOLD, greenColor));
-                sumCell.AddElement(pWartosc);
+                PdfPTable wartoscBox = new PdfPTable(1);
+                wartoscBox.WidthPercentage = 100;
+                PdfPCell wartoscCell = new PdfPCell(new Phrase($"DO WYPŁATY: {sumaWartosc:N0} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
+                wartoscCell.BackgroundColor = greenColor;
+                wartoscCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                wartoscCell.Padding = 8;
+                wartoscBox.AddCell(wartoscCell);
+                sumCell.AddElement(wartoscBox);
 
                 summaryTable.AddCell(sumCell);
-
                 doc.Add(summaryTable);
 
-                // Stopka
-                Paragraph italicText = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", new Font(baseFont, 7, Font.ITALIC, BaseColor.GRAY)) { Alignment = Element.ALIGN_CENTER, SpacingBefore = 5f };
-                doc.Add(italicText);
+                // === LEGENDA - OBJAŚNIENIA KOLUMN ===
+                PdfPTable legendTable = new PdfPTable(1);
+                legendTable.WidthPercentage = 100;
+                legendTable.SpacingBefore = 10f;
+
+                PdfPCell legendCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(250, 250, 250) };
+                legendCell.AddElement(new Paragraph("OBJAŚNIENIA KOLUMN:", new Font(polishFont, 8, Font.BOLD, BaseColor.DARK_GRAY)));
+
+                // Tabela z legendą w 3 kolumnach
+                PdfPTable legendContent = new PdfPTable(3);
+                legendContent.WidthPercentage = 100;
+                legendContent.SpacingBefore = 5f;
+
+                // Kolumna 1 - WAGA
+                PdfPCell leg1 = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 3 };
+                leg1.AddElement(new Paragraph("WAGA:", new Font(polishFont, 7, Font.BOLD, greenColor)));
+                leg1.AddElement(new Paragraph("• Brutto - waga z opakowaniem", legendaFont));
+                leg1.AddElement(new Paragraph("• Tara - waga opakowań (skrzynek)", legendaFont));
+                leg1.AddElement(new Paragraph("• Netto - waga drobiu (Brutto - Tara)", legendaFont));
+                legendContent.AddCell(leg1);
+
+                // Kolumna 2 - SZTUKI
+                PdfPCell leg2 = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 3 };
+                leg2.AddElement(new Paragraph("SZTUKI:", new Font(polishFont, 7, Font.BOLD, orangeColor)));
+                leg2.AddElement(new Paragraph("• Dostarcz. - łączna ilość sztuk", legendaFont));
+                leg2.AddElement(new Paragraph("• Padłe - sztuki martwe podczas transportu", legendaFont));
+                leg2.AddElement(new Paragraph("• Konf. - konfiskaty weterynaryjne", legendaFont));
+                leg2.AddElement(new Paragraph("• Zdatne - sztuki do rozliczenia", legendaFont));
+                legendContent.AddCell(leg2);
+
+                // Kolumna 3 - KILOGRAMY
+                PdfPCell leg3 = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 3 };
+                leg3.AddElement(new Paragraph("KILOGRAMY:", new Font(polishFont, 7, Font.BOLD, blueColor)));
+                leg3.AddElement(new Paragraph("• Padłe/Konf. - przeliczenie sztuk na kg", legendaFont));
+                leg3.AddElement(new Paragraph("• Opas. - nadmierne otłuszczenie", legendaFont));
+                leg3.AddElement(new Paragraph("• Kl.B - drób klasy B (niższej jakości)", legendaFont));
+                leg3.AddElement(new Paragraph("• Do zapł. - kg do rozliczenia finansowego", legendaFont));
+                legendContent.AddCell(leg3);
+
+                legendCell.AddElement(legendContent);
+                legendTable.AddCell(legendCell);
+                doc.Add(legendTable);
+
+                // === STOPKA ===
+                PdfPTable footerTable = new PdfPTable(2);
+                footerTable.WidthPercentage = 100;
+                footerTable.SpacingBefore = 10f;
+
+                PdfPCell footerLeft = new PdfPCell { Border = PdfPCell.NO_BORDER };
+                footerLeft.AddElement(new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", new Font(polishFont, 7, Font.ITALIC, grayColor)));
+                footerLeft.AddElement(new Paragraph($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}", new Font(polishFont, 6, Font.NORMAL, grayColor)));
+                footerTable.AddCell(footerLeft);
+
+                PdfPCell footerRight = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT };
+                footerRight.AddElement(new Paragraph("Podpis nabywcy: .............................", new Font(polishFont, 8, Font.NORMAL)) { Alignment = Element.ALIGN_RIGHT });
+                footerTable.AddCell(footerRight);
+
+                doc.Add(footerTable);
 
                 doc.Close();
             }
