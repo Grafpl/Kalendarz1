@@ -1,4 +1,4 @@
-﻿using iTextSharp.text.pdf;
+using iTextSharp.text.pdf;
 using iTextSharp.text;
 using Microsoft.Data.SqlClient;
 using System;
@@ -20,8 +20,6 @@ namespace Kalendarz1
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
-        private decimal sumaWartosc = 0;
-        private decimal sumaKG = 0;
         private ObservableCollection<SpecyfikacjaRow> specyfikacjeData;
         private SpecyfikacjaRow selectedRow;
 
@@ -47,19 +45,13 @@ namespace Kalendarz1
             // Ctrl + S - Zapisz
             if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                SaveAllChanges();
+                BtnSaveAll_Click(null, null);
                 e.Handled = true;
             }
             // Ctrl + P - Drukuj
             else if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 Button1_Click(null, null);
-                e.Handled = true;
-            }
-            // Ctrl + N - Nowy
-            else if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                // Dodaj funkcjonalność nowego rekordu
                 e.Handled = true;
             }
             // F5 - Odśwież
@@ -100,11 +92,11 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, 
-                                    LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight, 
-                                    FullWeight, EmptyWeight, NettoWeight, Price, PriceTypeID, IncDeadConf, Loss 
-                                    FROM [LibraNet].[dbo].[FarmerCalc] 
-                                    WHERE CalcDate = @SelectedDate 
+                    string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
+                                    LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
+                                    FullWeight, EmptyWeight, NettoWeight, Price, PriceTypeID, IncDeadConf, Loss
+                                    FROM [LibraNet].[dbo].[FarmerCalc]
+                                    WHERE CalcDate = @SelectedDate
                                     ORDER BY CarLP";
 
                     SqlCommand command = new SqlCommand(query, connection);
@@ -180,141 +172,159 @@ namespace Kalendarz1
             if (dataGridView1.SelectedItem != null)
             {
                 selectedRow = dataGridView1.SelectedItem as SpecyfikacjaRow;
-                UpdateDetailsPanel();
             }
         }
 
-        private void UpdateDetailsPanel()
+        private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
-            if (selectedRow == null)
+            if (e.EditAction == DataGridEditAction.Commit)
             {
-                lblSelectedDostawca.Text = "Wybierz dostawę z listy";
-                ClearDetailsPanel();
-                return;
+                var row = e.Row.Item as SpecyfikacjaRow;
+                if (row != null)
+                {
+                    // Zapisz zmiany do bazy danych po zakończeniu edycji
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateDatabaseRow(row, e.Column.Header.ToString());
+                        UpdateStatistics();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
             }
-
-            // Nagłówek
-            lblSelectedDostawca.Text = $"{selectedRow.Nr}. {selectedRow.RealDostawca ?? selectedRow.Dostawca}";
-
-            // Informacje podstawowe
-            txtID.Text = selectedRow.ID.ToString();
-            txtNr.Text = selectedRow.Nr.ToString();
-            txtRealDostawca.Text = selectedRow.RealDostawca ?? "-";
-
-            // Deklaracje
-            txtSztukiDek.Text = selectedRow.SztukiDek.ToString();
-            txtPadle.Text = selectedRow.Padle.ToString();
-            txtCH.Text = selectedRow.CH.ToString();
-            txtNW.Text = selectedRow.NW.ToString();
-            txtZM.Text = selectedRow.ZM.ToString();
-            txtLUMEL.Text = selectedRow.LUMEL.ToString();
-
-            // Wagi hodowcy
-            txtBruttoH.Text = selectedRow.BruttoHodowcy ?? "-";
-            txtTaraH.Text = selectedRow.TaraHodowcy ?? "-";
-            txtNettoH.Text = selectedRow.NettoHodowcy ?? "-";
-
-            // Wagi ubojni
-            txtBruttoU.Text = selectedRow.BruttoUbojni ?? "-";
-            txtTaraU.Text = selectedRow.TaraUbojni ?? "-";
-            txtNettoU.Text = selectedRow.NettoUbojni ?? "-";
-
-            // Wybijak
-            txtSztWybijak.Text = selectedRow.SztukiWybijak.ToString();
-            txtKgWybijak.Text = selectedRow.KilogramyWybijak.ToString("F2");
-
-            // Cena i ubytek
-            txtCena.Text = selectedRow.Cena.ToString("F2");
-            txtTypCeny.Text = selectedRow.TypCeny ?? "-";
-            txtUbytek.Text = selectedRow.Ubytek.ToString("F2");
-            chkPiK.IsChecked = selectedRow.PiK;
         }
 
-        private void ClearDetailsPanel()
+        private void DataGridView1_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            txtID.Text = "";
-            txtNr.Text = "";
-            txtRealDostawca.Text = "";
-            txtSztukiDek.Text = "";
-            txtPadle.Text = "";
-            txtCH.Text = "";
-            txtNW.Text = "";
-            txtZM.Text = "";
-            txtLUMEL.Text = "";
-            txtBruttoH.Text = "";
-            txtTaraH.Text = "";
-            txtNettoH.Text = "";
-            txtBruttoU.Text = "";
-            txtTaraU.Text = "";
-            txtNettoU.Text = "";
-            txtSztWybijak.Text = "";
-            txtKgWybijak.Text = "";
-            txtCena.Text = "";
-            txtTypCeny.Text = "";
-            txtUbytek.Text = "";
-            chkPiK.IsChecked = false;
-        }
-
-        private void BtnSaveRow_Click(object sender, RoutedEventArgs e)
-        {
-            if (selectedRow == null)
+            var row = e.Row.Item as SpecyfikacjaRow;
+            if (row != null && row.PiK)
             {
-                MessageBox.Show("Wybierz wiersz do zapisania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                // Zastosuj formatowanie dla wierszy z zaznaczonym PiK
+                e.Row.Foreground = new SolidColorBrush(Colors.Red);
+                e.Row.FontStyle = FontStyles.Italic;
             }
+        }
 
+        private void UpdateDatabaseRow(SpecyfikacjaRow row, string columnName)
+        {
             try
             {
-                // Aktualizuj obiekt z pól
-                int.TryParse(txtNr.Text, out int nr);
-                selectedRow.Nr = nr;
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string dbColumnName = GetDatabaseColumnName(columnName);
 
-                int.TryParse(txtSztukiDek.Text, out int sztDek);
-                selectedRow.SztukiDek = sztDek;
+                    if (string.IsNullOrEmpty(dbColumnName))
+                        return;
 
-                int.TryParse(txtPadle.Text, out int padle);
-                selectedRow.Padle = padle;
+                    string query = $"UPDATE dbo.FarmerCalc SET {dbColumnName} = @Value WHERE ID = @ID";
 
-                int.TryParse(txtCH.Text, out int ch);
-                selectedRow.CH = ch;
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@ID", row.ID);
 
-                int.TryParse(txtNW.Text, out int nw);
-                selectedRow.NW = nw;
+                        object value = GetColumnValue(row, columnName);
+                        command.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
 
-                int.TryParse(txtZM.Text, out int zm);
-                selectedRow.ZM = zm;
+                        command.ExecuteNonQuery();
+                        UpdateStatus($"Zapisano: {columnName} dla LP {row.Nr}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas aktualizacji:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
-                int.TryParse(txtLUMEL.Text, out int lumel);
-                selectedRow.LUMEL = lumel;
+        private string GetDatabaseColumnName(string displayName)
+        {
+            var mapping = new Dictionary<string, string>
+            {
+                { "LP", "CarLp" },
+                { "Szt.Dek", "DeclI1" },
+                { "Padłe", "DeclI2" },
+                { "CH", "DeclI3" },
+                { "NW", "DeclI4" },
+                { "ZM", "DeclI5" },
+                { "LUMEL", "LumQnt" },
+                { "Szt.Wyb", "ProdQnt" },
+                { "KG Wyb", "ProdWgt" },
+                { "Cena", "Price" },
+                { "PiK", "IncDeadConf" },
+                { "Ubytek%", "Loss" }
+            };
 
-                int.TryParse(txtSztWybijak.Text, out int sztWyb);
-                selectedRow.SztukiWybijak = sztWyb;
+            return mapping.ContainsKey(displayName) ? mapping[displayName] : string.Empty;
+        }
 
-                decimal.TryParse(txtKgWybijak.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out decimal kgWyb);
-                selectedRow.KilogramyWybijak = kgWyb;
+        private object GetColumnValue(SpecyfikacjaRow row, string columnName)
+        {
+            switch (columnName)
+            {
+                case "LP": return row.Nr;
+                case "Szt.Dek": return row.SztukiDek;
+                case "Padłe": return row.Padle;
+                case "CH": return row.CH;
+                case "NW": return row.NW;
+                case "ZM": return row.ZM;
+                case "LUMEL": return row.LUMEL;
+                case "Szt.Wyb": return row.SztukiWybijak;
+                case "KG Wyb": return row.KilogramyWybijak;
+                case "Cena": return row.Cena;
+                case "PiK": return row.PiK;
+                case "Ubytek%": return row.Ubytek / 100; // Konwersja na wartość dla bazy
+                default: return null;
+            }
+        }
 
-                decimal.TryParse(txtCena.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out decimal cena);
-                selectedRow.Cena = cena;
+        private void UpdateStatistics()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                lblRecordCount.Text = "0";
+                lblSumaNetto.Text = "0 kg";
+                lblSumaSztuk.Text = "0";
+                return;
+            }
 
-                decimal.TryParse(txtUbytek.Text.Replace(",", "."), System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out decimal ubytek);
-                selectedRow.Ubytek = ubytek;
+            lblRecordCount.Text = specyfikacjeData.Count.ToString();
 
-                selectedRow.PiK = chkPiK.IsChecked ?? false;
+            // Suma netto ubojni
+            decimal sumaNetto = 0;
+            foreach (var row in specyfikacjeData)
+            {
+                if (decimal.TryParse(row.NettoUbojni?.Replace(" ", "").Replace(",", ""), out decimal netto))
+                {
+                    sumaNetto += netto;
+                }
+            }
+            lblSumaNetto.Text = $"{sumaNetto:N0} kg";
 
-                // Zapisz do bazy
-                SaveRowToDatabase(selectedRow);
+            // Suma sztuk LUMEL
+            int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
+            lblSumaSztuk.Text = sumaSztuk.ToString("N0");
+        }
 
-                // Odśwież widok
-                dataGridView1.Items.Refresh();
-                UpdateStatistics();
-                UpdateStatus($"Zapisano zmiany dla wiersza ID: {selectedRow.ID}");
+        private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                UpdateStatus("Zapisywanie wszystkich zmian...");
+                int savedCount = 0;
+
+                foreach (var row in specyfikacjeData)
+                {
+                    SaveRowToDatabase(row);
+                    savedCount++;
+                }
+
+                MessageBox.Show($"Zapisano {savedCount} rekordów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"Zapisano {savedCount} rekordów");
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas zapisywania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                UpdateStatus("Błąd zapisu");
             }
         }
 
@@ -356,173 +366,6 @@ namespace Kalendarz1
 
                     cmd.ExecuteNonQuery();
                 }
-            }
-        }
-
-        private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                UpdateStatus("Zapisywanie wszystkich zmian...");
-                int savedCount = 0;
-
-                foreach (var row in specyfikacjeData)
-                {
-                    SaveRowToDatabase(row);
-                    savedCount++;
-                }
-
-                MessageBox.Show($"Zapisano {savedCount} rekordów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                UpdateStatus($"Zapisano {savedCount} rekordów");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas zapisywania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                UpdateStatus("Błąd zapisu");
-            }
-        }
-
-        private void UpdateStatistics()
-        {
-            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
-            {
-                lblRecordCount.Text = "0";
-                lblSumaNetto.Text = "0 kg";
-                lblSumaSztuk.Text = "0";
-                return;
-            }
-
-            lblRecordCount.Text = specyfikacjeData.Count.ToString();
-
-            // Suma netto ubojni
-            decimal sumaNetto = 0;
-            foreach (var row in specyfikacjeData)
-            {
-                if (decimal.TryParse(row.NettoUbojni?.Replace(" ", "").Replace(",", ""), out decimal netto))
-                {
-                    sumaNetto += netto;
-                }
-            }
-            lblSumaNetto.Text = $"{sumaNetto:N0} kg";
-
-            // Suma sztuk LUMEL
-            int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
-            lblSumaSztuk.Text = sumaSztuk.ToString("N0");
-        }
-
-        private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            if (e.EditAction == DataGridEditAction.Commit)
-            {
-                var row = e.Row.Item as SpecyfikacjaRow;
-                if (row != null)
-                {
-                    // Zapisz zmiany do bazy danych
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        UpdateDatabaseRow(row, e.Column.Header.ToString());
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-                }
-            }
-        }
-
-        private void DataGridView1_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            var row = e.Row.Item as SpecyfikacjaRow;
-            if (row != null && row.PiK)
-            {
-                // Zastosuj formatowanie dla wierszy z zaznaczonym PiK
-                e.Row.Foreground = new SolidColorBrush(Colors.Red);
-                e.Row.FontStyle = FontStyles.Italic;
-            }
-        }
-
-        private void UpdateDatabaseRow(SpecyfikacjaRow row, string columnName)
-        {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    string dbColumnName = GetDatabaseColumnName(columnName);
-
-                    if (string.IsNullOrEmpty(dbColumnName))
-                        return;
-
-                    string query = $"UPDATE dbo.FarmerCalc SET {dbColumnName} = @Value WHERE ID = @ID";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        command.Parameters.AddWithValue("@ID", row.ID);
-
-                        object value = GetColumnValue(row, columnName);
-                        command.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
-
-                        command.ExecuteNonQuery();
-                        UpdateStatus($"Zaktualizowano wiersz ID: {row.ID}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas aktualizacji:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private string GetDatabaseColumnName(string displayName)
-        {
-            var mapping = new Dictionary<string, string>
-            {
-                { "Nr", "CarLp" },
-                { "Sztuki Dek.", "DeclI1" },
-                { "Padłe", "DeclI2" },
-                { "CH", "DeclI3" },
-                { "NW", "DeclI4" },
-                { "ZM", "DeclI5" },
-                { "LUMEL", "LumQnt" },
-                { "Szt. Wybijak", "ProdQnt" },
-                { "KG Wybijak", "ProdWgt" },
-                { "Cena", "Price" },
-                { "PiK?", "IncDeadConf" },
-                { "Ubytek %", "Loss" }
-            };
-
-            return mapping.ContainsKey(displayName) ? mapping[displayName] : string.Empty;
-        }
-
-        private object GetColumnValue(SpecyfikacjaRow row, string columnName)
-        {
-            switch (columnName)
-            {
-                case "Nr": return row.Nr;
-                case "Sztuki Dek.": return row.SztukiDek;
-                case "Padłe": return row.Padle;
-                case "CH": return row.CH;
-                case "NW": return row.NW;
-                case "ZM": return row.ZM;
-                case "LUMEL": return row.LUMEL;
-                case "Szt. Wybijak": return row.SztukiWybijak;
-                case "KG Wybijak": return row.KilogramyWybijak;
-                case "Cena": return row.Cena;
-                case "PiK?": return row.PiK;
-                case "Ubytek %": return row.Ubytek / 100; // Konwersja na wartość dla bazy
-                default: return null;
-            }
-        }
-
-        private void SaveAllChanges()
-        {
-            try
-            {
-                UpdateStatus("Zapisywanie wszystkich zmian...");
-                // Tutaj można dodać logikę zapisywania wszystkich zmian naraz
-                UpdateStatus("Wszystkie zmiany zapisane");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas zapisywania:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -625,6 +468,31 @@ namespace Kalendarz1
             lumelPanel.Visibility = Visibility.Collapsed;
         }
 
+        private void DataGridView2_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            // Przypisz wartość LUMEL z dataGridView2 do wybranego wiersza w dataGridView1
+            if (selectedRow != null && dataGridView2.SelectedItem != null)
+            {
+                var lumelRow = dataGridView2.SelectedItem as DataRowView;
+                if (lumelRow != null)
+                {
+                    string iloscStr = lumelRow["Ilość"]?.ToString();
+                    if (int.TryParse(iloscStr, out int ilosc))
+                    {
+                        selectedRow.LUMEL = ilosc;
+                        dataGridView1.Items.Refresh();
+                        UpdateStatistics();
+                        UpdateStatus($"Przypisano LUMEL {ilosc} do LP {selectedRow.Nr}");
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Wybierz najpierw wiersz w tabeli głównej, a potem kliknij dwukrotnie na dane LUMEL.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void Button1_Click(object sender, RoutedEventArgs e)
         {
             if (selectedRow != null)
@@ -666,8 +534,11 @@ namespace Kalendarz1
                 try
                 {
                     WidokAvilog avilogForm = new WidokAvilog(selectedRow.ID);
-                    avilogForm.Show();
-                    UpdateStatus($"Otwarto AVILOG dla ID: {selectedRow.ID}");
+                    avilogForm.ShowDialog(); // ShowDialog aby po zamknięciu odświeżyć dane
+
+                    // Odśwież dane po zamknięciu Avilog
+                    LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
+                    UpdateStatus($"Odświeżono dane po edycji w AVILOG");
                 }
                 catch (Exception ex)
                 {
@@ -687,11 +558,8 @@ namespace Kalendarz1
             statusLabel.Text = message;
         }
 
-        // Metoda GeneratePDFReport pozostaje taka sama jak w oryginalnym kodzie
         private void GeneratePDFReport(List<int> ids)
         {
-            // Skopiuj całą metodę GeneratePDFReport z oryginalnego kodu
-            // ... (cały kod generowania PDF)
             Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
@@ -715,9 +583,54 @@ namespace Kalendarz1
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
-                // Tutaj wstaw całą resztę kodu generowania PDF z oryginału
-                // ...
+                // Nagłówek
+                var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                var normalFont = FontFactory.GetFont(FontFactory.HELVETICA, 10);
+                var boldFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10);
 
+                doc.Add(new Paragraph($"Specyfikacja dostaw - {sellerName}", headerFont));
+                doc.Add(new Paragraph($"Data uboju: {strDzienUbojowy}", normalFont));
+                doc.Add(new Paragraph(" "));
+
+                // Tabela
+                PdfPTable table = new PdfPTable(12);
+                table.WidthPercentage = 100;
+                table.SetWidths(new float[] { 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 });
+
+                // Nagłówki
+                AddTableHeader(table, "LP", boldFont);
+                AddTableHeader(table, "Szt.Dek", boldFont);
+                AddTableHeader(table, "Padłe", boldFont);
+                AddTableHeader(table, "LUMEL", boldFont);
+                AddTableHeader(table, "Brutto H", boldFont);
+                AddTableHeader(table, "Tara H", boldFont);
+                AddTableHeader(table, "Netto H", boldFont);
+                AddTableHeader(table, "Brutto U", boldFont);
+                AddTableHeader(table, "Tara U", boldFont);
+                AddTableHeader(table, "Netto U", boldFont);
+                AddTableHeader(table, "Cena", boldFont);
+                AddTableHeader(table, "Ubytek", boldFont);
+
+                // Dane
+                foreach (var row in specyfikacjeData.Where(r => ids.Contains(r.ID)))
+                {
+                    AddTableData(table, normalFont,
+                        row.Nr.ToString(),
+                        row.SztukiDek.ToString(),
+                        row.Padle.ToString(),
+                        row.LUMEL.ToString(),
+                        row.BruttoHodowcy ?? "-",
+                        row.TaraHodowcy ?? "-",
+                        row.NettoHodowcy ?? "-",
+                        row.BruttoUbojni ?? "-",
+                        row.TaraUbojni ?? "-",
+                        row.NettoUbojni ?? "-",
+                        row.Cena.ToString("F2"),
+                        row.Ubytek.ToString("F2") + "%"
+                    );
+                }
+
+                doc.Add(table);
                 doc.Close();
             }
 
@@ -725,13 +638,13 @@ namespace Kalendarz1
                 "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        // Pomocnicze metody dla PDF (AddTableHeader, AddTableData)
         private void AddTableHeader(PdfPTable table, string columnName, iTextSharp.text.Font font)
         {
             PdfPCell cell = new PdfPCell(new Phrase(columnName, font))
             {
                 BackgroundColor = BaseColor.LIGHT_GRAY,
-                HorizontalAlignment = Element.ALIGN_CENTER
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                Padding = 5
             };
             table.AddCell(cell);
         }
@@ -742,7 +655,8 @@ namespace Kalendarz1
             {
                 PdfPCell cell = new PdfPCell(new Phrase(value, font))
                 {
-                    HorizontalAlignment = Element.ALIGN_CENTER
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    Padding = 4
                 };
                 table.AddCell(cell);
             }
