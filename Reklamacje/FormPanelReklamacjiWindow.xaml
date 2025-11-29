@@ -443,21 +443,14 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Suma i koszty -->
-                            <StackPanel Grid.Column="7" Grid.Row="0" Orientation="Horizontal">
-                                <Border Background="#FFEBEE" CornerRadius="8" Padding="15,8" Margin="0,0,10,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Razem: " FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="txtLiczbaReklamacji" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Background="#E8F5E9" CornerRadius="8" Padding="15,8">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Koszty: " FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="txtSumaKosztow" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#27AE60" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
+                            <!-- Suma reklamacji -->
+                            <Border Grid.Column="7" Grid.Row="0" Background="#FFEBEE" CornerRadius="8" Padding="15,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Razem: " FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtLiczbaReklamacji" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" reklamacji" FontSize="12" Foreground="#C62828" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </Border>
                 </Grid>
@@ -514,20 +507,11 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="70">
+                                <DataGridTextColumn Header="Kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Koszt" Binding="{Binding KosztReklamacji, StringFormat=N2}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#C62828"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -568,7 +552,6 @@
                                 <ContextMenu>
                                     <MenuItem Header="Szczegoly reklamacji" Click="BtnSzczegoly_Click" FontWeight="SemiBold"/>
                                     <MenuItem Header="Zmien status" Click="BtnZmienStatus_Click"/>
-                                    <MenuItem Header="Dodaj koszt" Click="BtnDodajKoszt_Click"/>
                                     <Separator/>
                                     <MenuItem Header="Eksportuj do Excel" Click="BtnExportExcel_Click"/>
                                 </ContextMenu>
