@@ -2816,19 +2816,19 @@ ORDER BY Dzien ASC;";
                     string numerDokumentu = selectedRow.Cells["NumerDokumentu"].Value?.ToString() ?? "Nieznany";
                     string nazwaKontrahenta = selectedRow.Cells["NazwaFirmy"].Value?.ToString() ?? "Nieznany";
 
-                    using (var formReklamacja = new FormReklamacja(
+                    // Nowe okno WPF
+                    var windowReklamacja = new Kalendarz1.Reklamacje.FormReklamacjaWindow(
                         connectionString,
                         idDokumentu,
                         idKontrahenta,
                         numerDokumentu,
                         nazwaKontrahenta,
-                        UserID))
+                        UserID);
+
+                    if (windowReklamacja.ShowDialog() == true)
                     {
-                        if (formReklamacja.ShowDialog(this) == DialogResult.OK)
-                        {
-                            MessageBox.Show("✓ Reklamacja została pomyślnie zgłoszona!",
-                                "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
+                        MessageBox.Show("Reklamacja została pomyślnie zgłoszona!",
+                            "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
             }

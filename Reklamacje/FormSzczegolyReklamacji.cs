@@ -303,10 +303,29 @@ namespace Kalendarz1.Reklamacje
                         if (reader.NextResult())
                         {
                             lbZdjecia.Items.Clear();
-                            while (reader.Read())
+                            try
                             {
-                                lbZdjecia.Items.Add($"{reader["NazwaPliku"]} | {reader["SciezkaPliku"]}");
+                                while (reader.Read())
+                                {
+                                    string nazwaPliku = "";
+                                    string sciezkaPliku = "";
+
+                                    // Sprawdz czy kolumna istnieje
+                                    for (int i = 0; i < reader.FieldCount; i++)
+                                    {
+                                        string colName = reader.GetName(i);
+                                        if (colName == "NazwaPliku" && !reader.IsDBNull(i))
+                                            nazwaPliku = reader.GetString(i);
+                                        else if (colName == "SciezkaPliku" && !reader.IsDBNull(i))
+                                            sciezkaPliku = reader.GetString(i);
+                                    }
+
+                                    if (!string.IsNullOrEmpty(nazwaPliku) || !string.IsNullOrEmpty(sciezkaPliku))
+                                        lbZdjecia.Items.Add($"{nazwaPliku} | {sciezkaPliku}");
+                                }
                             }
+                            catch { /* Ignoruj bledy odczytu zdjec */ }
+
                             if (lbZdjecia.Items.Count == 0)
                                 lbZdjecia.Items.Add("(brak zdjęć)");
                         }
@@ -402,7 +421,7 @@ namespace Kalendarz1.Reklamacje
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 10F)
             };
-            cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknięta" });
+            cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
             cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
 
             Label lblKomentarz = new Label
@@ -527,7 +546,7 @@ namespace Kalendarz1.Reklamacje
                 case "W trakcie": return ColorTranslator.FromHtml("#f39c12");
                 case "Zaakceptowana": return ColorTranslator.FromHtml("#27ae60");
                 case "Odrzucona": return ColorTranslator.FromHtml("#95a5a6");
-                case "Zamknięta": return ColorTranslator.FromHtml("#34495e");
+                case "Zamknieta": return ColorTranslator.FromHtml("#34495e");
                 default: return Color.Black;
             }
         }
@@ -535,7 +554,7 @@ namespace Kalendarz1.Reklamacje
         private void CmbStatus_SelectedIndexChanged(object sender, EventArgs e)
         {
             string nowyStatus = cmbStatus.SelectedItem?.ToString();
-            bool pokazRozwiazanie = nowyStatus == "Zaakceptowana" || nowyStatus == "Odrzucona" || nowyStatus == "Zamknięta";
+            bool pokazRozwiazanie = nowyStatus == "Zaakceptowana" || nowyStatus == "Odrzucona" || nowyStatus == "Zamknieta";
 
             foreach (Control ctrl in Controls[0].Controls)
             {

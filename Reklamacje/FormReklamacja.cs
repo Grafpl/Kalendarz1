@@ -1,8 +1,9 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -11,7 +12,11 @@ namespace Kalendarz1
 {
     public partial class FormReklamacja : Form
     {
-        private string connectionString;
+        // Connection string do Handel (.112) - pobieranie towarów z faktury
+        private string connectionStringHandel;
+        // Connection string do LibraNet (.109) - zapis reklamacji
+        private string connectionStringLibraNet = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         private int idDokumentu;
         private int idKontrahenta;
         private string numerDokumentu;
@@ -19,28 +24,28 @@ namespace Kalendarz1
         private string userId;
 
         private TextBox txtOpis;
-        private Label lblKontrahent;
-        private Label lblNumerFaktury;
         private Label lblSumaKg;
         private Label lblLicznikTowary;
         private Label lblLicznikPartie;
         private Label lblLicznikZdjecia;
-        private CheckedListBox checkedListBoxTowary;
-        private CheckedListBox checkedListBoxPartie;
+        private DataGridView dgvTowary;
+        private DataGridView dgvPartie;
         private ListBox listBoxZdjecia;
         private Button btnDodajZdjecia;
         private Button btnUsunZdjecie;
         private Button btnZapiszReklamacje;
         private Button btnAnuluj;
         private PictureBox pictureBoxPodglad;
+        private ComboBox cmbTypReklamacji;
+        private ComboBox cmbPriorytet;
 
         private List<string> sciezkiZdjec = new List<string>();
         private DataTable dtTowary;
         private DataTable dtPartie;
 
-        public FormReklamacja(string connString, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
+        public FormReklamacja(string connStringHandel, int dokId, int kontrId, string nrDok, string nazwaKontr, string user)
         {
-            connectionString = connString;
+            connectionStringHandel = connStringHandel;
             idDokumentu = dokId;
             idKontrahenta = kontrId;
             numerDokumentu = nrDok;
@@ -48,178 +53,297 @@ namespace Kalendarz1
             userId = user;
 
             InitializeComponent();
-            InicjalizujFormularz();
             WczytajTowaryZFaktury();
             WczytajPartie();
+            AktualizujLiczniki();
         }
 
         private void InitializeComponent()
         {
-            this.Text = "⚠ Zgłoszenie reklamacji";
-            this.Size = new Size(1400, 850);
+            this.Text = "Zgłoszenie reklamacji";
+            this.Size = new Size(1500, 950);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.MinimumSize = new Size(1200, 750);
-            this.BackColor = ColorTranslator.FromHtml("#f5f7fa");
+            this.MinimumSize = new Size(1300, 850);
+            this.BackColor = ColorTranslator.FromHtml("#f0f2f5");
+            this.Font = new Font("Segoe UI", 9F);
 
-            // Panel nagłówka
+            // ========== NAGŁÓWEK ==========
             Panel panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 100,
-                BackColor = ColorTranslator.FromHtml("#e74c3c"),
-                Padding = new Padding(25, 15, 25, 15)
+                Height = 120,
+                BackColor = ColorTranslator.FromHtml("#1a73e8"),
+                Padding = new Padding(30, 20, 30, 20)
+            };
+
+            // Gradient dla nagłówka
+            panelHeader.Paint += (s, e) =>
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(
+                    panelHeader.ClientRectangle,
+                    ColorTranslator.FromHtml("#1a73e8"),
+                    ColorTranslator.FromHtml("#0d47a1"),
+                    LinearGradientMode.Horizontal))
+                {
+                    e.Graphics.FillRectangle(brush, panelHeader.ClientRectangle);
+                }
             };
 
             Label lblTytul = new Label
             {
-                Text = "⚠ ZGŁOSZENIE REKLAMACJI",
-                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                Text = "NOWE ZGŁOSZENIE REKLAMACJI",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(25, 20)
+                Location = new Point(30, 15),
+                BackColor = Color.Transparent
             };
 
-            lblKontrahent = new Label
+            Label lblPodtytul = new Label
+            {
+                Text = "Wypełnij formularz, aby zgłosić reklamację dla wybranej faktury",
+                Font = new Font("Segoe UI", 11F),
+                ForeColor = ColorTranslator.FromHtml("#bbdefb"),
+                AutoSize = true,
+                Location = new Point(32, 55),
+                BackColor = Color.Transparent
+            };
+
+            // Info box po prawej
+            Panel panelInfo = new Panel
+            {
+                Size = new Size(400, 80),
+                Location = new Point(panelHeader.Width - 450, 20),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.FromArgb(40, 255, 255, 255)
+            };
+
+            Label lblKontrahentInfo = new Label
             {
                 Text = $"Kontrahent: {nazwaKontrahenta}",
-                Font = new Font("Segoe UI", 11F),
-                ForeColor = Color.White,
-                AutoSize = true,
-                Location = new Point(25, 55)
-            };
-
-            lblNumerFaktury = new Label
-            {
-                Text = $"📄 Faktura: {numerDokumentu}",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(400, 55)
+                Location = new Point(15, 12),
+                BackColor = Color.Transparent,
+                MaximumSize = new Size(370, 0)
             };
 
-            panelHeader.Controls.AddRange(new Control[] { lblTytul, lblKontrahent, lblNumerFaktury });
+            Label lblFakturaInfo = new Label
+            {
+                Text = $"Faktura: {numerDokumentu}",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = ColorTranslator.FromHtml("#e3f2fd"),
+                AutoSize = true,
+                Location = new Point(15, 45),
+                BackColor = Color.Transparent
+            };
+
+            panelInfo.Controls.AddRange(new Control[] { lblKontrahentInfo, lblFakturaInfo });
+            panelHeader.Controls.AddRange(new Control[] { lblTytul, lblPodtytul, panelInfo });
             this.Controls.Add(panelHeader);
 
-            // Panel główny z zawartością
+            // ========== GŁÓWNA ZAWARTOŚĆ ==========
             Panel panelMain = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(20),
+                Padding = new Padding(25, 20, 25, 10),
                 AutoScroll = true
             };
-            this.Controls.Add(panelMain);
 
-            int yPos = 10;
-
-            // ===== SEKCJA 1: TOWARY =====
-            Panel panelTowary = StworzSekcje("📦 TOWARY DO REKLAMACJI", yPos, 300);
-            panelMain.Controls.Add(panelTowary);
-
-            checkedListBoxTowary = new CheckedListBox
+            // Layout: dwie kolumny
+            TableLayoutPanel layoutGlowny = new TableLayoutPanel
             {
-                Location = new Point(20, 45),
-                Size = new Size(panelTowary.Width - 40, 210),
-                Font = new Font("Consolas", 9.5F),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                CheckOnClick = true
+                Dock = DockStyle.Top,
+                Height = 700,
+                ColumnCount = 2,
+                RowCount = 2,
+                AutoSize = true
             };
-            checkedListBoxTowary.ItemCheck += (s, e) => this.BeginInvoke(new Action(() => AktualizujSumeKg()));
-            panelTowary.Controls.Add(checkedListBoxTowary);
+            layoutGlowny.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
+            layoutGlowny.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+            layoutGlowny.RowStyles.Add(new RowStyle(SizeType.Absolute, 350F));
+            layoutGlowny.RowStyles.Add(new RowStyle(SizeType.Absolute, 350F));
+
+            // ===== KARTA 1: TOWARY =====
+            Panel kartaTowary = StworzKarte("TOWARY Z FAKTURY", "Zaznacz produkty objęte reklamacją", ColorTranslator.FromHtml("#e8f5e9"), ColorTranslator.FromHtml("#2e7d32"));
+            kartaTowary.Dock = DockStyle.Fill;
+            kartaTowary.Margin = new Padding(0, 0, 10, 10);
+
+            dgvTowary = new DataGridView
+            {
+                Location = new Point(15, 70),
+                Size = new Size(kartaTowary.Width - 30, 220),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                Font = new Font("Segoe UI", 9.5F),
+                RowTemplate = { Height = 32 },
+                EnableHeadersVisualStyles = false
+            };
+            dgvTowary.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#2e7d32");
+            dgvTowary.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvTowary.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            dgvTowary.ColumnHeadersHeight = 40;
+            dgvTowary.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f5f5f5");
+            dgvTowary.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#c8e6c9");
+            dgvTowary.DefaultCellStyle.SelectionForeColor = Color.Black;
+            dgvTowary.CellClick += (s, e) => AktualizujLiczniki();
 
             lblLicznikTowary = new Label
             {
-                Text = "Zaznaczono: 0 towarów",
-                Location = new Point(20, 265),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                Text = "Zaznaczono: 0 towar(ów)",
+                Location = new Point(15, 300),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#2e7d32"),
                 AutoSize = true
             };
-            panelTowary.Controls.Add(lblLicznikTowary);
 
-            yPos += 320;
+            kartaTowary.Controls.Add(dgvTowary);
+            kartaTowary.Controls.Add(lblLicznikTowary);
+            layoutGlowny.Controls.Add(kartaTowary, 0, 0);
 
-            // ===== SEKCJA 2: PARTIE =====
-            Panel panelPartie = StworzSekcje("🏷 PARTIE DOSTAWCY (ostatnie 14 dni)", yPos, 300);
-            panelMain.Controls.Add(panelPartie);
+            // ===== KARTA 2: DANE REKLAMACJI =====
+            Panel kartaDane = StworzKarte("DANE REKLAMACJI", "Określ typ i priorytet zgłoszenia", ColorTranslator.FromHtml("#fff3e0"), ColorTranslator.FromHtml("#ef6c00"));
+            kartaDane.Dock = DockStyle.Fill;
+            kartaDane.Margin = new Padding(10, 0, 0, 10);
 
-            checkedListBoxPartie = new CheckedListBox
+            Label lblTyp = new Label
             {
-                Location = new Point(20, 45),
-                Size = new Size(panelPartie.Width - 40, 210),
-                Font = new Font("Consolas", 9F),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                CheckOnClick = true
-            };
-            checkedListBoxPartie.ItemCheck += (s, e) => this.BeginInvoke(new Action(AktualizujLiczniki));
-            panelPartie.Controls.Add(checkedListBoxPartie);
-
-            lblLicznikPartie = new Label
-            {
-                Text = "Zaznaczono: 0 partii",
-                Location = new Point(20, 265),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                Text = "Typ reklamacji:",
+                Location = new Point(15, 75),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#424242"),
                 AutoSize = true
             };
-            panelPartie.Controls.Add(lblLicznikPartie);
 
-            yPos += 320;
+            cmbTypReklamacji = new ComboBox
+            {
+                Location = new Point(15, 100),
+                Size = new Size(250, 35),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 11F),
+                FlatStyle = FlatStyle.Flat
+            };
+            cmbTypReklamacji.Items.AddRange(new object[] { "Jakość produktu", "Ilość / Brak towaru", "Uszkodzenie w transporcie", "Termin ważności", "Niezgodność z zamówieniem", "Inne" });
+            cmbTypReklamacji.SelectedIndex = 0;
 
-            // ===== SEKCJA 3: OPIS =====
-            Panel panelOpis = StworzSekcje("📝 OPIS REKLAMACJI", yPos, 180);
-            panelMain.Controls.Add(panelOpis);
+            Label lblPriorytetLabel = new Label
+            {
+                Text = "Priorytet:",
+                Location = new Point(15, 150),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#424242"),
+                AutoSize = true
+            };
+
+            cmbPriorytet = new ComboBox
+            {
+                Location = new Point(15, 175),
+                Size = new Size(250, 35),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 11F),
+                FlatStyle = FlatStyle.Flat
+            };
+            cmbPriorytet.Items.AddRange(new object[] { "Niski", "Normalny", "Wysoki", "Krytyczny" });
+            cmbPriorytet.SelectedIndex = 1;
+            cmbPriorytet.DrawMode = DrawMode.OwnerDrawFixed;
+            cmbPriorytet.DrawItem += CmbPriorytet_DrawItem;
+
+            Label lblOpisLabel = new Label
+            {
+                Text = "Opis problemu: *",
+                Location = new Point(15, 225),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#424242"),
+                AutoSize = true
+            };
 
             txtOpis = new TextBox
             {
-                Location = new Point(20, 45),
-                Size = new Size(panelOpis.Width - 40, 115),
+                Location = new Point(15, 250),
+                Size = new Size(kartaDane.Width - 50, 80),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Multiline = true,
                 Font = new Font("Segoe UI", 10F),
                 BorderStyle = BorderStyle.FixedSingle,
                 ScrollBars = ScrollBars.Vertical
             };
-            panelOpis.Controls.Add(txtOpis);
 
-            yPos += 200;
+            kartaDane.Controls.AddRange(new Control[] { lblTyp, cmbTypReklamacji, lblPriorytetLabel, cmbPriorytet, lblOpisLabel, txtOpis });
+            layoutGlowny.Controls.Add(kartaDane, 1, 0);
 
-            // ===== SEKCJA 4: ZDJĘCIA =====
-            Panel panelZdjecia = StworzSekcje("📷 ZDJĘCIA (opcjonalnie)", yPos, 300);
-            panelMain.Controls.Add(panelZdjecia);
+            // ===== KARTA 3: PARTIE =====
+            Panel kartaPartie = StworzKarte("PARTIE DOSTAWCY", "Wybierz partie powiązane z reklamacją (ostatnie 14 dni)", ColorTranslator.FromHtml("#e3f2fd"), ColorTranslator.FromHtml("#1565c0"));
+            kartaPartie.Dock = DockStyle.Fill;
+            kartaPartie.Margin = new Padding(0, 10, 10, 0);
 
-            Panel panelZdjeciaLewy = new Panel
+            dgvPartie = new DataGridView
             {
-                Location = new Point(20, 45),
-                Size = new Size(600, 230),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(15, 70),
+                Size = new Size(kartaPartie.Width - 30, 220),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                Font = new Font("Segoe UI", 9.5F),
+                RowTemplate = { Height = 32 },
+                EnableHeadersVisualStyles = false
             };
+            dgvPartie.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#1565c0");
+            dgvPartie.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvPartie.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            dgvPartie.ColumnHeadersHeight = 40;
+            dgvPartie.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f5f5f5");
+            dgvPartie.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#bbdefb");
+            dgvPartie.DefaultCellStyle.SelectionForeColor = Color.Black;
+            dgvPartie.CellClick += (s, e) => AktualizujLiczniki();
+
+            lblLicznikPartie = new Label
+            {
+                Text = "Zaznaczono: 0 parti(i)",
+                Location = new Point(15, 300),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#1565c0"),
+                AutoSize = true
+            };
+
+            kartaPartie.Controls.Add(dgvPartie);
+            kartaPartie.Controls.Add(lblLicznikPartie);
+            layoutGlowny.Controls.Add(kartaPartie, 0, 1);
+
+            // ===== KARTA 4: ZDJĘCIA =====
+            Panel kartaZdjecia = StworzKarte("DOKUMENTACJA ZDJĘCIOWA", "Dodaj zdjęcia dokumentujące problem (opcjonalnie)", ColorTranslator.FromHtml("#fce4ec"), ColorTranslator.FromHtml("#c2185b"));
+            kartaZdjecia.Dock = DockStyle.Fill;
+            kartaZdjecia.Margin = new Padding(10, 10, 0, 0);
 
             listBoxZdjecia = new ListBox
             {
-                Dock = DockStyle.Fill,
+                Location = new Point(15, 70),
+                Size = new Size(200, 180),
                 Font = new Font("Segoe UI", 9F),
-                BorderStyle = BorderStyle.None
+                BorderStyle = BorderStyle.FixedSingle
             };
             listBoxZdjecia.SelectedIndexChanged += ListBoxZdjecia_SelectedIndexChanged;
-            panelZdjeciaLewy.Controls.Add(listBoxZdjecia);
-            panelZdjecia.Controls.Add(panelZdjeciaLewy);
-
-            Panel panelPrzyciski = new Panel
-            {
-                Location = new Point(630, 45),
-                Size = new Size(140, 230),
-                BackColor = Color.Transparent
-            };
 
             btnDodajZdjecia = new Button
             {
-                Text = "➕ Dodaj zdjęcia",
-                Size = new Size(140, 40),
-                Location = new Point(0, 0),
-                BackColor = ColorTranslator.FromHtml("#27ae60"),
+                Text = "+ Dodaj",
+                Size = new Size(90, 35),
+                Location = new Point(15, 260),
+                BackColor = ColorTranslator.FromHtml("#c2185b"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -230,10 +354,10 @@ namespace Kalendarz1
 
             btnUsunZdjecie = new Button
             {
-                Text = "🗑 Usuń zdjęcie",
-                Size = new Size(140, 40),
-                Location = new Point(0, 50),
-                BackColor = ColorTranslator.FromHtml("#e74c3c"),
+                Text = "- Usuń",
+                Size = new Size(90, 35),
+                Location = new Point(115, 260),
+                BackColor = ColorTranslator.FromHtml("#757575"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
@@ -243,136 +367,192 @@ namespace Kalendarz1
             btnUsunZdjecie.FlatAppearance.BorderSize = 0;
             btnUsunZdjecie.Click += BtnUsunZdjecie_Click;
 
-            panelPrzyciski.Controls.AddRange(new Control[] { btnDodajZdjecia, btnUsunZdjecie });
-            panelZdjecia.Controls.Add(panelPrzyciski);
-
             pictureBoxPodglad = new PictureBox
             {
-                Location = new Point(780, 45),
-                Size = new Size(300, 230),
+                Location = new Point(230, 70),
+                Size = new Size(200, 180),
                 BorderStyle = BorderStyle.FixedSingle,
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = ColorTranslator.FromHtml("#ecf0f1")
+                BackColor = ColorTranslator.FromHtml("#fafafa")
             };
-            panelZdjecia.Controls.Add(pictureBoxPodglad);
 
             lblLicznikZdjecia = new Label
             {
                 Text = "Dodano: 0 zdjęć",
-                Location = new Point(20, 280),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#7f8c8d"),
+                Location = new Point(230, 260),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#c2185b"),
                 AutoSize = true
             };
-            panelZdjecia.Controls.Add(lblLicznikZdjecia);
 
-            // ===== PANEL DOLNY - PODSUMOWANIE I PRZYCISKI =====
+            kartaZdjecia.Controls.AddRange(new Control[] { listBoxZdjecia, btnDodajZdjecia, btnUsunZdjecie, pictureBoxPodglad, lblLicznikZdjecia });
+            layoutGlowny.Controls.Add(kartaZdjecia, 1, 1);
+
+            panelMain.Controls.Add(layoutGlowny);
+            this.Controls.Add(panelMain);
+
+            // ========== STOPKA ==========
             Panel panelFooter = new Panel
             {
                 Dock = DockStyle.Bottom,
                 Height = 80,
-                BackColor = ColorTranslator.FromHtml("#34495e"),
-                Padding = new Padding(20)
+                BackColor = Color.White,
+                Padding = new Padding(25, 15, 25, 15)
             };
+
+            // Linia górna
+            Panel liniaGorna = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = ColorTranslator.FromHtml("#e0e0e0")
+            };
+            panelFooter.Controls.Add(liniaGorna);
 
             lblSumaKg = new Label
             {
-                Text = "⚖ Suma kg: 0.00 kg",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = Color.White,
+                Text = "Suma kg: 0,00 kg",
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                ForeColor = ColorTranslator.FromHtml("#1a73e8"),
                 AutoSize = true,
-                Location = new Point(20, 25)
+                Location = new Point(25, 25)
             };
-            panelFooter.Controls.Add(lblSumaKg);
 
             btnZapiszReklamacje = new Button
             {
-                Text = "✓ ZGŁOŚ REKLAMACJĘ",
-                Size = new Size(200, 45),
-                Location = new Point(panelFooter.Width - 430, 15),
+                Text = "ZGŁOŚ REKLAMACJĘ",
+                Size = new Size(220, 50),
+                Location = new Point(panelFooter.Width - 470, 15),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                BackColor = ColorTranslator.FromHtml("#27ae60"),
+                BackColor = ColorTranslator.FromHtml("#1a73e8"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnZapiszReklamacje.FlatAppearance.BorderSize = 0;
             btnZapiszReklamacje.Click += BtnZapiszReklamacje_Click;
+            btnZapiszReklamacje.MouseEnter += (s, e) => btnZapiszReklamacje.BackColor = ColorTranslator.FromHtml("#1557b0");
+            btnZapiszReklamacje.MouseLeave += (s, e) => btnZapiszReklamacje.BackColor = ColorTranslator.FromHtml("#1a73e8");
 
             btnAnuluj = new Button
             {
-                Text = "✕ Anuluj",
-                Size = new Size(200, 45),
-                Location = new Point(panelFooter.Width - 220, 15),
+                Text = "Anuluj",
+                Size = new Size(180, 50),
+                Location = new Point(panelFooter.Width - 230, 15),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                BackColor = ColorTranslator.FromHtml("#95a5a6"),
-                ForeColor = Color.White,
+                BackColor = ColorTranslator.FromHtml("#f5f5f5"),
+                ForeColor = ColorTranslator.FromHtml("#424242"),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F),
                 Cursor = Cursors.Hand
             };
-            btnAnuluj.FlatAppearance.BorderSize = 0;
+            btnAnuluj.FlatAppearance.BorderColor = ColorTranslator.FromHtml("#bdbdbd");
+            btnAnuluj.FlatAppearance.BorderSize = 1;
             btnAnuluj.Click += (s, e) => this.Close();
+            btnAnuluj.MouseEnter += (s, e) => btnAnuluj.BackColor = ColorTranslator.FromHtml("#eeeeee");
+            btnAnuluj.MouseLeave += (s, e) => btnAnuluj.BackColor = ColorTranslator.FromHtml("#f5f5f5");
 
-            panelFooter.Controls.AddRange(new Control[] { btnZapiszReklamacje, btnAnuluj });
+            panelFooter.Controls.AddRange(new Control[] { lblSumaKg, btnZapiszReklamacje, btnAnuluj });
             this.Controls.Add(panelFooter);
         }
 
-        private Panel StworzSekcje(string tytul, int yPos, int height)
+        private Panel StworzKarte(string tytul, string podtytul, Color kolorTla, Color kolorAkcentu)
         {
-            Panel panel = new Panel
+            Panel karta = new Panel
             {
-                Location = new Point(0, yPos),
-                Size = new Size(1120, height),
                 BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                Padding = new Padding(15)
+            };
+
+            // Pasek kolorowy u góry
+            Panel pasek = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 5,
+                BackColor = kolorAkcentu
             };
 
             Label lblTytul = new Label
             {
                 Text = tytul,
-                Location = new Point(15, 12),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#2c3e50"),
+                Location = new Point(15, 15),
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = kolorAkcentu,
                 AutoSize = true
             };
 
-            Panel linia = new Panel
+            Label lblPodtytul = new Label
             {
-                Location = new Point(0, 38),
-                Size = new Size(panel.Width, 2),
-                BackColor = ColorTranslator.FromHtml("#bdc3c7")
+                Text = podtytul,
+                Location = new Point(15, 42),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = ColorTranslator.FromHtml("#757575"),
+                AutoSize = true
             };
 
-            panel.Controls.AddRange(new Control[] { lblTytul, linia });
-            return panel;
+            karta.Controls.AddRange(new Control[] { pasek, lblTytul, lblPodtytul });
+
+            // Cień
+            karta.Paint += (s, e) =>
+            {
+                ControlPaint.DrawBorder(e.Graphics, karta.ClientRectangle,
+                    ColorTranslator.FromHtml("#e0e0e0"), 1, ButtonBorderStyle.Solid,
+                    ColorTranslator.FromHtml("#e0e0e0"), 1, ButtonBorderStyle.Solid,
+                    ColorTranslator.FromHtml("#e0e0e0"), 1, ButtonBorderStyle.Solid,
+                    ColorTranslator.FromHtml("#e0e0e0"), 1, ButtonBorderStyle.Solid);
+            };
+
+            return karta;
         }
 
-        private void InicjalizujFormularz()
+        private void CmbPriorytet_DrawItem(object sender, DrawItemEventArgs e)
         {
-            AktualizujLiczniki();
-            AktualizujSumeKg();
+            if (e.Index < 0) return;
+
+            e.DrawBackground();
+
+            Color kolor = Color.Black;
+            string tekst = cmbPriorytet.Items[e.Index].ToString();
+
+            switch (e.Index)
+            {
+                case 0: kolor = ColorTranslator.FromHtml("#4caf50"); break; // Niski - zielony
+                case 1: kolor = ColorTranslator.FromHtml("#2196f3"); break; // Normalny - niebieski
+                case 2: kolor = ColorTranslator.FromHtml("#ff9800"); break; // Wysoki - pomarańczowy
+                case 3: kolor = ColorTranslator.FromHtml("#f44336"); break; // Krytyczny - czerwony
+            }
+
+            using (Brush brush = new SolidBrush(kolor))
+            {
+                e.Graphics.FillEllipse(brush, new Rectangle(e.Bounds.X + 5, e.Bounds.Y + 8, 10, 10));
+            }
+
+            using (Brush brush = new SolidBrush(e.ForeColor))
+            {
+                e.Graphics.DrawString(tekst, e.Font, brush, e.Bounds.X + 22, e.Bounds.Y + 4);
+            }
+
+            e.DrawFocusRectangle();
         }
 
         private void WczytajTowaryZFaktury()
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringHandel))
                 {
                     conn.Open();
 
-                    // POPRAWIONE: Używamy prawidłowych nazw tabel z Twojej bazy
                     string query = @"
-                        SELECT 
-                            DP.id,
+                        SELECT
+                            DP.id AS ID,
                             DP.kod AS Symbol,
                             TW.kod AS Nazwa,
-                            DP.ilosc AS Ilosc,
-                            DP.ilosc AS Waga
-                        FROM [HANDEL].[HM].[DP] DP
-                        LEFT JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                            CAST(DP.ilosc AS DECIMAL(10,2)) AS Ilość,
+                            CAST(DP.ilosc AS DECIMAL(10,2)) AS [Waga (kg)]
+                        FROM [HM].[DP] DP
+                        LEFT JOIN [HM].[TW] TW ON DP.idtw = TW.ID
                         WHERE DP.super = @IdDokumentu
                         ORDER BY DP.lp";
 
@@ -387,31 +567,37 @@ namespace Kalendarz1
                     }
                 }
 
-                checkedListBoxTowary.Items.Clear();
+                dgvTowary.DataSource = dtTowary;
 
-                if (dtTowary.Rows.Count == 0)
+                if (dgvTowary.Columns.Contains("ID"))
+                    dgvTowary.Columns["ID"].Visible = false;
+
+                if (dgvTowary.Columns.Contains("Symbol"))
                 {
-                    checkedListBoxTowary.Items.Add("(Brak towarów w fakturze)");
-                    return;
+                    dgvTowary.Columns["Symbol"].HeaderText = "Symbol";
+                    dgvTowary.Columns["Symbol"].FillWeight = 30;
                 }
-
-                foreach (DataRow row in dtTowary.Rows)
+                if (dgvTowary.Columns.Contains("Nazwa"))
                 {
-                    string symbol = row["Symbol"]?.ToString() ?? "";
-                    string nazwa = row["Nazwa"]?.ToString() ?? symbol;
-                    decimal ilosc = row["Ilosc"] != DBNull.Value ? Convert.ToDecimal(row["Ilosc"]) : 0;
-                    decimal waga = row["Waga"] != DBNull.Value ? Convert.ToDecimal(row["Waga"]) : 0;
-
-                    string display = $"{symbol,-15} | {nazwa,-40} | {ilosc,8:N2} szt | {waga,10:N2} kg";
-                    checkedListBoxTowary.Items.Add(display);
+                    dgvTowary.Columns["Nazwa"].HeaderText = "Nazwa towaru";
+                    dgvTowary.Columns["Nazwa"].FillWeight = 45;
+                }
+                if (dgvTowary.Columns.Contains("Ilość"))
+                {
+                    dgvTowary.Columns["Ilość"].HeaderText = "Ilość";
+                    dgvTowary.Columns["Ilość"].FillWeight = 12;
+                    dgvTowary.Columns["Ilość"].DefaultCellStyle.Format = "N2";
+                }
+                if (dgvTowary.Columns.Contains("Waga (kg)"))
+                {
+                    dgvTowary.Columns["Waga (kg)"].HeaderText = "Waga (kg)";
+                    dgvTowary.Columns["Waga (kg)"].FillWeight = 13;
+                    dgvTowary.Columns["Waga (kg)"].DefaultCellStyle.Format = "N2";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas wczytywania towarów:\n{ex.Message}",
-                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                checkedListBoxTowary.Items.Clear();
-                checkedListBoxTowary.Items.Add("(Błąd wczytywania towarów)");
+                MessageBox.Show($"Błąd wczytywania towarów:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -419,20 +605,18 @@ namespace Kalendarz1
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringLibraNet))
                 {
                     conn.Open();
 
-                    // POPRAWIONE: Próbujemy wczytać partie, ale nie blokujemy jeśli nie ma tabeli
                     string query = @"
-                        SELECT 
-                            [guid],
-                            [Partia],
-                            [CustomerID],
-                            [CustomerName],
-                            [CreateData],
-                            [CreateGodzina]
-                        FROM [LibraNet].[dbo].[PartiaDostawca]
+                        SELECT
+                            [guid] AS ID,
+                            [Partia] AS [Nr partii],
+                            [CustomerID] AS [ID dostawcy],
+                            [CustomerName] AS [Nazwa dostawcy],
+                            CONVERT(VARCHAR, [CreateData], 104) + ' ' + LEFT([CreateGodzina], 8) AS [Data utworzenia]
+                        FROM [dbo].[PartiaDostawca]
                         WHERE [CreateData] >= DATEADD(DAY, -14, GETDATE())
                         ORDER BY [CreateData] DESC, [CreateGodzina] DESC";
 
@@ -446,32 +630,92 @@ namespace Kalendarz1
                     }
                 }
 
-                checkedListBoxPartie.Items.Clear();
+                dgvPartie.DataSource = dtPartie;
 
-                if (dtPartie.Rows.Count == 0)
+                if (dgvPartie.Columns.Contains("ID"))
+                    dgvPartie.Columns["ID"].Visible = false;
+
+                if (dgvPartie.Columns.Contains("ID dostawcy"))
                 {
-                    checkedListBoxPartie.Items.Add("(Brak partii z ostatnich 14 dni)");
-                    return;
+                    dgvPartie.Columns["ID dostawcy"].FillWeight = 12;
                 }
-
-                foreach (DataRow row in dtPartie.Rows)
+                if (dgvPartie.Columns.Contains("Nr partii"))
                 {
-                    string customerID = row["CustomerID"]?.ToString() ?? "";
-                    string partia = row["Partia"]?.ToString() ?? "";
-                    DateTime createData = row["CreateData"] != DBNull.Value ? Convert.ToDateTime(row["CreateData"]) : DateTime.MinValue;
-                    string createGodzina = row["CreateGodzina"]?.ToString() ?? "";
-                    string customerName = row["CustomerName"]?.ToString() ?? "";
-
-                    string display = $"{customerID,-6} | {partia,-12} | {createData:yyyy-MM-dd} {createGodzina} | {customerName}";
-                    checkedListBoxPartie.Items.Add(display);
+                    dgvPartie.Columns["Nr partii"].FillWeight = 15;
+                }
+                if (dgvPartie.Columns.Contains("Nazwa dostawcy"))
+                {
+                    dgvPartie.Columns["Nazwa dostawcy"].FillWeight = 40;
+                }
+                if (dgvPartie.Columns.Contains("Data utworzenia"))
+                {
+                    dgvPartie.Columns["Data utworzenia"].FillWeight = 33;
                 }
             }
             catch (Exception ex)
             {
-                // POPRAWIONE: Nie pokazujemy błędu jeśli partie są niedostępne
-                checkedListBoxPartie.Items.Clear();
-                checkedListBoxPartie.Items.Add("(Partie niedostępne - zgłoszenie reklamacji możliwe bez partii)");
-                dtPartie = new DataTable(); // Pusta tabela
+                // Partie mogą nie istnieć - nie pokazuj błędu
+                dtPartie = new DataTable();
+            }
+        }
+
+        private void AktualizujLiczniki()
+        {
+            int zaznaczoneTowary = dgvTowary?.SelectedRows.Count ?? 0;
+            int zaznaczonePartie = dgvPartie?.SelectedRows.Count ?? 0;
+            int liczbaZdjec = sciezkiZdjec.Count;
+
+            if (lblLicznikTowary != null)
+                lblLicznikTowary.Text = $"Zaznaczono: {zaznaczoneTowary} towar(ów)";
+
+            if (lblLicznikPartie != null)
+                lblLicznikPartie.Text = $"Zaznaczono: {zaznaczonePartie} parti(i)";
+
+            if (lblLicznikZdjecia != null)
+                lblLicznikZdjecia.Text = $"Dodano: {liczbaZdjec} zdjęć";
+
+            AktualizujSumeKg();
+        }
+
+        private void AktualizujSumeKg()
+        {
+            decimal suma = 0;
+
+            if (dgvTowary != null && dtTowary != null)
+            {
+                foreach (DataGridViewRow row in dgvTowary.SelectedRows)
+                {
+                    if (row.Index < dtTowary.Rows.Count)
+                    {
+                        var waga = dtTowary.Rows[row.Index]["Waga (kg)"];
+                        if (waga != DBNull.Value)
+                            suma += Convert.ToDecimal(waga);
+                    }
+                }
+            }
+
+            if (lblSumaKg != null)
+                lblSumaKg.Text = $"Suma kg: {suma:N2} kg";
+        }
+
+        private void ListBoxZdjecia_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (listBoxZdjecia.SelectedIndex >= 0 && listBoxZdjecia.SelectedIndex < sciezkiZdjec.Count)
+            {
+                try
+                {
+                    pictureBoxPodglad.Image?.Dispose();
+                    pictureBoxPodglad.Image = Image.FromFile(sciezkiZdjec[listBoxZdjecia.SelectedIndex]);
+                    btnUsunZdjecie.Enabled = true;
+                }
+                catch
+                {
+                    pictureBoxPodglad.Image = null;
+                }
+            }
+            else
+            {
+                btnUsunZdjecie.Enabled = false;
             }
         }
 
@@ -479,18 +723,18 @@ namespace Kalendarz1
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Filter = "Pliki obrazów|*.jpg;*.jpeg;*.png;*.bmp;*.gif";
+                ofd.Filter = "Pliki graficzne|*.jpg;*.jpeg;*.png;*.bmp;*.gif|Wszystkie pliki|*.*";
                 ofd.Multiselect = true;
-                ofd.Title = "Wybierz zdjęcia reklamacji";
+                ofd.Title = "Wybierz zdjęcia do reklamacji";
 
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
-                    foreach (string sciezka in ofd.FileNames)
+                    foreach (string plik in ofd.FileNames)
                     {
-                        if (!sciezkiZdjec.Contains(sciezka))
+                        if (!sciezkiZdjec.Contains(plik))
                         {
-                            sciezkiZdjec.Add(sciezka);
-                            listBoxZdjecia.Items.Add(Path.GetFileName(sciezka));
+                            sciezkiZdjec.Add(plik);
+                            listBoxZdjecia.Items.Add(Path.GetFileName(plik));
                         }
                     }
                     AktualizujLiczniki();
@@ -505,98 +749,48 @@ namespace Kalendarz1
                 int index = listBoxZdjecia.SelectedIndex;
                 sciezkiZdjec.RemoveAt(index);
                 listBoxZdjecia.Items.RemoveAt(index);
+                pictureBoxPodglad.Image?.Dispose();
                 pictureBoxPodglad.Image = null;
+                btnUsunZdjecie.Enabled = false;
                 AktualizujLiczniki();
             }
-        }
-
-        private void ListBoxZdjecia_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            btnUsunZdjecie.Enabled = listBoxZdjecia.SelectedIndex >= 0;
-
-            if (listBoxZdjecia.SelectedIndex >= 0)
-            {
-                try
-                {
-                    string sciezka = sciezkiZdjec[listBoxZdjecia.SelectedIndex];
-                    pictureBoxPodglad.Image = Image.FromFile(sciezka);
-                }
-                catch
-                {
-                    pictureBoxPodglad.Image = null;
-                }
-            }
-            else
-            {
-                pictureBoxPodglad.Image = null;
-            }
-        }
-
-        private void AktualizujLiczniki()
-        {
-            int liczbaTowarow = checkedListBoxTowary.CheckedItems.Count;
-            int liczbaPartii = checkedListBoxPartie.CheckedItems.Count;
-            int liczbaZdjec = sciezkiZdjec.Count;
-
-            lblLicznikTowary.Text = $"Zaznaczono: {liczbaTowarow} towar(ów)";
-            lblLicznikPartie.Text = $"Zaznaczono: {liczbaPartii} parti(i)";
-            lblLicznikZdjecia.Text = $"Dodano: {liczbaZdjec} zdjęć";
-        }
-
-        private void AktualizujSumeKg()
-        {
-            decimal sumaKg = 0;
-
-            for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
-            {
-                int index = checkedListBoxTowary.CheckedIndices[i];
-                if (index < dtTowary.Rows.Count)
-                {
-                    if (dtTowary.Rows[index]["Waga"] != DBNull.Value)
-                    {
-                        sumaKg += Convert.ToDecimal(dtTowary.Rows[index]["Waga"]);
-                    }
-                }
-            }
-
-            lblSumaKg.Text = $"⚖ Suma kg: {sumaKg:N2} kg";
-            AktualizujLiczniki();
         }
 
         private void BtnZapiszReklamacje_Click(object sender, EventArgs e)
         {
             // Walidacja
-            if (checkedListBoxTowary.CheckedItems.Count == 0)
+            if (dgvTowary.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Musisz zaznaczyć przynajmniej jeden towar do reklamacji!",
-                    "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Zaznacz przynajmniej jeden towar do reklamacji!", "Uwaga",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(txtOpis.Text))
             {
-                MessageBox.Show("Musisz wpisać opis reklamacji!",
-                    "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Wprowadź opis problemu!", "Uwaga",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtOpis.Focus();
                 return;
             }
 
+            // Oblicz sumę kg
+            decimal sumaKg = 0;
+            foreach (DataGridViewRow row in dgvTowary.SelectedRows)
+            {
+                if (row.Index < dtTowary.Rows.Count)
+                {
+                    var waga = dtTowary.Rows[row.Index]["Waga (kg)"];
+                    if (waga != DBNull.Value)
+                        sumaKg += Convert.ToDecimal(waga);
+                }
+            }
+
+            int idReklamacji = 0;
+
             try
             {
-                int idReklamacji = 0;
-                decimal sumaKg = 0;
-
-                // Oblicz sumę kg
-                for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
-                {
-                    int index = checkedListBoxTowary.CheckedIndices[i];
-                    if (index < dtTowary.Rows.Count && dtTowary.Rows[index]["Waga"] != DBNull.Value)
-                    {
-                        sumaKg += Convert.ToDecimal(dtTowary.Rows[index]["Waga"]);
-                    }
-                }
-
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = new SqlConnection(connectionStringLibraNet))
                 {
                     conn.Open();
                     using (SqlTransaction transaction = conn.BeginTransaction())
@@ -605,10 +799,10 @@ namespace Kalendarz1
                         {
                             // 1. Zapisz główny rekord reklamacji
                             string queryReklamacja = @"
-                                INSERT INTO [HANDEL].[dbo].[Reklamacje] 
-                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status)
-                                VALUES 
-                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, 'Nowa');
+                                INSERT INTO [dbo].[Reklamacje]
+                                (DataZgloszenia, UserID, IdDokumentu, NumerDokumentu, IdKontrahenta, NazwaKontrahenta, Opis, SumaKg, Status, TypReklamacji, Priorytet)
+                                VALUES
+                                (GETDATE(), @UserID, @IdDokumentu, @NumerDokumentu, @IdKontrahenta, @NazwaKontrahenta, @Opis, @SumaKg, 'Nowa', @TypReklamacji, @Priorytet);
                                 SELECT SCOPE_IDENTITY();";
 
                             using (SqlCommand cmd = new SqlCommand(queryReklamacja, conn, transaction))
@@ -620,65 +814,65 @@ namespace Kalendarz1
                                 cmd.Parameters.AddWithValue("@NazwaKontrahenta", nazwaKontrahenta);
                                 cmd.Parameters.AddWithValue("@Opis", txtOpis.Text.Trim());
                                 cmd.Parameters.AddWithValue("@SumaKg", sumaKg);
+                                cmd.Parameters.AddWithValue("@TypReklamacji", cmbTypReklamacji.SelectedItem?.ToString() ?? "Inne");
+                                cmd.Parameters.AddWithValue("@Priorytet", cmbPriorytet.SelectedItem?.ToString() ?? "Normalny");
 
                                 idReklamacji = Convert.ToInt32(cmd.ExecuteScalar());
                             }
 
                             // 2. Zapisz towary
                             string queryTowary = @"
-                                INSERT INTO [HANDEL].[dbo].[ReklamacjeTowary] 
+                                INSERT INTO [dbo].[ReklamacjeTowary]
                                 (IdReklamacji, IdTowaru, Symbol, Nazwa, Ilosc, Waga)
-                                VALUES 
+                                VALUES
                                 (@IdReklamacji, @IdTowaru, @Symbol, @Nazwa, @Ilosc, @Waga)";
 
-                            for (int i = 0; i < checkedListBoxTowary.CheckedIndices.Count; i++)
+                            foreach (DataGridViewRow row in dgvTowary.SelectedRows)
                             {
-                                int index = checkedListBoxTowary.CheckedIndices[i];
-                                if (index < dtTowary.Rows.Count)
+                                if (row.Index < dtTowary.Rows.Count)
                                 {
-                                    DataRow row = dtTowary.Rows[index];
+                                    DataRow dataRow = dtTowary.Rows[row.Index];
                                     using (SqlCommand cmd = new SqlCommand(queryTowary, conn, transaction))
                                     {
                                         cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
-                                        cmd.Parameters.AddWithValue("@IdTowaru", row["id"]);
-                                        cmd.Parameters.AddWithValue("@Symbol", row["Symbol"] ?? DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@Nazwa", row["Nazwa"] ?? DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@Ilosc", row["Ilosc"] ?? DBNull.Value);
-                                        cmd.Parameters.AddWithValue("@Waga", row["Waga"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@IdTowaru", dataRow["ID"]);
+                                        cmd.Parameters.AddWithValue("@Symbol", dataRow["Symbol"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Nazwa", dataRow["Nazwa"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Ilosc", dataRow["Ilość"] ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Waga", dataRow["Waga (kg)"] ?? DBNull.Value);
                                         cmd.ExecuteNonQuery();
                                     }
                                 }
                             }
 
                             // 3. Zapisz partie (jeśli są)
-                            if (checkedListBoxPartie.CheckedItems.Count > 0 && dtPartie != null && dtPartie.Rows.Count > 0)
+                            if (dgvPartie.SelectedRows.Count > 0 && dtPartie != null && dtPartie.Rows.Count > 0)
                             {
                                 string queryPartie = @"
-                                    INSERT INTO [HANDEL].[dbo].[ReklamacjePartie] 
-                                    (IdReklamacji, GuidPartii, NumerPartii, CustomerID, CustomerName)
-                                    VALUES 
-                                    (@IdReklamacji, @GuidPartii, @NumerPartii, @CustomerID, @CustomerName)";
+                                    INSERT INTO [dbo].[ReklamacjePartie]
+                                    (IdReklamacji, GuidPartii, Partia, CustomerID, CustomerName)
+                                    VALUES
+                                    (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
 
-                                for (int i = 0; i < checkedListBoxPartie.CheckedIndices.Count; i++)
+                                foreach (DataGridViewRow row in dgvPartie.SelectedRows)
                                 {
-                                    int index = checkedListBoxPartie.CheckedIndices[i];
-                                    if (index < dtPartie.Rows.Count)
+                                    if (row.Index < dtPartie.Rows.Count)
                                     {
-                                        DataRow row = dtPartie.Rows[index];
+                                        DataRow dataRow = dtPartie.Rows[row.Index];
                                         using (SqlCommand cmd = new SqlCommand(queryPartie, conn, transaction))
                                         {
                                             cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
-                                            cmd.Parameters.AddWithValue("@GuidPartii", row["guid"]);
-                                            cmd.Parameters.AddWithValue("@NumerPartii", row["Partia"]);
-                                            cmd.Parameters.AddWithValue("@CustomerID", row["CustomerID"]);
-                                            cmd.Parameters.AddWithValue("@CustomerName", row["CustomerName"]);
+                                            cmd.Parameters.AddWithValue("@GuidPartii", dataRow["ID"] ?? DBNull.Value);
+                                            cmd.Parameters.AddWithValue("@Partia", dataRow["Nr partii"]?.ToString() ?? "");
+                                            cmd.Parameters.AddWithValue("@CustomerID", dataRow["ID dostawcy"] ?? DBNull.Value);
+                                            cmd.Parameters.AddWithValue("@CustomerName", dataRow["Nazwa dostawcy"] ?? DBNull.Value);
                                             cmd.ExecuteNonQuery();
                                         }
                                     }
                                 }
                             }
 
-                            // 4. Zapisz zdjęcia
+                            // 4. Zapisz zdjęcia (jeśli są)
                             if (sciezkiZdjec.Count > 0)
                             {
                                 string folderReklamacji = Path.Combine(
@@ -689,9 +883,9 @@ namespace Kalendarz1
                                 Directory.CreateDirectory(folderReklamacji);
 
                                 string queryZdjecia = @"
-                                    INSERT INTO [HANDEL].[dbo].[ReklamacjeZdjecia] 
+                                    INSERT INTO [dbo].[ReklamacjeZdjecia]
                                     (IdReklamacji, NazwaPliku, SciezkaPliku)
-                                    VALUES 
+                                    VALUES
                                     (@IdReklamacji, @NazwaPliku, @SciezkaPliku)";
 
                                 foreach (string sciezkaZrodlowa in sciezkiZdjec)
@@ -711,17 +905,28 @@ namespace Kalendarz1
                                 }
                             }
 
+                            // 5. Dodaj wpis do historii
+                            string queryHistoria = @"
+                                INSERT INTO [dbo].[ReklamacjeHistoria]
+                                (IdReklamacji, UserID, StatusNowy, Komentarz, TypAkcji)
+                                VALUES
+                                (@IdReklamacji, @UserID, 'Nowa', 'Utworzenie reklamacji', 'Utworzenie')";
+
+                            using (SqlCommand cmd = new SqlCommand(queryHistoria, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                                cmd.Parameters.AddWithValue("@UserID", userId);
+                                cmd.ExecuteNonQuery();
+                            }
+
                             transaction.Commit();
 
                             MessageBox.Show(
-                                $"✓ Reklamacja została pomyślnie zgłoszona!\n\n" +
-                                $"Numer reklamacji: #{idReklamacji}\n" +
-                                $"Kontrahent: {nazwaKontrahenta}\n" +
-                                $"Faktura: {numerDokumentu}\n" +
-                                $"Zaznaczonych towarów: {checkedListBoxTowary.CheckedItems.Count}\n" +
-                                $"Suma kg: {sumaKg:N2} kg\n" +
-                                $"Partie: {checkedListBoxPartie.CheckedItems.Count}\n" +
-                                $"Zdjęć: {sciezkiZdjec.Count}",
+                                $"Reklamacja nr {idReklamacji} została pomyślnie zgłoszona!\n\n" +
+                                $"Typ: {cmbTypReklamacji.SelectedItem}\n" +
+                                $"Priorytet: {cmbPriorytet.SelectedItem}\n" +
+                                $"Towarów: {dgvTowary.SelectedRows.Count}\n" +
+                                $"Suma kg: {sumaKg:N2}",
                                 "Sukces",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Information);
@@ -729,10 +934,10 @@ namespace Kalendarz1
                             this.DialogResult = DialogResult.OK;
                             this.Close();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             transaction.Rollback();
-                            throw;
+                            throw new Exception($"Błąd podczas zapisywania: {ex.Message}");
                         }
                     }
                 }

@@ -97,7 +97,7 @@ namespace Kalendarz1
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F)
             };
-            cmbFiltrStatus.Items.AddRange(new object[] { "Wszystkie", "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknięta" });
+            cmbFiltrStatus.Items.AddRange(new object[] { "Wszystkie", "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
             cmbFiltrStatus.SelectedIndex = 0;
             cmbFiltrStatus.SelectedIndexChanged += (s, e) => WczytajReklamacje();
             panelFiltry.Controls.Add(cmbFiltrStatus);
@@ -300,7 +300,7 @@ namespace Kalendarz1
                             Status,
                             UserID,
                             OsobaRozpatrujaca
-                        FROM [HANDEL].[dbo].[Reklamacje]
+                        FROM [dbo].[Reklamacje]
                         WHERE DataZgloszenia BETWEEN @DataOd AND @DataDo";
 
                     if (cmbFiltrStatus.SelectedIndex > 0)
@@ -330,29 +330,8 @@ namespace Kalendarz1
 
                 dgvReklamacje.DataSource = dtReklamacje;
 
-                if (dgvReklamacje.Columns.Count > 0)
-                {
-                    dgvReklamacje.Columns["Id"].HeaderText = "ID";
-                    dgvReklamacje.Columns["Id"].Width = 60;
-                    dgvReklamacje.Columns["DataZgloszenia"].HeaderText = "Data zgłoszenia";
-                    dgvReklamacje.Columns["DataZgloszenia"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm";
-                    dgvReklamacje.Columns["DataZgloszenia"].Width = 150;
-                    dgvReklamacje.Columns["NumerDokumentu"].HeaderText = "Nr faktury";
-                    dgvReklamacje.Columns["NumerDokumentu"].Width = 120;
-                    dgvReklamacje.Columns["NazwaKontrahenta"].HeaderText = "Kontrahent";
-                    dgvReklamacje.Columns["NazwaKontrahenta"].Width = 250;
-                    dgvReklamacje.Columns["Opis"].HeaderText = "Opis";
-                    dgvReklamacje.Columns["Opis"].Width = 400;
-                    dgvReklamacje.Columns["SumaKg"].HeaderText = "Suma kg";
-                    dgvReklamacje.Columns["SumaKg"].DefaultCellStyle.Format = "N2";
-                    dgvReklamacje.Columns["SumaKg"].Width = 80;
-                    dgvReklamacje.Columns["Status"].HeaderText = "Status";
-                    dgvReklamacje.Columns["Status"].Width = 120;
-                    dgvReklamacje.Columns["UserID"].HeaderText = "Zgłaszający";
-                    dgvReklamacje.Columns["UserID"].Width = 100;
-                    dgvReklamacje.Columns["OsobaRozpatrujaca"].HeaderText = "Rozpatruje";
-                    dgvReklamacje.Columns["OsobaRozpatrujaca"].Width = 100;
-                }
+                // Konfiguracja kolumn z bezpiecznym sprawdzaniem
+                KonfigurujKolumny();
 
                 lblLicznik.Text = $"Reklamacji: {dtReklamacje.Rows.Count}";
             }
@@ -416,7 +395,7 @@ namespace Kalendarz1
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
-                    case "Zamknięta":
+                    case "Zamknieta":
                         e.CellStyle.BackColor = ColorTranslator.FromHtml("#95a5a6");
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
@@ -473,7 +452,7 @@ namespace Kalendarz1
                     DropDownStyle = ComboBoxStyle.DropDownList,
                     Font = new Font("Segoe UI", 10F)
                 };
-                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknięta" });
+                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
                 cmbStatus.SelectedItem = obecnyStatus;
                 formStatus.Controls.Add(cmbStatus);
 
@@ -520,7 +499,7 @@ namespace Kalendarz1
                             {
                                 conn.Open();
                                 string query = @"
-                                    UPDATE [HANDEL].[dbo].[Reklamacje]
+                                    UPDATE [dbo].[Reklamacje]
                                     SET Status = @Status,
                                         OsobaRozpatrujaca = @Osoba,
                                         DataModyfikacji = GETDATE()
@@ -550,6 +529,72 @@ namespace Kalendarz1
             }
         }
 
+        private void KonfigurujKolumny()
+        {
+            try
+            {
+                if (dgvReklamacje == null || dgvReklamacje.Columns == null || dgvReklamacje.Columns.Count == 0)
+                    return;
+
+                // Wyłącz AutoSize przed konfiguracją kolumn
+                dgvReklamacje.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+                // Pomocnicza funkcja do bezpiecznej konfiguracji kolumny
+                void KonfigurujKolumne(string nazwa, string naglowek, int szerokosc, string format = null)
+                {
+                    try
+                    {
+                        if (!dgvReklamacje.Columns.Contains(nazwa))
+                            return;
+
+                        var col = dgvReklamacje.Columns[nazwa];
+                        if (col == null)
+                            return;
+
+                        col.HeaderText = naglowek;
+
+                        try
+                        {
+                            col.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                            col.Width = szerokosc;
+                        }
+                        catch { /* Ignoruj błędy ustawiania szerokości */ }
+
+                        if (!string.IsNullOrEmpty(format))
+                        {
+                            col.DefaultCellStyle.Format = format;
+                        }
+                    }
+                    catch { /* Ignoruj błędy pojedynczej kolumny */ }
+                }
+
+                KonfigurujKolumne("Id", "ID", 60);
+                KonfigurujKolumne("DataZgloszenia", "Data zgłoszenia", 150, "yyyy-MM-dd HH:mm");
+                KonfigurujKolumne("NumerDokumentu", "Nr faktury", 120);
+                KonfigurujKolumne("NazwaKontrahenta", "Kontrahent", 250);
+                KonfigurujKolumne("Opis", "Opis", 400);
+                KonfigurujKolumne("SumaKg", "Suma kg", 80, "N2");
+                KonfigurujKolumne("Status", "Status", 120);
+                KonfigurujKolumne("UserID", "Zgłaszający", 100);
+                KonfigurujKolumne("OsobaRozpatrujaca", "Rozpatruje", 100);
+
+                // Przywróć AutoSize dla ostatniej kolumny (wypełni resztę miejsca)
+                if (dgvReklamacje.Columns.Contains("OsobaRozpatrujaca"))
+                {
+                    try
+                    {
+                        dgvReklamacje.Columns["OsobaRozpatrujaca"].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Ignoruj błędy konfiguracji kolumn - to nie jest krytyczne
+                System.Diagnostics.Debug.WriteLine($"Błąd konfiguracji kolumn: {ex.Message}");
+            }
+        }
+
         private void BtnStatystyki_Click(object sender, EventArgs e)
         {
             try
@@ -563,7 +608,7 @@ namespace Kalendarz1
                             Status,
                             COUNT(*) AS Liczba,
                             SUM(SumaKg) AS SumaKg
-                        FROM [HANDEL].[dbo].[Reklamacje]
+                        FROM [dbo].[Reklamacje]
                         WHERE DataZgloszenia >= @DataOd
                         GROUP BY Status
                         ORDER BY 
@@ -572,7 +617,7 @@ namespace Kalendarz1
                                 WHEN 'W trakcie' THEN 2
                                 WHEN 'Zaakceptowana' THEN 3
                                 WHEN 'Odrzucona' THEN 4
-                                WHEN 'Zamknięta' THEN 5
+                                WHEN 'Zamknieta' THEN 5
                             END";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))

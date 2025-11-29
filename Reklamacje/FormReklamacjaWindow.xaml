@@ -1,0 +1,555 @@
+<Window x:Class="Kalendarz1.Reklamacje.FormReklamacjaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Nowe zgłoszenie reklamacji"
+        Height="850" Width="1300"
+        MinHeight="700" MinWidth="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#ECF0F1"
+        FontFamily="Segoe UI"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- STYL PRZYCISKÓW -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="btnBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#3A5C24"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#f5f5f5"/>
+            <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="secBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="7" Padding="{TemplateBinding Padding}"
+                                BorderBrush="#bdbdbd" BorderThickness="1">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="6"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="secBorder" Property="Background" Value="#eeeeee"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Background" Value="#E74C3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="dangerBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="dangerBorder" Property="Background" Value="#C0392B"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- STYL KARTY -->
+        <Style x:Key="CardPanel" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.08" BlurRadius="15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- STYL TEXTBOX -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="textBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="textBorder" Property="BorderBrush" Value="#5C8A3A"/>
+                                <Setter TargetName="textBorder" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- STYL COMBOBOX -->
+        <Style x:Key="ModernComboBox" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <!-- STYL DATAGRID -->
+        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="AlternatingRowBackground" Value="#F8FAFB"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="SelectionMode" Value="Extended"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeight" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="BorderBrush" Value="#4B732F"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style x:Key="BlueDataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="BorderBrush" Value="#2980B9"/>
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" BorderThickness="0" Padding="10,5">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E8F5E9"/>
+                    <Setter Property="Foreground" Value="#2C3E50"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#ECF0F1" Offset="0"/>
+                <GradientStop Color="#E0E6E8" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGLOWEK -->
+        <Border Grid.Row="0" Style="{StaticResource CardPanel}" Padding="12,10" Margin="12,12,12,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="NOWE ZGLOSZENIE REKLAMACJI" FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+                    <TextBlock Text="Wypelnij formularz aby zglosic reklamacje" FontSize="9" Foreground="#5C8A3A" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Info o fakturze -->
+                <Border Grid.Column="2" Background="#E8F5E9" CornerRadius="8" Padding="15,8" BorderBrush="#5C8A3A" BorderThickness="1.5">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <TextBlock Text="Kontrahent" FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtKontrahent" Text="" FontSize="11" FontWeight="Bold" Foreground="#2C3E50"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Faktura" FontSize="9" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtFaktura" Text="" FontSize="11" FontWeight="Bold" Foreground="#5C8A3A"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- GLOWNA ZAWARTOSC -->
+        <Grid Grid.Row="1" Margin="6,6,6,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="350"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEWA KOLUMNA -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- KARTA: TOWARY Z FAKTURY -->
+                <Border Grid.Row="0" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="TOWARY Z FAKTURY" FontSize="12" FontWeight="Bold" Foreground="#2E7D32"/>
+                                <TextBlock Text=" - zaznacz produkty objete reklamacja" FontSize="10" Foreground="#558b2f" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" BorderBrush="#5C8A3A" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <DataGrid x:Name="dgTowary"
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      SelectionMode="Single">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Click="ChkTowar_Click"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <CheckBox x:Name="chkWszystkieTowary" Click="ChkWszystkieTowary_Click"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="Zaznacz wszystkie"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Nazwa towaru" Binding="{Binding Nazwa}" Width="*"/>
+                                    <DataGridTextColumn Header="Waga (kg)" Binding="{Binding Waga, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,5,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat=N2}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,5,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wartosc" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,5,0"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="6" Padding="10,6" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Zaznaczono: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtLicznikTowary" Text="0 towar(ow)" FontSize="10" FontWeight="Bold" Foreground="#5C8A3A" VerticalAlignment="Center"/>
+                                <TextBlock Text="  |  Suma: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtSumaKg" Text="0,00 kg" FontSize="10" FontWeight="Bold" Foreground="#2E7D32" VerticalAlignment="Center"/>
+                                <TextBlock Text="  |  Wartosc: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtSumaWartosc" Text="0,00 zl" FontSize="10" FontWeight="Bold" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- KARTA: PARTIE DOSTAWCY -->
+                <Border Grid.Row="1" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#E3F2FD" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="PARTIE DOSTAWCY" FontSize="12" FontWeight="Bold" Foreground="#1565C0"/>
+                                    <TextBlock Text=" - wybierz partie powiazane (ostatnie 14 dni)" FontSize="10" Foreground="#1976D2" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtPartieInfo" Text="" FontSize="9" Foreground="#E74C3C" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" BorderBrush="#3498DB" BorderThickness="2" CornerRadius="8" ClipToBounds="True">
+                            <DataGrid x:Name="dgPartie"
+                                      Style="{StaticResource ModernDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource BlueDataGridHeaderStyle}"
+                                      CellStyle="{StaticResource DataGridCellStyle}"
+                                      SelectionMode="Single">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Click="ChkPartia_Click"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <CheckBox x:Name="chkWszystkiePartie" Click="ChkWszystkiePartie_Click"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="Zaznacz wszystkie"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Nr partii" Binding="{Binding NrPartii}" Width="100"/>
+                                    <DataGridTextColumn Header="ID" Binding="{Binding IdDostawcy}" Width="60"/>
+                                    <DataGridTextColumn Header="Nazwa dostawcy" Binding="{Binding NazwaDostawcy}" Width="*"/>
+                                    <DataGridTextColumn Header="Data utworzenia" Binding="{Binding DataUtworzenia}" Width="130"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="6" Padding="10,6" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Zaznaczono: " FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtLicznikPartie" Text="0 parti(i)" FontSize="10" FontWeight="Bold" Foreground="#3498DB" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- PRAWA KOLUMNA -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- KARTA: DANE REKLAMACJI -->
+                <Border Grid.Row="0" Style="{StaticResource CardPanel}">
+                    <StackPanel>
+                        <Border Background="#FFF3E0" CornerRadius="6" Padding="10,6" Margin="0,0,0,12">
+                            <TextBlock Text="DANE REKLAMACJI" FontSize="12" FontWeight="Bold" Foreground="#EF6C00"/>
+                        </Border>
+
+                        <TextBlock Text="Typ reklamacji:" FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                        <ComboBox x:Name="cmbTypReklamacji" Style="{StaticResource ModernComboBox}" Margin="0,4,0,12">
+                            <ComboBoxItem Content="Jakosc produktu" IsSelected="True"/>
+                            <ComboBoxItem Content="Ilosc / Brak towaru"/>
+                            <ComboBoxItem Content="Uszkodzenie w transporcie"/>
+                            <ComboBoxItem Content="Termin waznosci"/>
+                            <ComboBoxItem Content="Niezgodnosc z zamowieniem"/>
+                            <ComboBoxItem Content="Inne"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Priorytet:" FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                        <ComboBox x:Name="cmbPriorytet" Style="{StaticResource ModernComboBox}" Margin="0,4,0,12">
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Fill="#4caf50" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Niski"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem IsSelected="True">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Fill="#2196f3" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Normalny"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Fill="#ff9800" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Wysoki"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                            <ComboBoxItem>
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Fill="#f44336" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Krytyczny"/>
+                                </StackPanel>
+                            </ComboBoxItem>
+                        </ComboBox>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Opis problemu:" FontSize="10" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                            <TextBlock Text=" *" FontSize="10" Foreground="#E74C3C"/>
+                        </StackPanel>
+                        <TextBox x:Name="txtOpis" Style="{StaticResource ModernTextBox}"
+                                 Height="80" Margin="0,4,0,0"
+                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KARTA: DOKUMENTACJA ZDJECIOWA -->
+                <Border Grid.Row="1" Style="{StaticResource CardPanel}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#FCE4EC" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="DOKUMENTACJA ZDJECIOWA" FontSize="12" FontWeight="Bold" Foreground="#C2185B"/>
+                                <TextBlock Text=" (opcjonalnie)" FontSize="10" Foreground="#D81B60" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Lista zdjec -->
+                            <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Margin="0,0,5,0" ClipToBounds="True">
+                                <ListBox x:Name="listZdjecia"
+                                         BorderThickness="0" Background="Transparent"
+                                         SelectionChanged="ListZdjecia_SelectionChanged"/>
+                            </Border>
+
+                            <!-- Podglad zdjecia -->
+                            <Border Grid.Column="1" BorderBrush="#C2185B" BorderThickness="2" CornerRadius="6" Margin="5,0,0,0"
+                                    Background="#FAFAFA" ClipToBounds="True" Cursor="Hand"
+                                    MouseLeftButtonDown="ImgPodglad_MouseLeftButtonDown">
+                                <Grid>
+                                    <Image x:Name="imgPodglad" Stretch="Uniform" Margin="5"/>
+                                    <TextBlock x:Name="txtBrakZdjecia" Text="Brak zdjecia"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontSize="10" Foreground="#9E9E9E" FontStyle="Italic"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <Grid Grid.Row="2" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="+ Dodaj" Style="{StaticResource PrimaryButton}"
+                                        Padding="12,6" FontSize="10" Click="BtnDodajZdjecia_Click"/>
+                                <Button x:Name="btnUsunZdjecie" Content="- Usun" Style="{StaticResource DangerButton}"
+                                        Margin="8,0,0,0" Padding="12,6" FontSize="10" IsEnabled="False" Click="BtnUsunZdjecie_Click"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock Text="Dodano: " FontSize="10" Foreground="#7F8C8D"/>
+                                <TextBlock x:Name="txtLicznikZdjecia" Text="0 zdjec" FontSize="10" FontWeight="Bold" Foreground="#C2185B"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- STOPKA -->
+        <Border Grid.Row="2" Style="{StaticResource CardPanel}" Padding="16,12" Margin="12,6,12,12">
+            <Grid>
+                <TextBlock Text="Reklamacja zostanie zapisana i przekazana do rozpatrzenia"
+                           FontSize="10" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Anuluj" Style="{StaticResource SecondaryButton}"
+                            Width="100" Click="BtnAnuluj_Click"/>
+                    <Button Content="ZGLOS REKLAMACJE" Style="{StaticResource PrimaryButton}"
+                            Width="180" Margin="12,0,0,0" FontSize="12" Click="BtnZgloszReklamacje_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

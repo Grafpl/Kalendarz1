@@ -1,5 +1,6 @@
 ﻿using Kalendarz1.OfertaCenowa;
-using Kalendarz1.Opakowania.Views;  // ✅ DODANE - nowe okna opakowań WPF
+using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
+using Kalendarz1.Reklamacje;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -159,7 +160,9 @@ namespace Kalendarz1
                 [28] = "RezerwacjaKlas",
                 [29] = "DashboardWyczerpalnosci",
                 [30] = "ListaOfert",
-                [31] = "DashboardOfert"
+                [31] = "DashboardOfert",
+                [32] = "PanelReklamacji",
+                [33] = "ReklamacjeJakosc"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -202,7 +205,8 @@ namespace Kalendarz1
                 "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
                 "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
-                "ListaOfert", "DashboardOfert"
+                "ListaOfert", "DashboardOfert",
+                "PanelReklamacji", "ReklamacjeJakosc"
             };
         }
 
@@ -299,9 +303,11 @@ namespace Kalendarz1
                             window.UserID = App.UserID;
                             return window;
                         }, "📊"),
+
+                    // Panel Reklamacji
+                    new MenuItemConfig("PanelReklamacji", "Panel Reklamacji", "Zarządzaj reklamacjami od odbiorców", Color.FromArgb(229, 57, 53), () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
                 },
 
-                // ✅ ZAKTUALIZOWANA SEKCJA OPAKOWANIA - NOWE OKNA WPF
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
                     // ✅ NOWE OKNO WPF - Zestawienie opakowań wg typu

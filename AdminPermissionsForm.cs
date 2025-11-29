@@ -232,7 +232,7 @@ namespace Kalendarz1
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle = FlatStyle.Flat
             };
-            categoryFilterCombo.Items.AddRange(new object[] { "Wszystkie kategorie", "Zaopatrzenie i Zakupy", "Produkcja i Magazyn", "Sprzedaż i CRM", "Opakowania i Transport", "Finanse i Zarządzanie" });
+            categoryFilterCombo.Items.AddRange(new object[] { "Wszystkie kategorie", "Zaopatrzenie i Zakupy", "Produkcja i Magazyn", "Sprzedaż i CRM", "Opakowania i Transport", "Finanse i Zarządzanie", "Reklamacje" });
             categoryFilterCombo.SelectedIndex = 0;
             categoryFilterCombo.SelectedIndexChanged += CategoryFilter_Changed;
             rightPanel.Controls.Add(categoryFilterCombo);
@@ -437,6 +437,9 @@ namespace Kalendarz1
                 },
                 ["Finanse i Zarządzanie"] = new List<string> {
                     "Wynik Finansowy", "Notatki ze Spotkań"
+                },
+                ["Reklamacje"] = new List<string> {
+                    "Panel Reklamacji", "Reklamacje - Dział Jakości"
                 }
             };
             return categories.ContainsKey(categoryName) ? categories[categoryName] : new List<string>();
@@ -602,7 +605,11 @@ namespace Kalendarz1
                 
                 // Finanse i Zarządzanie
                 new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie", "💼"),
-                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝")
+                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝"),
+
+                // Reklamacje
+                new ModuleInfo("PanelReklamacji", "Panel Reklamacji", "Przeglądaj i zgłaszaj reklamacje", "Reklamacje", "⚠️"),
+                new ModuleInfo("ReklamacjeJakosc", "Reklamacje - Dział Jakości", "Zarządzaj statusami i rozwiązaniami reklamacji", "Reklamacje", "✅")
             };
         }
 
@@ -642,9 +649,13 @@ namespace Kalendarz1
                 [25] = "PanelMagazyniera",
                 [26] = "KartotekaOdbiorcow",
                 [27] = "AnalizaWydajnosci",
-                // ✅ NOWE MODUŁY - Klasy Wagowe
                 [28] = "RezerwacjaKlas",
-                [29] = "DashboardWyczerpalnosci"
+                [29] = "DashboardWyczerpalnosci",
+                [30] = "ListaOfert",
+                [31] = "DashboardOfert",
+                // Reklamacje
+                [32] = "PanelReklamacji",
+                [33] = "ReklamacjeJakosc"
             };
         }
 
