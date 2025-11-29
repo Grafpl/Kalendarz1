@@ -894,7 +894,7 @@ namespace Kalendarz1
             sumaWartosc = 0;
             sumaKG = 0;
 
-            Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
+            Document doc = new Document(PageSize.A4.Rotate(), 30, 30, 20, 20);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                 zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
@@ -903,6 +903,7 @@ namespace Kalendarz1
                 ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
 
             string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
+            string strDzienUbojowyPL = dzienUbojowy.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
 
             // Wybierz ścieżkę
             string directoryPath;
@@ -922,7 +923,7 @@ namespace Kalendarz1
                     return;
 
                 directoryPath = Path.Combine(dialog.SelectedPath, strDzienUbojowy);
-                useDefaultPath = true; // Przywróć domyślne zachowanie
+                useDefaultPath = true;
             }
 
             if (!Directory.Exists(directoryPath))
@@ -937,154 +938,130 @@ namespace Kalendarz1
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
+                // Kolory firmowe
+                BaseColor greenColor = new BaseColor(92, 138, 58);      // #5C8A3A
+                BaseColor darkGreenColor = new BaseColor(75, 115, 47);  // #4B732F
+                BaseColor lightGreenColor = new BaseColor(200, 230, 201); // #C8E6C9
+                BaseColor orangeColor = new BaseColor(245, 124, 0);     // #F57C00
+                BaseColor blueColor = new BaseColor(25, 118, 210);      // #1976D2
+
                 // Fonty
                 BaseFont baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.EMBEDDED);
-                Font headerFont = new Font(baseFont, 15, Font.BOLD);
-                Font textFont = new Font(baseFont, 12, Font.NORMAL);
+                Font titleFont = new Font(baseFont, 20, Font.BOLD, greenColor);
+                Font subtitleFont = new Font(baseFont, 12, Font.NORMAL, BaseColor.DARK_GRAY);
+                Font headerFont = new Font(baseFont, 11, Font.BOLD, BaseColor.WHITE);
+                Font textFont = new Font(baseFont, 10, Font.NORMAL);
+                Font textFontBold = new Font(baseFont, 10, Font.BOLD);
                 Font smallTextFont = new Font(baseFont, 8, Font.NORMAL);
-                Font tytulTablicy = new Font(baseFont, 13, Font.BOLD);
-                Font ItalicFont = new Font(baseFont, 8, Font.ITALIC);
+                Font smallTextFontBold = new Font(baseFont, 8, Font.BOLD);
+                Font tytulTablicy = new Font(baseFont, 10, Font.BOLD, BaseColor.WHITE);
+                Font ItalicFont = new Font(baseFont, 8, Font.ITALIC, BaseColor.GRAY);
+                Font summaryFont = new Font(baseFont, 12, Font.BOLD, darkGreenColor);
 
-                // Nagłówek
-                Paragraph header = new Paragraph("Rozliczenie przyjętego drobiu", headerFont);
-                header.Alignment = Element.ALIGN_CENTER;
-                doc.Add(header);
+                // === NAGŁÓWEK Z LOGO ===
+                PdfPTable headerTable = new PdfPTable(3);
+                headerTable.WidthPercentage = 100;
+                headerTable.SetWidths(new float[] { 1.5f, 3f, 1.5f });
+                headerTable.SpacingAfter = 15f;
 
-                // Tabela informacyjna (3 kolumny)
-                PdfPTable infoTable = new PdfPTable(3);
-                infoTable.WidthPercentage = 100;
-                infoTable.SetWidths(new float[] { 1f, 1f, 1f });
+                // Logo po lewej
+                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                try
+                {
+                    string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
+                    if (File.Exists(logoPath))
+                    {
+                        iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
+                        logo.ScaleToFit(120f, 60f);
+                        logoCell.AddElement(logo);
+                    }
+                }
+                catch { }
+                headerTable.AddCell(logoCell);
 
-                // Nabywca
-                PdfPCell sellerInfoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT };
-                string[] buyerLines = { "Nabywca:", "Ubojnia Drobiu \"Piórkowscy\"", "Koziołki 40, 95-061 Dmosin", "NIP: 726-162-54-06", "", "" };
-                foreach (string line in buyerLines)
-                    sellerInfoCell.AddElement(new Phrase(line, textFont));
-                infoTable.AddCell(sellerInfoCell);
+                // Tytuł na środku
+                PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                Paragraph title = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", titleFont) { Alignment = Element.ALIGN_CENTER };
+                Paragraph subtitle = new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_CENTER };
+                titleCell.AddElement(title);
+                titleCell.AddElement(subtitle);
+                headerTable.AddCell(titleCell);
 
-                // Szczegóły dostawy
-                PdfPCell deliveryInfoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER };
-                string[] deliveryLines = { "Szczegóły dostawy:", "Data Uboju " + strDzienUbojowy, "Waga loco Hodowca", "", "" };
-                foreach (string line in deliveryLines)
-                    deliveryInfoCell.AddElement(new Phrase(line, textFont));
-                infoTable.AddCell(deliveryInfoCell);
+                // Numer dokumentu po prawej
+                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
+                docNumCell.AddElement(new Paragraph($"Nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
+                headerTable.AddCell(docNumCell);
 
-                // Sprzedający
-                PdfPCell sellerDetailsCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT };
+                doc.Add(headerTable);
+
+                // === LINIA ROZDZIELAJĄCA ===
+                PdfPTable lineTable = new PdfPTable(1);
+                lineTable.WidthPercentage = 100;
+                PdfPCell lineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0, PaddingBottom = 5f };
+                lineTable.AddCell(lineCell);
+                lineTable.SpacingAfter = 15f;
+                doc.Add(lineTable);
+
+                // === SEKCJA STRON ===
+                PdfPTable partiesTable = new PdfPTable(2);
+                partiesTable.WidthPercentage = 100;
+                partiesTable.SetWidths(new float[] { 1f, 1f });
+                partiesTable.SpacingAfter = 20f;
+
+                // Nabywca (lewa strona)
+                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = lightGreenColor, Padding = 10, BackgroundColor = new BaseColor(248, 255, 248) };
+                buyerCell.AddElement(new Paragraph("NABYWCA", new Font(baseFont, 10, Font.BOLD, greenColor)));
+                buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
+                buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
+                buyerCell.AddElement(new Paragraph("NIP: 726-162-54-06", textFont));
+                partiesTable.AddCell(buyerCell);
+
+                // Sprzedający (prawa strona)
                 string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                     zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "Address") ?? "";
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                     zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "PostalCode") ?? "";
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                     zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "City") ?? "";
-                string[] sellerDetailsLines = { "Sprzedający:", sellerName, sellerStreet, sellerKod + ", " + sellerMiejsc, "", "" };
-                foreach (string line in sellerDetailsLines)
-                    sellerDetailsCell.AddElement(new Phrase(line, textFont));
-                infoTable.AddCell(sellerDetailsCell);
 
-                doc.Add(infoTable);
-                doc.Add(new Paragraph(" ", textFont) { SpacingBefore = 10f });
+                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, Padding = 10, BackgroundColor = new BaseColor(255, 253, 248) };
+                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(baseFont, 10, Font.BOLD, orangeColor)));
+                sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
+                sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
+                sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
+                partiesTable.AddCell(sellerCell);
 
-                // TABELA 1: Informacje Transportowe
-                PdfPTable dataTable2 = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.3F, 0.3F, 0.3F, 0.20F, 0.3F, 0.20F, 0.3F });
-                dataTable2.WidthPercentage = 100;
+                doc.Add(partiesTable);
 
-                // Nagłówki grupowe
-                AddMergedHeader(dataTable2, "Informacje Transportowe", tytulTablicy, 5);
-                AddMergedHeader(dataTable2, "Waga Hodowcy", tytulTablicy, 3);
-                AddMergedHeader(dataTable2, "Waga Ubojni", tytulTablicy, 3);
-                AddMergedHeader(dataTable2, "Ubytki transportowe ustalone i wyliczone", tytulTablicy, 5);
-
-                // Nagłówki kolumn
-                AddTableHeader(dataTable2, "Lp.", smallTextFont);
-                AddTableHeader(dataTable2, "Nr. Auta", smallTextFont);
-                AddTableHeader(dataTable2, "Nr. Naczepy", smallTextFont);
-                AddTableHeader(dataTable2, "Czas Przyjazdu", smallTextFont);
-                AddTableHeader(dataTable2, "Czas Załadunku", smallTextFont);
-                AddTableHeader(dataTable2, "Hodowca Brutto", smallTextFont);
-                AddTableHeader(dataTable2, "Hodowca Tara", smallTextFont);
-                AddTableHeader(dataTable2, "Hodowca Netto", smallTextFont);
-                AddTableHeader(dataTable2, "Ubojnia Brutto", smallTextFont);
-                AddTableHeader(dataTable2, "Ubojnia Tara", smallTextFont);
-                AddTableHeader(dataTable2, "Ubojnia Netto", smallTextFont);
-                AddTableHeader(dataTable2, "Ubytek wyl. [KG]", smallTextFont);
-                AddTableHeader(dataTable2, "Ubytek wyl. [%]", smallTextFont);
-                AddTableHeader(dataTable2, "Ubytek ust. [KG]", smallTextFont);
-                AddTableHeader(dataTable2, "Ubytek ust. [%]", smallTextFont);
-                AddTableHeader(dataTable2, "Różnica", smallTextFont);
-
-                // Dane tabeli 1
-                for (int i = 0; i < ids.Count; i++)
-                {
-                    int id = ids[i];
-                    string numerAuta = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "CarID") ?? "";
-                    string numerNaczepy = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(id, "[LibraNet].[dbo].[FarmerCalc]", "TrailerID") ?? "";
-                    DateTime godzinaDojazdy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "DojazdHodowca");
-                    DateTime godzinaZaladunku = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
-
-                    decimal wagaUBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
-                    decimal wagaUTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
-                    decimal wagaUNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
-                    decimal wagaHBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
-                    decimal wagaHTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
-                    decimal wagaHNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
-
-                    decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
-                    decimal ubytek = ubytekProc ?? 0;
-
-                    string strUbytekWylKG = "0 kg", strUbytekWyl = "0.00 %", strUbytekUstKG = "0 kg", strUbytekUst = "0.00 %", strRoznica = "0 kg";
-                    if (ubytek != 0 && wagaHNetto > 0)
-                    {
-                        decimal ubytekWylKG = wagaHNetto - wagaUNetto;
-                        decimal ubytekWylProc = (ubytekWylKG / wagaHNetto) * 100;
-                        decimal ubytekUstKG = wagaHNetto * ubytek;
-                        decimal roznica = ubytekWylKG - ubytekUstKG;
-
-                        strUbytekWylKG = ubytekWylKG.ToString("N0") + " kg";
-                        strUbytekWyl = ubytekWylProc.ToString("0.00") + " %";
-                        strUbytekUstKG = ubytekUstKG.ToString("N0") + " kg";
-                        strUbytekUst = (ubytek * 100).ToString("0.00") + " %";
-                        strRoznica = roznica.ToString("N0") + " kg";
-                    }
-
-                    AddTableData(dataTable2, smallTextFont, (i + 1).ToString(), numerAuta, numerNaczepy,
-                        godzinaDojazdy.ToString("HH:mm"), godzinaZaladunku.ToString("HH:mm"),
-                        wagaHBrutto.ToString("N0") + " kg", wagaHTara.ToString("N0") + " kg", wagaHNetto.ToString("N0") + " kg",
-                        wagaUBrutto.ToString("N0") + " kg", wagaUTara.ToString("N0") + " kg", wagaUNetto.ToString("N0") + " kg",
-                        strUbytekWylKG, strUbytekWyl, strUbytekUstKG, strUbytekUst, strRoznica);
-                }
-
-                dataTable2.SpacingAfter = 10f;
-                doc.Add(dataTable2);
-
-                // TABELA 2: Rozliczenie
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.1F, 0.3F, 0.3F, 0.3F, 0.25F, 0.25F, 0.25F, 0.25F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.3F, 0.35F });
+                // === GŁÓWNA TABELA ROZLICZENIA ===
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.4F, 0.6F, 0.6F, 0.6F, 0.5F, 0.5F, 0.5F, 0.5F, 0.6F, 0.6F, 0.6F, 0.6F, 0.6F, 0.6F, 0.7F, 0.7F, 0.8F });
                 dataTable.WidthPercentage = 100;
 
-                AddMergedHeader(dataTable, "Waga samochodowa", tytulTablicy, 4);
-                AddMergedHeader(dataTable, "Rozliczenie sztuk", tytulTablicy, 5);
-                AddMergedHeader(dataTable, "Rozliczenie kilogramów", tytulTablicy, 9);
+                // Nagłówki grupowe z kolorami
+                AddColoredMergedHeader(dataTable, "WAGA", tytulTablicy, 4, greenColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK", tytulTablicy, 4, orangeColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW", tytulTablicy, 9, blueColor);
 
-                AddTableHeader(dataTable, "Lp.", smallTextFont);
-                AddTableHeader(dataTable, "Waga Brutto", smallTextFont);
-                AddTableHeader(dataTable, "Waga Tara", smallTextFont);
-                AddTableHeader(dataTable, "Waga Netto", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki Całość", smallTextFont);
-                AddTableHeader(dataTable, "Średnia Waga", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki Padłe", smallTextFont);
-                AddTableHeader(dataTable, "Konfiskaty", smallTextFont);
-                AddTableHeader(dataTable, "Sztuki Zdatne", smallTextFont);
-                AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Konf. [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Opas. [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Ubytek [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Klasa B [KG]", smallTextFont);
-                AddTableHeader(dataTable, "KG do Zapłaty", smallTextFont);
-                AddTableHeader(dataTable, "Cena netto", smallTextFont);
-                AddTableHeader(dataTable, "Wartość netto", smallTextFont);
+                // Nagłówki kolumn
+                AddColoredTableHeader(dataTable, "Lp.", smallTextFontBold, darkGreenColor);
+                AddColoredTableHeader(dataTable, "Brutto", smallTextFontBold, darkGreenColor);
+                AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
+                AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
+                AddColoredTableHeader(dataTable, "Razem", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Ubytek", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Kl. B", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Do zapłaty", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, new BaseColor(41, 128, 185));
 
-                // Dane tabeli 2
+                // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
                 {
                     int id = ids[i];
@@ -1130,39 +1107,56 @@ namespace Kalendarz1
                     sumaWartosc += wartosc;
                     sumaKG += sumaDoZaplaty;
 
-                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(),
-                        wagaBrutto.ToString("N0") + " kg", wagaTara.ToString("N0") + " kg", wagaNetto.ToString("N0") + " kg",
-                        sztWszystkie + " szt", sredniaWaga.ToString("0.00") + " kg",
-                        padle + " szt", konfiskaty + " szt", sztZdatne + " szt",
-                        wagaNetto.ToString("N0") + " kg",
-                        "- " + padleKG.ToString("N0") + " kg",
-                        "- " + konfiskatyKG.ToString("N0") + " kg",
-                        "- " + opasienieKG.ToString("N0") + " kg",
-                        "- " + ubytekKG.ToString("N0") + " kg",
-                        "- " + klasaB.ToString("N0") + " kg",
-                        sumaDoZaplaty.ToString("N0") + " kg",
-                        cena.ToString("0.00") + " zł/kg",
-                        Math.Round(wartosc, 0).ToString("N0") + " zł");
+                    // Naprzemienne kolory wierszy
+                    BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(245, 245, 245);
+
+                    AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
+                        wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
+                        sztWszystkie.ToString(), padle.ToString(), konfiskaty.ToString(), sztZdatne.ToString(),
+                        wagaNetto.ToString("N0"),
+                        padleKG > 0 ? $"-{padleKG:N0}" : "0",
+                        konfiskatyKG > 0 ? $"-{konfiskatyKG:N0}" : "0",
+                        opasienieKG > 0 ? $"-{opasienieKG:N0}" : "0",
+                        ubytekKG > 0 ? $"-{ubytekKG:N0}" : "0",
+                        klasaB > 0 ? $"-{klasaB:N0}" : "0",
+                        sumaDoZaplaty.ToString("N0"),
+                        cena.ToString("0.00"),
+                        wartosc.ToString("N0"));
                 }
 
                 doc.Add(dataTable);
 
-                // Informacja
-                Paragraph italicText = new Paragraph("W celu uproszczenia wyliczeń, waga kurczaka wyrażona w kilogramach będzie zaokrąglana do pełnych kilogramów.", ItalicFont);
-                italicText.Alignment = Element.ALIGN_CENTER;
-                doc.Add(italicText);
+                // === PODSUMOWANIE ===
+                doc.Add(new Paragraph(" ") { SpacingBefore = 10f });
 
                 // Typ ceny
                 int intTypCeny = zapytaniasql.PobierzInformacjeZBazyDanych<int>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID");
                 string typCeny = zapytaniasql.ZnajdzNazweCenyPoID(intTypCeny);
-                Paragraph typCenaP = new Paragraph($"Typ Ceny: {typCeny}", ItalicFont) { Alignment = Element.ALIGN_RIGHT };
-                doc.Add(typCenaP);
 
-                // Podsumowanie
-                Paragraph summaryKG = new Paragraph($"Suma kilogramów: {sumaKG:N0} kg", textFont) { Alignment = Element.ALIGN_RIGHT };
-                doc.Add(summaryKG);
-                Paragraph summaryZL = new Paragraph($"Suma wartości netto: {sumaWartosc:N0} zł", textFont) { Alignment = Element.ALIGN_RIGHT };
-                doc.Add(summaryZL);
+                // Ramka podsumowania
+                PdfPTable summaryTable = new PdfPTable(2);
+                summaryTable.WidthPercentage = 40;
+                summaryTable.HorizontalAlignment = Element.ALIGN_RIGHT;
+
+                AddSummaryRow(summaryTable, "Typ ceny:", typCeny, textFont, ItalicFont);
+                AddSummaryRow(summaryTable, "Suma kilogramów:", $"{sumaKG:N0} kg", textFontBold, summaryFont);
+                AddSummaryRow(summaryTable, "SUMA WARTOŚCI:", $"{sumaWartosc:N0} zł", summaryFont, new Font(baseFont, 14, Font.BOLD, greenColor));
+
+                doc.Add(summaryTable);
+
+                // Informacja na dole
+                doc.Add(new Paragraph(" ") { SpacingBefore = 15f });
+                Paragraph italicText = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", ItalicFont) { Alignment = Element.ALIGN_CENTER };
+                doc.Add(italicText);
+
+                // Stopka
+                doc.Add(new Paragraph(" ") { SpacingBefore = 20f });
+                PdfPTable footerTable = new PdfPTable(1);
+                footerTable.WidthPercentage = 100;
+                PdfPCell footerCell = new PdfPCell { Border = PdfPCell.TOP_BORDER, BorderColorTop = lightGreenColor, BorderWidthTop = 1f, PaddingTop = 10f };
+                footerCell.AddElement(new Paragraph($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}", new Font(baseFont, 7, Font.ITALIC, BaseColor.GRAY)) { Alignment = Element.ALIGN_CENTER });
+                footerTable.AddCell(footerCell);
+                doc.Add(footerTable);
 
                 doc.Close();
             }
@@ -1172,6 +1166,65 @@ namespace Kalendarz1
                 MessageBox.Show($"Wygenerowano dokument PDF:\n{Path.GetFileName(filePath)}\n\nŚcieżka:\n{filePath}",
                     "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private void AddColoredMergedHeader(PdfPTable table, string text, Font font, int colspan, BaseColor bgColor)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font))
+            {
+                Colspan = colspan,
+                BackgroundColor = bgColor,
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                Padding = 6
+            };
+            table.AddCell(cell);
+        }
+
+        private void AddColoredTableHeader(PdfPTable table, string text, Font font, BaseColor bgColor)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, new Font(font.BaseFont, font.Size, font.Style, BaseColor.WHITE)))
+            {
+                BackgroundColor = bgColor,
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                Padding = 4
+            };
+            table.AddCell(cell);
+        }
+
+        private void AddStyledTableData(PdfPTable table, Font font, BaseColor bgColor, params string[] values)
+        {
+            foreach (string value in values)
+            {
+                PdfPCell cell = new PdfPCell(new Phrase(value, font))
+                {
+                    BackgroundColor = bgColor,
+                    HorizontalAlignment = Element.ALIGN_CENTER,
+                    VerticalAlignment = Element.ALIGN_MIDDLE,
+                    Padding = 3
+                };
+                table.AddCell(cell);
+            }
+        }
+
+        private void AddSummaryRow(PdfPTable table, string label, string value, Font labelFont, Font valueFont)
+        {
+            PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont))
+            {
+                Border = PdfPCell.NO_BORDER,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                PaddingRight = 10,
+                PaddingBottom = 5
+            };
+            PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont))
+            {
+                Border = PdfPCell.NO_BORDER,
+                HorizontalAlignment = Element.ALIGN_RIGHT,
+                PaddingBottom = 5
+            };
+            table.AddCell(labelCell);
+            table.AddCell(valueCell);
         }
 
         private void AddMergedHeader(PdfPTable table, string text, Font font, int colspan)
