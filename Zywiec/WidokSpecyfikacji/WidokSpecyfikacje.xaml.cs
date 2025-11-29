@@ -1120,11 +1120,11 @@ namespace Kalendarz1
                 doc.Add(partiesTable);
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
-                AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
+                AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 5, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
 
@@ -1133,6 +1133,7 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Brutto", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
+                AddColoredTableHeader(dataTable, "Śr. waga", smallTextFontBold, darkGreenColor);
                 // Nagłówki kolumn - SZTUKI
                 AddColoredTableHeader(dataTable, "Dostarcz.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
@@ -1215,6 +1216,7 @@ namespace Kalendarz1
 
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
                         wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
+                        sredniaWaga.ToString("N2"),
                         sztWszystkie.ToString(), padle.ToString(), konfiskaty.ToString(), sztZdatne.ToString(),
                         wagaNetto.ToString("N0"),
                         padleKG > 0 ? $"-{padleKG:N0}" : "0",
@@ -1232,6 +1234,7 @@ namespace Kalendarz1
 
                 AddStyledTableData(dataTable, sumFont, sumRowColor, "SUMA",
                     "", "", "",
+                    sredniaWagaSuma.ToString("N2"),
                     sumaSztWszystkie.ToString(), sumaPadle.ToString(), sumaKonfiskaty.ToString(), sumaSztZdatne.ToString(),
                     sumaNetto.ToString("N0"),
                     sumaPadleKG > 0 ? $"-{sumaPadleKG:N0}" : "0",
@@ -1289,44 +1292,44 @@ namespace Kalendarz1
 
                 // 1. Waga Netto = Brutto - Tara
                 Paragraph formula1 = new Paragraph();
-                formula1.Add(new Chunk($"Waga Netto: {sumaBrutto:N0} - {sumaTara:N0} = ", legendaFont));
-                formula1.Add(new Chunk($"{sumaNetto:N0} kg", legendaBoldFont));
+                formula1.Add(new Chunk("Netto = Brutto - Tara: ", legendaBoldFont));
+                formula1.Add(new Chunk($"{sumaBrutto:N0} - {sumaTara:N0} = {sumaNetto:N0} kg", legendaFont));
                 formulaCell.AddElement(formula1);
 
                 // 2. Sztuki Zdatne = Dostarczono - Padłe - Konfiskaty
                 Paragraph formula2 = new Paragraph();
-                formula2.Add(new Chunk($"Sztuki Zdatne: {sumaSztWszystkie} - {sumaPadle} - {sumaKonfiskaty} = ", legendaFont));
-                formula2.Add(new Chunk($"{sumaSztZdatne} szt", legendaBoldFont));
+                formula2.Add(new Chunk("Zdatne = Dostarcz. - Padłe - Konf.: ", legendaBoldFont));
+                formula2.Add(new Chunk($"{sumaSztWszystkie} - {sumaPadle} - {sumaKonfiskaty} = {sumaSztZdatne} szt", legendaFont));
                 formulaCell.AddElement(formula2);
 
                 // 3. Średnia waga sztuki
                 Paragraph formula3 = new Paragraph();
-                formula3.Add(new Chunk($"Średnia waga: {sumaNetto:N0} kg ÷ {sumaSztWszystkie} szt = ", legendaFont));
-                formula3.Add(new Chunk($"{sredniaWagaSuma:N2} kg/szt", legendaBoldFont));
+                formula3.Add(new Chunk("Śr. waga = Netto ÷ Dostarcz.: ", legendaBoldFont));
+                formula3.Add(new Chunk($"{sumaNetto:N0} ÷ {sumaSztWszystkie} = {sredniaWagaSuma:N2} kg/szt", legendaFont));
                 formulaCell.AddElement(formula3);
 
                 // 4. Padłe [kg] = Padłe [szt] × Średnia waga
                 Paragraph formula4 = new Paragraph();
-                formula4.Add(new Chunk($"Padłe [kg]: {sumaPadle} szt × {sredniaWagaSuma:N2} kg = ", legendaFont));
-                formula4.Add(new Chunk($"{sumaPadleKG:N0} kg", legendaBoldFont));
+                formula4.Add(new Chunk("Padłe [kg] = Padłe [szt] × Śr. waga: ", legendaBoldFont));
+                formula4.Add(new Chunk($"{sumaPadle} × {sredniaWagaSuma:N2} = {sumaPadleKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula4);
 
                 // 5. Konfiskaty [kg] = Konfiskaty [szt] × Średnia waga
                 Paragraph formula5 = new Paragraph();
-                formula5.Add(new Chunk($"Konfiskaty [kg]: {sumaKonfiskaty} szt × {sredniaWagaSuma:N2} kg = ", legendaFont));
-                formula5.Add(new Chunk($"{sumaKonfiskatyKG:N0} kg", legendaBoldFont));
+                formula5.Add(new Chunk("Konf. [kg] = Konf. [szt] × Śr. waga: ", legendaBoldFont));
+                formula5.Add(new Chunk($"{sumaKonfiskaty} × {sredniaWagaSuma:N2} = {sumaKonfiskatyKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula5);
 
                 // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B
                 Paragraph formula6 = new Paragraph();
-                formula6.Add(new Chunk($"Do zapłaty: {sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = ", legendaFont));
-                formula6.Add(new Chunk($"{sumaKG:N0} kg", legendaBoldFont));
+                formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Opas. - Kl.B: ", legendaBoldFont));
+                formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula6);
 
                 // 7. Wartość = Kilogramy × Cena
                 Paragraph formula7 = new Paragraph();
-                formula7.Add(new Chunk($"Wartość: {sumaKG:N0} kg × {avgCena:0.00} zł = ", legendaFont));
-                formula7.Add(new Chunk($"{sumaWartosc:N0} zł", legendaBoldFont));
+                formula7.Add(new Chunk("Wartość = Do zapł. × Cena: ", legendaBoldFont));
+                formula7.Add(new Chunk($"{sumaKG:N0} × {avgCena:0.00} = {sumaWartosc:N0} zł", legendaFont));
                 formulaCell.AddElement(formula7);
 
                 summaryTable.AddCell(formulaCell);
