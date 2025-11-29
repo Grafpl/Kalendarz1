@@ -22,6 +22,8 @@ namespace Kalendarz1
         private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         private ObservableCollection<SpecyfikacjaRow> specyfikacjeData;
         private SpecyfikacjaRow selectedRow;
+        private List<DostawcaItem> listaDostawcow;
+        private List<string> listaTypowCen = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
 
         public WidokSpecyfikacje()
         {
@@ -32,6 +34,38 @@ namespace Kalendarz1
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
+
+            // Załaduj listę dostawców
+            LoadDostawcy();
+        }
+
+        private void LoadDostawcy()
+        {
+            listaDostawcow = new List<DostawcaItem>();
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT ID AS GID, ShortName FROM dbo.Dostawcy WHERE halt = 0 ORDER BY ShortName";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            listaDostawcow.Add(new DostawcaItem
+                            {
+                                GID = reader["GID"].ToString(),
+                                ShortName = reader["ShortName"]?.ToString() ?? ""
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania dostawców: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -110,12 +144,15 @@ namespace Kalendarz1
                     {
                         foreach (DataRow row in dataTable.Rows)
                         {
+                            string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1");
+                            decimal nettoUbojniValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoWeight", 0);
+
                             var specRow = new SpecyfikacjaRow
                             {
                                 ID = ZapytaniaSQL.GetValueOrDefault<int>(row, "ID", 0),
                                 Nr = ZapytaniaSQL.GetValueOrDefault<int>(row, "CarLp", 0),
-                                Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                                    ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1"), "ShortName"),
+                                DostawcaGID = customerGID,
+                                Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
                                 RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                                     ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1"), "ShortName"),
                                 SztukiDek = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI1", 0),
@@ -129,6 +166,7 @@ namespace Kalendarz1
                                 BruttoUbojni = FormatWeight(row, "FullWeight"),
                                 TaraUbojni = FormatWeight(row, "EmptyWeight"),
                                 NettoUbojni = FormatWeight(row, "NettoWeight"),
+                                NettoUbojniValue = nettoUbojniValue,
                                 LUMEL = ZapytaniaSQL.GetValueOrDefault<int>(row, "LumQnt", 0),
                                 SztukiWybijak = ZapytaniaSQL.GetValueOrDefault<int>(row, "ProdQnt", 0),
                                 KilogramyWybijak = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "ProdWgt", 0),
@@ -167,6 +205,26 @@ namespace Kalendarz1
             return string.Empty;
         }
 
+        // Event handler dla ComboBox Dostawcy
+        private void CboDostawca_Loaded(object sender, RoutedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox != null)
+            {
+                comboBox.ItemsSource = listaDostawcow;
+            }
+        }
+
+        // Event handler dla ComboBox Typ Ceny
+        private void CboTypCeny_Loaded(object sender, RoutedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox != null)
+            {
+                comboBox.ItemsSource = listaTypowCen;
+            }
+        }
+
         private void DataGridView1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (dataGridView1.SelectedItem != null)
@@ -185,7 +243,21 @@ namespace Kalendarz1
                     // Zapisz zmiany do bazy danych po zakończeniu edycji
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        UpdateDatabaseRow(row, e.Column.Header.ToString());
+                        string columnHeader = e.Column.Header?.ToString() ?? "";
+                        UpdateDatabaseRow(row, columnHeader);
+
+                        // Aktualizuj nazwę dostawcy jeśli zmieniono GID
+                        if (columnHeader == "Dostawca" && !string.IsNullOrEmpty(row.DostawcaGID))
+                        {
+                            var dostawca = listaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
+                            if (dostawca != null)
+                            {
+                                row.Dostawca = dostawca.ShortName;
+                            }
+                        }
+
+                        // Przelicz wartość po każdej zmianie
+                        row.RecalculateWartosc();
                         UpdateStatistics();
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
@@ -197,9 +269,8 @@ namespace Kalendarz1
             var row = e.Row.Item as SpecyfikacjaRow;
             if (row != null && row.PiK)
             {
-                // Zastosuj formatowanie dla wierszy z zaznaczonym PiK
-                e.Row.Foreground = new SolidColorBrush(Colors.Red);
-                e.Row.FontStyle = FontStyles.Italic;
+                // Wiersze z PiK mają inny kolor - padłe i konfiskaty NIE są odejmowane
+                e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Jasny pomarańczowy
             }
         }
 
@@ -241,6 +312,7 @@ namespace Kalendarz1
             var mapping = new Dictionary<string, string>
             {
                 { "LP", "CarLp" },
+                { "Dostawca", "CustomerGID" },
                 { "Szt.Dek", "DeclI1" },
                 { "Padłe", "DeclI2" },
                 { "CH", "DeclI3" },
@@ -250,6 +322,7 @@ namespace Kalendarz1
                 { "Szt.Wyb", "ProdQnt" },
                 { "KG Wyb", "ProdWgt" },
                 { "Cena", "Price" },
+                { "Typ Ceny", "PriceTypeID" },
                 { "PiK", "IncDeadConf" },
                 { "Ubytek%", "Loss" }
             };
@@ -262,6 +335,7 @@ namespace Kalendarz1
             switch (columnName)
             {
                 case "LP": return row.Nr;
+                case "Dostawca": return row.DostawcaGID;
                 case "Szt.Dek": return row.SztukiDek;
                 case "Padłe": return row.Padle;
                 case "CH": return row.CH;
@@ -271,6 +345,7 @@ namespace Kalendarz1
                 case "Szt.Wyb": return row.SztukiWybijak;
                 case "KG Wyb": return row.KilogramyWybijak;
                 case "Cena": return row.Cena;
+                case "Typ Ceny": return zapytaniasql.ZnajdzIdCeny(row.TypCeny ?? "");
                 case "PiK": return row.PiK;
                 case "Ubytek%": return row.Ubytek / 100; // Konwersja na wartość dla bazy
                 default: return null;
@@ -284,25 +359,23 @@ namespace Kalendarz1
                 lblRecordCount.Text = "0";
                 lblSumaNetto.Text = "0 kg";
                 lblSumaSztuk.Text = "0";
+                lblSumaWartosc.Text = "0 zł";
                 return;
             }
 
             lblRecordCount.Text = specyfikacjeData.Count.ToString();
 
             // Suma netto ubojni
-            decimal sumaNetto = 0;
-            foreach (var row in specyfikacjeData)
-            {
-                if (decimal.TryParse(row.NettoUbojni?.Replace(" ", "").Replace(",", ""), out decimal netto))
-                {
-                    sumaNetto += netto;
-                }
-            }
+            decimal sumaNetto = specyfikacjeData.Sum(r => r.NettoUbojniValue);
             lblSumaNetto.Text = $"{sumaNetto:N0} kg";
 
             // Suma sztuk LUMEL
             int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
             lblSumaSztuk.Text = sumaSztuk.ToString("N0");
+
+            // Suma wartości
+            decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
+            lblSumaWartosc.Text = $"{sumaWartosc:N0} zł";
         }
 
         private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
@@ -333,8 +406,17 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
+
+                // Znajdź ID typu ceny
+                int priceTypeId = -1;
+                if (!string.IsNullOrEmpty(row.TypCeny))
+                {
+                    priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+                }
+
                 string query = @"UPDATE dbo.FarmerCalc SET
                     CarLp = @Nr,
+                    CustomerGID = @DostawcaGID,
                     DeclI1 = @SztukiDek,
                     DeclI2 = @Padle,
                     DeclI3 = @CH,
@@ -344,6 +426,7 @@ namespace Kalendarz1
                     ProdQnt = @SztukiWybijak,
                     ProdWgt = @KgWybijak,
                     Price = @Cena,
+                    PriceTypeID = @PriceTypeID,
                     Loss = @Ubytek,
                     IncDeadConf = @PiK
                     WHERE ID = @ID";
@@ -352,6 +435,7 @@ namespace Kalendarz1
                 {
                     cmd.Parameters.AddWithValue("@ID", row.ID);
                     cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                    cmd.Parameters.AddWithValue("@DostawcaGID", (object)row.DostawcaGID ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
                     cmd.Parameters.AddWithValue("@Padle", row.Padle);
                     cmd.Parameters.AddWithValue("@CH", row.CH);
@@ -361,6 +445,7 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
                     cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
                     cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
 
@@ -593,9 +678,9 @@ namespace Kalendarz1
                 doc.Add(new Paragraph(" "));
 
                 // Tabela
-                PdfPTable table = new PdfPTable(12);
+                PdfPTable table = new PdfPTable(13);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 });
+                table.SetWidths(new float[] { 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2 });
 
                 // Nagłówki
                 AddTableHeader(table, "LP", boldFont);
@@ -609,7 +694,8 @@ namespace Kalendarz1
                 AddTableHeader(table, "Tara U", boldFont);
                 AddTableHeader(table, "Netto U", boldFont);
                 AddTableHeader(table, "Cena", boldFont);
-                AddTableHeader(table, "Ubytek", boldFont);
+                AddTableHeader(table, "PiK", boldFont);
+                AddTableHeader(table, "Wartość", boldFont);
 
                 // Dane
                 foreach (var row in specyfikacjeData.Where(r => ids.Contains(r.ID)))
@@ -626,7 +712,8 @@ namespace Kalendarz1
                         row.TaraUbojni ?? "-",
                         row.NettoUbojni ?? "-",
                         row.Cena.ToString("F2"),
-                        row.Ubytek.ToString("F2") + "%"
+                        row.PiK ? "TAK" : "NIE",
+                        row.Wartosc.ToString("N0") + " zł"
                     );
                 }
 
@@ -663,11 +750,19 @@ namespace Kalendarz1
         }
     }
 
+    // Klasa dla elementu dostawcy w ComboBox
+    public class DostawcaItem
+    {
+        public string GID { get; set; }
+        public string ShortName { get; set; }
+    }
+
     // Klasa modelu danych
     public class SpecyfikacjaRow : INotifyPropertyChanged
     {
         private int _id;
         private int _nr;
+        private string _dostawcaGID;
         private string _dostawca;
         private string _realDostawca;
         private int _sztukiDek;
@@ -681,6 +776,7 @@ namespace Kalendarz1
         private string _bruttoUbojni;
         private string _taraUbojni;
         private string _nettoUbojni;
+        private decimal _nettoUbojniValue;
         private int _lumel;
         private int _sztukiWybijak;
         private decimal _kilogramyWybijak;
@@ -701,6 +797,12 @@ namespace Kalendarz1
             set { _nr = value; OnPropertyChanged(nameof(Nr)); }
         }
 
+        public string DostawcaGID
+        {
+            get => _dostawcaGID;
+            set { _dostawcaGID = value; OnPropertyChanged(nameof(DostawcaGID)); }
+        }
+
         public string Dostawca
         {
             get => _dostawca;
@@ -716,13 +818,13 @@ namespace Kalendarz1
         public int SztukiDek
         {
             get => _sztukiDek;
-            set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); }
+            set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); RecalculateWartosc(); }
         }
 
         public int Padle
         {
             get => _padle;
-            set { _padle = value; OnPropertyChanged(nameof(Padle)); }
+            set { _padle = value; OnPropertyChanged(nameof(Padle)); RecalculateWartosc(); }
         }
 
         public int CH
@@ -779,6 +881,12 @@ namespace Kalendarz1
             set { _nettoUbojni = value; OnPropertyChanged(nameof(NettoUbojni)); }
         }
 
+        public decimal NettoUbojniValue
+        {
+            get => _nettoUbojniValue;
+            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); RecalculateWartosc(); }
+        }
+
         public int LUMEL
         {
             get => _lumel;
@@ -800,7 +908,7 @@ namespace Kalendarz1
         public decimal Cena
         {
             get => _cena;
-            set { _cena = value; OnPropertyChanged(nameof(Cena)); }
+            set { _cena = value; OnPropertyChanged(nameof(Cena)); RecalculateWartosc(); }
         }
 
         public string TypCeny
@@ -812,13 +920,36 @@ namespace Kalendarz1
         public bool PiK
         {
             get => _piK;
-            set { _piK = value; OnPropertyChanged(nameof(PiK)); }
+            set { _piK = value; OnPropertyChanged(nameof(PiK)); RecalculateWartosc(); }
         }
 
         public decimal Ubytek
         {
             get => _ubytek;
-            set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); }
+            set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); RecalculateWartosc(); }
+        }
+
+        // Obliczona wartość - Cena * NettoUbojni
+        // Gdy PiK = true (padłe i konfiskaty wliczone) - nie odejmujemy nic
+        // Gdy PiK = false - padłe i konfiskaty są odejmowane (normalne zachowanie)
+        public decimal Wartosc
+        {
+            get
+            {
+                // Podstawowa wartość: Cena * NettoUbojni
+                decimal wartoscBazowa = Cena * NettoUbojniValue;
+
+                // Uwzględnienie ubytku
+                decimal ubytek = wartoscBazowa * (Ubytek / 100);
+                decimal wartoscPoUbytku = wartoscBazowa - ubytek;
+
+                return Math.Round(wartoscPoUbytku, 0);
+            }
+        }
+
+        public void RecalculateWartosc()
+        {
+            OnPropertyChanged(nameof(Wartosc));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
