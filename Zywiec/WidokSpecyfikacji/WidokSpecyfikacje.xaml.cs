@@ -969,11 +969,17 @@ namespace Kalendarz1
             {
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
                 string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
-                string phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone") ?? "";
 
-                if (string.IsNullOrEmpty(phoneNumber))
+                // Pobierz numer telefonu - sprawdź Phone1, Phone2, Phone3
+                string phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone1");
+                if (string.IsNullOrWhiteSpace(phoneNumber))
+                    phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone2");
+                if (string.IsNullOrWhiteSpace(phoneNumber))
+                    phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone3");
+
+                if (string.IsNullOrWhiteSpace(phoneNumber))
                 {
-                    MessageBox.Show("Brak numeru telefonu dla tego hodowcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show($"Brak numeru telefonu dla hodowcy: {sellerName}\n\nUzupełnij dane kontaktowe w kartotece hodowcy.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -2274,6 +2280,52 @@ namespace Kalendarz1
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Konwerter dla kolumny Dodatek:
+    /// - Pokazuje puste pole gdy wartość = 0
+    /// - Obsługuje przecinek i kropkę jako separator dziesiętny
+    /// </summary>
+    public class ZeroToEmptyConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null)
+                return string.Empty;
+
+            if (value is decimal decValue)
+            {
+                // Jeśli wartość = 0, pokaż puste pole
+                if (decValue == 0)
+                    return string.Empty;
+
+                // Formatuj z 2 miejscami po przecinku
+                return decValue.ToString("F2", culture);
+            }
+
+            return value.ToString();
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
+                return 0m;
+
+            string input = value.ToString().Trim();
+
+            // Zamień przecinek na kropkę dla parsowania
+            input = input.Replace(',', '.');
+
+            // Spróbuj sparsować jako decimal
+            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result))
+            {
+                return result;
+            }
+
+            // Jeśli nie udało się sparsować, zwróć 0
+            return 0m;
         }
     }
 }
