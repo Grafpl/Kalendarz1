@@ -924,7 +924,7 @@ namespace Kalendarz1
             if (selectedRow == null) return;
 
             string dostawcaGID = selectedRow.DostawcaGID;
-            var ids = specyfikacjaData
+            var ids = specyfikacjeData
                 .Where(x => x.DostawcaGID == dostawcaGID)
                 .Select(x => x.Id)
                 .ToList();
@@ -948,7 +948,7 @@ namespace Kalendarz1
             if (selectedRow == null) return;
 
             string dostawcaGID = selectedRow.DostawcaGID;
-            var ids = specyfikacjaData
+            var ids = specyfikacjeData
                 .Where(x => x.DostawcaGID == dostawcaGID)
                 .Select(x => x.Id)
                 .ToList();
