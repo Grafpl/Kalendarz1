@@ -976,13 +976,13 @@ namespace Kalendarz1
                 // Jeśli brak telefonu - otwórz formularz edycji hodowcy
                 if (string.IsNullOrWhiteSpace(phoneNumber))
                 {
-                    var result = MessageBox.Show(
+                    var confirmEdit = MessageBox.Show(
                         $"Brak numeru telefonu dla hodowcy: {sellerName}\n\nCzy chcesz teraz uzupełnić dane kontaktowe?",
                         "Brak telefonu",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Warning);
 
-                    if (result == MessageBoxResult.Yes)
+                    if (confirmEdit == MessageBoxResult.Yes)
                     {
                         // Otwórz formularz edycji hodowcy (Windows Forms)
                         var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
