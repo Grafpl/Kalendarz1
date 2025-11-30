@@ -14,7 +14,7 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private DateTime dateFrom;
         private DateTime dateTo;
-        private List<DostawcaItem> listaDostawcow = new List<DostawcaItem>();
+        private List<StatDostawcaItem> listaDostawcow = new List<StatDostawcaItem>();
         private string selectedDostawcaGID = null;
 
         // Kolory (jak w screenshocie - zielony, niebieski, żółty, fioletowy, pomarańczowy)
@@ -51,8 +51,8 @@ namespace Kalendarz1
 
         private void LoadDostawcy()
         {
-            listaDostawcow = new List<DostawcaItem>();
-            listaDostawcow.Add(new DostawcaItem { GID = null, ShortName = "-- Wszyscy dostawcy --" });
+            listaDostawcow = new List<StatDostawcaItem>();
+            listaDostawcow.Add(new StatDostawcaItem { GID = null, ShortName = "-- Wszyscy dostawcy --" });
 
             try
             {
@@ -65,7 +65,7 @@ namespace Kalendarz1
                     {
                         while (reader.Read())
                         {
-                            listaDostawcow.Add(new DostawcaItem
+                            listaDostawcow.Add(new StatDostawcaItem
                             {
                                 GID = reader["GID"]?.ToString(),
                                 ShortName = reader["ShortName"]?.ToString() ?? "-"
@@ -84,7 +84,7 @@ namespace Kalendarz1
         {
             if (!IsLoaded) return;
 
-            var selected = cboDostawca.SelectedItem as DostawcaItem;
+            var selected = cboDostawca.SelectedItem as StatDostawcaItem;
             selectedDostawcaGID = selected?.GID;
             LoadAllData();
         }
@@ -656,7 +656,7 @@ namespace Kalendarz1
 
     #region Data Classes
 
-    public class DostawcaItem
+    public class StatDostawcaItem
     {
         public string GID { get; set; }
         public string ShortName { get; set; }
