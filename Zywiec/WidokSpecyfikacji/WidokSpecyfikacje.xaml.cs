@@ -1463,20 +1463,41 @@ namespace Kalendarz1
 
                     if (foundLogoPath != null)
                     {
+                        // === NAGŁÓWEK: LOGO PO LEWEJ, TYTUŁ PO PRAWEJ ===
+                        PdfPTable headerLogoTable = new PdfPTable(2);
+                        headerLogoTable.WidthPercentage = 100;
+                        headerLogoTable.SetWidths(new float[] { 1f, 1.5f });
+                        headerLogoTable.SpacingAfter = 10f;
+
+                        // Logo (lewa strona)
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(250f, 100f); // Większe logo
-                        logo.Alignment = Element.ALIGN_CENTER;
-                        logo.SpacingAfter = 3f;
-                        doc.Add(logo);
+                        logo.ScaleToFit(180f, 80f);
+                        PdfPCell logoCell = new PdfPCell(logo) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 10f };
+                        headerLogoTable.AddCell(logoCell);
+
+                        // Tytuł i informacje (prawa strona)
+                        PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                        titleCell.AddElement(new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 16, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_LEFT });
+                        titleCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", new Font(polishFont, 10, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                        titleCell.AddElement(new Paragraph($"Dokument nr: {strDzienUbojowy}/{ids.Count}  |  Ilość dostaw: {ids.Count}", new Font(polishFont, 9, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                        headerLogoTable.AddCell(titleCell);
+
+                        doc.Add(headerLogoTable);
                     }
                     else
                     {
+                        // Fallback bez logo - tytuł na środku
                         Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 26, Font.BOLD, greenColor));
                         firmName.Alignment = Element.ALIGN_CENTER;
                         doc.Add(firmName);
-                        Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 10, Font.NORMAL, grayColor));
-                        firmSub.Alignment = Element.ALIGN_CENTER;
-                        doc.Add(firmSub);
+                        Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 14, Font.BOLD, greenColor));
+                        mainTitle.Alignment = Element.ALIGN_CENTER;
+                        mainTitle.SpacingAfter = 5f;
+                        doc.Add(mainTitle);
+                        Paragraph docInfo = new Paragraph($"Data uboju: {strDzienUbojowyPL}  |  Dokument nr: {strDzienUbojowy}/{ids.Count}", new Font(polishFont, 9, Font.NORMAL, grayColor));
+                        docInfo.Alignment = Element.ALIGN_CENTER;
+                        docInfo.SpacingAfter = 10f;
+                        doc.Add(docInfo);
                     }
                 }
                 catch
@@ -1484,77 +1505,11 @@ namespace Kalendarz1
                     Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 26, Font.BOLD, greenColor));
                     firmName.Alignment = Element.ALIGN_CENTER;
                     doc.Add(firmName);
+                    Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 14, Font.BOLD, greenColor));
+                    mainTitle.Alignment = Element.ALIGN_CENTER;
+                    mainTitle.SpacingAfter = 10f;
+                    doc.Add(mainTitle);
                 }
-
-                // Tytuł pod logo - mały, elegancki, przed zieloną kreską
-                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 9, Font.NORMAL, grayColor));
-                mainTitle.Alignment = Element.ALIGN_CENTER;
-                mainTitle.SpacingBefore = 0f;
-                mainTitle.SpacingAfter = 4f;
-                doc.Add(mainTitle);
-
-                // === CZERWONA LINIA POD TYTUŁEM ===
-                BaseColor redColor = new BaseColor(192, 57, 43);
-                PdfPTable titleLine = new PdfPTable(1);
-                titleLine.WidthPercentage = 60;
-                PdfPCell titleLineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = redColor, BorderWidthBottom = 2f, Padding = 0 };
-                titleLine.AddCell(titleLineCell);
-                titleLine.SpacingAfter = 8f;
-                doc.Add(titleLine);
-
-                // === POBIERZ GODZINY ZAŁADUNKU I POGODĘ ===
-                List<DateTime> arrivalTimesFull = new List<DateTime>();
-                foreach (int id in ids)
-                {
-                    try
-                    {
-                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
-                        if (arrTime != default) arrivalTimesFull.Add(arrTime);
-                    }
-                    catch { }
-                }
-
-                WeatherInfo weatherInfoFull = null;
-                if (arrivalTimesFull.Count > 0)
-                    weatherInfoFull = WeatherService.GetWeather(arrivalTimesFull[0]);
-                else
-                    weatherInfoFull = WeatherService.GetWeather(dzienUbojowy.Date.AddHours(8));
-
-                string godzinyZaladunkuFull = "";
-                if (arrivalTimesFull.Count > 0)
-                {
-                    var sorted = arrivalTimesFull.OrderBy(t => t).ToList();
-                    godzinyZaladunkuFull = sorted.Count == 1
-                        ? $"Załadunek: {sorted[0]:HH:mm}"
-                        : $"Załadunki: {sorted.First():HH:mm}-{sorted.Last():HH:mm}";
-                }
-
-                // Tabela z informacjami o dokumencie
-                PdfPTable headerTable = new PdfPTable(3);
-                headerTable.WidthPercentage = 100;
-                headerTable.SetWidths(new float[] { 1f, 1.5f, 1f });
-                headerTable.SpacingAfter = 5f;
-
-                // Data uboju (lewa)
-                PdfPCell dateCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE };
-                dateCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_LEFT });
-                if (!string.IsNullOrEmpty(godzinyZaladunkuFull))
-                    dateCell.AddElement(new Paragraph(godzinyZaladunkuFull, new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
-                headerTable.AddCell(dateCell);
-
-                // Pogoda (środek)
-                PdfPCell centerCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
-                if (weatherInfoFull != null)
-                    centerCell.AddElement(new Paragraph($"Pogoda: {weatherInfoFull.Temperature:0}°C, {weatherInfoFull.Description}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                headerTable.AddCell(centerCell);
-
-                // Numer dokumentu (prawa)
-                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
-                docNumCell.AddElement(new Paragraph($"Dokument nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
-                docNumCell.AddElement(new Paragraph($"Ilość dostaw: {ids.Count}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_RIGHT });
-                headerTable.AddCell(docNumCell);
-
-                doc.Add(headerTable);
 
                 // === SEKCJA STRON (NABYWCA / SPRZEDAJĄCY) ===
                 PdfPTable partiesTable = new PdfPTable(2);
@@ -1586,7 +1541,7 @@ namespace Kalendarz1
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
-                sellerCell.AddElement(new Paragraph($"▸ {wagaTyp}", new Font(polishFont, 8, Font.ITALIC, new BaseColor(230, 126, 34))));
+                sellerCell.AddElement(new Paragraph(wagaTyp, textFont));
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
