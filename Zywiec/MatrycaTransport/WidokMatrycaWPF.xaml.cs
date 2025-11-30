@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,6 +16,7 @@ namespace Kalendarz1
     public partial class WidokMatrycaWPF : Window
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private string connectionStringTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
 
         private ObservableCollection<MatrycaRow> matrycaData;
@@ -51,6 +53,7 @@ namespace Kalendarz1
             LoadComboBoxSources();
             LoadData();
             UpdateStatistics();
+            UpdateDayOfWeekLabel();
             UpdateStatus("Dane załadowane pomyślnie");
         }
 
@@ -141,11 +144,11 @@ namespace Kalendarz1
                         SqlDataAdapter adapter = new SqlDataAdapter(command);
                         adapter.Fill(table);
                         isFarmerCalc = true;
+                        lblDataSource.Text = "FarmerCalc";
                     }
                     else
                     {
                         // Dane z HarmonogramDostaw (nowe - z harmonogramu)
-                        // Pobieramy kolumnę Auta aby wiedzieć ile wierszy utworzyć
                         string query = @"
                             SELECT
                                 CAST(0 AS BIGINT) AS ID,
@@ -170,17 +173,19 @@ namespace Kalendarz1
                         command.Parameters.AddWithValue("@StartDate", selectedDate);
                         SqlDataAdapter adapter = new SqlDataAdapter(command);
                         adapter.Fill(table);
+                        lblDataSource.Text = "Harmonogram";
                     }
 
                     if (table.Rows.Count == 0)
                     {
                         UpdateStatus("Brak danych dla wybranej daty");
+                        lblDataSource.Text = "Brak danych";
                         UpdateStatistics();
                         return;
                     }
 
                     // Konwertuj na ObservableCollection
-                    int lpCounter = 1; // Licznik LP dla matrycy
+                    int lpCounter = 1;
 
                     foreach (DataRow row in table.Rows)
                     {
@@ -189,6 +194,8 @@ namespace Kalendarz1
                         string hodowcaAdres = "";
                         string hodowcaMiejscowosc = "";
                         string hodowcaOdleglosc = "";
+                        string hodowcaTelefon = "";
+                        string hodowcaEmail = "";
 
                         // Pobierz dane hodowcy
                         if (!string.IsNullOrEmpty(customerGID))
@@ -197,7 +204,6 @@ namespace Kalendarz1
                             {
                                 string idDostawcy = isFarmerCalc ? customerGID : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
 
-                                // Ustaw nazwę hodowcy
                                 if (isFarmerCalc && !string.IsNullOrEmpty(customerGID))
                                 {
                                     hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName") ?? "";
@@ -207,24 +213,29 @@ namespace Kalendarz1
                                     hodowcaNazwa = customerGID;
                                 }
 
-                                // Pobierz dodatkowe dane tylko jeśli idDostawcy jest prawidłowy
                                 if (!string.IsNullOrEmpty(idDostawcy) && idDostawcy != "-1" && idDostawcy != "0")
                                 {
                                     hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
                                     hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
                                     hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance") ?? "";
+
+                                    // Pobierz telefon (próbuj Phone1, Phone2, Phone3)
+                                    hodowcaTelefon = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1") ?? "";
+                                    if (string.IsNullOrWhiteSpace(hodowcaTelefon))
+                                        hodowcaTelefon = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone2") ?? "";
+                                    if (string.IsNullOrWhiteSpace(hodowcaTelefon))
+                                        hodowcaTelefon = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone3") ?? "";
+
+                                    // Pobierz email
+                                    hodowcaEmail = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "email") ?? "";
                                 }
                             }
                             catch (Exception ex)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych hodowcy {customerGID}: {ex.Message}");
-                                // Kontynuuj bez danych hodowcy
                             }
                         }
 
-                        // Ile aut jedzie do tego hodowcy?
-                        // Dla danych z FarmerCalc - 1 wiersz (już zapisane)
-                        // Dla danych z HarmonogramDostaw - tyle ile kolumna Auta
                         int iloscAut = 1;
                         if (!isFarmerCalc && table.Columns.Contains("Auta"))
                         {
@@ -232,17 +243,15 @@ namespace Kalendarz1
                             if (iloscAut < 1) iloscAut = 1;
                         }
 
-                        // Pobierz oryginalne LP z HarmonogramDostaw
                         string oryginalneLP = row["LpDostawy"]?.ToString() ?? "";
 
-                        // Twórz tyle wierszy ile aut
                         for (int autoNr = 0; autoNr < iloscAut; autoNr++)
                         {
                             var matrycaRow = new MatrycaRow
                             {
                                 ID = row["ID"] != DBNull.Value ? Convert.ToInt64(row["ID"]) : 0,
                                 LpDostawy = lpCounter.ToString(),
-                                OryginalneLP = oryginalneLP,  // Oryginalne LP z HarmonogramDostaw do zapytań
+                                OryginalneLP = oryginalneLP,
                                 CustomerGID = customerGID,
                                 HodowcaNazwa = hodowcaNazwa,
                                 WagaDek = row["WagaDek"] != DBNull.Value ? Convert.ToDecimal(row["WagaDek"]) : 0,
@@ -257,9 +266,11 @@ namespace Kalendarz1
                                 Adres = hodowcaAdres,
                                 Miejscowosc = hodowcaMiejscowosc,
                                 Odleglosc = hodowcaOdleglosc,
+                                Telefon = hodowcaTelefon,
+                                Email = hodowcaEmail,
                                 IsFarmerCalc = isFarmerCalc,
-                                AutoNrUHodowcy = autoNr + 1,  // Numer auta u hodowcy (1, 2, 3...)
-                                IloscAutUHodowcy = iloscAut   // Całkowita liczba aut u hodowcy
+                                AutoNrUHodowcy = autoNr + 1,
+                                IloscAutUHodowcy = iloscAut
                             };
 
                             matrycaData.Add(matrycaRow);
@@ -267,7 +278,7 @@ namespace Kalendarz1
                         }
                     }
 
-                    UpdateStatus($"Załadowano {matrycaData.Count} wierszy (aut)" + (isFarmerCalc ? " (z FarmerCalc)" : " (z Harmonogramu)"));
+                    UpdateStatus($"Załadowano {matrycaData.Count} wierszy" + (isFarmerCalc ? " (FarmerCalc)" : " (Harmonogram)"));
                 }
             }
             catch (Exception ex)
@@ -289,6 +300,17 @@ namespace Kalendarz1
             if (dateTimePicker1.SelectedDate.HasValue)
             {
                 LoadData();
+                UpdateDayOfWeekLabel();
+            }
+        }
+
+        private void UpdateDayOfWeekLabel()
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                var culture = new CultureInfo("pl-PL");
+                string dayName = dateTimePicker1.SelectedDate.Value.ToString("dddd", culture);
+                lblDayOfWeek.Text = char.ToUpper(dayName[0]) + dayName.Substring(1);
             }
         }
 
@@ -405,11 +427,11 @@ namespace Kalendarz1
 
         private void SortByDistance()
         {
-            // Sortuj według odległości
             var sortedList = matrycaData
                 .OrderBy(r =>
                 {
-                    if (decimal.TryParse(r.Odleglosc?.Replace(" km", "").Replace(",", "."), out decimal dist))
+                    if (decimal.TryParse(r.Odleglosc?.Replace(" km", "").Replace(",", "."),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out decimal dist))
                         return dist;
                     return decimal.MaxValue;
                 })
@@ -438,7 +460,6 @@ namespace Kalendarz1
         {
             dragStartPoint = e.GetPosition(null);
 
-            // Znajdź wiersz pod kursorem
             var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
             if (row != null)
             {
@@ -520,25 +541,21 @@ namespace Kalendarz1
 
         #endregion
 
-        #region Selection & Specyfikacja
+        #region Selection & Panel Update
 
         private void DataGridMatryca_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             selectedMatrycaRow = dataGridMatryca.SelectedItem as MatrycaRow;
-            UpdateSpecyfikacjaPanel();
+            UpdateInfoPanel();
         }
 
-        private void UpdateSpecyfikacjaPanel()
+        private void UpdateInfoPanel()
         {
             if (selectedMatrycaRow == null)
             {
-                lblWybranaDostawaInfo.Text = "Wybierz dostawę w zakładce Matryca";
-                ClearSpecyfikacjaFields();
+                ClearInfoPanel();
                 return;
             }
-
-            // Aktualizuj nagłówek
-            lblWybranaDostawaInfo.Text = $"LP: {selectedMatrycaRow.LpDostawy} | {selectedMatrycaRow.HodowcaNazwa}";
 
             // Dane hodowcy
             lblHodowcaNazwa.Text = selectedMatrycaRow.HodowcaNazwa ?? "-";
@@ -547,9 +564,16 @@ namespace Kalendarz1
             lblHodowcaOdleglosc.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Odleglosc)
                 ? $"{selectedMatrycaRow.Odleglosc} km"
                 : "-";
+            lblHodowcaTelefon.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Telefon)
+                ? selectedMatrycaRow.Telefon
+                : "Brak telefonu";
+            lblHodowcaEmail.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Email)
+                ? selectedMatrycaRow.Email
+                : "Brak email";
 
             // Dane transportowe
             lblKierowca.Text = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
+            lblKierowcaTelefon.Text = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
             lblCiagnik.Text = selectedMatrycaRow.CarID ?? "-";
             lblNaczepa.Text = selectedMatrycaRow.TrailerID ?? "-";
             lblWozek.Text = selectedMatrycaRow.NotkaWozek ?? "-";
@@ -566,13 +590,16 @@ namespace Kalendarz1
             lblPrzyjazd.Text = selectedMatrycaRow.Przyjazd?.ToString("HH:mm") ?? "-";
         }
 
-        private void ClearSpecyfikacjaFields()
+        private void ClearInfoPanel()
         {
             lblHodowcaNazwa.Text = "-";
             lblHodowcaAdres.Text = "-";
             lblHodowcaMiejscowosc.Text = "-";
             lblHodowcaOdleglosc.Text = "-";
+            lblHodowcaTelefon.Text = "-";
+            lblHodowcaEmail.Text = "-";
             lblKierowca.Text = "-";
+            lblKierowcaTelefon.Text = "-";
             lblCiagnik.Text = "-";
             lblNaczepa.Text = "-";
             lblWozek.Text = "-";
@@ -596,33 +623,295 @@ namespace Kalendarz1
             return "-";
         }
 
-        private void BtnShowFullSpecyfikacja_Click(object sender, RoutedEventArgs e)
+        private string GetKierowcaTelefon(int? driverGID)
         {
-            if (selectedMatrycaRow != null)
+            if (!driverGID.HasValue) return "-";
+
+            try
             {
-                try
+                using (SqlConnection conn = new SqlConnection(connectionStringTransport))
                 {
-                    // Otwórz pełne okno specyfikacji
-                    WidokSpecyfikacje specWindow = new WidokSpecyfikacje();
-                    specWindow.Show();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas otwierania specyfikacji:\n{ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    conn.Open();
+                    string query = "SELECT Telefon FROM dbo.Kierowcy WHERE GID = @GID";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@GID", driverGID.Value);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString() ?? "-";
+                    }
                 }
             }
-            else
+            catch
             {
-                MessageBox.Show("Proszę wybrać dostawę.",
-                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return "-";
             }
         }
 
-        private void BtnPrintPDF_Click(object sender, RoutedEventArgs e)
+        #endregion
+
+        #region SMS Załadunek
+
+        private void BtnSmsZaladunek_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Funkcja drukowania PDF - do zaimplementowania",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (selectedMatrycaRow == null)
+            {
+                MessageBox.Show("Proszę wybrać wiersz z matrycy.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Sprawdź czy jest numer telefonu
+            string phone = selectedMatrycaRow.Telefon;
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                var openForm = MessageBox.Show(
+                    $"Hodowca {selectedMatrycaRow.HodowcaNazwa} nie ma numeru telefonu.\n\n" +
+                    "Czy chcesz otworzyć formularz edycji hodowcy?",
+                    "Brak telefonu",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (openForm == MessageBoxResult.Yes)
+                {
+                    OpenHodowcaForm();
+                }
+                return;
+            }
+
+            // Sprawdź czy jest godzina załadunku
+            if (!selectedMatrycaRow.Zaladunek.HasValue)
+            {
+                MessageBox.Show("Brak godziny załadunku dla tego wiersza.\nProszę uzupełnić godzinę załadunku.",
+                    "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
+            string kierowcaNazwa = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
+            string kierowcaTelefon = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
+            string ciagnikNr = selectedMatrycaRow.CarID ?? "";
+            int sztuki = selectedMatrycaRow.SztPoj;
+
+            // Generuj treść SMS
+            string smsContent = $"Piorkowscy: {selectedDate:dd.MM} godz.{zaladunekTime} " +
+                               $"Kierowca:{kierowcaNazwa} " +
+                               (string.IsNullOrWhiteSpace(kierowcaTelefon) || kierowcaTelefon == "-" ? "" : $"tel:{kierowcaTelefon} ") +
+                               $"Auto:{ciagnikNr} Szt:{sztuki}";
+
+            // Kopiuj do schowka
+            try
+            {
+                Clipboard.SetText(smsContent);
+
+                string displayMessage = $"SMS skopiowany do schowka:\n\n" +
+                                       $"Do: {phone}\n" +
+                                       $"Treść:\n{smsContent}\n\n" +
+                                       $"Wklej w SMS Desktop i wyślij.";
+
+                MessageBox.Show(displayMessage, "SMS Załadunek", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"SMS Załadunek skopiowany - {selectedMatrycaRow.HodowcaNazwa}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd kopiowania do schowka: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region SMS Rozliczenie
+
+        private void BtnSmsRozliczenie_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedMatrycaRow == null)
+            {
+                MessageBox.Show("Proszę wybrać wiersz z matrycy.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string phone = selectedMatrycaRow.Telefon;
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                var openForm = MessageBox.Show(
+                    $"Hodowca {selectedMatrycaRow.HodowcaNazwa} nie ma numeru telefonu.\n\n" +
+                    "Czy chcesz otworzyć formularz edycji hodowcy?",
+                    "Brak telefonu",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (openForm == MessageBoxResult.Yes)
+                {
+                    OpenHodowcaForm();
+                }
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            int sztuki = selectedMatrycaRow.SztPoj;
+            decimal wagaDek = selectedMatrycaRow.WagaDek;
+            decimal wagaCalkowita = sztuki * wagaDek;
+
+            // Generuj treść SMS rozliczenia
+            string smsContent = $"Piorkowscy: Rozliczenie {selectedDate:dd.MM} - " +
+                               $"{sztuki}szt, {wagaCalkowita:N0}kg. " +
+                               $"PDF wyslany na email.";
+
+            try
+            {
+                Clipboard.SetText(smsContent);
+
+                string displayMessage = $"SMS skopiowany do schowka:\n\n" +
+                                       $"Do: {phone}\n" +
+                                       $"Treść:\n{smsContent}\n\n" +
+                                       $"Wklej w SMS Desktop i wyślij.";
+
+                MessageBox.Show(displayMessage, "SMS Rozliczenie", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"SMS Rozliczenie skopiowany - {selectedMatrycaRow.HodowcaNazwa}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd kopiowania do schowka: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Email
+
+        private void BtnSendEmail_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedMatrycaRow == null)
+            {
+                MessageBox.Show("Proszę wybrać wiersz z matrycy.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string email = selectedMatrycaRow.Email;
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                var openForm = MessageBox.Show(
+                    $"Hodowca {selectedMatrycaRow.HodowcaNazwa} nie ma adresu email.\n\n" +
+                    "Czy chcesz otworzyć formularz edycji hodowcy?",
+                    "Brak email",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (openForm == MessageBoxResult.Yes)
+                {
+                    OpenHodowcaForm();
+                }
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string subject = $"Rozliczenie dostawy - {selectedDate:dd.MM.yyyy} - Piórkowscy";
+
+            int sztuki = selectedMatrycaRow.SztPoj;
+            decimal wagaDek = selectedMatrycaRow.WagaDek;
+            decimal wagaCalkowita = sztuki * wagaDek;
+
+            string body = $"Szanowny Hodowco,\n\n" +
+                         $"W załączeniu przesyłamy rozliczenie dostawy z dnia {selectedDate:dd.MM.yyyy}.\n\n" +
+                         $"Podsumowanie:\n" +
+                         $"- Ilość sztuk: {sztuki}\n" +
+                         $"- Waga: {wagaCalkowita:N0} kg\n\n" +
+                         $"Z poważaniem,\nPiórkowscy";
+
+            try
+            {
+                string mailto = $"mailto:{email}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = mailto,
+                    UseShellExecute = true
+                });
+
+                UpdateStatus($"Otwarto klienta email - {selectedMatrycaRow.HodowcaNazwa}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania klienta email: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Edycja Hodowcy
+
+        private void BtnEdytujHodowce_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedMatrycaRow == null)
+            {
+                MessageBox.Show("Proszę wybrać wiersz z matrycy.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            OpenHodowcaForm();
+        }
+
+        private void OpenHodowcaForm()
+        {
+            if (selectedMatrycaRow == null) return;
+
+            try
+            {
+                string customerGID = selectedMatrycaRow.CustomerGID;
+                string idDostawcy = selectedMatrycaRow.IsFarmerCalc
+                    ? customerGID
+                    : zapytaniasql.ZnajdzIdHodowcyString(customerGID);
+
+                if (string.IsNullOrEmpty(idDostawcy) || idDostawcy == "-1" || idDostawcy == "0")
+                {
+                    MessageBox.Show("Nie można znaleźć ID hodowcy w bazie danych.",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (int.TryParse(idDostawcy, out int gid))
+                {
+                    var form = new HodowcaForm(gid);
+                    form.ShowDialog();
+
+                    // Po zamknięciu formularza odśwież dane
+                    LoadData();
+                    UpdateStatus($"Dane hodowcy zaktualizowane");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania formularza hodowcy:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Specyfikacja
+
+        private void BtnShowFullSpecyfikacja_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WidokSpecyfikacje specWindow = new WidokSpecyfikacje();
+                if (dateTimePicker1.SelectedDate.HasValue)
+                {
+                    // Przekaż datę do okna specyfikacji jeśli to możliwe
+                }
+                specWindow.Show();
+                UpdateStatus("Otwarto okno specyfikacji");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania specyfikacji:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -666,12 +955,10 @@ namespace Kalendarz1
 
                             foreach (var row in matrycaData)
                             {
-                                // Pobierz dodatkowe dane
                                 double Ubytek = 0.0;
                                 double Cena = 0.0;
                                 int intTypCeny = -1;
 
-                                // Używamy OryginalneLP do pobierania danych z HarmonogramDostaw
                                 string lpDoZapytan = !string.IsNullOrEmpty(row.OryginalneLP) ? row.OryginalneLP : row.LpDostawy;
 
                                 if (!string.IsNullOrWhiteSpace(lpDoZapytan))
@@ -682,7 +969,6 @@ namespace Kalendarz1
                                         double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Cena"), out Cena);
                                         string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "TypCeny");
 
-                                        // Tylko wywołuj ZnajdzIdCeny jeśli typCeny nie jest pusty
                                         if (!string.IsNullOrWhiteSpace(typCeny))
                                         {
                                             intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
@@ -691,7 +977,6 @@ namespace Kalendarz1
                                     catch (Exception ex)
                                     {
                                         System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dla LP {lpDoZapytan}: {ex.Message}");
-                                        // Kontynuuj z domyślnymi wartościami
                                     }
                                 }
 
@@ -699,7 +984,6 @@ namespace Kalendarz1
                                     ? (int.TryParse(row.CustomerGID, out int cid) ? cid : 0)
                                     : zapytaniasql.ZnajdzIdHodowcy(row.CustomerGID);
 
-                                // Znajdź nowe ID
                                 long maxLP;
                                 string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
                                 using (SqlCommand command = new SqlCommand(maxLPSql, conn, transaction))
@@ -708,7 +992,6 @@ namespace Kalendarz1
                                     maxLP = result == DBNull.Value ? 1 : Convert.ToInt64(result) + 1;
                                 }
 
-                                // Wstaw do bazy
                                 using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@ID", maxLP);
@@ -745,7 +1028,7 @@ namespace Kalendarz1
                                 MessageBoxImage.Information);
 
                             UpdateStatus($"Zapisano {savedCount} rekordów");
-                            LoadData(); // Odśwież dane
+                            LoadData();
                         }
                         catch (Exception ex)
                         {
@@ -777,12 +1060,38 @@ namespace Kalendarz1
                 lblRecordCount.Text = "0";
                 lblTotalWeight.Text = "0 kg";
                 lblTotalPieces.Text = "0";
+                lblHodowcyCount.Text = "0";
+                lblTotalKm.Text = "0 km";
                 return;
             }
 
+            // Liczba dostaw
             lblRecordCount.Text = matrycaData.Count.ToString();
+
+            // Suma wagi
             lblTotalWeight.Text = $"{matrycaData.Sum(r => r.WagaDek * r.SztPoj):N0} kg";
+
+            // Suma sztuk
             lblTotalPieces.Text = $"{matrycaData.Sum(r => r.SztPoj):N0}";
+
+            // Liczba unikalnych hodowców
+            int uniqueHodowcy = matrycaData.Select(r => r.CustomerGID).Distinct().Count();
+            lblHodowcyCount.Text = uniqueHodowcy.ToString();
+
+            // Suma kilometrów
+            decimal totalKm = 0;
+            foreach (var row in matrycaData)
+            {
+                if (!string.IsNullOrEmpty(row.Odleglosc))
+                {
+                    string kmStr = row.Odleglosc.Replace(" km", "").Replace(",", ".");
+                    if (decimal.TryParse(kmStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal km))
+                    {
+                        totalKm += km;
+                    }
+                }
+            }
+            lblTotalKm.Text = $"{totalKm:N0} km";
         }
 
         private void UpdateStatus(string message)
@@ -814,6 +1123,8 @@ namespace Kalendarz1
         private string _adres;
         private string _miejscowosc;
         private string _odleglosc;
+        private string _telefon;
+        private string _email;
         private bool _isFarmerCalc;
         private int _autoNrUHodowcy;
         private int _iloscAutUHodowcy;
@@ -913,6 +1224,18 @@ namespace Kalendarz1
         {
             get => _odleglosc;
             set { _odleglosc = value; OnPropertyChanged(nameof(Odleglosc)); }
+        }
+
+        public string Telefon
+        {
+            get => _telefon;
+            set { _telefon = value; OnPropertyChanged(nameof(Telefon)); }
+        }
+
+        public string Email
+        {
+            get => _email;
+            set { _email = value; OnPropertyChanged(nameof(Email)); }
         }
 
         public bool IsFarmerCalc
