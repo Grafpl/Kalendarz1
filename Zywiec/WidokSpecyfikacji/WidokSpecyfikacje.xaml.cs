@@ -1120,6 +1120,41 @@ namespace Kalendarz1
 
                 doc.Add(infoTable);
 
+                // === POBIERZ GODZINY PRZYJĘCIA I POGODĘ ===
+                List<DateTime> arrivalTimes = new List<DateTime>();
+                foreach (int id in ids)
+                {
+                    try
+                    {
+                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "ArrivalTime");
+                        if (arrTime != default) arrivalTimes.Add(arrTime);
+                    }
+                    catch { }
+                }
+
+                // Pobierz pogodę dla pierwszej dostawy
+                WeatherInfo weatherInfo = null;
+                if (arrivalTimes.Count > 0)
+                {
+                    weatherInfo = WeatherService.GetWeather(arrivalTimes[0]);
+                }
+                else
+                {
+                    // Użyj daty uboju o godzinie 8:00
+                    weatherInfo = WeatherService.GetWeather(dzienUbojowy.Date.AddHours(8));
+                }
+
+                // Formatuj godziny przyjęcia
+                string godzinyPrzyjecia = "";
+                if (arrivalTimes.Count > 0)
+                {
+                    var sortedTimes = arrivalTimes.OrderBy(t => t).ToList();
+                    if (sortedTimes.Count == 1)
+                        godzinyPrzyjecia = $"Przyjęcie: {sortedTimes[0]:HH:mm}";
+                    else
+                        godzinyPrzyjecia = $"Przyjęcia: {sortedTimes.First():HH:mm} - {sortedTimes.Last():HH:mm}";
+                }
+
                 // === OBLICZENIA ===
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0;
                 int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0;
@@ -1188,8 +1223,24 @@ namespace Kalendarz1
                 dateInfo.Alignment = Element.ALIGN_CENTER;
                 mainCell.AddElement(dateInfo);
 
+                // Godzina przyjęcia i pogoda
+                string infoLine = "";
+                if (!string.IsNullOrEmpty(godzinyPrzyjecia))
+                    infoLine += godzinyPrzyjecia;
+                if (weatherInfo != null)
+                {
+                    if (!string.IsNullOrEmpty(infoLine)) infoLine += "  |  ";
+                    infoLine += $"Pogoda: {weatherInfo.Temperature:0.0}°C, {weatherInfo.Description}";
+                }
+                if (!string.IsNullOrEmpty(infoLine))
+                {
+                    Paragraph weatherLine = new Paragraph(infoLine, new Font(polishFont, 8, Font.ITALIC, new BaseColor(100, 100, 100)));
+                    weatherLine.Alignment = Element.ALIGN_CENTER;
+                    mainCell.AddElement(weatherLine);
+                }
+
                 // Separator
-                mainCell.AddElement(new Paragraph(" ", new Font(polishFont, 8, Font.NORMAL)));
+                mainCell.AddElement(new Paragraph(" ", new Font(polishFont, 5, Font.NORMAL)));
 
                 // Główna wartość
                 Paragraph mainValue = new Paragraph($"DO WYPŁATY: {sumaWartoscShort:N0} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
@@ -1440,20 +1491,51 @@ namespace Kalendarz1
                 mainTitle.SpacingAfter = 8f;
                 doc.Add(mainTitle);
 
+                // === POBIERZ GODZINY PRZYJĘCIA I POGODĘ ===
+                List<DateTime> arrivalTimesFull = new List<DateTime>();
+                foreach (int id in ids)
+                {
+                    try
+                    {
+                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "ArrivalTime");
+                        if (arrTime != default) arrivalTimesFull.Add(arrTime);
+                    }
+                    catch { }
+                }
+
+                WeatherInfo weatherInfoFull = null;
+                if (arrivalTimesFull.Count > 0)
+                    weatherInfoFull = WeatherService.GetWeather(arrivalTimesFull[0]);
+                else
+                    weatherInfoFull = WeatherService.GetWeather(dzienUbojowy.Date.AddHours(8));
+
+                string godzinyPrzjeciaFull = "";
+                if (arrivalTimesFull.Count > 0)
+                {
+                    var sorted = arrivalTimesFull.OrderBy(t => t).ToList();
+                    godzinyPrzjeciaFull = sorted.Count == 1
+                        ? $"Godz. przyjęcia: {sorted[0]:HH:mm}"
+                        : $"Godz. przyjęć: {sorted.First():HH:mm}-{sorted.Last():HH:mm}";
+                }
+
                 // Tabela z informacjami o dokumencie
                 PdfPTable headerTable = new PdfPTable(3);
                 headerTable.WidthPercentage = 100;
                 headerTable.SetWidths(new float[] { 1f, 1.5f, 1f });
-                headerTable.SpacingAfter = 8f;
+                headerTable.SpacingAfter = 5f;
 
                 // Data uboju (lewa)
                 PdfPCell dateCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE };
                 dateCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_LEFT });
+                if (!string.IsNullOrEmpty(godzinyPrzjeciaFull))
+                    dateCell.AddElement(new Paragraph(godzinyPrzjeciaFull, new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
                 headerTable.AddCell(dateCell);
 
-                // Typ wagi (środek)
+                // Pogoda (środek)
                 PdfPCell wagaCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
                 wagaCell.AddElement(new Paragraph(wagaTyp, new Font(polishFont, 9, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_CENTER });
+                if (weatherInfoFull != null)
+                    wagaCell.AddElement(new Paragraph($"Pogoda: {weatherInfoFull.Temperature:0}°C, {weatherInfoFull.Description}", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 headerTable.AddCell(wagaCell);
 
                 // Numer dokumentu (prawa)
