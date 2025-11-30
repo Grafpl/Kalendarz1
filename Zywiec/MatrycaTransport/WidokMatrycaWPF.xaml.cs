@@ -380,6 +380,11 @@ namespace Kalendarz1
             if (index > 0)
             {
                 var item = matrycaData[index];
+
+                // Sprawdź czy SMS był wysłany - wymagaj potwierdzenia
+                if (!CheckAndWarnAboutSmsChange(item))
+                    return;
+
                 matrycaData.RemoveAt(index);
                 matrycaData.Insert(index - 1, item);
                 dataGridMatryca.SelectedIndex = index - 1;
@@ -394,6 +399,11 @@ namespace Kalendarz1
             if (index >= 0 && index < matrycaData.Count - 1)
             {
                 var item = matrycaData[index];
+
+                // Sprawdź czy SMS był wysłany - wymagaj potwierdzenia
+                if (!CheckAndWarnAboutSmsChange(item))
+                    return;
+
                 matrycaData.RemoveAt(index);
                 matrycaData.Insert(index + 1, item);
                 dataGridMatryca.SelectedIndex = index + 1;
@@ -409,6 +419,10 @@ namespace Kalendarz1
                 MessageBox.Show("Brak danych do sortowania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
+
+            // Sprawdź czy są wysłane SMSy - wymagaj potwierdzenia dla wszystkich
+            if (!CheckAndWarnAboutSmsChangeForAll())
+                return;
 
             var result = MessageBox.Show(
                 "Funkcja sugerowania kolejności posortuje dostawy według zasad:\n\n" +
@@ -452,6 +466,148 @@ namespace Kalendarz1
             for (int i = 0; i < matrycaData.Count; i++)
             {
                 matrycaData[i].LpDostawy = (i + 1).ToString();
+            }
+        }
+
+        /// <summary>
+        /// Sprawdza czy SMS został wysłany dla danego wiersza i wyświetla ostrzeżenie
+        /// Zwraca true jeśli można kontynuować zmianę, false jeśli anulowano
+        /// </summary>
+        private bool CheckAndWarnAboutSmsChange(MatrycaRow row)
+        {
+            if (row == null || !row.SmsSent)
+                return true; // Nie wysłano SMS - można kontynuować bez ostrzeżenia
+
+            // Znajdź wszystkich hodowców z tym samym CustomerGID którzy mają wysłany SMS
+            var affectedRows = matrycaData
+                .Where(r => r.CustomerGID == row.CustomerGID && r.SmsSent)
+                .ToList();
+
+            string smsInfo = row.SmsDataWyslania.HasValue
+                ? $"wysłano {row.SmsDataWyslania.Value:dd.MM.yyyy HH:mm} przez {row.SmsUserId}"
+                : "wysłano wcześniej";
+
+            var result = MessageBox.Show(
+                $"⚠️ UWAGA! SMS został już wysłany do hodowcy!\n\n" +
+                $"Hodowca: {row.HodowcaNazwa}\n" +
+                $"SMS: {smsInfo}\n\n" +
+                $"Zmieniasz kolejność/plan dla tego hodowcy.\n\n" +
+                $"❗ MUSISZ wysłać POPRAWKĘ do hodowcy!\n\n" +
+                $"Czy potwierdzasz, że wyślesz poprawkę SMS do hodowcy\n" +
+                $"z nową godziną załadunku?",
+                "⚠️ WYMAGANA POPRAWKA SMS",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Zapisz log o zaakceptowaniu zmiany
+                LogSmsChangeAcknowledgment(row, "CHANGE_ACKNOWLEDGED");
+                UpdateStatus($"⚠️ Zmiana zaakceptowana - wyślij poprawkę do {row.HodowcaNazwa}!");
+                return true;
+            }
+
+            UpdateStatus("Zmiana anulowana - SMS już wysłany");
+            return false;
+        }
+
+        /// <summary>
+        /// Sprawdza czy są jakiekolwiek wysłane SMSy i wyświetla ostrzeżenie
+        /// Używane przy sortowaniu całej listy
+        /// </summary>
+        private bool CheckAndWarnAboutSmsChangeForAll()
+        {
+            var rowsWithSms = matrycaData.Where(r => r.SmsSent).ToList();
+            if (rowsWithSms.Count == 0)
+                return true; // Brak wysłanych SMS - można kontynuować
+
+            var hodowcyZSms = rowsWithSms
+                .Select(r => r.HodowcaNazwa)
+                .Distinct()
+                .ToList();
+
+            var result = MessageBox.Show(
+                $"⚠️ UWAGA! SMSy zostały już wysłane do {hodowcyZSms.Count} hodowców!\n\n" +
+                $"Hodowcy z wysłanym SMS:\n" +
+                $"{string.Join("\n", hodowcyZSms.Take(5))}" +
+                (hodowcyZSms.Count > 5 ? $"\n... i {hodowcyZSms.Count - 5} więcej" : "") +
+                $"\n\n" +
+                $"Zmiana kolejności może wymagać wysłania POPRAWEK!\n\n" +
+                $"❗ Czy potwierdzasz, że wyślesz poprawki SMS\n" +
+                $"do wszystkich hodowców, których to dotyczy?",
+                "⚠️ WYMAGANE POPRAWKI SMS",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                foreach (var row in rowsWithSms)
+                {
+                    LogSmsChangeAcknowledgment(row, "BULK_CHANGE_ACKNOWLEDGED");
+                }
+                UpdateStatus($"⚠️ Zmiana zaakceptowana - wyślij poprawki do {hodowcyZSms.Count} hodowców!");
+                return true;
+            }
+
+            UpdateStatus("Zmiana anulowana - SMSy już wysłane");
+            return false;
+        }
+
+        /// <summary>
+        /// Zapisuje log o zaakceptowaniu zmiany po wysłaniu SMS
+        /// </summary>
+        private void LogSmsChangeAcknowledgment(MatrycaRow row, string changeType)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Upewnij się że tabela istnieje
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SmsChangeLog')
+                        CREATE TABLE dbo.SmsChangeLog (
+                            ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                            CalcDate DATE NOT NULL,
+                            CustomerGID NVARCHAR(50) NOT NULL,
+                            HodowcaNazwa NVARCHAR(200) NULL,
+                            ChangeType NVARCHAR(50) NOT NULL,
+                            AcknowledgedDate DATETIME NOT NULL,
+                            AcknowledgedByUser NVARCHAR(100) NOT NULL,
+                            OriginalSmsDate DATETIME NULL,
+                            OriginalSmsUser NVARCHAR(100) NULL
+                        )";
+                    using (SqlCommand createCmd = new SqlCommand(createTableSql, conn))
+                    {
+                        createCmd.ExecuteNonQuery();
+                    }
+
+                    DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                    string insertSql = @"
+                        INSERT INTO dbo.SmsChangeLog
+                        (CalcDate, CustomerGID, HodowcaNazwa, ChangeType, AcknowledgedDate, AcknowledgedByUser, OriginalSmsDate, OriginalSmsUser)
+                        VALUES
+                        (@CalcDate, @CustomerGID, @HodowcaNazwa, @ChangeType, @AcknowledgedDate, @AcknowledgedByUser, @OriginalSmsDate, @OriginalSmsUser)";
+
+                    using (SqlCommand cmd = new SqlCommand(insertSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate);
+                        cmd.Parameters.AddWithValue("@CustomerGID", row.CustomerGID ?? "");
+                        cmd.Parameters.AddWithValue("@HodowcaNazwa", row.HodowcaNazwa ?? "");
+                        cmd.Parameters.AddWithValue("@ChangeType", changeType);
+                        cmd.Parameters.AddWithValue("@AcknowledgedDate", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@AcknowledgedByUser", Environment.UserName);
+                        cmd.Parameters.AddWithValue("@OriginalSmsDate", row.SmsDataWyslania ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@OriginalSmsUser", row.SmsUserId ?? (object)DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania logu zmian SMS: {ex.Message}");
             }
         }
 
@@ -516,6 +672,14 @@ namespace Kalendarz1
 
                     if (sourceIndex != targetIndex && sourceIndex >= 0 && targetIndex >= 0)
                     {
+                        // Sprawdź czy SMS był wysłany - wymagaj potwierdzenia
+                        if (!CheckAndWarnAboutSmsChange(droppedData))
+                        {
+                            dragStartPoint = null;
+                            draggedRowIndex = -1;
+                            return;
+                        }
+
                         matrycaData.RemoveAt(sourceIndex);
                         if (targetIndex > sourceIndex) targetIndex--;
                         matrycaData.Insert(targetIndex, droppedData);
