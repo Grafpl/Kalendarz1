@@ -598,7 +598,7 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@HodowcaNazwa", row.HodowcaNazwa ?? "");
                         cmd.Parameters.AddWithValue("@ChangeType", changeType);
                         cmd.Parameters.AddWithValue("@AcknowledgedDate", DateTime.Now);
-                        cmd.Parameters.AddWithValue("@AcknowledgedByUser", Environment.UserName);
+                        cmd.Parameters.AddWithValue("@AcknowledgedByUser", App.UserID);
                         cmd.Parameters.AddWithValue("@OriginalSmsDate", row.SmsDataWyslania ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@OriginalSmsUser", row.SmsUserId ?? (object)DBNull.Value);
                         cmd.ExecuteNonQuery();
@@ -1047,7 +1047,7 @@ namespace Kalendarz1
                 }
 
                 // HodowcaForm wymaga string idKontrahenta i string appUser
-                var form = new HodowcaForm(idDostawcy, Environment.UserName);
+                var form = new HodowcaForm(idDostawcy, App.UserID);
                 form.ShowDialog();
 
                 // Po zamknięciu formularza odśwież dane
@@ -1255,7 +1255,7 @@ namespace Kalendarz1
                     }
 
                     DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-                    string userId = Environment.UserName;
+                    string userId = App.UserID;
                     DateTime sentDate = DateTime.Now;
 
                     string insertSql = @"
