@@ -1,11 +1,11 @@
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace Kalendarz1
 {
@@ -15,6 +15,13 @@ namespace Kalendarz1
         private List<string> allUsers = new List<string>();
         private int totalDaysInRange = 1;
 
+        // Kolory do wykresu kołowego (takie same jak w RaportyStatystyki)
+        private readonly string[] pieColors = new string[]
+        {
+            "#5C8A3A", "#3498DB", "#E74C3C", "#9B59B6", "#F39C12",
+            "#1ABC9C", "#34495E", "#E67E22", "#27AE60", "#2980B9"
+        };
+
         public StatystykiPracownikowWindow()
         {
             InitializeComponent();
@@ -22,17 +29,19 @@ namespace Kalendarz1
             // Domyślny zakres dat - ostatnie 30 dni
             dpDo.SelectedDate = DateTime.Today;
             dpOd.SelectedDate = DateTime.Today.AddDays(-30);
-            dpPorownanieOd.SelectedDate = DateTime.Today.AddDays(-30);
-            dpPorownanieDo.SelectedDate = DateTime.Today;
+
+            dpSmsOd.SelectedDate = DateTime.Today.AddDays(-30);
+            dpSmsDo.SelectedDate = DateTime.Today;
+
+            dpConfOd.SelectedDate = DateTime.Today.AddDays(-30);
+            dpConfDo.SelectedDate = DateTime.Today;
 
             // Wypełnij combobox lat
             int currentYear = DateTime.Today.Year;
             for (int y = currentYear; y >= currentYear - 5; y--)
             {
-                cboRokTygodnie.Items.Add(y);
                 cboRokMiesiace.Items.Add(y);
             }
-            cboRokTygodnie.SelectedIndex = 0;
             cboRokMiesiace.SelectedIndex = 0;
 
             Loaded += Window_Loaded;
@@ -40,8 +49,8 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadStatistics();
             LoadAllUsers();
+            LoadStatistics();
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -81,37 +90,18 @@ namespace Kalendarz1
 
         #endregion
 
-        #region Główne statystyki
+        #region Główne statystyki i Ranking
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
             LoadStatistics();
         }
 
-        private void LoadStatistics()
-        {
-            DateTime dateFrom = dpOd.SelectedDate ?? DateTime.Today.AddDays(-30);
-            DateTime dateTo = dpDo.SelectedDate ?? DateTime.Today;
-            dateTo = dateTo.Date.AddDays(1).AddSeconds(-1);
-            totalDaysInRange = Math.Max(1, (int)(dateTo.Date - dateFrom.Date).TotalDays + 1);
-
-            try
-            {
-                LoadSmsStatistics(dateFrom, dateTo);
-                LoadConfirmationStatistics(dateFrom, dateTo);
-                LoadRecentActivity(dateFrom, dateTo);
-                UpdateSummaryCards(dateFrom, dateTo);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas ładowania statystyk:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private void LoadAllUsers()
         {
             allUsers.Clear();
+            allUsers.Add("-- Wszyscy --");
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
@@ -120,10 +110,15 @@ namespace Kalendarz1
                     string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
                     using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        if ((int)checkCmd.ExecuteScalar() == 0) return;
+                        if ((int)checkCmd.ExecuteScalar() == 0)
+                        {
+                            cboFiltPracownik.ItemsSource = allUsers;
+                            cboFiltPracownik.SelectedIndex = 0;
+                            return;
+                        }
                     }
 
-                    string query = "SELECT DISTINCT SentByUser FROM dbo.SmsHistory ORDER BY SentByUser";
+                    string query = "SELECT DISTINCT SentByUser FROM dbo.SmsHistory WHERE SentByUser IS NOT NULL ORDER BY SentByUser";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
@@ -136,15 +131,33 @@ namespace Kalendarz1
                     }
                 }
 
-                cboPracownik1.ItemsSource = allUsers;
-                cboPracownik2.ItemsSource = allUsers;
-                if (allUsers.Count > 0) cboPracownik1.SelectedIndex = 0;
-                if (allUsers.Count > 1) cboPracownik2.SelectedIndex = 1;
+                cboFiltPracownik.ItemsSource = allUsers;
+                cboFiltPracownik.SelectedIndex = 0;
             }
             catch { }
         }
 
-        private void LoadSmsStatistics(DateTime dateFrom, DateTime dateTo)
+        private void LoadStatistics()
+        {
+            DateTime dateFrom = dpOd.SelectedDate ?? DateTime.Today.AddDays(-30);
+            DateTime dateTo = dpDo.SelectedDate ?? DateTime.Today;
+            dateTo = dateTo.Date.AddDays(1).AddSeconds(-1);
+            totalDaysInRange = Math.Max(1, (int)(dateTo.Date - dateFrom.Date).TotalDays + 1);
+
+            try
+            {
+                var stats = LoadSmsStatistics(dateFrom, dateTo);
+                UpdateSummaryCards(dateFrom, dateTo);
+                DrawPieChart(stats);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania statystyk:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private List<UserSmsStats> LoadSmsStatistics(DateTime dateFrom, DateTime dateTo)
         {
             var stats = new List<UserSmsStats>();
 
@@ -158,8 +171,7 @@ namespace Kalendarz1
                     if ((int)checkCmd.ExecuteScalar() == 0)
                     {
                         dgSmsStats.ItemsSource = stats;
-                        chartBars.ItemsSource = stats;
-                        return;
+                        return stats;
                     }
                 }
 
@@ -202,154 +214,12 @@ namespace Kalendarz1
             }
 
             dgSmsStats.ItemsSource = stats;
-
-            // Wykres (max 8 pracowników)
-            int maxSms = stats.Any() ? stats.Max(s => s.SmsCount) : 1;
-            var chartData = stats.Take(8).Select(s => new ChartBarData
-            {
-                UserId = s.UserId,
-                SmsCount = s.SmsCount,
-                BarHeight = maxSms > 0 ? (double)s.SmsCount / maxSms * 130 : 0,
-                BarColor = GetBarColor(s.Rank)
-            }).ToList();
-
-            chartBars.ItemsSource = chartData;
-        }
-
-        private void LoadConfirmationStatistics(DateTime dateFrom, DateTime dateTo)
-        {
-            var stats = new List<UserConfirmationStats>();
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-
-                string checkTableSql = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTableSql, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() == 0)
-                    {
-                        dgConfirmations.ItemsSource = stats;
-                        return;
-                    }
-                }
-
-                string query = @"
-                    SELECT AcknowledgedByUser, COUNT(*) AS TotalConfirmations
-                    FROM dbo.SmsChangeLog
-                    WHERE AcknowledgedDate >= @DateFrom AND AcknowledgedDate <= @DateTo
-                    GROUP BY AcknowledgedByUser
-                    ORDER BY TotalConfirmations DESC";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                    cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            stats.Add(new UserConfirmationStats
-                            {
-                                UserId = reader["AcknowledgedByUser"]?.ToString() ?? "-",
-                                Count = Convert.ToInt32(reader["TotalConfirmations"])
-                            });
-                        }
-                    }
-                }
-            }
-
-            dgConfirmations.ItemsSource = stats;
-        }
-
-        private void LoadRecentActivity(DateTime dateFrom, DateTime dateTo)
-        {
-            var activities = new List<RecentActivity>();
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-
-                // SMS
-                string checkSmsTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkSmsTable, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
-                    {
-                        string smsQuery = @"
-                            SELECT TOP 40 SentDate, SentByUser, 'SMS' AS ActionType
-                            FROM dbo.SmsHistory
-                            WHERE SentDate >= @DateFrom AND SentDate <= @DateTo
-                            ORDER BY SentDate DESC";
-
-                        using (SqlCommand cmd = new SqlCommand(smsQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                            cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                {
-                                    DateTime date = Convert.ToDateTime(reader["SentDate"]);
-                                    activities.Add(new RecentActivity
-                                    {
-                                        Date = date,
-                                        DateStr = date.ToString("dd.MM"),
-                                        TimeStr = date.ToString("HH:mm"),
-                                        UserId = reader["SentByUser"]?.ToString() ?? "-",
-                                        ActionType = "SMS"
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Potwierdzenia
-                string checkLogTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkLogTable, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
-                    {
-                        string logQuery = @"
-                            SELECT TOP 20 AcknowledgedDate, AcknowledgedByUser, 'POT' AS ActionType
-                            FROM dbo.SmsChangeLog
-                            WHERE AcknowledgedDate >= @DateFrom AND AcknowledgedDate <= @DateTo
-                            ORDER BY AcknowledgedDate DESC";
-
-                        using (SqlCommand cmd = new SqlCommand(logQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                            cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                {
-                                    DateTime date = Convert.ToDateTime(reader["AcknowledgedDate"]);
-                                    activities.Add(new RecentActivity
-                                    {
-                                        Date = date,
-                                        DateStr = date.ToString("dd.MM"),
-                                        TimeStr = date.ToString("HH:mm"),
-                                        UserId = reader["AcknowledgedByUser"]?.ToString() ?? "-",
-                                        ActionType = "POT"
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            dgRecentActivity.ItemsSource = activities.OrderByDescending(a => a.Date).Take(60).ToList();
+            return stats;
         }
 
         private void UpdateSummaryCards(DateTime dateFrom, DateTime dateTo)
         {
-            int totalSms = 0, smsAll = 0, activeUsers = 0, uniqueFarmers = 0, totalConfirmations = 0;
+            int totalSms = 0, smsAll = 0, smsOne = 0, activeUsers = 0;
 
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -364,8 +234,8 @@ namespace Kalendarz1
                             SELECT
                                 COUNT(*) AS TotalSms,
                                 SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
-                                COUNT(DISTINCT SentByUser) AS ActiveUsers,
-                                COUNT(DISTINCT CustomerGID) AS UniqueFarmers
+                                SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
+                                COUNT(DISTINCT SentByUser) AS ActiveUsers
                             FROM dbo.SmsHistory
                             WHERE SentDate >= @DateFrom AND SentDate <= @DateTo";
 
@@ -380,25 +250,10 @@ namespace Kalendarz1
                                 {
                                     totalSms = Convert.ToInt32(reader["TotalSms"]);
                                     smsAll = Convert.ToInt32(reader["SmsAll"]);
+                                    smsOne = Convert.ToInt32(reader["SmsOne"]);
                                     activeUsers = Convert.ToInt32(reader["ActiveUsers"]);
-                                    uniqueFarmers = Convert.ToInt32(reader["UniqueFarmers"]);
                                 }
                             }
-                        }
-                    }
-                }
-
-                string checkLogTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkLogTable, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
-                    {
-                        string query = "SELECT COUNT(*) FROM dbo.SmsChangeLog WHERE AcknowledgedDate >= @DateFrom AND AcknowledgedDate <= @DateTo";
-                        using (SqlCommand cmd = new SqlCommand(query, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                            cmd.Parameters.AddWithValue("@DateTo", dateTo);
-                            totalConfirmations = Convert.ToInt32(cmd.ExecuteScalar());
                         }
                     }
                 }
@@ -406,144 +261,243 @@ namespace Kalendarz1
 
             lblTotalSms.Text = totalSms.ToString("N0");
             lblSmsAll.Text = smsAll.ToString("N0");
+            lblSmsOne.Text = smsOne.ToString("N0");
             lblActiveUsers.Text = activeUsers.ToString();
-            lblTotalConfirmations.Text = totalConfirmations.ToString("N0");
-            lblUniqueFarmers.Text = uniqueFarmers.ToString("N0");
-        }
-
-        private void DgSmsStats_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (dgSmsStats.SelectedItem is UserSmsStats selectedUser)
-            {
-                MessageBox.Show(
-                    $"Szczegóły pracownika: {selectedUser.UserId}\n\n" +
-                    $"SMS wysłanych: {selectedUser.SmsCount}\n" +
-                    $"  - Zbiorczych: {selectedUser.SmsAllCount}\n" +
-                    $"  - Pojedynczych: {selectedUser.SmsOneCount}\n\n" +
-                    $"Hodowców obsłużonych: {selectedUser.UniqueFarmers}\n" +
-                    $"Średnio dziennie: {selectedUser.AvgPerDay:F1} SMS",
-                    $"Statystyki - {selectedUser.UserId}",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
         }
 
         #endregion
 
-        #region Statystyki Tygodniowe
+        #region Diagram kołowy (Pie Chart)
 
-        private void CboRokTygodnie_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void DrawPieChart(List<UserSmsStats> stats)
         {
-            if (IsLoaded) LoadWeeklyStatistics();
-        }
+            pieChartCanvas.Children.Clear();
 
-        private void BtnRefreshTygodnie_Click(object sender, RoutedEventArgs e)
-        {
-            LoadWeeklyStatistics();
-        }
-
-        private void LoadWeeklyStatistics()
-        {
-            if (cboRokTygodnie.SelectedItem == null) return;
-            int year = (int)cboRokTygodnie.SelectedItem;
-            var stats = new List<WeeklyStats>();
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            if (stats == null || !stats.Any())
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                // Pokaż tekst "Brak danych"
+                var noDataText = new TextBlock
                 {
-                    if ((int)checkCmd.ExecuteScalar() == 0)
+                    Text = "Brak danych",
+                    FontSize = 14,
+                    Foreground = Brushes.Gray,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                Canvas.SetLeft(noDataText, 100);
+                Canvas.SetTop(noDataText, 115);
+                pieChartCanvas.Children.Add(noDataText);
+                pieLegend.ItemsSource = null;
+                return;
+            }
+
+            double centerX = 125;
+            double centerY = 125;
+            double radius = 100;
+            double totalSms = stats.Sum(s => s.SmsCount);
+
+            if (totalSms == 0)
+            {
+                pieLegend.ItemsSource = null;
+                return;
+            }
+
+            double startAngle = -90; // Zaczynamy od góry
+            var legendItems = new List<PieLegendItem>();
+
+            for (int i = 0; i < stats.Count && i < pieColors.Length; i++)
+            {
+                var stat = stats[i];
+                double sweepAngle = (stat.SmsCount / totalSms) * 360;
+
+                if (sweepAngle < 1) continue; // Pomiń bardzo małe kawałki
+
+                // Rysuj kawałek
+                var slice = CreatePieSlice(centerX, centerY, radius, startAngle, sweepAngle, pieColors[i]);
+                pieChartCanvas.Children.Add(slice);
+
+                // Dodaj do legendy
+                double percent = (stat.SmsCount / totalSms) * 100;
+                legendItems.Add(new PieLegendItem
+                {
+                    Color = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pieColors[i])),
+                    Label = stat.UserId,
+                    Percent = percent,
+                    Count = stat.SmsCount
+                });
+
+                startAngle += sweepAngle;
+            }
+
+            // "Inni" jeśli jest więcej niż 10 pracowników
+            if (stats.Count > pieColors.Length)
+            {
+                int othersCount = stats.Skip(pieColors.Length).Sum(s => s.SmsCount);
+                double othersPercent = (othersCount / totalSms) * 100;
+                if (othersPercent > 0)
+                {
+                    legendItems.Add(new PieLegendItem
                     {
-                        dgWeeklyStats.ItemsSource = stats;
-                        return;
-                    }
+                        Color = Brushes.Gray,
+                        Label = "Inni",
+                        Percent = othersPercent,
+                        Count = othersCount
+                    });
                 }
+            }
 
-                string query = @"
-                    SELECT
-                        DATEPART(WEEK, SentDate) AS WeekNum,
-                        MIN(CAST(SentDate AS DATE)) AS WeekStart,
-                        MAX(CAST(SentDate AS DATE)) AS WeekEnd,
-                        COUNT(*) AS TotalSms,
-                        SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
-                        SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
-                        COUNT(DISTINCT SentByUser) AS ActiveUsers,
-                        COUNT(DISTINCT CustomerGID) AS UniqueFarmers
-                    FROM dbo.SmsHistory
-                    WHERE YEAR(SentDate) = @Year
-                    GROUP BY DATEPART(WEEK, SentDate)
-                    ORDER BY WeekNum";
+            pieLegend.ItemsSource = legendItems;
+        }
 
-                using (SqlCommand cmd = new SqlCommand(query, conn))
+        private Path CreatePieSlice(double centerX, double centerY, double radius, double startAngle, double sweepAngle, string colorHex)
+        {
+            // Konwersja kątów na radiany
+            double startRad = startAngle * Math.PI / 180;
+            double endRad = (startAngle + sweepAngle) * Math.PI / 180;
+
+            // Punkty początkowy i końcowy łuku
+            Point startPoint = new Point(
+                centerX + radius * Math.Cos(startRad),
+                centerY + radius * Math.Sin(startRad));
+            Point endPoint = new Point(
+                centerX + radius * Math.Cos(endRad),
+                centerY + radius * Math.Sin(endRad));
+
+            // Czy łuk jest większy niż 180 stopni?
+            bool isLargeArc = sweepAngle > 180;
+
+            // Tworzenie geometrii
+            var figure = new PathFigure
+            {
+                StartPoint = new Point(centerX, centerY),
+                IsClosed = true
+            };
+
+            figure.Segments.Add(new LineSegment(startPoint, true));
+            figure.Segments.Add(new ArcSegment(
+                endPoint,
+                new Size(radius, radius),
+                0,
+                isLargeArc,
+                SweepDirection.Clockwise,
+                true));
+
+            var geometry = new PathGeometry();
+            geometry.Figures.Add(figure);
+
+            var path = new Path
+            {
+                Data = geometry,
+                Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorHex)),
+                Stroke = Brushes.White,
+                StrokeThickness = 2
+            };
+
+            return path;
+        }
+
+        #endregion
+
+        #region Gdzie poszły SMS (Historia)
+
+        private void CboFiltPracownik_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Nic nie rób - użytkownik musi kliknąć "POKAŻ HISTORIĘ SMS"
+        }
+
+        private void BtnShowSmsHistory_Click(object sender, RoutedEventArgs e)
+        {
+            LoadSmsHistory();
+        }
+
+        private void LoadSmsHistory()
+        {
+            DateTime dateFrom = dpSmsOd.SelectedDate ?? DateTime.Today.AddDays(-30);
+            DateTime dateTo = (dpSmsDo.SelectedDate ?? DateTime.Today).AddDays(1).AddSeconds(-1);
+            string selectedUser = cboFiltPracownik.SelectedItem?.ToString();
+
+            var history = new List<SmsHistoryItem>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    cmd.Parameters.AddWithValue("@Year", year);
+                    conn.Open();
 
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        while (reader.Read())
+                        if ((int)checkCmd.ExecuteScalar() == 0)
                         {
-                            int weekNum = Convert.ToInt32(reader["WeekNum"]);
-                            DateTime weekStart = Convert.ToDateTime(reader["WeekStart"]);
-                            DateTime weekEnd = Convert.ToDateTime(reader["WeekEnd"]);
-                            int totalSms = Convert.ToInt32(reader["TotalSms"]);
-                            int days = Math.Max(1, (int)(weekEnd - weekStart).TotalDays + 1);
-
-                            stats.Add(new WeeklyStats
-                            {
-                                WeekNumber = $"Tydz. {weekNum}",
-                                Period = $"{weekStart:dd.MM} - {weekEnd:dd.MM}",
-                                TotalSms = totalSms,
-                                SmsAll = Convert.ToInt32(reader["SmsAll"]),
-                                SmsOne = Convert.ToInt32(reader["SmsOne"]),
-                                ActiveUsers = Convert.ToInt32(reader["ActiveUsers"]),
-                                UniqueFarmers = Convert.ToInt32(reader["UniqueFarmers"]),
-                                Confirmations = 0,
-                                AvgPerDay = Math.Round((double)totalSms / days, 1)
-                            });
+                            dgSmsHistory.ItemsSource = history;
+                            return;
                         }
                     }
-                }
 
-                // Dodaj potwierdzenia
-                string checkLog = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkLog, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
+                    string query = @"
+                        SELECT TOP 500
+                            SentDate,
+                            SentByUser,
+                            SmsType,
+                            CustomerGID,
+                            PhoneNumber,
+                            SmsContent
+                        FROM dbo.SmsHistory
+                        WHERE SentDate >= @DateFrom AND SentDate <= @DateTo";
+
+                    if (!string.IsNullOrEmpty(selectedUser) && selectedUser != "-- Wszyscy --")
                     {
-                        string confQuery = @"
-                            SELECT DATEPART(WEEK, AcknowledgedDate) AS WeekNum, COUNT(*) AS Cnt
-                            FROM dbo.SmsChangeLog
-                            WHERE YEAR(AcknowledgedDate) = @Year
-                            GROUP BY DATEPART(WEEK, AcknowledgedDate)";
+                        query += " AND SentByUser = @UserId";
+                    }
 
-                        using (SqlCommand cmd = new SqlCommand(confQuery, conn))
+                    query += " ORDER BY SentDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+                        if (!string.IsNullOrEmpty(selectedUser) && selectedUser != "-- Wszyscy --")
                         {
-                            cmd.Parameters.AddWithValue("@Year", year);
-                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            cmd.Parameters.AddWithValue("@UserId", selectedUser);
+                        }
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
                             {
-                                while (reader.Read())
+                                DateTime sentDate = Convert.ToDateTime(reader["SentDate"]);
+                                string smsType = reader["SmsType"]?.ToString() ?? "";
+
+                                history.Add(new SmsHistoryItem
                                 {
-                                    int weekNum = Convert.ToInt32(reader["WeekNum"]);
-                                    int count = Convert.ToInt32(reader["Cnt"]);
-                                    var stat = stats.FirstOrDefault(s => s.WeekNumber == $"Tydz. {weekNum}");
-                                    if (stat != null) stat.Confirmations = count;
-                                }
+                                    SentDate = sentDate,
+                                    SentDateF = sentDate.ToString("dd.MM.yyyy"),
+                                    SentTimeF = sentDate.ToString("HH:mm"),
+                                    SentByUser = reader["SentByUser"]?.ToString() ?? "-",
+                                    SmsType = smsType,
+                                    SmsTypeF = smsType == "ALL" ? "Zbiorczy" : "Pojedynczy",
+                                    CustomerGID = reader["CustomerGID"]?.ToString() ?? "-",
+                                    PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "-",
+                                    SmsContent = reader["SmsContent"]?.ToString() ?? "-"
+                                });
                             }
                         }
                     }
                 }
-            }
 
-            dgWeeklyStats.ItemsSource = stats;
+                dgSmsHistory.ItemsSource = history;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania historii SMS:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
 
         #region Statystyki Miesięczne
 
-        private void CboRokMiesiace_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void CboRokMiesiace_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (IsLoaded) LoadMonthlyStatistics();
         }
@@ -563,198 +517,178 @@ namespace Kalendarz1
                                     "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
             string[] shortNames = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if ((int)checkCmd.ExecuteScalar() == 0)
+                    conn.Open();
+
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        dgMonthlyStats.ItemsSource = stats;
-                        chartMonthly.ItemsSource = stats;
-                        return;
-                    }
-                }
-
-                string query = @"
-                    SELECT
-                        MONTH(SentDate) AS MonthNum,
-                        COUNT(*) AS TotalSms,
-                        SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
-                        SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
-                        COUNT(DISTINCT SentByUser) AS ActiveUsers,
-                        COUNT(DISTINCT CustomerGID) AS UniqueFarmers
-                    FROM dbo.SmsHistory
-                    WHERE YEAR(SentDate) = @Year
-                    GROUP BY MONTH(SentDate)
-                    ORDER BY MonthNum";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@Year", year);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
+                        if ((int)checkCmd.ExecuteScalar() == 0)
                         {
-                            int month = Convert.ToInt32(reader["MonthNum"]);
-                            int totalSms = Convert.ToInt32(reader["TotalSms"]);
-                            int daysInMonth = DateTime.DaysInMonth(year, month);
-
-                            stats.Add(new MonthlyStats
-                            {
-                                MonthNum = month,
-                                MonthName = monthNames[month],
-                                ShortName = shortNames[month],
-                                TotalSms = totalSms,
-                                SmsAll = Convert.ToInt32(reader["SmsAll"]),
-                                SmsOne = Convert.ToInt32(reader["SmsOne"]),
-                                ActiveUsers = Convert.ToInt32(reader["ActiveUsers"]),
-                                UniqueFarmers = Convert.ToInt32(reader["UniqueFarmers"]),
-                                Confirmations = 0,
-                                AvgPerDay = Math.Round((double)totalSms / daysInMonth, 1)
-                            });
+                            dgMonthlyStats.ItemsSource = stats;
+                            chartMonthly.ItemsSource = stats;
+                            return;
                         }
                     }
-                }
 
-                // Dodaj potwierdzenia
-                string checkLog = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkLog, conn))
-                {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
+                    string query = @"
+                        SELECT
+                            MONTH(SentDate) AS MonthNum,
+                            COUNT(*) AS TotalSms,
+                            SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
+                            SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
+                            COUNT(DISTINCT SentByUser) AS ActiveUsers,
+                            COUNT(DISTINCT CustomerGID) AS UniqueFarmers
+                        FROM dbo.SmsHistory
+                        WHERE YEAR(SentDate) = @Year
+                        GROUP BY MONTH(SentDate)
+                        ORDER BY MonthNum";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
-                        string confQuery = @"
-                            SELECT MONTH(AcknowledgedDate) AS MonthNum, COUNT(*) AS Cnt
-                            FROM dbo.SmsChangeLog
-                            WHERE YEAR(AcknowledgedDate) = @Year
-                            GROUP BY MONTH(AcknowledgedDate)";
+                        cmd.Parameters.AddWithValue("@Year", year);
 
-                        using (SqlCommand cmd = new SqlCommand(confQuery, conn))
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            cmd.Parameters.AddWithValue("@Year", year);
-                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            while (reader.Read())
                             {
-                                while (reader.Read())
+                                int month = Convert.ToInt32(reader["MonthNum"]);
+                                int totalSms = Convert.ToInt32(reader["TotalSms"]);
+                                int daysInMonth = DateTime.DaysInMonth(year, month);
+
+                                stats.Add(new MonthlyStats
                                 {
-                                    int month = Convert.ToInt32(reader["MonthNum"]);
-                                    int count = Convert.ToInt32(reader["Cnt"]);
-                                    var stat = stats.FirstOrDefault(s => s.MonthNum == month);
-                                    if (stat != null) stat.Confirmations = count;
-                                }
+                                    MonthNum = month,
+                                    MonthName = monthNames[month],
+                                    ShortName = shortNames[month],
+                                    TotalSms = totalSms,
+                                    SmsAll = Convert.ToInt32(reader["SmsAll"]),
+                                    SmsOne = Convert.ToInt32(reader["SmsOne"]),
+                                    ActiveUsers = Convert.ToInt32(reader["ActiveUsers"]),
+                                    UniqueFarmers = Convert.ToInt32(reader["UniqueFarmers"]),
+                                    AvgPerDay = Math.Round((double)totalSms / daysInMonth, 1)
+                                });
                             }
                         }
                     }
                 }
+
+                dgMonthlyStats.ItemsSource = stats;
+
+                // Wykres miesięczny
+                int maxSms = stats.Any() ? stats.Max(s => s.TotalSms) : 1;
+                foreach (var s in stats)
+                {
+                    s.BarHeight = maxSms > 0 ? (double)s.TotalSms / maxSms * 120 : 0;
+                }
+                chartMonthly.ItemsSource = stats;
             }
-
-            dgMonthlyStats.ItemsSource = stats;
-
-            // Wykres miesięczny
-            int maxSms = stats.Any() ? stats.Max(s => s.TotalSms) : 1;
-            foreach (var s in stats)
+            catch (Exception ex)
             {
-                s.BarHeight = maxSms > 0 ? (double)s.TotalSms / maxSms * 120 : 0;
-                s.BarColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB"));
+                MessageBox.Show($"Błąd podczas ładowania statystyk miesięcznych:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            chartMonthly.ItemsSource = stats;
         }
 
         #endregion
 
-        #region Porównanie pracowników
+        #region Potwierdzenia Zmian
 
-        private void BtnCompare_Click(object sender, RoutedEventArgs e)
+        private void BtnShowConfirmations_Click(object sender, RoutedEventArgs e)
         {
-            if (cboPracownik1.SelectedItem == null || cboPracownik2.SelectedItem == null)
-            {
-                MessageBox.Show("Wybierz dwóch pracowników do porównania.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            string user1 = cboPracownik1.SelectedItem.ToString();
-            string user2 = cboPracownik2.SelectedItem.ToString();
-            DateTime dateFrom = dpPorownanieOd.SelectedDate ?? DateTime.Today.AddDays(-30);
-            DateTime dateTo = (dpPorownanieDo.SelectedDate ?? DateTime.Today).AddDays(1).AddSeconds(-1);
-
-            var stats1 = GetUserStats(user1, dateFrom, dateTo);
-            var stats2 = GetUserStats(user2, dateFrom, dateTo);
-
-            lblPracownik1Nazwa.Text = user1;
-            lblP1Sms.Text = stats1.SmsCount.ToString();
-            lblP1All.Text = stats1.SmsAllCount.ToString();
-            lblP1One.Text = stats1.SmsOneCount.ToString();
-            lblP1Farmers.Text = stats1.UniqueFarmers.ToString();
-
-            lblPracownik2Nazwa.Text = user2;
-            lblP2Sms.Text = stats2.SmsCount.ToString();
-            lblP2All.Text = stats2.SmsAllCount.ToString();
-            lblP2One.Text = stats2.SmsOneCount.ToString();
-            lblP2Farmers.Text = stats2.UniqueFarmers.ToString();
-
-            comparisonPlaceholder.Visibility = Visibility.Collapsed;
-            comparisonGrid.Visibility = Visibility.Visible;
+            LoadConfirmations();
         }
 
-        private UserSmsStats GetUserStats(string userId, DateTime dateFrom, DateTime dateTo)
+        private void LoadConfirmations()
         {
-            var stats = new UserSmsStats { UserId = userId };
+            DateTime dateFrom = dpConfOd.SelectedDate ?? DateTime.Today.AddDays(-30);
+            DateTime dateTo = (dpConfDo.SelectedDate ?? DateTime.Today).AddDays(1).AddSeconds(-1);
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            var confirmations = new List<ConfirmationItem>();
+
+            try
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if ((int)checkCmd.ExecuteScalar() == 0) return stats;
-                }
+                    conn.Open();
 
-                string query = @"
-                    SELECT
-                        COUNT(*) AS TotalSms,
-                        SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
-                        SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
-                        COUNT(DISTINCT CustomerGID) AS UniqueFarmers
-                    FROM dbo.SmsHistory
-                    WHERE SentByUser = @UserId AND SentDate >= @DateFrom AND SentDate <= @DateTo";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@UserId", userId);
-                    cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                    cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        if (reader.Read())
+                        if ((int)checkCmd.ExecuteScalar() == 0)
                         {
-                            stats.SmsCount = reader["TotalSms"] != DBNull.Value ? Convert.ToInt32(reader["TotalSms"]) : 0;
-                            stats.SmsAllCount = reader["SmsAll"] != DBNull.Value ? Convert.ToInt32(reader["SmsAll"]) : 0;
-                            stats.SmsOneCount = reader["SmsOne"] != DBNull.Value ? Convert.ToInt32(reader["SmsOne"]) : 0;
-                            stats.UniqueFarmers = reader["UniqueFarmers"] != DBNull.Value ? Convert.ToInt32(reader["UniqueFarmers"]) : 0;
+                            dgConfirmations.ItemsSource = confirmations;
+                            return;
+                        }
+                    }
+
+                    string query = @"
+                        SELECT TOP 500
+                            CalcDate,
+                            AcknowledgedByUser,
+                            AcknowledgedDate,
+                            HodowcaNazwa,
+                            ChangeType,
+                            OriginalSmsUser,
+                            OriginalSmsDate
+                        FROM dbo.SmsChangeLog
+                        WHERE AcknowledgedDate >= @DateFrom AND AcknowledgedDate <= @DateTo
+                        ORDER BY AcknowledgedDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime calcDate = reader["CalcDate"] != DBNull.Value ? Convert.ToDateTime(reader["CalcDate"]) : DateTime.MinValue;
+                                DateTime ackDate = reader["AcknowledgedDate"] != DBNull.Value ? Convert.ToDateTime(reader["AcknowledgedDate"]) : DateTime.MinValue;
+                                DateTime origSmsDate = reader["OriginalSmsDate"] != DBNull.Value ? Convert.ToDateTime(reader["OriginalSmsDate"]) : DateTime.MinValue;
+                                string changeType = reader["ChangeType"]?.ToString() ?? "";
+
+                                confirmations.Add(new ConfirmationItem
+                                {
+                                    CalcDate = calcDate,
+                                    CalcDateF = calcDate != DateTime.MinValue ? calcDate.ToString("dd.MM.yyyy") : "-",
+                                    AcknowledgedByUser = reader["AcknowledgedByUser"]?.ToString() ?? "-",
+                                    AcknowledgedDate = ackDate,
+                                    AcknowledgedDateF = ackDate != DateTime.MinValue ? ackDate.ToString("dd.MM.yyyy HH:mm") : "-",
+                                    HodowcaNazwa = reader["HodowcaNazwa"]?.ToString() ?? "-",
+                                    ChangeType = changeType,
+                                    ChangeTypeF = GetChangeTypeDisplay(changeType),
+                                    OriginalSmsUser = reader["OriginalSmsUser"]?.ToString() ?? "-",
+                                    OriginalSmsDate = origSmsDate,
+                                    OriginalSmsDateF = origSmsDate != DateTime.MinValue ? origSmsDate.ToString("dd.MM.yyyy HH:mm") : "-"
+                                });
+                            }
                         }
                     }
                 }
-            }
 
-            return stats;
+                dgConfirmations.ItemsSource = confirmations;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania potwierdzeń:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        #endregion
-
-        #region Helpers
-
-        private Brush GetBarColor(int rank)
+        private string GetChangeTypeDisplay(string changeType)
         {
-            switch (rank)
+            switch (changeType?.ToUpper())
             {
-                case 1: return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFD700"));
-                case 2: return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C0C0C0"));
-                case 3: return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CD7F32"));
-                default: return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB"));
+                case "ORDER": return "Kolejność aut";
+                case "TIME": return "Godzina";
+                case "TRUCK": return "Zmiana auta";
+                case "OTHER": return "Inna zmiana";
+                default: return changeType ?? "-";
             }
         }
 
@@ -772,42 +706,28 @@ namespace Kalendarz1
         public int SmsOneCount { get; set; }
         public int UniqueFarmers { get; set; }
         public double AvgPerDay { get; set; }
+        public string AvgPerDayF => AvgPerDay.ToString("F1");
     }
 
-    public class UserConfirmationStats
+    public class PieLegendItem
     {
-        public string UserId { get; set; }
+        public Brush Color { get; set; }
+        public string Label { get; set; }
+        public double Percent { get; set; }
         public int Count { get; set; }
     }
 
-    public class RecentActivity
+    public class SmsHistoryItem
     {
-        public DateTime Date { get; set; }
-        public string DateStr { get; set; }
-        public string TimeStr { get; set; }
-        public string UserId { get; set; }
-        public string ActionType { get; set; }
-    }
-
-    public class ChartBarData
-    {
-        public string UserId { get; set; }
-        public int SmsCount { get; set; }
-        public double BarHeight { get; set; }
-        public Brush BarColor { get; set; }
-    }
-
-    public class WeeklyStats
-    {
-        public string WeekNumber { get; set; }
-        public string Period { get; set; }
-        public int TotalSms { get; set; }
-        public int SmsAll { get; set; }
-        public int SmsOne { get; set; }
-        public int ActiveUsers { get; set; }
-        public int UniqueFarmers { get; set; }
-        public int Confirmations { get; set; }
-        public double AvgPerDay { get; set; }
+        public DateTime SentDate { get; set; }
+        public string SentDateF { get; set; }
+        public string SentTimeF { get; set; }
+        public string SentByUser { get; set; }
+        public string SmsType { get; set; }
+        public string SmsTypeF { get; set; }
+        public string CustomerGID { get; set; }
+        public string PhoneNumber { get; set; }
+        public string SmsContent { get; set; }
     }
 
     public class MonthlyStats
@@ -820,10 +740,24 @@ namespace Kalendarz1
         public int SmsOne { get; set; }
         public int ActiveUsers { get; set; }
         public int UniqueFarmers { get; set; }
-        public int Confirmations { get; set; }
         public double AvgPerDay { get; set; }
+        public string AvgPerDayF => AvgPerDay.ToString("F1");
         public double BarHeight { get; set; }
-        public Brush BarColor { get; set; }
+    }
+
+    public class ConfirmationItem
+    {
+        public DateTime CalcDate { get; set; }
+        public string CalcDateF { get; set; }
+        public string AcknowledgedByUser { get; set; }
+        public DateTime AcknowledgedDate { get; set; }
+        public string AcknowledgedDateF { get; set; }
+        public string HodowcaNazwa { get; set; }
+        public string ChangeType { get; set; }
+        public string ChangeTypeF { get; set; }
+        public string OriginalSmsUser { get; set; }
+        public DateTime OriginalSmsDate { get; set; }
+        public string OriginalSmsDateF { get; set; }
     }
 
     #endregion
