@@ -651,7 +651,10 @@ namespace Kalendarz1
 
         #region SMS Załadunek
 
-        private void BtnSmsZaladunek_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// SMS zbiorczy - wszystkie auta dla tego hodowcy
+        /// </summary>
+        private void BtnSmsZaladunekAll_Click(object sender, RoutedEventArgs e)
         {
             if (selectedMatrycaRow == null)
             {
@@ -678,39 +681,64 @@ namespace Kalendarz1
                 return;
             }
 
-            // Sprawdź czy jest godzina załadunku
-            if (!selectedMatrycaRow.Zaladunek.HasValue)
+            // Znajdź wszystkie wiersze dla tego samego hodowcy
+            string customerGID = selectedMatrycaRow.CustomerGID;
+            var rowsForFarmer = matrycaData
+                .Where(r => r.CustomerGID == customerGID && r.Zaladunek.HasValue)
+                .OrderBy(r => r.Zaladunek)
+                .ToList();
+
+            if (rowsForFarmer.Count == 0)
             {
-                MessageBox.Show("Brak godziny załadunku dla tego wiersza.\nProszę uzupełnić godzinę załadunku.",
+                MessageBox.Show("Brak godzin załadunku dla tego hodowcy.\nProszę uzupełnić godziny załadunku.",
                     "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-            string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
-            string kierowcaNazwa = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
-            string kierowcaTelefon = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
-            string ciagnikNr = selectedMatrycaRow.CarID ?? "";
-            int sztuki = selectedMatrycaRow.SztPoj;
 
-            // Generuj treść SMS
-            string smsContent = $"Piorkowscy: {selectedDate:dd.MM} godz.{zaladunekTime} " +
-                               $"Kierowca:{kierowcaNazwa} " +
-                               (string.IsNullOrWhiteSpace(kierowcaTelefon) || kierowcaTelefon == "-" ? "" : $"tel:{kierowcaTelefon} ") +
-                               $"Auto:{ciagnikNr} Szt:{sztuki}";
+            // Buduj SMS zbiorczy
+            var smsLines = new List<string>();
+            smsLines.Add($"Piorkowscy {selectedDate:dd.MM}:");
+
+            int totalSztuki = 0;
+            foreach (var row in rowsForFarmer)
+            {
+                string zaladunekTime = row.Zaladunek.Value.ToString("HH:mm");
+                string kierowcaNazwa = GetKierowcaNazwa(row.DriverGID);
+                string kierowcaTel = GetKierowcaTelefon(row.DriverGID);
+                string ciagnikNr = row.CarID ?? "";
+
+                string autoInfo = $"godz.{zaladunekTime}";
+                if (!string.IsNullOrEmpty(kierowcaNazwa) && kierowcaNazwa != "-")
+                    autoInfo += $" {kierowcaNazwa}";
+                if (!string.IsNullOrWhiteSpace(kierowcaTel) && kierowcaTel != "-")
+                    autoInfo += $" tel:{kierowcaTel}";
+                if (!string.IsNullOrEmpty(ciagnikNr))
+                    autoInfo += $" auto:{ciagnikNr}";
+
+                smsLines.Add(autoInfo);
+                totalSztuki += row.SztPoj;
+            }
+
+            smsLines.Add($"Razem: {rowsForFarmer.Count} aut, {totalSztuki} szt");
+
+            string smsContent = string.Join("\n", smsLines);
 
             // Kopiuj do schowka
             try
             {
                 Clipboard.SetText(smsContent);
 
-                string displayMessage = $"SMS skopiowany do schowka:\n\n" +
+                string displayMessage = $"SMS ZBIORCZY skopiowany do schowka:\n\n" +
                                        $"Do: {phone}\n" +
+                                       $"Hodowca: {selectedMatrycaRow.HodowcaNazwa}\n" +
+                                       $"Liczba aut: {rowsForFarmer.Count}\n\n" +
                                        $"Treść:\n{smsContent}\n\n" +
                                        $"Wklej w SMS Desktop i wyślij.";
 
-                MessageBox.Show(displayMessage, "SMS Załadunek", MessageBoxButton.OK, MessageBoxImage.Information);
-                UpdateStatus($"SMS Załadunek skopiowany - {selectedMatrycaRow.HodowcaNazwa}");
+                MessageBox.Show(displayMessage, "SMS Załadunek - Wszystkie Auta", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"SMS zbiorczy ({rowsForFarmer.Count} aut) - {selectedMatrycaRow.HodowcaNazwa}");
             }
             catch (Exception ex)
             {
@@ -719,11 +747,10 @@ namespace Kalendarz1
             }
         }
 
-        #endregion
-
-        #region SMS Rozliczenie
-
-        private void BtnSmsRozliczenie_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// SMS pojedynczy - tylko wybrane auto
+        /// </summary>
+        private void BtnSmsZaladunekOne_Click(object sender, RoutedEventArgs e)
         {
             if (selectedMatrycaRow == null)
             {
@@ -749,15 +776,25 @@ namespace Kalendarz1
                 return;
             }
 
-            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-            int sztuki = selectedMatrycaRow.SztPoj;
-            decimal wagaDek = selectedMatrycaRow.WagaDek;
-            decimal wagaCalkowita = sztuki * wagaDek;
+            if (!selectedMatrycaRow.Zaladunek.HasValue)
+            {
+                MessageBox.Show("Brak godziny załadunku dla tego wiersza.\nProszę uzupełnić godzinę załadunku.",
+                    "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-            // Generuj treść SMS rozliczenia
-            string smsContent = $"Piorkowscy: Rozliczenie {selectedDate:dd.MM} - " +
-                               $"{sztuki}szt, {wagaCalkowita:N0}kg. " +
-                               $"PDF wyslany na email.";
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
+            string kierowcaNazwa = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
+            string kierowcaTelefon = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
+            string ciagnikNr = selectedMatrycaRow.CarID ?? "";
+            int sztuki = selectedMatrycaRow.SztPoj;
+
+            // Generuj treść SMS
+            string smsContent = $"Piorkowscy: {selectedDate:dd.MM} godz.{zaladunekTime} " +
+                               $"Kierowca:{kierowcaNazwa} " +
+                               (string.IsNullOrWhiteSpace(kierowcaTelefon) || kierowcaTelefon == "-" ? "" : $"tel:{kierowcaTelefon} ") +
+                               $"Auto:{ciagnikNr} Szt:{sztuki}";
 
             try
             {
@@ -765,77 +802,16 @@ namespace Kalendarz1
 
                 string displayMessage = $"SMS skopiowany do schowka:\n\n" +
                                        $"Do: {phone}\n" +
+                                       $"Auto: {selectedMatrycaRow.AutoNrUHodowcy}/{selectedMatrycaRow.IloscAutUHodowcy}\n" +
                                        $"Treść:\n{smsContent}\n\n" +
                                        $"Wklej w SMS Desktop i wyślij.";
 
-                MessageBox.Show(displayMessage, "SMS Rozliczenie", MessageBoxButton.OK, MessageBoxImage.Information);
-                UpdateStatus($"SMS Rozliczenie skopiowany - {selectedMatrycaRow.HodowcaNazwa}");
+                MessageBox.Show(displayMessage, "SMS Załadunek - To Auto", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus($"SMS pojedynczy (auto {selectedMatrycaRow.AutoNrUHodowcy}/{selectedMatrycaRow.IloscAutUHodowcy}) - {selectedMatrycaRow.HodowcaNazwa}");
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd kopiowania do schowka: {ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        #endregion
-
-        #region Email
-
-        private void BtnSendEmail_Click(object sender, RoutedEventArgs e)
-        {
-            if (selectedMatrycaRow == null)
-            {
-                MessageBox.Show("Proszę wybrać wiersz z matrycy.", "Informacja",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            string email = selectedMatrycaRow.Email;
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                var openForm = MessageBox.Show(
-                    $"Hodowca {selectedMatrycaRow.HodowcaNazwa} nie ma adresu email.\n\n" +
-                    "Czy chcesz otworzyć formularz edycji hodowcy?",
-                    "Brak email",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (openForm == MessageBoxResult.Yes)
-                {
-                    OpenHodowcaForm();
-                }
-                return;
-            }
-
-            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-            string subject = $"Rozliczenie dostawy - {selectedDate:dd.MM.yyyy} - Piórkowscy";
-
-            int sztuki = selectedMatrycaRow.SztPoj;
-            decimal wagaDek = selectedMatrycaRow.WagaDek;
-            decimal wagaCalkowita = sztuki * wagaDek;
-
-            string body = $"Szanowny Hodowco,\n\n" +
-                         $"W załączeniu przesyłamy rozliczenie dostawy z dnia {selectedDate:dd.MM.yyyy}.\n\n" +
-                         $"Podsumowanie:\n" +
-                         $"- Ilość sztuk: {sztuki}\n" +
-                         $"- Waga: {wagaCalkowita:N0} kg\n\n" +
-                         $"Z poważaniem,\nPiórkowscy";
-
-            try
-            {
-                string mailto = $"mailto:{email}?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = mailto,
-                    UseShellExecute = true
-                });
-
-                UpdateStatus($"Otwarto klienta email - {selectedMatrycaRow.HodowcaNazwa}");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd otwierania klienta email: {ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

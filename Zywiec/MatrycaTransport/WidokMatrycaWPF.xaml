@@ -694,34 +694,25 @@
                     <!-- Przyciski akcji w panelu -->
                     <Border Grid.Row="2" Background="#F8F9FA" Padding="10" CornerRadius="0,0,10,10">
                         <StackPanel>
-                            <TextBlock Text="Akcje SMS/Email" FontWeight="Bold" FontSize="12" Margin="0,0,0,8" Foreground="#34495E"/>
+                            <TextBlock Text="Akcje SMS" FontWeight="Bold" FontSize="12" Margin="0,0,0,8" Foreground="#34495E"/>
 
-                            <Button x:Name="btnSmsZaladunek"
-                                    Content="🚛 SMS ZAŁADUNEK"
-                                    Click="BtnSmsZaladunek_Click"
+                            <Button x:Name="btnSmsZaladunekAll"
+                                    Content="🚛 SMS WSZYSTKIE AUTA"
+                                    Click="BtnSmsZaladunekAll_Click"
                                     Style="{StaticResource MainButtonStyle}"
                                     Background="#3498DB"
                                     FontSize="12"
                                     HorizontalAlignment="Stretch"
-                                    ToolTip="SMS z godziną przyjazdu auta do hodowcy"/>
+                                    ToolTip="SMS zbiorczy - wszystkie auta dla tego hodowcy"/>
 
-                            <Button x:Name="btnSmsRozliczenie"
-                                    Content="📱 SMS ROZLICZENIE"
-                                    Click="BtnSmsRozliczenie_Click"
+                            <Button x:Name="btnSmsZaladunekOne"
+                                    Content="🚚 SMS TO AUTO"
+                                    Click="BtnSmsZaladunekOne_Click"
                                     Style="{StaticResource MainButtonStyle}"
-                                    Background="#16A085"
+                                    Background="#2980B9"
                                     FontSize="12"
                                     HorizontalAlignment="Stretch"
-                                    ToolTip="SMS z podsumowaniem rozliczenia"/>
-
-                            <Button x:Name="btnSendEmail"
-                                    Content="📧 WYŚLIJ EMAIL"
-                                    Click="BtnSendEmail_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#E74C3C"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Otwórz klienta email z danymi hodowcy"/>
+                                    ToolTip="SMS tylko dla wybranego auta"/>
 
                             <Button x:Name="btnEdytujHodowce"
                                     Content="✏️ EDYTUJ HODOWCĘ"
