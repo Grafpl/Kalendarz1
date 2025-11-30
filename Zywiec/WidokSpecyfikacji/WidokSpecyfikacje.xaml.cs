@@ -971,16 +971,37 @@ namespace Kalendarz1
                 string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
 
                 // Pobierz numer telefonu - sprawdź Phone1, Phone2, Phone3
-                string phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone1");
-                if (string.IsNullOrWhiteSpace(phoneNumber))
-                    phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone2");
-                if (string.IsNullOrWhiteSpace(phoneNumber))
-                    phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone3");
+                string phoneNumber = GetPhoneNumber(customerRealGID);
 
+                // Jeśli brak telefonu - otwórz formularz edycji hodowcy
                 if (string.IsNullOrWhiteSpace(phoneNumber))
                 {
-                    MessageBox.Show($"Brak numeru telefonu dla hodowcy: {sellerName}\n\nUzupełnij dane kontaktowe w kartotece hodowcy.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    var result = MessageBox.Show(
+                        $"Brak numeru telefonu dla hodowcy: {sellerName}\n\nCzy chcesz teraz uzupełnić dane kontaktowe?",
+                        "Brak telefonu",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // Otwórz formularz edycji hodowcy (Windows Forms)
+                        var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
+                        hodowcaForm.ShowDialog();
+
+                        // Po zamknięciu formularza - sprawdź ponownie czy telefon został uzupełniony
+                        phoneNumber = GetPhoneNumber(customerRealGID);
+                        if (string.IsNullOrWhiteSpace(phoneNumber))
+                        {
+                            MessageBox.Show("Numer telefonu nadal nie został uzupełniony.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                        // Odśwież nazwę hodowcy (mogła się zmienić)
+                        sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
 
                 // Oblicz podsumowanie
@@ -1024,6 +1045,19 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd wysyłania SMS: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Pobiera pierwszy dostępny numer telefonu hodowcy (Phone1, Phone2 lub Phone3)
+        /// </summary>
+        private string GetPhoneNumber(string customerGID)
+        {
+            string phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone1");
+            if (string.IsNullOrWhiteSpace(phone))
+                phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone2");
+            if (string.IsNullOrWhiteSpace(phone))
+                phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone3");
+            return phone;
         }
 
         // === NOWY: Skrócona wersja PDF (1 strona) z zaokrąglonymi rogami ===
