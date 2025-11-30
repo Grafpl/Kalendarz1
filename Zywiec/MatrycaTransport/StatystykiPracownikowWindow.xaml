@@ -2,21 +2,60 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Statystyki Pracowników - SMS"
-        Height="850" Width="1400"
+        Height="900" Width="1500"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#ECEFF1"
+        Background="#F5F5F5"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <!-- Style przycisków - taki sam jak w RaportyStatystyki -->
-        <Style x:Key="MainButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#5C8A3A"/>
+        <!-- Styl przycisków okresu -->
+        <Style x:Key="PeriodButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E8F5E9"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl aktywnego przycisku okresu -->
+        <Style x:Key="PeriodButtonActiveStyle" TargetType="Button" BasedOn="{StaticResource PeriodButtonStyle}">
+            <Setter Property="Background" Value="#4CAF50"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="18,10"/>
-            <Setter Property="Margin" Value="5"/>
+            <Setter Property="BorderBrush" Value="#4CAF50"/>
+        </Style>
+
+        <!-- Styl przycisków miesięcy -->
+        <Style x:Key="MonthButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#ECEFF1"/>
+            <Setter Property="Foreground" Value="#546E7A"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
@@ -24,59 +63,18 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
+                                CornerRadius="4"
+                                Padding="4,2">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
-                            </Border.Effect>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                                <Setter TargetName="border" Property="Background" Value="#CFD8DC"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-        </Style>
-
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
-            <Setter Property="Background" Value="#607D8B"/>
-        </Style>
-
-        <!-- Style dla TabItem - taki sam jak w RaportyStatystyki -->
-        <Style x:Key="TabItemStyle" TargetType="TabItem">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border"
-                                Background="#34495E"
-                                CornerRadius="8,8,0,0"
-                                Margin="2,0,2,0"
-                                Padding="20,12">
-                            <ContentPresenter x:Name="ContentSite"
-                                              ContentSource="Header"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#5C8A3A"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#4B732F"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
         </Style>
     </Window.Resources>
 
@@ -86,520 +84,335 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- NAGŁÓWEK - taki sam styl jak RaportyStatystyki -->
-        <Border Grid.Row="0" Background="#5C8A3A" Padding="25,18">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="10"/>
-            </Border.Effect>
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Background="White" Padding="20,15" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
             <Grid>
-                <TextBlock Text="STATYSTYKI PRACOWNIKÓW - SMS"
-                           FontSize="22"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           VerticalAlignment="Center"/>
-                <Button Content="ZAMKNIJ"
-                        HorizontalAlignment="Right"
-                        Style="{StaticResource SecondaryButtonStyle}"
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE8B8;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="Statystyki Pracowników - SMS" FontSize="22" FontWeight="SemiBold" Foreground="#333" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Width="36" Height="36" FontSize="18" Foreground="#666"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand"
                         Click="BtnClose_Click"/>
             </Grid>
         </Border>
 
-        <!-- ZAKŁADKI -->
-        <TabControl Grid.Row="1" Margin="20" Background="Transparent" BorderThickness="0">
-            <TabControl.Resources>
-                <Style TargetType="TabItem" BasedOn="{StaticResource TabItemStyle}"/>
-            </TabControl.Resources>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
 
-            <!-- ZAKŁADKA 1: RANKING PRACOWNIKÓW -->
-            <TabItem Header="Ranking Pracowników">
-                <Border Background="White" CornerRadius="0,10,10,10" Padding="20">
+                <!-- WYBÓR OKRESU -->
+                <Border Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,15">
                     <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                        <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
                     </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                            <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Wybór Okresu" FontWeight="SemiBold" FontSize="14" Foreground="#333"/>
+                        </StackPanel>
 
-                        <!-- Panel filtrów -->
-                        <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="8" Padding="20" Margin="0,0,0,15">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                        <!-- Przyciski szybkiego wyboru -->
+                        <WrapPanel Margin="0,0,0,15">
+                            <Button x:Name="btnDzis" Content="&#xE787; Dziś" Style="{StaticResource PeriodButtonStyle}" Click="BtnDzis_Click"/>
+                            <Button x:Name="btnWczoraj" Content="&#xE81C; Wczoraj" Style="{StaticResource PeriodButtonStyle}" Click="BtnWczoraj_Click"/>
+                            <Button x:Name="btnTenTydzien" Content="&#xE8BF; Ten Tydzień" Style="{StaticResource PeriodButtonStyle}" Click="BtnTenTydzien_Click"/>
+                            <Button x:Name="btnPoprzedniTydzien" Content="&#xE76B; Poprzedni Tydzień" Style="{StaticResource PeriodButtonStyle}" Click="BtnPoprzedniTydzien_Click"/>
+                            <Button x:Name="btnTenMiesiac" Content="&#xE8BF; Ten Miesiąc" Style="{StaticResource PeriodButtonActiveStyle}" Click="BtnTenMiesiac_Click"/>
+                            <Button x:Name="btnPoprzedniMiesiac" Content="&#xE76B; Poprzedni Miesiąc" Style="{StaticResource PeriodButtonStyle}" Click="BtnPoprzedniMiesiac_Click"/>
+                            <Button x:Name="btn2025" Content="&#xE787; 2025" Style="{StaticResource PeriodButtonStyle}" Click="BtnRok2025_Click"/>
+                            <Button x:Name="btn2024" Content="&#xE787; 2024" Style="{StaticResource PeriodButtonStyle}" Click="BtnRok2024_Click"/>
+                        </WrapPanel>
 
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock Text="Zakres dat:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                    <DatePicker x:Name="dpOd" Width="130" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <DatePicker x:Name="dpDo" Width="130" VerticalAlignment="Center" Margin="0,0,30,0"/>
+                        <!-- Przyciski miesięcy 2025 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="2025:" FontWeight="SemiBold" Width="45" VerticalAlignment="Center" Foreground="#666"/>
+                            <Button Content="Sty" Style="{StaticResource MonthButtonStyle}" Tag="2025-1" Click="BtnMonth_Click"/>
+                            <Button Content="Lut" Style="{StaticResource MonthButtonStyle}" Tag="2025-2" Click="BtnMonth_Click"/>
+                            <Button Content="Mar" Style="{StaticResource MonthButtonStyle}" Tag="2025-3" Click="BtnMonth_Click"/>
+                            <Button Content="Kwi" Style="{StaticResource MonthButtonStyle}" Tag="2025-4" Click="BtnMonth_Click"/>
+                            <Button Content="Maj" Style="{StaticResource MonthButtonStyle}" Tag="2025-5" Click="BtnMonth_Click"/>
+                            <Button Content="Cze" Style="{StaticResource MonthButtonStyle}" Tag="2025-6" Click="BtnMonth_Click"/>
+                            <Button Content="Lip" Style="{StaticResource MonthButtonStyle}" Tag="2025-7" Click="BtnMonth_Click"/>
+                            <Button Content="Sie" Style="{StaticResource MonthButtonStyle}" Tag="2025-8" Click="BtnMonth_Click"/>
+                            <Button Content="Wrz" Style="{StaticResource MonthButtonStyle}" Tag="2025-9" Click="BtnMonth_Click"/>
+                            <Button Content="Paź" Style="{StaticResource MonthButtonStyle}" Tag="2025-10" Click="BtnMonth_Click"/>
+                            <Button Content="Lis" Style="{StaticResource MonthButtonStyle}" Tag="2025-11" Click="BtnMonth_Click"/>
+                            <Button Content="Gru" Style="{StaticResource MonthButtonStyle}" Tag="2025-12" Click="BtnMonth_Click"/>
+                        </StackPanel>
 
-                                    <TextBlock Text="Szybki wybór:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <Button Content="Dziś" Click="BtnDzis_Click" Padding="12,6" FontSize="11" Background="#27AE60" Foreground="White" Margin="3"/>
-                                    <Button Content="Tydzień" Click="BtnTydzien_Click" Padding="12,6" FontSize="11" Background="#2980B9" Foreground="White" Margin="3"/>
-                                    <Button Content="Miesiąc" Click="BtnMiesiac_Click" Padding="12,6" FontSize="11" Background="#8E44AD" Foreground="White" Margin="3"/>
-                                    <Button Content="Rok" Click="BtnRok_Click" Padding="12,6" FontSize="11" Background="#E74C3C" Foreground="White" Margin="3"/>
-                                </StackPanel>
-
-                                <Button Grid.Column="2" Content="GENERUJ RANKING"
-                                        Style="{StaticResource MainButtonStyle}"
-                                        Click="BtnRefresh_Click"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Karty podsumowania -->
-                        <Grid Grid.Row="1" Margin="0,0,0,15">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Suma SMS -->
-                            <Border Grid.Column="0" Background="#E8F5E9" CornerRadius="8" Padding="20" Margin="0,0,10,0">
-                                <StackPanel>
-                                    <TextBlock Text="SUMA SMS" FontWeight="Bold" Foreground="#2E7D32" FontSize="12"/>
-                                    <TextBlock x:Name="lblTotalSms" Text="0" FontSize="36" FontWeight="Bold" Foreground="#1B5E20" Margin="0,5,0,0"/>
-                                    <TextBlock Text="wysłanych wiadomości" FontSize="11" Foreground="#4CAF50"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- SMS Zbiorczych -->
-                            <Border Grid.Column="1" Background="#E3F2FD" CornerRadius="8" Padding="20" Margin="5,0,5,0">
-                                <StackPanel>
-                                    <TextBlock Text="SMS ZBIORCZYCH" FontWeight="Bold" Foreground="#1976D2" FontSize="12"/>
-                                    <TextBlock x:Name="lblSmsAll" Text="0" FontSize="36" FontWeight="Bold" Foreground="#0D47A1" Margin="0,5,0,0"/>
-                                    <TextBlock Text="wszystkie auta hodowcy" FontSize="11" Foreground="#64B5F6"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- SMS Pojedynczych -->
-                            <Border Grid.Column="2" Background="#FFF3E0" CornerRadius="8" Padding="20" Margin="5,0,5,0">
-                                <StackPanel>
-                                    <TextBlock Text="SMS POJEDYNCZYCH" FontWeight="Bold" Foreground="#F57C00" FontSize="12"/>
-                                    <TextBlock x:Name="lblSmsOne" Text="0" FontSize="36" FontWeight="Bold" Foreground="#E65100" Margin="0,5,0,0"/>
-                                    <TextBlock Text="jedno auto" FontSize="11" Foreground="#FFB74D"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Aktywni pracownicy -->
-                            <Border Grid.Column="3" Background="#F3E5F5" CornerRadius="8" Padding="20" Margin="10,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="AKTYWNI PRACOWNICY" FontWeight="Bold" Foreground="#7B1FA2" FontSize="12"/>
-                                    <TextBlock x:Name="lblActiveUsers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#4A148C" Margin="0,5,0,0"/>
-                                    <TextBlock Text="wysyłających SMS" FontSize="11" Foreground="#BA68C8"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <!-- Główna zawartość - Ranking + Diagram -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="400"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Tabela rankingu -->
-                            <DataGrid Grid.Column="0" x:Name="dgSmsStats"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      CanUserDeleteRows="False"
-                                      IsReadOnly="True"
-                                      GridLinesVisibility="Horizontal"
-                                      HorizontalGridLinesBrush="#E0E0E0"
-                                      RowHeight="45"
-                                      Background="White"
-                                      BorderThickness="1"
-                                      BorderBrush="#E0E0E0"
-                                      FontSize="13"
-                                      Margin="0,0,15,0">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Poz." Binding="{Binding Rank}" Width="50">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="FontSize" Value="16"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Pracownik" Binding="{Binding UserId}" Width="*">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="Padding" Value="10,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="SMS" Binding="{Binding SmsCount}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="FontSize" Value="16"/>
-                                                <Setter Property="Foreground" Value="#1B5E20"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Zbiorczych" Binding="{Binding SmsAllCount}" Width="90">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#1976D2"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Pojedynczych" Binding="{Binding SmsOneCount}" Width="100">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#F57C00"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Hodowców" Binding="{Binding UniqueFarmers}" Width="90">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#7B1FA2"/>
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Śr./dzień" Binding="{Binding AvgPerDayF}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
-
-                            <!-- Diagram kołowy -->
-                            <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="8" Padding="20">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Text="UDZIAŁ PRACOWNIKÓW W SMS"
-                                               FontWeight="Bold" FontSize="14" Foreground="#34495E"
-                                               HorizontalAlignment="Center" Margin="0,0,0,15"/>
-
-                                    <!-- Diagram kołowy -->
-                                    <Canvas Grid.Row="1" x:Name="pieChartCanvas" Width="250" Height="250"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
-                                    <!-- Legenda -->
-                                    <ItemsControl Grid.Row="2" x:Name="pieLegend" Margin="0,15,0,0">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3">
-                                                    <Border Width="16" Height="16" Background="{Binding Color}" CornerRadius="3" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding Label}" FontSize="11" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding Percent, StringFormat=' ({0:F1}%)'}" FontSize="11"
-                                                               Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Grid>
+                        <!-- Przyciski miesięcy 2024 -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="2024:" FontWeight="SemiBold" Width="45" VerticalAlignment="Center" Foreground="#666"/>
+                            <Button Content="Sty" Style="{StaticResource MonthButtonStyle}" Tag="2024-1" Click="BtnMonth_Click"/>
+                            <Button Content="Lut" Style="{StaticResource MonthButtonStyle}" Tag="2024-2" Click="BtnMonth_Click"/>
+                            <Button Content="Mar" Style="{StaticResource MonthButtonStyle}" Tag="2024-3" Click="BtnMonth_Click"/>
+                            <Button Content="Kwi" Style="{StaticResource MonthButtonStyle}" Tag="2024-4" Click="BtnMonth_Click"/>
+                            <Button Content="Maj" Style="{StaticResource MonthButtonStyle}" Tag="2024-5" Click="BtnMonth_Click"/>
+                            <Button Content="Cze" Style="{StaticResource MonthButtonStyle}" Tag="2024-6" Click="BtnMonth_Click"/>
+                            <Button Content="Lip" Style="{StaticResource MonthButtonStyle}" Tag="2024-7" Click="BtnMonth_Click"/>
+                            <Button Content="Sie" Style="{StaticResource MonthButtonStyle}" Tag="2024-8" Click="BtnMonth_Click"/>
+                            <Button Content="Wrz" Style="{StaticResource MonthButtonStyle}" Tag="2024-9" Click="BtnMonth_Click"/>
+                            <Button Content="Paź" Style="{StaticResource MonthButtonStyle}" Tag="2024-10" Click="BtnMonth_Click"/>
+                            <Button Content="Lis" Style="{StaticResource MonthButtonStyle}" Tag="2024-11" Click="BtnMonth_Click"/>
+                            <Button Content="Gru" Style="{StaticResource MonthButtonStyle}" Tag="2024-12" Click="BtnMonth_Click"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
-            </TabItem>
 
-            <!-- ZAKŁADKA 2: GDZIE POSZŁY SMS -->
-            <TabItem Header="Gdzie poszły SMS">
-                <Border Background="White" CornerRadius="0,10,10,10" Padding="20">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                <!-- KARTY PODSUMOWANIA -->
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Filtry -->
-                        <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="8" Padding="20" Margin="0,0,0,15">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock Text="Pracownik:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <ComboBox x:Name="cboFiltPracownik" Width="180" VerticalAlignment="Center" Margin="0,0,30,0"
-                                              SelectionChanged="CboFiltPracownik_SelectionChanged"/>
-
-                                    <TextBlock Text="Zakres dat:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <DatePicker x:Name="dpSmsOd" Width="130" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <DatePicker x:Name="dpSmsDo" Width="130" VerticalAlignment="Center"/>
-                                </StackPanel>
-
-                                <Button Grid.Column="2" Content="POKAŻ HISTORIĘ SMS"
-                                        Style="{StaticResource MainButtonStyle}"
-                                        Click="BtnShowSmsHistory_Click"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Tabela SMS -->
-                        <DataGrid Grid.Row="1" x:Name="dgSmsHistory"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#E0E0E0"
-                                  RowHeight="38"
-                                  Background="White"
-                                  BorderThickness="1"
-                                  BorderBrush="#E0E0E0"
-                                  FontSize="12">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Data" Binding="{Binding SentDateF}" Width="90"/>
-                                <DataGridTextColumn Header="Godz." Binding="{Binding SentTimeF}" Width="60"/>
-                                <DataGridTextColumn Header="Pracownik" Binding="{Binding SentByUser}" Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#1B5E20"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ" Binding="{Binding SmsTypeF}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Hodowca (CustomerGID)" Binding="{Binding CustomerGID}" Width="180"/>
-                                <DataGridTextColumn Header="Telefon" Binding="{Binding PhoneNumber}" Width="120"/>
-                                <DataGridTextColumn Header="Treść SMS" Binding="{Binding SmsContent}" Width="*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="ToolTip" Value="{Binding SmsContent}"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
-            </TabItem>
-
-            <!-- ZAKŁADKA 3: STATYSTYKI MIESIĘCZNE -->
-            <TabItem Header="Statystyki Miesięczne">
-                <Border Background="White" CornerRadius="0,10,10,10" Padding="20">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="200"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Filtr roku -->
-                        <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                    <!-- Suma SMS -->
+                    <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,8,0">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                        </Border.Effect>
+                        <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Rok:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                <ComboBox x:Name="cboRokMiesiace" Width="100" SelectionChanged="CboRokMiesiace_SelectionChanged"/>
-                                <Button Content="GENERUJ STATYSTYKI" Style="{StaticResource MainButtonStyle}"
-                                        Click="BtnRefreshMiesiace_Click" Margin="30,0,0,0"/>
+                                <TextBlock Text="&#xE8BD;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#4CAF50" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Wysłane SMS" Foreground="#666" FontSize="13"/>
                             </StackPanel>
-                        </Border>
+                            <TextBlock x:Name="lblTotalSms" Text="0" FontSize="36" FontWeight="Bold" Foreground="#4CAF50" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Tabela miesięczna -->
-                        <DataGrid Grid.Row="1" x:Name="dgMonthlyStats"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#E0E0E0"
-                                  RowHeight="40"
-                                  Background="White"
-                                  BorderThickness="1"
-                                  BorderBrush="#E0E0E0"
-                                  FontSize="13">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Miesiąc" Binding="{Binding MonthName}" Width="150">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Padding" Value="10,0"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="SMS Razem" Binding="{Binding TotalSms}" Width="100">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="FontSize" Value="15"/>
-                                            <Setter Property="Foreground" Value="#1B5E20"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Zbiorczych" Binding="{Binding SmsAll}" Width="100">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="Foreground" Value="#1976D2"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Pojedynczych" Binding="{Binding SmsOne}" Width="100">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="Foreground" Value="#F57C00"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Pracownicy" Binding="{Binding ActiveUsers}" Width="100">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Hodowców" Binding="{Binding UniqueFarmers}" Width="100">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="Foreground" Value="#7B1FA2"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Śr./dzień" Binding="{Binding AvgPerDayF}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                    <!-- SMS Zbiorczych -->
+                    <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="20" Margin="4,0,4,0">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE762;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#2196F3" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="SMS Zbiorczych" Foreground="#666" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock x:Name="lblSmsAll" Text="0" FontSize="36" FontWeight="Bold" Foreground="#2196F3" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
 
-                        <!-- Wykres słupkowy miesięczny -->
-                        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="8" Padding="15" Margin="0,10,0,0">
+                    <!-- SMS Pojedynczych -->
+                    <Border Grid.Column="2" Background="White" CornerRadius="8" Padding="20" Margin="4,0,4,0">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8EC;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF9800" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="SMS Pojedynczych" Foreground="#666" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock x:Name="lblSmsOne" Text="0" FontSize="36" FontWeight="Bold" Foreground="#FF9800" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Aktywni pracownicy -->
+                    <Border Grid.Column="3" Background="White" CornerRadius="8" Padding="20" Margin="8,0,0,0">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#9C27B0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Aktywni Pracownicy" Foreground="#666" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock x:Name="lblActiveUsers" Text="0" FontSize="36" FontWeight="Bold" Foreground="#9C27B0" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- GŁÓWNA ZAWARTOŚĆ - Wykresy + Tabela -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="450"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEWA STRONA - Wykresy -->
+                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+
+                        <!-- Kto wysłał SMS - Donut Chart -->
+                        <Border Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                            </Border.Effect>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="TREND MIESIĘCZNY SMS" FontSize="14" FontWeight="Bold" Foreground="#34495E" Margin="0,0,0,10"/>
-                                <ItemsControl Grid.Row="1" x:Name="chartMonthly" VerticalAlignment="Bottom" Margin="0,0,0,25">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Rows="1"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Margin="3,0">
-                                                <TextBlock Text="{Binding TotalSms}" HorizontalAlignment="Center"
-                                                           FontWeight="Bold" Foreground="#1B5E20" FontSize="10" Margin="0,0,0,2"/>
-                                                <Border Background="#5C8A3A"
-                                                        Height="{Binding BarHeight}"
-                                                        CornerRadius="3,3,0,0"
-                                                        VerticalAlignment="Bottom"/>
-                                                <TextBlock Text="{Binding ShortName}" HorizontalAlignment="Center"
-                                                           FontSize="9" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                                    <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Kto Wysłał SMS" FontWeight="SemiBold" FontSize="14" Foreground="#333"/>
+                                </StackPanel>
+
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Donut Chart -->
+                                    <Canvas Grid.Column="0" x:Name="donutChartSent" Width="150" Height="150" Margin="10"/>
+
+                                    <!-- Legenda z paskami -->
+                                    <ItemsControl Grid.Column="1" x:Name="legendSent" VerticalAlignment="Center">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="12"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{Binding Color}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                        <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{Binding Color}" FontWeight="SemiBold"/>
+                                                        <Border Background="#ECEFF1" Height="6" CornerRadius="3" Margin="0,3,0,0">
+                                                            <Border Background="{Binding Color}" Width="{Binding BarWidth}" Height="6" CornerRadius="3" HorizontalAlignment="Left"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding PercentText}" FontSize="11" Foreground="#666" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
                             </Grid>
                         </Border>
-                    </Grid>
-                </Border>
-            </TabItem>
 
-            <!-- ZAKŁADKA 4: POTWIERDZENIA ZMIAN -->
-            <TabItem Header="Potwierdzenia Zmian">
-                <Border Background="White" CornerRadius="0,10,10,10" Padding="20">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                        <!-- Potwierdzenia zmian - Donut Chart -->
+                        <Border Background="White" CornerRadius="8" Padding="20">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
 
-                        <!-- Info -->
-                        <Border Grid.Row="0" Background="#FFF3E0" CornerRadius="8" Padding="15" Margin="0,0,0,15">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⚠️" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Text="Potwierdzenia zmian planu - gdy pracownik zmienił kolejność/godziny po wysłaniu SMS do hodowcy"
-                                           FontSize="13" Foreground="#E65100" VerticalAlignment="Center"/>
-                            </StackPanel>
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Potwierdzenia Zmian" FontWeight="SemiBold" FontSize="14" Foreground="#333"/>
+                                </StackPanel>
+
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Donut Chart -->
+                                    <Canvas Grid.Column="0" x:Name="donutChartConfirm" Width="150" Height="150" Margin="10"/>
+
+                                    <!-- Legenda z paskami -->
+                                    <ItemsControl Grid.Column="1" x:Name="legendConfirm" VerticalAlignment="Center">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="12"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{Binding Color}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                        <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{Binding Color}" FontWeight="SemiBold"/>
+                                                        <Border Background="#ECEFF1" Height="6" CornerRadius="3" Margin="0,3,0,0">
+                                                            <Border Background="{Binding Color}" Width="{Binding BarWidth}" Height="6" CornerRadius="3" HorizontalAlignment="Left"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding PercentText}" FontSize="11" Foreground="#666" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Grid>
                         </Border>
+                    </StackPanel>
 
-                        <!-- Filtry -->
-                        <Border Grid.Row="1" Background="#F5F5F5" CornerRadius="8" Padding="20" Margin="0,0,0,15">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Zakres dat:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                <DatePicker x:Name="dpConfOd" Width="130" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <DatePicker x:Name="dpConfDo" Width="130" VerticalAlignment="Center" Margin="0,0,30,0"/>
-                                <Button Content="POKAŻ POTWIERDZENIA" Style="{StaticResource MainButtonStyle}" Click="BtnShowConfirmations_Click"/>
+                    <!-- PRAWA STRONA - Szczegółowa lista SMS -->
+                    <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="20">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.1" BlurRadius="8"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                                <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#1976D2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Szczegółowa Lista SMS" FontWeight="SemiBold" FontSize="14" Foreground="#333"/>
                             </StackPanel>
-                        </Border>
 
-                        <!-- Tabela potwierdzeń -->
-                        <DataGrid Grid.Row="2" x:Name="dgConfirmations"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#E0E0E0"
-                                  RowHeight="38"
-                                  Background="White"
-                                  BorderThickness="1"
-                                  BorderBrush="#E0E0E0"
-                                  FontSize="12">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Data planu" Binding="{Binding CalcDateF}" Width="100"/>
-                                <DataGridTextColumn Header="Potwierdził" Binding="{Binding AcknowledgedByUser}" Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#E65100"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Kiedy" Binding="{Binding AcknowledgedDateF}" Width="130"/>
-                                <DataGridTextColumn Header="Hodowca" Binding="{Binding HodowcaNazwa}" Width="200"/>
-                                <DataGridTextColumn Header="Typ zmiany" Binding="{Binding ChangeTypeF}" Width="120"/>
-                                <DataGridTextColumn Header="Oryg. SMS wysłał" Binding="{Binding OriginalSmsUser}" Width="120"/>
-                                <DataGridTextColumn Header="Oryg. SMS kiedy" Binding="{Binding OriginalSmsDateF}" Width="130"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
-            </TabItem>
-        </TabControl>
+                            <DataGrid Grid.Row="1" x:Name="dgSmsHistory"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#F0F0F0"
+                                      RowHeight="36"
+                                      Background="White"
+                                      BorderThickness="0"
+                                      FontSize="12"
+                                      HeadersVisibility="Column">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#FAFAFA"/>
+                                        <Setter Property="Foreground" Value="#666"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Lp" Binding="{Binding Lp}" Width="40">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Padding" Value="8,0"/>
+                                                <Setter Property="Foreground" Value="#999"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding CustomerGID}" Width="160"/>
+                                    <DataGridTextColumn Header="Data planu" Binding="{Binding CalcDateF}" Width="90"/>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding SmsTypeF}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Padding" Value="4,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wysłał" Binding="{Binding SentByUser}" Width="120">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#1976D2"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Data wysłania" Binding="{Binding SentDateTimeF}" Width="130"/>
+                                    <DataGridTextColumn Header="Telefon" Binding="{Binding PhoneNumber}" Width="110"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>
