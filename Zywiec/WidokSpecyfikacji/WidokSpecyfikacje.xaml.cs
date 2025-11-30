@@ -1663,8 +1663,8 @@ namespace Kalendarz1
                 }
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
-                // 18 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Opas, KlB, DoZapł, Cena, Dodatek, Wartość
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.5F, 0.65F });
+                // 17 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Opas, KlB, DoZapł, Cena, Wartość
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
@@ -1672,7 +1672,7 @@ namespace Kalendarz1
                 AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK [szt.]", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
-                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 9, blueColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
 
                 // Nagłówki kolumn - WAGA
                 AddColoredTableHeader(dataTable, "Lp.", smallTextFontBold, darkGreenColor);
@@ -1694,14 +1694,12 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Dodatek", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, new BaseColor(41, 128, 185));
 
                 // Zmienne do sumowania
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0, sumaPadleKG = 0, sumaKonfiskatyKG = 0, sumaOpasienieKG = 0, sumaKlasaB = 0;
                 int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0, sumaSztZdatne = 0;
                 decimal sredniaWagaSuma = 0;
-                decimal sumaDodatek = 0;
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -1742,9 +1740,10 @@ namespace Kalendarz1
                         ? wagaNetto - opasienieKG - klasaB
                         : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
 
-                    decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
+                    decimal cenaBase = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
-                    decimal wartosc = (cena + dodatek) * doZaplaty;
+                    decimal cena = cenaBase + dodatek; // Cena zawiera dodatek
+                    decimal wartosc = cena * doZaplaty;
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -1760,7 +1759,6 @@ namespace Kalendarz1
                     sumaPadle += padle;
                     sumaKonfiskaty += konfiskaty;
                     sumaSztZdatne += sztZdatne;
-                    sumaDodatek += dodatek * doZaplaty;
                     sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
 
                     BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(248, 248, 248);
@@ -1776,7 +1774,6 @@ namespace Kalendarz1
                         klasaB > 0 ? $"-{klasaB:N0}" : "0",
                         doZaplaty.ToString("N0"),
                         cena.ToString("0.00"),
-                        dodatek != 0 ? dodatek.ToString("0.00") : "-",
                         wartosc.ToString("N0"));
                 }
 
@@ -1798,7 +1795,6 @@ namespace Kalendarz1
                     sumaKlasaB > 0 ? $"-{sumaKlasaB:N0}" : "0",
                     sumaKG.ToString("N0"),
                     avgCenaSum.ToString("0.00"),
-                    sumaDodatek != 0 ? sumaDodatek.ToString("N0") : "-",
                     sumaWartosc.ToString("N0"));
 
                 doc.Add(dataTable);
