@@ -1015,12 +1015,15 @@ namespace Kalendarz1
                 PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_TOP, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 0, PaddingTop = 0 };
                 try
                 {
-                    // Szukaj logo w kilku lokalizacjach
+                    // Szukaj logo w kilku lokalizacjach (w tym katalog projektu)
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                     string[] logoPaths = new string[]
                     {
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png"),
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "logo-2-green.png"),
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images", "logo-2-green.png"),
+                        Path.Combine(baseDir, "logo-2-green.png"),
+                        Path.Combine(baseDir, "Resources", "logo-2-green.png"),
+                        Path.Combine(baseDir, "Images", "logo-2-green.png"),
+                        Path.Combine(baseDir, "..", "..", "..", "logo-2-green.png"), // katalog projektu z bin/Debug/net*
+                        Path.Combine(baseDir, "..", "..", "logo-2-green.png"), // katalog projektu z bin/Debug
                         @"C:\logo-2-green.png"
                     };
 
@@ -1114,7 +1117,6 @@ namespace Kalendarz1
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
-                sellerCell.AddElement(new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 9, Font.NORMAL, grayColor)));
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
@@ -1126,7 +1128,7 @@ namespace Kalendarz1
                 // Nagłówki grupowe z kolorami
                 BaseColor purpleColor = new BaseColor(142, 68, 173);
                 AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
-                AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK", tytulTablicy, 4, orangeColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK [szt.]", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
 
@@ -1313,15 +1315,32 @@ namespace Kalendarz1
 
                 summaryTable.AddCell(formulaCell);
 
-                // Prawa kolumna - podsumowanie
+                // Prawa kolumna - podsumowanie z wyrównanymi wartościami
                 PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = new BaseColor(245, 255, 245) };
                 sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
-                sumCell.AddElement(new Paragraph($"Średnia waga:       {sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 10, Font.NORMAL, new BaseColor(142, 68, 173))));
-                sumCell.AddElement(new Paragraph($"Suma kilogramów:    {sumaKG:N0} kg", new Font(polishFont, 10, Font.NORMAL, blueColor)));
-                sumCell.AddElement(new Paragraph($"Cena ({typCeny}):   {avgCena:0.00} zł/kg", new Font(polishFont, 10, Font.NORMAL, grayColor)));
+
+                // Tabela z wyrównanymi wartościami
+                PdfPTable valuesTable = new PdfPTable(2);
+                valuesTable.WidthPercentage = 100;
+                valuesTable.SetWidths(new float[] { 1.2f, 1f });
+
+                // Średnia waga
+                valuesTable.AddCell(new PdfPCell(new Phrase("Średnia waga:", new Font(polishFont, 9, Font.NORMAL, grayColor))) { Border = PdfPCell.NO_BORDER, PaddingBottom = 3 });
+                valuesTable.AddCell(new PdfPCell(new Phrase($"{sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 9, Font.BOLD, new BaseColor(142, 68, 173)))) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingBottom = 3 });
+
+                // Suma kilogramów
+                valuesTable.AddCell(new PdfPCell(new Phrase("Suma kilogramów:", new Font(polishFont, 9, Font.NORMAL, grayColor))) { Border = PdfPCell.NO_BORDER, PaddingBottom = 3 });
+                valuesTable.AddCell(new PdfPCell(new Phrase($"{sumaKG:N0} kg", new Font(polishFont, 9, Font.BOLD, blueColor))) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingBottom = 3 });
+
+                // Cena
+                valuesTable.AddCell(new PdfPCell(new Phrase($"Cena ({typCeny}):", new Font(polishFont, 9, Font.NORMAL, grayColor))) { Border = PdfPCell.NO_BORDER, PaddingBottom = 3 });
+                valuesTable.AddCell(new PdfPCell(new Phrase($"{avgCena:0.00} zł/kg", new Font(polishFont, 9, Font.BOLD, grayColor))) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingBottom = 3 });
+
+                sumCell.AddElement(valuesTable);
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
+                // Box DO WYPŁATY
                 PdfPTable wartoscBox = new PdfPTable(1);
                 wartoscBox.WidthPercentage = 100;
                 PdfPCell wartoscCell = new PdfPCell(new Phrase($"DO WYPŁATY: {sumaWartosc:N0} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
@@ -1330,6 +1349,12 @@ namespace Kalendarz1
                 wartoscCell.Padding = 8;
                 wartoscBox.AddCell(wartoscCell);
                 sumCell.AddElement(wartoscBox);
+
+                // Termin płatności pod wypłatą
+                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
+                Paragraph terminP = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 8, Font.ITALIC, grayColor));
+                terminP.Alignment = Element.ALIGN_CENTER;
+                sumCell.AddElement(terminP);
 
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
@@ -1347,7 +1372,7 @@ namespace Kalendarz1
                 // Podpis Dostawcy (lewa strona)
                 PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
                 signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph($"({sellerName})", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
                 signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
                 signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
                 signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
@@ -1365,6 +1390,12 @@ namespace Kalendarz1
                 footerTable.AddCell(signatureRight);
 
                 doc.Add(footerTable);
+
+                // Informacja o wygenerowaniu dokumentu
+                Paragraph generatedBy = new Paragraph($"Wygenerowano przez: {wystawiajacyNazwa}", new Font(polishFont, 7, Font.ITALIC, grayColor));
+                generatedBy.Alignment = Element.ALIGN_RIGHT;
+                generatedBy.SpacingBefore = 10f;
+                doc.Add(generatedBy);
 
                 doc.Close();
             }

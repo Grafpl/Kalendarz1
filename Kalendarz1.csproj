@@ -39,7 +39,6 @@
 
   <ItemGroup>
     <None Remove="background_video.mp4" />
-    <None Remove="logo-2-green.png" />
     <None Remove="logo-2-white.png" />
     <None Remove="Logo.png" />
     <None Remove="logo2white.png" />
@@ -84,9 +83,9 @@
     <Resource Include="background_video.mp4">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
-    <EmbeddedResource Include="logo-2-green.png">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
+    <Content Include="logo-2-green.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <EmbeddedResource Include="Logo.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
