@@ -1597,26 +1597,28 @@ namespace Kalendarz1
                     zaladunkiTitle.SpacingAfter = 4f;
                     doc.Add(zaladunkiTitle);
 
-                    PdfPTable zaladunkiTable = new PdfPTable(4);
+                    PdfPTable zaladunkiTable = new PdfPTable(5);
                     zaladunkiTable.WidthPercentage = 100;
-                    zaladunkiTable.SetWidths(new float[] { 0.5f, 1.5f, 1.5f, 2f });
+                    zaladunkiTable.SetWidths(new float[] { 0.4f, 1.3f, 1.2f, 1f, 1.8f });
                     zaladunkiTable.SpacingAfter = 10f;
 
                     // Nagłówek tabeli
-                    BaseColor headerBg = new BaseColor(52, 73, 94);
-                    Font headerFont = new Font(polishFont, 8, Font.BOLD, BaseColor.WHITE);
+                    BaseColor zHeaderBg = new BaseColor(52, 73, 94);
+                    Font zHeaderFont = new Font(polishFont, 8, Font.BOLD, BaseColor.WHITE);
 
-                    PdfPCell hLp = new PdfPCell(new Phrase("Lp", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hMiejsc = new PdfPCell(new Phrase("Miejscowość", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda przy załadunku", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hMiejsc = new PdfPCell(new Phrase("Miejscowość", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hWaga = new PdfPCell(new Phrase("Waga loco [kg]", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
                     zaladunkiTable.AddCell(hLp);
                     zaladunkiTable.AddCell(hZal);
                     zaladunkiTable.AddCell(hMiejsc);
+                    zaladunkiTable.AddCell(hWaga);
                     zaladunkiTable.AddCell(hPogoda);
 
                     // Wiersze dla każdej dostawy
-                    Font cellFont = new Font(polishFont, 8, Font.NORMAL);
+                    Font zCellFont = new Font(polishFont, 8, Font.NORMAL);
                     BaseColor altBg = new BaseColor(245, 247, 250);
 
                     for (int idx = 0; idx < ids.Count; idx++)
@@ -1636,6 +1638,14 @@ namespace Kalendarz1
                         string deliveryCustomerGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
                         string deliveryCity = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(deliveryCustomerGID, "City") ?? "";
 
+                        // Pobierz wagę loco (u dostawcy/hodowcy)
+                        decimal wagaLoco = 0;
+                        try
+                        {
+                            wagaLoco = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                        }
+                        catch { }
+
                         // Pobierz pogodę dla daty załadunku
                         string pogodaStr = "-";
                         if (zaladunekTime != default)
@@ -1651,16 +1661,19 @@ namespace Kalendarz1
 
                         // Formatuj datę załadunku
                         string zaladunekStr = zaladunekTime != default ? zaladunekTime.ToString("dd.MM.yyyy HH:mm") : "-";
+                        string wagaLocoStr = wagaLoco > 0 ? wagaLoco.ToString("N0") : "-";
 
                         // Dodaj komórki
-                        PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cMiejsc = new PdfPCell(new Phrase(deliveryCity, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
-                        PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
+                        PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                        PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                        PdfPCell cMiejsc = new PdfPCell(new Phrase(deliveryCity, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
+                        PdfPCell cWaga = new PdfPCell(new Phrase(wagaLocoStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingRight = 5, Padding = 3 };
+                        PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
 
                         zaladunkiTable.AddCell(cLp);
                         zaladunkiTable.AddCell(cZal);
                         zaladunkiTable.AddCell(cMiejsc);
+                        zaladunkiTable.AddCell(cWaga);
                         zaladunkiTable.AddCell(cPogoda);
                     }
 
