@@ -523,7 +523,7 @@
                             </DataGridTextColumn>
 
                             <!-- Miejscowość -->
-                            <DataGridTextColumn Header="Miejscowość" Binding="{Binding Miejscowosc}" Width="*" IsReadOnly="True">
+                            <DataGridTextColumn Header="Miejscowość" Binding="{Binding Miejscowosc}" Width="120" IsReadOnly="True">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Padding" Value="8,5"/>
@@ -531,6 +531,40 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+
+                            <!-- Status SMS -->
+                            <DataGridTemplateColumn Header="SMS" Width="130" IsReadOnly="True"
+                                                    HeaderStyle="{StaticResource DataGridHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="4" Padding="4,2" HorizontalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SmsSent}" Value="True">
+                                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding SmsStatus}" VerticalAlignment="Center" FontSize="10">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#888888"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SmsSent}" Value="True">
+                                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -686,6 +720,33 @@
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Przyjazd:" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                     <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblPrzyjazd" Text="-"
                                                FontWeight="Bold" FontSize="14" Foreground="#E74C3C" VerticalAlignment="Center"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- Status SMS -->
+                            <GroupBox Header="Status SMS" Style="{StaticResource ModernGroupBox}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="28"/>
+                                        <RowDefinition Height="28"/>
+                                        <RowDefinition Height="28"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Status:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblSmsStatus" Text="Nie wysłano"
+                                               FontWeight="Bold" VerticalAlignment="Center"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Wysłał:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblSmsUser" Text="-"
+                                               Foreground="#1976D2" VerticalAlignment="Center"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kiedy:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblSmsData" Text="-"
+                                               Foreground="#7B1FA2" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </Grid>
                             </GroupBox>
                         </StackPanel>

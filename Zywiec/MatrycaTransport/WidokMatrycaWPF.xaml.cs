@@ -280,6 +280,9 @@ namespace Kalendarz1
 
                     UpdateStatus($"Załadowano {matrycaData.Count} wierszy" + (isFarmerCalc ? " (FarmerCalc)" : " (Harmonogram)"));
                 }
+
+                // Załaduj historię SMS dla aktualnych danych
+                LoadSmsHistory();
             }
             catch (Exception ex)
             {
@@ -588,6 +591,23 @@ namespace Kalendarz1
             lblWyjazd.Text = selectedMatrycaRow.Wyjazd?.ToString("HH:mm") ?? "-";
             lblZaladunek.Text = selectedMatrycaRow.Zaladunek?.ToString("HH:mm") ?? "-";
             lblPrzyjazd.Text = selectedMatrycaRow.Przyjazd?.ToString("HH:mm") ?? "-";
+
+            // Status SMS
+            if (selectedMatrycaRow.SmsSent)
+            {
+                string smsTyp = selectedMatrycaRow.SmsTyp == "ALL" ? "Zbiorczy" : "Pojedynczy";
+                lblSmsStatus.Text = $"✅ Wysłano ({smsTyp})";
+                lblSmsStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                lblSmsUser.Text = selectedMatrycaRow.SmsUserId ?? "-";
+                lblSmsData.Text = selectedMatrycaRow.SmsDataWyslania?.ToString("dd.MM.yyyy HH:mm") ?? "-";
+            }
+            else
+            {
+                lblSmsStatus.Text = "❌ Nie wysłano";
+                lblSmsStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                lblSmsUser.Text = "-";
+                lblSmsData.Text = "-";
+            }
         }
 
         private void ClearInfoPanel()
@@ -609,6 +629,10 @@ namespace Kalendarz1
             lblWyjazd.Text = "-";
             lblZaladunek.Text = "-";
             lblPrzyjazd.Text = "-";
+            lblSmsStatus.Text = "-";
+            lblSmsStatus.Foreground = new SolidColorBrush(Colors.Gray);
+            lblSmsUser.Text = "-";
+            lblSmsData.Text = "-";
         }
 
         private string GetKierowcaNazwa(int? driverGID)
@@ -730,6 +754,9 @@ namespace Kalendarz1
             {
                 Clipboard.SetText(smsContent);
 
+                // Zapisz historię SMS dla wszystkich aut tego hodowcy
+                SaveSmsHistoryForAll(rowsForFarmer, smsContent);
+
                 string displayMessage = $"SMS ZBIORCZY skopiowany do schowka:\n\n" +
                                        $"Do: {phone}\n" +
                                        $"Hodowca: {selectedMatrycaRow.HodowcaNazwa}\n" +
@@ -801,6 +828,9 @@ namespace Kalendarz1
             try
             {
                 Clipboard.SetText(smsContent);
+
+                // Zapisz historię SMS dla pojedynczego auta
+                SaveSmsHistory(selectedMatrycaRow, "ONE", smsContent);
 
                 string displayMessage = $"SMS skopiowany do schowka:\n\n" +
                                        $"Do: {phone}\n" +
@@ -1027,6 +1057,176 @@ namespace Kalendarz1
 
         #endregion
 
+        #region SMS History - Zapisywanie i ładowanie historii
+
+        /// <summary>
+        /// Zapisuje historię wysłania SMS do bazy danych
+        /// </summary>
+        private void SaveSmsHistory(MatrycaRow row, string smsType, string smsContent)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Upewnij się, że tabela SmsHistory istnieje
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SmsHistory')
+                        CREATE TABLE dbo.SmsHistory (
+                            ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                            CalcDate DATE NOT NULL,
+                            CustomerGID NVARCHAR(50) NOT NULL,
+                            FarmerCalcID BIGINT NULL,
+                            LpDostawy NVARCHAR(20) NULL,
+                            SmsType NVARCHAR(10) NOT NULL,
+                            SmsContent NVARCHAR(MAX) NULL,
+                            SentDate DATETIME NOT NULL,
+                            SentByUser NVARCHAR(100) NOT NULL,
+                            PhoneNumber NVARCHAR(50) NULL
+                        )";
+                    using (SqlCommand createCmd = new SqlCommand(createTableSql, conn))
+                    {
+                        createCmd.ExecuteNonQuery();
+                    }
+
+                    DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                    string userId = Environment.UserName;
+                    DateTime sentDate = DateTime.Now;
+
+                    string insertSql = @"
+                        INSERT INTO dbo.SmsHistory
+                        (CalcDate, CustomerGID, FarmerCalcID, LpDostawy, SmsType, SmsContent, SentDate, SentByUser, PhoneNumber)
+                        VALUES
+                        (@CalcDate, @CustomerGID, @FarmerCalcID, @LpDostawy, @SmsType, @SmsContent, @SentDate, @SentByUser, @PhoneNumber)";
+
+                    using (SqlCommand cmd = new SqlCommand(insertSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate);
+                        cmd.Parameters.AddWithValue("@CustomerGID", row.CustomerGID ?? "");
+                        cmd.Parameters.AddWithValue("@FarmerCalcID", row.ID > 0 ? (object)row.ID : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@LpDostawy", row.LpDostawy ?? "");
+                        cmd.Parameters.AddWithValue("@SmsType", smsType);
+                        cmd.Parameters.AddWithValue("@SmsContent", smsContent ?? "");
+                        cmd.Parameters.AddWithValue("@SentDate", sentDate);
+                        cmd.Parameters.AddWithValue("@SentByUser", userId);
+                        cmd.Parameters.AddWithValue("@PhoneNumber", row.Telefon ?? "");
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Aktualizuj wiersz w pamięci
+                    row.SmsSent = true;
+                    row.SmsDataWyslania = sentDate;
+                    row.SmsUserId = userId;
+                    row.SmsTyp = smsType;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania historii SMS: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje historię SMS dla wszystkich aut hodowcy (SMS zbiorczy)
+        /// </summary>
+        private void SaveSmsHistoryForAll(List<MatrycaRow> rows, string smsContent)
+        {
+            foreach (var row in rows)
+            {
+                SaveSmsHistory(row, "ALL", smsContent);
+            }
+        }
+
+        /// <summary>
+        /// Ładuje historię SMS z bazy danych dla danych wierszy
+        /// </summary>
+        private void LoadSmsHistory()
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTableSql = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTableSql, conn))
+                    {
+                        int tableExists = (int)checkCmd.ExecuteScalar();
+                        if (tableExists == 0) return;
+                    }
+
+                    // Pobierz ostatni SMS dla każdego CustomerGID + LpDostawy w danym dniu
+                    string query = @"
+                        SELECT CustomerGID, LpDostawy, SmsType, SentDate, SentByUser
+                        FROM (
+                            SELECT CustomerGID, LpDostawy, SmsType, SentDate, SentByUser,
+                                   ROW_NUMBER() OVER (PARTITION BY CustomerGID, LpDostawy ORDER BY SentDate DESC) AS rn
+                            FROM dbo.SmsHistory
+                            WHERE CalcDate = @CalcDate
+                        ) sub
+                        WHERE rn = 1";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate);
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string customerGID = reader["CustomerGID"]?.ToString() ?? "";
+                                string lpDostawy = reader["LpDostawy"]?.ToString() ?? "";
+                                string smsType = reader["SmsType"]?.ToString() ?? "";
+                                DateTime sentDate = reader["SentDate"] != DBNull.Value ? Convert.ToDateTime(reader["SentDate"]) : DateTime.MinValue;
+                                string sentByUser = reader["SentByUser"]?.ToString() ?? "";
+
+                                // Znajdź pasujący wiersz i zaktualizuj dane SMS
+                                var matchingRows = matrycaData
+                                    .Where(r => r.CustomerGID == customerGID && r.LpDostawy == lpDostawy)
+                                    .ToList();
+
+                                foreach (var row in matchingRows)
+                                {
+                                    row.SmsSent = true;
+                                    row.SmsDataWyslania = sentDate;
+                                    row.SmsUserId = sentByUser;
+                                    row.SmsTyp = smsType;
+                                }
+
+                                // Jeśli to SMS zbiorczy (ALL), zaznacz wszystkie wiersze tego hodowcy
+                                if (smsType == "ALL")
+                                {
+                                    var allRowsForFarmer = matrycaData
+                                        .Where(r => r.CustomerGID == customerGID)
+                                        .ToList();
+
+                                    foreach (var row in allRowsForFarmer)
+                                    {
+                                        if (!row.SmsSent || row.SmsDataWyslania < sentDate)
+                                        {
+                                            row.SmsSent = true;
+                                            row.SmsDataWyslania = sentDate;
+                                            row.SmsUserId = sentByUser;
+                                            row.SmsTyp = smsType;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania historii SMS: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         #region Statistics & Status
 
         private void UpdateStatistics()
@@ -1126,6 +1326,12 @@ namespace Kalendarz1
         private int _autoNrUHodowcy;
         private int _iloscAutUHodowcy;
         private string _oryginalneLP;
+
+        // Dane SMS
+        private bool _smsSent;
+        private DateTime? _smsDataWyslania;
+        private string _smsUserId;
+        private string _smsTyp; // "ALL" lub "ONE"
 
         public long ID
         {
@@ -1257,6 +1463,46 @@ namespace Kalendarz1
         {
             get => _oryginalneLP;
             set { _oryginalneLP = value; OnPropertyChanged(nameof(OryginalneLP)); }
+        }
+
+        // Właściwości SMS
+        public bool SmsSent
+        {
+            get => _smsSent;
+            set { _smsSent = value; OnPropertyChanged(nameof(SmsSent)); OnPropertyChanged(nameof(SmsStatus)); }
+        }
+
+        public DateTime? SmsDataWyslania
+        {
+            get => _smsDataWyslania;
+            set { _smsDataWyslania = value; OnPropertyChanged(nameof(SmsDataWyslania)); OnPropertyChanged(nameof(SmsStatus)); }
+        }
+
+        public string SmsUserId
+        {
+            get => _smsUserId;
+            set { _smsUserId = value; OnPropertyChanged(nameof(SmsUserId)); OnPropertyChanged(nameof(SmsStatus)); }
+        }
+
+        public string SmsTyp
+        {
+            get => _smsTyp;
+            set { _smsTyp = value; OnPropertyChanged(nameof(SmsTyp)); OnPropertyChanged(nameof(SmsStatus)); }
+        }
+
+        /// <summary>
+        /// Wyświetlany status SMS - kto wysłał i kiedy
+        /// </summary>
+        public string SmsStatus
+        {
+            get
+            {
+                if (!SmsSent || !SmsDataWyslania.HasValue)
+                    return "";
+
+                string typ = SmsTyp == "ALL" ? "Zb." : "Poj.";
+                return $"{typ} {SmsDataWyslania.Value:HH:mm} ({SmsUserId})";
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
