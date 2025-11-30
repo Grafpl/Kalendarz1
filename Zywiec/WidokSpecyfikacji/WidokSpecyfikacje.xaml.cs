@@ -1011,8 +1011,8 @@ namespace Kalendarz1
                 headerTable.SetWidths(new float[] { 1.5f, 3f, 1.5f });
                 headerTable.SpacingAfter = 8f;
 
-                // Logo po lewej - POPRAWIONE
-                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5 };
+                // Logo po lewej - w lewym górnym rogu
+                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_TOP, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 0, PaddingTop = 0 };
                 try
                 {
                     // Szukaj logo w kilku lokalizacjach
@@ -1114,18 +1114,20 @@ namespace Kalendarz1
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
-                sellerCell.AddElement(new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 9, Font.BOLD, blueColor)));
+                sellerCell.AddElement(new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 9, Font.NORMAL, grayColor)));
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
-                AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 5, greenColor);
+                BaseColor purpleColor = new BaseColor(142, 68, 173);
+                AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK", tytulTablicy, 4, orangeColor);
+                AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
 
                 // Nagłówki kolumn - WAGA
@@ -1133,12 +1135,13 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Brutto", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
-                AddColoredTableHeader(dataTable, "Śr. waga", smallTextFontBold, darkGreenColor);
                 // Nagłówki kolumn - SZTUKI
                 AddColoredTableHeader(dataTable, "Dostarcz.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
+                // Nagłówek kolumny - ŚREDNIA WAGA
+                AddColoredTableHeader(dataTable, "kg/szt", smallTextFontBold, purpleColor);
                 // Nagłówki kolumn - KILOGRAMY
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
@@ -1216,8 +1219,8 @@ namespace Kalendarz1
 
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
                         wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
-                        sredniaWaga.ToString("N2"),
                         sztWszystkie.ToString(), padle.ToString(), konfiskaty.ToString(), sztZdatne.ToString(),
+                        sredniaWaga.ToString("N2"),
                         wagaNetto.ToString("N0"),
                         padleKG > 0 ? $"-{padleKG:N0}" : "0",
                         konfiskatyKG > 0 ? $"-{konfiskatyKG:N0}" : "0",
@@ -1234,8 +1237,8 @@ namespace Kalendarz1
 
                 AddStyledTableData(dataTable, sumFont, sumRowColor, "SUMA",
                     "", "", "",
-                    sredniaWagaSuma.ToString("N2"),
                     sumaSztWszystkie.ToString(), sumaPadle.ToString(), sumaKonfiskaty.ToString(), sumaSztZdatne.ToString(),
+                    sredniaWagaSuma.ToString("N2"),
                     sumaNetto.ToString("N0"),
                     sumaPadleKG > 0 ? $"-{sumaPadleKG:N0}" : "0",
                     sumaKonfiskatyKG > 0 ? $"-{sumaKonfiskatyKG:N0}" : "0",
@@ -1303,17 +1306,21 @@ namespace Kalendarz1
                 formula7.Add(new Chunk($"{sumaKG:N0} × {avgCena:0.00} = {sumaWartosc:N0} zł", legendaFont));
                 formulaCell.AddElement(formula7);
 
+                // Informacja o zaokrągleniach
+                Paragraph zaokraglenia = new Paragraph("* Wagi zaokrąglane do pełnych kilogramów", new Font(polishFont, 6, Font.ITALIC, grayColor));
+                zaokraglenia.SpacingBefore = 5f;
+                formulaCell.AddElement(zaokraglenia);
+
                 summaryTable.AddCell(formulaCell);
 
                 // Prawa kolumna - podsumowanie
                 PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = new BaseColor(245, 255, 245) };
                 sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
-                sumCell.AddElement(new Paragraph(" ", legendaFont));
-                sumCell.AddElement(new Paragraph($"Średnia waga: {sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 11, Font.BOLD, new BaseColor(142, 68, 173))));
-                sumCell.AddElement(new Paragraph($"Typ ceny: {typCeny}", new Font(polishFont, 9, Font.ITALIC, grayColor)));
-                sumCell.AddElement(new Paragraph($"Cena jednostkowa: {avgCena:0.00} zł/kg", new Font(polishFont, 10, Font.NORMAL)));
-                sumCell.AddElement(new Paragraph($"Suma kilogramów: {sumaKG:N0} kg", new Font(polishFont, 11, Font.BOLD, blueColor)));
-                sumCell.AddElement(new Paragraph(" ", legendaFont));
+                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
+                sumCell.AddElement(new Paragraph($"Średnia waga:       {sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 10, Font.NORMAL, new BaseColor(142, 68, 173))));
+                sumCell.AddElement(new Paragraph($"Suma kilogramów:    {sumaKG:N0} kg", new Font(polishFont, 10, Font.NORMAL, blueColor)));
+                sumCell.AddElement(new Paragraph($"Cena ({typCeny}):   {avgCena:0.00} zł/kg", new Font(polishFont, 10, Font.NORMAL, grayColor)));
+                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
                 PdfPTable wartoscBox = new PdfPTable(1);
                 wartoscBox.WidthPercentage = 100;
@@ -1358,12 +1365,6 @@ namespace Kalendarz1
                 footerTable.AddCell(signatureRight);
 
                 doc.Add(footerTable);
-
-                // Informacja o zaokrągleniach
-                Paragraph infoP = new Paragraph("Wagi zaokrąglane do pełnych kilogramów.", new Font(polishFont, 7, Font.ITALIC, grayColor));
-                infoP.Alignment = Element.ALIGN_LEFT;
-                infoP.SpacingBefore = 8f;
-                doc.Add(infoP);
 
                 doc.Close();
             }
