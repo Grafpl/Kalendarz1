@@ -153,41 +153,54 @@ namespace Kalendarz1
         {
             var stats = new List<UserStats>();
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if ((int)checkCmd.ExecuteScalar() == 0) return stats;
-                }
+                    conn.Open();
 
-                string query = @"
-                    SELECT SentByUser, COUNT(*) AS Total
-                    FROM dbo.SmsHistory
-                    WHERE SentDate >= @DateFrom AND SentDate <= @DateTo
-                    GROUP BY SentByUser
-                    ORDER BY Total DESC";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                    cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        while (reader.Read())
+                        if ((int)checkCmd.ExecuteScalar() == 0) return stats;
+                    }
+
+                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
+                    string query = @"
+                        SELECT ISNULL(o.Name, s.SentByUser) AS UserName, COUNT(*) AS Total
+                        FROM dbo.SmsHistory s
+                        LEFT JOIN dbo.operators o ON s.SentByUser = o.ID
+                        WHERE s.SentDate >= @DateFrom AND s.SentDate <= @DateTo
+                          AND s.SentByUser IS NOT NULL
+                        GROUP BY ISNULL(o.Name, s.SentByUser)
+                        ORDER BY Total DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            stats.Add(new UserStats
+                            while (reader.Read())
                             {
-                                UserId = reader["SentByUser"]?.ToString() ?? "-",
-                                Count = Convert.ToInt32(reader["Total"])
-                            });
+                                string userName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "-";
+                                int total = reader["Total"] != DBNull.Value ? Convert.ToInt32(reader["Total"]) : 0;
+
+                                if (!string.IsNullOrEmpty(userName) && total > 0)
+                                {
+                                    stats.Add(new UserStats
+                                    {
+                                        UserId = userName,
+                                        Count = total
+                                    });
+                                }
+                            }
                         }
                     }
                 }
             }
+            catch { }
 
             return stats;
         }
@@ -196,41 +209,54 @@ namespace Kalendarz1
         {
             var stats = new List<UserStats>();
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if ((int)checkCmd.ExecuteScalar() == 0) return stats;
-                }
+                    conn.Open();
 
-                string query = @"
-                    SELECT AcknowledgedByUser, COUNT(*) AS Total
-                    FROM dbo.SmsChangeLog
-                    WHERE AcknowledgedDate >= @DateFrom AND AcknowledgedDate <= @DateTo
-                    GROUP BY AcknowledgedByUser
-                    ORDER BY Total DESC";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                    cmd.Parameters.AddWithValue("@DateTo", dateTo);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsChangeLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        while (reader.Read())
+                        if ((int)checkCmd.ExecuteScalar() == 0) return stats;
+                    }
+
+                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
+                    string query = @"
+                        SELECT ISNULL(o.Name, s.AcknowledgedByUser) AS UserName, COUNT(*) AS Total
+                        FROM dbo.SmsChangeLog s
+                        LEFT JOIN dbo.operators o ON s.AcknowledgedByUser = o.ID
+                        WHERE s.AcknowledgedDate >= @DateFrom AND s.AcknowledgedDate <= @DateTo
+                          AND s.AcknowledgedByUser IS NOT NULL
+                        GROUP BY ISNULL(o.Name, s.AcknowledgedByUser)
+                        ORDER BY Total DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            stats.Add(new UserStats
+                            while (reader.Read())
                             {
-                                UserId = reader["AcknowledgedByUser"]?.ToString() ?? "-",
-                                Count = Convert.ToInt32(reader["Total"])
-                            });
+                                string userName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "-";
+                                int total = reader["Total"] != DBNull.Value ? Convert.ToInt32(reader["Total"]) : 0;
+
+                                if (!string.IsNullOrEmpty(userName) && total > 0)
+                                {
+                                    stats.Add(new UserStats
+                                    {
+                                        UserId = userName,
+                                        Count = total
+                                    });
+                                }
+                            }
                         }
                     }
                 }
             }
+            catch { }
 
             return stats;
         }
@@ -255,17 +281,19 @@ namespace Kalendarz1
                         }
                     }
 
+                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
                     string query = @"
                         SELECT TOP 500
-                            SentDate,
-                            SentByUser,
-                            SmsType,
-                            CustomerGID,
-                            PhoneNumber,
-                            CalcDate
-                        FROM dbo.SmsHistory
-                        WHERE SentDate >= @DateFrom AND SentDate <= @DateTo
-                        ORDER BY SentDate DESC";
+                            s.SentDate,
+                            ISNULL(o.Name, s.SentByUser) AS UserName,
+                            s.SmsType,
+                            s.CustomerGID,
+                            s.PhoneNumber,
+                            s.CalcDate
+                        FROM dbo.SmsHistory s
+                        LEFT JOIN dbo.operators o ON s.SentByUser = o.ID
+                        WHERE s.SentDate >= @DateFrom AND s.SentDate <= @DateTo
+                        ORDER BY s.SentDate DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -277,20 +305,23 @@ namespace Kalendarz1
                         {
                             while (reader.Read())
                             {
-                                DateTime sentDate = Convert.ToDateTime(reader["SentDate"]);
+                                DateTime? sentDate = reader["SentDate"] != DBNull.Value ? Convert.ToDateTime(reader["SentDate"]) : (DateTime?)null;
                                 DateTime? calcDate = reader["CalcDate"] != DBNull.Value ? Convert.ToDateTime(reader["CalcDate"]) : (DateTime?)null;
-                                string smsType = reader["SmsType"]?.ToString() ?? "";
+                                string smsType = reader["SmsType"] != DBNull.Value ? reader["SmsType"].ToString() : "";
+                                string userName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "-";
+                                string customerGID = reader["CustomerGID"] != DBNull.Value ? reader["CustomerGID"].ToString() : "-";
+                                string phoneNumber = reader["PhoneNumber"] != DBNull.Value ? reader["PhoneNumber"].ToString() : "-";
 
                                 history.Add(new SmsHistoryItem
                                 {
                                     Lp = lp++,
-                                    SentDate = sentDate,
-                                    SentDateTimeF = sentDate.ToString("dd.MM.yyyy HH:mm"),
-                                    SentByUser = reader["SentByUser"]?.ToString() ?? "-",
+                                    SentDate = sentDate ?? DateTime.MinValue,
+                                    SentDateTimeF = sentDate?.ToString("dd.MM.yyyy HH:mm") ?? "-",
+                                    SentByUser = userName,
                                     SmsType = smsType,
                                     SmsTypeF = smsType == "ALL" ? "Zbiorczy" : "Pojedynczy",
-                                    CustomerGID = reader["CustomerGID"]?.ToString() ?? "-",
-                                    PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "-",
+                                    CustomerGID = customerGID,
+                                    PhoneNumber = phoneNumber,
                                     CalcDate = calcDate,
                                     CalcDateF = calcDate?.ToString("dd.MM.yyyy") ?? "-"
                                 });
@@ -308,43 +339,47 @@ namespace Kalendarz1
         {
             int totalSms = 0, smsAll = 0, smsOne = 0, activeUsers = 0;
 
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-
-                string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
-                using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    if ((int)checkCmd.ExecuteScalar() > 0)
+                    conn.Open();
+
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'SmsHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
                     {
-                        string query = @"
-                            SELECT
-                                COUNT(*) AS TotalSms,
-                                SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END) AS SmsAll,
-                                SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END) AS SmsOne,
-                                COUNT(DISTINCT SentByUser) AS ActiveUsers
-                            FROM dbo.SmsHistory
-                            WHERE SentDate >= @DateFrom AND SentDate <= @DateTo";
-
-                        using (SqlCommand cmd = new SqlCommand(query, conn))
+                        if ((int)checkCmd.ExecuteScalar() > 0)
                         {
-                            cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
-                            cmd.Parameters.AddWithValue("@DateTo", dateTo);
+                            string query = @"
+                                SELECT
+                                    COUNT(*) AS TotalSms,
+                                    ISNULL(SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END), 0) AS SmsAll,
+                                    ISNULL(SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END), 0) AS SmsOne,
+                                    COUNT(DISTINCT SentByUser) AS ActiveUsers
+                                FROM dbo.SmsHistory
+                                WHERE SentDate >= @DateFrom AND SentDate <= @DateTo";
 
-                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            using (SqlCommand cmd = new SqlCommand(query, conn))
                             {
-                                if (reader.Read())
+                                cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                                cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                                using (SqlDataReader reader = cmd.ExecuteReader())
                                 {
-                                    totalSms = Convert.ToInt32(reader["TotalSms"]);
-                                    smsAll = Convert.ToInt32(reader["SmsAll"]);
-                                    smsOne = Convert.ToInt32(reader["SmsOne"]);
-                                    activeUsers = Convert.ToInt32(reader["ActiveUsers"]);
+                                    if (reader.Read())
+                                    {
+                                        totalSms = reader["TotalSms"] != DBNull.Value ? Convert.ToInt32(reader["TotalSms"]) : 0;
+                                        smsAll = reader["SmsAll"] != DBNull.Value ? Convert.ToInt32(reader["SmsAll"]) : 0;
+                                        smsOne = reader["SmsOne"] != DBNull.Value ? Convert.ToInt32(reader["SmsOne"]) : 0;
+                                        activeUsers = reader["ActiveUsers"] != DBNull.Value ? Convert.ToInt32(reader["ActiveUsers"]) : 0;
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            catch { }
 
             lblTotalSms.Text = totalSms.ToString();
             lblSmsAll.Text = smsAll.ToString();
