@@ -1469,9 +1469,9 @@ namespace Kalendarz1
                         headerLogoTable.SetWidths(new float[] { 1f, 1.5f });
                         headerLogoTable.SpacingAfter = 10f;
 
-                        // Logo (lewa strona)
+                        // Logo (lewa strona) - większe logo
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(180f, 80f);
+                        logo.ScaleToFit(280f, 120f);
                         PdfPCell logoCell = new PdfPCell(logo) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 10f };
                         headerLogoTable.AddCell(logoCell);
 
@@ -1553,9 +1553,9 @@ namespace Kalendarz1
                     zaladunkiTitle.SpacingAfter = 4f;
                     doc.Add(zaladunkiTitle);
 
-                    PdfPTable zaladunkiTable = new PdfPTable(8);
+                    PdfPTable zaladunkiTable = new PdfPTable(9);
                     zaladunkiTable.WidthPercentage = 100;
-                    zaladunkiTable.SetWidths(new float[] { 0.35f, 1f, 1f, 1f, 1.2f, 1f, 1f, 1.6f });
+                    zaladunkiTable.SetWidths(new float[] { 0.35f, 0.9f, 0.9f, 0.9f, 0.9f, 1.2f, 0.9f, 0.9f, 1.5f });
                     zaladunkiTable.SpacingAfter = 10f;
 
                     // Nagłówek tabeli
@@ -1563,6 +1563,7 @@ namespace Kalendarz1
                     Font zHeaderFont = new Font(polishFont, 7, Font.BOLD, BaseColor.WHITE);
 
                     PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hPrzyjazd = new PdfPCell(new Phrase("Przyjazd", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     PdfPCell hZalKoniec = new PdfPCell(new Phrase("Koniec", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     PdfPCell hWyjazd = new PdfPCell(new Phrase("Wyjazd", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
@@ -1571,6 +1572,7 @@ namespace Kalendarz1
                     PdfPCell hNaczepa = new PdfPCell(new Phrase("Naczepa", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     zaladunkiTable.AddCell(hLp);
+                    zaladunkiTable.AddCell(hPrzyjazd);
                     zaladunkiTable.AddCell(hZal);
                     zaladunkiTable.AddCell(hZalKoniec);
                     zaladunkiTable.AddCell(hWyjazd);
@@ -1588,12 +1590,14 @@ namespace Kalendarz1
                         int deliveryId = ids[idx];
                         BaseColor rowBg = (idx % 2 == 0) ? BaseColor.WHITE : altBg;
 
-                        // Pobierz daty załadunku
+                        // Pobierz daty przyjazdu i załadunku
+                        DateTime przyjazdTime = default;
                         DateTime zaladunekTime = default;
                         DateTime zaladunekKoniecTime = default;
                         DateTime wyjazdHodowcaTime = default;
                         try
                         {
+                            przyjazdTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "Przyjazd");
                             zaladunekTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
                             zaladunekKoniecTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "ZaladunekKoniec");
                             wyjazdHodowcaTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "WyjazdHodowca");
@@ -1628,12 +1632,14 @@ namespace Kalendarz1
                         }
 
                         // Formatuj daty (tylko godzina jeśli ten sam dzień)
+                        string przyjazdStr = (przyjazdTime != default && przyjazdTime.Year > 2000) ? przyjazdTime.ToString("HH:mm") : "-";
                         string zaladunekStr = (zaladunekTime != default && zaladunekTime.Year > 2000) ? zaladunekTime.ToString("HH:mm") : "-";
                         string zaladunekKoniecStr = (zaladunekKoniecTime != default && zaladunekKoniecTime.Year > 2000) ? zaladunekKoniecTime.ToString("HH:mm") : "-";
                         string wyjazdStr = (wyjazdHodowcaTime != default && wyjazdHodowcaTime.Year > 2000) ? wyjazdHodowcaTime.ToString("HH:mm") : "-";
 
                         // Dodaj komórki
                         PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cPrzyjazd = new PdfPCell(new Phrase(przyjazdStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
                         PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
                         PdfPCell cZalKoniec = new PdfPCell(new Phrase(zaladunekKoniecStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
                         PdfPCell cWyjazd = new PdfPCell(new Phrase(wyjazdStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
@@ -1643,6 +1649,7 @@ namespace Kalendarz1
                         PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 3, Padding = 2 };
 
                         zaladunkiTable.AddCell(cLp);
+                        zaladunkiTable.AddCell(cPrzyjazd);
                         zaladunkiTable.AddCell(cZal);
                         zaladunkiTable.AddCell(cZalKoniec);
                         zaladunkiTable.AddCell(cWyjazd);
@@ -1656,7 +1663,8 @@ namespace Kalendarz1
                 }
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                // 18 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Opas, KlB, DoZapł, Cena, Dodatek, Wartość
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
@@ -1664,7 +1672,7 @@ namespace Kalendarz1
                 AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK [szt.]", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
-                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 9, blueColor);
 
                 // Nagłówki kolumn - WAGA
                 AddColoredTableHeader(dataTable, "Lp.", smallTextFontBold, darkGreenColor);
@@ -1686,12 +1694,14 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Dodatek", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, new BaseColor(41, 128, 185));
 
                 // Zmienne do sumowania
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0, sumaPadleKG = 0, sumaKonfiskatyKG = 0, sumaOpasienieKG = 0, sumaKlasaB = 0;
                 int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0, sumaSztZdatne = 0;
                 decimal sredniaWagaSuma = 0;
+                decimal sumaDodatek = 0;
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -1733,7 +1743,8 @@ namespace Kalendarz1
                         : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
 
                     decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
-                    decimal wartosc = cena * doZaplaty;
+                    decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
+                    decimal wartosc = (cena + dodatek) * doZaplaty;
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -1749,13 +1760,14 @@ namespace Kalendarz1
                     sumaPadle += padle;
                     sumaKonfiskaty += konfiskaty;
                     sumaSztZdatne += sztZdatne;
+                    sumaDodatek += dodatek * doZaplaty;
                     sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
 
                     BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(248, 248, 248);
 
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
                         wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
-                        sztWszystkie.ToString(), padle.ToString(), konfiskaty.ToString(), sztZdatne.ToString(),
+                        sztWszystkie.ToString("N0"), padle.ToString("N0"), konfiskaty.ToString("N0"), sztZdatne.ToString("N0"),
                         sredniaWaga.ToString("N2"),
                         wagaNetto.ToString("N0"),
                         padleKG > 0 ? $"-{padleKG:N0}" : "0",
@@ -1764,6 +1776,7 @@ namespace Kalendarz1
                         klasaB > 0 ? $"-{klasaB:N0}" : "0",
                         doZaplaty.ToString("N0"),
                         cena.ToString("0.00"),
+                        dodatek != 0 ? dodatek.ToString("0.00") : "-",
                         wartosc.ToString("N0"));
                 }
 
@@ -1771,9 +1784,12 @@ namespace Kalendarz1
                 BaseColor sumRowColor = new BaseColor(220, 237, 200);
                 Font sumFont = new Font(polishFont, 8, Font.BOLD);
 
+                // Oblicz średnią cenę
+                decimal avgCenaSum = sumaKG > 0 ? sumaWartosc / sumaKG : 0;
+
                 AddStyledTableData(dataTable, sumFont, sumRowColor, "SUMA",
-                    "", "", "",
-                    sumaSztWszystkie.ToString(), sumaPadle.ToString(), sumaKonfiskaty.ToString(), sumaSztZdatne.ToString(),
+                    sumaBrutto.ToString("N0"), sumaTara.ToString("N0"), sumaNetto.ToString("N0"),
+                    sumaSztWszystkie.ToString("N0"), sumaPadle.ToString("N0"), sumaKonfiskaty.ToString("N0"), sumaSztZdatne.ToString("N0"),
                     sredniaWagaSuma.ToString("N2"),
                     sumaNetto.ToString("N0"),
                     sumaPadleKG > 0 ? $"-{sumaPadleKG:N0}" : "0",
@@ -1781,7 +1797,8 @@ namespace Kalendarz1
                     sumaOpasienieKG > 0 ? $"-{sumaOpasienieKG:N0}" : "0",
                     sumaKlasaB > 0 ? $"-{sumaKlasaB:N0}" : "0",
                     sumaKG.ToString("N0"),
-                    "",
+                    avgCenaSum.ToString("0.00"),
+                    sumaDodatek != 0 ? sumaDodatek.ToString("N0") : "-",
                     sumaWartosc.ToString("N0"));
 
                 doc.Add(dataTable);
