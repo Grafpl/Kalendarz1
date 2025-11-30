@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -10,7 +12,7 @@ namespace Kalendarz1
     /// </summary>
     public class WeatherService
     {
-        private static readonly HttpClient httpClient = new HttpClient();
+        private static readonly HttpClient httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
         // Współrzędne Dmosin (okolice ubojni)
         private const double LATITUDE = 51.93;
@@ -26,6 +28,10 @@ namespace Kalendarz1
                 string dateStr = dateTime.ToString("yyyy-MM-dd");
                 int hour = dateTime.Hour;
 
+                // Użyj InvariantCulture dla współrzędnych (unikaj przecinków)
+                string latStr = LATITUDE.ToString(CultureInfo.InvariantCulture);
+                string lonStr = LONGITUDE.ToString(CultureInfo.InvariantCulture);
+
                 // Open-Meteo API - darmowe, bez klucza
                 string url;
 
@@ -34,22 +40,22 @@ namespace Kalendarz1
                 {
                     // Dane archiwalne
                     url = $"https://archive-api.open-meteo.com/v1/archive?" +
-                          $"latitude={LATITUDE}&longitude={LONGITUDE}" +
+                          $"latitude={latStr}&longitude={lonStr}" +
                           $"&start_date={dateStr}&end_date={dateStr}" +
                           $"&hourly=temperature_2m,weathercode,relativehumidity_2m,windspeed_10m" +
                           $"&timezone=Europe/Warsaw";
                 }
                 else
                 {
-                    // Dane z ostatnich dni lub prognoza
+                    // Dane z ostatnich dni lub prognoza (max 7 dni w przyszłość)
                     url = $"https://api.open-meteo.com/v1/forecast?" +
-                          $"latitude={LATITUDE}&longitude={LONGITUDE}" +
+                          $"latitude={latStr}&longitude={lonStr}" +
                           $"&hourly=temperature_2m,weathercode,relativehumidity_2m,windspeed_10m" +
-                          $"&past_days=7&forecast_days=1" +
+                          $"&past_days=14&forecast_days=7" +
                           $"&timezone=Europe/Warsaw";
                 }
 
-                var response = await httpClient.GetStringAsync(url);
+                var response = await httpClient.GetStringAsync(url).ConfigureAwait(false);
                 var json = JObject.Parse(response);
 
                 var hourlyData = json["hourly"];
@@ -93,12 +99,19 @@ namespace Kalendarz1
         {
             try
             {
-                // Sprawdź czy data jest w sensownym zakresie (Open-Meteo obsługuje max 7 dni w przyszłość)
+                // Sprawdź czy data jest w sensownym zakresie
                 if (dateTime.Year < 2020 || dateTime > DateTime.Today.AddDays(7))
                 {
                     return null;
                 }
-                return Task.Run(() => GetWeatherAsync(dateTime)).Result;
+
+                // Użyj Task.Run z ConfigureAwait(false) aby uniknąć deadlocków w WPF
+                var task = Task.Run(async () => await GetWeatherAsync(dateTime).ConfigureAwait(false));
+                if (task.Wait(TimeSpan.FromSeconds(8)))
+                {
+                    return task.Result;
+                }
+                return null;
             }
             catch
             {

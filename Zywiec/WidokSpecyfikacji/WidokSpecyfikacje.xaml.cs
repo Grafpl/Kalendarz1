@@ -1493,10 +1493,11 @@ namespace Kalendarz1
                 mainTitle.SpacingAfter = 4f;
                 doc.Add(mainTitle);
 
-                // === ZIELONA LINIA POD TYTUŁEM ===
+                // === CZERWONA LINIA POD TYTUŁEM ===
+                BaseColor redColor = new BaseColor(192, 57, 43);
                 PdfPTable titleLine = new PdfPTable(1);
                 titleLine.WidthPercentage = 60;
-                PdfPCell titleLineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0 };
+                PdfPCell titleLineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = redColor, BorderWidthBottom = 2f, Padding = 0 };
                 titleLine.AddCell(titleLineCell);
                 titleLine.SpacingAfter = 8f;
                 doc.Add(titleLine);
@@ -1542,11 +1543,10 @@ namespace Kalendarz1
                 headerTable.AddCell(dateCell);
 
                 // Pogoda (środek)
-                PdfPCell wagaCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
-                wagaCell.AddElement(new Paragraph(wagaTyp, new Font(polishFont, 9, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_CENTER });
+                PdfPCell centerCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
                 if (weatherInfoFull != null)
-                    wagaCell.AddElement(new Paragraph($"Pogoda: {weatherInfoFull.Temperature:0}°C, {weatherInfoFull.Description}", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                headerTable.AddCell(wagaCell);
+                    centerCell.AddElement(new Paragraph($"Pogoda: {weatherInfoFull.Temperature:0}°C, {weatherInfoFull.Description}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                headerTable.AddCell(centerCell);
 
                 // Numer dokumentu (prawa)
                 PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
@@ -1586,7 +1586,7 @@ namespace Kalendarz1
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
-                sellerCell.AddElement(new Paragraph("▸ Waga loco Hodowca", new Font(polishFont, 8, Font.ITALIC, new BaseColor(230, 126, 34))));
+                sellerCell.AddElement(new Paragraph($"▸ {wagaTyp}", new Font(polishFont, 8, Font.ITALIC, new BaseColor(230, 126, 34))));
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
