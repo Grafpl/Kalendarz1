@@ -164,7 +164,8 @@ namespace Kalendarz1
                 [31] = "DashboardOfert",
                 [32] = "PanelReklamacji",
                 [33] = "ReklamacjeJakosc",
-                [34] = "RaportyHodowcow"
+                [34] = "RaportyHodowcow",
+                [35] = "AdminPermissions"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -208,7 +209,8 @@ namespace Kalendarz1
                 "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
-                "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow"
+                "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
+                "AdminPermissions"
             };
         }
 
@@ -216,126 +218,272 @@ namespace Kalendarz1
         {
             mainLayout.Controls.Clear();
 
+            // ══════════════════════════════════════════════════════════════════════════════
+            // KOLORY DZIAŁÓW - GRADIENT OD JAŚNIEJSZEGO DO CIEMNIEJSZEGO
+            // ══════════════════════════════════════════════════════════════════════════════
+            // ZAKUP/ZAOPATRZENIE - Odcienie zielonego (od jasnego do ciemnego)
+            // SPRZEDAŻ/CRM - Odcienie niebieskiego (od jasnego do ciemnego)
+            // PRODUKCJA/MAGAZYN - Odcienie pomarańczowego (od jasnego do ciemnego)
+            // OPAKOWANIA/TRANSPORT - Odcienie turkusowego (od jasnego do ciemnego)
+            // FINANSE/ZARZĄDZANIE - Odcienie szaroniebieskiego (od jasnego do ciemnego)
+            // ADMINISTRACJA - Odcienie czerwonego (od jasnego do ciemnego)
+            // ══════════════════════════════════════════════════════════════════════════════
+
             var leftColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ ZAKUPÓW - KOLOR ZIELONY (gradient od jasnego #A5D6A7 do ciemnego #1B5E20)
+                // ═══════════════════════════════════════════════════════════════════════════
                 ["ZAOPATRZENIE I ZAKUPY"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("DaneHodowcy", "Dane Hodowcy", "Zarządzaj bazą hodowców", Color.FromArgb(46, 125, 50), () => new WidokKontrahenci(), "📋"),
-                    new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy", "Rejestruj zakupy paszy i piskląt", Color.FromArgb(67, 160, 71), null, "🌾"),
-                    new MenuItemConfig("WstawieniaHodowcy", "Wstawienia", "Zarządzaj cyklami wstawień", Color.FromArgb(76, 175, 80), () => new WidokWstawienia(), "🐣"),
-                    new MenuItemConfig("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", Color.FromArgb(102, 187, 106), () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅"),
-                    new MenuItemConfig("DokumentyZakupu", "Dokumenty Zakupu", "Archiwizuj dokumenty i umowy", Color.FromArgb(129, 199, 132), () => new SprawdzalkaUmow { UserID = App.UserID }, "📄"),
-                    new MenuItemConfig("PlatnosciHodowcy", "Płatności", "Monitoruj płatności dla hodowców", Color.FromArgb(156, 204, 101), () => new Platnosci(), "💰"),
-                    new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmianę", "Zatwierdzaj zmiany w danych", Color.FromArgb(139, 195, 74), () => new AdminChangeRequestsForm(connectionString, App.UserID), "✏️"),
-                    new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca", "Definiuj specyfikacje produktów", Color.FromArgb(120, 144, 156), () => new WidokSpecyfikacje(), "📝"),
-                    new MenuItemConfig("RaportyHodowcow", "Raporty Hodowców", "Raporty i statystyki hodowców", Color.FromArgb(103, 58, 183), () => new RaportyStatystykiWindow(), "📊"),
-                    new MenuItemConfig("PlachtyAviloga", "Matryca Transportu (WPF)", "Planowanie transportu żywca - nowy widok", Color.FromArgb(46, 125, 50), () => new WidokMatrycaWPF(), "🚚")
+                    new MenuItemConfig("DaneHodowcy", "Baza Hodowców",
+                        "Kompletna kartoteka wszystkich dostawców żywca kurczaków z danymi kontaktowymi i historią współpracy",
+                        Color.FromArgb(165, 214, 167), // Jasny zielony #A5D6A7
+                        () => new WidokKontrahenci(), "🧑‍🌾"),
+
+                    new MenuItemConfig("WstawieniaHodowcy", "Cykle Wstawień",
+                        "Rejestracja i monitorowanie cykli hodowlanych piskląt u hodowców wraz z terminami odbioru",
+                        Color.FromArgb(129, 199, 132), // #81C784
+                        () => new WidokWstawienia(), "🐣"),
+
+                    new MenuItemConfig("TerminyDostawyZywca", "Kalendarz Dostaw Żywca",
+                        "Interaktywny kalendarz planowania terminów dostaw żywca od hodowców do ubojni",
+                        Color.FromArgb(102, 187, 106), // #66BB6A
+                        () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅"),
+
+                    new MenuItemConfig("PlachtyAviloga", "Matryca Transportu",
+                        "Zaawansowane planowanie tras transportu żywca z optymalizacją załadunku i wysyłką SMS",
+                        Color.FromArgb(76, 175, 80), // #4CAF50
+                        () => new WidokMatrycaWPF(), "🚛"),
+
+                    new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
+                        "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
+                        Color.FromArgb(67, 160, 71), // #43A047
+                        () => new WidokSpecyfikacje(), "📋"),
+
+                    new MenuItemConfig("DokumentyZakupu", "Dokumenty i Umowy",
+                        "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
+                        Color.FromArgb(56, 142, 60), // #388E3C
+                        () => new SprawdzalkaUmow { UserID = App.UserID }, "📑"),
+
+                    new MenuItemConfig("PlatnosciHodowcy", "Rozliczenia z Hodowcami",
+                        "Monitorowanie należności i płatności dla dostawców żywca wraz z historią transakcji",
+                        Color.FromArgb(46, 125, 50), // #2E7D32
+                        () => new Platnosci(), "💵"),
+
+                    new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy i Piskląt",
+                        "Ewidencja zakupów pasz i piskląt dla hodowców kontraktowych",
+                        Color.FromArgb(27, 94, 32), // Ciemny zielony #1B5E20
+                        null, "🌾"),
+
+                    new MenuItemConfig("RaportyHodowcow", "Statystyki Hodowców",
+                        "Raporty i analizy współpracy z hodowcami - wydajność, jakość, terminowość dostaw",
+                        Color.FromArgb(27, 94, 32), // #1B5E20
+                        () => new RaportyStatystykiWindow(), "📊")
                 },
+
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ PRODUKCJI - KOLOR POMARAŃCZOWY (gradient od jasnego #FFCC80 do ciemnego #E65100)
+                // ═══════════════════════════════════════════════════════════════════════════
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", Color.FromArgb(230, 81, 0), () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
-                    new MenuItemConfig("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", Color.FromArgb(245, 124, 0), () => {
-                        var window = new Kalendarz1.ProdukcjaPanel();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "🏭"),
-                    new MenuItemConfig("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", Color.FromArgb(0, 172, 193), () => new Mroznia(), "❄️"),
-                    new MenuItemConfig("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", Color.FromArgb(156, 39, 176), () => {
-                        return new Kalendarz1.MagazynLiczenie.Formularze.LiczenieStanuWindow(
-                            connectionString,
-                            connectionHandel,
-                            App.UserID
-                        );
-                    }, "📦"),
-                    new MenuItemConfig("PanelMagazyniera", "Panel Magazyniera", "Kompleksowy panel do zarządzania wydaniami", Color.FromArgb(63, 81, 181), () => {
-                        var panel = new Kalendarz1.MagazynPanel();
-                        panel.UserID = App.UserID;
-                        return panel;
-                    }, "📱"),
-                    new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie żywiec vs tuszka",
-                        Color.FromArgb(155, 89, 182),
-                        () => new AnalizaWydajnosciKrojenia(connectionHandel), "📊"),
+                    new MenuItemConfig("ProdukcjaPodglad", "Panel Produkcji",
+                        "Bieżący monitoring procesu uboju i krojenia z podglądem wydajności linii",
+                        Color.FromArgb(255, 204, 128), // Jasny pomarańczowy #FFCC80
+                        () => {
+                            var window = new Kalendarz1.ProdukcjaPanel();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "🏭"),
+
+                    new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Rozbioru",
+                        "Planowanie procesu krojenia tuszek z kalkulacją wydajności poszczególnych elementów",
+                        Color.FromArgb(255, 183, 77), // #FFB74D
+                        () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
+
+                    new MenuItemConfig("PrzychodMrozni", "Magazyn Mroźni",
+                        "Zarządzanie stanami magazynowymi produktów mrożonych z kontrolą partii i dat",
+                        Color.FromArgb(255, 152, 0), // #FF9800
+                        () => new Mroznia(), "❄️"),
+
+                    new MenuItemConfig("LiczenieMagazynu", "Inwentaryzacja Magazynu",
+                        "Codzienna rejestracja stanów magazynowych produktów gotowych i surowców",
+                        Color.FromArgb(251, 140, 0), // #FB8C00
+                        () => {
+                            return new Kalendarz1.MagazynLiczenie.Formularze.LiczenieStanuWindow(
+                                connectionString,
+                                connectionHandel,
+                                App.UserID
+                            );
+                        }, "📦"),
+
+                    new MenuItemConfig("PanelMagazyniera", "Panel Magazyniera",
+                        "Kompleksowe narzędzie do zarządzania wydaniami towarów i dokumentacją magazynową",
+                        Color.FromArgb(245, 124, 0), // #F57C00
+                        () => {
+                            var panel = new Kalendarz1.MagazynPanel();
+                            panel.UserID = App.UserID;
+                            return panel;
+                        }, "🗃️"),
+
+                    new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności",
+                        "Porównanie masy żywca do masy tuszek - analiza strat i efektywności uboju",
+                        Color.FromArgb(230, 81, 0), // Ciemny pomarańczowy #E65100
+                        () => new AnalizaWydajnosciKrojenia(connectionHandel), "📈")
+                },
+
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ ADMINISTRACJI - KOLOR CZERWONY (gradient od jasnego #EF9A9A do ciemnego #B71C1C)
+                // ═══════════════════════════════════════════════════════════════════════════
+                ["ADMINISTRACJA SYSTEMU"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmiany",
+                        "Przeglądanie i zatwierdzanie wniosków o zmiany danych hodowców zgłoszonych przez użytkowników",
+                        Color.FromArgb(239, 154, 154), // Jasny czerwony #EF9A9A
+                        () => new AdminChangeRequestsForm(connectionString, App.UserID), "📝"),
+
+                    new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
+                        "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
+                        Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
+                        () => new AdminPermissionsForm(), "🔐")
                 }
             };
 
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ SPRZEDAŻY - KOLOR NIEBIESKI (gradient od jasnego #90CAF9 do ciemnego #0D47A1)
+                // ═══════════════════════════════════════════════════════════════════════════
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", Color.FromArgb(33, 150, 243), () => new CRM { UserID = App.UserID }, "👥"),
+                    new MenuItemConfig("CRM", "Relacje z Klientami",
+                        "Zarządzanie relacjami z odbiorcami - kontakty, notatki, historia współpracy",
+                        Color.FromArgb(144, 202, 249), // Jasny niebieski #90CAF9
+                        () => new CRM { UserID = App.UserID }, "🤝"),
 
-                    new MenuItemConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna kartoteka i dane CRM odbiorców", Color.FromArgb(59, 130, 246), () => {
-                        var window = new Kalendarz1.KartotekaOdbiorcowWindow();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "👤"),
+                    new MenuItemConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców",
+                        "Pełna baza danych klientów z danymi kontaktowymi, warunkami handlowymi i historią zamówień",
+                        Color.FromArgb(100, 181, 246), // #64B5F6
+                        () => {
+                            var window = new Kalendarz1.KartotekaOdbiorcowWindow();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "👤"),
 
-                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", Color.FromArgb(30, 136, 229), () => {
-                        var window = new Kalendarz1.WPF.MainWindow();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "📦"),
+                    new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Klientów",
+                        "Przyjmowanie i realizacja zamówień na produkty mięsne od odbiorców hurtowych",
+                        Color.FromArgb(66, 165, 245), // #42A5F5
+                        () => {
+                            var window = new Kalendarz1.WPF.MainWindow();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "🛒"),
 
-                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", Color.FromArgb(21, 101, 192), () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
+                    new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
+                        "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
+                        Color.FromArgb(33, 150, 243), // #2196F3
+                        () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
 
-                    new MenuItemConfig("OfertaCenowa", "Nowa Oferta", "Twórz profesjonalne oferty cenowe", Color.FromArgb(13, 71, 161), () => {
-                        var window = new OfertaHandlowaWindow();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "💵"),
+                    new MenuItemConfig("OfertaCenowa", "Kreator Ofert",
+                        "Tworzenie profesjonalnych ofert cenowych dla klientów z aktualnym cennikiem produktów",
+                        Color.FromArgb(30, 136, 229), // #1E88E5
+                        () => {
+                            var window = new OfertaHandlowaWindow();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "💰"),
 
-                    new MenuItemConfig("ListaOfert", "Lista Ofert", "Przeglądaj historię wszystkich ofert", Color.FromArgb(30, 64, 175), () => {
-                        var window = new OfertyListaWindow();
-                        window.UserID = App.UserID;
-                        return window;
-                    }, "📋"),
+                    new MenuItemConfig("ListaOfert", "Archiwum Ofert",
+                        "Historia wszystkich wysłanych ofert handlowych z możliwością kopiowania i edycji",
+                        Color.FromArgb(25, 118, 210), // #1976D2
+                        () => {
+                            var window = new OfertyListaWindow();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "📂"),
 
-                    new MenuItemConfig("DashboardOfert", "Dashboard Ofert", "Statystyki i analiza ofert handlowych", Color.FromArgb(79, 70, 229), () => {
-                        return new OfertyDashboardWindow();
-                    }, "📊"),
+                    new MenuItemConfig("DashboardOfert", "Analiza Ofert",
+                        "Statystyki skuteczności ofert - konwersja, wartości, porównania okresów",
+                        Color.FromArgb(21, 101, 192), // #1565C0
+                        () => {
+                            return new OfertyDashboardWindow();
+                        }, "📊"),
 
-                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", Color.FromArgb(103, 58, 183), () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),
-                    new MenuItemConfig("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", Color.FromArgb(156, 39, 176), () => new Kalendarz1.TygodniowyPlan(), "📊"),
-                    new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", Color.FromArgb(216, 27, 96), () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📊"),
-
-                    new MenuItemConfig("DashboardWyczerpalnosci", "Dashboard Klas Wagowych",
-                        "Rozdzielanie klas wagowych dla wszystkich klientów",
-                        Color.FromArgb(139, 69, 19),
+                    new MenuItemConfig("DashboardWyczerpalnosci", "Klasy Wagowe",
+                        "Rozdzielanie dostępnych klas wagowych tuszek pomiędzy zamówienia klientów",
+                        Color.FromArgb(13, 71, 161), // Ciemny niebieski #0D47A1
                         () => {
                             var window = new DashboardKlasWagowychWindow();
                             window.UserID = App.UserID;
                             return window;
-                        }, "📊"),
+                        }, "⚖️"),
 
-                    // Panel Reklamacji
-                    new MenuItemConfig("PanelReklamacji", "Panel Reklamacji", "Zarządzaj reklamacjami od odbiorców", Color.FromArgb(229, 57, 53), () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
+                    new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
+                        "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
+                        Color.FromArgb(21, 101, 192), // #1565C0
+                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
                 },
 
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ PLANOWANIA - KOLOR FIOLETOWY (gradient od jasnego #CE93D8 do ciemnego #4A148C)
+                // ═══════════════════════════════════════════════════════════════════════════
+                ["PLANOWANIE I ANALIZY"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("PrognozyUboju", "Prognoza Uboju",
+                        "Analiza średnich tygodniowych zakupów żywca z prognozą zapotrzebowania",
+                        Color.FromArgb(206, 147, 216), // Jasny fioletowy #CE93D8
+                        () => new PrognozyUboju.PrognozyUbojuWindow(), "🔮"),
+
+                    new MenuItemConfig("PlanTygodniowy", "Plan Tygodniowy",
+                        "Harmonogram uboju i krojenia na nadchodzący tydzień z podziałem na dni",
+                        Color.FromArgb(171, 71, 188), // #AB47BC
+                        () => new Kalendarz1.TygodniowyPlan(), "🗓️"),
+
+                    new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny",
+                        "Kompleksowa analiza bilansu produkcji i sprzedaży z wykresami i wskaźnikami",
+                        Color.FromArgb(74, 20, 140), // Ciemny fioletowy #4A148C
+                        () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉")
+                },
+
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ OPAKOWAŃ - KOLOR TURKUSOWY (gradient od jasnego #80DEEA do ciemnego #006064)
+                // ═══════════════════════════════════════════════════════════════════════════
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
-                    // ✅ NOWE OKNO WPF - Zestawienie opakowań wg typu
-                    new MenuItemConfig("PodsumowanieSaldOpak", "Zestawienie Opakowań", "Zestawienie sald wg typu opakowania",
-                        Color.FromArgb(75, 131, 60),  // Zielony
-                        () => new ZestawienieOpakowanWindow(),
-                        "📦"),
-                    
-                    // ✅ NOWE OKNO WPF - Salda wszystkich opakowań odbiorców
-                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Odbiorców", "Wszystkie opakowania dla kontrahentów",
-                        Color.FromArgb(204, 47, 55),  // Czerwony
-                        () => new SaldaWszystkichOpakowanWindow(),
-                        "📊"),
+                    new MenuItemConfig("PodsumowanieSaldOpak", "Zestawienie Opakowań",
+                        "Zbiorcze zestawienie sald opakowań zwrotnych wg typu z podsumowaniem wartości",
+                        Color.FromArgb(128, 222, 234), // Jasny turkusowy #80DEEA
+                        () => new ZestawienieOpakowanWindow(), "📦"),
 
-                    new MenuItemConfig("UstalanieTranportu", "Transport", "Organizuj i planuj transport", Color.FromArgb(255, 111, 0), () => {
-                        var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-                        var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
-                        return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
-                    }, "🚚")
+                    new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Opakowań Klientów",
+                        "Szczegółowe salda opakowań zwrotnych dla każdego kontrahenta z historią obrotów",
+                        Color.FromArgb(0, 172, 193), // #00ACC1
+                        () => new SaldaWszystkichOpakowanWindow(), "🏷️"),
+
+                    new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
+                        "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
+                        Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
+                        () => {
+                            var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                            var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
+                            return new Transport.Formularze.TransportMainFormImproved(repo, App.UserID);
+                        }, "🚚")
                 },
 
+                // ═══════════════════════════════════════════════════════════════════════════
+                // DZIAŁ FINANSÓW - KOLOR SZARONIEBIESKI (gradient od jasnego #B0BEC5 do ciemnego #263238)
+                // ═══════════════════════════════════════════════════════════════════════════
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
-                    new MenuItemConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", Color.FromArgb(96, 125, 139), () => new WidokSprzeZakup(), "💼"),
-                    new MenuItemConfig("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", Color.FromArgb(52, 73, 94), () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
+                    new MenuItemConfig("DaneFinansowe", "Wyniki Finansowe",
+                        "Zestawienie wyników finansowych firmy - przychody, koszty, marże i rentowność",
+                        Color.FromArgb(176, 190, 197), // Jasny szaroniebieski #B0BEC5
+                        () => new WidokSprzeZakup(), "💼"),
+
+                    new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
+                        "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",
+                        Color.FromArgb(38, 50, 56), // Ciemny szaroniebieski #263238
+                        () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
                 }
             };
 
