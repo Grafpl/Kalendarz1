@@ -93,6 +93,11 @@ namespace Kalendarz1
         {
             try
             {
+                // Sprawdź czy data jest w sensownym zakresie (Open-Meteo obsługuje max 7 dni w przyszłość)
+                if (dateTime.Year < 2020 || dateTime > DateTime.Today.AddDays(7))
+                {
+                    return null;
+                }
                 return Task.Run(() => GetWeatherAsync(dateTime)).Result;
             }
             catch
