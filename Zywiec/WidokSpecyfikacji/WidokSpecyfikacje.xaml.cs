@@ -1002,28 +1002,21 @@ namespace Kalendarz1
                 Font legendaFont = new Font(polishFont, 7, Font.NORMAL, grayColor);
                 Font legendaBoldFont = new Font(polishFont, 7, Font.BOLD, BaseColor.DARK_GRAY);
 
-                // === NAGŁÓWEK Z LOGO ===
+                // === NAGŁÓWEK Z LOGO NA ŚRODKU ===
                 decimal? ubytekProcFirst = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                 string wagaTyp = (ubytekProcFirst ?? 0) != 0 ? "Waga loco Hodowca" : "Waga loco Ubojnia";
 
-                PdfPTable headerTable = new PdfPTable(3);
-                headerTable.WidthPercentage = 100;
-                headerTable.SetWidths(new float[] { 1.5f, 3f, 1.5f });
-                headerTable.SpacingAfter = 8f;
-
-                // Logo po lewej - w lewym górnym rogu
-                PdfPCell logoCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_TOP, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 0, PaddingTop = 0 };
+                // Logo wycentrowane na górze
                 try
                 {
-                    // Szukaj logo w kilku lokalizacjach (w tym katalog projektu)
                     string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                     string[] logoPaths = new string[]
                     {
                         Path.Combine(baseDir, "logo-2-green.png"),
                         Path.Combine(baseDir, "Resources", "logo-2-green.png"),
                         Path.Combine(baseDir, "Images", "logo-2-green.png"),
-                        Path.Combine(baseDir, "..", "..", "..", "logo-2-green.png"), // katalog projektu z bin/Debug/net*
-                        Path.Combine(baseDir, "..", "..", "logo-2-green.png"), // katalog projektu z bin/Debug
+                        Path.Combine(baseDir, "..", "..", "..", "logo-2-green.png"),
+                        Path.Combine(baseDir, "..", "..", "logo-2-green.png"),
                         @"C:\logo-2-green.png"
                     };
 
@@ -1040,40 +1033,53 @@ namespace Kalendarz1
                     if (foundLogoPath != null)
                     {
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(120f, 60f);
-                        logo.Alignment = Element.ALIGN_LEFT;
-                        logoCell.AddElement(logo);
+                        logo.ScaleToFit(180f, 80f); // Większe logo
+                        logo.Alignment = Element.ALIGN_CENTER;
+                        doc.Add(logo);
                     }
                     else
                     {
-                        // Jeśli brak logo - wyświetl nazwę firmy
-                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 14, Font.BOLD, greenColor));
-                        firmName.Alignment = Element.ALIGN_LEFT;
-                        logoCell.AddElement(firmName);
-                        Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 8, Font.NORMAL, grayColor));
-                        firmSub.Alignment = Element.ALIGN_LEFT;
-                        logoCell.AddElement(firmSub);
+                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 20, Font.BOLD, greenColor));
+                        firmName.Alignment = Element.ALIGN_CENTER;
+                        doc.Add(firmName);
+                        Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 10, Font.NORMAL, grayColor));
+                        firmSub.Alignment = Element.ALIGN_CENTER;
+                        doc.Add(firmSub);
                     }
                 }
                 catch
                 {
-                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 14, Font.BOLD, greenColor));
-                    logoCell.AddElement(firmName);
+                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 20, Font.BOLD, greenColor));
+                    firmName.Alignment = Element.ALIGN_CENTER;
+                    doc.Add(firmName);
                 }
-                headerTable.AddCell(logoCell);
 
-                // Tytuł na środku
-                PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
-                Paragraph title = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", titleFont) { Alignment = Element.ALIGN_CENTER };
-                Paragraph subtitle = new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_CENTER };
-                titleCell.AddElement(title);
-                titleCell.AddElement(subtitle);
-                headerTable.AddCell(titleCell);
+                // Tytuł pod logo - mniejszy
+                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 11, Font.NORMAL, BaseColor.DARK_GRAY));
+                mainTitle.Alignment = Element.ALIGN_CENTER;
+                mainTitle.SpacingBefore = 3f;
+                mainTitle.SpacingAfter = 8f;
+                doc.Add(mainTitle);
 
-                // Numer dokumentu i info po prawej
-                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 5 };
+                // Tabela z informacjami o dokumencie
+                PdfPTable headerTable = new PdfPTable(3);
+                headerTable.WidthPercentage = 100;
+                headerTable.SetWidths(new float[] { 1f, 1.5f, 1f });
+                headerTable.SpacingAfter = 8f;
+
+                // Data uboju (lewa)
+                PdfPCell dateCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE };
+                dateCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_LEFT });
+                headerTable.AddCell(dateCell);
+
+                // Typ wagi (środek)
+                PdfPCell wagaCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
+                wagaCell.AddElement(new Paragraph(wagaTyp, new Font(polishFont, 9, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_CENTER });
+                headerTable.AddCell(wagaCell);
+
+                // Numer dokumentu (prawa)
+                PdfPCell docNumCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE };
                 docNumCell.AddElement(new Paragraph($"Dokument nr: {strDzienUbojowy}/{ids.Count}", textFontBold) { Alignment = Element.ALIGN_RIGHT });
-                docNumCell.AddElement(new Paragraph(wagaTyp, new Font(polishFont, 9, Font.ITALIC, blueColor)) { Alignment = Element.ALIGN_RIGHT });
                 docNumCell.AddElement(new Paragraph($"Ilość dostaw: {ids.Count}", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_RIGHT });
                 headerTable.AddCell(docNumCell);
 
