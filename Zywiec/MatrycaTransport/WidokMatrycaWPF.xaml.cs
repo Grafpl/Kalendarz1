@@ -699,29 +699,26 @@ namespace Kalendarz1
 
             // Buduj SMS zbiorczy
             var smsLines = new List<string>();
-            smsLines.Add($"Piorkowscy {selectedDate:dd.MM}:");
+            smsLines.Add($"Piorkowscy {selectedDate:dd.MM}");
 
-            int totalSztuki = 0;
+            decimal totalWaga = 0;
             foreach (var row in rowsForFarmer)
             {
                 string zaladunekTime = row.Zaladunek.Value.ToString("HH:mm");
-                string kierowcaNazwa = GetKierowcaNazwa(row.DriverGID);
-                string kierowcaTel = GetKierowcaTelefon(row.DriverGID);
                 string ciagnikNr = row.CarID ?? "";
+                string naczepaNr = row.TrailerID ?? "";
 
-                string autoInfo = $"godz.{zaladunekTime}";
-                if (!string.IsNullOrEmpty(kierowcaNazwa) && kierowcaNazwa != "-")
-                    autoInfo += $" {kierowcaNazwa}";
-                if (!string.IsNullOrWhiteSpace(kierowcaTel) && kierowcaTel != "-")
-                    autoInfo += $" tel:{kierowcaTel}";
+                string autoInfo = $"Załadunek godz.{zaladunekTime}";
                 if (!string.IsNullOrEmpty(ciagnikNr))
-                    autoInfo += $" auto:{ciagnikNr}";
+                    autoInfo += $" ciągnik:{ciagnikNr}";
+                if (!string.IsNullOrEmpty(naczepaNr))
+                    autoInfo += $" naczepa:{naczepaNr}";
 
                 smsLines.Add(autoInfo);
-                totalSztuki += row.SztPoj;
+                totalWaga += row.WagaDek * row.SztPoj;
             }
 
-            smsLines.Add($"Razem: {rowsForFarmer.Count} aut, {totalSztuki} szt");
+            smsLines.Add($"Razem: {rowsForFarmer.Count} aut, waga:{totalWaga:N0}kg");
 
             string smsContent = string.Join("\n", smsLines);
 
@@ -785,16 +782,17 @@ namespace Kalendarz1
 
             DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
             string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
-            string kierowcaNazwa = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
-            string kierowcaTelefon = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
             string ciagnikNr = selectedMatrycaRow.CarID ?? "";
-            int sztuki = selectedMatrycaRow.SztPoj;
+            string naczepaNr = selectedMatrycaRow.TrailerID ?? "";
+            decimal waga = selectedMatrycaRow.WagaDek * selectedMatrycaRow.SztPoj;
 
             // Generuj treść SMS
-            string smsContent = $"Piorkowscy: {selectedDate:dd.MM} godz.{zaladunekTime} " +
-                               $"Kierowca:{kierowcaNazwa} " +
-                               (string.IsNullOrWhiteSpace(kierowcaTelefon) || kierowcaTelefon == "-" ? "" : $"tel:{kierowcaTelefon} ") +
-                               $"Auto:{ciagnikNr} Szt:{sztuki}";
+            string smsContent = $"Piorkowscy {selectedDate:dd.MM}: Załadunek godz.{zaladunekTime}";
+            if (!string.IsNullOrEmpty(ciagnikNr))
+                smsContent += $" ciągnik:{ciagnikNr}";
+            if (!string.IsNullOrEmpty(naczepaNr))
+                smsContent += $" naczepa:{naczepaNr}";
+            smsContent += $" waga:{waga:N0}kg";
 
             try
             {
