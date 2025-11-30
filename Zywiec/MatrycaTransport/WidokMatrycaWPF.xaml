@@ -785,6 +785,15 @@
 
                             <Separator Margin="0,8"/>
 
+                            <Button x:Name="btnStatystyki"
+                                    Content="📊 STATYSTYKI PRACOWNIKÓW"
+                                    Click="BtnStatystyki_Click"
+                                    Style="{StaticResource MainButtonStyle}"
+                                    Background="#E67E22"
+                                    FontSize="12"
+                                    HorizontalAlignment="Stretch"
+                                    ToolTip="Zobacz kto wysyła najwięcej SMS"/>
+
                             <Button x:Name="btnShowSpecyfikacja"
                                     Content="📋 OTWÓRZ SPECYFIKACJĘ"
                                     Click="BtnShowFullSpecyfikacja_Click"

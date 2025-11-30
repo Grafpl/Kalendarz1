@@ -1086,6 +1086,25 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Statystyki Pracowników
+
+        private void BtnStatystyki_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var statsWindow = new StatystykiPracownikowWindow();
+                statsWindow.Show();
+                UpdateStatus("Otwarto okno statystyk pracowników");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania statystyk:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         #region Save to Database
 
         private void BtnSaveToDatabase_Click(object sender, RoutedEventArgs e)
