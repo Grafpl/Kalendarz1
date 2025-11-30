@@ -170,14 +170,14 @@ namespace Kalendarz1
             var logoPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 70,
+                Height = 55,
                 BackColor = Colors.Primary
             };
 
             logoPictureBox = new PictureBox
             {
-                Size = new Size(50, 50),
-                Location = new Point(10, 10),
+                Size = new Size(40, 40),
+                Location = new Point(8, 8),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.Transparent
             };
@@ -202,9 +202,9 @@ namespace Kalendarz1
             var titleLabel = new Label
             {
                 Text = "PIÓRKOWSCY",
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(70, 15),
+                Location = new Point(55, 10),
                 AutoSize = true
             };
             logoPanel.Controls.Add(titleLabel);
@@ -212,39 +212,39 @@ namespace Kalendarz1
             var subtitleLabel = new Label
             {
                 Text = "Panel Administracyjny",
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 8),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(72, 38),
+                Location = new Point(57, 30),
                 AutoSize = true
             };
             logoPanel.Controls.Add(subtitleLabel);
 
             leftPanel.Controls.Add(logoPanel);
 
-            // Panel wyszukiwania
+            // Panel wyszukiwania - kompaktowy
             var searchPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 60,
+                Height = 50,
                 BackColor = Color.White,
-                Padding = new Padding(10, 5, 10, 5)
+                Padding = new Padding(8, 3, 8, 3)
             };
 
             var usersLabel = new Label
             {
                 Text = "👥 UŻYTKOWNICY SYSTEMU",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Colors.TextDark,
-                Location = new Point(10, 5),
+                Location = new Point(8, 3),
                 AutoSize = true
             };
             searchPanel.Controls.Add(usersLabel);
 
             searchBox = new TextBox
             {
-                Location = new Point(10, 28),
-                Size = new Size(295, 26),
-                Font = new Font("Segoe UI", 10),
+                Location = new Point(8, 24),
+                Size = new Size(295, 22),
+                Font = new Font("Segoe UI", 9),
                 PlaceholderText = "🔍 Szukaj użytkownika...",
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -286,20 +286,20 @@ namespace Kalendarz1
 
             leftPanel.Controls.Add(usersGrid);
 
-            // Pasek statusu na dole
+            // Pasek statusu na dole - kompaktowy
             var statusPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 35,
+                Height = 25,
                 BackColor = Color.FromArgb(240, 240, 240)
             };
 
             usersCountLabel = new Label
             {
                 Text = "Ładowanie...",
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 8),
                 ForeColor = Colors.TextGray,
-                Location = new Point(15, 8),
+                Location = new Point(10, 5),
                 AutoSize = true
             };
             statusPanel.Controls.Add(usersCountLabel);
@@ -316,11 +316,11 @@ namespace Kalendarz1
                 Padding = new Padding(0)
             };
 
-            // Nagłówek z info o wybranym użytkowniku
+            // Nagłówek z info o wybranym użytkowniku - kompaktowy
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 55,
+                Height = 45,
                 BackColor = Color.White
             };
             headerPanel.Paint += (s, e) => {
@@ -330,9 +330,9 @@ namespace Kalendarz1
             var permTitleLabel = new Label
             {
                 Text = "🔐 UPRAWNIENIA MODUŁÓW",
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Colors.TextDark,
-                Location = new Point(20, 8),
+                Location = new Point(15, 5),
                 AutoSize = true
             };
             headerPanel.Controls.Add(permTitleLabel);
@@ -340,9 +340,9 @@ namespace Kalendarz1
             selectedUserLabel = new Label
             {
                 Text = "Wybierz użytkownika z listy po lewej stronie",
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 9),
                 ForeColor = Colors.TextGray,
-                Location = new Point(22, 30),
+                Location = new Point(17, 25),
                 AutoSize = true
             };
             headerPanel.Controls.Add(selectedUserLabel);
@@ -443,18 +443,18 @@ namespace Kalendarz1
                 var categoryPanel = new Panel
                 {
                     Width = panelWidth,
-                    Height = 40,
+                    Height = 30,
                     BackColor = categoryColor,
-                    Margin = new Padding(0, 8, 0, 0),
+                    Margin = new Padding(0, 5, 0, 0),
                     Cursor = Cursors.Hand
                 };
 
                 var categoryCheckbox = new CheckBox
                 {
                     Text = $"  ▼ {category}",
-                    Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
                     ForeColor = Color.White,
-                    Location = new Point(10, 9),
+                    Location = new Point(8, 5),
                     AutoSize = true,
                     Cursor = Cursors.Hand,
                     BackColor = Color.Transparent
@@ -467,12 +467,12 @@ namespace Kalendarz1
                 var countLabel = new Label
                 {
                     Text = $"({group.Count()} modułów)",
-                    Font = new Font("Segoe UI", 9),
+                    Font = new Font("Segoe UI", 8),
                     ForeColor = Color.FromArgb(220, 220, 220),
                     AutoSize = true,
                     BackColor = Color.Transparent
                 };
-                countLabel.Location = new Point(panelWidth - countLabel.PreferredWidth - 15, 12);
+                countLabel.Location = new Point(panelWidth - countLabel.PreferredWidth - 15, 8);
                 categoryPanel.Controls.Add(countLabel);
 
                 // Kliknięcie na panel też zaznacza
@@ -491,11 +491,11 @@ namespace Kalendarz1
                     if (position >= 0 && position < accessString.Length)
                         hasAccess = accessString[position] == '1';
 
-                    // Panel pojedynczego modułu
+                    // Panel pojedynczego modułu - kompaktowy
                     var modulePanel = new Panel
                     {
                         Width = panelWidth,
-                        Height = 36,
+                        Height = 32,
                         BackColor = moduleIndex % 2 == 0 ? Color.White : Colors.RowAlt,
                         Margin = new Padding(0, 0, 0, 0),
                         Cursor = Cursors.Hand
@@ -504,8 +504,8 @@ namespace Kalendarz1
                     // Pasek koloru po lewej
                     var colorBar = new Panel
                     {
-                        Width = 4,
-                        Height = 36,
+                        Width = 3,
+                        Height = 32,
                         BackColor = categoryColor,
                         Location = new Point(0, 0)
                     };
@@ -515,10 +515,10 @@ namespace Kalendarz1
                     var iconLabel = new Label
                     {
                         Text = module.Icon,
-                        Font = new Font("Segoe UI Emoji", 13),
+                        Font = new Font("Segoe UI Emoji", 12),
                         ForeColor = categoryColor,
-                        Location = new Point(15, 5),
-                        Size = new Size(30, 28),
+                        Location = new Point(10, 4),
+                        Size = new Size(26, 24),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
                     modulePanel.Controls.Add(iconLabel);
@@ -527,9 +527,9 @@ namespace Kalendarz1
                     var nameLabel = new Label
                     {
                         Text = module.DisplayName,
-                        Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                        Font = new Font("Segoe UI", 9, FontStyle.Bold),
                         ForeColor = Colors.TextDark,
-                        Location = new Point(50, 3),
+                        Location = new Point(40, 2),
                         AutoSize = true
                     };
                     modulePanel.Controls.Add(nameLabel);
@@ -540,9 +540,9 @@ namespace Kalendarz1
                     var descLabel = new Label
                     {
                         Text = desc,
-                        Font = new Font("Segoe UI", 8),
+                        Font = new Font("Segoe UI", 7),
                         ForeColor = Colors.TextGray,
-                        Location = new Point(50, 20),
+                        Location = new Point(40, 17),
                         AutoSize = true
                     };
                     modulePanel.Controls.Add(descLabel);
@@ -551,8 +551,8 @@ namespace Kalendarz1
                     var accessCheckbox = new CheckBox
                     {
                         Checked = hasAccess,
-                        Location = new Point(panelWidth - 35, 7),
-                        Size = new Size(22, 22),
+                        Location = new Point(panelWidth - 30, 6),
+                        Size = new Size(20, 20),
                         Cursor = Cursors.Hand,
                         Tag = module.Key
                     };
@@ -564,9 +564,9 @@ namespace Kalendarz1
                     var accessLabel = new Label
                     {
                         Text = "Dostęp",
-                        Font = new Font("Segoe UI", 8),
+                        Font = new Font("Segoe UI", 7),
                         ForeColor = Colors.TextGray,
-                        Location = new Point(panelWidth - 85, 11),
+                        Location = new Point(panelWidth - 75, 9),
                         AutoSize = true
                     };
                     modulePanel.Controls.Add(accessLabel);

@@ -19,9 +19,7 @@ namespace Kalendarz1
         private string connectionHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private Dictionary<string, bool> userPermissions = new Dictionary<string, bool>();
         private bool isAdmin = false;
-        private Panel headerPanel;
         private Panel sidePanel;
-        private Label welcomeLabel;
         private TableLayoutPanel mainLayout;
 
         public MENU()
@@ -37,58 +35,6 @@ namespace Kalendarz1
         {
             this.WindowState = FormWindowState.Maximized;
             this.Text = "System Zarządzania - Piórkowscy";
-
-            headerPanel = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(45, 57, 69) };
-
-            // Logo obrazek
-            try
-            {
-                var logoPictureBox = new PictureBox
-                {
-                    Size = new Size(70, 70),
-                    Location = new Point(15, 10),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    BackColor = Color.Transparent
-                };
-
-                // Szukaj Logo.png w różnych lokalizacjach
-                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
-                if (!File.Exists(logoPath))
-                {
-                    logoPath = Path.Combine(Directory.GetCurrentDirectory(), "Logo.png");
-                }
-                if (File.Exists(logoPath))
-                {
-                    logoPictureBox.Image = Image.FromFile(logoPath);
-                    headerPanel.Controls.Add(logoPictureBox);
-                }
-
-                // Tekst firmy obok logo
-                Label logoLabel = new Label
-                {
-                    Text = "PIÓRKOWSCY",
-                    Font = new Font("Segoe UI", 20, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    AutoSize = true,
-                    Location = new Point(95, 18)
-                };
-                headerPanel.Controls.Add(logoLabel);
-
-                // Podtytuł
-                Label subtitleLabel = new Label
-                {
-                    Text = "System Zarządzania Produkcją",
-                    Font = new Font("Segoe UI", 10),
-                    ForeColor = Color.FromArgb(180, 180, 180),
-                    AutoSize = true,
-                    Location = new Point(97, 52)
-                };
-                headerPanel.Controls.Add(subtitleLabel);
-            }
-            catch { }
-
-            welcomeLabel = new Label { Text = $"👤 Zalogowany jako: {App.UserID}", Font = new Font("Segoe UI", 12), ForeColor = Color.White, AutoSize = true };
-            headerPanel.Controls.Add(welcomeLabel);
 
             sidePanel = new Panel { Dock = DockStyle.Left, Width = 220, BackColor = Color.FromArgb(35, 45, 55), Visible = false };
 
@@ -115,7 +61,6 @@ namespace Kalendarz1
 
             this.Controls.Add(mainLayout);
             this.Controls.Add(sidePanel);
-            this.Controls.Add(headerPanel);
         }
 
         private void LoadUserPermissions()
@@ -677,21 +622,7 @@ namespace Kalendarz1
             }
         }
 
-        private void MENU_Load(object sender, EventArgs e) => HandleResize();
-
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            HandleResize();
-        }
-
-        private void HandleResize()
-        {
-            if (welcomeLabel != null)
-            {
-                welcomeLabel.Location = new Point(this.Width - welcomeLabel.Width - 40, (headerPanel.Height - welcomeLabel.Height) / 2);
-            }
-        }
+        private void MENU_Load(object sender, EventArgs e) { }
     }
 
     public class MenuItemConfig
