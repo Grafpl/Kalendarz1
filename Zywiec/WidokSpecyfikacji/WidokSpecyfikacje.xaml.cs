@@ -1004,7 +1004,7 @@ namespace Kalendarz1
                     }
                 }
 
-                // Pobierz WSZYSTKIE rozliczenia dla tego hodowcy z aktualnie załadowanych danych
+                // Pobierz WSZYSTKIE rozliczenia dla tego hodowcy
                 var rozliczeniaHodowcy = specyfikacjeData
                     .Where(r => r.DostawcaGID == customerRealGID ||
                                zapytaniasql.PobierzInformacjeZBazyDanych<string>(r.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") == customerRealGID)
@@ -1012,29 +1012,31 @@ namespace Kalendarz1
 
                 if (rozliczeniaHodowcy.Count == 0)
                 {
-                    // Jeśli nie znaleziono po GID, użyj przekazanych ids
                     rozliczeniaHodowcy = specyfikacjeData.Where(r => ids.Contains(r.ID)).ToList();
                 }
 
-                // Oblicz podsumowanie ze WSZYSTKICH rozliczeń hodowcy
+                // Oblicz podsumowanie - POPRAWIONE OBLICZENIE ŚREDNIEJ WAGI
                 decimal sumaNetto = 0;
                 decimal sumaWartosc = 0;
-                int sumaSzt = 0;
+                int sumaSztWszystkie = 0;  // LUMEL + Padłe (wszystkie sztuki)
 
                 foreach (var row in rozliczeniaHodowcy)
                 {
                     sumaNetto += row.NettoUbojniValue;
-                    sumaSzt += row.SztukiWybijak > 0 ? row.SztukiWybijak : row.LUMEL;
+                    // Wszystkie sztuki = LUMEL + Padłe (tak jak w PDF)
+                    int sztWszystkie = row.LUMEL + row.Padle;
+                    sumaSztWszystkie += sztWszystkie;
                     sumaWartosc += row.Wartosc;
                 }
 
-                decimal sredniaWaga = sumaSzt > 0 ? sumaNetto / sumaSzt : 0;
+                // Średnia waga = Netto / (LUMEL + Padłe)
+                decimal sredniaWaga = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
                 DateTime dzienUbojowy = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
                 // Treść SMS - krótka wersja
                 string smsMessage = $"Piorkowscy: {sellerName}, " +
                                    $"{dzienUbojowy:dd.MM.yyyy}, " +
-                                   $"Szt:{sumaSzt}, Kg:{sumaNetto:N0}, " +
+                                   $"Szt:{sumaSztWszystkie}, Kg:{sumaNetto:N0}, " +
                                    $"Sr.waga:{sredniaWaga:N2}kg, " +
                                    $"Do wyplaty:{sumaWartosc:N0}zl";
 
@@ -1045,8 +1047,8 @@ namespace Kalendarz1
                     $"📱 Numer telefonu skopiowany do schowka:\n{phoneNumber}\n\n" +
                     $"📝 Treść SMS:\n{smsMessage}\n\n" +
                     $"📊 Szczegóły ({rozliczeniaHodowcy.Count} pozycji):\n" +
-                    $"   Sztuki: {sumaSzt}\n" +
-                    $"   Kilogramy: {sumaNetto:N0}\n" +
+                    $"   Sztuki (LUMEL+Padłe): {sumaSztWszystkie}\n" +
+                    $"   Kilogramy netto: {sumaNetto:N0}\n" +
                     $"   Średnia waga: {sredniaWaga:N2} kg\n" +
                     $"   Wartość: {sumaWartosc:N0} zł\n\n" +
                     $"Czy skopiować treść SMS do schowka?",
@@ -1079,6 +1081,195 @@ namespace Kalendarz1
             if (string.IsNullOrWhiteSpace(phone))
                 phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone3");
             return phone;
+        }
+
+        // === Przycisk EMAIL - wysyłka z PDF w załączniku ===
+        private void BtnSendEmail_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz z tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Pobierz wszystkie unikalne wiersze z zaznaczonych komórek
+            var selectedRows = dataGridView1.SelectedCells
+                .Cast<DataGridCellInfo>()
+                .Select(cell => cell.Item as SpecyfikacjaRow)
+                .Where(row => row != null)
+                .Distinct()
+                .ToList();
+
+            var ids = selectedRows.Select(x => x.ID).ToList();
+
+            if (ids.Count > 0)
+            {
+                SendEmailToFarmer(ids);
+            }
+        }
+
+        // === Email do hodowcy z PDF w załączniku ===
+        private void SendEmailToFarmer(List<int> ids)
+        {
+            try
+            {
+                string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+
+                // Pobierz email hodowcy
+                string email = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Email");
+
+                // Jeśli brak email - otwórz formularz edycji hodowcy
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    var confirmEdit = MessageBox.Show(
+                        $"Brak adresu email dla hodowcy: {sellerName}\n\nCzy chcesz teraz uzupełnić dane kontaktowe?",
+                        "Brak email",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (confirmEdit == MessageBoxResult.Yes)
+                    {
+                        var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
+                        hodowcaForm.ShowDialog();
+
+                        // Sprawdź ponownie
+                        email = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Email");
+                        if (string.IsNullOrWhiteSpace(email))
+                        {
+                            MessageBox.Show("Adres email nadal nie został uzupełniony.", "Brak email", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                        sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
+                // Pobierz WSZYSTKIE rozliczenia dla tego hodowcy
+                var rozliczeniaHodowcy = specyfikacjeData
+                    .Where(r => r.DostawcaGID == customerRealGID ||
+                               zapytaniasql.PobierzInformacjeZBazyDanych<string>(r.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") == customerRealGID)
+                    .ToList();
+
+                if (rozliczeniaHodowcy.Count == 0)
+                {
+                    rozliczeniaHodowcy = specyfikacjeData.Where(r => ids.Contains(r.ID)).ToList();
+                }
+
+                // Oblicz podsumowanie
+                decimal sumaNetto = 0;
+                decimal sumaWartosc = 0;
+                int sumaSztWszystkie = 0;
+
+                foreach (var row in rozliczeniaHodowcy)
+                {
+                    sumaNetto += row.NettoUbojniValue;
+                    int sztWszystkie = row.LUMEL + row.Padle;
+                    sumaSztWszystkie += sztWszystkie;
+                    sumaWartosc += row.Wartosc;
+                }
+
+                decimal sredniaWaga = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
+                DateTime dzienUbojowy = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Wygeneruj PDF
+                var allIds = rozliczeniaHodowcy.Select(r => r.ID).ToList();
+                GenerateShortPDFReport(allIds, showMessage: false);
+
+                // Ścieżka do PDF
+                string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
+                string pdfPath = Path.Combine(defaultPdfPath, strDzienUbojowy, $"{sellerName} {strDzienUbojowy} - SKROCONY.pdf");
+
+                // Temat emaila
+                string emailSubject = $"Rozliczenie - Piórkowscy - {sellerName} - {dzienUbojowy:dd.MM.yyyy}";
+
+                // Treść emaila
+                string emailBody = $"Szanowny Panie/Pani {sellerName},\n\n" +
+                                  $"W załączeniu przesyłamy rozliczenie z dnia {dzienUbojowy:dd MMMM yyyy}.\n\n" +
+                                  $"PODSUMOWANIE:\n" +
+                                  $"─────────────────────────────\n" +
+                                  $"  Sztuki:        {sumaSztWszystkie}\n" +
+                                  $"  Kilogramy:     {sumaNetto:N0} kg\n" +
+                                  $"  Średnia waga:  {sredniaWaga:N2} kg\n" +
+                                  $"  DO WYPŁATY:    {sumaWartosc:N0} zł\n" +
+                                  $"─────────────────────────────\n\n" +
+                                  $"W razie pytań prosimy o kontakt.\n\n" +
+                                  $"Z poważaniem,\n" +
+                                  $"Ubojnia Drobiu \"Piórkowscy\"\n" +
+                                  $"Koziołki 40, 95-061 Dmosin\n" +
+                                  $"Tel: +48 46 874 68 55";
+
+                // Pokaż okno z gotową treścią
+                var result = MessageBox.Show(
+                    $"📧 EMAIL DO: {email}\n\n" +
+                    $"📎 ZAŁĄCZNIK:\n{pdfPath}\n\n" +
+                    $"📝 TEMAT:\n{emailSubject}\n\n" +
+                    $"📄 TREŚĆ:\n{emailBody.Substring(0, Math.Min(300, emailBody.Length))}...\n\n" +
+                    $"─────────────────────────────\n" +
+                    $"Kliknij TAK aby:\n" +
+                    $"1. Skopiować email do schowka\n" +
+                    $"2. Otworzyć program pocztowy\n\n" +
+                    $"Kliknij NIE aby tylko skopiować treść.",
+                    "Email - Gotowy do wysłania",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Skopiuj email do schowka
+                    System.Windows.Clipboard.SetText(email);
+
+                    // Otwórz domyślnego klienta pocztowego
+                    try
+                    {
+                        string mailto = $"mailto:{Uri.EscapeDataString(email)}?subject={Uri.EscapeDataString(emailSubject)}&body={Uri.EscapeDataString(emailBody)}";
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = mailto,
+                            UseShellExecute = true
+                        });
+
+                        MessageBox.Show(
+                            $"✅ Email skopiowany do schowka: {email}\n\n" +
+                            $"📎 Załącz plik PDF:\n{pdfPath}\n\n" +
+                            $"Plik PDF znajduje się w powyższej lokalizacji.\n" +
+                            $"Dodaj go jako załącznik do wiadomości.",
+                            "Gotowe",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    catch
+                    {
+                        // Jeśli nie można otworzyć mailto, skopiuj wszystko do schowka
+                        System.Windows.Clipboard.SetText($"Do: {email}\nTemat: {emailSubject}\n\n{emailBody}");
+                        MessageBox.Show(
+                            $"Nie można otworzyć programu pocztowego.\n\n" +
+                            $"Treść email skopiowana do schowka.\n\n" +
+                            $"📎 Załącz plik PDF:\n{pdfPath}",
+                            "Skopiowano",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                }
+                else if (result == MessageBoxResult.No)
+                {
+                    // Skopiuj tylko treść do schowka
+                    System.Windows.Clipboard.SetText($"Do: {email}\nTemat: {emailSubject}\n\n{emailBody}");
+                    MessageBox.Show(
+                        $"✅ Treść email skopiowana do schowka.\n\n" +
+                        $"📎 PDF do załączenia:\n{pdfPath}",
+                        "Skopiowano",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // === NOWY: Skrócona wersja PDF (1 strona) z zaokrąglonymi rogami ===

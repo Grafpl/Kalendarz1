@@ -302,7 +302,13 @@
                             Click="BtnSendSms_Click"
                             Style="{StaticResource MainButtonStyle}"
                             Background="#16A085"
-                            ToolTip="Wyślij SMS z podsumowaniem do hodowcy"/>
+                            ToolTip="Kopiuj numer i treść SMS do schowka"/>
+                    <Button Content="📧 EMAIL"
+                            x:Name="btnSendEmail"
+                            Click="BtnSendEmail_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#E74C3C"
+                            ToolTip="Wyślij email z PDF w załączniku"/>
                     <Button Content="ZAPISZ WSZYSTKO"
                             x:Name="btnSaveAll"
                             Click="BtnSaveAll_Click"
