@@ -962,7 +962,7 @@ namespace Kalendarz1
             }
         }
 
-        // === NOWY: Wysyłanie SMS do hodowcy ===
+        // === SMS do hodowcy - kopiowanie do schowka ===
         private void SendSmsToFarmer(List<int> ids)
         {
             try
@@ -1004,46 +1004,67 @@ namespace Kalendarz1
                     }
                 }
 
-                // Oblicz podsumowanie
-                decimal sumaNetto = 0, sumaDoZaplaty = 0, sumaWartoscSMS = 0;
+                // Pobierz WSZYSTKIE rozliczenia dla tego hodowcy z aktualnie załadowanych danych
+                var rozliczeniaHodowcy = specyfikacjeData
+                    .Where(r => r.DostawcaGID == customerRealGID ||
+                               zapytaniasql.PobierzInformacjeZBazyDanych<string>(r.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") == customerRealGID)
+                    .ToList();
+
+                if (rozliczeniaHodowcy.Count == 0)
+                {
+                    // Jeśli nie znaleziono po GID, użyj przekazanych ids
+                    rozliczeniaHodowcy = specyfikacjeData.Where(r => ids.Contains(r.ID)).ToList();
+                }
+
+                // Oblicz podsumowanie ze WSZYSTKICH rozliczeń hodowcy
+                decimal sumaNetto = 0;
+                decimal sumaWartosc = 0;
                 int sumaSzt = 0;
 
-                foreach (int id in ids)
+                foreach (var row in rozliczeniaHodowcy)
                 {
-                    decimal wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
-                    int szt = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
-                    decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
-
-                    sumaNetto += wagaNetto;
-                    sumaSzt += szt;
-                    sumaDoZaplaty += wagaNetto; // uproszczone
-                    sumaWartoscSMS += wagaNetto * cena;
+                    sumaNetto += row.NettoUbojniValue;
+                    sumaSzt += row.SztukiWybijak > 0 ? row.SztukiWybijak : row.LUMEL;
+                    sumaWartosc += row.Wartosc;
                 }
 
                 decimal sredniaWaga = sumaSzt > 0 ? sumaNetto / sumaSzt : 0;
-                DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
+                DateTime dzienUbojowy = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
-                string smsMessage = $"Piorkowscy: {sellerName}\n" +
-                                   $"Data: {dzienUbojowy:dd.MM.yyyy}\n" +
-                                   $"Szt: {sumaSzt}, Kg: {sumaNetto:N0}\n" +
-                                   $"Sr.waga: {sredniaWaga:N2}kg\n" +
-                                   $"Do wyplaty: {sumaWartoscSMS:N0}zl";
+                // Treść SMS - krótka wersja
+                string smsMessage = $"Piorkowscy: {sellerName}, " +
+                                   $"{dzienUbojowy:dd.MM.yyyy}, " +
+                                   $"Szt:{sumaSzt}, Kg:{sumaNetto:N0}, " +
+                                   $"Sr.waga:{sredniaWaga:N2}kg, " +
+                                   $"Do wyplaty:{sumaWartosc:N0}zl";
+
+                // Skopiuj numer telefonu do schowka
+                System.Windows.Clipboard.SetText(phoneNumber);
 
                 var result = MessageBox.Show(
-                    $"Wyślać SMS na numer: {phoneNumber}?\n\nTreść:\n{smsMessage}",
-                    "Potwierdzenie SMS",
+                    $"📱 Numer telefonu skopiowany do schowka:\n{phoneNumber}\n\n" +
+                    $"📝 Treść SMS:\n{smsMessage}\n\n" +
+                    $"📊 Szczegóły ({rozliczeniaHodowcy.Count} pozycji):\n" +
+                    $"   Sztuki: {sumaSzt}\n" +
+                    $"   Kilogramy: {sumaNetto:N0}\n" +
+                    $"   Średnia waga: {sredniaWaga:N2} kg\n" +
+                    $"   Wartość: {sumaWartosc:N0} zł\n\n" +
+                    $"Czy skopiować treść SMS do schowka?",
+                    "SMS - Numer skopiowany",
                     MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    MessageBoxImage.Information);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // SmsSender.SendSms(phoneNumber, smsMessage);
-                    MessageBox.Show($"SMS został wysłany na numer {phoneNumber}!\n\n(Funkcja wymaga skonfigurowania Twilio)", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Skopiuj treść SMS do schowka
+                    System.Windows.Clipboard.SetText(smsMessage);
+                    MessageBox.Show("✅ Treść SMS skopiowana do schowka!\n\nMożesz teraz wkleić ją do SMS Desktop.",
+                        "Skopiowano", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd wysyłania SMS: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
