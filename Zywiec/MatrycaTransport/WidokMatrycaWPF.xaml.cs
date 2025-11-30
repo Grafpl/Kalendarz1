@@ -874,15 +874,13 @@ namespace Kalendarz1
                     return;
                 }
 
-                if (int.TryParse(idDostawcy, out int gid))
-                {
-                    var form = new HodowcaForm(gid);
-                    form.ShowDialog();
+                // HodowcaForm wymaga string idKontrahenta i string appUser
+                var form = new HodowcaForm(idDostawcy, Environment.UserName);
+                form.ShowDialog();
 
-                    // Po zamknięciu formularza odśwież dane
-                    LoadData();
-                    UpdateStatus($"Dane hodowcy zaktualizowane");
-                }
+                // Po zamknięciu formularza odśwież dane
+                LoadData();
+                UpdateStatus($"Dane hodowcy zaktualizowane");
             }
             catch (Exception ex)
             {
