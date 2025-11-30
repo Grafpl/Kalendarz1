@@ -164,7 +164,7 @@ namespace Kalendarz1
                     connection.Open();
                     string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
                                     LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
-                                    FullWeight, EmptyWeight, NettoWeight, Price, PriceTypeID, IncDeadConf, Loss
+                                    FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss
                                     FROM [LibraNet].[dbo].[FarmerCalc]
                                     WHERE CalcDate = @SelectedDate
                                     ORDER BY CarLP";
@@ -207,6 +207,7 @@ namespace Kalendarz1
                                 SztukiWybijak = ZapytaniaSQL.GetValueOrDefault<int>(row, "ProdQnt", 0),
                                 KilogramyWybijak = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "ProdWgt", 0),
                                 Cena = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Price", 0),
+                                Dodatek = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Addition", 0),
                                 TypCeny = zapytaniasql.ZnajdzNazweCenyPoID(
                                     ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", -1)),
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
@@ -488,6 +489,7 @@ namespace Kalendarz1
                 { "Szt.Wyb", "ProdQnt" },
                 { "KG Wyb", "ProdWgt" },
                 { "Cena", "Price" },
+                { "Dodatek", "Addition" },
                 { "Typ Ceny", "PriceTypeID" },
                 { "PiK", "IncDeadConf" },
                 { "Ubytek%", "Loss" }
@@ -511,6 +513,7 @@ namespace Kalendarz1
                 case "Szt.Wyb": return row.SztukiWybijak;
                 case "KG Wyb": return row.KilogramyWybijak;
                 case "Cena": return row.Cena;
+                case "Dodatek": return row.Dodatek;
                 case "Typ Ceny": return zapytaniasql.ZnajdzIdCeny(row.TypCeny ?? "");
                 case "PiK": return row.PiK;
                 case "Ubytek%": return row.Ubytek / 100; // Konwersja na wartość dla bazy
@@ -2080,6 +2083,7 @@ namespace Kalendarz1
         private int _sztukiWybijak;
         private decimal _kilogramyWybijak;
         private decimal _cena;
+        private decimal _dodatek;
         private string _typCeny;
         private bool _piK;
         private decimal _ubytek;
@@ -2217,6 +2221,12 @@ namespace Kalendarz1
             set { _cena = value; OnPropertyChanged(nameof(Cena)); RecalculateWartosc(); }
         }
 
+        public decimal Dodatek
+        {
+            get => _dodatek;
+            set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); RecalculateWartosc(); }
+        }
+
         public string TypCeny
         {
             get => _typCeny;
@@ -2242,8 +2252,9 @@ namespace Kalendarz1
         {
             get
             {
-                // Podstawowa wartość: Cena * NettoUbojni
-                decimal wartoscBazowa = Cena * NettoUbojniValue;
+                // Podstawowa wartość: (Cena + Dodatek) * NettoUbojni
+                decimal cenaZDodatkiem = Cena + Dodatek;
+                decimal wartoscBazowa = cenaZDodatkiem * NettoUbojniValue;
 
                 // Uwzględnienie ubytku
                 decimal ubytek = wartoscBazowa * (Ubytek / 100);

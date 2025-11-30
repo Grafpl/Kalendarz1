@@ -681,6 +681,21 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
+                    <!-- DODATEK -->
+                    <DataGridTextColumn Header="Dodatek" Binding="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
+                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleBlue}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Foreground" Value="#0D47A1"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
                     <!-- Typ Ceny - ComboBox -->
                     <DataGridTemplateColumn Header="Typ Ceny" Width="100" HeaderStyle="{StaticResource CenaHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
