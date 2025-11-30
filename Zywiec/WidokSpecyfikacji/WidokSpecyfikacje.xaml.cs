@@ -1590,6 +1590,83 @@ namespace Kalendarz1
 
                 doc.Add(partiesTable);
 
+                // === MINI TABELA ZAŁADUNKÓW I POGODY ===
+                if (ids.Count > 0)
+                {
+                    Paragraph zaladunkiTitle = new Paragraph("INFORMACJE O DOSTAWACH", new Font(polishFont, 9, Font.BOLD, new BaseColor(52, 73, 94)));
+                    zaladunkiTitle.SpacingAfter = 4f;
+                    doc.Add(zaladunkiTitle);
+
+                    PdfPTable zaladunkiTable = new PdfPTable(4);
+                    zaladunkiTable.WidthPercentage = 100;
+                    zaladunkiTable.SetWidths(new float[] { 0.5f, 1.5f, 1.5f, 2f });
+                    zaladunkiTable.SpacingAfter = 10f;
+
+                    // Nagłówek tabeli
+                    BaseColor headerBg = new BaseColor(52, 73, 94);
+                    Font headerFont = new Font(polishFont, 8, Font.BOLD, BaseColor.WHITE);
+
+                    PdfPCell hLp = new PdfPCell(new Phrase("Lp", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hMiejsc = new PdfPCell(new Phrase("Miejscowość", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda przy załadunku", headerFont)) { BackgroundColor = headerBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    zaladunkiTable.AddCell(hLp);
+                    zaladunkiTable.AddCell(hZal);
+                    zaladunkiTable.AddCell(hMiejsc);
+                    zaladunkiTable.AddCell(hPogoda);
+
+                    // Wiersze dla każdej dostawy
+                    Font cellFont = new Font(polishFont, 8, Font.NORMAL);
+                    BaseColor altBg = new BaseColor(245, 247, 250);
+
+                    for (int idx = 0; idx < ids.Count; idx++)
+                    {
+                        int deliveryId = ids[idx];
+                        BaseColor rowBg = (idx % 2 == 0) ? BaseColor.WHITE : altBg;
+
+                        // Pobierz datę załadunku
+                        DateTime zaladunekTime = default;
+                        try
+                        {
+                            zaladunekTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
+                        }
+                        catch { }
+
+                        // Pobierz miejscowość hodowcy dla tej dostawy
+                        string deliveryCustomerGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+                        string deliveryCity = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(deliveryCustomerGID, "City") ?? "";
+
+                        // Pobierz pogodę dla daty załadunku
+                        string pogodaStr = "-";
+                        if (zaladunekTime != default)
+                        {
+                            try
+                            {
+                                WeatherInfo pogodaZal = WeatherService.GetWeather(zaladunekTime);
+                                if (pogodaZal != null)
+                                    pogodaStr = $"{pogodaZal.Temperature:0.0}°C, {pogodaZal.Description}";
+                            }
+                            catch { }
+                        }
+
+                        // Formatuj datę załadunku
+                        string zaladunekStr = zaladunekTime != default ? zaladunekTime.ToString("dd.MM.yyyy HH:mm") : "-";
+
+                        // Dodaj komórki
+                        PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                        PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                        PdfPCell cMiejsc = new PdfPCell(new Phrase(deliveryCity, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
+                        PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, cellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
+
+                        zaladunkiTable.AddCell(cLp);
+                        zaladunkiTable.AddCell(cZal);
+                        zaladunkiTable.AddCell(cMiejsc);
+                        zaladunkiTable.AddCell(cPogoda);
+                    }
+
+                    doc.Add(zaladunkiTable);
+                }
+
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
                 PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
