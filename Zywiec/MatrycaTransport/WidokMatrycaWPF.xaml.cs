@@ -697,9 +697,12 @@ namespace Kalendarz1
 
             DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
+            // Format daty: "z 27 na 28 listopada (piątek)"
+            string formattedDate = FormatDateForSms(selectedDate);
+
             // Buduj SMS zbiorczy
             var smsLines = new List<string>();
-            smsLines.Add($"Piorkowscy {selectedDate:dd.MM}");
+            smsLines.Add($"Piorkowscy {formattedDate}");
 
             foreach (var row in rowsForFarmer)
             {
@@ -781,13 +784,14 @@ namespace Kalendarz1
             }
 
             DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string formattedDate = FormatDateForSms(selectedDate);
             string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
             string ciagnikNr = selectedMatrycaRow.CarID ?? "";
             string naczepaNr = selectedMatrycaRow.TrailerID ?? "";
             decimal sredniaWaga = selectedMatrycaRow.WagaDek;
 
             // Generuj treść SMS
-            string smsContent = $"Piorkowscy {selectedDate:dd.MM}: Załadunek godz.{zaladunekTime}";
+            string smsContent = $"Piorkowscy {formattedDate}: Załadunek godz.{zaladunekTime}";
             if (!string.IsNullOrEmpty(ciagnikNr))
                 smsContent += $" ciągnik:{ciagnikNr}";
             if (!string.IsNullOrEmpty(naczepaNr))
@@ -1069,6 +1073,27 @@ namespace Kalendarz1
         private void UpdateStatus(string message)
         {
             lblStatus.Text = message;
+        }
+
+        /// <summary>
+        /// Formatuje datę dla SMS: "z 27 na 28 listopada (piątek)"
+        /// </summary>
+        private string FormatDateForSms(DateTime date)
+        {
+            var culture = new CultureInfo("pl-PL");
+
+            // Nazwy miesięcy w dopełniaczu
+            string[] miesiace = { "", "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+                                  "lipca", "sierpnia", "września", "października", "listopada", "grudnia" };
+
+            DateTime prevDay = date.AddDays(-1);
+            string dayOfWeek = date.ToString("dddd", culture);
+            // Pierwsza litera wielka
+            dayOfWeek = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
+
+            string miesiac = miesiace[date.Month];
+
+            return $"z {prevDay.Day} na {date.Day} {miesiac} ({dayOfWeek})";
         }
 
         #endregion
