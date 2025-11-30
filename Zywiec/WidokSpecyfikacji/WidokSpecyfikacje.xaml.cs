@@ -1464,14 +1464,14 @@ namespace Kalendarz1
                     if (foundLogoPath != null)
                     {
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(220f, 90f); // Duże logo
+                        logo.ScaleToFit(250f, 100f); // Większe logo
                         logo.Alignment = Element.ALIGN_CENTER;
-                        logo.SpacingAfter = 2f;
+                        logo.SpacingAfter = 3f;
                         doc.Add(logo);
                     }
                     else
                     {
-                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 24, Font.BOLD, greenColor));
+                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 26, Font.BOLD, greenColor));
                         firmName.Alignment = Element.ALIGN_CENTER;
                         doc.Add(firmName);
                         Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 10, Font.NORMAL, grayColor));
@@ -1481,17 +1481,25 @@ namespace Kalendarz1
                 }
                 catch
                 {
-                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 24, Font.BOLD, greenColor));
+                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 26, Font.BOLD, greenColor));
                     firmName.Alignment = Element.ALIGN_CENTER;
                     doc.Add(firmName);
                 }
 
-                // Tytuł pod logo - mały, elegancki
-                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 11, Font.BOLD, new BaseColor(192, 57, 43)));
+                // Tytuł pod logo - mały, elegancki, przed zieloną kreską
+                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 9, Font.NORMAL, grayColor));
                 mainTitle.Alignment = Element.ALIGN_CENTER;
-                mainTitle.SpacingBefore = 2f;
-                mainTitle.SpacingAfter = 6f;
+                mainTitle.SpacingBefore = 0f;
+                mainTitle.SpacingAfter = 4f;
                 doc.Add(mainTitle);
+
+                // === ZIELONA LINIA POD TYTUŁEM ===
+                PdfPTable titleLine = new PdfPTable(1);
+                titleLine.WidthPercentage = 60;
+                PdfPCell titleLineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0 };
+                titleLine.AddCell(titleLineCell);
+                titleLine.SpacingAfter = 8f;
+                doc.Add(titleLine);
 
                 // === POBIERZ GODZINY ZAŁADUNKU I POGODĘ ===
                 List<DateTime> arrivalTimesFull = new List<DateTime>();
@@ -1548,14 +1556,6 @@ namespace Kalendarz1
 
                 doc.Add(headerTable);
 
-                // === LINIA ROZDZIELAJĄCA ===
-                PdfPTable lineTable = new PdfPTable(1);
-                lineTable.WidthPercentage = 100;
-                PdfPCell lineCell = new PdfPCell { Border = PdfPCell.NO_BORDER, BorderColorBottom = greenColor, BorderWidthBottom = 2f, Padding = 0, PaddingBottom = 3f };
-                lineTable.AddCell(lineCell);
-                lineTable.SpacingAfter = 10f;
-                doc.Add(lineTable);
-
                 // === SEKCJA STRON (NABYWCA / SPRZEDAJĄCY) ===
                 PdfPTable partiesTable = new PdfPTable(2);
                 partiesTable.WidthPercentage = 100;
@@ -1582,10 +1582,11 @@ namespace Kalendarz1
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
                 PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = new BaseColor(255, 253, 248) };
-                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca) - Waga loco", new Font(polishFont, 10, Font.BOLD, orangeColor)));
+                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
+                sellerCell.AddElement(new Paragraph("▸ Waga loco Hodowca", new Font(polishFont, 8, Font.ITALIC, new BaseColor(230, 126, 34))));
                 partiesTable.AddCell(sellerCell);
 
                 doc.Add(partiesTable);
@@ -1597,26 +1598,30 @@ namespace Kalendarz1
                     zaladunkiTitle.SpacingAfter = 4f;
                     doc.Add(zaladunkiTitle);
 
-                    PdfPTable zaladunkiTable = new PdfPTable(6);
+                    PdfPTable zaladunkiTable = new PdfPTable(8);
                     zaladunkiTable.WidthPercentage = 100;
-                    zaladunkiTable.SetWidths(new float[] { 0.4f, 1.2f, 1.2f, 1.2f, 1f, 1.8f });
+                    zaladunkiTable.SetWidths(new float[] { 0.35f, 1f, 1f, 1f, 1.2f, 1f, 1f, 1.6f });
                     zaladunkiTable.SpacingAfter = 10f;
 
                     // Nagłówek tabeli
                     BaseColor zHeaderBg = new BaseColor(52, 73, 94);
                     Font zHeaderFont = new Font(polishFont, 7, Font.BOLD, BaseColor.WHITE);
 
-                    PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hZalKoniec = new PdfPCell(new Phrase("Koniec zał.", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hWyjazd = new PdfPCell(new Phrase("Wyjazd", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hWaga = new PdfPCell(new Phrase("Waga loco", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
-                    PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 4 };
+                    PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hZal = new PdfPCell(new Phrase("Załadunek", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hZalKoniec = new PdfPCell(new Phrase("Koniec", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hWyjazd = new PdfPCell(new Phrase("Wyjazd", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hKierowca = new PdfPCell(new Phrase("Kierowca", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hCiagnik = new PdfPCell(new Phrase("Ciągnik", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hNaczepa = new PdfPCell(new Phrase("Naczepa", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
+                    PdfPCell hPogoda = new PdfPCell(new Phrase("Pogoda", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     zaladunkiTable.AddCell(hLp);
                     zaladunkiTable.AddCell(hZal);
                     zaladunkiTable.AddCell(hZalKoniec);
                     zaladunkiTable.AddCell(hWyjazd);
-                    zaladunkiTable.AddCell(hWaga);
+                    zaladunkiTable.AddCell(hKierowca);
+                    zaladunkiTable.AddCell(hCiagnik);
+                    zaladunkiTable.AddCell(hNaczepa);
                     zaladunkiTable.AddCell(hPogoda);
 
                     // Wiersze dla każdej dostawy
@@ -1640,11 +1645,17 @@ namespace Kalendarz1
                         }
                         catch { }
 
-                        // Pobierz wagę loco (u dostawcy/hodowcy)
-                        decimal wagaLoco = 0;
+                        // Pobierz dane pojazdu i kierowcy
+                        string ciagnikNr = "";
+                        string naczepaNr = "";
+                        string kierowcaNazwa = "";
                         try
                         {
-                            wagaLoco = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                            ciagnikNr = zapytaniasql.PobierzInformacjeZBazyDanych<string>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "CarID") ?? "";
+                            naczepaNr = zapytaniasql.PobierzInformacjeZBazyDanych<string>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "TrailerID") ?? "";
+                            int driverGID = zapytaniasql.PobierzInformacjeZBazyDanych<int>(deliveryId, "[LibraNet].[dbo].[FarmerCalc]", "DriverGID");
+                            if (driverGID > 0)
+                                kierowcaNazwa = zapytaniasql.ZnajdzNazweKierowcy(driverGID) ?? $"#{driverGID}";
                         }
                         catch { }
 
@@ -1661,25 +1672,28 @@ namespace Kalendarz1
                             catch { }
                         }
 
-                        // Formatuj daty
-                        string zaladunekStr = (zaladunekTime != default && zaladunekTime.Year > 2000) ? zaladunekTime.ToString("dd.MM HH:mm") : "-";
-                        string zaladunekKoniecStr = (zaladunekKoniecTime != default && zaladunekKoniecTime.Year > 2000) ? zaladunekKoniecTime.ToString("dd.MM HH:mm") : "-";
-                        string wyjazdStr = (wyjazdHodowcaTime != default && wyjazdHodowcaTime.Year > 2000) ? wyjazdHodowcaTime.ToString("dd.MM HH:mm") : "-";
-                        string wagaLocoStr = wagaLoco > 0 ? wagaLoco.ToString("N0") : "-";
+                        // Formatuj daty (tylko godzina jeśli ten sam dzień)
+                        string zaladunekStr = (zaladunekTime != default && zaladunekTime.Year > 2000) ? zaladunekTime.ToString("HH:mm") : "-";
+                        string zaladunekKoniecStr = (zaladunekKoniecTime != default && zaladunekKoniecTime.Year > 2000) ? zaladunekKoniecTime.ToString("HH:mm") : "-";
+                        string wyjazdStr = (wyjazdHodowcaTime != default && wyjazdHodowcaTime.Year > 2000) ? wyjazdHodowcaTime.ToString("HH:mm") : "-";
 
                         // Dodaj komórki
-                        PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cZalKoniec = new PdfPCell(new Phrase(zaladunekKoniecStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cWyjazd = new PdfPCell(new Phrase(wyjazdStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
-                        PdfPCell cWaga = new PdfPCell(new Phrase(wagaLocoStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingRight = 5, Padding = 3 };
-                        PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 5, Padding = 3 };
+                        PdfPCell cLp = new PdfPCell(new Phrase((idx + 1).ToString(), zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cZal = new PdfPCell(new Phrase(zaladunekStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cZalKoniec = new PdfPCell(new Phrase(zaladunekKoniecStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cWyjazd = new PdfPCell(new Phrase(wyjazdStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cKierowca = new PdfPCell(new Phrase(kierowcaNazwa, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 3, Padding = 2 };
+                        PdfPCell cCiagnik = new PdfPCell(new Phrase(ciagnikNr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cNaczepa = new PdfPCell(new Phrase(naczepaNr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 2 };
+                        PdfPCell cPogoda = new PdfPCell(new Phrase(pogodaStr, zCellFont)) { BackgroundColor = rowBg, HorizontalAlignment = Element.ALIGN_LEFT, PaddingLeft = 3, Padding = 2 };
 
                         zaladunkiTable.AddCell(cLp);
                         zaladunkiTable.AddCell(cZal);
                         zaladunkiTable.AddCell(cZalKoniec);
                         zaladunkiTable.AddCell(cWyjazd);
-                        zaladunkiTable.AddCell(cWaga);
+                        zaladunkiTable.AddCell(cKierowca);
+                        zaladunkiTable.AddCell(cCiagnik);
+                        zaladunkiTable.AddCell(cNaczepa);
                         zaladunkiTable.AddCell(cPogoda);
                     }
 
