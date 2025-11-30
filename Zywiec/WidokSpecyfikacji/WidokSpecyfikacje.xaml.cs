@@ -1466,18 +1466,18 @@ namespace Kalendarz1
                         // === NAGŁÓWEK: LOGO PO LEWEJ, TYTUŁ PO PRAWEJ ===
                         PdfPTable headerLogoTable = new PdfPTable(2);
                         headerLogoTable.WidthPercentage = 100;
-                        headerLogoTable.SetWidths(new float[] { 1f, 1.5f });
+                        headerLogoTable.SetWidths(new float[] { 1f, 1.8f });
                         headerLogoTable.SpacingAfter = 10f;
 
-                        // Logo (lewa strona) - większe logo
+                        // Logo (lewa strona)
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(280f, 120f);
-                        PdfPCell logoCell = new PdfPCell(logo) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 10f };
+                        logo.ScaleToFit(200f, 75f);
+                        PdfPCell logoCell = new PdfPCell(logo) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE, PaddingRight = 5f };
                         headerLogoTable.AddCell(logoCell);
 
                         // Tytuł i informacje (prawa strona)
                         PdfPCell titleCell = new PdfPCell { Border = PdfPCell.NO_BORDER, VerticalAlignment = Element.ALIGN_MIDDLE };
-                        titleCell.AddElement(new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 16, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_LEFT });
+                        titleCell.AddElement(new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 14, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_LEFT });
                         titleCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", new Font(polishFont, 10, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
                         titleCell.AddElement(new Paragraph($"Dokument nr: {strDzienUbojowy}/{ids.Count}  |  Ilość dostaw: {ids.Count}", new Font(polishFont, 9, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
                         headerLogoTable.AddCell(titleCell);
@@ -1782,7 +1782,7 @@ namespace Kalendarz1
 
                 // === WIERSZ SUMY ===
                 BaseColor sumRowColor = new BaseColor(220, 237, 200);
-                Font sumFont = new Font(polishFont, 8, Font.BOLD);
+                Font sumFont = new Font(polishFont, 7, Font.BOLD);
 
                 // Oblicz średnią cenę
                 decimal avgCenaSum = sumaKG > 0 ? sumaWartosc / sumaKG : 0;
