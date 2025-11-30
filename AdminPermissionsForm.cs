@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
@@ -14,31 +15,44 @@ namespace Kalendarz1
         private string handelConnectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         private DataGridView usersGrid;
-        private DataGridView permissionsGrid;
-        private ComboBox userComboBox;
-        private ComboBox categoryFilterCombo;
+        private Panel topToolbar;
+        private Panel leftPanel;
+        private Panel rightPanel;
+        private Panel permissionsPanel;
         private TextBox searchBox;
-        private Button saveButton, refreshButton, addUserButton, deleteUserButton;
-        private Button manageHandlowcyButton;
-        private Panel topPanel, leftPanel, rightPanel, bottomPanel;
-        private Label titleLabel, usersCountLabel;
+        private Label usersCountLabel;
+        private Label selectedUserLabel;
         private string selectedUserId;
-        private FlowLayoutPanel categoryCheckboxesPanel;
-        private ProgressBar loadingBar;
+        private PictureBox logoPictureBox;
+        private FlowLayoutPanel permissionsFlowPanel;
+        private Dictionary<string, List<CheckBox>> categoryCheckboxes = new Dictionary<string, List<CheckBox>>();
+        private Dictionary<string, CheckBox> categoryHeaders = new Dictionary<string, CheckBox>();
+
+        // Kolory działów - zsynchronizowane z Menu.cs
+        private static class DepartmentColors
+        {
+            public static readonly Color Zakupy = Color.FromArgb(46, 125, 50);      // Zielony
+            public static readonly Color Produkcja = Color.FromArgb(230, 81, 0);    // Pomarańczowy
+            public static readonly Color Sprzedaz = Color.FromArgb(25, 118, 210);   // Niebieski
+            public static readonly Color Planowanie = Color.FromArgb(74, 20, 140);  // Fioletowy
+            public static readonly Color Opakowania = Color.FromArgb(0, 96, 100);   // Turkusowy
+            public static readonly Color Finanse = Color.FromArgb(69, 90, 100);     // Szaroniebieski
+            public static readonly Color Administracja = Color.FromArgb(183, 28, 28); // Czerwony
+        }
 
         private static class Colors
         {
-            public static readonly Color Primary = ColorTranslator.FromHtml("#5C8A3A");
-            public static readonly Color PrimaryDark = ColorTranslator.FromHtml("#4B732F");
-            public static readonly Color PrimaryLight = ColorTranslator.FromHtml("#E0F0D6");
-            public static readonly Color TextDark = ColorTranslator.FromHtml("#2C3E50");
-            public static readonly Color TextGray = ColorTranslator.FromHtml("#7F8C8D");
-            public static readonly Color Border = ColorTranslator.FromHtml("#BDC3C7");
-            public static readonly Color Background = ColorTranslator.FromHtml("#ECF0F1");
-            public static readonly Color Success = ColorTranslator.FromHtml("#27AE60");
-            public static readonly Color Danger = ColorTranslator.FromHtml("#E74C3C");
-            public static readonly Color Warning = ColorTranslator.FromHtml("#F39C12");
-            public static readonly Color Info = ColorTranslator.FromHtml("#3498DB");
+            public static readonly Color Primary = Color.FromArgb(45, 57, 69);
+            public static readonly Color PrimaryLight = Color.FromArgb(236, 239, 241);
+            public static readonly Color TextDark = Color.FromArgb(44, 62, 80);
+            public static readonly Color TextGray = Color.FromArgb(127, 140, 141);
+            public static readonly Color Border = Color.FromArgb(189, 195, 199);
+            public static readonly Color Background = Color.FromArgb(245, 247, 249);
+            public static readonly Color Success = Color.FromArgb(39, 174, 96);
+            public static readonly Color Danger = Color.FromArgb(231, 76, 60);
+            public static readonly Color Warning = Color.FromArgb(243, 156, 18);
+            public static readonly Color RowAlt = Color.FromArgb(250, 251, 252);
+            public static readonly Color RowHover = Color.FromArgb(232, 245, 233);
         }
 
         public AdminPermissionsForm()
@@ -52,267 +66,202 @@ namespace Kalendarz1
         private void InitializeComponent()
         {
             this.Text = "Panel Administracyjny - Zarządzanie Uprawnieniami";
-            this.Size = new Size(1600, 900);
+            this.Size = new Size(1700, 950);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = Colors.Background;
-            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 20, 20));
+            this.MinimumSize = new Size(1400, 800);
         }
-
-        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
         private void InitializeCustomComponents()
         {
-            // TOP PANEL
-            topPanel = new Panel
+            // ═══════════════════════════════════════════════════════════════════════════
+            // TOP TOOLBAR - jak w screenie
+            // ═══════════════════════════════════════════════════════════════════════════
+            topToolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 90,
-                BackColor = Colors.Primary
+                Height = 50,
+                BackColor = Color.FromArgb(250, 250, 250),
+                BorderStyle = BorderStyle.None
+            };
+            topToolbar.Paint += (s, e) => {
+                e.Graphics.DrawLine(new Pen(Colors.Border), 0, topToolbar.Height - 1, topToolbar.Width, topToolbar.Height - 1);
             };
 
-            titleLabel = new Label
-            {
-                Text = "⚙️ PANEL ADMINISTRACYJNY",
-                Font = new Font("Segoe UI", 22, FontStyle.Bold),
-                ForeColor = Color.White,
-                AutoSize = true,
-                Location = new Point(35, 20)
-            };
-            topPanel.Controls.Add(titleLabel);
+            int btnX = 15;
+            var saveBtn = CreateToolbarButton("💾 Zapisz", Colors.Success, ref btnX);
+            saveBtn.Click += SaveButton_Click;
+            topToolbar.Controls.Add(saveBtn);
 
-            var subtitleLabel = new Label
-            {
-                Text = "Zarządzanie użytkownikami, uprawnieniami i przypisanymi handlowcami",
-                Font = new Font("Segoe UI", 11),
-                ForeColor = Colors.PrimaryLight,
-                AutoSize = true,
-                Location = new Point(38, 55)
-            };
-            topPanel.Controls.Add(subtitleLabel);
+            var cancelBtn = CreateToolbarButton("❌ Anuluj", Colors.TextGray, ref btnX);
+            cancelBtn.Click += (s, e) => this.Close();
+            topToolbar.Controls.Add(cancelBtn);
 
-            var closeButton = new Button
+            btnX += 20; // Separator
+
+            var selectAllBtn = CreateToolbarButton("✓ Wszystko", Color.FromArgb(46, 125, 50), ref btnX);
+            selectAllBtn.Click += (s, e) => SetAllPermissions(true);
+            topToolbar.Controls.Add(selectAllBtn);
+
+            var selectNoneBtn = CreateToolbarButton("✗ Nic", Colors.Danger, ref btnX);
+            selectNoneBtn.Click += (s, e) => SetAllPermissions(false);
+            topToolbar.Controls.Add(selectNoneBtn);
+
+            var invertBtn = CreateToolbarButton("🔄 Odwróć", Colors.Warning, ref btnX);
+            invertBtn.Click += InvertPermissions_Click;
+            topToolbar.Controls.Add(invertBtn);
+
+            btnX += 20;
+
+            var addUserBtn = CreateToolbarButton("➕ Nowy użytkownik", Color.FromArgb(25, 118, 210), ref btnX);
+            addUserBtn.Click += AddUserButton_Click;
+            topToolbar.Controls.Add(addUserBtn);
+
+            var deleteUserBtn = CreateToolbarButton("🗑️ Usuń", Colors.Danger, ref btnX);
+            deleteUserBtn.Click += DeleteUserButton_Click;
+            topToolbar.Controls.Add(deleteUserBtn);
+
+            btnX += 20;
+
+            var handlowcyBtn = CreateToolbarButton("👔 Handlowcy", Color.FromArgb(156, 39, 176), ref btnX);
+            handlowcyBtn.Click += ManageHandlowcyButton_Click;
+            topToolbar.Controls.Add(handlowcyBtn);
+
+            var contactBtn = CreateToolbarButton("📞 Kontakt", Color.FromArgb(0, 172, 193), ref btnX);
+            contactBtn.Click += EditContactButton_Click;
+            topToolbar.Controls.Add(contactBtn);
+
+            // Close button na prawo
+            var closeBtn = new Button
             {
                 Text = "✕",
-                Size = new Size(40, 40),
-                Location = new Point(this.Width - 60, 25),
+                Size = new Size(40, 35),
+                Location = new Point(this.Width - 60, 7),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 BackColor = Color.Transparent,
-                ForeColor = Color.White,
+                ForeColor = Colors.TextDark,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 16),
+                Font = new Font("Segoe UI", 14),
                 Cursor = Cursors.Hand
             };
-            closeButton.FlatAppearance.BorderSize = 0;
-            closeButton.FlatAppearance.MouseOverBackColor = Colors.Danger;
-            closeButton.Click += (s, e) => this.Close();
-            topPanel.Controls.Add(closeButton);
+            closeBtn.FlatAppearance.BorderSize = 0;
+            closeBtn.FlatAppearance.MouseOverBackColor = Colors.Danger;
+            closeBtn.FlatAppearance.MouseOverBackColor = Colors.Danger;
+            closeBtn.MouseEnter += (s, e) => closeBtn.ForeColor = Color.White;
+            closeBtn.MouseLeave += (s, e) => closeBtn.ForeColor = Colors.TextDark;
+            closeBtn.Click += (s, e) => this.Close();
+            topToolbar.Controls.Add(closeBtn);
 
-            // LEFT PANEL
+            // ═══════════════════════════════════════════════════════════════════════════
+            // LEFT PANEL - Logo + Lista użytkowników
+            // ═══════════════════════════════════════════════════════════════════════════
             leftPanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 450,
+                Width = 380,
                 BackColor = Color.White,
-                Padding = new Padding(25, 20, 25, 20)
+                Padding = new Padding(0)
+            };
+            leftPanel.Paint += (s, e) => {
+                e.Graphics.DrawLine(new Pen(Colors.Border), leftPanel.Width - 1, 0, leftPanel.Width - 1, leftPanel.Height);
+            };
+
+            // Logo
+            var logoPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 120,
+                BackColor = Colors.Primary
+            };
+
+            logoPictureBox = new PictureBox
+            {
+                Size = new Size(100, 100),
+                Location = new Point(15, 10),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent
+            };
+
+            // Próba załadowania logo
+            try
+            {
+                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
+                if (File.Exists(logoPath))
+                {
+                    logoPictureBox.Image = Image.FromFile(logoPath);
+                }
+                else
+                {
+                    // Szukaj w katalogu projektu
+                    string projectLogo = Path.Combine(Directory.GetCurrentDirectory(), "Logo.png");
+                    if (File.Exists(projectLogo))
+                    {
+                        logoPictureBox.Image = Image.FromFile(projectLogo);
+                    }
+                }
+            }
+            catch { }
+
+            logoPanel.Controls.Add(logoPictureBox);
+
+            var titleLabel = new Label
+            {
+                Text = "PIÓRKOWSCY",
+                Font = new Font("Segoe UI", 18, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(125, 25),
+                AutoSize = true
+            };
+            logoPanel.Controls.Add(titleLabel);
+
+            var subtitleLabel = new Label
+            {
+                Text = "Panel Administracyjny",
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(127, 55),
+                AutoSize = true
+            };
+            logoPanel.Controls.Add(subtitleLabel);
+
+            leftPanel.Controls.Add(logoPanel);
+
+            // Panel wyszukiwania
+            var searchPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = Color.White,
+                Padding = new Padding(15, 10, 15, 5)
             };
 
             var usersLabel = new Label
             {
                 Text = "👥 UŻYTKOWNICY SYSTEMU",
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Colors.TextDark,
-                Location = new Point(25, 20),
+                Location = new Point(15, 8),
                 AutoSize = true
             };
-            leftPanel.Controls.Add(usersLabel);
-
-            usersCountLabel = new Label
-            {
-                Text = "Ładowanie...",
-                Font = new Font("Segoe UI", 9),
-                ForeColor = Colors.TextGray,
-                Location = new Point(28, 48),
-                AutoSize = true
-            };
-            leftPanel.Controls.Add(usersCountLabel);
+            searchPanel.Controls.Add(usersLabel);
 
             searchBox = new TextBox
             {
-                Location = new Point(25, 75),
-                Size = new Size(400, 35),
-                Font = new Font("Segoe UI", 12),
-                PlaceholderText = "🔍 Szukaj użytkownika (ID lub nazwa)...",
+                Location = new Point(15, 35),
+                Size = new Size(345, 30),
+                Font = new Font("Segoe UI", 11),
+                PlaceholderText = "🔍 Szukaj użytkownika...",
                 BorderStyle = BorderStyle.FixedSingle
             };
             searchBox.TextChanged += SearchBox_TextChanged;
-            leftPanel.Controls.Add(searchBox);
+            searchPanel.Controls.Add(searchBox);
 
-            usersGrid = CreateStyledGrid(new Point(25, 120), new Size(400, 400));
-            usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
-            usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
-            leftPanel.Controls.Add(usersGrid);
+            leftPanel.Controls.Add(searchPanel);
 
-            var buttonY = 530;
-            addUserButton = CreateStyledButton("➕ Nowy użytkownik", Colors.Success,
-                new Point(25, buttonY), new Size(195, 48));
-            addUserButton.Click += AddUserButton_Click;
-            leftPanel.Controls.Add(addUserButton);
-
-            deleteUserButton = CreateStyledButton("🗑️ Usuń użytkownika", Colors.Danger,
-                new Point(230, buttonY), new Size(195, 48));
-            deleteUserButton.Click += DeleteUserButton_Click;
-            leftPanel.Controls.Add(deleteUserButton);
-
-            manageHandlowcyButton = CreateStyledButton("👔 Zarządzaj handlowcami", ColorTranslator.FromHtml("#9B59B6"),
-    new Point(25, 585), new Size(195, 48));
-            manageHandlowcyButton.Click += ManageHandlowcyButton_Click;
-            leftPanel.Controls.Add(manageHandlowcyButton);
-
-            var editContactButton = CreateStyledButton("📞 Dane kontaktowe", ColorTranslator.FromHtml("#3498DB"),
-                new Point(230, 585), new Size(195, 48));
-            editContactButton.Click += EditContactButton_Click;
-            leftPanel.Controls.Add(editContactButton);
-
-            loadingBar = new ProgressBar
-            {
-                Location = new Point(25, 638),
-                Size = new Size(400, 6),
-                Style = ProgressBarStyle.Marquee,
-                MarqueeAnimationSpeed = 30,
-                Visible = false
-            };
-            leftPanel.Controls.Add(loadingBar);
-
-            // RIGHT PANEL
-            rightPanel = new Panel
+            // Grid użytkowników
+            usersGrid = new DataGridView
             {
                 Dock = DockStyle.Fill,
-                BackColor = Colors.Background,
-                Padding = new Padding(25, 20, 25, 20)
-            };
-
-            var permissionsLabel = new Label
-            {
-                Text = "🔐 UPRAWNIENIA UŻYTKOWNIKA",
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
-                ForeColor = Colors.TextDark,
-                Location = new Point(25, 20),
-                AutoSize = true
-            };
-            rightPanel.Controls.Add(permissionsLabel);
-
-            userComboBox = new ComboBox
-            {
-                Location = new Point(25, 55),
-                Size = new Size(350, 35),
-                Font = new Font("Segoe UI", 11),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Enabled = false,
-                FlatStyle = FlatStyle.Flat
-            };
-            rightPanel.Controls.Add(userComboBox);
-
-            // Filtr kategorii
-            var filterLabel = new Label
-            {
-                Text = "Filtruj:",
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Colors.TextDark,
-                Location = new Point(390, 58),
-                AutoSize = true
-            };
-            rightPanel.Controls.Add(filterLabel);
-
-            categoryFilterCombo = new ComboBox
-            {
-                Location = new Point(450, 55),
-                Size = new Size(200, 35),
-                Font = new Font("Segoe UI", 11),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat
-            };
-            categoryFilterCombo.Items.AddRange(new object[] { "Wszystkie kategorie", "Zaopatrzenie i Zakupy", "Produkcja i Magazyn", "Sprzedaż i CRM", "Opakowania i Transport", "Finanse i Zarządzanie", "Reklamacje" });
-            categoryFilterCombo.SelectedIndex = 0;
-            categoryFilterCombo.SelectedIndexChanged += CategoryFilter_Changed;
-            rightPanel.Controls.Add(categoryFilterCombo);
-
-            // Category checkboxes
-            categoryCheckboxesPanel = new FlowLayoutPanel
-            {
-                Location = new Point(665, 55),
-                Size = new Size(450, 80),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                BackColor = Color.White,
-                Padding = new Padding(10)
-            };
-
-            var categoryLabel = new Label
-            {
-                Text = "⚡ Szybkie zaznaczanie:",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Colors.TextDark,
-                AutoSize = true,
-                Margin = new Padding(5, 10, 15, 5)
-            };
-            categoryCheckboxesPanel.Controls.Add(categoryLabel);
-
-            CreateCategoryCheckbox("Zaopatrzenie i Zakupy", Colors.Success);
-            CreateCategoryCheckbox("Produkcja i Magazyn", Colors.Warning);
-            CreateCategoryCheckbox("Sprzedaż i CRM", Colors.Info);
-            CreateCategoryCheckbox("Opakowania i Transport", ColorTranslator.FromHtml("#00BCD4"));
-            CreateCategoryCheckbox("Finanse i Zarządzanie", Colors.TextGray);
-
-            rightPanel.Controls.Add(categoryCheckboxesPanel);
-
-            permissionsGrid = CreateStyledGrid(new Point(25, 145), new Size(1090, 430));
-            permissionsGrid.CellContentClick += PermissionsGrid_CellContentClick;
-            permissionsGrid.CurrentCellDirtyStateChanged += PermissionsGrid_CurrentCellDirtyStateChanged;
-            rightPanel.Controls.Add(permissionsGrid);
-
-            // Bottom buttons
-            bottomPanel = new Panel
-            {
-                Location = new Point(25, 585),
-                Size = new Size(1090, 60),
-                BackColor = Color.Transparent
-            };
-
-            saveButton = CreateStyledButton("💾 Zapisz zmiany", Colors.Primary,
-                new Point(0, 0), new Size(200, 55));
-            saveButton.Font = new Font("Segoe UI", 12, FontStyle.Bold);
-            saveButton.Click += SaveButton_Click;
-            bottomPanel.Controls.Add(saveButton);
-
-            refreshButton = CreateStyledButton("🔄 Odśwież", Colors.TextGray,
-                new Point(210, 0), new Size(170, 55));
-            refreshButton.Click += RefreshButton_Click;
-            bottomPanel.Controls.Add(refreshButton);
-
-            var selectAllButton = CreateStyledButton("✓ Zaznacz wszystkie", Colors.Success,
-                new Point(390, 0), new Size(200, 55));
-            selectAllButton.Click += (s, e) => SetAllPermissions(true);
-            bottomPanel.Controls.Add(selectAllButton);
-
-            var deselectAllButton = CreateStyledButton("✗ Odznacz wszystkie", Colors.Danger,
-                new Point(600, 0), new Size(200, 55));
-            deselectAllButton.Click += (s, e) => SetAllPermissions(false);
-            bottomPanel.Controls.Add(deselectAllButton);
-
-            rightPanel.Controls.Add(bottomPanel);
-
-            this.Controls.Add(rightPanel);
-            this.Controls.Add(leftPanel);
-            this.Controls.Add(topPanel);
-        }
-
-        private DataGridView CreateStyledGrid(Point location, Size size)
-        {
-            var grid = new DataGridView
-            {
-                Location = location,
-                Size = size,
                 Font = new Font("Segoe UI", 10),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
@@ -320,142 +269,393 @@ namespace Kalendarz1
                 MultiSelect = false,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                ReadOnly = false,
+                ReadOnly = true,
                 RowHeadersVisible = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                EnableHeadersVisualStyles = false
+                EnableHeadersVisualStyles = false,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                GridColor = Colors.Border
             };
 
-            grid.ColumnHeadersDefaultCellStyle.BackColor = Colors.Primary;
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
-            grid.ColumnHeadersHeight = 40;
-            grid.DefaultCellStyle.SelectionBackColor = Colors.PrimaryLight;
-            grid.DefaultCellStyle.SelectionForeColor = Colors.TextDark;
-            grid.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#F8F9FA");
-            grid.RowTemplate.Height = 35;
+            usersGrid.ColumnHeadersDefaultCellStyle.BackColor = Colors.Primary;
+            usersGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            usersGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            usersGrid.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
+            usersGrid.ColumnHeadersHeight = 38;
+            usersGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 230, 201);
+            usersGrid.DefaultCellStyle.SelectionForeColor = Colors.TextDark;
+            usersGrid.AlternatingRowsDefaultCellStyle.BackColor = Colors.RowAlt;
+            usersGrid.RowTemplate.Height = 32;
+            usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
+            usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
 
-            return grid;
+            leftPanel.Controls.Add(usersGrid);
+
+            // Pasek statusu na dole
+            var statusPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 35,
+                BackColor = Color.FromArgb(240, 240, 240)
+            };
+
+            usersCountLabel = new Label
+            {
+                Text = "Ładowanie...",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Colors.TextGray,
+                Location = new Point(15, 8),
+                AutoSize = true
+            };
+            statusPanel.Controls.Add(usersCountLabel);
+
+            leftPanel.Controls.Add(statusPanel);
+
+            // ═══════════════════════════════════════════════════════════════════════════
+            // RIGHT PANEL - Uprawnienia w stylu TreeView z grupami
+            // ═══════════════════════════════════════════════════════════════════════════
+            rightPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Colors.Background,
+                Padding = new Padding(0)
+            };
+
+            // Nagłówek z info o wybranym użytkowniku
+            var headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 55,
+                BackColor = Color.White
+            };
+            headerPanel.Paint += (s, e) => {
+                e.Graphics.DrawLine(new Pen(Colors.Border), 0, headerPanel.Height - 1, headerPanel.Width, headerPanel.Height - 1);
+            };
+
+            var permTitleLabel = new Label
+            {
+                Text = "🔐 UPRAWNIENIA MODUŁÓW",
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Colors.TextDark,
+                Location = new Point(20, 8),
+                AutoSize = true
+            };
+            headerPanel.Controls.Add(permTitleLabel);
+
+            selectedUserLabel = new Label
+            {
+                Text = "Wybierz użytkownika z listy po lewej stronie",
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Colors.TextGray,
+                Location = new Point(22, 30),
+                AutoSize = true
+            };
+            headerPanel.Controls.Add(selectedUserLabel);
+
+            rightPanel.Controls.Add(headerPanel);
+
+            // Panel z uprawnieniami - scrollowalny
+            permissionsPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor = Colors.Background,
+                Padding = new Padding(15)
+            };
+
+            permissionsFlowPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = Colors.Background,
+                Padding = new Padding(5)
+            };
+
+            permissionsPanel.Controls.Add(permissionsFlowPanel);
+            rightPanel.Controls.Add(permissionsPanel);
+
+            // Dodaj kontrolki do formularza
+            this.Controls.Add(rightPanel);
+            this.Controls.Add(leftPanel);
+            this.Controls.Add(topToolbar);
         }
 
-        private Button CreateStyledButton(string text, Color color, Point location, Size size)
+        private Button CreateToolbarButton(string text, Color color, ref int x)
         {
-            var button = new Button
+            var btn = new Button
             {
                 Text = text,
-                Size = size,
-                Location = location,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Size = new Size(text.Length * 9 + 30, 35),
+                Location = new Point(x, 7),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = color,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(color, 0.15f);
-            button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color, 0.25f);
-
-            return button;
-        }
-
-        private void CreateCategoryCheckbox(string categoryName, Color color)
-        {
-            var checkbox = new CheckBox
-            {
-                Text = categoryName.Replace(" i ", " "),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = color,
-                AutoSize = true,
-                Margin = new Padding(8, 8, 8, 8),
                 Cursor = Cursors.Hand
             };
-            checkbox.CheckedChanged += (s, e) => CategoryCheckbox_CheckedChanged(categoryName, checkbox.Checked);
-            categoryCheckboxesPanel.Controls.Add(checkbox);
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(color, 0.1f);
+
+            x += btn.Width + 8;
+            return btn;
         }
 
-        private void CategoryCheckbox_CheckedChanged(string categoryName, bool isChecked)
+        private void BuildPermissionsUI()
         {
-            if (permissionsGrid.DataSource == null) return;
+            permissionsFlowPanel.Controls.Clear();
+            categoryCheckboxes.Clear();
+            categoryHeaders.Clear();
 
-            var modulesInCategory = GetModulesByCategory(categoryName);
-            foreach (DataGridViewRow row in permissionsGrid.Rows)
+            if (string.IsNullOrEmpty(selectedUserId)) return;
+
+            var modules = GetModulesList();
+            var accessMap = GetAccessMap();
+            string accessString = "";
+
+            // Pobierz aktualny access string
+            try
             {
-                string moduleName = row.Cells["Moduł"].Value?.ToString();
-                if (modulesInCategory.Contains(moduleName))
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    row.Cells["Dostęp"].Value = isChecked;
+                    conn.Open();
+                    string query = "SELECT Access FROM operators WHERE ID = @userId";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@userId", selectedUserId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null) accessString = result.ToString();
+                    }
                 }
+            }
+            catch { }
+
+            // Grupuj moduły według kategorii
+            var groupedModules = modules.GroupBy(m => m.Category).OrderBy(g => GetCategoryOrder(g.Key));
+
+            foreach (var group in groupedModules)
+            {
+                string category = group.Key;
+                Color categoryColor = GetCategoryColor(category);
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // NAGŁÓWEK KATEGORII z checkboxem zaznaczającym całą kategorię
+                // ═══════════════════════════════════════════════════════════════════════
+                var categoryPanel = new Panel
+                {
+                    Width = rightPanel.Width - 60,
+                    Height = 42,
+                    BackColor = categoryColor,
+                    Margin = new Padding(0, 10, 0, 0),
+                    Cursor = Cursors.Hand
+                };
+
+                var categoryCheckbox = new CheckBox
+                {
+                    Text = $"  ▼ {category}",
+                    Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(15, 10),
+                    AutoSize = true,
+                    Cursor = Cursors.Hand,
+                    BackColor = Color.Transparent
+                };
+                categoryCheckbox.CheckedChanged += (s, e) => CategoryHeader_CheckedChanged(category, categoryCheckbox.Checked);
+                categoryPanel.Controls.Add(categoryCheckbox);
+                categoryHeaders[category] = categoryCheckbox;
+
+                // Licznik uprawnień w kategorii
+                var countLabel = new Label
+                {
+                    Text = $"({group.Count()} modułów)",
+                    Font = new Font("Segoe UI", 9),
+                    ForeColor = Color.FromArgb(220, 220, 220),
+                    Location = new Point(categoryPanel.Width - 120, 13),
+                    AutoSize = true,
+                    BackColor = Color.Transparent
+                };
+                categoryPanel.Controls.Add(countLabel);
+
+                // Kliknięcie na panel też zaznacza
+                categoryPanel.Click += (s, e) => categoryCheckbox.Checked = !categoryCheckbox.Checked;
+
+                permissionsFlowPanel.Controls.Add(categoryPanel);
+
+                // Lista modułów w kategorii
+                categoryCheckboxes[category] = new List<CheckBox>();
+                int moduleIndex = 0;
+
+                foreach (var module in group)
+                {
+                    bool hasAccess = false;
+                    var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
+                    if (position >= 0 && position < accessString.Length)
+                        hasAccess = accessString[position] == '1';
+
+                    // Panel pojedynczego modułu
+                    var modulePanel = new Panel
+                    {
+                        Width = rightPanel.Width - 60,
+                        Height = 38,
+                        BackColor = moduleIndex % 2 == 0 ? Color.White : Colors.RowAlt,
+                        Margin = new Padding(0, 0, 0, 0),
+                        Cursor = Cursors.Hand
+                    };
+
+                    // Pasek koloru po lewej
+                    var colorBar = new Panel
+                    {
+                        Width = 4,
+                        Height = 38,
+                        BackColor = categoryColor,
+                        Location = new Point(0, 0)
+                    };
+                    modulePanel.Controls.Add(colorBar);
+
+                    // Ikona
+                    var iconLabel = new Label
+                    {
+                        Text = module.Icon,
+                        Font = new Font("Segoe UI Emoji", 14),
+                        ForeColor = categoryColor,
+                        Location = new Point(20, 6),
+                        Size = new Size(35, 30),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    modulePanel.Controls.Add(iconLabel);
+
+                    // Nazwa modułu
+                    var nameLabel = new Label
+                    {
+                        Text = module.DisplayName,
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                        ForeColor = Colors.TextDark,
+                        Location = new Point(60, 4),
+                        AutoSize = true
+                    };
+                    modulePanel.Controls.Add(nameLabel);
+
+                    // Opis
+                    var descLabel = new Label
+                    {
+                        Text = module.Description,
+                        Font = new Font("Segoe UI", 9),
+                        ForeColor = Colors.TextGray,
+                        Location = new Point(60, 21),
+                        AutoSize = true
+                    };
+                    modulePanel.Controls.Add(descLabel);
+
+                    // Checkbox dostępu
+                    var accessCheckbox = new CheckBox
+                    {
+                        Checked = hasAccess,
+                        Location = new Point(modulePanel.Width - 60, 8),
+                        Size = new Size(25, 25),
+                        Cursor = Cursors.Hand,
+                        Tag = module.Key
+                    };
+                    accessCheckbox.CheckedChanged += (s, e) => UpdateCategoryHeaderState(category);
+                    modulePanel.Controls.Add(accessCheckbox);
+                    categoryCheckboxes[category].Add(accessCheckbox);
+
+                    // Label "Dostęp"
+                    var accessLabel = new Label
+                    {
+                        Text = "Dostęp",
+                        Font = new Font("Segoe UI", 8),
+                        ForeColor = Colors.TextGray,
+                        Location = new Point(modulePanel.Width - 100, 12),
+                        AutoSize = true
+                    };
+                    modulePanel.Controls.Add(accessLabel);
+
+                    // Hover effect
+                    modulePanel.MouseEnter += (s, e) => modulePanel.BackColor = Colors.RowHover;
+                    modulePanel.MouseLeave += (s, e) => modulePanel.BackColor = moduleIndex % 2 == 0 ? Color.White : Colors.RowAlt;
+
+                    // Kliknięcie na panel przełącza checkbox
+                    int idx = moduleIndex;
+                    modulePanel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
+                    nameLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
+                    descLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
+                    iconLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
+
+                    permissionsFlowPanel.Controls.Add(modulePanel);
+                    moduleIndex++;
+                }
+
+                // Zaktualizuj stan nagłówka kategorii
+                UpdateCategoryHeaderState(category);
             }
         }
 
-        private void CategoryFilter_Changed(object sender, EventArgs e)
+        private void CategoryHeader_CheckedChanged(string category, bool isChecked)
         {
-            if (permissionsGrid.DataSource is DataTable dt)
+            if (!categoryCheckboxes.ContainsKey(category)) return;
+
+            foreach (var checkbox in categoryCheckboxes[category])
             {
-                string selectedCategory = categoryFilterCombo.SelectedItem?.ToString();
-                if (selectedCategory == "Wszystkie kategorie")
-                {
-                    dt.DefaultView.RowFilter = "";
-                }
-                else
-                {
-                    var modulesInCategory = GetModulesByCategory(selectedCategory);
-                    string filter = string.Join(" OR ", modulesInCategory.Select(m => $"Moduł = '{m}'"));
-                    dt.DefaultView.RowFilter = filter;
-                }
+                checkbox.Checked = isChecked;
             }
         }
 
-        // ============================================================
-        // ZSYNCHRONIZOWANE KATEGORIE MODUŁÓW - KLUCZ DO UPRAWNIEŃ
-        // ============================================================
-        private List<string> GetModulesByCategory(string categoryName)
+        private void UpdateCategoryHeaderState(string category)
         {
-            var categories = new Dictionary<string, List<string>>
+            if (!categoryCheckboxes.ContainsKey(category) || !categoryHeaders.ContainsKey(category)) return;
+
+            var checkboxes = categoryCheckboxes[category];
+            var header = categoryHeaders[category];
+
+            int checkedCount = checkboxes.Count(c => c.Checked);
+
+            // Tymczasowo odłącz event, żeby nie wywoływać CategoryHeader_CheckedChanged
+            header.CheckedChanged -= (s, e) => CategoryHeader_CheckedChanged(category, header.Checked);
+            header.Checked = checkedCount == checkboxes.Count && checkboxes.Count > 0;
+            header.CheckedChanged += (s, e) => CategoryHeader_CheckedChanged(category, header.Checked);
+        }
+
+        private Color GetCategoryColor(string category)
+        {
+            switch (category)
             {
-                ["Zaopatrzenie i Zakupy"] = new List<string> {
-                    "Dane Hodowcy", "Zakup Paszy", "Wstawienia",
-                    "Kalendarz Dostaw", "Dokumenty Zakupu", "Płatności Hodowców",
-                    "Wnioski o Zmianę", "Specyfikacja Surowca", "Transport Avilog"
-                },
-                ["Produkcja i Magazyn"] = new List<string> {
-                    "Kalkulacja Krojenia", "Podgląd Produkcji", "Mroźnia",
-                    "Liczenie Magazynu", "Panel Magazyniera", "Analiza Wydajności",
-                    "Wyczerpalność Klas"  // ✅ NOWY MODUŁ
-                },
-                ["Sprzedaż i CRM"] = new List<string> {
-                    "CRM", "Kartoteka Odbiorców", "Zamówienia Mięsa",
-                    "Rozkład Klas Wagowych",  // ✅ NOWY MODUŁ
-                    "Faktury Sprzedaży", "Prognoza Uboju", "Plan Produkcji",
-                    "Dashboard Analityczny", "Oferty Handlowe"
-                },
-                ["Opakowania i Transport"] = new List<string> {
-                    "Salda Zbiorcze", "Salda Odbiorcy", "Transport"
-                },
-                ["Finanse i Zarządzanie"] = new List<string> {
-                    "Wynik Finansowy", "Notatki ze Spotkań"
-                },
-                ["Reklamacje"] = new List<string> {
-                    "Panel Reklamacji", "Reklamacje - Dział Jakości"
-                }
-            };
-            return categories.ContainsKey(categoryName) ? categories[categoryName] : new List<string>();
+                case "Zaopatrzenie i Zakupy": return DepartmentColors.Zakupy;
+                case "Produkcja i Magazyn": return DepartmentColors.Produkcja;
+                case "Sprzedaż i CRM": return DepartmentColors.Sprzedaz;
+                case "Planowanie i Analizy": return DepartmentColors.Planowanie;
+                case "Opakowania i Transport": return DepartmentColors.Opakowania;
+                case "Finanse i Zarządzanie": return DepartmentColors.Finanse;
+                case "Administracja Systemu": return DepartmentColors.Administracja;
+                default: return Colors.TextGray;
+            }
+        }
+
+        private int GetCategoryOrder(string category)
+        {
+            switch (category)
+            {
+                case "Zaopatrzenie i Zakupy": return 1;
+                case "Produkcja i Magazyn": return 2;
+                case "Sprzedaż i CRM": return 3;
+                case "Planowanie i Analizy": return 4;
+                case "Opakowania i Transport": return 5;
+                case "Finanse i Zarządzanie": return 6;
+                case "Administracja Systemu": return 7;
+                default: return 99;
+            }
         }
 
         private void LoadUsers()
         {
-            loadingBar.Visible = true;
             try
             {
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     string query = @"
-                        SELECT 
-                            o.ID, 
+                        SELECT
+                            o.ID,
                             o.Name,
                             STUFF((
                                 SELECT ', ' + uh.HandlowiecName
@@ -479,10 +679,6 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd podczas ładowania użytkowników:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally
-            {
-                loadingBar.Visible = false;
-            }
         }
 
         private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
@@ -493,170 +689,50 @@ namespace Kalendarz1
             }
         }
 
-        private void LoadPermissions(string userId)
+        private void UsersGrid_SelectionChanged(object sender, EventArgs e)
         {
-            try
+            if (usersGrid.SelectedRows.Count > 0)
             {
-                var modules = GetModulesList();
-                var permissions = new DataTable();
-                permissions.Columns.Add("Ikona", typeof(string));
-                permissions.Columns.Add("Kategoria", typeof(string));
-                permissions.Columns.Add("Moduł", typeof(string));
-                permissions.Columns.Add("Opis", typeof(string));
-                permissions.Columns.Add("Dostęp", typeof(bool));
-
-                var accessMap = GetAccessMap();
-
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                selectedUserId = usersGrid.SelectedRows[0].Cells["ID"].Value?.ToString();
+                if (!string.IsNullOrEmpty(selectedUserId))
                 {
-                    conn.Open();
-                    string query = "SELECT Access FROM operators WHERE ID = @userId";
-                    string accessString = "";
-
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@userId", userId);
-                        var result = cmd.ExecuteScalar();
-                        if (result != null) accessString = result.ToString();
-                    }
-
-                    foreach (var module in modules)
-                    {
-                        bool hasAccess = false;
-                        var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
-                        if (position >= 0 && position < accessString.Length)
-                            hasAccess = accessString[position] == '1';
-
-                        permissions.Rows.Add(module.Icon, module.Category, module.DisplayName, module.Description, hasAccess);
-                    }
+                    string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+                    selectedUserLabel.Text = $"Użytkownik: {userName} (ID: {selectedUserId})";
+                    selectedUserLabel.ForeColor = Colors.TextDark;
+                    BuildPermissionsUI();
                 }
-
-                permissionsGrid.DataSource = permissions;
-                if (permissionsGrid.Columns.Count > 0)
-                {
-                    permissionsGrid.Columns["Ikona"].Width = 50;
-                    permissionsGrid.Columns["Ikona"].ReadOnly = true;
-                    permissionsGrid.Columns["Ikona"].DefaultCellStyle.Font = new Font("Segoe UI Emoji", 14);
-                    permissionsGrid.Columns["Ikona"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-
-                    permissionsGrid.Columns["Kategoria"].Width = 180;
-                    permissionsGrid.Columns["Kategoria"].ReadOnly = true;
-
-                    permissionsGrid.Columns["Moduł"].Width = 200;
-                    permissionsGrid.Columns["Moduł"].ReadOnly = true;
-
-                    permissionsGrid.Columns["Opis"].Width = 450;
-                    permissionsGrid.Columns["Opis"].ReadOnly = true;
-
-                    permissionsGrid.Columns["Dostęp"].Width = 100;
-                    permissionsGrid.Columns["Dostęp"].ReadOnly = false;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas ładowania uprawnień:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ============================================================
-        // ZSYNCHRONIZOWANA LISTA MODUŁÓW - MUSI ODPOWIADAĆ Menu.cs
-        // ============================================================
-        private List<ModuleInfo> GetModulesList()
+        private void SearchBox_TextChanged(object sender, EventArgs e)
         {
-            return new List<ModuleInfo>
+            if (usersGrid.DataSource is DataTable dt)
             {
-                // Zaopatrzenie i Zakupy
-                new ModuleInfo("DaneHodowcy", "Dane Hodowcy", "Zarządzanie danymi hodowców", "Zaopatrzenie i Zakupy", "📋"),
-                new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy", "Zakup paszy i piskląt", "Zaopatrzenie i Zakupy", "🌾"),
-                new ModuleInfo("WstawieniaHodowcy", "Wstawienia", "Rejestracja wstawień u hodowców", "Zaopatrzenie i Zakupy", "🐣"),
-                new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw", "Planuj terminy dostaw żywca", "Zaopatrzenie i Zakupy", "📅"),
-                new ModuleInfo("PlachtyAviloga", "Transport Avilog", "Zarządzaj transportem surowca", "Zaopatrzenie i Zakupy", "🎯"),
-                new ModuleInfo("DokumentyZakupu", "Dokumenty Zakupu", "Dokumenty zakupowe i umowy", "Zaopatrzenie i Zakupy", "📄"),
-                new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Tworzenie i zarządzanie specyfikacjami", "Zaopatrzenie i Zakupy", "📝"),
-                new ModuleInfo("PlatnosciHodowcy", "Płatności Hodowców", "Płatności dla hodowców", "Zaopatrzenie i Zakupy", "💰"),
-                new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmianę", "Zgłoszenia zmian u hodowców", "Zaopatrzenie i Zakupy", "✏️"),
-                
-                // Produkcja i Magazyn
-                new ModuleInfo("KalkulacjaKrojenia", "Kalkulacja Krojenia", "Planuj proces krojenia", "Produkcja i Magazyn", "✂️"),
-                new ModuleInfo("ProdukcjaPodglad", "Podgląd Produkcji", "Monitoruj bieżącą produkcję", "Produkcja i Magazyn", "🏭"),
-                new ModuleInfo("PrzychodMrozni", "Mroźnia", "Zarządzaj stanami magazynowymi", "Produkcja i Magazyn", "❄️"),
-                new ModuleInfo("LiczenieMagazynu", "Liczenie Magazynu", "Rejestruj poranne stany magazynowe", "Produkcja i Magazyn", "📦"),
-                new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Kompleksowy panel do zarządzania wydaniami", "Produkcja i Magazyn", "📱"),
-                new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie żywiec vs tuszka", "Produkcja i Magazyn", "📊"),
-                // ✅ NOWY MODUŁ - Dashboard Wyczerpalności
-                new ModuleInfo("DashboardWyczerpalnosci", "Wyczerpalność Klas", "Podgląd dostępności klas wagowych tuszki", "Produkcja i Magazyn", "📉"),
-                
-                // Sprzedaż i CRM
-                new ModuleInfo("CRM", "CRM", "Zarządzaj relacjami z klientami", "Sprzedaż i CRM", "👥"),
-                new ModuleInfo("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna kartoteka i dane CRM odbiorców", "Sprzedaż i CRM", "👤"),
-                new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Zarządzanie zamówieniami", "Sprzedaż i CRM", "📦"),
-                // ✅ NOWY MODUŁ - Rezerwacja Klas Wagowych
-                new ModuleInfo("RezerwacjaKlas", "Rozkład Klas Wagowych", "Twórz zamówienia z podziałem na klasy wagowe", "Sprzedaż i CRM", "🐔"),
-                new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "Sprzedaż i CRM", "🧾"),
-                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "Sprzedaż i CRM", "📈"),
-                new ModuleInfo("PlanTygodniowy", "Plan Produkcji", "Tygodniowy plan uboju i krojenia", "Sprzedaż i CRM", "📊"),
-                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analizuj bilans produkcji i sprzedaży", "Sprzedaż i CRM", "📊"),
-                new ModuleInfo("OfertaCenowa", "Oferty Handlowe", "Twórz i zarządzaj ofertami", "Sprzedaż i CRM", "💵"),
-                
-                // Opakowania i Transport
-                new ModuleInfo("PodsumowanieSaldOpak", "Salda Zbiorcze", "Analizuj zbiorcze salda opakowań", "Opakowania i Transport", "📊"),
-                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Odbiorcy", "Sprawdzaj salda dla odbiorców", "Opakowania i Transport", "📈"),
-                new ModuleInfo("UstalanieTranportu", "Transport", "Organizuj i planuj transport", "Opakowania i Transport", "🚚"),
-                
-                // Finanse i Zarządzanie
-                new ModuleInfo("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "Finanse i Zarządzanie", "💼"),
-                new ModuleInfo("NotatkiZeSpotkan", "Notatki ze Spotkań", "Twórz i przeglądaj notatki", "Finanse i Zarządzanie", "📝"),
-
-                // Reklamacje
-                new ModuleInfo("PanelReklamacji", "Panel Reklamacji", "Przeglądaj i zgłaszaj reklamacje", "Reklamacje", "⚠️"),
-                new ModuleInfo("ReklamacjeJakosc", "Reklamacje - Dział Jakości", "Zarządzaj statusami i rozwiązaniami reklamacji", "Reklamacje", "✅")
-            };
+                string filter = searchBox.Text.Trim().Replace("'", "''");
+                dt.DefaultView.RowFilter = string.IsNullOrEmpty(filter) ? "" : $"ID LIKE '%{filter}%' OR Name LIKE '%{filter}%'";
+            }
         }
 
-        // ============================================================
-        // ZSYNCHRONIZOWANA MAPA DOSTĘPU - POZYCJA W STRINGU ACCESS
-        // Musi odpowiadać ParseAccessString w Menu.cs!
-        // ============================================================
-        private Dictionary<int, string> GetAccessMap()
+        private void SetAllPermissions(bool value)
         {
-            return new Dictionary<int, string>
+            foreach (var categoryList in categoryCheckboxes.Values)
             {
-                [0] = "DaneHodowcy",
-                [1] = "ZakupPaszyPisklak",
-                [2] = "WstawieniaHodowcy",
-                [3] = "TerminyDostawyZywca",
-                [4] = "PlachtyAviloga",
-                [5] = "DokumentyZakupu",
-                [6] = "Specyfikacje",
-                [7] = "PlatnosciHodowcy",
-                [8] = "CRM",
-                [9] = "ZamowieniaOdbiorcow",
-                [10] = "KalkulacjaKrojenia",
-                [11] = "PrzychodMrozni",
-                [12] = "DokumentySprzedazy",
-                [13] = "PodsumowanieSaldOpak",
-                [14] = "SaldaOdbiorcowOpak",
-                [15] = "DaneFinansowe",
-                [16] = "UstalanieTranportu",
-                [17] = "ZmianyUHodowcow",
-                [18] = "ProdukcjaPodglad",
-                [19] = "OfertaCenowa",
-                [20] = "PrognozyUboju",
-                [21] = "AnalizaTygodniowa",
-                [22] = "NotatkiZeSpotkan",
-                [23] = "PlanTygodniowy",
-                [24] = "LiczenieMagazynu",
-                [25] = "PanelMagazyniera",
-                [26] = "KartotekaOdbiorcow",
-                [27] = "AnalizaWydajnosci",
-                [28] = "RezerwacjaKlas",
-                [29] = "DashboardWyczerpalnosci",
-                [30] = "ListaOfert",
-                [31] = "DashboardOfert",
-                // Reklamacje
-                [32] = "PanelReklamacji",
-                [33] = "ReklamacjeJakosc"
-            };
+                foreach (var checkbox in categoryList)
+                {
+                    checkbox.Checked = value;
+                }
+            }
+        }
+
+        private void InvertPermissions_Click(object sender, EventArgs e)
+        {
+            foreach (var categoryList in categoryCheckboxes.Values)
+            {
+                foreach (var checkbox in categoryList)
+                {
+                    checkbox.Checked = !checkbox.Checked;
+                }
+            }
         }
 
         private void SaveButton_Click(object sender, EventArgs e)
@@ -673,20 +749,19 @@ namespace Kalendarz1
                 for (int i = 0; i < 50; i++) accessArray[i] = '0';
 
                 var accessMap = GetAccessMap();
-                var modulesList = GetModulesList();
 
-                foreach (DataGridViewRow row in permissionsGrid.Rows)
+                foreach (var categoryList in categoryCheckboxes.Values)
                 {
-                    string displayName = row.Cells["Moduł"].Value?.ToString();
-                    bool hasAccess = Convert.ToBoolean(row.Cells["Dostęp"].Value);
-
-                    var module = modulesList.FirstOrDefault(m => m.DisplayName == displayName);
-                    if (module != null)
+                    foreach (var checkbox in categoryList)
                     {
-                        var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
-                        if (position >= 0 && hasAccess)
+                        string moduleKey = checkbox.Tag?.ToString();
+                        if (!string.IsNullOrEmpty(moduleKey) && checkbox.Checked)
                         {
-                            accessArray[position] = '1';
+                            var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
+                            if (position >= 0 && position < 50)
+                            {
+                                accessArray[position] = '1';
+                            }
                         }
                     }
                 }
@@ -705,7 +780,7 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show("✓ Uprawnienia zostały zapisane.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("✓ Uprawnienia zostały zapisane pomyślnie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -759,70 +834,15 @@ namespace Kalendarz1
 
                     MessageBox.Show("✓ Użytkownik został usunięty.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadUsers();
-                    permissionsGrid.DataSource = null;
+                    permissionsFlowPanel.Controls.Clear();
                     selectedUserId = null;
-                    userComboBox.Text = "";
+                    selectedUserLabel.Text = "Wybierz użytkownika z listy po lewej stronie";
+                    selectedUserLabel.ForeColor = Colors.TextGray;
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Błąd podczas usuwania użytkownika:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-            }
-        }
-
-        private void RefreshButton_Click(object sender, EventArgs e)
-        {
-            LoadUsers();
-            if (!string.IsNullOrEmpty(selectedUserId))
-                LoadPermissions(selectedUserId);
-        }
-
-        private void UsersGrid_SelectionChanged(object sender, EventArgs e)
-        {
-            if (usersGrid.SelectedRows.Count > 0)
-            {
-                selectedUserId = usersGrid.SelectedRows[0].Cells["ID"].Value?.ToString();
-                if (!string.IsNullOrEmpty(selectedUserId))
-                {
-                    string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
-                    userComboBox.Text = $"{selectedUserId} - {userName}";
-                    LoadPermissions(selectedUserId);
-                }
-            }
-        }
-
-        private void SearchBox_TextChanged(object sender, EventArgs e)
-        {
-            if (usersGrid.DataSource is DataTable dt)
-            {
-                string filter = searchBox.Text.Trim();
-                dt.DefaultView.RowFilter = string.IsNullOrEmpty(filter) ? "" : $"ID LIKE '%{filter}%' OR Name LIKE '%{filter}%'";
-            }
-        }
-
-        private void SetAllPermissions(bool value)
-        {
-            foreach (DataGridViewRow row in permissionsGrid.Rows)
-                row.Cells["Dostęp"].Value = value;
-        }
-
-        private void PermissionsGrid_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.ColumnIndex >= 0 && e.RowIndex >= 0)
-            {
-                var column = permissionsGrid.Columns[e.ColumnIndex];
-                if (column.Name == "Dostęp" && column is DataGridViewCheckBoxColumn)
-                {
-                    permissionsGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
-                }
-            }
-        }
-
-        private void PermissionsGrid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
-        {
-            if (permissionsGrid.IsCurrentCellDirty)
-            {
-                permissionsGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
             }
         }
 
@@ -842,6 +862,7 @@ namespace Kalendarz1
             dialog.HandlowcyZapisani += (s, ev) => LoadUsers();
             dialog.Show();
         }
+
         private void EditContactButton_Click(object sender, EventArgs e)
         {
             if (usersGrid.SelectedRows.Count == 0)
@@ -857,6 +878,124 @@ namespace Kalendarz1
             var dialog = new EditOperatorContactDialog(connectionString, userId, userName);
             dialog.ShowDialog();
         }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // ZSYNCHRONIZOWANA LISTA MODUŁÓW - MUSI ODPOWIADAĆ Menu.cs
+        // ════════════════════════════════════════════════════════════════════════════════
+        private List<ModuleInfo> GetModulesList()
+        {
+            return new List<ModuleInfo>
+            {
+                // ═══════════════════════════════════════════════════════════════════════
+                // ZAOPATRZENIE I ZAKUPY - Zielony
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("DaneHodowcy", "Baza Hodowców", "Kompletna kartoteka dostawców żywca", "Zaopatrzenie i Zakupy", "🧑‍🌾"),
+                new ModuleInfo("WstawieniaHodowcy", "Cykle Wstawień", "Rejestracja cykli hodowlanych piskląt", "Zaopatrzenie i Zakupy", "🐣"),
+                new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw Żywca", "Planowanie terminów dostaw żywca", "Zaopatrzenie i Zakupy", "📅"),
+                new ModuleInfo("PlachtyAviloga", "Matryca Transportu", "Planowanie tras transportu żywca z SMS", "Zaopatrzenie i Zakupy", "🚛"),
+                new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Parametry jakościowe surowca", "Zaopatrzenie i Zakupy", "📋"),
+                new ModuleInfo("DokumentyZakupu", "Dokumenty i Umowy", "Archiwum umów i certyfikatów", "Zaopatrzenie i Zakupy", "📑"),
+                new ModuleInfo("PlatnosciHodowcy", "Rozliczenia z Hodowcami", "Płatności dla dostawców żywca", "Zaopatrzenie i Zakupy", "💵"),
+                new ModuleInfo("ZakupPaszyPisklak", "Zakup Paszy i Piskląt", "Ewidencja zakupów pasz i piskląt", "Zaopatrzenie i Zakupy", "🌾"),
+                new ModuleInfo("RaportyHodowcow", "Statystyki Hodowców", "Raporty współpracy z hodowcami", "Zaopatrzenie i Zakupy", "📊"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // PRODUKCJA I MAGAZYN - Pomarańczowy
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("ProdukcjaPodglad", "Panel Produkcji", "Monitoring procesu uboju i krojenia", "Produkcja i Magazyn", "🏭"),
+                new ModuleInfo("KalkulacjaKrojenia", "Kalkulacja Rozbioru", "Planowanie krojenia tuszek", "Produkcja i Magazyn", "✂️"),
+                new ModuleInfo("PrzychodMrozni", "Magazyn Mroźni", "Stany magazynowe produktów mrożonych", "Produkcja i Magazyn", "❄️"),
+                new ModuleInfo("LiczenieMagazynu", "Inwentaryzacja Magazynu", "Rejestracja stanów magazynowych", "Produkcja i Magazyn", "📦"),
+                new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Zarządzanie wydaniami towarów", "Produkcja i Magazyn", "🗃️"),
+                new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie masy żywca do tuszek", "Produkcja i Magazyn", "📈"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // SPRZEDAŻ I CRM - Niebieski
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("CRM", "Relacje z Klientami", "Zarządzanie relacjami z odbiorcami", "Sprzedaż i CRM", "🤝"),
+                new ModuleInfo("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna baza danych klientów", "Sprzedaż i CRM", "👤"),
+                new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Klientów", "Przyjmowanie zamówień", "Sprzedaż i CRM", "🛒"),
+                new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Przeglądanie faktur i WZ", "Sprzedaż i CRM", "🧾"),
+                new ModuleInfo("OfertaCenowa", "Kreator Ofert", "Tworzenie ofert cenowych", "Sprzedaż i CRM", "💰"),
+                new ModuleInfo("ListaOfert", "Archiwum Ofert", "Historia ofert handlowych", "Sprzedaż i CRM", "📂"),
+                new ModuleInfo("DashboardOfert", "Analiza Ofert", "Statystyki skuteczności ofert", "Sprzedaż i CRM", "📊"),
+                new ModuleInfo("DashboardWyczerpalnosci", "Klasy Wagowe", "Rozdzielanie klas wagowych", "Sprzedaż i CRM", "⚖️"),
+                new ModuleInfo("PanelReklamacji", "Reklamacje Klientów", "Obsługa reklamacji odbiorców", "Sprzedaż i CRM", "⚠️"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // PLANOWANIE I ANALIZY - Fioletowy
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("PrognozyUboju", "Prognoza Uboju", "Analiza średnich zakupów żywca", "Planowanie i Analizy", "🔮"),
+                new ModuleInfo("PlanTygodniowy", "Plan Tygodniowy", "Harmonogram uboju i krojenia", "Planowanie i Analizy", "🗓️"),
+                new ModuleInfo("AnalizaTygodniowa", "Dashboard Analityczny", "Analiza produkcji i sprzedaży", "Planowanie i Analizy", "📉"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // OPAKOWANIA I TRANSPORT - Turkusowy
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("PodsumowanieSaldOpak", "Zestawienie Opakowań", "Salda opakowań wg typu", "Opakowania i Transport", "📦"),
+                new ModuleInfo("SaldaOdbiorcowOpak", "Salda Opakowań Klientów", "Salda dla kontrahentów", "Opakowania i Transport", "🏷️"),
+                new ModuleInfo("UstalanieTranportu", "Planowanie Transportu", "Organizacja tras dostaw", "Opakowania i Transport", "🚚"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // FINANSE I ZARZĄDZANIE - Szaroniebieski
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("DaneFinansowe", "Wyniki Finansowe", "Przychody, koszty, marże", "Finanse i Zarządzanie", "💼"),
+                new ModuleInfo("NotatkiZeSpotkan", "Notatki Służbowe", "Notatki ze spotkań biznesowych", "Finanse i Zarządzanie", "📝"),
+
+                // ═══════════════════════════════════════════════════════════════════════
+                // ADMINISTRACJA SYSTEMU - Czerwony
+                // ═══════════════════════════════════════════════════════════════════════
+                new ModuleInfo("ZmianyUHodowcow", "Wnioski o Zmiany", "Zatwierdzanie zmian danych hodowców", "Administracja Systemu", "📝"),
+                new ModuleInfo("AdminPermissions", "Zarządzanie Uprawnieniami", "Nadawanie uprawnień użytkownikom", "Administracja Systemu", "🔐")
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // ZSYNCHRONIZOWANA MAPA DOSTĘPU - Musi odpowiadać Menu.cs ParseAccessString
+        // ════════════════════════════════════════════════════════════════════════════════
+        private Dictionary<int, string> GetAccessMap()
+        {
+            return new Dictionary<int, string>
+            {
+                [0] = "DaneHodowcy",
+                [1] = "ZakupPaszyPisklak",
+                [2] = "WstawieniaHodowcy",
+                [3] = "TerminyDostawyZywca",
+                [4] = "PlachtyAviloga",
+                [5] = "DokumentyZakupu",
+                [6] = "Specyfikacje",
+                [7] = "PlatnosciHodowcy",
+                [8] = "CRM",
+                [9] = "ZamowieniaOdbiorcow",
+                [10] = "KalkulacjaKrojenia",
+                [11] = "PrzychodMrozni",
+                [12] = "DokumentySprzedazy",
+                [13] = "PodsumowanieSaldOpak",
+                [14] = "SaldaOdbiorcowOpak",
+                [15] = "DaneFinansowe",
+                [16] = "UstalanieTranportu",
+                [17] = "ZmianyUHodowcow",
+                [18] = "ProdukcjaPodglad",
+                [19] = "OfertaCenowa",
+                [20] = "PrognozyUboju",
+                [21] = "AnalizaTygodniowa",
+                [22] = "NotatkiZeSpotkan",
+                [23] = "PlanTygodniowy",
+                [24] = "LiczenieMagazynu",
+                [25] = "PanelMagazyniera",
+                [26] = "KartotekaOdbiorcow",
+                [27] = "AnalizaWydajnosci",
+                [28] = "RezerwacjaKlas",
+                [29] = "DashboardWyczerpalnosci",
+                [30] = "ListaOfert",
+                [31] = "DashboardOfert",
+                [32] = "PanelReklamacji",
+                [33] = "ReklamacjeJakosc",
+                [34] = "RaportyHodowcow",
+                [35] = "AdminPermissions"
+            };
+        }
+
         private class ModuleInfo
         {
             public string Key { get; set; }
@@ -896,9 +1035,16 @@ namespace Kalendarz1
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = ColorTranslator.FromHtml("#ECF0F1");
+            this.BackColor = Color.FromArgb(245, 247, 249);
 
-            var titleLabel = new Label { Text = "➕ Nowy użytkownik", Font = new Font("Segoe UI", 14, FontStyle.Bold), ForeColor = ColorTranslator.FromHtml("#2C3E50"), Location = new Point(30, 20), AutoSize = true };
+            var titleLabel = new Label
+            {
+                Text = "➕ Nowy użytkownik",
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = Color.FromArgb(44, 62, 80),
+                Location = new Point(30, 20),
+                AutoSize = true
+            };
             this.Controls.Add(titleLabel);
 
             var idLabel = new Label { Text = "ID użytkownika:", Location = new Point(30, 70), AutoSize = true, Font = new Font("Segoe UI", 10) };
@@ -913,12 +1059,32 @@ namespace Kalendarz1
             nameTextBox = new TextBox { Location = new Point(170, 112), Size = new Size(230, 28), Font = new Font("Segoe UI", 11) };
             this.Controls.Add(nameTextBox);
 
-            okButton = new Button { Text = "Dodaj", Location = new Point(130, 170), Size = new Size(110, 40), BackColor = ColorTranslator.FromHtml("#27AE60"), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), DialogResult = DialogResult.OK };
+            okButton = new Button
+            {
+                Text = "Dodaj",
+                Location = new Point(130, 170),
+                Size = new Size(110, 40),
+                BackColor = Color.FromArgb(39, 174, 96),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                DialogResult = DialogResult.OK
+            };
             okButton.FlatAppearance.BorderSize = 0;
             okButton.Click += OkButton_Click;
             this.Controls.Add(okButton);
 
-            cancelButton = new Button { Text = "Anuluj", Location = new Point(250, 170), Size = new Size(110, 40), BackColor = ColorTranslator.FromHtml("#7F8C8D"), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), DialogResult = DialogResult.Cancel };
+            cancelButton = new Button
+            {
+                Text = "Anuluj",
+                Location = new Point(250, 170),
+                Size = new Size(110, 40),
+                BackColor = Color.FromArgb(127, 140, 141),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                DialogResult = DialogResult.Cancel
+            };
             cancelButton.FlatAppearance.BorderSize = 0;
             this.Controls.Add(cancelButton);
         }

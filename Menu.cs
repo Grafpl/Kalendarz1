@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -39,10 +40,50 @@ namespace Kalendarz1
 
             headerPanel = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(45, 57, 69) };
 
+            // Logo obrazek
             try
             {
-                Label logoLabel = new Label { Text = "PIÓRKOWSCY", Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = Color.White, AutoSize = true, Location = new Point(20, 25) };
+                var logoPictureBox = new PictureBox
+                {
+                    Size = new Size(70, 70),
+                    Location = new Point(15, 10),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BackColor = Color.Transparent
+                };
+
+                // Szukaj Logo.png w różnych lokalizacjach
+                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
+                if (!File.Exists(logoPath))
+                {
+                    logoPath = Path.Combine(Directory.GetCurrentDirectory(), "Logo.png");
+                }
+                if (File.Exists(logoPath))
+                {
+                    logoPictureBox.Image = Image.FromFile(logoPath);
+                    headerPanel.Controls.Add(logoPictureBox);
+                }
+
+                // Tekst firmy obok logo
+                Label logoLabel = new Label
+                {
+                    Text = "PIÓRKOWSCY",
+                    Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    AutoSize = true,
+                    Location = new Point(95, 18)
+                };
                 headerPanel.Controls.Add(logoLabel);
+
+                // Podtytuł
+                Label subtitleLabel = new Label
+                {
+                    Text = "System Zarządzania Produkcją",
+                    Font = new Font("Segoe UI", 10),
+                    ForeColor = Color.FromArgb(180, 180, 180),
+                    AutoSize = true,
+                    Location = new Point(97, 52)
+                };
+                headerPanel.Controls.Add(subtitleLabel);
             }
             catch { }
 
