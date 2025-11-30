@@ -701,7 +701,6 @@ namespace Kalendarz1
             var smsLines = new List<string>();
             smsLines.Add($"Piorkowscy {selectedDate:dd.MM}");
 
-            decimal totalWaga = 0;
             foreach (var row in rowsForFarmer)
             {
                 string zaladunekTime = row.Zaladunek.Value.ToString("HH:mm");
@@ -715,10 +714,11 @@ namespace Kalendarz1
                     autoInfo += $" naczepa:{naczepaNr}";
 
                 smsLines.Add(autoInfo);
-                totalWaga += row.WagaDek * row.SztPoj;
             }
 
-            smsLines.Add($"Razem: {rowsForFarmer.Count} aut, waga:{totalWaga:N0}kg");
+            // Średnia waga (WagaDek) dla wszystkich aut tego hodowcy
+            decimal sredniaWaga = rowsForFarmer.Average(r => r.WagaDek);
+            smsLines.Add($"Razem: {rowsForFarmer.Count} aut, śr.waga:{sredniaWaga:N2}kg");
 
             string smsContent = string.Join("\n", smsLines);
 
@@ -784,7 +784,7 @@ namespace Kalendarz1
             string zaladunekTime = selectedMatrycaRow.Zaladunek.Value.ToString("HH:mm");
             string ciagnikNr = selectedMatrycaRow.CarID ?? "";
             string naczepaNr = selectedMatrycaRow.TrailerID ?? "";
-            decimal waga = selectedMatrycaRow.WagaDek * selectedMatrycaRow.SztPoj;
+            decimal sredniaWaga = selectedMatrycaRow.WagaDek;
 
             // Generuj treść SMS
             string smsContent = $"Piorkowscy {selectedDate:dd.MM}: Załadunek godz.{zaladunekTime}";
@@ -792,7 +792,7 @@ namespace Kalendarz1
                 smsContent += $" ciągnik:{ciagnikNr}";
             if (!string.IsNullOrEmpty(naczepaNr))
                 smsContent += $" naczepa:{naczepaNr}";
-            smsContent += $" waga:{waga:N0}kg";
+            smsContent += $" śr.waga:{sredniaWaga:N2}kg";
 
             try
             {
