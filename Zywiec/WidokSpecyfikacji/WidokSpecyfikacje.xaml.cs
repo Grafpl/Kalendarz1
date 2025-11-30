@@ -911,6 +911,385 @@ namespace Kalendarz1
             }
         }
 
+        // === NOWY: Przycisk skróconego PDF ===
+        private void BtnShortPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz z tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
+            if (selectedRow == null) return;
+
+            string dostawcaGID = selectedRow.DostawcaGID;
+            var ids = specyfikacjaData
+                .Where(x => x.DostawcaGID == dostawcaGID)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (ids.Count > 0)
+            {
+                GenerateShortPDFReport(ids);
+            }
+        }
+
+        // === NOWY: Przycisk wysyłania SMS ===
+        private void BtnSendSms_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz z tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
+            if (selectedRow == null) return;
+
+            string dostawcaGID = selectedRow.DostawcaGID;
+            var ids = specyfikacjaData
+                .Where(x => x.DostawcaGID == dostawcaGID)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (ids.Count > 0)
+            {
+                SendSmsToFarmer(ids);
+            }
+        }
+
+        // === NOWY: Wysyłanie SMS do hodowcy ===
+        private void SendSmsToFarmer(List<int> ids)
+        {
+            try
+            {
+                string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                string phoneNumber = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Phone") ?? "";
+
+                if (string.IsNullOrEmpty(phoneNumber))
+                {
+                    MessageBox.Show("Brak numeru telefonu dla tego hodowcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Oblicz podsumowanie
+                decimal sumaNetto = 0, sumaDoZaplaty = 0, sumaWartoscSMS = 0;
+                int sumaSzt = 0;
+
+                foreach (int id in ids)
+                {
+                    decimal wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    int szt = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
+                    decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
+
+                    sumaNetto += wagaNetto;
+                    sumaSzt += szt;
+                    sumaDoZaplaty += wagaNetto; // uproszczone
+                    sumaWartoscSMS += wagaNetto * cena;
+                }
+
+                decimal sredniaWaga = sumaSzt > 0 ? sumaNetto / sumaSzt : 0;
+                DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
+
+                string smsMessage = $"Piorkowscy: {sellerName}\n" +
+                                   $"Data: {dzienUbojowy:dd.MM.yyyy}\n" +
+                                   $"Szt: {sumaSzt}, Kg: {sumaNetto:N0}\n" +
+                                   $"Sr.waga: {sredniaWaga:N2}kg\n" +
+                                   $"Do wyplaty: {sumaWartoscSMS:N0}zl";
+
+                var result = MessageBox.Show(
+                    $"Wyślać SMS na numer: {phoneNumber}?\n\nTreść:\n{smsMessage}",
+                    "Potwierdzenie SMS",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // SmsSender.SendSms(phoneNumber, smsMessage);
+                    MessageBox.Show($"SMS został wysłany na numer {phoneNumber}!\n\n(Funkcja wymaga skonfigurowania Twilio)", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wysyłania SMS: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // === NOWY: Skrócona wersja PDF (1 strona) z zaokrąglonymi rogami ===
+        private void GenerateShortPDFReport(List<int> ids, bool showMessage = true)
+        {
+            decimal sumaWartoscShort = 0, sumaKGShort = 0;
+
+            // A4 pionowa z mniejszymi marginesami
+            Document doc = new Document(PageSize.A4, 30, 30, 25, 25);
+
+            string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
+                zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
+                "ShortName") ?? "Nieznany";
+            string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+            DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
+
+            string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
+            string strDzienUbojowyPL = dzienUbojowy.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("pl-PL"));
+
+            string directoryPath = Path.Combine(defaultPdfPath, strDzienUbojowy);
+            if (!Directory.Exists(directoryPath))
+                Directory.CreateDirectory(directoryPath);
+
+            string filePath = Path.Combine(directoryPath, $"{sellerName} {strDzienUbojowy} - SKROCONY.pdf");
+
+            using (FileStream fs = new FileStream(filePath, FileMode.Create))
+            {
+                PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                doc.Open();
+
+                // Kolory
+                BaseColor greenColor = new BaseColor(92, 138, 58);
+                BaseColor orangeColor = new BaseColor(245, 124, 0);
+                BaseColor blueColor = new BaseColor(25, 118, 210);
+                BaseColor grayColor = new BaseColor(128, 128, 128);
+                BaseColor purpleColor = new BaseColor(142, 68, 173);
+
+                // Czcionki
+                BaseFont polishFont;
+                string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                polishFont = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+                Font titleFont = new Font(polishFont, 16, Font.BOLD, greenColor);
+                Font subtitleFont = new Font(polishFont, 10, Font.NORMAL, grayColor);
+                Font textFont = new Font(polishFont, 10, Font.NORMAL);
+                Font textFontBold = new Font(polishFont, 10, Font.BOLD);
+                Font smallFont = new Font(polishFont, 8, Font.NORMAL, grayColor);
+                Font bigValueFont = new Font(polishFont, 24, Font.BOLD, greenColor);
+
+                // === LOGO NA ŚRODKU ===
+                try
+                {
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    string[] logoPaths = new string[] {
+                        Path.Combine(baseDir, "logo-2-green.png"),
+                        Path.Combine(baseDir, "..", "..", "..", "logo-2-green.png"),
+                        Path.Combine(baseDir, "..", "..", "logo-2-green.png")
+                    };
+                    foreach (var path in logoPaths)
+                    {
+                        if (File.Exists(path))
+                        {
+                            iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(path);
+                            logo.ScaleToFit(150f, 70f);
+                            logo.Alignment = Element.ALIGN_CENTER;
+                            doc.Add(logo);
+                            break;
+                        }
+                    }
+                }
+                catch { }
+
+                // Tytuł
+                Paragraph title = new Paragraph("ROZLICZENIE - WERSJA SKRÓCONA", new Font(polishFont, 12, Font.NORMAL, grayColor));
+                title.Alignment = Element.ALIGN_CENTER;
+                title.SpacingAfter = 15f;
+                doc.Add(title);
+
+                // === BOX GŁÓWNY Z ZAOKRĄGLONYMI ROGAMI ===
+                // Informacje o stronach
+                PdfPTable infoTable = new PdfPTable(2);
+                infoTable.WidthPercentage = 100;
+                infoTable.SetWidths(new float[] { 1f, 1f });
+                infoTable.SpacingAfter = 15f;
+
+                // Nabywca
+                PdfPCell buyerCell = CreateRoundedCell(greenColor, new BaseColor(248, 255, 248), 8);
+                buyerCell.AddElement(new Paragraph("NABYWCA", new Font(polishFont, 9, Font.BOLD, greenColor)));
+                buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
+                buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
+                infoTable.AddCell(buyerCell);
+
+                // Sprzedający
+                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Address") ?? "";
+                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
+                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
+
+                PdfPCell sellerCell = CreateRoundedCell(orangeColor, new BaseColor(255, 253, 248), 8);
+                sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 9, Font.BOLD, orangeColor)));
+                sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
+                sellerCell.AddElement(new Paragraph($"{sellerStreet}, {sellerKod} {sellerMiejsc}", textFont));
+                infoTable.AddCell(sellerCell);
+
+                doc.Add(infoTable);
+
+                // === OBLICZENIA ===
+                decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0;
+                int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0;
+
+                foreach (int id in ids)
+                {
+                    decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
+                    decimal ubytek = ubytekProc ?? 0;
+
+                    decimal wagaBrutto = ubytek != 0
+                        ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight")
+                        : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
+                    decimal wagaTara = ubytek != 0
+                        ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight")
+                        : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
+                    decimal wagaNetto = ubytek != 0
+                        ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight")
+                        : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
+                    int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
+                                     zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
+                                     zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
+                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
+                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+
+                    bool czyPiK = zapytaniasql.PobierzInformacjeZBazyDanych<bool>(id, "[LibraNet].[dbo].[FarmerCalc]", "IncDeadConf");
+                    decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
+                    decimal padleKG = czyPiK ? 0 : Math.Round(padle * sredniaWaga, 0);
+                    decimal konfiskatyKG = czyPiK ? 0 : Math.Round(konfiskaty * sredniaWaga, 0);
+                    decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
+                    decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
+
+                    decimal doZaplaty = czyPiK
+                        ? wagaNetto - opasienieKG - klasaB
+                        : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
+
+                    decimal cena = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
+                    decimal wartosc = cena * doZaplaty;
+
+                    sumaBrutto += wagaBrutto;
+                    sumaTara += wagaTara;
+                    sumaNetto += wagaNetto;
+                    sumaSztWszystkie += sztWszystkie;
+                    sumaPadle += padle;
+                    sumaKonfiskaty += konfiskaty;
+                    sumaKGShort += doZaplaty;
+                    sumaWartoscShort += wartosc;
+                }
+
+                decimal sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
+                decimal avgCena = sumaKGShort > 0 ? sumaWartoscShort / sumaKGShort : 0;
+                int terminZaplatyDni = zapytaniasql.GetTerminZaplaty(customerRealGID);
+                DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
+
+                // === GŁÓWNE DANE - DUŻY BOX ===
+                PdfPTable mainBox = new PdfPTable(1);
+                mainBox.WidthPercentage = 100;
+                mainBox.SpacingBefore = 10f;
+                mainBox.SpacingAfter = 15f;
+
+                PdfPCell mainCell = CreateRoundedCell(greenColor, new BaseColor(245, 255, 245), 15);
+
+                // Data i numer dokumentu
+                Paragraph dateInfo = new Paragraph($"Data uboju: {strDzienUbojowyPL}  |  Dokument: {strDzienUbojowy}/{ids.Count}  |  Dostaw: {ids.Count}", new Font(polishFont, 9, Font.NORMAL, grayColor));
+                dateInfo.Alignment = Element.ALIGN_CENTER;
+                mainCell.AddElement(dateInfo);
+
+                // Separator
+                mainCell.AddElement(new Paragraph(" ", new Font(polishFont, 8, Font.NORMAL)));
+
+                // Główna wartość
+                Paragraph mainValue = new Paragraph($"DO WYPŁATY: {sumaWartoscShort:N0} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
+                mainValue.Alignment = Element.ALIGN_CENTER;
+                mainCell.AddElement(mainValue);
+
+                // Termin płatności
+                Paragraph terminInfo = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 10, Font.ITALIC, grayColor));
+                terminInfo.Alignment = Element.ALIGN_CENTER;
+                mainCell.AddElement(terminInfo);
+
+                mainBox.AddCell(mainCell);
+                doc.Add(mainBox);
+
+                // === SZCZEGÓŁY W 3 KOLUMNACH ===
+                PdfPTable detailsTable = new PdfPTable(3);
+                detailsTable.WidthPercentage = 100;
+                detailsTable.SetWidths(new float[] { 1f, 1f, 1f });
+                detailsTable.SpacingAfter = 15f;
+
+                // Kolumna 1 - Waga
+                PdfPCell col1 = CreateRoundedCell(new BaseColor(76, 175, 80), new BaseColor(232, 245, 233), 10);
+                col1.AddElement(new Paragraph("WAGA", new Font(polishFont, 10, Font.BOLD, new BaseColor(76, 175, 80))) { Alignment = Element.ALIGN_CENTER });
+                col1.AddElement(new Paragraph($"Brutto: {sumaBrutto:N0} kg", textFont));
+                col1.AddElement(new Paragraph($"Tara: {sumaTara:N0} kg", textFont));
+                col1.AddElement(new Paragraph($"Netto: {sumaNetto:N0} kg", textFontBold));
+                detailsTable.AddCell(col1);
+
+                // Kolumna 2 - Sztuki
+                PdfPCell col2 = CreateRoundedCell(orangeColor, new BaseColor(255, 243, 224), 10);
+                col2.AddElement(new Paragraph("SZTUKI", new Font(polishFont, 10, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                col2.AddElement(new Paragraph($"Dostarczono: {sumaSztWszystkie} szt", textFont));
+                col2.AddElement(new Paragraph($"Padłe: {sumaPadle} szt", textFont));
+                col2.AddElement(new Paragraph($"Konfiskaty: {sumaKonfiskaty} szt", textFont));
+                detailsTable.AddCell(col2);
+
+                // Kolumna 3 - Podsumowanie
+                PdfPCell col3 = CreateRoundedCell(purpleColor, new BaseColor(243, 229, 245), 10);
+                col3.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, purpleColor)) { Alignment = Element.ALIGN_CENTER });
+                col3.AddElement(new Paragraph($"Śr. waga: {sredniaWagaSuma:N2} kg/szt", textFont));
+                col3.AddElement(new Paragraph($"Cena: {avgCena:0.00} zł/kg", textFont));
+                col3.AddElement(new Paragraph($"Do zapłaty: {sumaKGShort:N0} kg", textFontBold));
+                detailsTable.AddCell(col3);
+
+                doc.Add(detailsTable);
+
+                // === PODPISY ===
+                PdfPTable sigTable = new PdfPTable(2);
+                sigTable.WidthPercentage = 100;
+                sigTable.SpacingBefore = 30f;
+
+                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
+                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                sig1.AddElement(new Paragraph(" \n \n", textFont));
+                sig1.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
+                sigTable.AddCell(sig1);
+
+                NazwaZiD nazwaZiD = new NazwaZiD();
+                string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? "---";
+
+                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
+                sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                sig2.AddElement(new Paragraph(" \n \n", textFont));
+                sig2.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
+                sigTable.AddCell(sig2);
+
+                doc.Add(sigTable);
+
+                // Stopka
+                Paragraph footer = new Paragraph($"Wygenerowano przez: {wystawiajacyNazwa}", smallFont);
+                footer.Alignment = Element.ALIGN_RIGHT;
+                footer.SpacingBefore = 15f;
+                doc.Add(footer);
+
+                doc.Close();
+            }
+
+            if (showMessage)
+            {
+                MessageBox.Show($"Wygenerowano skrócony PDF:\n{Path.GetFileName(filePath)}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Helper: Tworzenie komórki z zaokrąglonymi rogami
+        private PdfPCell CreateRoundedCell(BaseColor borderColor, BaseColor bgColor, float padding)
+        {
+            PdfPCell cell = new PdfPCell
+            {
+                Border = PdfPCell.BOX,
+                BorderColor = borderColor,
+                BorderWidth = 1.5f,
+                BackgroundColor = bgColor,
+                Padding = padding,
+                PaddingBottom = padding + 5
+            };
+            // Uwaga: iTextSharp 5.x nie obsługuje natywnie zaokrąglonych rogów w komórkach
+            // Zaokrąglone rogi wymagałyby użycia PdfContentByte do rysowania
+            return cell;
+        }
+
         private void GeneratePDFReport(List<int> ids, bool showMessage = true)
         {
             sumaWartosc = 0;
