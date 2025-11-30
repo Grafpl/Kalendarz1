@@ -1210,6 +1210,9 @@ namespace Kalendarz1
 
                             transaction.Commit();
 
+                            // Loguj transfer do MatrycaTransferLog
+                            LogTransferToDatabase(selectedDate, savedCount);
+
                             MessageBox.Show(
                                 $"Pomyślnie zapisano {savedCount} rekordów do bazy danych.",
                                 "Sukces",
@@ -1235,6 +1238,52 @@ namespace Kalendarz1
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 UpdateStatus("Błąd zapisu");
+            }
+        }
+
+        /// <summary>
+        /// Loguje operację zapisu do bazy (transfer) do tabeli MatrycaTransferLog
+        /// </summary>
+        private void LogTransferToDatabase(DateTime calcDate, int recordCount)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Upewnij się, że tabela MatrycaTransferLog istnieje
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'MatrycaTransferLog')
+                        CREATE TABLE dbo.MatrycaTransferLog (
+                            ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+                            TransferDate DATETIME NOT NULL,
+                            TransferByUser NVARCHAR(100) NOT NULL,
+                            CalcDate DATE NOT NULL,
+                            RecordCount INT NOT NULL
+                        )";
+                    using (SqlCommand createCmd = new SqlCommand(createTableSql, conn))
+                    {
+                        createCmd.ExecuteNonQuery();
+                    }
+
+                    string insertSql = @"
+                        INSERT INTO dbo.MatrycaTransferLog (TransferDate, TransferByUser, CalcDate, RecordCount)
+                        VALUES (@TransferDate, @TransferByUser, @CalcDate, @RecordCount)";
+
+                    using (SqlCommand cmd = new SqlCommand(insertSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@TransferDate", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@TransferByUser", App.UserID);
+                        cmd.Parameters.AddWithValue("@CalcDate", calcDate);
+                        cmd.Parameters.AddWithValue("@RecordCount", recordCount);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania transferu: {ex.Message}");
             }
         }
 

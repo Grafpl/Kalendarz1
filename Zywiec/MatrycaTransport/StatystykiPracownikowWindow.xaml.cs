@@ -14,6 +14,8 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private DateTime dateFrom;
         private DateTime dateTo;
+        private List<DostawcaItem> listaDostawcow = new List<DostawcaItem>();
+        private string selectedDostawcaGID = null;
 
         // Kolory (jak w screenshocie - zielony, niebieski, żółty, fioletowy, pomarańczowy)
         private readonly string[] chartColors = new string[]
@@ -29,6 +31,9 @@ namespace Kalendarz1
             // Domyślny zakres - ten miesiąc
             SetThisMonth();
 
+            // Załaduj listę dostawców
+            LoadDostawcy();
+
             Loaded += Window_Loaded;
         }
 
@@ -41,6 +46,50 @@ namespace Kalendarz1
         {
             Close();
         }
+
+        #region Ładowanie dostawców
+
+        private void LoadDostawcy()
+        {
+            listaDostawcow = new List<DostawcaItem>();
+            listaDostawcow.Add(new DostawcaItem { GID = null, ShortName = "-- Wszyscy dostawcy --" });
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT ID AS GID, ShortName FROM dbo.Dostawcy WHERE halt = 0 ORDER BY ShortName";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            listaDostawcow.Add(new DostawcaItem
+                            {
+                                GID = reader["GID"]?.ToString(),
+                                ShortName = reader["ShortName"]?.ToString() ?? "-"
+                            });
+                        }
+                    }
+                }
+
+                cboDostawca.ItemsSource = listaDostawcow;
+                cboDostawca.SelectedIndex = 0;
+            }
+            catch { }
+        }
+
+        private void CboDostawca_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            var selected = cboDostawca.SelectedItem as DostawcaItem;
+            selectedDostawcaGID = selected?.GID;
+            LoadAllData();
+        }
+
+        #endregion
 
         #region Wybór okresu
 
@@ -137,18 +186,22 @@ namespace Kalendarz1
             {
                 var smsStats = LoadSmsStatistics();
                 var confirmStats = LoadConfirmationStatistics();
+                var transferStats = LoadTransferStatistics();
                 LoadSmsHistory();
-                UpdateSummaryCards(smsStats);
+                UpdateSummaryCards();
                 DrawDonutChart(donutChartSent, legendSent, smsStats);
                 DrawDonutChart(donutChartConfirm, legendConfirm, confirmStats);
+                DrawDonutChart(donutChartTransfer, legendTransfer, transferStats);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania danych:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Błąd: {ex.Message}");
             }
         }
 
+        /// <summary>
+        /// Ładuje statystyki SMS - SMS zbiorczy (ALL) liczy się jako 1 na unikalny CalcDate+CustomerGID
+        /// </summary>
         private List<UserStats> LoadSmsStatistics()
         {
             var stats = new List<UserStats>();
@@ -165,20 +218,39 @@ namespace Kalendarz1
                         if ((int)checkCmd.ExecuteScalar() == 0) return stats;
                     }
 
-                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
+                    // SMS zbiorczy (ALL) liczy się jako 1 na unikalną kombinację CalcDate+CustomerGID
+                    // SMS pojedynczy (ONE) liczy się normalnie
                     string query = @"
-                        SELECT ISNULL(o.Name, s.SentByUser) AS UserName, COUNT(*) AS Total
-                        FROM dbo.SmsHistory s
-                        LEFT JOIN dbo.operators o ON s.SentByUser = o.ID
-                        WHERE s.SentDate >= @DateFrom AND s.SentDate <= @DateTo
-                          AND s.SentByUser IS NOT NULL
-                        GROUP BY ISNULL(o.Name, s.SentByUser)
+                        SELECT ISNULL(o.Name, t.SentByUser) AS UserName, SUM(t.SmsCount) AS Total
+                        FROM (
+                            -- SMS zbiorczy - liczymy unikalne CalcDate dla każdego użytkownika
+                            SELECT SentByUser, COUNT(DISTINCT CAST(CalcDate AS DATE)) AS SmsCount
+                            FROM dbo.SmsHistory
+                            WHERE SmsType = 'ALL'
+                              AND SentDate >= @DateFrom AND SentDate <= @DateTo
+                              AND SentByUser IS NOT NULL" +
+                              (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @"
+                            GROUP BY SentByUser
+                            UNION ALL
+                            -- SMS pojedynczy - liczymy każdy osobno
+                            SELECT SentByUser, COUNT(*) AS SmsCount
+                            FROM dbo.SmsHistory
+                            WHERE SmsType = 'ONE'
+                              AND SentDate >= @DateFrom AND SentDate <= @DateTo
+                              AND SentByUser IS NOT NULL" +
+                              (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @"
+                            GROUP BY SentByUser
+                        ) t
+                        LEFT JOIN dbo.operators o ON t.SentByUser = o.ID
+                        GROUP BY ISNULL(o.Name, t.SentByUser)
                         ORDER BY Total DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
                         cmd.Parameters.AddWithValue("@DateTo", dateTo);
+                        if (selectedDostawcaGID != null)
+                            cmd.Parameters.AddWithValue("@DostawcaGID", selectedDostawcaGID);
 
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
@@ -221,7 +293,6 @@ namespace Kalendarz1
                         if ((int)checkCmd.ExecuteScalar() == 0) return stats;
                     }
 
-                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
                     string query = @"
                         SELECT ISNULL(o.Name, s.AcknowledgedByUser) AS UserName, COUNT(*) AS Total
                         FROM dbo.SmsChangeLog s
@@ -229,6 +300,64 @@ namespace Kalendarz1
                         WHERE s.AcknowledgedDate >= @DateFrom AND s.AcknowledgedDate <= @DateTo
                           AND s.AcknowledgedByUser IS NOT NULL
                         GROUP BY ISNULL(o.Name, s.AcknowledgedByUser)
+                        ORDER BY Total DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
+                        cmd.Parameters.AddWithValue("@DateTo", dateTo);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string userName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "-";
+                                int total = reader["Total"] != DBNull.Value ? Convert.ToInt32(reader["Total"]) : 0;
+
+                                if (!string.IsNullOrEmpty(userName) && total > 0)
+                                {
+                                    stats.Add(new UserStats
+                                    {
+                                        UserId = userName,
+                                        Count = total
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return stats;
+        }
+
+        /// <summary>
+        /// Ładuje statystyki kto zapisał dane do bazy FarmerCalc (transfery)
+        /// </summary>
+        private List<UserStats> LoadTransferStatistics()
+        {
+            var stats = new List<UserStats>();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string checkTable = "SELECT COUNT(*) FROM sys.tables WHERE name = 'MatrycaTransferLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                    {
+                        if ((int)checkCmd.ExecuteScalar() == 0) return stats;
+                    }
+
+                    string query = @"
+                        SELECT ISNULL(o.Name, t.TransferByUser) AS UserName, COUNT(*) AS Total
+                        FROM dbo.MatrycaTransferLog t
+                        LEFT JOIN dbo.operators o ON t.TransferByUser = o.ID
+                        WHERE t.TransferDate >= @DateFrom AND t.TransferDate <= @DateTo
+                          AND t.TransferByUser IS NOT NULL
+                        GROUP BY ISNULL(o.Name, t.TransferByUser)
                         ORDER BY Total DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -281,24 +410,28 @@ namespace Kalendarz1
                         }
                     }
 
-                    // JOIN z operators aby uzyskać pełną nazwę użytkownika
                     string query = @"
                         SELECT TOP 500
                             s.SentDate,
                             ISNULL(o.Name, s.SentByUser) AS UserName,
                             s.SmsType,
                             s.CustomerGID,
+                            d.ShortName AS DostawcaNazwa,
                             s.PhoneNumber,
                             s.CalcDate
                         FROM dbo.SmsHistory s
                         LEFT JOIN dbo.operators o ON s.SentByUser = o.ID
-                        WHERE s.SentDate >= @DateFrom AND s.SentDate <= @DateTo
+                        LEFT JOIN dbo.Dostawcy d ON s.CustomerGID = CAST(d.ID AS VARCHAR)
+                        WHERE s.SentDate >= @DateFrom AND s.SentDate <= @DateTo" +
+                        (selectedDostawcaGID != null ? " AND s.CustomerGID = @DostawcaGID" : "") + @"
                         ORDER BY s.SentDate DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
                         cmd.Parameters.AddWithValue("@DateTo", dateTo);
+                        if (selectedDostawcaGID != null)
+                            cmd.Parameters.AddWithValue("@DostawcaGID", selectedDostawcaGID);
 
                         int lp = 1;
                         using (SqlDataReader reader = cmd.ExecuteReader())
@@ -310,6 +443,7 @@ namespace Kalendarz1
                                 string smsType = reader["SmsType"] != DBNull.Value ? reader["SmsType"].ToString() : "";
                                 string userName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "-";
                                 string customerGID = reader["CustomerGID"] != DBNull.Value ? reader["CustomerGID"].ToString() : "-";
+                                string dostawcaNazwa = reader["DostawcaNazwa"] != DBNull.Value ? reader["DostawcaNazwa"].ToString() : customerGID;
                                 string phoneNumber = reader["PhoneNumber"] != DBNull.Value ? reader["PhoneNumber"].ToString() : "-";
 
                                 history.Add(new SmsHistoryItem
@@ -320,7 +454,7 @@ namespace Kalendarz1
                                     SentByUser = userName,
                                     SmsType = smsType,
                                     SmsTypeF = smsType == "ALL" ? "Zbiorczy" : "Pojedynczy",
-                                    CustomerGID = customerGID,
+                                    CustomerGID = dostawcaNazwa,
                                     PhoneNumber = phoneNumber,
                                     CalcDate = calcDate,
                                     CalcDateF = calcDate?.ToString("dd.MM.yyyy") ?? "-"
@@ -335,7 +469,7 @@ namespace Kalendarz1
             catch { }
         }
 
-        private void UpdateSummaryCards(List<UserStats> smsStats)
+        private void UpdateSummaryCards()
         {
             int totalSms = 0, smsAll = 0, smsOne = 0, activeUsers = 0;
 
@@ -350,19 +484,31 @@ namespace Kalendarz1
                     {
                         if ((int)checkCmd.ExecuteScalar() > 0)
                         {
+                            // SMS zbiorczy liczy unikalne CalcDate, pojedynczy liczy wszystkie
                             string query = @"
                                 SELECT
-                                    COUNT(*) AS TotalSms,
-                                    ISNULL(SUM(CASE WHEN SmsType = 'ALL' THEN 1 ELSE 0 END), 0) AS SmsAll,
-                                    ISNULL(SUM(CASE WHEN SmsType = 'ONE' THEN 1 ELSE 0 END), 0) AS SmsOne,
-                                    COUNT(DISTINCT SentByUser) AS ActiveUsers
-                                FROM dbo.SmsHistory
-                                WHERE SentDate >= @DateFrom AND SentDate <= @DateTo";
+                                    (SELECT COUNT(DISTINCT CAST(CalcDate AS DATE)) FROM dbo.SmsHistory
+                                     WHERE SmsType = 'ALL' AND SentDate >= @DateFrom AND SentDate <= @DateTo" +
+                                     (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @") +
+                                    (SELECT COUNT(*) FROM dbo.SmsHistory
+                                     WHERE SmsType = 'ONE' AND SentDate >= @DateFrom AND SentDate <= @DateTo" +
+                                     (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @") AS TotalSms,
+                                    (SELECT COUNT(DISTINCT CAST(CalcDate AS DATE)) FROM dbo.SmsHistory
+                                     WHERE SmsType = 'ALL' AND SentDate >= @DateFrom AND SentDate <= @DateTo" +
+                                     (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @") AS SmsAll,
+                                    (SELECT COUNT(*) FROM dbo.SmsHistory
+                                     WHERE SmsType = 'ONE' AND SentDate >= @DateFrom AND SentDate <= @DateTo" +
+                                     (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @") AS SmsOne,
+                                    (SELECT COUNT(DISTINCT SentByUser) FROM dbo.SmsHistory
+                                     WHERE SentDate >= @DateFrom AND SentDate <= @DateTo" +
+                                     (selectedDostawcaGID != null ? " AND CustomerGID = @DostawcaGID" : "") + @") AS ActiveUsers";
 
                             using (SqlCommand cmd = new SqlCommand(query, conn))
                             {
                                 cmd.Parameters.AddWithValue("@DateFrom", dateFrom);
                                 cmd.Parameters.AddWithValue("@DateTo", dateTo);
+                                if (selectedDostawcaGID != null)
+                                    cmd.Parameters.AddWithValue("@DostawcaGID", selectedDostawcaGID);
 
                                 using (SqlDataReader reader = cmd.ExecuteReader())
                                 {
@@ -413,7 +559,7 @@ namespace Kalendarz1
             double centerX = 75;
             double centerY = 75;
             double outerRadius = 70;
-            double innerRadius = 45; // Tworzy efekt "donut"
+            double innerRadius = 45;
             double total = stats.Sum(s => s.Count);
 
             if (total == 0)
@@ -424,7 +570,7 @@ namespace Kalendarz1
 
             double startAngle = -90;
             var legendItems = new List<ChartLegendItem>();
-            double maxBarWidth = 120; // Max szerokość paska w legendzie
+            double maxBarWidth = 120;
 
             for (int i = 0; i < stats.Count && i < chartColors.Length; i++)
             {
@@ -433,11 +579,9 @@ namespace Kalendarz1
 
                 if (sweepAngle < 0.5) continue;
 
-                // Rysuj segment donut
                 var slice = CreateDonutSlice(centerX, centerY, outerRadius, innerRadius, startAngle, sweepAngle, chartColors[i]);
                 canvas.Children.Add(slice);
 
-                // Dodaj do legendy
                 double percent = (stat.Count / total) * 100;
                 legendItems.Add(new ChartLegendItem
                 {
@@ -459,7 +603,6 @@ namespace Kalendarz1
             double startRad = startAngle * Math.PI / 180;
             double endRad = (startAngle + sweepAngle) * Math.PI / 180;
 
-            // Outer arc points
             Point outerStart = new Point(
                 centerX + outerRadius * Math.Cos(startRad),
                 centerY + outerRadius * Math.Sin(startRad));
@@ -467,7 +610,6 @@ namespace Kalendarz1
                 centerX + outerRadius * Math.Cos(endRad),
                 centerY + outerRadius * Math.Sin(endRad));
 
-            // Inner arc points
             Point innerStart = new Point(
                 centerX + innerRadius * Math.Cos(startRad),
                 centerY + innerRadius * Math.Sin(startRad));
@@ -479,7 +621,6 @@ namespace Kalendarz1
 
             var figure = new PathFigure { StartPoint = outerStart, IsClosed = true };
 
-            // Outer arc
             figure.Segments.Add(new ArcSegment(
                 outerEnd,
                 new Size(outerRadius, outerRadius),
@@ -488,10 +629,8 @@ namespace Kalendarz1
                 SweepDirection.Clockwise,
                 true));
 
-            // Line to inner arc
             figure.Segments.Add(new LineSegment(innerEnd, true));
 
-            // Inner arc (reversed)
             figure.Segments.Add(new ArcSegment(
                 innerStart,
                 new Size(innerRadius, innerRadius),
@@ -516,6 +655,12 @@ namespace Kalendarz1
     }
 
     #region Data Classes
+
+    public class DostawcaItem
+    {
+        public string GID { get; set; }
+        public string ShortName { get; set; }
+    }
 
     public class UserStats
     {
