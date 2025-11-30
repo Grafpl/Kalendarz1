@@ -13,10 +13,13 @@ namespace Kalendarz1.Services
     {
         private readonly string _connectionString;
 
+        // Domyślny connection string do LibraNet
+        private const string DEFAULT_CONNECTION_STRING =
+            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         public DashboardService(string connectionString = null)
         {
-            _connectionString = connectionString ??
-                Properties.Settings.Default.LibraNetConnectionString;
+            _connectionString = connectionString ?? DEFAULT_CONNECTION_STRING;
         }
 
         /// <summary>

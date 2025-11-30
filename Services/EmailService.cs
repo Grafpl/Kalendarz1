@@ -20,13 +20,13 @@ namespace Kalendarz1.Services
 
         public EmailService()
         {
-            // Domyślne ustawienia - można zmienić w konfiguracji
-            _smtpHost = Properties.Settings.Default.SmtpHost ?? "smtp.gmail.com";
-            _smtpPort = Properties.Settings.Default.SmtpPort > 0 ? Properties.Settings.Default.SmtpPort : 587;
-            _smtpUser = Properties.Settings.Default.SmtpUser ?? "";
-            _smtpPassword = Properties.Settings.Default.SmtpPassword ?? "";
-            _fromEmail = Properties.Settings.Default.SmtpFromEmail ?? "rozliczenia@piorkowscy.pl";
-            _fromName = Properties.Settings.Default.SmtpFromName ?? "Ubojnia Drobiu Piórkowscy";
+            // Domyślne ustawienia - skonfiguruj przed użyciem
+            _smtpHost = "smtp.gmail.com";
+            _smtpPort = 587;
+            _smtpUser = "";
+            _smtpPassword = "";
+            _fromEmail = "rozliczenia@piorkowscy.pl";
+            _fromName = "Ubojnia Drobiu Piórkowscy";
         }
 
         public EmailService(string smtpHost, int smtpPort, string smtpUser, string smtpPassword, string fromEmail, string fromName)

@@ -25,10 +25,13 @@ namespace Kalendarz1.Services
         private const double UBOJNIA_LAT = 51.9301;
         private const double UBOJNIA_LON = 19.8512;
 
+        // Domyślny connection string do LibraNet
+        private const string DEFAULT_CONNECTION_STRING =
+            "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         public MapService(string connectionString = null, string geocodingApiKey = null)
         {
-            _connectionString = connectionString ??
-                Properties.Settings.Default.LibraNetConnectionString;
+            _connectionString = connectionString ?? DEFAULT_CONNECTION_STRING;
             _geocodingApiKey = geocodingApiKey;
         }
 
