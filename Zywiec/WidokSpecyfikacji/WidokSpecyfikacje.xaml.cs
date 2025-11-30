@@ -926,7 +926,7 @@ namespace Kalendarz1
             string dostawcaGID = selectedRow.DostawcaGID;
             var ids = specyfikacjeData
                 .Where(x => x.DostawcaGID == dostawcaGID)
-                .Select(x => x.Id)
+                .Select(x => x.ID)
                 .ToList();
 
             if (ids.Count > 0)
@@ -950,7 +950,7 @@ namespace Kalendarz1
             string dostawcaGID = selectedRow.DostawcaGID;
             var ids = specyfikacjeData
                 .Where(x => x.DostawcaGID == dostawcaGID)
-                .Select(x => x.Id)
+                .Select(x => x.ID)
                 .ToList();
 
             if (ids.Count > 0)
