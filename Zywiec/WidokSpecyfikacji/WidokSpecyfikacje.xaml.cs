@@ -1078,8 +1078,9 @@ namespace Kalendarz1
                         if (File.Exists(path))
                         {
                             iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(path);
-                            logo.ScaleToFit(150f, 70f);
+                            logo.ScaleToFit(200f, 85f); // Większe logo
                             logo.Alignment = Element.ALIGN_CENTER;
+                            logo.SpacingAfter = 2f;
                             doc.Add(logo);
                             break;
                         }
@@ -1087,10 +1088,10 @@ namespace Kalendarz1
                 }
                 catch { }
 
-                // Tytuł
-                Paragraph title = new Paragraph("ROZLICZENIE - WERSJA SKRÓCONA", new Font(polishFont, 12, Font.NORMAL, grayColor));
+                // Tytuł - mniejszy, elegancki
+                Paragraph title = new Paragraph("ROZLICZENIE - WERSJA SKRÓCONA", new Font(polishFont, 10, Font.NORMAL, grayColor));
                 title.Alignment = Element.ALIGN_CENTER;
-                title.SpacingAfter = 15f;
+                title.SpacingAfter = 12f;
                 doc.Add(title);
 
                 // === BOX GŁÓWNY Z ZAOKRĄGLONYMI ROGAMI ===
@@ -1120,13 +1121,13 @@ namespace Kalendarz1
 
                 doc.Add(infoTable);
 
-                // === POBIERZ GODZINY PRZYJĘCIA I POGODĘ ===
+                // === POBIERZ GODZINY ZAŁADUNKU I POGODĘ ===
                 List<DateTime> arrivalTimes = new List<DateTime>();
                 foreach (int id in ids)
                 {
                     try
                     {
-                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "ArrivalTime");
+                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
                         if (arrTime != default) arrivalTimes.Add(arrTime);
                     }
                     catch { }
@@ -1144,15 +1145,15 @@ namespace Kalendarz1
                     weatherInfo = WeatherService.GetWeather(dzienUbojowy.Date.AddHours(8));
                 }
 
-                // Formatuj godziny przyjęcia
-                string godzinyPrzyjecia = "";
+                // Formatuj godziny załadunku
+                string godzinyZaladunku = "";
                 if (arrivalTimes.Count > 0)
                 {
                     var sortedTimes = arrivalTimes.OrderBy(t => t).ToList();
                     if (sortedTimes.Count == 1)
-                        godzinyPrzyjecia = $"Przyjęcie: {sortedTimes[0]:HH:mm}";
+                        godzinyZaladunku = $"Załadunek: {sortedTimes[0]:HH:mm}";
                     else
-                        godzinyPrzyjecia = $"Przyjęcia: {sortedTimes.First():HH:mm} - {sortedTimes.Last():HH:mm}";
+                        godzinyZaladunku = $"Załadunki: {sortedTimes.First():HH:mm} - {sortedTimes.Last():HH:mm}";
                 }
 
                 // === OBLICZENIA ===
@@ -1223,10 +1224,10 @@ namespace Kalendarz1
                 dateInfo.Alignment = Element.ALIGN_CENTER;
                 mainCell.AddElement(dateInfo);
 
-                // Godzina przyjęcia i pogoda
+                // Godzina załadunku i pogoda
                 string infoLine = "";
-                if (!string.IsNullOrEmpty(godzinyPrzyjecia))
-                    infoLine += godzinyPrzyjecia;
+                if (!string.IsNullOrEmpty(godzinyZaladunku))
+                    infoLine += godzinyZaladunku;
                 if (weatherInfo != null)
                 {
                     if (!string.IsNullOrEmpty(infoLine)) infoLine += "  |  ";
@@ -1463,13 +1464,14 @@ namespace Kalendarz1
                     if (foundLogoPath != null)
                     {
                         iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(foundLogoPath);
-                        logo.ScaleToFit(180f, 80f); // Większe logo
+                        logo.ScaleToFit(220f, 90f); // Duże logo
                         logo.Alignment = Element.ALIGN_CENTER;
+                        logo.SpacingAfter = 2f;
                         doc.Add(logo);
                     }
                     else
                     {
-                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 20, Font.BOLD, greenColor));
+                        Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 24, Font.BOLD, greenColor));
                         firmName.Alignment = Element.ALIGN_CENTER;
                         doc.Add(firmName);
                         Paragraph firmSub = new Paragraph("Ubojnia Drobiu", new Font(polishFont, 10, Font.NORMAL, grayColor));
@@ -1479,25 +1481,25 @@ namespace Kalendarz1
                 }
                 catch
                 {
-                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 20, Font.BOLD, greenColor));
+                    Paragraph firmName = new Paragraph("PIÓRKOWSCY", new Font(polishFont, 24, Font.BOLD, greenColor));
                     firmName.Alignment = Element.ALIGN_CENTER;
                     doc.Add(firmName);
                 }
 
-                // Tytuł pod logo - mniejszy
-                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 11, Font.NORMAL, BaseColor.DARK_GRAY));
+                // Tytuł pod logo - mały, elegancki
+                Paragraph mainTitle = new Paragraph("ROZLICZENIE PRZYJĘTEGO DROBIU", new Font(polishFont, 10, Font.NORMAL, grayColor));
                 mainTitle.Alignment = Element.ALIGN_CENTER;
-                mainTitle.SpacingBefore = 3f;
-                mainTitle.SpacingAfter = 8f;
+                mainTitle.SpacingBefore = 2f;
+                mainTitle.SpacingAfter = 6f;
                 doc.Add(mainTitle);
 
-                // === POBIERZ GODZINY PRZYJĘCIA I POGODĘ ===
+                // === POBIERZ GODZINY ZAŁADUNKU I POGODĘ ===
                 List<DateTime> arrivalTimesFull = new List<DateTime>();
                 foreach (int id in ids)
                 {
                     try
                     {
-                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "ArrivalTime");
+                        DateTime arrTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(id, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
                         if (arrTime != default) arrivalTimesFull.Add(arrTime);
                     }
                     catch { }
@@ -1509,13 +1511,13 @@ namespace Kalendarz1
                 else
                     weatherInfoFull = WeatherService.GetWeather(dzienUbojowy.Date.AddHours(8));
 
-                string godzinyPrzjeciaFull = "";
+                string godzinyZaladunkuFull = "";
                 if (arrivalTimesFull.Count > 0)
                 {
                     var sorted = arrivalTimesFull.OrderBy(t => t).ToList();
-                    godzinyPrzjeciaFull = sorted.Count == 1
-                        ? $"Godz. przyjęcia: {sorted[0]:HH:mm}"
-                        : $"Godz. przyjęć: {sorted.First():HH:mm}-{sorted.Last():HH:mm}";
+                    godzinyZaladunkuFull = sorted.Count == 1
+                        ? $"Załadunek: {sorted[0]:HH:mm}"
+                        : $"Załadunki: {sorted.First():HH:mm}-{sorted.Last():HH:mm}";
                 }
 
                 // Tabela z informacjami o dokumencie
@@ -1527,8 +1529,8 @@ namespace Kalendarz1
                 // Data uboju (lewa)
                 PdfPCell dateCell = new PdfPCell { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, VerticalAlignment = Element.ALIGN_MIDDLE };
                 dateCell.AddElement(new Paragraph($"Data uboju: {strDzienUbojowyPL}", subtitleFont) { Alignment = Element.ALIGN_LEFT });
-                if (!string.IsNullOrEmpty(godzinyPrzjeciaFull))
-                    dateCell.AddElement(new Paragraph(godzinyPrzjeciaFull, new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                if (!string.IsNullOrEmpty(godzinyZaladunkuFull))
+                    dateCell.AddElement(new Paragraph(godzinyZaladunkuFull, new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
                 headerTable.AddCell(dateCell);
 
                 // Pogoda (środek)
