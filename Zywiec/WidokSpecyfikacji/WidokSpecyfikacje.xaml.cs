@@ -1083,6 +1083,165 @@ namespace Kalendarz1
             return phone;
         }
 
+        // === Przycisk SMS ZAŁADUNEK - informacja o godzinie przyjazdu auta ===
+        private void BtnSmsZaladunek_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz z tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRows = dataGridView1.SelectedCells
+                .Cast<DataGridCellInfo>()
+                .Select(cell => cell.Item as SpecyfikacjaRow)
+                .Where(row => row != null)
+                .Distinct()
+                .ToList();
+
+            var ids = selectedRows.Select(x => x.ID).ToList();
+
+            if (ids.Count > 0)
+            {
+                SendZaladunekSms(ids);
+            }
+        }
+
+        // === SMS z informacją o załadunku (godzina, kierowca, auto) ===
+        private void SendZaladunekSms(List<int> ids)
+        {
+            try
+            {
+                string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+
+                // Pobierz telefon hodowcy
+                string phoneNumber = GetPhoneNumber(customerRealGID);
+
+                if (string.IsNullOrWhiteSpace(phoneNumber))
+                {
+                    var confirmEdit = MessageBox.Show(
+                        $"Brak numeru telefonu dla hodowcy: {sellerName}\n\nCzy chcesz teraz uzupełnić dane kontaktowe?",
+                        "Brak telefonu",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (confirmEdit == MessageBoxResult.Yes)
+                    {
+                        var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
+                        hodowcaForm.ShowDialog();
+                        phoneNumber = GetPhoneNumber(customerRealGID);
+                        if (string.IsNullOrWhiteSpace(phoneNumber))
+                        {
+                            MessageBox.Show("Numer telefonu nadal nie został uzupełniony.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                        sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
+                // Pobierz dane z pierwszego rozliczenia
+                int firstId = ids[0];
+
+                // Godzina załadunku
+                DateTime zaladunekTime = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(firstId, "[LibraNet].[dbo].[FarmerCalc]", "Zaladunek");
+                string zaladunekStr = zaladunekTime != default ? zaladunekTime.ToString("HH:mm") : "brak";
+
+                // Kierowca
+                int driverGID = zapytaniasql.PobierzInformacjeZBazyDanych<int>(firstId, "[LibraNet].[dbo].[FarmerCalc]", "DriverGID");
+                string kierowcaNazwa = driverGID > 0 ? (zapytaniasql.ZnajdzNazweKierowcy(driverGID) ?? "nieprzypisany") : "nieprzypisany";
+                string kierowcaTelefon = driverGID > 0 ? GetKierowcaTelefon(driverGID) : "";
+
+                // Numer auta
+                string ciagnikNr = zapytaniasql.PobierzInformacjeZBazyDanych<string>(firstId, "[LibraNet].[dbo].[FarmerCalc]", "CarID") ?? "";
+
+                // Data
+                DateTime dzienUbojowy = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Oblicz sumę sztuk
+                var rozliczeniaHodowcy = specyfikacjeData
+                    .Where(r => r.DostawcaGID == customerRealGID ||
+                               zapytaniasql.PobierzInformacjeZBazyDanych<string>(r.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") == customerRealGID)
+                    .ToList();
+
+                int sumaSzt = rozliczeniaHodowcy.Sum(r => r.LUMEL);
+
+                // Treść SMS
+                string smsMessage;
+                if (!string.IsNullOrWhiteSpace(kierowcaTelefon))
+                {
+                    smsMessage = $"Piorkowscy: {dzienUbojowy:dd.MM} godz.{zaladunekStr} " +
+                                $"Kierowca:{kierowcaNazwa} tel:{kierowcaTelefon} " +
+                                $"Auto:{ciagnikNr} Szt:{sumaSzt}";
+                }
+                else
+                {
+                    smsMessage = $"Piorkowscy: Zaladunk {dzienUbojowy:dd.MM} godz.{zaladunekStr} " +
+                                $"Kierowca:{kierowcaNazwa} Auto:{ciagnikNr} Szt:{sumaSzt}";
+                }
+
+                // Skopiuj telefon hodowcy do schowka
+                System.Windows.Clipboard.SetText(phoneNumber);
+
+                var result = MessageBox.Show(
+                    $"🚛 SMS INFORMACJA O ZAŁADUNKU\n" +
+                    $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    $"📱 Telefon hodowcy (skopiowany):\n{phoneNumber}\n\n" +
+                    $"📅 Data: {dzienUbojowy:dd.MM.yyyy}\n" +
+                    $"⏰ Godzina załadunku: {zaladunekStr}\n" +
+                    $"👤 Kierowca: {kierowcaNazwa}\n" +
+                    (string.IsNullOrWhiteSpace(kierowcaTelefon) ? "" : $"📞 Tel. kierowcy: {kierowcaTelefon}\n") +
+                    $"🚛 Auto: {ciagnikNr}\n" +
+                    $"📦 Sztuk: {sumaSzt}\n\n" +
+                    $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                    $"📝 Treść SMS:\n{smsMessage}\n\n" +
+                    $"Czy skopiować treść SMS do schowka?",
+                    "SMS Załadunek - Numer skopiowany",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    System.Windows.Clipboard.SetText(smsMessage);
+                    MessageBox.Show("✅ Treść SMS skopiowana do schowka!\n\nMożesz teraz wkleić ją do SMS Desktop.",
+                        "Skopiowano", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Pobiera telefon kierowcy z bazy TransportPL
+        /// </summary>
+        private string GetKierowcaTelefon(int driverGID)
+        {
+            try
+            {
+                string connStr = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connStr))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT Telefon FROM dbo.Kierowcy WHERE ID = @ID", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", driverGID);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString() ?? "";
+                    }
+                }
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         // === Przycisk EMAIL - wysyłka z PDF w załączniku ===
         private void BtnSendEmail_Click(object sender, RoutedEventArgs e)
         {
