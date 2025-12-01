@@ -20,9 +20,11 @@ namespace Kalendarz1.Opakowania.Views
 
         // Kolory w stylu Power BI
         private static readonly Color KolorTla = Color.FromArgb(45, 45, 48);
-        private static readonly Color KolorLinii = Color.FromArgb(237, 125, 49); // Pomarańczowy
+        private static readonly Color KolorE2 = Color.FromArgb(220, 53, 69); // Czerwony dla E2
+        private static readonly Color KolorH1 = Color.FromArgb(150, 150, 150); // Szary dla H1
         private static readonly Color KolorSiatki = Color.FromArgb(80, 80, 80);
         private static readonly Color KolorTekstu = Color.FromArgb(200, 200, 200);
+        private static readonly Color KolorZera = Color.White; // Biała linia dla Y=0
 
         private static readonly string[] NazwyMiesiecy = { "", "sty", "lut", "mar", "kwi", "maj", "cze",
                                                            "lip", "sie", "wrz", "paź", "lis", "gru" };
@@ -119,17 +121,17 @@ namespace Kalendarz1.Opakowania.Views
 
             if (_chartE2 != null)
             {
-                RysujWykres(_chartE2, dane, d => d.SaldoE2);
+                RysujWykres(_chartE2, dane, d => d.SaldoE2, KolorE2);
             }
 
             if (_chartH1 != null)
             {
-                RysujWykres(_chartH1, dane, d => d.SaldoH1);
+                RysujWykres(_chartH1, dane, d => d.SaldoH1, KolorH1);
             }
         }
 
         private void RysujWykres(Chart chart, System.Collections.Generic.List<Models.SaldoTygodniowe> dane,
-            Func<Models.SaldoTygodniowe, int> selector)
+            Func<Models.SaldoTygodniowe, int> selector, Color kolorLinii)
         {
             chart.Series.Clear();
             chart.Legends.Clear();
@@ -137,16 +139,28 @@ namespace Kalendarz1.Opakowania.Views
 
             var chartArea = chart.ChartAreas[0];
             chartArea.AxisX.CustomLabels.Clear();
+            chartArea.AxisY.StripLines.Clear();
+
+            // Biała linia na poziomie Y=0
+            var stripLine = new StripLine
+            {
+                IntervalOffset = 0,
+                StripWidth = 0,
+                BorderColor = KolorZera,
+                BorderWidth = 2,
+                BorderDashStyle = ChartDashStyle.Solid
+            };
+            chartArea.AxisY.StripLines.Add(stripLine);
 
             // Seria danych
             var series = new Series("Saldo")
             {
                 ChartType = SeriesChartType.Line,
                 BorderWidth = 3,
-                Color = KolorLinii,
+                Color = kolorLinii,
                 MarkerStyle = MarkerStyle.Circle,
                 MarkerSize = 10,
-                MarkerColor = KolorLinii,
+                MarkerColor = kolorLinii,
                 MarkerBorderColor = Color.White,
                 MarkerBorderWidth = 2,
                 IsValueShownAsLabel = true,

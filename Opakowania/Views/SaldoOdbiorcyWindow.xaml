@@ -511,16 +511,16 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#3498DB" CornerRadius="12,12,0,0" Padding="16,10">
+                            <Border Grid.Row="0" Background="#DC3545" CornerRadius="12,12,0,0" Padding="16,10">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="E2 - Pojemniki" FontSize="14" FontWeight="SemiBold"
                                                    Foreground="White" VerticalAlignment="Center"/>
                                         <TextBlock Text=" | Historia sald tygodniowych" FontSize="12"
-                                                   Foreground="#BBDEFB" VerticalAlignment="Center"/>
+                                                   Foreground="#FFCDD2" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="Aktualne saldo: " FontSize="12" Foreground="#BBDEFB" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Aktualne saldo: " FontSize="12" Foreground="#FFCDD2" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding SaldoE2}" FontSize="16" FontWeight="Bold"
                                                    Foreground="White" VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -540,16 +540,16 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#E67E22" CornerRadius="12,12,0,0" Padding="16,10">
+                            <Border Grid.Row="0" Background="#6C757D" CornerRadius="12,12,0,0" Padding="16,10">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="H1 - Palety" FontSize="14" FontWeight="SemiBold"
                                                    Foreground="White" VerticalAlignment="Center"/>
                                         <TextBlock Text=" | Historia sald tygodniowych" FontSize="12"
-                                                   Foreground="#FFE0B2" VerticalAlignment="Center"/>
+                                                   Foreground="#CED4DA" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="Aktualne saldo: " FontSize="12" Foreground="#FFE0B2" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Aktualne saldo: " FontSize="12" Foreground="#CED4DA" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding SaldoH1}" FontSize="16" FontWeight="Bold"
                                                    Foreground="White" VerticalAlignment="Center"/>
                                     </StackPanel>
