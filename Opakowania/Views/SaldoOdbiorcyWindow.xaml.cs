@@ -15,6 +15,7 @@ namespace Kalendarz1.Opakowania.Views
     public partial class SaldoOdbiorcyWindow : Window
     {
         private readonly SaldoOdbiorcyViewModel _viewModel;
+        private Chart _saldaChart;
 
         public SaldoOdbiorcyWindow(int kontrahentId, string kontrahentNazwa, string userId)
         {
@@ -46,14 +47,19 @@ namespace Kalendarz1.Opakowania.Views
 
         private void InicjalizujWykres()
         {
-            if (saldaChart == null) return;
+            if (chartHost == null) return;
 
-            saldaChart.BackColor = Color.White;
-            saldaChart.BorderlineColor = Color.FromArgb(220, 220, 220);
-            saldaChart.BorderlineDashStyle = ChartDashStyle.Solid;
-            saldaChart.BorderlineWidth = 1;
-            saldaChart.AntiAliasing = AntiAliasingStyles.All;
-            saldaChart.TextAntiAliasingQuality = TextAntiAliasingQuality.High;
+            // Utwórz Chart programowo
+            _saldaChart = new Chart
+            {
+                Dock = System.Windows.Forms.DockStyle.Fill,
+                BackColor = Color.White,
+                BorderlineColor = Color.FromArgb(220, 220, 220),
+                BorderlineDashStyle = ChartDashStyle.Solid,
+                BorderlineWidth = 1,
+                AntiAliasing = AntiAliasingStyles.All,
+                TextAntiAliasingQuality = TextAntiAliasingQuality.High
+            };
 
             // Obszar wykresu
             var chartArea = new ChartArea("MainArea")
@@ -90,8 +96,7 @@ namespace Kalendarz1.Opakowania.Views
             chartArea.Position = new ElementPosition(3, 3, 94, 94);
             chartArea.InnerPlotPosition = new ElementPosition(10, 5, 88, 80);
 
-            saldaChart.ChartAreas.Clear();
-            saldaChart.ChartAreas.Add(chartArea);
+            _saldaChart.ChartAreas.Add(chartArea);
 
             // Legenda
             var legend = new Legend
@@ -103,15 +108,17 @@ namespace Kalendarz1.Opakowania.Views
                 ForeColor = Color.FromArgb(60, 60, 60),
                 Alignment = StringAlignment.Center
             };
-            saldaChart.Legends.Clear();
-            saldaChart.Legends.Add(legend);
+            _saldaChart.Legends.Add(legend);
+
+            // Dodaj Chart do WindowsFormsHost
+            chartHost.Child = _saldaChart;
         }
 
         private void AktualizujWykres()
         {
-            if (saldaChart == null || _viewModel.SaldaTygodniowe == null) return;
+            if (_saldaChart == null || _viewModel.SaldaTygodniowe == null) return;
 
-            saldaChart.Series.Clear();
+            _saldaChart.Series.Clear();
 
             var dane = _viewModel.SaldaTygodniowe.ToList();
             if (!dane.Any()) return;
@@ -176,8 +183,8 @@ namespace Kalendarz1.Opakowania.Views
                 lastPointH1.LabelForeColor = seriesH1.Color;
             }
 
-            saldaChart.Series.Add(seriesE2);
-            saldaChart.Series.Add(seriesH1);
+            _saldaChart.Series.Add(seriesE2);
+            _saldaChart.Series.Add(seriesH1);
 
             // Dostosuj skalę osi Y
             var allValues = dane.SelectMany(d => new[] { d.SaldoE2, d.SaldoH1 }).ToList();
@@ -188,11 +195,11 @@ namespace Kalendarz1.Opakowania.Views
                 var range = max - min;
                 var margin = Math.Max(range * 0.15, 10);
 
-                saldaChart.ChartAreas[0].AxisY.Minimum = Math.Floor(min - margin);
-                saldaChart.ChartAreas[0].AxisY.Maximum = Math.Ceiling(max + margin);
+                _saldaChart.ChartAreas[0].AxisY.Minimum = Math.Floor(min - margin);
+                _saldaChart.ChartAreas[0].AxisY.Maximum = Math.Ceiling(max + margin);
             }
 
-            saldaChart.Invalidate();
+            _saldaChart.Invalidate();
         }
 
         #region Obsługa okna
