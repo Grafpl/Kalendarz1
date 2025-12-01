@@ -130,6 +130,10 @@
     <converters:DokumentBackgroundConverter x:Key="DokumentBackgroundConverter"/>
     <converters:BoolToGroupTextConverter x:Key="BoolToGroupTextConverter"/>
     <converters:ThresholdConverter x:Key="ThresholdConverter"/>
+    <converters:TypToBackgroundConverter x:Key="TypToBackgroundConverter"/>
+    <converters:TypToForegroundConverter x:Key="TypToForegroundConverter"/>
+    <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+    <converters:NonZeroToVisibilityConverter x:Key="NonZeroToVisibilityConverter"/>
 
     <!-- ============================================== -->
     <!-- ANIMACJE -->

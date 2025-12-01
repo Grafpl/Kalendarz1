@@ -551,6 +551,95 @@ namespace Kalendarz1.Opakowania.Converters
     }
 
     /// <summary>
+    /// Konwerter odwrotny boolean -> Visibility (true = Collapsed, false = Visible)
+    /// </summary>
+    public class InverseBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool boolValue = value is bool b && b;
+            return boolValue ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value is Visibility v && v == Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>
+    /// Konwerter niezerowej wartości -> Visibility (0 = Collapsed, inne = Visible)
+    /// </summary>
+    public class NonZeroToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is int intValue)
+                return intValue != 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (value is double doubleValue)
+                return doubleValue != 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (value is decimal decimalValue)
+                return decimalValue != 0 ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter typu dokumentu (MW1, MP) na kolor tła
+    /// </summary>
+    public class TypToBackgroundConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string typDokumentu)
+            {
+                return typDokumentu switch
+                {
+                    "MW1" => new SolidColorBrush(Color.FromRgb(255, 235, 238)), // #FFEBEE - Jasny czerwony
+                    "MP" => new SolidColorBrush(Color.FromRgb(232, 245, 233)),  // #E8F5E9 - Jasny zielony
+                    _ => new SolidColorBrush(Color.FromRgb(241, 245, 249))      // #F1F5F9 - Jasny szary
+                };
+            }
+            return new SolidColorBrush(Color.FromRgb(241, 245, 249));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter typu dokumentu (MW1, MP) na kolor tekstu
+    /// </summary>
+    public class TypToForegroundConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string typDokumentu)
+            {
+                return typDokumentu switch
+                {
+                    "MW1" => new SolidColorBrush(Color.FromRgb(231, 76, 60)),  // #E74C3C - Czerwony
+                    "MP" => new SolidColorBrush(Color.FromRgb(39, 174, 96)),   // #27AE60 - Zielony
+                    _ => new SolidColorBrush(Color.FromRgb(71, 85, 105))       // #475569 - Szary
+                };
+            }
+            return new SolidColorBrush(Color.FromRgb(71, 85, 105));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
     /// Konwerter wartości względnej na procent (dla wykresów)
     /// </summary>
     public class RelativeValueToPercentConverter : IMultiValueConverter
