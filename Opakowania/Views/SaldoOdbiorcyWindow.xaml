@@ -248,21 +248,16 @@
         </Border>
 
         <!-- ============================================== -->
-        <!-- GLOWNA ZAWARTOSC - TABELA I WYKRES -->
+        <!-- GLOWNA ZAWARTOSC - TABELA I WYKRESY -->
         <!-- ============================================== -->
         <Grid Grid.Row="3" Margin="20,5,20,15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="500"/>
-                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
-            <!-- LEWA STRONA - Historia dokumentow + Wykres -->
+            <!-- LEWA STRONA - Historia dokumentow -->
             <Grid Grid.Column="0" Margin="0,0,15,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" MinHeight="200"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="280"/>
-                </Grid.RowDefinitions>
 
                 <!-- DataGrid dokumentow -->
                 <Border Grid.Row="0" Background="White" CornerRadius="12">
@@ -324,20 +319,19 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <!-- Data -->
-                                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Margin" Value="6,0"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="FontSize" Value="11"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <!-- Data z dniem tygodnia -->
+                                <DataGridTemplateColumn Header="Data" Width="Auto" SortMemberPath="Data">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Data, Converter={StaticResource DateWithDayOfWeekConverter}}"
+                                                       VerticalAlignment="Center" Margin="6,0"
+                                                       FontWeight="SemiBold" FontSize="11"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- Nr dokumentu -->
-                                <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NumerDokumentu}" Width="120">
+                                <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NumerDokumentu}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -349,7 +343,7 @@
                                 </DataGridTextColumn>
 
                                 <!-- Typ dokumentu -->
-                                <DataGridTemplateColumn Header="Typ" Width="75" SortMemberPath="TypDokumentu">
+                                <DataGridTemplateColumn Header="Typ" Width="Auto" SortMemberPath="TypDokumentu">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="4" Padding="5,2" HorizontalAlignment="Center"
@@ -364,7 +358,7 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- E2 z etykieta -->
-                                <DataGridTemplateColumn Header="E2" Width="80" SortMemberPath="E2">
+                                <DataGridTemplateColumn Header="E2" Width="Auto" SortMemberPath="E2">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,0,6,0">
@@ -380,7 +374,7 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- H1 z etykieta -->
-                                <DataGridTemplateColumn Header="H1" Width="80" SortMemberPath="H1">
+                                <DataGridTemplateColumn Header="H1" Width="Auto" SortMemberPath="H1">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,0,6,0">
@@ -396,7 +390,7 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- EURO z etykieta -->
-                                <DataGridTemplateColumn Header="EURO" Width="80" SortMemberPath="EURO">
+                                <DataGridTemplateColumn Header="EURO" Width="Auto" SortMemberPath="EURO">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,0,6,0">
@@ -412,7 +406,7 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- PCV z etykieta -->
-                                <DataGridTemplateColumn Header="PCV" Width="80" SortMemberPath="PCV">
+                                <DataGridTemplateColumn Header="PCV" Width="Auto" SortMemberPath="PCV">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,0,6,0">
@@ -428,7 +422,7 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- DREW z etykieta -->
-                                <DataGridTemplateColumn Header="DREW" Width="80" SortMemberPath="DREW">
+                                <DataGridTemplateColumn Header="DREW" Width="Auto" SortMemberPath="DREW">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="2,0,6,0">
@@ -447,135 +441,196 @@
                     </Grid>
                 </Border>
 
-                <!-- Separator -->
-                <GridSplitter Grid.Row="1" Height="8" HorizontalAlignment="Stretch" Background="Transparent"/>
-
-                <!-- WYKRES TYGODNIOWY SALD E2/H1 -->
-                <Border Grid.Row="2" Background="White" CornerRadius="12">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Naglowek wykresu -->
-                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="12,12,0,0" Padding="16,10">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Wykres sald tygodniowych (E2 i H1)" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="#1E293B" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Border Background="#DBEAFE" CornerRadius="4" Padding="8,3" Margin="0,0,8,0">
-                                        <TextBlock Text="E2" FontSize="11" FontWeight="Bold" Foreground="#3498DB"/>
-                                    </Border>
-                                    <Border Background="#FFEDD5" CornerRadius="4" Padding="8,3">
-                                        <TextBlock Text="H1" FontSize="11" FontWeight="Bold" Foreground="#E67E22"/>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Wykres - WindowsFormsHost -->
-                        <WindowsFormsHost Grid.Row="1" x:Name="chartHost" Margin="8,4,8,8"/>
-                    </Grid>
-                </Border>
             </Grid>
 
-            <!-- PRAWA STRONA - Panel informacyjny -->
+            <!-- PRAWA STRONA - Wykresy i podsumowania -->
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
 
-                    <!-- Dane kontaktowe -->
-                    <Border Background="White" CornerRadius="12" Margin="0,0,0,12">
+                    <!-- WYKRES E2 - Pojemniki drobiowe -->
+                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
                         <Border.Effect>
                             <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
                         </Border.Effect>
-                        <StackPanel Margin="20">
-                            <TextBlock Text="Dane kontaktowe" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#1E293B" Margin="0,0,0,15"/>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="150"/>
+                            </Grid.RowDefinitions>
 
-                            <Grid Margin="0,0,0,10"
-                                  Visibility="{Binding MaTelefon, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border Grid.Row="0" Background="#EBF5FF" CornerRadius="12,12,0,0" Padding="12,8">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="E2 - Pojemnik drobiowy" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="#3498DB" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Text="Saldo: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding SaldoE2}" FontSize="14" FontWeight="Bold"
+                                                   Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <WindowsFormsHost Grid.Row="1" x:Name="chartHostE2" Margin="4,2,4,4"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- WYKRES H1 - Palety -->
+                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="150"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Background="#FFF7ED" CornerRadius="12,12,0,0" Padding="12,8">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="H1 - Paleta" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="#E67E22" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Text="Saldo: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding SaldoH1}" FontSize="14" FontWeight="Bold"
+                                                   Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <WindowsFormsHost Grid.Row="1" x:Name="chartHostH1" Margin="4,2,4,4"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Podsumowania opakowan -->
+                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
+                        </Border.Effect>
+                        <StackPanel Margin="15">
+                            <TextBlock Text="Podsumowanie sald" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#1E293B" Margin="0,0,0,12"/>
+
+                            <!-- E2 -->
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Telefon" FontSize="11" Foreground="#94A3B8"/>
-                                    <TextBlock Text="{Binding Telefon}" FontSize="14" Foreground="#1E293B" FontWeight="SemiBold"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="Zadzwon" Style="{StaticResource SmallButtonStyle}"
-                                        Command="{Binding ZadzwonCommand}" Padding="12,6" VerticalAlignment="Center"/>
+                                <Border Background="#EBF5FF" CornerRadius="4" Padding="8,4">
+                                    <TextBlock Text="E2" FontWeight="Bold" Foreground="#3498DB" FontSize="11" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="Pojemnik drobiowy" FontSize="11" Foreground="#64748B"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SaldoE2}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
+                                           VerticalAlignment="Center"/>
                             </Grid>
 
-                            <Grid Margin="0,0,0,10"
-                                  Visibility="{Binding MaEmail, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <!-- H1 -->
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Email" FontSize="11" Foreground="#94A3B8"/>
-                                    <TextBlock Text="{Binding Email}" FontSize="13" Foreground="#1E293B"
-                                               TextTrimming="CharacterEllipsis"/>
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="Wyslij" Style="{StaticResource SmallButtonStyle}"
-                                        Command="{Binding WyslijEmailCommand}" Padding="12,6" VerticalAlignment="Center"/>
+                                <Border Background="#FFF7ED" CornerRadius="4" Padding="8,4">
+                                    <TextBlock Text="H1" FontWeight="Bold" Foreground="#E67E22" FontSize="11" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="Paleta H1" FontSize="11" Foreground="#64748B"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SaldoH1}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
+                                           VerticalAlignment="Center"/>
                             </Grid>
 
-                            <StackPanel Margin="0,0,0,10"
-                                        Visibility="{Binding MaAdres, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock Text="Adres" FontSize="11" Foreground="#94A3B8"/>
-                                <TextBlock Text="{Binding Adres}" FontSize="13" Foreground="#1E293B" TextWrapping="Wrap"/>
-                            </StackPanel>
+                            <!-- EURO -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="8,4">
+                                    <TextBlock Text="EURO" FontWeight="Bold" Foreground="#27AE60" FontSize="11" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="Paleta EURO" FontSize="11" Foreground="#64748B"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SaldoEURO}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{Binding SaldoEURO, Converter={StaticResource SaldoToColorConverter}}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
 
-                            <StackPanel Visibility="{Binding MaNIP, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock Text="NIP" FontSize="11" Foreground="#94A3B8"/>
-                                <TextBlock Text="{Binding NIP}" FontSize="13" Foreground="#1E293B" FontWeight="SemiBold"/>
-                            </StackPanel>
+                            <!-- PCV -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Background="#F3E8FF" CornerRadius="4" Padding="8,4">
+                                    <TextBlock Text="PCV" FontWeight="Bold" Foreground="#9B59B6" FontSize="11" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="Paleta plastikowa" FontSize="11" Foreground="#64748B"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SaldoPCV}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{Binding SaldoPCV, Converter={StaticResource SaldoToColorConverter}}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- DREW -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Background="#FEF3C7" CornerRadius="4" Padding="8,4">
+                                    <TextBlock Text="DREW" FontWeight="Bold" Foreground="#F39C12" FontSize="11" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="Paleta drewniana" FontSize="11" Foreground="#64748B"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding SaldoDREW}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{Binding SaldoDREW, Converter={StaticResource SaldoToColorConverter}}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Legenda -->
-                    <Border Background="White" CornerRadius="12" Margin="0,0,0,12">
+                    <Border Background="White" CornerRadius="12">
                         <Border.Effect>
                             <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
                         </Border.Effect>
-                        <StackPanel Margin="20">
-                            <TextBlock Text="Legenda" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#1E293B" Margin="0,0,0,15"/>
+                        <StackPanel Margin="15">
+                            <TextBlock Text="Legenda" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#1E293B" Margin="0,0,0,10"/>
 
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Width="32" Height="24" Background="#FEF9C3" CornerRadius="4" Margin="0,0,12,0"/>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Wiersz salda" FontSize="12" Foreground="#1E293B" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Aktualne saldo na koniec okresu" FontSize="10" Foreground="#94A3B8"/>
-                                </StackPanel>
+                                <Border Width="28" Height="20" Background="#FEF9C3" CornerRadius="4" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Wiersz salda" FontSize="11" Foreground="#1E293B" VerticalAlignment="Center"/>
                             </Grid>
 
-                            <Border Height="1" Background="#F1F5F9" Margin="0,8"/>
-
-                            <Grid Margin="0,8,0,8">
+                            <Grid Margin="0,0,0,6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Width="32" Height="24" Background="#FEE2E2" CornerRadius="4" Margin="0,0,12,0">
-                                    <TextBlock Text="W" FontSize="10" FontWeight="Bold" Foreground="#DC2626"
+                                <Border Width="28" Height="20" Background="#FEE2E2" CornerRadius="4" Margin="0,0,10,0">
+                                    <TextBlock Text="W" FontSize="9" FontWeight="Bold" Foreground="#DC2626"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Wydanie (MW1)" FontSize="12" Foreground="#DC2626" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Kontrahent winny nam opakowania" FontSize="10" Foreground="#94A3B8"/>
-                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="Wydanie (MW1)" FontSize="11" Foreground="#DC2626" VerticalAlignment="Center"/>
                             </Grid>
 
                             <Grid>
@@ -583,69 +638,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Width="32" Height="24" Background="#DCFCE7" CornerRadius="4" Margin="0,0,12,0">
-                                    <TextBlock Text="P" FontSize="10" FontWeight="Bold" Foreground="#16A34A"
+                                <Border Width="28" Height="20" Background="#DCFCE7" CornerRadius="4" Margin="0,0,10,0">
+                                    <TextBlock Text="P" FontSize="9" FontWeight="Bold" Foreground="#16A34A"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Przyjecie (MP)" FontSize="12" Foreground="#16A34A" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Zwrot opakowan od kontrahenta" FontSize="10" Foreground="#94A3B8"/>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Skroty klawiszowe -->
-                    <Border Background="#F0F9FF" CornerRadius="12">
-                        <Border.Effect>
-                            <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.04" BlurRadius="8"/>
-                        </Border.Effect>
-                        <StackPanel Margin="20">
-                            <TextBlock Text="Skroty klawiszowe" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="#0369A1" Margin="0,0,0,12"/>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#DBEAFE" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                    <TextBlock Text="F5" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Odswiez dane" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#DBEAFE" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                    <TextBlock Text="Ctrl+E" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Eksport do Excel" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#DBEAFE" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                    <TextBlock Text="Ctrl+P" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Drukuj / PDF" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#DBEAFE" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                    <TextBlock Text="ESC" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Zamknij okno" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Przyjecie (MP)" FontSize="11" Foreground="#16A34A" VerticalAlignment="Center"/>
                             </Grid>
                         </StackPanel>
                     </Border>

@@ -174,20 +174,38 @@ namespace Kalendarz1.Opakowania.ViewModels
         // Liczba dokumentów
         public int LiczbaDokumentow => Dokumenty?.Count(d => !d.JestSaldem) ?? 0;
 
-        // Dokumenty posortowane - saldo na samym dole
+        // Dokumenty posortowane: Saldo DO na górze, dokumenty od najnowszych, Saldo OD na dole
         public IEnumerable<DokumentOpakowania> DokumentyPosortowane
         {
             get
             {
                 if (Dokumenty == null) return Enumerable.Empty<DokumentOpakowania>();
 
-                // Najpierw dokumenty (nie-salda) posortowane od najnowszych, potem saldo na końcu
+                var wynik = new List<DokumentOpakowania>();
+
+                // 1. Saldo DO na górze (saldo końcowe)
+                var saldoDo = Dokumenty.FirstOrDefault(d => d.JestSaldem && d.NumerDokumentu?.Contains("DO") == true);
+                if (saldoDo != null) wynik.Add(saldoDo);
+
+                // 2. Dokumenty posortowane od najnowszych do najstarszych
                 var dokumentyBezSalda = Dokumenty
                     .Where(d => !d.JestSaldem)
-                    .OrderByDescending(d => d.Data);
-                var salda = Dokumenty.Where(d => d.JestSaldem);
+                    .OrderByDescending(d => d.Data)
+                    .ToList();
+                wynik.AddRange(dokumentyBezSalda);
 
-                return dokumentyBezSalda.Concat(salda);
+                // 3. Saldo OD na dole (saldo początkowe)
+                var saldoOd = Dokumenty.FirstOrDefault(d => d.JestSaldem && d.NumerDokumentu?.Contains("OD") == true);
+                if (saldoOd != null) wynik.Add(saldoOd);
+
+                // Jeśli nie ma rozróżnienia OD/DO, dodaj wszystkie salda na dole
+                if (saldoDo == null && saldoOd == null)
+                {
+                    var salda = Dokumenty.Where(d => d.JestSaldem);
+                    wynik.AddRange(salda);
+                }
+
+                return wynik;
             }
         }
 
@@ -293,60 +311,48 @@ namespace Kalendarz1.Opakowania.ViewModels
         }
 
         /// <summary>
-        /// Oblicza salda tygodniowe dla wykresu (końcówka tygodnia = niedziela)
+        /// Oblicza salda tygodniowe dla wykresu - wszystkie tygodnie między DataOd a DataDo
         /// </summary>
         private void ObliczSaldaTygodniowe()
         {
             SaldaTygodniowe = new ObservableCollection<SaldoTygodniowe>();
 
-            if (Dokumenty == null || !Dokumenty.Any()) return;
-
             // Pobierz tylko dokumenty (bez wiersza salda)
-            var dokumentyBezSalda = Dokumenty
+            var dokumentyBezSalda = Dokumenty?
                 .Where(d => !d.JestSaldem && d.Data.HasValue)
                 .OrderBy(d => d.Data)
-                .ToList();
-
-            if (!dokumentyBezSalda.Any()) return;
+                .ToList() ?? new List<DokumentOpakowania>();
 
             // Znajdź zakres dat
             var minData = DataOd;
             var maxData = DataDo;
 
-            // Znajdź pierwszą niedzielę przed lub równą minData
+            // Znajdź pierwszą niedzielę >= minData
             var pierwszaNiedziela = minData;
             while (pierwszaNiedziela.DayOfWeek != DayOfWeek.Sunday)
             {
-                pierwszaNiedziela = pierwszaNiedziela.AddDays(-1);
+                pierwszaNiedziela = pierwszaNiedziela.AddDays(1);
             }
 
-            // Oblicz salda kumulowane dla każdego tygodnia
-            int saldoE2 = 0;
-            int saldoH1 = 0;
-
+            // Generuj wszystkie tygodnie między DataOd a DataDo
             var aktualnaData = pierwszaNiedziela;
-            while (aktualnaData <= maxData.AddDays(7))
+            while (aktualnaData <= maxData)
             {
-                // Pobierz dokumenty do tej niedzieli włącznie
+                // Oblicz kumulatywne saldo do tej niedzieli włącznie
                 var dokumentyDoTejNiedzieli = dokumentyBezSalda
                     .Where(d => d.Data.Value <= aktualnaData)
                     .ToList();
 
-                // Oblicz saldo na tę niedzielę (sumując wszystkie dokumenty do tej daty)
-                saldoE2 = dokumentyDoTejNiedzieli.Sum(d => d.E2);
-                saldoH1 = dokumentyDoTejNiedzieli.Sum(d => d.H1);
+                int saldoE2 = dokumentyDoTejNiedzieli.Sum(d => d.E2);
+                int saldoH1 = dokumentyDoTejNiedzieli.Sum(d => d.H1);
 
-                // Dodaj tylko jeśli niedziela jest w zakresie
-                if (aktualnaData >= minData.AddDays(-7) && aktualnaData <= maxData)
+                SaldaTygodniowe.Add(new SaldoTygodniowe
                 {
-                    SaldaTygodniowe.Add(new SaldoTygodniowe
-                    {
-                        DataNiedziela = aktualnaData,
-                        SaldoE2 = saldoE2,
-                        SaldoH1 = saldoH1,
-                        NumerTygodnia = GetNumerTygodnia(aktualnaData)
-                    });
-                }
+                    DataNiedziela = aktualnaData,
+                    SaldoE2 = saldoE2,
+                    SaldoH1 = saldoH1,
+                    NumerTygodnia = GetNumerTygodnia(aktualnaData)
+                });
 
                 aktualnaData = aktualnaData.AddDays(7);
             }

@@ -134,6 +134,7 @@
     <converters:TypToForegroundConverter x:Key="TypToForegroundConverter"/>
     <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
     <converters:NonZeroToVisibilityConverter x:Key="NonZeroToVisibilityConverter"/>
+    <converters:DateWithDayOfWeekConverter x:Key="DateWithDayOfWeekConverter"/>
 
     <!-- ============================================== -->
     <!-- ANIMACJE -->

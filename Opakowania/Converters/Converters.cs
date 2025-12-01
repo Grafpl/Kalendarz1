@@ -551,6 +551,34 @@ namespace Kalendarz1.Opakowania.Converters
     }
 
     /// <summary>
+    /// Konwerter daty na tekst z dniem tygodnia (np. "01.12.2025 Pn")
+    /// </summary>
+    public class DateWithDayOfWeekConverter : IValueConverter
+    {
+        private static readonly string[] DniTygodnia = { "Nd", "Pn", "Wt", "Sr", "Cz", "Pt", "Sb" };
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is DateTime date)
+            {
+                string dzien = DniTygodnia[(int)date.DayOfWeek];
+                return $"{date:dd.MM.yyyy} {dzien}";
+            }
+            if (value is DateTime? nullableDate && nullableDate.HasValue)
+            {
+                string dzien = DniTygodnia[(int)nullableDate.Value.DayOfWeek];
+                return $"{nullableDate.Value:dd.MM.yyyy} {dzien}";
+            }
+            return "-";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
     /// Konwerter odwrotny boolean -> Visibility (true = Collapsed, false = Visible)
     /// </summary>
     public class InverseBoolToVisibilityConverter : IValueConverter
