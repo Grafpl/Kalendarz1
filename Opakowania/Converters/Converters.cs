@@ -559,15 +559,11 @@ namespace Kalendarz1.Opakowania.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is DateTime date)
+            DateTime? data = value as DateTime?;
+            if (data.HasValue)
             {
-                string dzien = DniTygodnia[(int)date.DayOfWeek];
-                return $"{date:dd.MM.yyyy} {dzien}";
-            }
-            if (value is DateTime? nullableDate && nullableDate.HasValue)
-            {
-                string dzien = DniTygodnia[(int)nullableDate.Value.DayOfWeek];
-                return $"{nullableDate.Value:dd.MM.yyyy} {dzien}";
+                string dzien = DniTygodnia[(int)data.Value.DayOfWeek];
+                return $"{data.Value:dd.MM.yyyy} {dzien}";
             }
             return "-";
         }
