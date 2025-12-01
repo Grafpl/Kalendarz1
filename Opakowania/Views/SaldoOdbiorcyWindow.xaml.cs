@@ -54,7 +54,7 @@ namespace Kalendarz1.Opakowania.Views
             }
         }
 
-        private Chart UtworzWykresPowerBI(string tytul)
+        private Chart UtworzWykresPowerBI()
         {
             var chart = new Chart
             {
@@ -64,24 +64,13 @@ namespace Kalendarz1.Opakowania.Views
                 TextAntiAliasingQuality = TextAntiAliasingQuality.High
             };
 
-            // Tytuł wykresu
-            var title = new Title
-            {
-                Text = tytul,
-                Font = new Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular),
-                ForeColor = KolorTekstu,
-                Docking = Docking.Top,
-                Alignment = ContentAlignment.MiddleLeft
-            };
-            chart.Titles.Add(title);
-
             var chartArea = new ChartArea("MainArea")
             {
                 BackColor = KolorTla
             };
 
             // Oś X - tygodnie z miesiącami
-            chartArea.AxisX.LabelStyle.Font = new Font("Segoe UI", 8F);
+            chartArea.AxisX.LabelStyle.Font = new Font("Segoe UI", 9F);
             chartArea.AxisX.LabelStyle.ForeColor = KolorTekstu;
             chartArea.AxisX.MajorGrid.LineColor = KolorSiatki;
             chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
@@ -91,7 +80,7 @@ namespace Kalendarz1.Opakowania.Views
             chartArea.AxisX.MajorTickMark.LineColor = KolorSiatki;
 
             // Oś Y - wartości
-            chartArea.AxisY.LabelStyle.Font = new Font("Segoe UI", 8F);
+            chartArea.AxisY.LabelStyle.Font = new Font("Segoe UI", 9F);
             chartArea.AxisY.LabelStyle.ForeColor = KolorTekstu;
             chartArea.AxisY.MajorGrid.LineColor = KolorSiatki;
             chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dash;
@@ -100,9 +89,9 @@ namespace Kalendarz1.Opakowania.Views
             chartArea.AxisY.MajorTickMark.LineColor = KolorSiatki;
             chartArea.AxisY.LabelStyle.Format = "#,##0";
 
-            // Marginesy
-            chartArea.Position = new ElementPosition(0, 8, 100, 92);
-            chartArea.InnerPlotPosition = new ElementPosition(8, 5, 90, 75);
+            // Marginesy - więcej miejsca na wykres
+            chartArea.Position = new ElementPosition(0, 0, 100, 100);
+            chartArea.InnerPlotPosition = new ElementPosition(6, 3, 92, 82);
 
             chart.ChartAreas.Add(chartArea);
 
@@ -114,14 +103,14 @@ namespace Kalendarz1.Opakowania.Views
             // Wykres E2
             if (chartHostE2 != null)
             {
-                _chartE2 = UtworzWykresPowerBI("Ilość pojemników E2 które \"wiszą\" nam odbiorcy w tygodniach");
+                _chartE2 = UtworzWykresPowerBI();
                 chartHostE2.Child = _chartE2;
             }
 
             // Wykres H1
             if (chartHostH1 != null)
             {
-                _chartH1 = UtworzWykresPowerBI("Ilość palet H1 które \"wiszą\" nam odbiorcy w tygodniach");
+                _chartH1 = UtworzWykresPowerBI();
                 chartHostH1.Child = _chartH1;
             }
         }
@@ -159,6 +148,8 @@ namespace Kalendarz1.Opakowania.Views
             Func<Models.SaldoTygodniowe, int> selector, Color kolor, string nazwaOdbiorcy)
         {
             chart.Series.Clear();
+            chart.Legends.Clear();
+            chart.Titles.Clear();
 
             // Seria główna - linia
             var series = new Series(nazwaOdbiorcy)
@@ -167,13 +158,13 @@ namespace Kalendarz1.Opakowania.Views
                 BorderWidth = 3,
                 Color = kolor,
                 MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 8,
+                MarkerSize = 10,
                 MarkerColor = kolor,
                 MarkerBorderColor = kolor,
                 MarkerBorderWidth = 2,
                 IsValueShownAsLabel = true,
                 LabelForeColor = KolorTekstu,
-                Font = new Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold)
             };
 
             // Dodaj punkty z etykietami
@@ -181,7 +172,6 @@ namespace Kalendarz1.Opakowania.Views
             foreach (var punkt in dane)
             {
                 int miesiac = punkt.DataNiedziela.Month;
-                int rok = punkt.DataNiedziela.Year;
 
                 // Etykieta: numer tygodnia + nazwa miesiąca (jeśli zmienił się miesiąc)
                 string etykietaMiesiaca = "";
@@ -194,7 +184,7 @@ namespace Kalendarz1.Opakowania.Views
                 var etykieta = $"{punkt.NumerTygodnia}{etykietaMiesiaca}";
                 int wartosc = selector(punkt);
 
-                var dataPoint = series.Points.AddXY(etykieta, wartosc);
+                series.Points.AddXY(etykieta, wartosc);
 
                 // Etykieta wartości nad punktem
                 series.Points[series.Points.Count - 1].Label = wartosc.ToString("#,##0");
@@ -202,47 +192,6 @@ namespace Kalendarz1.Opakowania.Views
             }
 
             chart.Series.Add(series);
-
-            // Legenda
-            chart.Legends.Clear();
-            var legend = new Legend
-            {
-                Docking = Docking.Top,
-                Alignment = StringAlignment.Far,
-                BackColor = Color.Transparent,
-                ForeColor = kolor,
-                Font = new Font("Segoe UI", 9F)
-            };
-            legend.CustomItems.Add(new LegendItem
-            {
-                Name = nazwaOdbiorcy,
-                Color = kolor,
-                MarkerStyle = MarkerStyle.None,
-                BorderWidth = 3,
-                BorderColor = kolor
-            });
-            chart.Legends.Add(legend);
-
-            // Dodaj rok na dole
-            if (dane.Any())
-            {
-                int rok = dane.First().DataNiedziela.Year;
-                var titleRok = new Title
-                {
-                    Text = rok.ToString(),
-                    Font = new Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                    ForeColor = KolorTekstu,
-                    Docking = Docking.Bottom,
-                    Alignment = ContentAlignment.MiddleCenter
-                };
-                // Usuń stary tytuł roku jeśli istnieje
-                for (int i = chart.Titles.Count - 1; i >= 0; i--)
-                {
-                    if (chart.Titles[i].Docking == Docking.Bottom)
-                        chart.Titles.RemoveAt(i);
-                }
-                chart.Titles.Add(titleRok);
-            }
 
             // Dostosuj skalę osi Y
             var values = dane.Select(selector).ToList();
