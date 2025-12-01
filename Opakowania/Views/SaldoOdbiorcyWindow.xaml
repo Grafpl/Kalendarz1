@@ -494,7 +494,7 @@
                         <Border.Effect>
                             <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
                         </Border.Effect>
-                        <StackPanel Padding="20">
+                        <StackPanel Margin="20">
                             <TextBlock Text="Dane kontaktowe" FontSize="14" FontWeight="SemiBold"
                                        Foreground="#1E293B" Margin="0,0,0,15"/>
 
@@ -545,7 +545,7 @@
                         <Border.Effect>
                             <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
                         </Border.Effect>
-                        <StackPanel Padding="20">
+                        <StackPanel Margin="20">
                             <TextBlock Text="Legenda" FontSize="14" FontWeight="SemiBold"
                                        Foreground="#1E293B" Margin="0,0,0,15"/>
 
@@ -600,7 +600,7 @@
                         <Border.Effect>
                             <DropShadowEffect ShadowDepth="1" Color="#000" Opacity="0.04" BlurRadius="8"/>
                         </Border.Effect>
-                        <StackPanel Padding="20">
+                        <StackPanel Margin="20">
                             <TextBlock Text="Skroty klawiszowe" FontSize="13" FontWeight="SemiBold"
                                        Foreground="#0369A1" Margin="0,0,0,12"/>
 
