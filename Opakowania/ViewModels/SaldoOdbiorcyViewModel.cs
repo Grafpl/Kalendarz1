@@ -327,11 +327,11 @@ namespace Kalendarz1.Opakowania.ViewModels
             var minData = DataOd;
             var maxData = DataDo;
 
-            // Znajdź pierwszą niedzielę >= minData
+            // Znajdź niedzielę PRZED lub równą minData (aby uwzględnić wszystkie tygodnie)
             var pierwszaNiedziela = minData;
             while (pierwszaNiedziela.DayOfWeek != DayOfWeek.Sunday)
             {
-                pierwszaNiedziela = pierwszaNiedziela.AddDays(1);
+                pierwszaNiedziela = pierwszaNiedziela.AddDays(-1); // Cofamy się do poprzedniej niedzieli
             }
 
             // Generuj wszystkie tygodnie między DataOd a DataDo
