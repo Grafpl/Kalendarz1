@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -1750,6 +1751,90 @@ namespace Kalendarz1
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Konwerter do obsługi skrótów godzin (np. 8 -> 08:00, 804 -> 08:04, 1430 -> 14:30)
+    /// </summary>
+    public class TimeShortcutConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is DateTime dt)
+            {
+                return dt.ToString("HH:mm");
+            }
+            if (value is DateTime? nullable && nullable.HasValue)
+            {
+                return nullable.Value.ToString("HH:mm");
+            }
+            return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
+                return null;
+
+            string input = value.ToString().Trim();
+
+            // Usuń dwukropek jeśli jest
+            input = input.Replace(":", "");
+
+            // Spróbuj sparsować jako liczbę
+            if (int.TryParse(input, out int numericValue))
+            {
+                int hours = 0;
+                int minutes = 0;
+
+                if (numericValue >= 0 && numericValue <= 24)
+                {
+                    // Tylko godzina (np. 8 -> 08:00, 14 -> 14:00)
+                    hours = numericValue;
+                    minutes = 0;
+                }
+                else if (numericValue >= 100 && numericValue <= 2459)
+                {
+                    // Format 3-4 cyfrowy (np. 804 -> 08:04, 915 -> 09:15, 1430 -> 14:30)
+                    if (numericValue < 1000)
+                    {
+                        // 3 cyfry: pierwsza to godzina, dwie ostatnie to minuty (np. 804 -> 8:04)
+                        hours = numericValue / 100;
+                        minutes = numericValue % 100;
+                    }
+                    else
+                    {
+                        // 4 cyfry: dwie pierwsze to godzina, dwie ostatnie to minuty (np. 1430 -> 14:30)
+                        hours = numericValue / 100;
+                        minutes = numericValue % 100;
+                    }
+                }
+                else
+                {
+                    // Nieprawidłowa wartość
+                    return Binding.DoNothing;
+                }
+
+                // Walidacja
+                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+                {
+                    return Binding.DoNothing;
+                }
+
+                // Zwróć DateTime z dzisiejszą datą i podaną godziną
+                return new DateTime(DateTime.Today.Year, DateTime.Today.Month, DateTime.Today.Day, hours, minutes, 0);
+            }
+
+            // Próba parsowania jako standardowy format godziny
+            if (DateTime.TryParseExact(input, new[] { "HH:mm", "H:mm", "HHmm", "Hmm" },
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedTime))
+            {
+                return new DateTime(DateTime.Today.Year, DateTime.Today.Month, DateTime.Today.Day,
+                    parsedTime.Hour, parsedTime.Minute, 0);
+            }
+
+            return Binding.DoNothing;
         }
     }
 }
