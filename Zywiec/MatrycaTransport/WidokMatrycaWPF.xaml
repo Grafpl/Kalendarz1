@@ -381,18 +381,14 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Hodowca -->
-                            <DataGridTextColumn Header="Hodowca" Binding="{Binding HodowcaNazwa}" Width="160" IsReadOnly="True"
-                                                HeaderStyle="{StaticResource HodowcaHeaderStyle}"
-                                                CellStyle="{StaticResource CellStyleOrange}">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                        <Setter Property="Padding" Value="5,0"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <!-- Hodowca - ComboBox -->
+                            <DataGridComboBoxColumn x:Name="colHodowca"
+                                                    Header="Hodowca"
+                                                    SelectedValueBinding="{Binding HodowcaNazwa, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                    DisplayMemberPath="Name"
+                                                    SelectedValuePath="Name"
+                                                    Width="180"
+                                                    HeaderStyle="{StaticResource HodowcaHeaderStyle}"/>
 
                             <!-- Numer auta u hodowcy -->
                             <DataGridTemplateColumn Header="Auto" Width="55" IsReadOnly="True"

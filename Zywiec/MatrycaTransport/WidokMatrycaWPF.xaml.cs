@@ -30,6 +30,7 @@ namespace Kalendarz1
         private DataTable kierowcyTable;
         private DataTable ciagnikiTable;
         private DataTable naczepyTable;
+        private DataTable hodowcyTable;
 
         public WidokMatrycaWPF()
         {
@@ -66,6 +67,13 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+
+                    // Hodowcy
+                    string hodowcaQuery = @"SELECT DISTINCT ID, Name FROM dbo.DOSTAWCY WHERE halt = '0' ORDER BY Name ASC";
+                    SqlDataAdapter hodowcaAdapter = new SqlDataAdapter(hodowcaQuery, connection);
+                    hodowcyTable = new DataTable();
+                    hodowcaAdapter.Fill(hodowcyTable);
+                    colHodowca.ItemsSource = hodowcyTable.DefaultView;
 
                     // Kierowcy
                     string driverQuery = @"SELECT GID, [Name] FROM [LibraNet].[dbo].[Driver] WHERE Deleted = 0 ORDER BY Name ASC";
