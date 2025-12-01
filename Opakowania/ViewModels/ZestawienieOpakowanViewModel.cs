@@ -40,9 +40,10 @@ namespace Kalendarz1.Opakowania.ViewModels
             _userId = userId;
             _dataService = new OpakowaniaDataService();
 
-            // Domyślne wartości
-            _dataOd = new DateTime(DateTime.Now.Year - 1, 12, 31);
-            _dataDo = DateTime.Now;
+            // Domyślne wartości - OD = 2 miesiące wstecz, DO = dzisiaj
+            var (dataOd, dataDo) = UstawieniaService.GetDomyslnyOkres();
+            _dataOd = dataOd;
+            _dataDo = dataDo;
             _wybranyTypOpakowania = TypOpakowania.WszystkieTypy[0]; // Pojemnik E2
 
             Zestawienie = new ObservableCollection<ZestawienieSalda>();

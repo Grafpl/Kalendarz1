@@ -88,6 +88,8 @@ namespace Kalendarz1.Opakowania.ViewModels
                 {
                     _wybranyFiltrDaty = null;
                     OnPropertyChanged(nameof(WybranyFiltrDaty));
+                    // Automatyczne odświeżanie po zmianie daty
+                    OdswiezCommand.Execute(null);
                 }
             }
         }
@@ -101,6 +103,8 @@ namespace Kalendarz1.Opakowania.ViewModels
                 {
                     _wybranyFiltrDaty = null;
                     OnPropertyChanged(nameof(WybranyFiltrDaty));
+                    // Automatyczne odświeżanie po zmianie daty
+                    OdswiezCommand.Execute(null);
                 }
             }
         }

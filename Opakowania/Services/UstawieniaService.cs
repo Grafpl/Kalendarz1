@@ -107,21 +107,14 @@ namespace Kalendarz1.Opakowania.Services
         }
 
         /// <summary>
-        /// Pobiera domyślne daty (poprzedni tydzień: od poniedziałku do niedzieli)
+        /// Pobiera domyślne daty (OD = 2 miesiące wstecz, DO = dzisiaj)
         /// </summary>
         public static (DateTime DataOd, DateTime DataDo) GetDomyslnyOkres()
         {
             var dzisiaj = DateTime.Today;
-            
-            // Znajdź poprzedni poniedziałek
-            int daysFromMonday = ((int)dzisiaj.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-            var tenPoniedzialek = dzisiaj.AddDays(-daysFromMonday);
-            
-            // Poprzedni tydzień
-            var poprzedniPoniedzialek = tenPoniedzialek.AddDays(-7);
-            var poprzedniaNiedziela = tenPoniedzialek.AddDays(-1);
+            var dwaMiesiaceWstecz = dzisiaj.AddMonths(-2);
 
-            return (poprzedniPoniedzialek, poprzedniaNiedziela);
+            return (dwaMiesiaceWstecz, dzisiaj);
         }
 
         /// <summary>

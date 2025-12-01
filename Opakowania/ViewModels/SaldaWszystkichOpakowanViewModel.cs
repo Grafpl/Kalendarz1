@@ -98,6 +98,8 @@ namespace Kalendarz1.Opakowania.ViewModels
                     // Resetuj wybrany filtr daty gdy zmieniono ręcznie
                     _wybranyFiltrDaty = null;
                     OnPropertyChanged(nameof(WybranyFiltrDaty));
+                    // Automatyczne odświeżanie po zmianie daty
+                    OdswiezCommand.Execute(null);
                 }
             }
         }
