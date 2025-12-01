@@ -151,7 +151,7 @@ namespace Kalendarz1.Opakowania.Views
                 MarkerBorderWidth = 2,
                 IsValueShownAsLabel = true,
                 LabelForeColor = KolorTekstu,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold)
             };
 
             // Dodaj punkty używając indeksów numerycznych
