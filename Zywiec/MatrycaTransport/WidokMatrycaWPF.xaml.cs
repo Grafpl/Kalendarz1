@@ -1761,14 +1761,21 @@ namespace Kalendarz1
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            if (value == null)
+                return "";
+
             if (value is DateTime dt)
             {
                 return dt.ToString("HH:mm");
             }
-            if (value is DateTime? nullable && nullable.HasValue)
+
+            // Obsługa DateTime? (nullable)
+            Type valueType = value.GetType();
+            if (valueType == typeof(DateTime))
             {
-                return nullable.Value.ToString("HH:mm");
+                return ((DateTime)value).ToString("HH:mm");
             }
+
             return "";
         }
 
