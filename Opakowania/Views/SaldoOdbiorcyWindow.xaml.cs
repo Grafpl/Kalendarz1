@@ -144,7 +144,10 @@ namespace Kalendarz1.Opakowania.Views
 
             foreach (var punkt in dane)
             {
-                var etykieta = $"T{punkt.NumerTygodnia}";
+                // Format: "T45" lub "T45 (9.11)" jeśli wiele tygodni
+                var etykieta = dane.Count > 3
+                    ? $"T{punkt.NumerTygodnia}"
+                    : $"T{punkt.NumerTygodnia}\n({punkt.DataNiedziela:d.MM})";
                 series.Points.AddXY(etykieta, selector(punkt));
             }
 
