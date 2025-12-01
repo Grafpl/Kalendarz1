@@ -477,7 +477,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <TextBox Text="{Binding Wyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                        <TextBox Text="{Binding Wyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
                                                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                                  BorderThickness="0" Background="White"
                                                  PreviewKeyDown="TimeTextBox_PreviewKeyDown"
@@ -497,7 +497,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <TextBox Text="{Binding Zaladunek, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                        <TextBox Text="{Binding Zaladunek, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
                                                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                                  BorderThickness="0" Background="White"
                                                  PreviewKeyDown="TimeTextBox_PreviewKeyDown"
@@ -517,7 +517,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <TextBox Text="{Binding Przyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                        <TextBox Text="{Binding Przyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
                                                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                                  BorderThickness="0" Background="White"
                                                  PreviewKeyDown="TimeTextBox_PreviewKeyDown"
