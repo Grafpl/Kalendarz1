@@ -311,46 +311,58 @@ namespace Kalendarz1.Opakowania.ViewModels
         }
 
         /// <summary>
-        /// Oblicza salda tygodniowe dla wykresu - wszystkie tygodnie między DataOd a DataDo
+        /// Oblicza salda tygodniowe dla wykresu - kumulatywne saldo na koniec każdej niedzieli.
+        /// Pokazuje jak zmieniało się zadłużenie odbiorcy w czasie.
+        /// Saldo = Saldo OD (początkowe) + suma wszystkich dokumentów do danej niedzieli
         /// </summary>
         private void ObliczSaldaTygodniowe()
         {
             SaldaTygodniowe = new ObservableCollection<SaldoTygodniowe>();
 
-            // Pobierz tylko dokumenty (bez wiersza salda)
+            // 1. Pobierz Saldo OD jako punkt startowy (saldo początkowe)
+            var saldoOd = Dokumenty?.FirstOrDefault(d => d.JestSaldem && d.NumerDokumentu?.Contains("OD") == true);
+            int startE2 = saldoOd?.E2 ?? 0;
+            int startH1 = saldoOd?.H1 ?? 0;
+
+            // 2. Pobierz tylko dokumenty (bez wierszy salda), posortowane chronologicznie
             var dokumentyBezSalda = Dokumenty?
                 .Where(d => !d.JestSaldem && d.Data.HasValue)
                 .OrderBy(d => d.Data)
                 .ToList() ?? new List<DokumentOpakowania>();
 
-            // Znajdź zakres dat
+            // 3. Ustal zakres dat
             var minData = DataOd;
             var maxData = DataDo;
 
-            // Znajdź niedzielę PRZED lub równą minData (aby uwzględnić wszystkie tygodnie)
+            // 4. Znajdź pierwszą niedzielę w okresie lub tuż przed nim
+            // Startujemy od niedzieli przed lub równej minData
             var pierwszaNiedziela = minData;
             while (pierwszaNiedziela.DayOfWeek != DayOfWeek.Sunday)
             {
-                pierwszaNiedziela = pierwszaNiedziela.AddDays(-1); // Cofamy się do poprzedniej niedzieli
+                pierwszaNiedziela = pierwszaNiedziela.AddDays(-1);
             }
 
-            // Generuj wszystkie tygodnie między DataOd a DataDo
+            // 5. Generuj wszystkie niedziele od początku do końca okresu
             var aktualnaData = pierwszaNiedziela;
             while (aktualnaData <= maxData)
             {
-                // Oblicz kumulatywne saldo do tej niedzieli włącznie
+                // Oblicz sumę dokumentów od początku okresu do tej niedzieli włącznie
                 var dokumentyDoTejNiedzieli = dokumentyBezSalda
                     .Where(d => d.Data.Value <= aktualnaData)
                     .ToList();
 
-                int saldoE2 = dokumentyDoTejNiedzieli.Sum(d => d.E2);
-                int saldoH1 = dokumentyDoTejNiedzieli.Sum(d => d.H1);
+                // Kumulatywne saldo = Saldo początkowe + suma zmian z dokumentów
+                int sumaE2 = dokumentyDoTejNiedzieli.Sum(d => d.E2);
+                int sumaH1 = dokumentyDoTejNiedzieli.Sum(d => d.H1);
+
+                int kumulatywneE2 = startE2 + sumaE2;
+                int kumulatywneH1 = startH1 + sumaH1;
 
                 SaldaTygodniowe.Add(new SaldoTygodniowe
                 {
                     DataNiedziela = aktualnaData,
-                    SaldoE2 = saldoE2,
-                    SaldoH1 = saldoH1,
+                    SaldoE2 = kumulatywneE2,
+                    SaldoH1 = kumulatywneH1,
                     NumerTygodnia = GetNumerTygodnia(aktualnaData)
                 });
 
