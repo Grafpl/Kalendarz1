@@ -43,8 +43,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="56"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="200"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -148,112 +148,12 @@
         </Border>
 
         <!-- ============================================== -->
-        <!-- KARTY SALD - AKTUALNE -->
+        <!-- GLOWNA ZAWARTOSC - TABELA I PODSUMOWANIE -->
         <!-- ============================================== -->
-        <Border Grid.Row="2" Background="Transparent" Padding="20,15,20,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- E2 -->
-                <Border Grid.Column="0" Margin="0,0,8,0" CornerRadius="12" Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#3498DB" Opacity="0.15" BlurRadius="12"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Border CornerRadius="12" BorderThickness="0,0,0,4" BorderBrush="#3498DB"/>
-                        <StackPanel Margin="16,14">
-                            <TextBlock Text="E2" FontSize="13" FontWeight="Bold" Foreground="#3498DB"/>
-                            <TextBlock Text="Pojemnik drobiowy" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,8"/>
-                            <TextBlock Text="{Binding SaldoE2}" FontSize="28" FontWeight="Bold"
-                                       Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"/>
-                            <TextBlock Text="{Binding SaldoE2Opis}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- H1 -->
-                <Border Grid.Column="1" Margin="4,0" CornerRadius="12" Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#E67E22" Opacity="0.15" BlurRadius="12"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Border CornerRadius="12" BorderThickness="0,0,0,4" BorderBrush="#E67E22"/>
-                        <StackPanel Margin="16,14">
-                            <TextBlock Text="H1" FontSize="13" FontWeight="Bold" Foreground="#E67E22"/>
-                            <TextBlock Text="Paleta H1" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,8"/>
-                            <TextBlock Text="{Binding SaldoH1}" FontSize="28" FontWeight="Bold"
-                                       Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"/>
-                            <TextBlock Text="{Binding SaldoH1Opis}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- EURO -->
-                <Border Grid.Column="2" Margin="4,0" CornerRadius="12" Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#27AE60" Opacity="0.15" BlurRadius="12"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Border CornerRadius="12" BorderThickness="0,0,0,4" BorderBrush="#27AE60"/>
-                        <StackPanel Margin="16,14">
-                            <TextBlock Text="EURO" FontSize="13" FontWeight="Bold" Foreground="#27AE60"/>
-                            <TextBlock Text="Paleta EURO" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,8"/>
-                            <TextBlock Text="{Binding SaldoEURO}" FontSize="28" FontWeight="Bold"
-                                       Foreground="{Binding SaldoEURO, Converter={StaticResource SaldoToColorConverter}}"/>
-                            <TextBlock Text="{Binding SaldoEUROOpis}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- PCV -->
-                <Border Grid.Column="3" Margin="4,0" CornerRadius="12" Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#9B59B6" Opacity="0.15" BlurRadius="12"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Border CornerRadius="12" BorderThickness="0,0,0,4" BorderBrush="#9B59B6"/>
-                        <StackPanel Margin="16,14">
-                            <TextBlock Text="PCV" FontSize="13" FontWeight="Bold" Foreground="#9B59B6"/>
-                            <TextBlock Text="Paleta plastikowa" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,8"/>
-                            <TextBlock Text="{Binding SaldoPCV}" FontSize="28" FontWeight="Bold"
-                                       Foreground="{Binding SaldoPCV, Converter={StaticResource SaldoToColorConverter}}"/>
-                            <TextBlock Text="{Binding SaldoPCVOpis}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- DREW -->
-                <Border Grid.Column="4" Margin="8,0,0,0" CornerRadius="12" Background="White">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#F39C12" Opacity="0.15" BlurRadius="12"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Border CornerRadius="12" BorderThickness="0,0,0,4" BorderBrush="#F39C12"/>
-                        <StackPanel Margin="16,14">
-                            <TextBlock Text="DREW" FontSize="13" FontWeight="Bold" Foreground="#F39C12"/>
-                            <TextBlock Text="Paleta drewniana" FontSize="10" Foreground="#94A3B8" Margin="0,2,0,8"/>
-                            <TextBlock Text="{Binding SaldoDREW}" FontSize="28" FontWeight="Bold"
-                                       Foreground="{Binding SaldoDREW, Converter={StaticResource SaldoToColorConverter}}"/>
-                            <TextBlock Text="{Binding SaldoDREWOpis}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Border>
-
-        <!-- ============================================== -->
-        <!-- GLOWNA ZAWARTOSC - TABELA I WYKRESY -->
-        <!-- ============================================== -->
-        <Grid Grid.Row="3" Margin="20,5,20,15">
+        <Grid Grid.Row="2" Margin="20,10,20,10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="500"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="280"/>
             </Grid.ColumnDefinitions>
 
             <!-- LEWA STRONA - Historia dokumentow -->
@@ -443,211 +343,176 @@
 
             </Grid>
 
-            <!-- PRAWA STRONA - Wykresy i podsumowania -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
+            <!-- PRAWA STRONA - Podsumowania -->
+            <Border Grid.Column="1" Background="White" CornerRadius="12">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
+                </Border.Effect>
+                <StackPanel Margin="15">
+                    <TextBlock Text="Podsumowanie sald" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#1E293B" Margin="0,0,0,15"/>
 
-                    <!-- WYKRES E2 - Pojemniki drobiowe -->
-                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
-                        <Border.Effect>
-                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
-                        </Border.Effect>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="150"/>
-                            </Grid.RowDefinitions>
+                    <!-- E2 -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#EBF5FF" CornerRadius="4" Padding="6,4">
+                            <TextBlock Text="E2" FontWeight="Bold" Foreground="#3498DB" FontSize="12" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Pojemnik" FontSize="11" Foreground="#64748B"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SaldoE2}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
 
-                            <Border Grid.Row="0" Background="#EBF5FF" CornerRadius="12,12,0,0" Padding="12,8">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="E2 - Pojemnik drobiowy" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="#3498DB" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="Saldo: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding SaldoE2}" FontSize="14" FontWeight="Bold"
-                                                   Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                    <!-- H1 -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#FFF7ED" CornerRadius="4" Padding="6,4">
+                            <TextBlock Text="H1" FontWeight="Bold" Foreground="#E67E22" FontSize="12" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Paleta" FontSize="11" Foreground="#64748B"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SaldoH1}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
 
-                            <WindowsFormsHost Grid.Row="1" x:Name="chartHostE2" Margin="4,2,4,4"/>
-                        </Grid>
-                    </Border>
+                    <!-- EURO -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#E8F5E9" CornerRadius="4" Padding="6,4">
+                            <TextBlock Text="EURO" FontWeight="Bold" Foreground="#27AE60" FontSize="12" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Paleta" FontSize="11" Foreground="#64748B"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SaldoEURO}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{Binding SaldoEURO, Converter={StaticResource SaldoToColorConverter}}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
 
-                    <!-- WYKRES H1 - Palety -->
-                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
-                        <Border.Effect>
-                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
-                        </Border.Effect>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="150"/>
-                            </Grid.RowDefinitions>
+                    <!-- PCV -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#F3E8FF" CornerRadius="4" Padding="6,4">
+                            <TextBlock Text="PCV" FontWeight="Bold" Foreground="#9B59B6" FontSize="12" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Plastik" FontSize="11" Foreground="#64748B"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SaldoPCV}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{Binding SaldoPCV, Converter={StaticResource SaldoToColorConverter}}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
 
-                            <Border Grid.Row="0" Background="#FFF7ED" CornerRadius="12,12,0,0" Padding="12,8">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="H1 - Paleta" FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="#E67E22" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="Saldo: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding SaldoH1}" FontSize="14" FontWeight="Bold"
-                                                   Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <WindowsFormsHost Grid.Row="1" x:Name="chartHostH1" Margin="4,2,4,4"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Podsumowania opakowan -->
-                    <Border Background="White" CornerRadius="12" Margin="0,0,0,10">
-                        <Border.Effect>
-                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
-                        </Border.Effect>
-                        <StackPanel Margin="15">
-                            <TextBlock Text="Podsumowanie sald" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="#1E293B" Margin="0,0,0,12"/>
-
-                            <!-- E2 -->
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#EBF5FF" CornerRadius="4" Padding="8,4">
-                                    <TextBlock Text="E2" FontWeight="Bold" Foreground="#3498DB" FontSize="11" HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Pojemnik drobiowy" FontSize="11" Foreground="#64748B"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                <TextBlock Grid.Column="2" Text="{Binding SaldoE2}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <!-- H1 -->
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#FFF7ED" CornerRadius="4" Padding="8,4">
-                                    <TextBlock Text="H1" FontWeight="Bold" Foreground="#E67E22" FontSize="11" HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Paleta H1" FontSize="11" Foreground="#64748B"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                <TextBlock Grid.Column="2" Text="{Binding SaldoH1}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <!-- EURO -->
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#E8F5E9" CornerRadius="4" Padding="8,4">
-                                    <TextBlock Text="EURO" FontWeight="Bold" Foreground="#27AE60" FontSize="11" HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Paleta EURO" FontSize="11" Foreground="#64748B"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                <TextBlock Grid.Column="2" Text="{Binding SaldoEURO}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{Binding SaldoEURO, Converter={StaticResource SaldoToColorConverter}}"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <!-- PCV -->
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#F3E8FF" CornerRadius="4" Padding="8,4">
-                                    <TextBlock Text="PCV" FontWeight="Bold" Foreground="#9B59B6" FontSize="11" HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Paleta plastikowa" FontSize="11" Foreground="#64748B"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                <TextBlock Grid.Column="2" Text="{Binding SaldoPCV}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{Binding SaldoPCV, Converter={StaticResource SaldoToColorConverter}}"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <!-- DREW -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="60"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Background="#FEF3C7" CornerRadius="4" Padding="8,4">
-                                    <TextBlock Text="DREW" FontWeight="Bold" Foreground="#F39C12" FontSize="11" HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Paleta drewniana" FontSize="11" Foreground="#64748B"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                <TextBlock Grid.Column="2" Text="{Binding SaldoDREW}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{Binding SaldoDREW, Converter={StaticResource SaldoToColorConverter}}"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
+                    <!-- DREW -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="55"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="#FEF3C7" CornerRadius="4" Padding="6,4">
+                            <TextBlock Text="DREW" FontWeight="Bold" Foreground="#F39C12" FontSize="12" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Drewno" FontSize="11" Foreground="#64748B"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding SaldoDREW}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{Binding SaldoDREW, Converter={StaticResource SaldoToColorConverter}}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
 
                     <!-- Legenda -->
-                    <Border Background="White" CornerRadius="12">
-                        <Border.Effect>
-                            <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
-                        </Border.Effect>
-                        <StackPanel Margin="15">
-                            <TextBlock Text="Legenda" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="#1E293B" Margin="0,0,0,10"/>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Width="28" Height="20" Background="#FEF9C3" CornerRadius="4" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="Wiersz salda" FontSize="11" Foreground="#1E293B" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Width="28" Height="20" Background="#FEE2E2" CornerRadius="4" Margin="0,0,10,0">
-                                    <TextBlock Text="W" FontSize="9" FontWeight="Bold" Foreground="#DC2626"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Wydanie (MW1)" FontSize="11" Foreground="#DC2626" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Width="28" Height="20" Background="#DCFCE7" CornerRadius="4" Margin="0,0,10,0">
-                                    <TextBlock Text="P" FontSize="9" FontWeight="Bold" Foreground="#16A34A"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Przyjecie (MP)" FontSize="11" Foreground="#16A34A" VerticalAlignment="Center"/>
-                            </Grid>
+                    <Border BorderThickness="0,1,0,0" BorderBrush="#E5E7EB" Padding="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Legenda" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Border Width="20" Height="14" Background="#FEF9C3" CornerRadius="3" Margin="0,0,6,0"/>
+                                <TextBlock Text="Saldo" FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Border Width="20" Height="14" Background="#FEE2E2" CornerRadius="3" Margin="0,0,6,0"/>
+                                <TextBlock Text="Wydanie (MW1)" FontSize="10" Foreground="#DC2626" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="20" Height="14" Background="#DCFCE7" CornerRadius="3" Margin="0,0,6,0"/>
+                                <TextBlock Text="Przyjęcie (MP)" FontSize="10" Foreground="#16A34A" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
-            </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- ============================================== -->
+        <!-- WYKRESY NA DOLE -->
+        <!-- ============================================== -->
+        <Grid Grid.Row="3" Margin="20,0,20,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- WYKRES E2 -->
+            <Border Grid.Column="0" Background="White" CornerRadius="12" Margin="0,0,8,0">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#EBF5FF" CornerRadius="12,12,0,0" Padding="12,6">
+                        <Grid>
+                            <TextBlock Text="E2 - Historia sald tygodniowych" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#3498DB" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SaldoE2}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <WindowsFormsHost Grid.Row="1" x:Name="chartHostE2" Margin="4,2,4,4"/>
+                </Grid>
+            </Border>
+
+            <!-- WYKRES H1 -->
+            <Border Grid.Column="1" Background="White" CornerRadius="12" Margin="8,0,0,0">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Color="#000" Opacity="0.06" BlurRadius="15"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#FFF7ED" CornerRadius="12,12,0,0" Padding="12,6">
+                        <Grid>
+                            <TextBlock Text="H1 - Historia sald tygodniowych" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#E67E22" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SaldoH1}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <WindowsFormsHost Grid.Row="1" x:Name="chartHostH1" Margin="4,2,4,4"/>
+                </Grid>
+            </Border>
         </Grid>
 
         <!-- ============================================== -->
