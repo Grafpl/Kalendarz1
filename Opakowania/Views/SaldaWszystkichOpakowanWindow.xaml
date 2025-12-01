@@ -78,7 +78,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="📅 STAN NA DZIEŃ" Style="{StaticResource LabelTextStyle}"/>
-                        <DatePicker SelectedDate="{Binding StanNaDzien}" Style="{StaticResource ModernDatePickerStyle}" Width="140"/>
+                        <DatePicker SelectedDate="{Binding DataDo}" Style="{StaticResource ModernDatePickerStyle}" Width="140"/>
                     </StackPanel>
                     
                     <StackPanel Margin="0,0,20,0">
@@ -87,11 +87,11 @@
                                   DisplayMemberPath="Nazwa" Style="{StaticResource ModernComboBoxStyle}" Width="160"/>
                     </StackPanel>
 
-                    <StackPanel Margin="0,0,20,0" 
-                                Visibility="{Binding CzyAdmin, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Margin="0,0,20,0"
+                                Visibility="{Binding IsAdmin, Converter={StaticResource BoolToVisibilityConverter}}">
                         <TextBlock Text="👤 HANDLOWIEC" Style="{StaticResource LabelTextStyle}"/>
-                        <ComboBox ItemsSource="{Binding Handlowcy}" SelectedItem="{Binding WybranyHandlowiec}"
-                                  DisplayMemberPath="Nazwa" Style="{StaticResource ModernComboBoxStyle}" Width="180"/>
+                        <ComboBox ItemsSource="{Binding ListaHandlowcow}" SelectedItem="{Binding WybranyHandlowiec}"
+                                  Style="{StaticResource ModernComboBoxStyle}" Width="180"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -105,7 +105,7 @@
                     <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding ToggleGrupowanieCommand}" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="📁" FontSize="14" Margin="0,0,6,0"/>
-                            <TextBlock Text="{Binding CzyGrupowane, Converter={StaticResource BoolToGroupTextConverter}}"/>
+                            <TextBlock Text="{Binding TekstGrupowania}"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding EksportPDFCommand}" Margin="0,0,8,0">
@@ -136,15 +136,14 @@
                 </Grid.ColumnDefinitions>
 
                 <Grid Grid.Column="0">
-                    <TextBox x:Name="txtSzukaj" Text="{Binding FiltrTekst, UpdateSourceTrigger=PropertyChanged}" 
+                    <TextBox x:Name="txtSzukaj" Text="{Binding FiltrTekstowy, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource ModernTextBoxStyle}" Padding="40,10,12,10"/>
                     <TextBlock Text="🔍" FontSize="16" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"
                                Foreground="{StaticResource TextMutedBrush}"/>
                 </Grid>
 
-                <CheckBox Grid.Column="1" Content="👤 Tylko swoi" IsChecked="{Binding TylkoSwoi}" 
-                          Style="{StaticResource ModernCheckBoxStyle}" Margin="20,0,0,0" VerticalAlignment="Center"
-                          Visibility="{Binding CzyHandlowiec, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                <CheckBox Grid.Column="1" Content="👤 Tylko swoi" IsChecked="{Binding PokazujTylkoSwoich}"
+                          Style="{StaticResource ModernCheckBoxStyle}" Margin="20,0,0,0" VerticalAlignment="Center"/>
 
                 <Border Grid.Column="2" Background="#E8F5E9" CornerRadius="8" Padding="12,6" Margin="20,0,0,0">
                     <StackPanel Orientation="Horizontal">
@@ -187,8 +186,8 @@
                     </Border>
 
                     <Border Grid.Row="1" BorderBrush="#E74C3C" BorderThickness="2" CornerRadius="10" ClipToBounds="True">
-                        <DataGrid x:Name="dataGridSalda" 
-                                  ItemsSource="{Binding SaldaFiltered}"
+                        <DataGrid x:Name="dataGridSalda"
+                                  ItemsSource="{Binding SaldaView}"
                                   Style="{StaticResource ModernDataGridStyle}"
                                   CellStyle="{StaticResource ModernDataGridCellStyle}"
                                   MouseDoubleClick="DataGridSalda_MouseDoubleClick">
@@ -224,43 +223,43 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="*" MinWidth="180"/>
                                 <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
-                                <DataGridTemplateColumn Header="E2" Width="70" SortMemberPath="E2">
+                                <DataGridTemplateColumn Header="E2" Width="70" SortMemberPath="SaldoE2">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding E2}" FontWeight="SemiBold" HorizontalAlignment="Right"
-                                                       Foreground="{Binding E2, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            <TextBlock Text="{Binding SaldoE2}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding SaldoE2, Converter={StaticResource SaldoToColorConverter}}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="H1" Width="70" SortMemberPath="H1">
+                                <DataGridTemplateColumn Header="H1" Width="70" SortMemberPath="SaldoH1">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding H1}" FontWeight="SemiBold" HorizontalAlignment="Right"
-                                                       Foreground="{Binding H1, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            <TextBlock Text="{Binding SaldoH1}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding SaldoH1, Converter={StaticResource SaldoToColorConverter}}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="EURO" Width="70" SortMemberPath="EURO">
+                                <DataGridTemplateColumn Header="EURO" Width="70" SortMemberPath="SaldoEURO">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding EURO}" FontWeight="SemiBold" HorizontalAlignment="Right"
-                                                       Foreground="{Binding EURO, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            <TextBlock Text="{Binding SaldoEURO}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding SaldoEURO, Converter={StaticResource SaldoToColorConverter}}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="PCV" Width="70" SortMemberPath="PCV">
+                                <DataGridTemplateColumn Header="PCV" Width="70" SortMemberPath="SaldoPCV">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding PCV}" FontWeight="SemiBold" HorizontalAlignment="Right"
-                                                       Foreground="{Binding PCV, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            <TextBlock Text="{Binding SaldoPCV}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding SaldoPCV, Converter={StaticResource SaldoToColorConverter}}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="DREW" Width="70" SortMemberPath="DREW">
+                                <DataGridTemplateColumn Header="DREW" Width="70" SortMemberPath="SaldoDREW">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding DREW}" FontWeight="SemiBold" HorizontalAlignment="Right"
-                                                       Foreground="{Binding DREW, Converter={StaticResource SaldoToColorConverter}}"/>
+                                            <TextBlock Text="{Binding SaldoDREW}" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                                       Foreground="{Binding SaldoDREW, Converter={StaticResource SaldoToColorConverter}}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

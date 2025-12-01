@@ -89,7 +89,7 @@
                     </StackPanel>
                     <StackPanel Margin="0,0,20,0">
                         <TextBlock Text="🔍 SZUKAJ KONTRAHENTA" Style="{StaticResource LabelTextStyle}"/>
-                        <TextBox x:Name="txtSzukaj" Text="{Binding FiltKontrahent, UpdateSourceTrigger=PropertyChanged}" 
+                        <TextBox x:Name="txtSzukaj" Text="{Binding FiltrTekstowy, UpdateSourceTrigger=PropertyChanged}" 
                                  Style="{StaticResource ModernTextBoxStyle}" Width="220" Height="38"/>
                     </StackPanel>
                 </StackPanel>
@@ -239,8 +239,8 @@
                 <!-- DataGrid -->
                 <Border Grid.Row="1" BorderBrush="{StaticResource PrimaryGreenBrush}" BorderThickness="2" 
                         CornerRadius="10" ClipToBounds="True">
-                    <DataGrid x:Name="dataGridZestawienie" 
-                              ItemsSource="{Binding ZestawienieFiltered}"
+                    <DataGrid x:Name="dataGridZestawienie"
+                              ItemsSource="{Binding ZestawienieFiltrowane}"
                               Style="{StaticResource ModernDataGridStyle}"
                               ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeaderStyle}"
                               CellStyle="{StaticResource ModernDataGridCellStyle}"
@@ -261,11 +261,11 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="*" MinWidth="200"/>
                             <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
-                            <DataGridTemplateColumn Header="Saldo" Width="120" SortMemberPath="Saldo">
+                            <DataGridTemplateColumn Header="Saldo" Width="120" SortMemberPath="IloscDrugiZakres">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Saldo, Converter={StaticResource SaldoToTextConverter}}"
-                                                   Foreground="{Binding Saldo, Converter={StaticResource SaldoToColorConverter}}"
+                                        <TextBlock Text="{Binding IloscDrugiZakres, Converter={StaticResource SaldoToTextConverter}}"
+                                                   Foreground="{Binding IloscDrugiZakres, Converter={StaticResource SaldoToColorConverter}}"
                                                    FontWeight="SemiBold" HorizontalAlignment="Right"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -275,13 +275,13 @@
                                     <DataTemplate>
                                         <Border CornerRadius="8" Padding="6,3" HorizontalAlignment="Center"
                                                 Background="{Binding JestPotwierdzone, Converter={StaticResource PotwierdzenieToBackgroundConverter}}">
-                                            <TextBlock Text="{Binding SaldoPotwierdzone}" HorizontalAlignment="Center"
+                                            <TextBlock Text="{Binding DataPotwierdzeniaTekst}" HorizontalAlignment="Center"
                                                        FontWeight="SemiBold"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Ostatni dok." Binding="{Binding OstatniDokument}" Width="100"/>
+                            <DataGridTextColumn Header="Ostatni dok." Binding="{Binding TowarZDokumentu}" Width="100"/>
                             <DataGridTextColumn Header="Data ost." Binding="{Binding DataOstatniegoDokumentu, StringFormat=dd.MM.yyyy}" Width="90"/>
                             <DataGridTemplateColumn Header="Akcje" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
