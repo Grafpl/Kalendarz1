@@ -1034,6 +1034,11 @@ END";
             return userId;
         }
 
+        /// <summary>
+        /// Łączy datę i godzinę z uwzględnieniem logiki dnia:
+        /// - Godziny 00:00-17:00 → ten sam dzień (data z parametru)
+        /// - Godziny 17:01-23:59 → poprzedni dzień (data - 1 dzień)
+        /// </summary>
         public static DateTime CombineDateAndTime(string godzina, DateTime data)
         {
             // Sprawdzenie, czy godzina jest pusta lub null
@@ -1043,31 +1048,64 @@ END";
                 return data.Date;
             }
 
-            // Parsowanie godziny i minuty z formatu "hh:mm"
-            if (TimeSpan.TryParseExact(godzina, "hh\\:mm", null, out TimeSpan timeOfDay))
+            // Parsowanie godziny i minuty z formatu "HH:mm" (24h format)
+            if (TimeSpan.TryParse(godzina, out TimeSpan timeOfDay))
             {
-                // Tworzenie nowego obiektu DateTime z daty oraz godziny i minuty
-                return new DateTime(data.Year, data.Month, data.Day, timeOfDay.Hours, timeOfDay.Minutes, 0);
+                // Określenie daty na podstawie godziny
+                // Godziny 17:01-23:59 → poprzedni dzień
+                // Godziny 00:00-17:00 → ten sam dzień
+                DateTime targetDate = data.Date;
+
+                if (timeOfDay.Hours >= 17 && (timeOfDay.Hours > 17 || timeOfDay.Minutes > 0))
+                {
+                    // Godzina > 17:00 → poprzedni dzień
+                    targetDate = data.Date.AddDays(-1);
+                }
+
+                // Tworzenie nowego obiektu DateTime z odpowiedniej daty oraz godziny i minuty
+                return new DateTime(targetDate.Year, targetDate.Month, targetDate.Day, timeOfDay.Hours, timeOfDay.Minutes, 0);
             }
             else
             {
                 // Rzucenie wyjątku, jeśli godzina jest w nieprawidłowym formacie
-                throw new ArgumentException("Nieprawidłowy format godziny. Oczekiwano formatu hh:mm.");
+                throw new ArgumentException("Nieprawidłowy format godziny. Oczekiwano formatu HH:mm.");
             }
         }
 
+        /// <summary>
+        /// Parsuje skrócony format godziny na pełny format HH:mm
+        /// Przykłady: 8 → 08:00, 915 → 09:15, 1015 → 10:15, 1430 → 14:30
+        /// </summary>
         public string DodajDwukropek(string input)
         {
-            // Sprawdź, czy input ma co najmniej 3 znaki
-            if (input.Length >= 3)
-            {
-                // Dodaj ":" w trzecim miejscu i zwróć zmodyfikowany ciąg
-                return input.Substring(0, 2) + ":" + input.Substring(2);
-            }
-            else
-            {
-                // Jeśli input ma mniej niż 3 znaki, zwróć input bez zmian
+            if (string.IsNullOrWhiteSpace(input))
                 return input;
+
+            // Usuń ewentualne spacje i dwukropki
+            string cleanInput = input.Replace(":", "").Replace(" ", "").Trim();
+
+            // Jeśli już jest w formacie HH:mm, zwróć bez zmian
+            if (input.Contains(":") && input.Length == 5)
+                return input;
+
+            // Parsuj w zależności od długości
+            switch (cleanInput.Length)
+            {
+                case 1:
+                    // 8 → 08:00
+                    return "0" + cleanInput + ":00";
+                case 2:
+                    // 08 → 08:00, 14 → 14:00
+                    return cleanInput + ":00";
+                case 3:
+                    // 915 → 09:15 (pierwsza cyfra to godzina, dwie ostatnie to minuty)
+                    return "0" + cleanInput.Substring(0, 1) + ":" + cleanInput.Substring(1);
+                case 4:
+                    // 1015 → 10:15, 1430 → 14:30
+                    return cleanInput.Substring(0, 2) + ":" + cleanInput.Substring(2);
+                default:
+                    // Nieprawidłowy format - zwróć input
+                    return input;
             }
         }
         public string PobierzInformacjeZBazyDanychKonkretne(string lp, string kolumna)

@@ -302,6 +302,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Pasek narzędzi matrycy -->
@@ -563,6 +564,21 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+
+                    <!-- Notatka ze skrótami godzin -->
+                    <Border Grid.Row="2" Background="#FFF8E1" Padding="10,8" CornerRadius="0,0,10,10" BorderBrush="#FFE082" BorderThickness="0,1,0,0">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" FontSize="11" Foreground="#E65100" Margin="0,0,0,4">
+                                Skróty wprowadzania godzin:
+                            </TextBlock>
+                            <TextBlock FontSize="10" Foreground="#5D4037" TextWrapping="Wrap">
+                                8 = 08:00 | 915 = 09:15 | 1015 = 10:15 | 1430 = 14:30
+                            </TextBlock>
+                            <TextBlock FontSize="10" Foreground="#5D4037" TextWrapping="Wrap" Margin="0,3,0,0">
+                                <Run FontWeight="SemiBold">Zapis dnia:</Run> godz. 00:00-17:00 = wybrany dzień | godz. 17:01-23:59 = poprzedni dzień
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
