@@ -717,6 +717,151 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Keyboard Navigation for Time Cells
+
+        /// <summary>
+        /// Automatycznie ustawia focus i zaznacza tekst gdy komórka wchodzi w tryb edycji
+        /// </summary>
+        private void TimeTextBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                textBox.Focus();
+                textBox.SelectAll();
+            }
+        }
+
+        /// <summary>
+        /// Obsługuje nawigację klawiaturą: Enter/Tab przechodzi do następnej komórki,
+        /// strzałki góra/dół przeskakują między wierszami
+        /// </summary>
+        private void TimeTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!(sender is TextBox textBox))
+                return;
+
+            if (e.Key == Key.Enter || e.Key == Key.Tab)
+            {
+                e.Handled = true;
+
+                // Zatwierdź edycję
+                var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                if (binding != null)
+                {
+                    binding.UpdateSource();
+                }
+
+                // Zakończ edycję bieżącej komórki
+                dataGridMatryca.CommitEdit(DataGridEditingUnit.Cell, true);
+
+                // Pobierz aktualny indeks kolumny i wiersza
+                var currentCell = dataGridMatryca.CurrentCell;
+                int currentColumnIndex = dataGridMatryca.Columns.IndexOf(currentCell.Column);
+                int currentRowIndex = dataGridMatryca.SelectedIndex;
+
+                // Znajdź następną edytowalną kolumnę (Wyjazd, Załadunek, Przyjazd)
+                int nextColumnIndex = currentColumnIndex + 1;
+                int nextRowIndex = currentRowIndex;
+
+                // Indeksy kolumn czasowych (Wyjazd=8, Załadunek=9, Przyjazd=10)
+                int wyjazdIndex = 8;
+                int zaladunekIndex = 9;
+                int przyjazdIndex = 10;
+
+                // Jeśli jesteśmy w Przyjazd (ostatnia kolumna czasowa), przejdź do Wyjazd w następnym wierszu
+                if (currentColumnIndex >= przyjazdIndex)
+                {
+                    nextColumnIndex = wyjazdIndex;
+                    nextRowIndex = currentRowIndex + 1;
+
+                    // Jeśli to ostatni wiersz, zostań w miejscu
+                    if (nextRowIndex >= matrycaData.Count)
+                    {
+                        nextRowIndex = currentRowIndex;
+                        nextColumnIndex = przyjazdIndex;
+                    }
+                }
+
+                // Przejdź do następnej komórki i rozpocznij edycję
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (nextRowIndex < matrycaData.Count && nextColumnIndex < dataGridMatryca.Columns.Count)
+                    {
+                        dataGridMatryca.SelectedIndex = nextRowIndex;
+                        dataGridMatryca.CurrentCell = new DataGridCellInfo(
+                            dataGridMatryca.Items[nextRowIndex],
+                            dataGridMatryca.Columns[nextColumnIndex]);
+
+                        dataGridMatryca.BeginEdit();
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+            else if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+
+                // Zatwierdź edycję
+                var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                if (binding != null)
+                {
+                    binding.UpdateSource();
+                }
+
+                dataGridMatryca.CommitEdit(DataGridEditingUnit.Cell, true);
+
+                int currentRowIndex = dataGridMatryca.SelectedIndex;
+                var currentCell = dataGridMatryca.CurrentCell;
+                int currentColumnIndex = dataGridMatryca.Columns.IndexOf(currentCell.Column);
+
+                if (currentRowIndex < matrycaData.Count - 1)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        dataGridMatryca.SelectedIndex = currentRowIndex + 1;
+                        dataGridMatryca.CurrentCell = new DataGridCellInfo(
+                            dataGridMatryca.Items[currentRowIndex + 1],
+                            dataGridMatryca.Columns[currentColumnIndex]);
+                        dataGridMatryca.BeginEdit();
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }
+            else if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+
+                // Zatwierdź edycję
+                var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+                if (binding != null)
+                {
+                    binding.UpdateSource();
+                }
+
+                dataGridMatryca.CommitEdit(DataGridEditingUnit.Cell, true);
+
+                int currentRowIndex = dataGridMatryca.SelectedIndex;
+                var currentCell = dataGridMatryca.CurrentCell;
+                int currentColumnIndex = dataGridMatryca.Columns.IndexOf(currentCell.Column);
+
+                if (currentRowIndex > 0)
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        dataGridMatryca.SelectedIndex = currentRowIndex - 1;
+                        dataGridMatryca.CurrentCell = new DataGridCellInfo(
+                            dataGridMatryca.Items[currentRowIndex - 1],
+                            dataGridMatryca.Columns[currentColumnIndex]);
+                        dataGridMatryca.BeginEdit();
+                    }), System.Windows.Threading.DispatcherPriority.Input);
+                }
+            }
+            else if (e.Key == Key.Escape)
+            {
+                dataGridMatryca.CancelEdit(DataGridEditingUnit.Cell);
+            }
+        }
+
+        #endregion
+
         #region Selection & Panel Update
 
         private void DataGridMatryca_SelectionChanged(object sender, SelectionChangedEventArgs e)
