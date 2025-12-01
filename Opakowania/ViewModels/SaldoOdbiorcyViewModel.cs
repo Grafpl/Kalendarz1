@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -173,6 +174,50 @@ namespace Kalendarz1.Opakowania.ViewModels
         // Liczba dokumentów
         public int LiczbaDokumentow => Dokumenty?.Count(d => !d.JestSaldem) ?? 0;
 
+        // Dokumenty posortowane - saldo na samym dole
+        public IEnumerable<DokumentOpakowania> DokumentyPosortowane
+        {
+            get
+            {
+                if (Dokumenty == null) return Enumerable.Empty<DokumentOpakowania>();
+
+                // Najpierw dokumenty (nie-salda) posortowane od najnowszych, potem saldo na końcu
+                var dokumentyBezSalda = Dokumenty
+                    .Where(d => !d.JestSaldem)
+                    .OrderByDescending(d => d.Data);
+                var salda = Dokumenty.Where(d => d.JestSaldem);
+
+                return dokumentyBezSalda.Concat(salda);
+            }
+        }
+
+        // Dane do wykresu tygodniowego E2/H1
+        private ObservableCollection<SaldoTygodniowe> _saldaTygodniowe;
+        public ObservableCollection<SaldoTygodniowe> SaldaTygodniowe
+        {
+            get => _saldaTygodniowe;
+            set => SetProperty(ref _saldaTygodniowe, value);
+        }
+
+        // Właściwości dla bindowania do kart salda
+        public int SaldoE2 => SaldoAktualne?.SaldoE2 ?? 0;
+        public int SaldoH1 => SaldoAktualne?.SaldoH1 ?? 0;
+        public int SaldoEURO => SaldoAktualne?.SaldoEURO ?? 0;
+        public int SaldoPCV => SaldoAktualne?.SaldoPCV ?? 0;
+        public int SaldoDREW => SaldoAktualne?.SaldoDREW ?? 0;
+
+        public string SaldoE2Opis => SaldoE2 == 0 ? "Brak salda" : (SaldoE2 > 0 ? "Kontrahent winny" : "My winni");
+        public string SaldoH1Opis => SaldoH1 == 0 ? "Brak salda" : (SaldoH1 > 0 ? "Kontrahent winny" : "My winni");
+        public string SaldoEUROOpis => SaldoEURO == 0 ? "Brak salda" : (SaldoEURO > 0 ? "Kontrahent winny" : "My winni");
+        public string SaldoPCVOpis => SaldoPCV == 0 ? "Brak salda" : (SaldoPCV > 0 ? "Kontrahent winny" : "My winni");
+        public string SaldoDREWOpis => SaldoDREW == 0 ? "Brak salda" : (SaldoDREW > 0 ? "Kontrahent winny" : "My winni");
+
+        // Widoczność danych kontaktowych
+        public bool MaTelefon => !string.IsNullOrWhiteSpace(Telefon);
+        public bool MaEmail => !string.IsNullOrWhiteSpace(Email);
+        public bool MaAdres => !string.IsNullOrWhiteSpace(Adres);
+        public bool MaNIP => !string.IsNullOrWhiteSpace(NIP);
+
         #endregion
 
         #region Commands
@@ -226,7 +271,95 @@ namespace Kalendarz1.Opakowania.ViewModels
                 Dokumenty.Add(dok);
             }
 
+            // Oblicz salda tygodniowe dla wykresu
+            ObliczSaldaTygodniowe();
+
             OnPropertyChanged(nameof(LiczbaDokumentow));
+            OnPropertyChanged(nameof(DokumentyPosortowane));
+            OnPropertyChanged(nameof(SaldoE2));
+            OnPropertyChanged(nameof(SaldoH1));
+            OnPropertyChanged(nameof(SaldoEURO));
+            OnPropertyChanged(nameof(SaldoPCV));
+            OnPropertyChanged(nameof(SaldoDREW));
+            OnPropertyChanged(nameof(SaldoE2Opis));
+            OnPropertyChanged(nameof(SaldoH1Opis));
+            OnPropertyChanged(nameof(SaldoEUROOpis));
+            OnPropertyChanged(nameof(SaldoPCVOpis));
+            OnPropertyChanged(nameof(SaldoDREWOpis));
+            OnPropertyChanged(nameof(MaTelefon));
+            OnPropertyChanged(nameof(MaEmail));
+            OnPropertyChanged(nameof(MaAdres));
+            OnPropertyChanged(nameof(MaNIP));
+        }
+
+        /// <summary>
+        /// Oblicza salda tygodniowe dla wykresu (końcówka tygodnia = niedziela)
+        /// </summary>
+        private void ObliczSaldaTygodniowe()
+        {
+            SaldaTygodniowe = new ObservableCollection<SaldoTygodniowe>();
+
+            if (Dokumenty == null || !Dokumenty.Any()) return;
+
+            // Pobierz tylko dokumenty (bez wiersza salda)
+            var dokumentyBezSalda = Dokumenty
+                .Where(d => !d.JestSaldem && d.Data.HasValue)
+                .OrderBy(d => d.Data)
+                .ToList();
+
+            if (!dokumentyBezSalda.Any()) return;
+
+            // Znajdź zakres dat
+            var minData = DataOd;
+            var maxData = DataDo;
+
+            // Znajdź pierwszą niedzielę przed lub równą minData
+            var pierwszaNiedziela = minData;
+            while (pierwszaNiedziela.DayOfWeek != DayOfWeek.Sunday)
+            {
+                pierwszaNiedziela = pierwszaNiedziela.AddDays(-1);
+            }
+
+            // Oblicz salda kumulowane dla każdego tygodnia
+            int saldoE2 = 0;
+            int saldoH1 = 0;
+
+            var aktualnaData = pierwszaNiedziela;
+            while (aktualnaData <= maxData.AddDays(7))
+            {
+                // Pobierz dokumenty do tej niedzieli włącznie
+                var dokumentyDoTejNiedzieli = dokumentyBezSalda
+                    .Where(d => d.Data.Value <= aktualnaData)
+                    .ToList();
+
+                // Oblicz saldo na tę niedzielę (sumując wszystkie dokumenty do tej daty)
+                saldoE2 = dokumentyDoTejNiedzieli.Sum(d => d.E2);
+                saldoH1 = dokumentyDoTejNiedzieli.Sum(d => d.H1);
+
+                // Dodaj tylko jeśli niedziela jest w zakresie
+                if (aktualnaData >= minData.AddDays(-7) && aktualnaData <= maxData)
+                {
+                    SaldaTygodniowe.Add(new SaldoTygodniowe
+                    {
+                        DataNiedziela = aktualnaData,
+                        SaldoE2 = saldoE2,
+                        SaldoH1 = saldoH1,
+                        NumerTygodnia = GetNumerTygodnia(aktualnaData)
+                    });
+                }
+
+                aktualnaData = aktualnaData.AddDays(7);
+            }
+
+            OnPropertyChanged(nameof(SaldaTygodniowe));
+        }
+
+        private int GetNumerTygodnia(DateTime data)
+        {
+            var cal = System.Globalization.CultureInfo.CurrentCulture.Calendar;
+            return cal.GetWeekOfYear(data,
+                System.Globalization.CalendarWeekRule.FirstFourDayWeek,
+                DayOfWeek.Monday);
         }
 
         private async Task EksportujPDFAsync()

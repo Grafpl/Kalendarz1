@@ -336,18 +336,38 @@ namespace Kalendarz1.Opakowania.Models
 
         public string DataText => Data?.ToString("dd.MM.yyyy") ?? "-";
         public string TypDokumentuText => TypDokumentu == "MW1" ? "Wydanie" : (TypDokumentu == "MP" ? "Przyjęcie" : TypDokumentu);
-        
+
+        // Numer dokumentu dla bindingu (alias dla NrDok)
+        public string NumerDokumentu => NrDok;
+
         // Formatowanie z etykietą Wydanie/Zwrot - format: "150 (wydane)"
         public string E2Tekst => FormatujZEtykieta(E2);
         public string H1Tekst => FormatujZEtykieta(H1);
         public string EUROTekst => FormatujZEtykieta(EURO);
         public string PCVTekst => FormatujZEtykieta(PCV);
         public string DREWTekst => FormatujZEtykieta(DREW);
-        
+
+        // Etykiety dla kolumn - pokazują "wydano" lub "przyjęto"
+        public string E2Etykieta => GetEtykieta(E2);
+        public string H1Etykieta => GetEtykieta(H1);
+        public string EUROEtykieta => GetEtykieta(EURO);
+        public string PCVEtykieta => GetEtykieta(PCV);
+        public string DREWEtykieta => GetEtykieta(DREW);
+
+        private string GetEtykieta(int wartosc)
+        {
+            if (wartosc == 0) return "";
+            if (JestSaldem)
+            {
+                return wartosc > 0 ? "winni" : "zwrot";
+            }
+            return wartosc > 0 ? "wyd." : "przyj.";
+        }
+
         private string FormatujZEtykieta(int wartosc)
         {
             if (wartosc == 0) return "-";
-            if (JestSaldem) 
+            if (JestSaldem)
             {
                 if (wartosc > 0) return $"{wartosc} (wydane)";
                 return $"{Math.Abs(wartosc)} (zwrot)";
@@ -433,6 +453,21 @@ namespace Kalendarz1.Opakowania.Models
         public int SaldoDREW { get; set; }
         public string DataText => Data.ToString("dd.MM");
         public string DataPelna => Data.ToString("dd.MM.yyyy");
+    }
+
+    /// <summary>
+    /// Saldo tygodniowe dla wykresu E2/H1 (końcówka tygodnia = niedziela)
+    /// </summary>
+    public class SaldoTygodniowe
+    {
+        public DateTime DataNiedziela { get; set; }
+        public int SaldoE2 { get; set; }
+        public int SaldoH1 { get; set; }
+        public int NumerTygodnia { get; set; }
+
+        public string EtykietaTygodnia => $"Tydz. {NumerTygodnia}\n{DataNiedziela:dd.MM}";
+        public string DataText => DataNiedziela.ToString("dd.MM");
+        public string DataPelna => $"Niedziela {DataNiedziela:dd.MM.yyyy}";
     }
 
     /// <summary>
