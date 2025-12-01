@@ -396,7 +396,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center">
                         <Run Text="📄 Dokumentów: "/>
-                        <Run Text="{Binding LiczbaDokumentow, FallbackValue=0}" FontWeight="Bold" Foreground="#3498DB"/>
+                        <Run Text="{Binding LiczbaDokumentow, Mode=OneWay, FallbackValue=0}" FontWeight="Bold" Foreground="#3498DB"/>
                     </TextBlock>
                 </StackPanel>
 
