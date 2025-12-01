@@ -26,6 +26,7 @@ namespace Kalendarz1
         private Button btnAddRow;
         private Button btnDeleteRow;
         private Button btnRefresh;
+        private Button btnUndoTransfer;
         private Label lblTitle;
         private Label lblRecordCount;
         private Label lblTotalWeight;
@@ -111,7 +112,7 @@ namespace Kalendarz1
             dateGroup.Controls.AddRange(new Control[] { dateTimePicker1, btnPreviousDay, btnNextDay });
 
             // Action buttons group
-            GroupBox actionsGroup = CreateStyledGroupBox("⚙️ Akcje", 400, 5, 520, 65);
+            GroupBox actionsGroup = CreateStyledGroupBox("⚙️ Akcje", 400, 5, 620, 65);
 
             btnRefresh = CreateActionButton("🔄", "Odśwież", 10, 25, 90, 35, Color.FromArgb(52, 152, 219));
             btnRefresh.Click += (s, e) => { DisplayData(); UpdateStatistics(); };
@@ -128,7 +129,10 @@ namespace Kalendarz1
             btnDeleteRow = CreateActionButton("🗑", "Usuń", 380, 25, 80, 35, Color.FromArgb(211, 47, 47));
             btnDeleteRow.Click += BtnDeleteRow_Click;
 
-            actionsGroup.Controls.AddRange(new Control[] { btnRefresh, btnMoveUp, btnMoveDown, btnAddRow, btnDeleteRow });
+            btnUndoTransfer = CreateActionButton("↩", "Cofnij", 470, 25, 90, 35, Color.FromArgb(255, 152, 0));
+            btnUndoTransfer.Click += BtnUndoTransfer_Click;
+
+            actionsGroup.Controls.AddRange(new Control[] { btnRefresh, btnMoveUp, btnMoveDown, btnAddRow, btnDeleteRow, btnUndoTransfer });
 
             // Save button (prominent)
             btnSaveToDatabase = new Button
@@ -139,7 +143,7 @@ namespace Kalendarz1
                 BackColor = Color.FromArgb(92, 138, 58),
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(200, 65),
-                Location = new Point(930, 5),
+                Location = new Point(1030, 5),
                 Cursor = Cursors.Hand
             };
             btnSaveToDatabase.FlatAppearance.BorderSize = 0;
@@ -150,7 +154,7 @@ namespace Kalendarz1
             {
                 BackColor = Color.FromArgb(240, 245, 250),
                 Size = new Size(180, 65),
-                Location = new Point(1140, 5)
+                Location = new Point(1240, 5)
             };
 
             lblRecordCount = CreateStatLabel("Rekordów: 0", 5, 5);
@@ -328,6 +332,17 @@ namespace Kalendarz1
                     DataTable driverTable = new DataTable();
                     driverAdapter.Fill(driverTable);
 
+                    // Pobierz listę hodowców
+                    string hodowcaQuery = @"
+                        SELECT DISTINCT ID, Name
+                        FROM dbo.DOSTAWCY
+                        WHERE halt = '0'
+                        ORDER BY Name ASC";
+
+                    SqlDataAdapter hodowcaAdapter = new SqlDataAdapter(hodowcaQuery, connection);
+                    DataTable hodowcaTable = new DataTable();
+                    hodowcaAdapter.Fill(hodowcaTable);
+
                     // Tabela CarID
                     string carQuery = @"
                         SELECT DISTINCT ID
@@ -480,7 +495,7 @@ namespace Kalendarz1
                     }
 
                     ConfigureColumn("LpDostawy", "LP Dostawy", 100, true);
-                    ConfigureColumn("CustomerGID", "Hodowca", 200, false);
+                    ConfigureComboBoxColumn("CustomerGID", "Hodowca", 200, hodowcaTable, "Name", "Name", isFarmerCalc);
                     ConfigureColumn("WagaDek", "Waga (kg)", 100, false);
                     ConfigureColumn("SztPoj", "Sztuk", 100, false);
 
@@ -879,6 +894,129 @@ namespace Kalendarz1
                     "Informacja",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
+            }
+        }
+
+        private void BtnUndoTransfer_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Sprawdź czy są dane z FarmerCalc (przeniesione)
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string checkQuery = @"
+                        SELECT COUNT(*)
+                        FROM [LibraNet].[dbo].[FarmerCalc]
+                        WHERE CalcDate = @SelectedDate";
+
+                    SqlCommand checkCmd = new SqlCommand(checkQuery, conn);
+                    checkCmd.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
+                    int count = (int)checkCmd.ExecuteScalar();
+
+                    if (count == 0)
+                    {
+                        MessageBox.Show(
+                            "Brak przeniesionych danych do cofnięcia dla wybranej daty.\n\n" +
+                            "Dane nie zostały jeszcze zapisane do FarmerCalc.",
+                            "Informacja",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    if (dataGridView1.SelectedRows.Count == 0 || dataGridView1.SelectedRows[0].IsNewRow)
+                    {
+                        // Zapytaj czy usunąć wszystkie rekordy z tego dnia
+                        DialogResult confirmAll = MessageBox.Show(
+                            $"Nie wybrano konkretnego wiersza.\n\n" +
+                            $"Czy chcesz usunąć WSZYSTKIE przeniesione rekordy ({count} szt.) z FarmerCalc dla daty {dateTimePicker1.Value.Date:dd.MM.yyyy}?\n\n" +
+                            "Operacja ta pozwoli na ponowną edycję danych.",
+                            "Potwierdzenie cofnięcia wszystkich",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning);
+
+                        if (confirmAll == DialogResult.Yes)
+                        {
+                            string deleteAllQuery = @"
+                                DELETE FROM [LibraNet].[dbo].[FarmerCalc]
+                                WHERE CalcDate = @SelectedDate";
+
+                            SqlCommand deleteAllCmd = new SqlCommand(deleteAllQuery, conn);
+                            deleteAllCmd.Parameters.AddWithValue("@SelectedDate", dateTimePicker1.Value.Date);
+                            int deletedCount = deleteAllCmd.ExecuteNonQuery();
+
+                            MessageBox.Show(
+                                $"Usunięto {deletedCount} rekordów z FarmerCalc.\n\n" +
+                                "Dane zostaną teraz pobrane z harmonogramu.",
+                                "Sukces",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
+                            DisplayData();
+                            UpdateStatistics();
+                        }
+                    }
+                    else
+                    {
+                        // Usuń wybrany wiersz z FarmerCalc
+                        DataGridViewRow selectedRow = dataGridView1.SelectedRows[0];
+                        object idValue = selectedRow.Cells["ID"].Value;
+
+                        if (idValue == null || idValue == DBNull.Value || Convert.ToInt64(idValue) == 0)
+                        {
+                            MessageBox.Show(
+                                "Wybrany wiersz nie został jeszcze zapisany do bazy danych.\n" +
+                                "Użyj przycisku 'Usuń' aby usunąć wiersz z widoku.",
+                                "Informacja",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        long recordId = Convert.ToInt64(idValue);
+                        string hodowca = selectedRow.Cells["CustomerGID"].Value?.ToString() ?? "nieznany";
+
+                        DialogResult confirm = MessageBox.Show(
+                            $"Czy na pewno chcesz cofnąć przeniesienie rekordu?\n\n" +
+                            $"ID: {recordId}\n" +
+                            $"Hodowca: {hodowca}\n\n" +
+                            "Rekord zostanie usunięty z FarmerCalc.",
+                            "Potwierdzenie cofnięcia",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        if (confirm == DialogResult.Yes)
+                        {
+                            string deleteQuery = @"
+                                DELETE FROM [LibraNet].[dbo].[FarmerCalc]
+                                WHERE ID = @ID";
+
+                            SqlCommand deleteCmd = new SqlCommand(deleteQuery, conn);
+                            deleteCmd.Parameters.AddWithValue("@ID", recordId);
+                            deleteCmd.ExecuteNonQuery();
+
+                            MessageBox.Show(
+                                "Rekord został usunięty z FarmerCalc.\n\n" +
+                                "Możesz teraz ponownie edytować dane.",
+                                "Sukces",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
+                            DisplayData();
+                            UpdateStatistics();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Błąd podczas cofania przeniesienia:\n\n{ex.Message}",
+                    "Błąd",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
