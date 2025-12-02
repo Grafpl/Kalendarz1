@@ -119,7 +119,11 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             _isWindowFullyLoaded = true;
 
             // Laduj dane dopiero gdy okno jest w pelni zainicjalizowane
-            LoadData();
+            // Uzyj Dispatcher.BeginInvoke z niskim priorytetem aby dac czas na inicjalizacje LiveCharts
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                LoadData();
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         #region Inicjalizacja
@@ -695,41 +699,51 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdateChartType()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartPrzychod?.Series == null) return;
+            if (chartPrzychod == null || !chartPrzychod.IsLoaded) return;
             if (rbWykresSlupkowy == null || rbWykresLiniowy == null || rbWykresObszarowy == null) return;
-            chartPrzychod.Series.Clear();
 
-            if (rbWykresSlupkowy.IsChecked == true)
+            try
             {
-                chartPrzychod.Series.Add(new ColumnSeries
+                chartPrzychod.Series.Clear();
+
+                if (rbWykresSlupkowy.IsChecked == true)
                 {
-                    Title = "Przychod (kg)",
-                    Values = PrzychodValues,
-                    Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    MaxColumnWidth = 50
-                });
+                    chartPrzychod.Series.Add(new ColumnSeries
+                    {
+                        Title = "Przychod (kg)",
+                        Values = PrzychodValues,
+                        Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        MaxColumnWidth = 50
+                    });
+                }
+                else if (rbWykresLiniowy.IsChecked == true)
+                {
+                    chartPrzychod.Series.Add(new LineSeries
+                    {
+                        Title = "Przychod (kg)",
+                        Values = PrzychodValues,
+                        Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        Fill = Brushes.Transparent,
+                        PointGeometrySize = 10
+                    });
+                }
+                else // Obszarowy
+                {
+                    chartPrzychod.Series.Add(new LineSeries
+                    {
+                        Title = "Przychod (kg)",
+                        Values = PrzychodValues,
+                        Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        Fill = new SolidColorBrush(Color.FromArgb(100, 52, 152, 219)),
+                        PointGeometrySize = 8
+                    });
+                }
             }
-            else if (rbWykresLiniowy.IsChecked == true)
+            catch (NullReferenceException)
             {
-                chartPrzychod.Series.Add(new LineSeries
-                {
-                    Title = "Przychod (kg)",
-                    Values = PrzychodValues,
-                    Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    Fill = Brushes.Transparent,
-                    PointGeometrySize = 10
-                });
-            }
-            else // Obszarowy
-            {
-                chartPrzychod.Series.Add(new LineSeries
-                {
-                    Title = "Przychod (kg)",
-                    Values = PrzychodValues,
-                    Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    Fill = new SolidColorBrush(Color.FromArgb(100, 52, 152, 219)),
-                    PointGeometrySize = 8
-                });
+                // LiveCharts moze rzucic wyjatek gdy wewnetrzne komponenty nie sa jeszcze gotowe
+                // Sprobuj ponownie za chwile
+                Dispatcher.BeginInvoke(new Action(() => UpdateChartType()), System.Windows.Threading.DispatcherPriority.Background);
             }
         }
 
@@ -772,8 +786,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdatePartieChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartPartie?.Series == null || dgPartie == null) return;
-            chartPartie.Series.Clear();
+            if (chartPartie == null || !chartPartie.IsLoaded || dgPartie == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -798,30 +811,40 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 p.Procent = suma > 0 ? (p.SumaKg / suma * 100) : 0;
             }
 
-            // Wykres kolowy
-            var kolory = new[] {
-                Color.FromRgb(52, 152, 219),
-                Color.FromRgb(46, 204, 113),
-                Color.FromRgb(155, 89, 182),
-                Color.FromRgb(241, 196, 15),
-                Color.FromRgb(230, 126, 34),
-                Color.FromRgb(231, 76, 60),
-                Color.FromRgb(26, 188, 156),
-                Color.FromRgb(52, 73, 94)
-            };
-
-            int kolorIndex = 0;
-            foreach (var partia in grupyPartii.Take(8))
+            try
             {
-                chartPartie.Series.Add(new PieSeries
+                chartPartie.Series.Clear();
+
+                // Wykres kolowy
+                var kolory = new[] {
+                    Color.FromRgb(52, 152, 219),
+                    Color.FromRgb(46, 204, 113),
+                    Color.FromRgb(155, 89, 182),
+                    Color.FromRgb(241, 196, 15),
+                    Color.FromRgb(230, 126, 34),
+                    Color.FromRgb(231, 76, 60),
+                    Color.FromRgb(26, 188, 156),
+                    Color.FromRgb(52, 73, 94)
+                };
+
+                int kolorIndex = 0;
+                foreach (var partia in grupyPartii.Take(8))
                 {
-                    Title = partia.Partia,
-                    Values = new ChartValues<double> { (double)partia.SumaKg },
-                    Fill = new SolidColorBrush(kolory[kolorIndex % kolory.Length]),
-                    DataLabels = true,
-                    LabelPoint = point => $"{partia.Partia}: {point.Y:N0} kg"
-                });
-                kolorIndex++;
+                    chartPartie.Series.Add(new PieSeries
+                    {
+                        Title = partia.Partia,
+                        Values = new ChartValues<double> { (double)partia.SumaKg },
+                        Fill = new SolidColorBrush(kolory[kolorIndex % kolory.Length]),
+                        DataLabels = true,
+                        LabelPoint = point => $"{partia.Partia}: {point.Y:N0} kg"
+                    });
+                    kolorIndex++;
+                }
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdatePartieChart()), System.Windows.Threading.DispatcherPriority.Background);
+                return;
             }
 
             dgPartie.ItemsSource = grupyPartii;
@@ -830,8 +853,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdateZmianyChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartZmiany?.Series == null) return;
-            chartZmiany.Series.Clear();
+            if (chartZmiany == null || !chartZmiany.IsLoaded) return;
 
             // Zmiana poranna: 5:00 - 13:00
             // Zmiana popoludniowa: 13:00 - 21:00
@@ -870,21 +892,29 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 txtNajlepszaZmiana.Text = $"{max.Item1} ({max.Item2:N0} kg)";
             }
 
-            // Wykres
-            chartZmiany.Series.Add(new ColumnSeries
+            try
             {
-                Title = "Suma kg",
-                Values = new ChartValues<double> { (double)sumaPoranna, (double)sumaPopoludniowa, (double)sumaNocna },
-                Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                MaxColumnWidth = 80
-            });
+                chartZmiany.Series.Clear();
+
+                // Wykres
+                chartZmiany.Series.Add(new ColumnSeries
+                {
+                    Title = "Suma kg",
+                    Values = new ChartValues<double> { (double)sumaPoranna, (double)sumaPopoludniowa, (double)sumaNocna },
+                    Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                    MaxColumnWidth = 80
+                });
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateZmianyChart()), System.Windows.Threading.DispatcherPriority.Background);
+            }
         }
 
         private void UpdateTerminaleChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartTerminale?.Series == null || dgTerminale == null) return;
-            chartTerminale.Series.Clear();
+            if (chartTerminale == null || !chartTerminale.IsLoaded || dgTerminale == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -912,13 +942,23 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
             TerminalLabels = grupyTerminali.Select(g => g.Nazwa).ToList();
 
-            chartTerminale.Series.Add(new ColumnSeries
+            try
             {
-                Title = "Suma kg",
-                Values = new ChartValues<double>(grupyTerminali.Select(g => (double)g.SumaKg)),
-                Fill = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
-                MaxColumnWidth = 60
-            });
+                chartTerminale.Series.Clear();
+
+                chartTerminale.Series.Add(new ColumnSeries
+                {
+                    Title = "Suma kg",
+                    Values = new ChartValues<double>(grupyTerminali.Select(g => (double)g.SumaKg)),
+                    Fill = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
+                    MaxColumnWidth = 60
+                });
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateTerminaleChart()), System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
 
             dgTerminale.ItemsSource = grupyTerminali;
         }
@@ -926,8 +966,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdateKlasyChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartKlasy?.Series == null || dgKlasy == null) return;
-            chartKlasy.Series.Clear();
+            if (chartKlasy == null || !chartKlasy.IsLoaded || dgKlasy == null) return;
 
             // Filtruj tylko dane dla ArticleID = 40 (kurczaki)
             var daneKurczakow = _przefiltrowaneDane.Where(r => r.ArticleID == "40").ToList();
@@ -956,33 +995,43 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 k.Procent = suma > 0 ? (k.SumaKg / suma * 100) : 0;
             }
 
-            // Wykres kolowy
-            var kolory = new[] {
-                Color.FromRgb(231, 76, 60),   // Klasa 1 - czerwony
-                Color.FromRgb(230, 126, 34),  // Klasa 2 - pomaranczowy
-                Color.FromRgb(241, 196, 15),  // Klasa 3 - zolty
-                Color.FromRgb(46, 204, 113),  // Klasa 4 - zielony
-                Color.FromRgb(26, 188, 156),  // Klasa 5 - turkusowy
-                Color.FromRgb(52, 152, 219),  // Klasa 6 - niebieski
-                Color.FromRgb(155, 89, 182),  // Klasa 7 - fioletowy
-                Color.FromRgb(52, 73, 94),    // Klasa 8 - szary
-                Color.FromRgb(149, 165, 166), // Klasa 9
-                Color.FromRgb(189, 195, 199), // Klasa 10
-                Color.FromRgb(127, 140, 141), // Klasa 11
-                Color.FromRgb(44, 62, 80)     // Klasa 12
-            };
-
-            foreach (var klasa in grupyKlas)
+            try
             {
-                int kolorIndex = (klasa.Klasa - 1) % kolory.Length;
-                chartKlasy.Series.Add(new PieSeries
+                chartKlasy.Series.Clear();
+
+                // Wykres kolowy
+                var kolory = new[] {
+                    Color.FromRgb(231, 76, 60),   // Klasa 1 - czerwony
+                    Color.FromRgb(230, 126, 34),  // Klasa 2 - pomaranczowy
+                    Color.FromRgb(241, 196, 15),  // Klasa 3 - zolty
+                    Color.FromRgb(46, 204, 113),  // Klasa 4 - zielony
+                    Color.FromRgb(26, 188, 156),  // Klasa 5 - turkusowy
+                    Color.FromRgb(52, 152, 219),  // Klasa 6 - niebieski
+                    Color.FromRgb(155, 89, 182),  // Klasa 7 - fioletowy
+                    Color.FromRgb(52, 73, 94),    // Klasa 8 - szary
+                    Color.FromRgb(149, 165, 166), // Klasa 9
+                    Color.FromRgb(189, 195, 199), // Klasa 10
+                    Color.FromRgb(127, 140, 141), // Klasa 11
+                    Color.FromRgb(44, 62, 80)     // Klasa 12
+                };
+
+                foreach (var klasa in grupyKlas)
                 {
-                    Title = $"Klasa {klasa.Klasa}",
-                    Values = new ChartValues<double> { (double)klasa.SumaKg },
-                    Fill = new SolidColorBrush(kolory[kolorIndex]),
-                    DataLabels = true,
-                    LabelPoint = point => $"Kl.{klasa.Klasa}: {klasa.Procent:N1}%"
-                });
+                    int kolorIndex = (klasa.Klasa - 1) % kolory.Length;
+                    chartKlasy.Series.Add(new PieSeries
+                    {
+                        Title = $"Klasa {klasa.Klasa}",
+                        Values = new ChartValues<double> { (double)klasa.SumaKg },
+                        Fill = new SolidColorBrush(kolory[kolorIndex]),
+                        DataLabels = true,
+                        LabelPoint = point => $"Kl.{klasa.Klasa}: {klasa.Procent:N1}%"
+                    });
+                }
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateKlasyChart()), System.Windows.Threading.DispatcherPriority.Background);
+                return;
             }
 
             dgKlasy.ItemsSource = grupyKlas;
@@ -991,8 +1040,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdateDniTygodniaChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartDniTygodnia?.Series == null || dgDniTygodnia == null) return;
-            chartDniTygodnia.Series.Clear();
+            if (chartDniTygodnia == null || !chartDniTygodnia.IsLoaded || dgDniTygodnia == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -1024,13 +1072,23 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     wartosci[index] = (double)dzien.SredniaKg;
             }
 
-            chartDniTygodnia.Series.Add(new ColumnSeries
+            try
             {
-                Title = "Srednia kg/dzien",
-                Values = new ChartValues<double>(wartosci),
-                Fill = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
-                MaxColumnWidth = 60
-            });
+                chartDniTygodnia.Series.Clear();
+
+                chartDniTygodnia.Series.Add(new ColumnSeries
+                {
+                    Title = "Srednia kg/dzien",
+                    Values = new ChartValues<double>(wartosci),
+                    Fill = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                    MaxColumnWidth = 60
+                });
+            }
+            catch (NullReferenceException)
+            {
+                Dispatcher.BeginInvoke(new Action(() => UpdateDniTygodniaChart()), System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
 
             dgDniTygodnia.ItemsSource = grupyDni;
         }
