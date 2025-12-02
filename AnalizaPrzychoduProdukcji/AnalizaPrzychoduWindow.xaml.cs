@@ -80,6 +80,15 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             OperatorLabels = new List<string>();
 
             InitializeFilters();
+
+            // Zaladuj dane po pelnym zaladowaniu okna
+            Loaded += Window_Loaded;
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Laduj dane dopiero gdy okno jest w pelni zainicjalizowane
+            LoadData();
         }
 
         #region Inicjalizacja
@@ -97,8 +106,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             LoadPartie();
             LoadKlasyKurczaka();
 
-            // Automatycznie zaladuj dane przy starcie
-            LoadData();
+            // LoadData() jest teraz wywolywane w Window_Loaded
         }
 
         private void LoadTowary()
