@@ -31,6 +31,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private Dictionary<string, string> _towaryDict = new Dictionary<string, string>();
         private Dictionary<string, string> _operatorzyDict = new Dictionary<string, string>();
 
+        // Flaga do kontroli czy okno jest w pelni zaladowane
+        private bool _isWindowFullyLoaded = false;
+
         // Binding properties dla wykresow
         private ChartValues<double> _przychodValues;
         public ChartValues<double> PrzychodValues
@@ -112,6 +115,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Ustaw flage ze okno jest w pelni zaladowane
+            _isWindowFullyLoaded = true;
+
             // Laduj dane dopiero gdy okno jest w pelni zainicjalizowane
             LoadData();
         }
@@ -712,6 +718,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateChartType()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartPrzychod?.Series == null) return;
             if (rbWykresSlupkowy == null || rbWykresLiniowy == null || rbWykresObszarowy == null) return;
             chartPrzychod.Series.Clear();
@@ -788,6 +795,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdatePartieChart()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartPartie?.Series == null || dgPartie == null) return;
             chartPartie.Series.Clear();
 
@@ -845,6 +853,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateZmianyChart()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartZmiany?.Series == null) return;
             chartZmiany.Series.Clear();
 
@@ -897,6 +906,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateTerminaleChart()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartTerminale?.Series == null || dgTerminale == null) return;
             chartTerminale.Series.Clear();
 
@@ -939,6 +949,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateKlasyChart()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartKlasy?.Series == null || dgKlasy == null) return;
             chartKlasy.Series.Clear();
 
@@ -1003,6 +1014,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateDniTygodniaChart()
         {
+            if (!_isWindowFullyLoaded) return;
             if (chartDniTygodnia?.Series == null || dgDniTygodnia == null) return;
             chartDniTygodnia.Series.Clear();
 
