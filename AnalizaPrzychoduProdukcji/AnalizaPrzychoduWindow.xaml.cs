@@ -197,7 +197,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            int id = reader.GetInt32(0);
+                            int id = Convert.ToInt32(reader.GetValue(0));
                             string typ = reader.IsDBNull(1) ? $"T{id}" : reader.GetString(1);
                             terminale.Add(new ComboItem { Id = id, Nazwa = typ });
                         }
@@ -205,6 +205,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 }
 
                 cbTerminal.ItemsSource = terminale;
+                cbTerminal.DisplayMemberPath = "Nazwa";
+                cbTerminal.SelectedValuePath = "Id";
                 cbTerminal.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -222,7 +224,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 using (var conn = new SqlConnection(_connLibra))
                 {
                     conn.Open();
-                    string sql = @"SELECT DISTINCT P1
+                    string sql = @"SELECT DISTINCT TOP 100 P1
                                    FROM dbo.In0E
                                    WHERE P1 IS NOT NULL AND P1 <> ''
                                    ORDER BY P1 DESC";
@@ -239,6 +241,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 }
 
                 cbPartia.ItemsSource = partie;
+                cbPartia.DisplayMemberPath = "Nazwa";
+                cbPartia.SelectedValuePath = "Wartosc";
                 cbPartia.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -257,10 +261,19 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 new ComboItemString { Wartosc = "2", Nazwa = "Klasa 2" },
                 new ComboItemString { Wartosc = "3", Nazwa = "Klasa 3" },
                 new ComboItemString { Wartosc = "4", Nazwa = "Klasa 4" },
-                new ComboItemString { Wartosc = "5", Nazwa = "Klasa 5" }
+                new ComboItemString { Wartosc = "5", Nazwa = "Klasa 5" },
+                new ComboItemString { Wartosc = "6", Nazwa = "Klasa 6" },
+                new ComboItemString { Wartosc = "7", Nazwa = "Klasa 7" },
+                new ComboItemString { Wartosc = "8", Nazwa = "Klasa 8" },
+                new ComboItemString { Wartosc = "9", Nazwa = "Klasa 9" },
+                new ComboItemString { Wartosc = "10", Nazwa = "Klasa 10" },
+                new ComboItemString { Wartosc = "11", Nazwa = "Klasa 11" },
+                new ComboItemString { Wartosc = "12", Nazwa = "Klasa 12" }
             };
 
             cbKlasaKurczaka.ItemsSource = klasy;
+            cbKlasaKurczaka.DisplayMemberPath = "Nazwa";
+            cbKlasaKurczaka.SelectedValuePath = "Wartosc";
             cbKlasaKurczaka.SelectedIndex = 0;
         }
 
