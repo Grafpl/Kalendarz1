@@ -136,6 +136,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             LoadTerminale();
             LoadPartie();
             LoadKlasyKurczaka();
+            LoadGodziny();
 
             // LoadData() jest teraz wywolywane w Window_Loaded
         }
@@ -314,6 +315,29 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             cbKlasaKurczaka.DisplayMemberPath = "Nazwa";
             cbKlasaKurczaka.SelectedValuePath = "Wartosc";
             cbKlasaKurczaka.SelectedIndex = 0;
+        }
+
+        private void LoadGodziny()
+        {
+            // Godziny od 0 do 23
+            var godzinyOd = new List<ComboItem> { new ComboItem { Id = -1, Nazwa = "-- Od --" } };
+            var godzinyDo = new List<ComboItem> { new ComboItem { Id = -1, Nazwa = "-- Do --" } };
+
+            for (int h = 0; h <= 23; h++)
+            {
+                godzinyOd.Add(new ComboItem { Id = h, Nazwa = $"{h:D2}:00" });
+                godzinyDo.Add(new ComboItem { Id = h, Nazwa = $"{h:D2}:59" });
+            }
+
+            cbGodzinaOd.ItemsSource = godzinyOd;
+            cbGodzinaOd.DisplayMemberPath = "Nazwa";
+            cbGodzinaOd.SelectedValuePath = "Id";
+            cbGodzinaOd.SelectedIndex = 0;
+
+            cbGodzinaDo.ItemsSource = godzinyDo;
+            cbGodzinaDo.DisplayMemberPath = "Nazwa";
+            cbGodzinaDo.SelectedValuePath = "Id";
+            cbGodzinaDo.SelectedIndex = 0;
         }
 
         #endregion
@@ -517,6 +541,18 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 }
             }
 
+            // Filtr godziny od
+            if (cbGodzinaOd.SelectedValue is int godzinaOd && godzinaOd >= 0)
+            {
+                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= godzinaOd).ToList();
+            }
+
+            // Filtr godziny do
+            if (cbGodzinaDo.SelectedValue is int godzinaDo && godzinaDo >= 0)
+            {
+                _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Godzina.Hour <= godzinaDo).ToList();
+            }
+
             // Aktualizuj wszystkie widoki
             UpdateStatistics();
             UpdateCharts();
@@ -539,7 +575,6 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 txtSredniaGodzina.Text = "0 kg/h";
                 txtNajlepszaGodzina.Text = "-";
                 txtNajgorszaGodzina.Text = "-";
-                txtNajlepszyOperator.Text = "-";
                 txtLiczbaRekordow.Text = "0";
                 txtLiczbaDni.Text = "0";
                 return;
@@ -578,31 +613,6 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 var najgorsza = grupyGodzinowe.OrderBy(g => g.Suma).First();
                 txtNajgorszaGodzina.Text = $"{najgorsza.Godzina}:00";
                 txtNajgorszaGodzinaKg.Text = $"{najgorsza.Suma:N2} kg";
-            }
-
-            // Najlepszy operator
-            var grupyOperatorow = _przefiltrowaneDane
-                .GroupBy(r => r.Operator)
-                .Select(g => new { Operator = g.Key, Suma = g.Sum(r => r.ActWeight) })
-                .OrderByDescending(g => g.Suma)
-                .ToList();
-
-            if (grupyOperatorow.Any())
-            {
-                var najlepszy = grupyOperatorow.First();
-                txtNajlepszyOperator.Text = najlepszy.Operator;
-                txtNajlepszyOperatorKg.Text = $"{najlepszy.Suma:N2} kg";
-
-                // Najgorszy operator
-                if (grupyOperatorow.Count > 1)
-                {
-                    var najgorszy = grupyOperatorow.Last();
-                    if (txtNajgorszyOperator != null)
-                    {
-                        txtNajgorszyOperator.Text = najgorszy.Operator;
-                        txtNajgorszyOperatorKg.Text = $"{najgorszy.Suma:N2} kg";
-                    }
-                }
             }
 
             // Nowe statystyki
