@@ -445,14 +445,17 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
                         using (var reader = cmd.ExecuteReader())
                         {
+                            // Pobierz liczbe kolumn
+                            int fieldCount = reader.FieldCount;
+
                             while (reader.Read())
                             {
                                 // Parsowanie daty i godziny z varchar
                                 DateTime dataValue = DateTime.MinValue;
                                 DateTime godzinaValue = DateTime.MinValue;
 
-                                string dataStr = reader.IsDBNull(8) ? "" : reader.GetString(8);
-                                string godzinaStr = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                                string dataStr = (fieldCount > 8 && !reader.IsDBNull(8)) ? reader.GetValue(8)?.ToString() ?? "" : "";
+                                string godzinaStr = (fieldCount > 9 && !reader.IsDBNull(9)) ? reader.GetValue(9)?.ToString() ?? "" : "";
 
                                 DateTime.TryParse(dataStr, out dataValue);
 
@@ -471,20 +474,20 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
                                 var record = new PrzychodRecord
                                 {
-                                    ArticleID = reader.IsDBNull(0) ? "" : reader.GetString(0),
-                                    NazwaTowaru = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                                    JM = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                    TermID = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
-                                    Terminal = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                                    Weight = reader.IsDBNull(5) ? 0 : Convert.ToDecimal(reader.GetValue(5)),
+                                    ArticleID = (fieldCount > 0 && !reader.IsDBNull(0)) ? reader.GetValue(0)?.ToString() ?? "" : "",
+                                    NazwaTowaru = (fieldCount > 1 && !reader.IsDBNull(1)) ? reader.GetValue(1)?.ToString() ?? "" : "",
+                                    JM = (fieldCount > 2 && !reader.IsDBNull(2)) ? reader.GetValue(2)?.ToString() ?? "" : "",
+                                    TermID = (fieldCount > 3 && !reader.IsDBNull(3)) ? Convert.ToInt32(reader.GetValue(3)) : 0,
+                                    Terminal = (fieldCount > 4 && !reader.IsDBNull(4)) ? reader.GetValue(4)?.ToString() ?? "" : "",
+                                    Weight = (fieldCount > 5 && !reader.IsDBNull(5)) ? Convert.ToDecimal(reader.GetValue(5)) : 0,
                                     Data = dataValue,
                                     Godzina = godzinaValue,
-                                    OperatorID = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                                    Operator = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                                    Tara = reader.IsDBNull(12) ? 0 : Convert.ToDecimal(reader.GetValue(12)),
-                                    Partia = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                                    ActWeight = reader.IsDBNull(16) ? 0 : Convert.ToDecimal(reader.GetValue(16)),
-                                    Klasa = reader.IsDBNull(17) ? 0 : reader.GetInt32(17)
+                                    OperatorID = (fieldCount > 10 && !reader.IsDBNull(10)) ? reader.GetValue(10)?.ToString() ?? "" : "",
+                                    Operator = (fieldCount > 11 && !reader.IsDBNull(11)) ? reader.GetValue(11)?.ToString() ?? "" : "",
+                                    Tara = (fieldCount > 12 && !reader.IsDBNull(12)) ? Convert.ToDecimal(reader.GetValue(12)) : 0,
+                                    Partia = (fieldCount > 14 && !reader.IsDBNull(14)) ? reader.GetValue(14)?.ToString() ?? "" : "",
+                                    ActWeight = (fieldCount > 16 && !reader.IsDBNull(16)) ? Convert.ToDecimal(reader.GetValue(16)) : 0,
+                                    Klasa = (fieldCount > 17 && !reader.IsDBNull(17)) ? Convert.ToInt32(reader.GetValue(17)) : 0
                                 };
 
                                 _wszystkieRekordy.Add(record);
