@@ -107,9 +107,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 using (var conn = new SqlConnection(_connLibra))
                 {
                     conn.Open();
-                    // Pobierz unikalne towary z tabeli przychodu (ArticleOrders lub podobnej)
+                    // Pobierz unikalne towary z tabeli przychodu In0E
                     string sql = @"SELECT DISTINCT ArticleID, ArticleName
-                                   FROM dbo.ArticleOrders
+                                   FROM dbo.In0E
                                    WHERE ArticleID IS NOT NULL AND ArticleName IS NOT NULL
                                    ORDER BY ArticleName";
 
@@ -145,7 +145,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 {
                     conn.Open();
                     string sql = @"SELECT DISTINCT OperatorID, Wagowy
-                                   FROM dbo.ArticleOrders
+                                   FROM dbo.In0E
                                    WHERE OperatorID IS NOT NULL AND Wagowy IS NOT NULL
                                    ORDER BY Wagowy";
 
@@ -181,7 +181,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 {
                     conn.Open();
                     string sql = @"SELECT DISTINCT TermID, TermType
-                                   FROM dbo.ArticleOrders
+                                   FROM dbo.In0E
                                    WHERE TermID IS NOT NULL
                                    ORDER BY TermID";
 
@@ -216,7 +216,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 {
                     conn.Open();
                     string sql = @"SELECT DISTINCT P1
-                                   FROM dbo.ArticleOrders
+                                   FROM dbo.In0E
                                    WHERE P1 IS NOT NULL AND P1 <> ''
                                    ORDER BY P1 DESC";
 
@@ -325,7 +325,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 {
                     conn.Open();
 
-                    // Glowne zapytanie - pobierz wszystkie dane z zakresu dat
+                    // Glowne zapytanie - pobierz wszystkie dane z zakresu dat z tabeli In0E
                     string sql = @"
                         SELECT
                             ArticleID,
@@ -346,7 +346,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                             P2,
                             ActWeight,
                             QntInCont
-                        FROM dbo.ArticleOrders
+                        FROM dbo.In0E
                         WHERE Data >= @DataOd AND Data < @DataDo
                           AND Direction = '0Y'
                         ORDER BY Data, Godzina";
