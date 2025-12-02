@@ -468,7 +468,7 @@ namespace Kalendarz1.Reklamacje
                                 }
                             }
 
-                            // 4. Zapisz zdjęcia (jeśli są)
+                            // 4. Zapisz zdjęcia (jeśli są) - zarówno jako plik jak i BLOB w bazie
                             if (sciezkiZdjec.Count > 0)
                             {
                                 string folderReklamacji = Path.Combine(
@@ -480,16 +480,20 @@ namespace Kalendarz1.Reklamacje
 
                                 string queryZdjecia = @"
                                     INSERT INTO [dbo].[ReklamacjeZdjecia]
-                                    (IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez)
+                                    (IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez, DaneZdjecia)
                                     VALUES
-                                    (@IdReklamacji, @NazwaPliku, @SciezkaPliku, @DodanePrzez)";
+                                    (@IdReklamacji, @NazwaPliku, @SciezkaPliku, @DodanePrzez, @DaneZdjecia)";
 
                                 foreach (string sciezkaZrodlowa in sciezkiZdjec)
                                 {
                                     string nazwaPliku = Path.GetFileName(sciezkaZrodlowa);
                                     string nowaSciezka = Path.Combine(folderReklamacji, nazwaPliku);
 
+                                    // Skopiuj plik lokalnie
                                     File.Copy(sciezkaZrodlowa, nowaSciezka, true);
+
+                                    // Wczytaj dane binarne zdjęcia
+                                    byte[] daneZdjecia = File.ReadAllBytes(sciezkaZrodlowa);
 
                                     using (SqlCommand cmd = new SqlCommand(queryZdjecia, conn, transaction))
                                     {
@@ -497,6 +501,7 @@ namespace Kalendarz1.Reklamacje
                                         cmd.Parameters.AddWithValue("@NazwaPliku", nazwaPliku);
                                         cmd.Parameters.AddWithValue("@SciezkaPliku", nowaSciezka);
                                         cmd.Parameters.AddWithValue("@DodanePrzez", userId);
+                                        cmd.Parameters.Add("@DaneZdjecia", SqlDbType.VarBinary, -1).Value = daneZdjecia;
                                         cmd.ExecuteNonQuery();
                                     }
                                 }

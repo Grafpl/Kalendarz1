@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.IO;
@@ -10,6 +11,16 @@ namespace Kalendarz1.Reklamacje
     // ========================================
     // FORMULARZ SZCZEGÓŁÓW REKLAMACJI
     // ========================================
+
+    // Klasa pomocnicza do przechowywania informacji o zdjęciu
+    public class ZdjecieReklamacji
+    {
+        public int Id { get; set; }
+        public string NazwaPliku { get; set; }
+        public string SciezkaPliku { get; set; }
+        public byte[] DaneZdjecia { get; set; }
+    }
+
     public partial class FormSzczegolyReklamacji : Form
     {
         private string connectionString;
@@ -23,6 +34,9 @@ namespace Kalendarz1.Reklamacje
         private ListBox lbZdjecia;
         private PictureBox pbZdjecie;
         private DataGridView dgvHistoria;
+
+        // Lista zdjęć z danymi binarnymi
+        private List<ZdjecieReklamacji> listaZdjec = new List<ZdjecieReklamacji>();
 
         public FormSzczegolyReklamacji(string connString, int reklamacjaId, string user)
         {
@@ -112,18 +126,45 @@ namespace Kalendarz1.Reklamacje
             };
             lbZdjecia.SelectedIndexChanged += (s, e) =>
             {
-                if (lbZdjecia.SelectedIndex >= 0)
+                if (lbZdjecia.SelectedIndex >= 0 && lbZdjecia.SelectedIndex < listaZdjec.Count)
                 {
-                    string sciezka = lbZdjecia.SelectedItem.ToString().Split('|')[1].Trim();
-                    if (File.Exists(sciezka))
+                    var zdjecie = listaZdjec[lbZdjecia.SelectedIndex];
+                    try
                     {
-                        try
+                        pbZdjecie.Image?.Dispose();
+
+                        // Najpierw spróbuj załadować z danych binarnych (BLOB)
+                        if (zdjecie.DaneZdjecia != null && zdjecie.DaneZdjecia.Length > 0)
                         {
-                            pbZdjecie.Image?.Dispose();
-                            pbZdjecie.Image = Image.FromFile(sciezka);
+                            using (var ms = new MemoryStream(zdjecie.DaneZdjecia))
+                            {
+                                pbZdjecie.Image = Image.FromStream(ms);
+                            }
                         }
-                        catch { }
+                        // Jeśli brak BLOB, spróbuj z pliku
+                        else if (!string.IsNullOrEmpty(zdjecie.SciezkaPliku) && File.Exists(zdjecie.SciezkaPliku))
+                        {
+                            pbZdjecie.Image = Image.FromFile(zdjecie.SciezkaPliku);
+                        }
+                        else
+                        {
+                            pbZdjecie.Image = null;
+                        }
                     }
+                    catch
+                    {
+                        pbZdjecie.Image = null;
+                    }
+                }
+            };
+
+            // Podwójne kliknięcie - pełnoekranowy podgląd
+            lbZdjecia.DoubleClick += (s, e) =>
+            {
+                if (lbZdjecia.SelectedIndex >= 0 && lbZdjecia.SelectedIndex < listaZdjec.Count)
+                {
+                    var zdjecie = listaZdjec[lbZdjecia.SelectedIndex];
+                    PokazPelnoekranowyPodglad(zdjecie);
                 }
             };
 
@@ -131,11 +172,63 @@ namespace Kalendarz1.Reklamacje
             {
                 Dock = DockStyle.Fill,
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = ColorTranslator.FromHtml("#ecf0f1")
+                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
+                Cursor = Cursors.Hand
             };
 
+            // Kliknięcie na zdjęcie otwiera pełnoekranowy podgląd
+            pbZdjecie.Click += (s, e) =>
+            {
+                if (lbZdjecia.SelectedIndex >= 0 && lbZdjecia.SelectedIndex < listaZdjec.Count)
+                {
+                    var zdjecie = listaZdjec[lbZdjecia.SelectedIndex];
+                    PokazPelnoekranowyPodglad(zdjecie);
+                }
+            };
+
+            // Panel z przyciskiem powiększenia
+            Panel panelPodglad = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            Button btnPowieksz = new Button
+            {
+                Text = "🔍 Powiększ zdjęcie",
+                Dock = DockStyle.Bottom,
+                Height = 35,
+                BackColor = ColorTranslator.FromHtml("#3498db"),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnPowieksz.FlatAppearance.BorderSize = 0;
+            btnPowieksz.Click += (s, e) =>
+            {
+                if (lbZdjecia.SelectedIndex >= 0 && lbZdjecia.SelectedIndex < listaZdjec.Count)
+                {
+                    var zdjecie = listaZdjec[lbZdjecia.SelectedIndex];
+                    PokazPelnoekranowyPodglad(zdjecie);
+                }
+            };
+
+            Label lblInfo = new Label
+            {
+                Text = "Kliknij na zdjęcie lub przycisk poniżej, aby powiększyć",
+                Dock = DockStyle.Top,
+                Height = 25,
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.Gray,
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic)
+            };
+
+            panelPodglad.Controls.Add(pbZdjecie);
+            panelPodglad.Controls.Add(btnPowieksz);
+            panelPodglad.Controls.Add(lblInfo);
+
             splitZdjecia.Panel1.Controls.Add(lbZdjecia);
-            splitZdjecia.Panel2.Controls.Add(pbZdjecie);
+            splitZdjecia.Panel2.Controls.Add(panelPodglad);
             tabZdjecia.Controls.Add(splitZdjecia);
 
             // Zakładka: Historia
@@ -291,10 +384,29 @@ namespace Kalendarz1.Reklamacje
                         if (reader.NextResult())
                         {
                             lbPartie.Items.Clear();
-                            while (reader.Read())
+                            try
                             {
-                                lbPartie.Items.Add($"{reader["Partia"]} (dodano: {reader["DataDodania"]})");
+                                while (reader.Read())
+                                {
+                                    // Sprawdź różne nazwy kolumn (Partia lub NumerPartii)
+                                    string partia = "";
+                                    string dataDodania = "";
+
+                                    for (int i = 0; i < reader.FieldCount; i++)
+                                    {
+                                        string colName = reader.GetName(i);
+                                        if ((colName == "Partia" || colName == "NumerPartii") && !reader.IsDBNull(i))
+                                            partia = reader[i].ToString();
+                                        else if (colName == "DataDodania" && !reader.IsDBNull(i))
+                                            dataDodania = reader[i].ToString();
+                                    }
+
+                                    if (!string.IsNullOrEmpty(partia))
+                                        lbPartie.Items.Add($"{partia} (dodano: {dataDodania})");
+                                }
                             }
+                            catch { /* Ignoruj błędy odczytu partii */ }
+
                             if (lbPartie.Items.Count == 0)
                                 lbPartie.Items.Add("(brak partii)");
                         }
@@ -303,31 +415,48 @@ namespace Kalendarz1.Reklamacje
                         if (reader.NextResult())
                         {
                             lbZdjecia.Items.Clear();
+                            listaZdjec.Clear();
                             try
                             {
                                 while (reader.Read())
                                 {
-                                    string nazwaPliku = "";
-                                    string sciezkaPliku = "";
+                                    var zdjecie = new ZdjecieReklamacji();
 
-                                    // Sprawdz czy kolumna istnieje
+                                    // Sprawdz kolumny
                                     for (int i = 0; i < reader.FieldCount; i++)
                                     {
                                         string colName = reader.GetName(i);
-                                        if (colName == "NazwaPliku" && !reader.IsDBNull(i))
-                                            nazwaPliku = reader.GetString(i);
+                                        if (colName == "Id" && !reader.IsDBNull(i))
+                                            zdjecie.Id = Convert.ToInt32(reader[i]);
+                                        else if (colName == "NazwaPliku" && !reader.IsDBNull(i))
+                                            zdjecie.NazwaPliku = reader.GetString(i);
                                         else if (colName == "SciezkaPliku" && !reader.IsDBNull(i))
-                                            sciezkaPliku = reader.GetString(i);
+                                            zdjecie.SciezkaPliku = reader.GetString(i);
+                                        else if (colName == "DaneZdjecia" && !reader.IsDBNull(i))
+                                            zdjecie.DaneZdjecia = (byte[])reader[i];
                                     }
 
-                                    if (!string.IsNullOrEmpty(nazwaPliku) || !string.IsNullOrEmpty(sciezkaPliku))
-                                        lbZdjecia.Items.Add($"{nazwaPliku} | {sciezkaPliku}");
+                                    // Dodaj do listy jeśli ma nazwę lub dane
+                                    if (!string.IsNullOrEmpty(zdjecie.NazwaPliku) || zdjecie.DaneZdjecia != null)
+                                    {
+                                        listaZdjec.Add(zdjecie);
+                                        string info = zdjecie.NazwaPliku ?? "Zdjęcie";
+                                        if (zdjecie.DaneZdjecia != null && zdjecie.DaneZdjecia.Length > 0)
+                                            info += " [DB]";
+                                        else if (File.Exists(zdjecie.SciezkaPliku))
+                                            info += " [Plik]";
+                                        else
+                                            info += " [Niedostępne]";
+                                        lbZdjecia.Items.Add(info);
+                                    }
                                 }
                             }
                             catch { /* Ignoruj bledy odczytu zdjec */ }
 
                             if (lbZdjecia.Items.Count == 0)
                                 lbZdjecia.Items.Add("(brak zdjęć)");
+                            else if (listaZdjec.Count > 0)
+                                lbZdjecia.SelectedIndex = 0; // Automatycznie wybierz pierwsze zdjęcie
                         }
 
                         // Historia
@@ -345,6 +474,74 @@ namespace Kalendarz1.Reklamacje
                 MessageBox.Show($"Błąd wczytywania szczegółów: {ex.Message}", "Błąd",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // Pełnoekranowy podgląd zdjęcia
+        private void PokazPelnoekranowyPodglad(ZdjecieReklamacji zdjecie)
+        {
+            Image obrazek = null;
+
+            try
+            {
+                // Załaduj zdjęcie z BLOB lub pliku
+                if (zdjecie.DaneZdjecia != null && zdjecie.DaneZdjecia.Length > 0)
+                {
+                    using (var ms = new MemoryStream(zdjecie.DaneZdjecia))
+                    {
+                        obrazek = Image.FromStream(ms);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(zdjecie.SciezkaPliku) && File.Exists(zdjecie.SciezkaPliku))
+                {
+                    obrazek = Image.FromFile(zdjecie.SciezkaPliku);
+                }
+
+                if (obrazek == null)
+                {
+                    MessageBox.Show("Nie można załadować zdjęcia.", "Informacja",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania zdjęcia: {ex.Message}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Utwórz okno podglądu
+            Form formPodglad = new Form
+            {
+                Text = $"Podgląd: {zdjecie.NazwaPliku ?? "Zdjęcie"} - kliknij lub ESC aby zamknąć",
+                WindowState = FormWindowState.Maximized,
+                BackColor = Color.Black,
+                FormBorderStyle = FormBorderStyle.None,
+                KeyPreview = true
+            };
+
+            PictureBox pb = new PictureBox
+            {
+                Dock = DockStyle.Fill,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = obrazek,
+                Cursor = Cursors.Hand
+            };
+
+            pb.Click += (s, e) => formPodglad.Close();
+            formPodglad.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space)
+                    formPodglad.Close();
+            };
+
+            formPodglad.Controls.Add(pb);
+            formPodglad.FormClosed += (s, e) =>
+            {
+                pb.Image?.Dispose();
+            };
+
+            formPodglad.ShowDialog();
         }
     }
 
