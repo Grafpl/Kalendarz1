@@ -573,10 +573,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             {
                 txtSumaKg.Text = "0 kg";
                 txtSredniaGodzina.Text = "0 kg/h";
-                txtNajlepszaGodzina.Text = "-";
-                txtNajgorszaGodzina.Text = "-";
-                txtLiczbaRekordow.Text = "0";
-                txtLiczbaDni.Text = "0";
+                if (txtSredniaDzien != null) txtSredniaDzien.Text = "0 kg";
                 return;
             }
 
@@ -584,12 +581,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             decimal sumaKg = _przefiltrowaneDane.Sum(r => r.ActWeight);
             txtSumaKg.Text = $"{sumaKg:N2} kg";
 
-            // Liczba rekordow
-            txtLiczbaRekordow.Text = _przefiltrowaneDane.Count.ToString("N0");
-
             // Liczba dni
             int liczbaDni = _przefiltrowaneDane.Select(r => r.Data.Date).Distinct().Count();
-            txtLiczbaDni.Text = liczbaDni.ToString();
 
             // Grupowanie po godzinach
             var grupyGodzinowe = _przefiltrowaneDane
@@ -603,33 +596,6 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 // Srednia na godzine
                 decimal sredniaGodzina = grupyGodzinowe.Average(g => g.Suma);
                 txtSredniaGodzina.Text = $"{sredniaGodzina:N2} kg/h";
-
-                // Najlepsza godzina
-                var najlepsza = grupyGodzinowe.OrderByDescending(g => g.Suma).First();
-                txtNajlepszaGodzina.Text = $"{najlepsza.Godzina}:00";
-                txtNajlepszaGodzinaKg.Text = $"{najlepsza.Suma:N2} kg";
-
-                // Najgorsza godzina (z danymi)
-                var najgorsza = grupyGodzinowe.OrderBy(g => g.Suma).First();
-                txtNajgorszaGodzina.Text = $"{najgorsza.Godzina}:00";
-                txtNajgorszaGodzinaKg.Text = $"{najgorsza.Suma:N2} kg";
-            }
-
-            // Nowe statystyki
-            // Srednia waga na wazenie
-            if (txtSredniaWaga != null)
-            {
-                decimal sredniaWaga = _przefiltrowaneDane.Average(r => r.ActWeight);
-                txtSredniaWaga.Text = $"{sredniaWaga:N2} kg";
-            }
-
-            // Min/Max waga
-            if (txtMinWaga != null && txtMaxWaga != null)
-            {
-                decimal minWaga = _przefiltrowaneDane.Min(r => r.ActWeight);
-                decimal maxWaga = _przefiltrowaneDane.Max(r => r.ActWeight);
-                txtMinWaga.Text = $"{minWaga:N2}";
-                txtMaxWaga.Text = $"{maxWaga:N2}";
             }
 
             // Srednia na dzien
@@ -1123,15 +1089,16 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateHeatmap()
         {
-            if (dgHeatmap == null) return;
+            if (icHeatmap == null) return;
+
+            icHeatmap.Items.Clear();
 
             if (!_przefiltrowaneDane.Any())
             {
-                dgHeatmap.ItemsSource = null;
                 return;
             }
 
-            // Tworzymy macierz: wiersze = dni, kolumny = godziny (6-22)
+            // Pobierz dni
             var dni = _przefiltrowaneDane
                 .Select(r => r.Data.Date)
                 .Distinct()
@@ -1139,32 +1106,157 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 .Take(30) // Max 30 dni
                 .ToList();
 
-            var dt = new DataTable();
-            dt.Columns.Add("Data", typeof(string));
-
+            // Oblicz sumy dla kazdej godziny i dnia
+            var daneHeatmap = new Dictionary<(DateTime, int), decimal>();
             for (int h = 5; h <= 22; h++)
             {
-                dt.Columns.Add($"{h:D2}:00", typeof(string));
-            }
-
-            foreach (var dzien in dni)
-            {
-                var row = dt.NewRow();
-                row["Data"] = dzien.ToString("MM-dd ddd", new CultureInfo("pl-PL"));
-
-                for (int h = 5; h <= 22; h++)
+                foreach (var dzien in dni)
                 {
                     var suma = _przefiltrowaneDane
                         .Where(r => r.Data.Date == dzien && r.Godzina.Hour == h)
                         .Sum(r => r.ActWeight);
-
-                    row[$"{h:D2}:00"] = suma > 0 ? $"{suma:N0}" : "-";
+                    daneHeatmap[(dzien, h)] = suma;
                 }
-
-                dt.Rows.Add(row);
             }
 
-            dgHeatmap.ItemsSource = dt.DefaultView;
+            // Oblicz srednia i odchylenie dla kazdej godziny (kolumny)
+            var statystykiGodzin = new Dictionary<int, (decimal srednia, decimal min, decimal max)>();
+            for (int h = 5; h <= 22; h++)
+            {
+                var wartosci = dni.Select(d => daneHeatmap[(d, h)]).Where(v => v > 0).ToList();
+                if (wartosci.Any())
+                {
+                    statystykiGodzin[h] = (wartosci.Average(), wartosci.Min(), wartosci.Max());
+                }
+                else
+                {
+                    statystykiGodzin[h] = (0, 0, 0);
+                }
+            }
+
+            // Naglowek z godzinami
+            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            headerPanel.Children.Add(new Border
+            {
+                Width = 80,
+                Height = 30,
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Child = new TextBlock
+                {
+                    Text = "Data",
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            });
+
+            for (int h = 5; h <= 22; h++)
+            {
+                headerPanel.Children.Add(new Border
+                {
+                    Width = 55,
+                    Height = 30,
+                    Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    BorderThickness = new Thickness(1, 0, 0, 0),
+                    Child = new TextBlock
+                    {
+                        Text = $"{h}:00",
+                        Foreground = Brushes.White,
+                        FontWeight = FontWeights.SemiBold,
+                        FontSize = 11,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                });
+            }
+            icHeatmap.Items.Add(headerPanel);
+
+            // Wiersze z danymi
+            foreach (var dzien in dni)
+            {
+                var rowPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+                // Kolumna z data
+                rowPanel.Children.Add(new Border
+                {
+                    Width = 80,
+                    Height = 28,
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                    Child = new TextBlock
+                    {
+                        Text = dzien.ToString("MM-dd ddd", new CultureInfo("pl-PL")),
+                        FontSize = 10,
+                        FontWeight = FontWeights.SemiBold,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                });
+
+                // Kolumny z godzinami
+                for (int h = 5; h <= 22; h++)
+                {
+                    var wartosc = daneHeatmap[(dzien, h)];
+                    var stats = statystykiGodzin[h];
+
+                    // Oblicz kolor na podstawie pozycji wzgledem sredniej
+                    Color kolorTla;
+                    if (wartosc == 0)
+                    {
+                        kolorTla = Color.FromRgb(245, 245, 245); // Szary dla braku danych
+                    }
+                    else if (stats.max == stats.min)
+                    {
+                        kolorTla = Color.FromRgb(241, 196, 15); // Zolty gdy wszystkie wartosci rowne
+                    }
+                    else
+                    {
+                        // Normalizuj wartosc do zakresu 0-1
+                        double normalized = (double)(wartosc - stats.min) / (double)(stats.max - stats.min);
+
+                        if (normalized >= 0.66)
+                        {
+                            // Zielony - powyzej normy
+                            int intensity = (int)(155 + (normalized - 0.66) * 100 / 0.34);
+                            kolorTla = Color.FromRgb((byte)(46), (byte)Math.Min(255, intensity + 49), (byte)(113));
+                        }
+                        else if (normalized >= 0.33)
+                        {
+                            // Zolty - norma
+                            kolorTla = Color.FromRgb(241, 196, 15);
+                        }
+                        else
+                        {
+                            // Czerwony - ponizej normy
+                            int intensity = (int)(76 + normalized * 155 / 0.33);
+                            kolorTla = Color.FromRgb((byte)Math.Min(255, 180 + (int)((0.33 - normalized) * 75)), (byte)intensity, (byte)(60));
+                        }
+                    }
+
+                    rowPanel.Children.Add(new Border
+                    {
+                        Width = 55,
+                        Height = 28,
+                        Background = new SolidColorBrush(kolorTla),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                        BorderThickness = new Thickness(1, 0, 0, 1),
+                        Child = new TextBlock
+                        {
+                            Text = wartosc > 0 ? $"{wartosc:N0}" : "-",
+                            FontSize = 10,
+                            FontWeight = wartosc > 0 ? FontWeights.SemiBold : FontWeights.Normal,
+                            Foreground = wartosc == 0 ? Brushes.Gray : Brushes.Black,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    });
+                }
+
+                icHeatmap.Items.Add(rowPanel);
+            }
         }
 
         #endregion

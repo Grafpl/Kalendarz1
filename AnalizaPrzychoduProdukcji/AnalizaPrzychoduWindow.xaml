@@ -236,86 +236,28 @@
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal">
                     <!-- Suma kg -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="SUMA PRZYCHODU" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtSumaKg" Text="0 kg" FontSize="24" FontWeight="Bold" Foreground="#2C3E50"/>
+                            <TextBlock x:Name="txtSumaKg" Text="0 kg" FontSize="28" FontWeight="Bold" Foreground="#2C3E50"/>
                             <TextBlock x:Name="txtSumaKgInfo" Text="za wybrany okres" FontSize="10" Foreground="#95A5A6"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Srednia na godzine -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="SREDNIA / GODZINE" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtSredniaGodzina" Text="0 kg/h" FontSize="24" FontWeight="Bold" Foreground="#3498DB"/>
+                            <TextBlock x:Name="txtSredniaGodzina" Text="0 kg/h" FontSize="28" FontWeight="Bold" Foreground="#3498DB"/>
                             <TextBlock x:Name="txtSredniaGodzinaInfo" Text="srednie tempo" FontSize="10" Foreground="#95A5A6"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Najlepsza godzina -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
-                        <StackPanel>
-                            <TextBlock Text="NAJLEPSZA GODZINA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtNajlepszaGodzina" Text="-" FontSize="24" FontWeight="Bold" Foreground="#27AE60"/>
-                            <TextBlock x:Name="txtNajlepszaGodzinaKg" Text="0 kg" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Najgorszy godzina -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
-                        <StackPanel>
-                            <TextBlock Text="NAJSLABSZA GODZINA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtNajgorszaGodzina" Text="-" FontSize="24" FontWeight="Bold" Foreground="#E74C3C"/>
-                            <TextBlock x:Name="txtNajgorszaGodzinaKg" Text="0 kg" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Liczba rekordow -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="140">
-                        <StackPanel>
-                            <TextBlock Text="LICZBA WAZENI" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtLiczbaRekordow" Text="0" FontSize="24" FontWeight="Bold" Foreground="#F39C12"/>
-                            <TextBlock x:Name="txtLiczbaRekordowInfo" Text="rekordow" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Liczba dni -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="140">
-                        <StackPanel>
-                            <TextBlock Text="DNI PRODUKCJI" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtLiczbaDni" Text="0" FontSize="24" FontWeight="Bold" Foreground="#1ABC9C"/>
-                            <TextBlock x:Name="txtLiczbaDniInfo" Text="dni z danymi" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Srednia waga na wazenie -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="150">
-                        <StackPanel>
-                            <TextBlock Text="SREDNIA WAGA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtSredniaWaga" Text="0 kg" FontSize="24" FontWeight="Bold" Foreground="#E67E22"/>
-                            <TextBlock x:Name="txtSredniaWagaInfo" Text="na wazenie" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Min/Max waga -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
-                        <StackPanel>
-                            <TextBlock Text="MIN / MAX WAGA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock x:Name="txtMinWaga" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB"/>
-                                <TextBlock Text=" / " FontSize="18" Foreground="#95A5A6"/>
-                                <TextBlock x:Name="txtMaxWaga" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C"/>
-                            </StackPanel>
-                            <TextBlock Text="kg (pojedyncze wazenie)" FontSize="10" Foreground="#95A5A6"/>
-                        </StackPanel>
-                    </Border>
-
                     <!-- Tempo na dzien -->
-                    <Border Style="{StaticResource StatCardStyle}" MinWidth="150">
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="SREDNIA / DZIEN" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="txtSredniaDzien" Text="0 kg" FontSize="24" FontWeight="Bold" Foreground="#9B59B6"/>
+                            <TextBlock x:Name="txtSredniaDzien" Text="0 kg" FontSize="28" FontWeight="Bold" Foreground="#9B59B6"/>
                             <TextBlock x:Name="txtSredniaDzienInfo" Text="dzienna produkcja" FontSize="10" Foreground="#95A5A6"/>
                         </StackPanel>
                     </Border>
@@ -504,16 +446,22 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="Mapa cieplna produkcji - intensywnosc przychodu wg godzin i dni"
-                               FontSize="14" Foreground="#7F8C8D" Margin="15"/>
+                    <StackPanel Margin="15">
+                        <TextBlock Text="Mapa cieplna produkcji - intensywnosc przychodu wg godzin"
+                                   FontSize="14" Foreground="#7F8C8D"/>
+                        <TextBlock Text="Zielony = powyzej normy, Zolty = norma, Czerwony = ponizej normy (w ramach kazdej kolumny godzinowej)"
+                                   FontSize="11" Foreground="#95A5A6" Margin="0,5,0,0"/>
+                    </StackPanel>
 
-                    <DataGrid x:Name="dgHeatmap" Grid.Row="1" Margin="10"
-                              AutoGenerateColumns="True" IsReadOnly="True"
-                              HeadersVisibility="Column" GridLinesVisibility="All"
-                              BorderThickness="1" BorderBrush="#E0E0E0"
-                              CanUserSortColumns="False" CanUserReorderColumns="False"
-                              SelectionUnit="Cell" SelectionMode="Single">
-                    </DataGrid>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="icHeatmap" Margin="10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
 
