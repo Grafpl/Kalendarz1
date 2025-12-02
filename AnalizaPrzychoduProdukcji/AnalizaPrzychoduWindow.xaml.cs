@@ -491,6 +491,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateStatistics()
         {
+            // Null checks for UI controls
+            if (txtSumaKg == null) return;
+
             if (!_przefiltrowaneDane.Any())
             {
                 txtSumaKg.Text = "0 kg";
@@ -574,6 +577,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
 
             // Grupowanie wg wybranej opcji
+            if (cbGrupowanie == null) return;
             var grupowanie = (cbGrupowanie.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Godzina";
 
             IEnumerable<KeyValuePair<string, decimal>> grupy;
@@ -636,6 +640,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateChartType()
         {
+            if (chartPrzychod?.Series == null) return;
+            if (rbWykresSlupkowy == null || rbWykresLiniowy == null || rbWykresObszarowy == null) return;
             chartPrzychod.Series.Clear();
 
             if (rbWykresSlupkowy.IsChecked == true)
@@ -674,6 +680,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateOperatorChart()
         {
+            if (dgRankingOperatorow == null) return;
+
             if (!_przefiltrowaneDane.Any())
             {
                 OperatorSumaValues = new ChartValues<double>();
@@ -708,6 +716,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdatePartieChart()
         {
+            if (chartPartie?.Series == null || dgPartie == null) return;
             chartPartie.Series.Clear();
 
             if (!_przefiltrowaneDane.Any())
@@ -768,13 +777,16 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateDataGrids()
         {
+            if (dgSzczegoly == null || dgPodsumowanieTowary == null || dgPodsumowanieDni == null) return;
+
             // Szczegolowe dane
             dgSzczegoly.ItemsSource = _przefiltrowaneDane
                 .OrderByDescending(r => r.Data)
                 .ThenByDescending(r => r.Godzina)
                 .ToList();
 
-            txtLiczbaWierszy.Text = $"Wyswietlono: {_przefiltrowaneDane.Count} rekordow";
+            if (txtLiczbaWierszy != null)
+                txtLiczbaWierszy.Text = $"Wyswietlono: {_przefiltrowaneDane.Count} rekordow";
 
             // Podsumowanie wg towaru
             var podsumowanieTowary = _przefiltrowaneDane
@@ -813,6 +825,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateHeatmap()
         {
+            if (dgHeatmap == null) return;
+
             if (!_przefiltrowaneDane.Any())
             {
                 dgHeatmap.ItemsSource = null;
