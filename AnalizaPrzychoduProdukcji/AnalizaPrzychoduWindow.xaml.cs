@@ -28,8 +28,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private List<PrzychodRecord> _przefiltrowaneDane = new List<PrzychodRecord>();
 
         // Słowniki
-        private Dictionary<int, string> _towaryDict = new Dictionary<int, string>();
-        private Dictionary<int, string> _operatorzyDict = new Dictionary<int, string>();
+        private Dictionary<string, string> _towaryDict = new Dictionary<string, string>();
+        private Dictionary<string, string> _operatorzyDict = new Dictionary<string, string>();
 
         // Binding properties dla wykresow
         private ChartValues<double> _przychodValues;
@@ -105,7 +105,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         {
             try
             {
-                var towary = new List<ComboItem> { new ComboItem { Id = 0, Nazwa = "-- Wszystkie towary --" } };
+                var towary = new List<ComboItemString> { new ComboItemString { Wartosc = "", Nazwa = "-- Wszystkie towary --" } };
 
                 using (var conn = new SqlConnection(_connLibra))
                 {
@@ -113,7 +113,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     // Pobierz unikalne towary z tabeli przychodu In0E
                     string sql = @"SELECT DISTINCT ArticleID, ArticleName
                                    FROM dbo.In0E
-                                   WHERE ArticleID IS NOT NULL AND ArticleName IS NOT NULL
+                                   WHERE ArticleID IS NOT NULL AND ArticleName IS NOT NULL AND ArticleName <> ''
                                    ORDER BY ArticleName";
 
                     using (var cmd = new SqlCommand(sql, conn))
@@ -121,15 +121,17 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            int id = reader.GetInt32(0);
+                            string id = reader.GetString(0);
                             string nazwa = reader.GetString(1);
-                            towary.Add(new ComboItem { Id = id, Nazwa = nazwa });
+                            towary.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
                             _towaryDict[id] = nazwa;
                         }
                     }
                 }
 
                 cbTowar.ItemsSource = towary;
+                cbTowar.DisplayMemberPath = "Nazwa";
+                cbTowar.SelectedValuePath = "Wartosc";
                 cbTowar.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -142,14 +144,14 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         {
             try
             {
-                var operatorzy = new List<ComboItem> { new ComboItem { Id = 0, Nazwa = "-- Wszyscy operatorzy --" } };
+                var operatorzy = new List<ComboItemString> { new ComboItemString { Wartosc = "", Nazwa = "-- Wszyscy operatorzy --" } };
 
                 using (var conn = new SqlConnection(_connLibra))
                 {
                     conn.Open();
                     string sql = @"SELECT DISTINCT OperatorID, Wagowy
                                    FROM dbo.In0E
-                                   WHERE OperatorID IS NOT NULL AND Wagowy IS NOT NULL
+                                   WHERE OperatorID IS NOT NULL AND Wagowy IS NOT NULL AND Wagowy <> ''
                                    ORDER BY Wagowy";
 
                     using (var cmd = new SqlCommand(sql, conn))
@@ -157,15 +159,17 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            int id = reader.GetInt32(0);
+                            string id = reader.GetString(0);
                             string nazwa = reader.IsDBNull(1) ? $"Operator {id}" : reader.GetString(1);
-                            operatorzy.Add(new ComboItem { Id = id, Nazwa = nazwa });
+                            operatorzy.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
                             _operatorzyDict[id] = nazwa;
                         }
                     }
                 }
 
                 cbOperator.ItemsSource = operatorzy;
+                cbOperator.DisplayMemberPath = "Nazwa";
+                cbOperator.SelectedValuePath = "Wartosc";
                 cbOperator.SelectedIndex = 0;
             }
             catch (Exception ex)
@@ -267,7 +271,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void CbTowar_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // Pokaz panel klasy kurczaka tylko dla ArticleID = 40
-            if (cbTowar.SelectedValue is int towarId && towarId == 40)
+            if (cbTowar.SelectedValue is string towarId && towarId == "40")
             {
                 pnlKlasaKurczaka.Visibility = Visibility.Visible;
             }
@@ -363,22 +367,44 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                         {
                             while (reader.Read())
                             {
+                                // Parsowanie daty i godziny z varchar
+                                DateTime dataValue = DateTime.MinValue;
+                                DateTime godzinaValue = DateTime.MinValue;
+
+                                string dataStr = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                string godzinaStr = reader.IsDBNull(9) ? "" : reader.GetString(9);
+
+                                DateTime.TryParse(dataStr, out dataValue);
+
+                                // Godzina moze byc w formacie HH:mm:ss
+                                if (!string.IsNullOrEmpty(godzinaStr))
+                                {
+                                    if (TimeSpan.TryParse(godzinaStr, out TimeSpan ts))
+                                    {
+                                        godzinaValue = dataValue.Date.Add(ts);
+                                    }
+                                    else
+                                    {
+                                        DateTime.TryParse(godzinaStr, out godzinaValue);
+                                    }
+                                }
+
                                 var record = new PrzychodRecord
                                 {
-                                    ArticleID = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                                    ArticleID = reader.IsDBNull(0) ? "" : reader.GetString(0),
                                     NazwaTowaru = reader.IsDBNull(1) ? "" : reader.GetString(1),
                                     JM = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                     TermID = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
                                     Terminal = reader.IsDBNull(4) ? "" : reader.GetString(4),
                                     Weight = reader.IsDBNull(5) ? 0 : Convert.ToDecimal(reader.GetValue(5)),
-                                    Data = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8),
-                                    Godzina = reader.IsDBNull(9) ? DateTime.MinValue : reader.GetDateTime(9),
-                                    OperatorID = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+                                    Data = dataValue,
+                                    Godzina = godzinaValue,
+                                    OperatorID = reader.IsDBNull(10) ? "" : reader.GetString(10),
                                     Operator = reader.IsDBNull(11) ? "" : reader.GetString(11),
                                     Tara = reader.IsDBNull(12) ? 0 : Convert.ToDecimal(reader.GetValue(12)),
                                     Partia = reader.IsDBNull(14) ? "" : reader.GetString(14),
                                     ActWeight = reader.IsDBNull(16) ? 0 : Convert.ToDecimal(reader.GetValue(16)),
-                                    Klasa = reader.IsDBNull(17) ? "" : reader.GetValue(17)?.ToString() ?? ""
+                                    Klasa = reader.IsDBNull(17) ? 0 : reader.GetInt32(17)
                                 };
 
                                 _wszystkieRekordy.Add(record);
@@ -404,13 +430,13 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             _przefiltrowaneDane = _wszystkieRekordy.ToList();
 
             // Filtr towaru
-            if (cbTowar.SelectedValue is int towarId && towarId > 0)
+            if (cbTowar.SelectedValue is string towarId && !string.IsNullOrEmpty(towarId))
             {
                 _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.ArticleID == towarId).ToList();
             }
 
             // Filtr operatora
-            if (cbOperator.SelectedValue is int operatorId && operatorId > 0)
+            if (cbOperator.SelectedValue is string operatorId && !string.IsNullOrEmpty(operatorId))
             {
                 _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.OperatorID == operatorId).ToList();
             }
@@ -428,11 +454,14 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             }
 
             // Filtr klasy kurczaka (tylko dla ArticleID = 40)
-            if (cbTowar.SelectedValue is int tid && tid == 40)
+            if (cbTowar.SelectedValue is string tid && tid == "40")
             {
-                if (cbKlasaKurczaka.SelectedValue is string klasa && !string.IsNullOrEmpty(klasa))
+                if (cbKlasaKurczaka.SelectedValue is string klasaStr && !string.IsNullOrEmpty(klasaStr))
                 {
-                    _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Klasa == klasa).ToList();
+                    if (int.TryParse(klasaStr, out int klasa))
+                    {
+                        _przefiltrowaneDane = _przefiltrowaneDane.Where(r => r.Klasa == klasa).ToList();
+                    }
                 }
             }
 
@@ -870,7 +899,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
     public class PrzychodRecord
     {
-        public int ArticleID { get; set; }
+        public string ArticleID { get; set; }
         public string NazwaTowaru { get; set; }
         public string JM { get; set; }
         public int TermID { get; set; }
@@ -878,12 +907,12 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         public decimal Weight { get; set; }
         public DateTime Data { get; set; }
         public DateTime Godzina { get; set; }
-        public int OperatorID { get; set; }
+        public string OperatorID { get; set; }
         public string Operator { get; set; }
         public decimal Tara { get; set; }
         public string Partia { get; set; }
         public decimal ActWeight { get; set; }
-        public string Klasa { get; set; }
+        public int Klasa { get; set; }
     }
 
     public class ComboItem
