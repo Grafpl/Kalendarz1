@@ -287,7 +287,7 @@ namespace Kalendarz1.Reklamacje
             Button btnOtworz = new Button
             {
                 Text = "📂 Otwórz folder",
-                Size = new Size(150, 35),
+                Size = new Size(130, 35),
                 Location = new Point(175, 12),
                 BackColor = ColorTranslator.FromHtml("#3498db"),
                 ForeColor = Color.White,
@@ -309,6 +309,36 @@ namespace Kalendarz1.Reklamacje
                     MessageBox.Show("Folder ze zdjęciami nie istnieje.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
 
+            // Przycisk eksportu do PDF
+            Button btnExportPDF = new Button
+            {
+                Text = "📄 Eksport PDF",
+                Size = new Size(130, 35),
+                Location = new Point(315, 12),
+                BackColor = ColorTranslator.FromHtml("#e74c3c"),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnExportPDF.FlatAppearance.BorderSize = 0;
+            btnExportPDF.Click += BtnExportPDF_Click;
+
+            // Przycisk wysyłania email
+            Button btnEmail = new Button
+            {
+                Text = "📧 Wyślij email",
+                Size = new Size(130, 35),
+                Location = new Point(455, 12),
+                BackColor = ColorTranslator.FromHtml("#9b59b6"),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnEmail.FlatAppearance.BorderSize = 0;
+            btnEmail.Click += BtnEmail_Click;
+
             Button btnZamknij = new Button
             {
                 Text = "✗ Zamknij",
@@ -326,6 +356,8 @@ namespace Kalendarz1.Reklamacje
 
             panelButtons.Controls.Add(btnZmienStatus);
             panelButtons.Controls.Add(btnOtworz);
+            panelButtons.Controls.Add(btnExportPDF);
+            panelButtons.Controls.Add(btnEmail);
             panelButtons.Controls.Add(btnZamknij);
 
             Controls.Add(tabControl);
@@ -670,10 +702,166 @@ namespace Kalendarz1.Reklamacje
 
             formPodglad.ShowDialog();
         }
+
+        // ========================================
+        // EKSPORT PDF I EMAIL
+        // ========================================
+
+        private void BtnExportPDF_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var generator = new ReklamacjePDFGenerator(connectionString);
+                var sciezka = generator.GenerujRaportReklamacji(idReklamacji);
+
+                var result = MessageBox.Show(
+                    $"Raport został wygenerowany:\n{sciezka}\n\nCzy otworzyć raport w przeglądarce?",
+                    "Sukces",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+
+                if (result == DialogResult.Yes)
+                {
+                    generator.OtworzRaport(sciezka);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania raportu:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnEmail_Click(object sender, EventArgs e)
+        {
+            // Formularz do wprowadzenia adresu email
+            using (Form formEmail = new Form())
+            {
+                formEmail.Text = "Wyślij raport reklamacji";
+                formEmail.Size = new Size(500, 250);
+                formEmail.StartPosition = FormStartPosition.CenterParent;
+                formEmail.FormBorderStyle = FormBorderStyle.FixedDialog;
+                formEmail.MaximizeBox = false;
+                formEmail.MinimizeBox = false;
+                formEmail.BackColor = Color.White;
+
+                Label lblInfo = new Label
+                {
+                    Text = $"Wyślij raport reklamacji #{idReklamacji} na email:",
+                    Location = new Point(20, 20),
+                    Size = new Size(440, 25),
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                };
+                formEmail.Controls.Add(lblInfo);
+
+                Label lblEmail = new Label
+                {
+                    Text = "Adres email:",
+                    Location = new Point(20, 60),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 9F)
+                };
+                formEmail.Controls.Add(lblEmail);
+
+                TextBox txtEmail = new TextBox
+                {
+                    Location = new Point(20, 85),
+                    Size = new Size(440, 30),
+                    Font = new Font("Segoe UI", 10F)
+                };
+                formEmail.Controls.Add(txtEmail);
+
+                Label lblWarning = new Label
+                {
+                    Text = "Uwaga: Funkcja email wymaga konfiguracji serwera SMTP.",
+                    Location = new Point(20, 125),
+                    Size = new Size(440, 20),
+                    ForeColor = Color.Gray,
+                    Font = new Font("Segoe UI", 8F, FontStyle.Italic)
+                };
+                formEmail.Controls.Add(lblWarning);
+
+                Button btnWyslij = new Button
+                {
+                    Text = "📧 Wyślij",
+                    Location = new Point(250, 160),
+                    Size = new Size(100, 35),
+                    BackColor = ColorTranslator.FromHtml("#27ae60"),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                };
+                btnWyslij.FlatAppearance.BorderSize = 0;
+                btnWyslij.Click += async (s, args) =>
+                {
+                    string email = txtEmail.Text.Trim();
+                    if (string.IsNullOrEmpty(email) || !email.Contains("@"))
+                    {
+                        MessageBox.Show("Wprowadź poprawny adres email.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    try
+                    {
+                        btnWyslij.Enabled = false;
+                        btnWyslij.Text = "Wysyłanie...";
+
+                        // Najpierw generuj PDF
+                        var generator = new ReklamacjePDFGenerator(connectionString);
+                        var sciezka = generator.GenerujRaportReklamacji(idReklamacji);
+
+                        // Wyślij email
+                        var emailService = new ReklamacjeEmailService();
+                        var result = await emailService.WyslijRaportReklamacji(email, idReklamacji, "", sciezka);
+
+                        if (result.Success)
+                        {
+                            MessageBox.Show($"Raport został wysłany na adres:\n{email}",
+                                "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            formEmail.Close();
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Nie udało się wysłać email:\n{result.Message}",
+                                "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd wysyłania:\n{ex.Message}",
+                            "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        btnWyslij.Enabled = true;
+                        btnWyslij.Text = "📧 Wyślij";
+                    }
+                };
+                formEmail.Controls.Add(btnWyslij);
+
+                Button btnAnuluj = new Button
+                {
+                    Text = "Anuluj",
+                    Location = new Point(360, 160),
+                    Size = new Size(100, 35),
+                    BackColor = ColorTranslator.FromHtml("#95a5a6"),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    DialogResult = DialogResult.Cancel
+                };
+                btnAnuluj.FlatAppearance.BorderSize = 0;
+                formEmail.Controls.Add(btnAnuluj);
+
+                formEmail.CancelButton = btnAnuluj;
+                formEmail.ShowDialog();
+            }
+        }
     }
 
     // ========================================
     // FORMULARZ ZMIANY STATUSU REKLAMACJI
+    // Z PEŁNYM PRZEPŁYWEM PRACY (WORKFLOW)
     // ========================================
     public partial class FormZmianaStatusu : Form
     {
@@ -686,6 +874,18 @@ namespace Kalendarz1.Reklamacje
         private TextBox txtKomentarz;
         private TextBox txtRozwiazanie;
         private Label lblAktualnyStatus;
+        private Label lblWorkflow;
+        private Label lblRozwiazanie;
+
+        // Definicja dozwolonych przejść między statusami
+        private static readonly Dictionary<string, List<string>> dozwolonePrzejscia = new Dictionary<string, List<string>>
+        {
+            { "Nowa", new List<string> { "W trakcie", "Odrzucona" } },
+            { "W trakcie", new List<string> { "Zaakceptowana", "Odrzucona", "Nowa" } },
+            { "Zaakceptowana", new List<string> { "Zamknieta", "W trakcie" } },
+            { "Odrzucona", new List<string> { "Zamknieta", "Nowa", "W trakcie" } },
+            { "Zamknieta", new List<string>() } // Zamknięta reklamacja - brak przejść (tylko admin może)
+        };
 
         public FormZmianaStatusu(string connString, int reklamacjaId, string currentStatus, string user)
         {
@@ -696,12 +896,13 @@ namespace Kalendarz1.Reklamacje
 
             InitializeComponent();
             WczytajAktualnyStatus();
+            WczytajDozwoloneStatusy();
         }
 
         private void InitializeComponent()
         {
             Text = $"✏ Zmiana statusu reklamacji #{idReklamacji}";
-            Size = new Size(600, 500);
+            Size = new Size(600, 550);
             StartPosition = FormStartPosition.CenterParent;
             BackColor = Color.White;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -725,9 +926,19 @@ namespace Kalendarz1.Reklamacje
             lblAktualnyStatus = new Label
             {
                 Text = "Aktualny status: ",
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(20, 60)
+                Location = new Point(20, 55)
+            };
+
+            lblWorkflow = new Label
+            {
+                Text = "",
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Location = new Point(20, 80),
+                MaximumSize = new Size(540, 0)
             };
 
             Label lblNowyStatus = new Label
@@ -735,30 +946,29 @@ namespace Kalendarz1.Reklamacje
                 Text = "Nowy status:",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(20, 100)
+                Location = new Point(20, 115)
             };
 
             cmbStatus = new ComboBox
             {
-                Location = new Point(20, 125),
+                Location = new Point(20, 140),
                 Width = 540,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 10F)
             };
-            cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
             cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
 
             Label lblKomentarz = new Label
             {
-                Text = "Komentarz:",
+                Text = "Komentarz (wymagany):",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(20, 165)
+                Location = new Point(20, 180)
             };
 
             txtKomentarz = new TextBox
             {
-                Location = new Point(20, 190),
+                Location = new Point(20, 205),
                 Width = 540,
                 Height = 80,
                 Multiline = true,
@@ -766,28 +976,25 @@ namespace Kalendarz1.Reklamacje
                 ScrollBars = ScrollBars.Vertical
             };
 
-            Label lblRozwiazanie = new Label
+            lblRozwiazanie = new Label
             {
-                Text = "Rozwiązanie (opcjonalnie):",
+                Text = "Rozwiązanie / Uzasadnienie:",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(20, 280),
+                Location = new Point(20, 295),
                 Visible = false
             };
 
             txtRozwiazanie = new TextBox
             {
-                Location = new Point(20, 305),
+                Location = new Point(20, 320),
                 Width = 540,
-                Height = 60,
+                Height = 80,
                 Multiline = true,
                 Font = new Font("Segoe UI", 10F),
                 ScrollBars = ScrollBars.Vertical,
                 Visible = false
             };
-
-            lblRozwiazanie.Tag = lblRozwiazanie;
-            txtRozwiazanie.Tag = txtRozwiazanie;
 
             Panel panelButtons = new Panel
             {
@@ -831,6 +1038,7 @@ namespace Kalendarz1.Reklamacje
 
             panelMain.Controls.Add(lblTytul);
             panelMain.Controls.Add(lblAktualnyStatus);
+            panelMain.Controls.Add(lblWorkflow);
             panelMain.Controls.Add(lblNowyStatus);
             panelMain.Controls.Add(cmbStatus);
             panelMain.Controls.Add(lblKomentarz);
@@ -850,7 +1058,7 @@ namespace Kalendarz1.Reklamacje
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
-                    var cmd = new SqlCommand("SELECT Status FROM Reklamacje WHERE Id = @Id", conn);
+                    var cmd = new SqlCommand("SELECT Status FROM [dbo].[Reklamacje] WHERE Id = @Id", conn);
                     cmd.Parameters.AddWithValue("@Id", idReklamacji);
                     conn.Open();
 
@@ -862,15 +1070,59 @@ namespace Kalendarz1.Reklamacje
             catch { }
         }
 
+        private void WczytajDozwoloneStatusy()
+        {
+            cmbStatus.Items.Clear();
+
+            bool isAdmin = userId == "11111";
+
+            if (isAdmin)
+            {
+                // Admin może zmienić na dowolny status
+                cmbStatus.Items.AddRange(new object[] { "Nowa", "W trakcie", "Zaakceptowana", "Odrzucona", "Zamknieta" });
+                lblWorkflow.Text = "Administrator - wszystkie przejścia dozwolone";
+                lblWorkflow.ForeColor = ColorTranslator.FromHtml("#27ae60");
+            }
+            else
+            {
+                // Zwykły użytkownik - tylko dozwolone przejścia
+                if (dozwolonePrzejscia.ContainsKey(aktualnyStatus))
+                {
+                    var dozwolone = dozwolonePrzejscia[aktualnyStatus];
+                    foreach (var status in dozwolone)
+                    {
+                        cmbStatus.Items.Add(status);
+                    }
+
+                    if (dozwolone.Count == 0)
+                    {
+                        lblWorkflow.Text = "⚠ Reklamacja jest zamknięta. Tylko administrator może zmienić status.";
+                        lblWorkflow.ForeColor = ColorTranslator.FromHtml("#e74c3c");
+                    }
+                    else
+                    {
+                        lblWorkflow.Text = $"Dozwolone przejścia z \"{aktualnyStatus}\": {string.Join(", ", dozwolone)}";
+                        lblWorkflow.ForeColor = Color.Gray;
+                    }
+                }
+            }
+
+            // Jeśli nie ma żadnych dozwolonych przejść
+            if (cmbStatus.Items.Count == 0)
+            {
+                cmbStatus.Enabled = false;
+            }
+        }
+
         private Color GetStatusColor(string status)
         {
             switch (status)
             {
-                case "Nowa": return ColorTranslator.FromHtml("#e74c3c");
+                case "Nowa": return ColorTranslator.FromHtml("#3498db");
                 case "W trakcie": return ColorTranslator.FromHtml("#f39c12");
                 case "Zaakceptowana": return ColorTranslator.FromHtml("#27ae60");
-                case "Odrzucona": return ColorTranslator.FromHtml("#95a5a6");
-                case "Zamknieta": return ColorTranslator.FromHtml("#34495e");
+                case "Odrzucona": return ColorTranslator.FromHtml("#e74c3c");
+                case "Zamknieta": return ColorTranslator.FromHtml("#7f8c8d");
                 default: return Color.Black;
             }
         }
@@ -880,13 +1132,16 @@ namespace Kalendarz1.Reklamacje
             string nowyStatus = cmbStatus.SelectedItem?.ToString();
             bool pokazRozwiazanie = nowyStatus == "Zaakceptowana" || nowyStatus == "Odrzucona" || nowyStatus == "Zamknieta";
 
-            foreach (Control ctrl in Controls[0].Controls)
-            {
-                if (ctrl.Tag != null && ctrl.Tag == ctrl)
-                {
-                    ctrl.Visible = pokazRozwiazanie;
-                }
-            }
+            lblRozwiazanie.Visible = pokazRozwiazanie;
+            txtRozwiazanie.Visible = pokazRozwiazanie;
+
+            // Zmień etykietę w zależności od statusu
+            if (nowyStatus == "Odrzucona")
+                lblRozwiazanie.Text = "Uzasadnienie odrzucenia (wymagane):";
+            else if (nowyStatus == "Zaakceptowana")
+                lblRozwiazanie.Text = "Sposób rozwiązania (wymagane):";
+            else if (nowyStatus == "Zamknieta")
+                lblRozwiazanie.Text = "Podsumowanie zamknięcia:";
         }
 
         private void BtnZapisz_Click(object sender, EventArgs e)
@@ -897,9 +1152,27 @@ namespace Kalendarz1.Reklamacje
                 return;
             }
 
+            string nowyStatus = cmbStatus.SelectedItem.ToString();
+
+            if (nowyStatus == aktualnyStatus)
+            {
+                MessageBox.Show("Wybrany status jest taki sam jak aktualny.", "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(txtKomentarz.Text))
             {
-                MessageBox.Show("Wprowadź komentarz!", "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Komentarz jest wymagany przy każdej zmianie statusu!", "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtKomentarz.Focus();
+                return;
+            }
+
+            // Wymagaj rozwiązania/uzasadnienia przy niektórych statusach
+            if ((nowyStatus == "Odrzucona" || nowyStatus == "Zaakceptowana") && string.IsNullOrWhiteSpace(txtRozwiazanie.Text))
+            {
+                string wymagane = nowyStatus == "Odrzucona" ? "uzasadnienie odrzucenia" : "sposób rozwiązania";
+                MessageBox.Show($"Przy zmianie na status \"{nowyStatus}\" wymagane jest {wymagane}!", "Uwaga", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtRozwiazanie.Focus();
                 return;
             }
 
@@ -907,23 +1180,89 @@ namespace Kalendarz1.Reklamacje
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
-                    var cmd = new SqlCommand("sp_ZmienStatusReklamacji", conn);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
-                    cmd.Parameters.AddWithValue("@NowyStatus", cmbStatus.SelectedItem.ToString());
-                    cmd.Parameters.AddWithValue("@UserID", userId);
-                    cmd.Parameters.AddWithValue("@Komentarz", txtKomentarz.Text);
-
-                    if (!string.IsNullOrWhiteSpace(txtRozwiazanie.Text))
-                        cmd.Parameters.AddWithValue("@Rozwiazanie", txtRozwiazanie.Text);
-                    else
-                        cmd.Parameters.AddWithValue("@Rozwiazanie", DBNull.Value);
-
                     conn.Open();
-                    cmd.ExecuteNonQuery();
+
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Aktualizuj główny rekord reklamacji
+                            string updateQuery = @"
+                                UPDATE [dbo].[Reklamacje]
+                                SET Status = @NowyStatus,
+                                    OsobaRozpatrujaca = @Osoba,
+                                    DataModyfikacji = GETDATE(),
+                                    Komentarz = ISNULL(Komentarz, '') + CHAR(13) + CHAR(10) + @NowyKomentarz";
+
+                            // Dodaj rozwiązanie jeśli podano
+                            if (!string.IsNullOrWhiteSpace(txtRozwiazanie.Text))
+                            {
+                                updateQuery += ", Rozwiazanie = @Rozwiazanie";
+                            }
+
+                            // Ustaw datę zamknięcia dla statusu Zamknieta
+                            if (nowyStatus == "Zamknieta")
+                            {
+                                updateQuery += ", DataZamkniecia = GETDATE()";
+                            }
+
+                            updateQuery += " WHERE Id = @Id";
+
+                            using (var cmd = new SqlCommand(updateQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@NowyStatus", nowyStatus);
+                                cmd.Parameters.AddWithValue("@Osoba", userId);
+                                cmd.Parameters.AddWithValue("@NowyKomentarz", $"[{DateTime.Now:yyyy-MM-dd HH:mm}] {userId}: {txtKomentarz.Text}");
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+
+                                if (!string.IsNullOrWhiteSpace(txtRozwiazanie.Text))
+                                {
+                                    cmd.Parameters.AddWithValue("@Rozwiazanie", txtRozwiazanie.Text);
+                                }
+
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // 2. Dodaj wpis do historii
+                            // Najpierw sprawdź czy kolumna ReklamacjaId czy IdReklamacji
+                            string kolumnaId = "ReklamacjaId";
+                            try
+                            {
+                                using (var cmdCheck = new SqlCommand(
+                                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjeHistoria' AND COLUMN_NAME IN ('ReklamacjaId', 'IdReklamacji')", conn, transaction))
+                                {
+                                    var result = cmdCheck.ExecuteScalar();
+                                    if (result != null)
+                                        kolumnaId = result.ToString();
+                                }
+                            }
+                            catch { }
+
+                            string historiaQuery = $@"
+                                INSERT INTO [dbo].[ReklamacjeHistoria] ({kolumnaId}, StatusPoprzedni, StatusNowy, DataZmiany, ZmienionePrzez, Komentarz)
+                                VALUES (@ReklamacjaId, @StatusPoprzedni, @StatusNowy, GETDATE(), @ZmienionePrzez, @Komentarz)";
+
+                            using (var cmd = new SqlCommand(historiaQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@ReklamacjaId", idReklamacji);
+                                cmd.Parameters.AddWithValue("@StatusPoprzedni", aktualnyStatus);
+                                cmd.Parameters.AddWithValue("@StatusNowy", nowyStatus);
+                                cmd.Parameters.AddWithValue("@ZmienionePrzez", userId);
+                                cmd.Parameters.AddWithValue("@Komentarz", txtKomentarz.Text + (string.IsNullOrWhiteSpace(txtRozwiazanie.Text) ? "" : $"\nRozwiązanie: {txtRozwiazanie.Text}"));
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
                 }
 
-                MessageBox.Show("Status reklamacji został zmieniony!", "Sukces",
+                MessageBox.Show($"Status reklamacji #{idReklamacji} zmieniony:\n{aktualnyStatus} → {nowyStatus}", "Sukces",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 DialogResult = DialogResult.OK;
@@ -931,7 +1270,7 @@ namespace Kalendarz1.Reklamacje
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd",
+                MessageBox.Show($"Błąd zmiany statusu:\n{ex.Message}", "Błąd",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
