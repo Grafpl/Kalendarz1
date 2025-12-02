@@ -291,6 +291,46 @@
                             <TextBlock x:Name="txtLiczbaDniInfo" Text="dni z danymi" FontSize="10" Foreground="#95A5A6"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Srednia waga na wazenie -->
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="150">
+                        <StackPanel>
+                            <TextBlock Text="SREDNIA WAGA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtSredniaWaga" Text="0 kg" FontSize="24" FontWeight="Bold" Foreground="#E67E22"/>
+                            <TextBlock x:Name="txtSredniaWagaInfo" Text="na wazenie" FontSize="10" Foreground="#95A5A6"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Min/Max waga -->
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="160">
+                        <StackPanel>
+                            <TextBlock Text="MIN / MAX WAGA" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="txtMinWaga" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB"/>
+                                <TextBlock Text=" / " FontSize="18" Foreground="#95A5A6"/>
+                                <TextBlock x:Name="txtMaxWaga" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C"/>
+                            </StackPanel>
+                            <TextBlock Text="kg (pojedyncze wazenie)" FontSize="10" Foreground="#95A5A6"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tempo na dzien -->
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="150">
+                        <StackPanel>
+                            <TextBlock Text="SREDNIA / DZIEN" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtSredniaDzien" Text="0 kg" FontSize="24" FontWeight="Bold" Foreground="#9B59B6"/>
+                            <TextBlock x:Name="txtSredniaDzienInfo" Text="dzienna produkcja" FontSize="10" Foreground="#95A5A6"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Najgorszy operator -->
+                    <Border Style="{StaticResource StatCardStyle}" MinWidth="180">
+                        <StackPanel>
+                            <TextBlock Text="NAJSLABSZY OPERATOR" FontSize="10" Foreground="#7F8C8D" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="txtNajgorszyOperator" Text="-" FontSize="18" FontWeight="Bold" Foreground="#E74C3C"/>
+                            <TextBlock x:Name="txtNajgorszyOperatorKg" Text="0 kg" FontSize="10" Foreground="#95A5A6"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -550,6 +590,227 @@
                                     <DataGridTextColumn Header="Dzien" Binding="{Binding DzienTygodnia}" Width="100"/>
                                     <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="100"/>
                                     <DataGridTextColumn Header="Liczba" Binding="{Binding Liczba}" Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 7: Analiza zmian (rano/poludnie/wieczor) -->
+            <TabItem Header="Analiza zmian">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="350"/>
+                    </Grid.ColumnDefinitions>
+
+                    <lvc:CartesianChart x:Name="chartZmiany" Margin="10">
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis Title="Zmiana" Labels="{Binding ZmianyLabels}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Title="Waga (kg)" LabelFormatter="{Binding YFormatter}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+
+                    <!-- Statystyki zmian -->
+                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="15">
+                                <TextBlock Text="STATYSTYKI ZMIAN" FontSize="14" FontWeight="Bold"
+                                           Foreground="#2C3E50" Margin="0,0,0,15"/>
+
+                                <!-- Zmiana poranna 5-13 -->
+                                <Border Background="#E8F6F3" CornerRadius="5" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="ZMIANA PORANNA (5:00 - 13:00)" FontSize="11"
+                                                   FontWeight="SemiBold" Foreground="#16A085"/>
+                                        <TextBlock x:Name="txtZmianaPoranna" Text="0 kg" FontSize="20"
+                                                   FontWeight="Bold" Foreground="#1ABC9C"/>
+                                        <TextBlock x:Name="txtZmianaPorannaSzt" Text="0 wazen" FontSize="10"
+                                                   Foreground="#7F8C8D"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Zmiana popoludniowa 13-21 -->
+                                <Border Background="#FEF5E7" CornerRadius="5" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="ZMIANA POPOLUDNIOWA (13:00 - 21:00)" FontSize="11"
+                                                   FontWeight="SemiBold" Foreground="#D68910"/>
+                                        <TextBlock x:Name="txtZmianaPopoludniowa" Text="0 kg" FontSize="20"
+                                                   FontWeight="Bold" Foreground="#F39C12"/>
+                                        <TextBlock x:Name="txtZmianaPopoludniowaSzt" Text="0 wazen" FontSize="10"
+                                                   Foreground="#7F8C8D"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Zmiana nocna 21-5 -->
+                                <Border Background="#EBF5FB" CornerRadius="5" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="ZMIANA NOCNA (21:00 - 5:00)" FontSize="11"
+                                                   FontWeight="SemiBold" Foreground="#2E86AB"/>
+                                        <TextBlock x:Name="txtZmianaNocna" Text="0 kg" FontSize="20"
+                                                   FontWeight="Bold" Foreground="#3498DB"/>
+                                        <TextBlock x:Name="txtZmianaNocnaSzt" Text="0 wazen" FontSize="10"
+                                                   Foreground="#7F8C8D"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Najlepsza zmiana -->
+                                <Border Background="#FADBD8" CornerRadius="5" Padding="12" Margin="0,15,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="NAJLEPSZA ZMIANA" FontSize="11"
+                                                   FontWeight="SemiBold" Foreground="#943126"/>
+                                        <TextBlock x:Name="txtNajlepszaZmiana" Text="-" FontSize="18"
+                                                   FontWeight="Bold" Foreground="#E74C3C"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 8: Porownanie terminali -->
+            <TabItem Header="Terminale">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="350"/>
+                    </Grid.ColumnDefinitions>
+
+                    <lvc:CartesianChart x:Name="chartTerminale" Margin="10">
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis Title="Terminal" Labels="{Binding TerminalLabels}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Title="Waga (kg)" LabelFormatter="{Binding YFormatter}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+
+                    <!-- Ranking terminali -->
+                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="RANKING TERMINALI" FontSize="14" FontWeight="Bold"
+                                       Foreground="#2C3E50" Margin="15,15,15,10"/>
+
+                            <DataGrid x:Name="dgTerminale" Grid.Row="1" Margin="10"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowBackground="White" AlternatingRowBackground="#F8F9FA">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="35"/>
+                                    <DataGridTextColumn Header="Terminal" Binding="{Binding Nazwa}" Width="*"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="Liczba" Binding="{Binding LiczbaWazen}" Width="60"/>
+                                    <DataGridTextColumn Header="Sred." Binding="{Binding SredniaKg, StringFormat=N2}" Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 9: Analiza klas (dla kurczakow) -->
+            <TabItem Header="Klasy kurczaka" x:Name="tabKlasyKurczaka">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="400"/>
+                    </Grid.ColumnDefinitions>
+
+                    <lvc:PieChart x:Name="chartKlasy" Margin="10" LegendLocation="Bottom"/>
+
+                    <!-- Statystyki klas -->
+                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Margin="15,15,15,10">
+                                <TextBlock Text="ROZKLAD KLAS KURCZAKA" FontSize="14" FontWeight="Bold"
+                                           Foreground="#2C3E50"/>
+                                <TextBlock Text="Dotyczy tylko ArticleID = 40" FontSize="10"
+                                           Foreground="#95A5A6" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="dgKlasy" Grid.Row="1" Margin="10"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowBackground="White" AlternatingRowBackground="#F8F9FA">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Klasa" Binding="{Binding Klasa}" Width="60"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="50"/>
+                                    <DataGridTextColumn Header="Liczba" Binding="{Binding Liczba}" Width="60"/>
+                                    <DataGridTextColumn Header="Sred. kg" Binding="{Binding SredniaKg, StringFormat=N2}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 10: Analiza dnia tygodnia -->
+            <TabItem Header="Dni tygodnia">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="350"/>
+                    </Grid.ColumnDefinitions>
+
+                    <lvc:CartesianChart x:Name="chartDniTygodnia" Margin="10">
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis Title="Dzien tygodnia" Labels="{Binding DniTygodniaLabels}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Title="Srednia kg" LabelFormatter="{Binding YFormatter}" FontSize="11"/>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+
+                    <!-- Statystyki dni tygodnia -->
+                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="STATYSTYKI WG DNIA TYGODNIA" FontSize="14" FontWeight="Bold"
+                                       Foreground="#2C3E50" Margin="15,15,15,10"/>
+
+                            <DataGrid x:Name="dgDniTygodnia" Grid.Row="1" Margin="10"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowBackground="White" AlternatingRowBackground="#F8F9FA">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Dzien" Binding="{Binding DzienTygodnia}" Width="*"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="90"/>
+                                    <DataGridTextColumn Header="Sred. kg" Binding="{Binding SredniaKg, StringFormat=N2}" Width="80"/>
+                                    <DataGridTextColumn Header="Dni" Binding="{Binding LiczbaDni}" Width="50"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>

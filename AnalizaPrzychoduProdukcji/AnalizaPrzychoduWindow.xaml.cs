@@ -60,6 +60,28 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             set { _operatorLabels = value; OnPropertyChanged(); }
         }
 
+        // Bindingi dla nowych wykresow
+        private List<string> _zmianyLabels;
+        public List<string> ZmianyLabels
+        {
+            get => _zmianyLabels;
+            set { _zmianyLabels = value; OnPropertyChanged(); }
+        }
+
+        private List<string> _terminalLabels;
+        public List<string> TerminalLabels
+        {
+            get => _terminalLabels;
+            set { _terminalLabels = value; OnPropertyChanged(); }
+        }
+
+        private List<string> _dniTygodniaLabels;
+        public List<string> DniTygodniaLabels
+        {
+            get => _dniTygodniaLabels;
+            set { _dniTygodniaLabels = value; OnPropertyChanged(); }
+        }
+
         public Func<double, string> YFormatter { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -78,6 +100,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             PrzychodLabels = new List<string>();
             OperatorSumaValues = new ChartValues<double>();
             OperatorLabels = new List<string>();
+            ZmianyLabels = new List<string> { "Poranna\n(5-13)", "Popoludniowa\n(13-21)", "Nocna\n(21-5)" };
+            TerminalLabels = new List<string>();
+            DniTygodniaLabels = new List<string> { "Pn", "Wt", "Sr", "Cz", "Pt", "So", "Nd" };
 
             InitializeFilters();
 
@@ -561,6 +586,41 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 var najlepszy = grupyOperatorow.First();
                 txtNajlepszyOperator.Text = najlepszy.Operator;
                 txtNajlepszyOperatorKg.Text = $"{najlepszy.Suma:N2} kg";
+
+                // Najgorszy operator
+                if (grupyOperatorow.Count > 1)
+                {
+                    var najgorszy = grupyOperatorow.Last();
+                    if (txtNajgorszyOperator != null)
+                    {
+                        txtNajgorszyOperator.Text = najgorszy.Operator;
+                        txtNajgorszyOperatorKg.Text = $"{najgorszy.Suma:N2} kg";
+                    }
+                }
+            }
+
+            // Nowe statystyki
+            // Srednia waga na wazenie
+            if (txtSredniaWaga != null)
+            {
+                decimal sredniaWaga = _przefiltrowaneDane.Average(r => r.ActWeight);
+                txtSredniaWaga.Text = $"{sredniaWaga:N2} kg";
+            }
+
+            // Min/Max waga
+            if (txtMinWaga != null && txtMaxWaga != null)
+            {
+                decimal minWaga = _przefiltrowaneDane.Min(r => r.ActWeight);
+                decimal maxWaga = _przefiltrowaneDane.Max(r => r.ActWeight);
+                txtMinWaga.Text = $"{minWaga:N2}";
+                txtMaxWaga.Text = $"{maxWaga:N2}";
+            }
+
+            // Srednia na dzien
+            if (txtSredniaDzien != null && liczbaDni > 0)
+            {
+                decimal sredniaDzien = sumaKg / liczbaDni;
+                txtSredniaDzien.Text = $"{sredniaDzien:N0} kg";
             }
         }
 
@@ -573,6 +633,10 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             UpdatePrzychodChart();
             UpdateOperatorChart();
             UpdatePartieChart();
+            UpdateZmianyChart();
+            UpdateTerminaleChart();
+            UpdateKlasyChart();
+            UpdateDniTygodniaChart();
         }
 
         private void UpdatePrzychodChart()
@@ -779,6 +843,210 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             dgPartie.ItemsSource = grupyPartii;
         }
 
+        private void UpdateZmianyChart()
+        {
+            if (chartZmiany?.Series == null) return;
+            chartZmiany.Series.Clear();
+
+            // Zmiana poranna: 5:00 - 13:00
+            // Zmiana popoludniowa: 13:00 - 21:00
+            // Zmiana nocna: 21:00 - 5:00
+
+            decimal sumaPoranna = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= 5 && r.Godzina.Hour < 13).Sum(r => r.ActWeight);
+            decimal sumaPopoludniowa = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= 13 && r.Godzina.Hour < 21).Sum(r => r.ActWeight);
+            decimal sumaNocna = _przefiltrowaneDane.Where(r => r.Godzina.Hour >= 21 || r.Godzina.Hour < 5).Sum(r => r.ActWeight);
+
+            int liczbaPoranna = _przefiltrowaneDane.Count(r => r.Godzina.Hour >= 5 && r.Godzina.Hour < 13);
+            int liczbaPopoludniowa = _przefiltrowaneDane.Count(r => r.Godzina.Hour >= 13 && r.Godzina.Hour < 21);
+            int liczbaNocna = _przefiltrowaneDane.Count(r => r.Godzina.Hour >= 21 || r.Godzina.Hour < 5);
+
+            // Aktualizacja etykiet
+            if (txtZmianaPoranna != null)
+            {
+                txtZmianaPoranna.Text = $"{sumaPoranna:N0} kg";
+                txtZmianaPorannaSzt.Text = $"{liczbaPoranna} wazen";
+            }
+            if (txtZmianaPopoludniowa != null)
+            {
+                txtZmianaPopoludniowa.Text = $"{sumaPopoludniowa:N0} kg";
+                txtZmianaPopoludniowaSzt.Text = $"{liczbaPopoludniowa} wazen";
+            }
+            if (txtZmianaNocna != null)
+            {
+                txtZmianaNocna.Text = $"{sumaNocna:N0} kg";
+                txtZmianaNocnaSzt.Text = $"{liczbaNocna} wazen";
+            }
+
+            // Najlepsza zmiana
+            if (txtNajlepszaZmiana != null)
+            {
+                var max = new[] { ("Poranna", sumaPoranna), ("Popoludniowa", sumaPopoludniowa), ("Nocna", sumaNocna) }
+                    .OrderByDescending(x => x.Item2).First();
+                txtNajlepszaZmiana.Text = $"{max.Item1} ({max.Item2:N0} kg)";
+            }
+
+            // Wykres
+            chartZmiany.Series.Add(new ColumnSeries
+            {
+                Title = "Suma kg",
+                Values = new ChartValues<double> { (double)sumaPoranna, (double)sumaPopoludniowa, (double)sumaNocna },
+                Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                MaxColumnWidth = 80
+            });
+        }
+
+        private void UpdateTerminaleChart()
+        {
+            if (chartTerminale?.Series == null || dgTerminale == null) return;
+            chartTerminale.Series.Clear();
+
+            if (!_przefiltrowaneDane.Any())
+            {
+                dgTerminale.ItemsSource = null;
+                return;
+            }
+
+            var grupyTerminali = _przefiltrowaneDane
+                .GroupBy(r => string.IsNullOrEmpty(r.Terminal) ? $"T{r.TermID}" : r.Terminal)
+                .Select(g => new TerminalStats
+                {
+                    Nazwa = g.Key,
+                    SumaKg = g.Sum(r => r.ActWeight),
+                    LiczbaWazen = g.Count(),
+                    SredniaKg = g.Average(r => r.ActWeight)
+                })
+                .OrderByDescending(g => g.SumaKg)
+                .ToList();
+
+            // Ranking
+            for (int i = 0; i < grupyTerminali.Count; i++)
+            {
+                grupyTerminali[i].Pozycja = i + 1;
+            }
+
+            TerminalLabels = grupyTerminali.Select(g => g.Nazwa).ToList();
+
+            chartTerminale.Series.Add(new ColumnSeries
+            {
+                Title = "Suma kg",
+                Values = new ChartValues<double>(grupyTerminali.Select(g => (double)g.SumaKg)),
+                Fill = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
+                MaxColumnWidth = 60
+            });
+
+            dgTerminale.ItemsSource = grupyTerminali;
+        }
+
+        private void UpdateKlasyChart()
+        {
+            if (chartKlasy?.Series == null || dgKlasy == null) return;
+            chartKlasy.Series.Clear();
+
+            // Filtruj tylko dane dla ArticleID = 40 (kurczaki)
+            var daneKurczakow = _przefiltrowaneDane.Where(r => r.ArticleID == "40").ToList();
+
+            if (!daneKurczakow.Any())
+            {
+                dgKlasy.ItemsSource = null;
+                return;
+            }
+
+            var grupyKlas = daneKurczakow
+                .GroupBy(r => r.Klasa)
+                .Select(g => new KlasaStats
+                {
+                    Klasa = g.Key,
+                    SumaKg = g.Sum(r => r.ActWeight),
+                    Liczba = g.Count(),
+                    SredniaKg = g.Average(r => r.ActWeight)
+                })
+                .OrderBy(g => g.Klasa)
+                .ToList();
+
+            decimal suma = grupyKlas.Sum(k => k.SumaKg);
+            foreach (var k in grupyKlas)
+            {
+                k.Procent = suma > 0 ? (k.SumaKg / suma * 100) : 0;
+            }
+
+            // Wykres kolowy
+            var kolory = new[] {
+                Color.FromRgb(231, 76, 60),   // Klasa 1 - czerwony
+                Color.FromRgb(230, 126, 34),  // Klasa 2 - pomaranczowy
+                Color.FromRgb(241, 196, 15),  // Klasa 3 - zolty
+                Color.FromRgb(46, 204, 113),  // Klasa 4 - zielony
+                Color.FromRgb(26, 188, 156),  // Klasa 5 - turkusowy
+                Color.FromRgb(52, 152, 219),  // Klasa 6 - niebieski
+                Color.FromRgb(155, 89, 182),  // Klasa 7 - fioletowy
+                Color.FromRgb(52, 73, 94),    // Klasa 8 - szary
+                Color.FromRgb(149, 165, 166), // Klasa 9
+                Color.FromRgb(189, 195, 199), // Klasa 10
+                Color.FromRgb(127, 140, 141), // Klasa 11
+                Color.FromRgb(44, 62, 80)     // Klasa 12
+            };
+
+            foreach (var klasa in grupyKlas)
+            {
+                int kolorIndex = (klasa.Klasa - 1) % kolory.Length;
+                chartKlasy.Series.Add(new PieSeries
+                {
+                    Title = $"Klasa {klasa.Klasa}",
+                    Values = new ChartValues<double> { (double)klasa.SumaKg },
+                    Fill = new SolidColorBrush(kolory[kolorIndex]),
+                    DataLabels = true,
+                    LabelPoint = point => $"Kl.{klasa.Klasa}: {klasa.Procent:N1}%"
+                });
+            }
+
+            dgKlasy.ItemsSource = grupyKlas;
+        }
+
+        private void UpdateDniTygodniaChart()
+        {
+            if (chartDniTygodnia?.Series == null || dgDniTygodnia == null) return;
+            chartDniTygodnia.Series.Clear();
+
+            if (!_przefiltrowaneDane.Any())
+            {
+                dgDniTygodnia.ItemsSource = null;
+                return;
+            }
+
+            var nazwyDni = new[] { "Poniedzialek", "Wtorek", "Sroda", "Czwartek", "Piatek", "Sobota", "Niedziela" };
+
+            var grupyDni = _przefiltrowaneDane
+                .GroupBy(r => (int)r.Data.DayOfWeek)
+                .Select(g => new DzienTygodniaStats
+                {
+                    DzienNumer = g.Key == 0 ? 7 : g.Key, // Niedziela jako 7
+                    DzienTygodnia = nazwyDni[g.Key == 0 ? 6 : g.Key - 1],
+                    SumaKg = g.Sum(r => r.ActWeight),
+                    LiczbaDni = g.Select(r => r.Data.Date).Distinct().Count(),
+                    SredniaKg = g.Sum(r => r.ActWeight) / g.Select(r => r.Data.Date).Distinct().Count()
+                })
+                .OrderBy(g => g.DzienNumer)
+                .ToList();
+
+            // Przygotuj wartosci dla wykresu (pn-nd)
+            var wartosci = new double[7];
+            foreach (var dzien in grupyDni)
+            {
+                int index = dzien.DzienNumer - 1;
+                if (index >= 0 && index < 7)
+                    wartosci[index] = (double)dzien.SredniaKg;
+            }
+
+            chartDniTygodnia.Series.Add(new ColumnSeries
+            {
+                Title = "Srednia kg/dzien",
+                Values = new ChartValues<double>(wartosci),
+                Fill = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                MaxColumnWidth = 60
+            });
+
+            dgDniTygodnia.ItemsSource = grupyDni;
+        }
+
         #endregion
 
         #region DataGrids
@@ -977,6 +1245,33 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         public decimal SumaKg { get; set; }
         public decimal Procent { get; set; }
         public int Liczba { get; set; }
+    }
+
+    public class TerminalStats
+    {
+        public int Pozycja { get; set; }
+        public string Nazwa { get; set; }
+        public decimal SumaKg { get; set; }
+        public int LiczbaWazen { get; set; }
+        public decimal SredniaKg { get; set; }
+    }
+
+    public class KlasaStats
+    {
+        public int Klasa { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal Procent { get; set; }
+        public int Liczba { get; set; }
+        public decimal SredniaKg { get; set; }
+    }
+
+    public class DzienTygodniaStats
+    {
+        public int DzienNumer { get; set; }
+        public string DzienTygodnia { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SredniaKg { get; set; }
+        public int LiczbaDni { get; set; }
     }
 
     #endregion
