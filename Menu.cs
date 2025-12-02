@@ -1,4 +1,5 @@
-﻿using Kalendarz1.OfertaCenowa;
+﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
 using Kalendarz1.Zywiec.RaportyStatystyki;
@@ -151,7 +152,8 @@ namespace Kalendarz1
                 [32] = "PanelReklamacji",
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
-                [35] = "AdminPermissions"
+                [35] = "AdminPermissions",
+                [36] = "AnalizaPrzychodu"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -196,7 +198,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions"
+                "AdminPermissions", "AnalizaPrzychodu"
             };
         }
 
@@ -311,6 +313,11 @@ namespace Kalendarz1
                             panel.UserID = App.UserID;
                             return panel;
                         }, "🗃️"),
+
+                    new MenuItemConfig("AnalizaPrzychodu", "Analiza Przychodu",
+                        "Kompleksowa analiza tempa produkcji, wydajności operatorów i przychodu towarów na godzinę",
+                        Color.FromArgb(239, 108, 0), // #EF6C00
+                        () => new AnalizaPrzychoduWindow(), "⏱️"),
 
                     new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności",
                         "Porównanie masy żywca do masy tuszek - analiza strat i efektywności uboju",
