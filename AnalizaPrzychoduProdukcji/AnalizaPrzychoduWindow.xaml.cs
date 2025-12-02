@@ -86,8 +86,8 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void InitializeFilters()
         {
-            // Domyslne daty - ostatni miesiac
-            dpDataOd.SelectedDate = DateTime.Today.AddMonths(-1);
+            // Domyslne daty - poprzedni dzien
+            dpDataOd.SelectedDate = DateTime.Today.AddDays(-1);
             dpDataDo.SelectedDate = DateTime.Today;
 
             // Zaladuj slowniki
@@ -96,6 +96,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             LoadTerminale();
             LoadPartie();
             LoadKlasyKurczaka();
+
+            // Automatycznie zaladuj dane przy starcie
+            LoadData();
         }
 
         private void LoadTowary()
