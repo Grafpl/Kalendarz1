@@ -393,11 +393,7 @@
                         <ColumnDefinition Width="350"/>
                     </Grid.ColumnDefinitions>
 
-                    <lvc:PieChart x:Name="chartPartie" Margin="10" LegendLocation="Right">
-                        <lvc:PieChart.Series>
-                            <!-- Dynamicznie dodawane -->
-                        </lvc:PieChart.Series>
-                    </lvc:PieChart>
+                    <lvc:PieChart x:Name="chartPartie" Margin="10" LegendLocation="Right"/>
 
                     <!-- Lista partii -->
                     <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
