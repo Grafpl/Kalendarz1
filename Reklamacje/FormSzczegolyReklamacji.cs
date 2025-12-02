@@ -340,133 +340,20 @@ namespace Kalendarz1.Reklamacje
                 {
                     conn.Open();
 
-                    var cmd = new SqlCommand("sp_PobierzSzczegolyReklamacji", conn);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    // 1. Podstawowe informacje o reklamacji
+                    WczytajPodstawoweInfo(conn);
 
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        // Podstawowe info
-                        if (reader.Read())
-                        {
-                            rtbInfo.Clear();
-                            rtbInfo.AppendText($"ID REKLAMACJI: #{reader["Id"]}\n");
-                            rtbInfo.AppendText($"Data zgłoszenia: {reader["DataZgloszenia"]}\n");
-                            rtbInfo.AppendText($"Zgłosił: {reader["UserID"]}\n\n");
-                            rtbInfo.AppendText($"DOKUMENT\n");
-                            rtbInfo.AppendText($"Nr dokumentu: {reader["NumerDokumentu"]}\n");
-                            rtbInfo.AppendText($"ID dokumentu: {reader["IdDokumentu"]}\n\n");
-                            rtbInfo.AppendText($"KONTRAHENT\n");
-                            rtbInfo.AppendText($"Nazwa: {reader["NazwaKontrahenta"]}\n");
-                            rtbInfo.AppendText($"ID: {reader["IdKontrahenta"]}\n\n");
-                            rtbInfo.AppendText($"REKLAMACJA\n");
-                            rtbInfo.AppendText($"Status: {reader["Status"]}\n");
-                            rtbInfo.AppendText($"Suma kg: {reader["SumaKg"]} kg\n");
-                            rtbInfo.AppendText($"Osoba rozpatrująca: {reader["OsobaRozpatrujaca"]}\n");
-                            if (reader["DataZamkniecia"] != DBNull.Value)
-                                rtbInfo.AppendText($"Data zamknięcia: {reader["DataZamkniecia"]}\n");
-                            rtbInfo.AppendText($"\nOPIS PROBLEMU:\n{reader["Opis"]}\n");
-                            if (reader["Komentarz"] != DBNull.Value)
-                                rtbInfo.AppendText($"\nKOMENTARZ:\n{reader["Komentarz"]}\n");
-                            if (reader["Rozwiazanie"] != DBNull.Value)
-                                rtbInfo.AppendText($"\nROZWIĄZANIE:\n{reader["Rozwiazanie"]}\n");
-                        }
+                    // 2. Towary
+                    WczytajTowary(conn);
 
-                        // Towary
-                        if (reader.NextResult())
-                        {
-                            DataTable dtTowary = new DataTable();
-                            dtTowary.Load(reader);
-                            dgvTowary.DataSource = dtTowary;
-                        }
+                    // 3. Partie
+                    WczytajPartie(conn);
 
-                        // Partie
-                        if (reader.NextResult())
-                        {
-                            lbPartie.Items.Clear();
-                            try
-                            {
-                                while (reader.Read())
-                                {
-                                    // Sprawdź różne nazwy kolumn (Partia lub NumerPartii)
-                                    string partia = "";
-                                    string dataDodania = "";
+                    // 4. Zdjęcia
+                    WczytajZdjecia(conn);
 
-                                    for (int i = 0; i < reader.FieldCount; i++)
-                                    {
-                                        string colName = reader.GetName(i);
-                                        if ((colName == "Partia" || colName == "NumerPartii") && !reader.IsDBNull(i))
-                                            partia = reader[i].ToString();
-                                        else if (colName == "DataDodania" && !reader.IsDBNull(i))
-                                            dataDodania = reader[i].ToString();
-                                    }
-
-                                    if (!string.IsNullOrEmpty(partia))
-                                        lbPartie.Items.Add($"{partia} (dodano: {dataDodania})");
-                                }
-                            }
-                            catch { /* Ignoruj błędy odczytu partii */ }
-
-                            if (lbPartie.Items.Count == 0)
-                                lbPartie.Items.Add("(brak partii)");
-                        }
-
-                        // Zdjęcia
-                        if (reader.NextResult())
-                        {
-                            lbZdjecia.Items.Clear();
-                            listaZdjec.Clear();
-                            try
-                            {
-                                while (reader.Read())
-                                {
-                                    var zdjecie = new ZdjecieReklamacji();
-
-                                    // Sprawdz kolumny
-                                    for (int i = 0; i < reader.FieldCount; i++)
-                                    {
-                                        string colName = reader.GetName(i);
-                                        if (colName == "Id" && !reader.IsDBNull(i))
-                                            zdjecie.Id = Convert.ToInt32(reader[i]);
-                                        else if (colName == "NazwaPliku" && !reader.IsDBNull(i))
-                                            zdjecie.NazwaPliku = reader.GetString(i);
-                                        else if (colName == "SciezkaPliku" && !reader.IsDBNull(i))
-                                            zdjecie.SciezkaPliku = reader.GetString(i);
-                                        else if (colName == "DaneZdjecia" && !reader.IsDBNull(i))
-                                            zdjecie.DaneZdjecia = (byte[])reader[i];
-                                    }
-
-                                    // Dodaj do listy jeśli ma nazwę lub dane
-                                    if (!string.IsNullOrEmpty(zdjecie.NazwaPliku) || zdjecie.DaneZdjecia != null)
-                                    {
-                                        listaZdjec.Add(zdjecie);
-                                        string info = zdjecie.NazwaPliku ?? "Zdjęcie";
-                                        if (zdjecie.DaneZdjecia != null && zdjecie.DaneZdjecia.Length > 0)
-                                            info += " [DB]";
-                                        else if (File.Exists(zdjecie.SciezkaPliku))
-                                            info += " [Plik]";
-                                        else
-                                            info += " [Niedostępne]";
-                                        lbZdjecia.Items.Add(info);
-                                    }
-                                }
-                            }
-                            catch { /* Ignoruj bledy odczytu zdjec */ }
-
-                            if (lbZdjecia.Items.Count == 0)
-                                lbZdjecia.Items.Add("(brak zdjęć)");
-                            else if (listaZdjec.Count > 0)
-                                lbZdjecia.SelectedIndex = 0; // Automatycznie wybierz pierwsze zdjęcie
-                        }
-
-                        // Historia
-                        if (reader.NextResult())
-                        {
-                            DataTable dtHistoria = new DataTable();
-                            dtHistoria.Load(reader);
-                            dgvHistoria.DataSource = dtHistoria;
-                        }
-                    }
+                    // 5. Historia
+                    WczytajHistorie(conn);
                 }
             }
             catch (Exception ex)
@@ -474,6 +361,246 @@ namespace Kalendarz1.Reklamacje
                 MessageBox.Show($"Błąd wczytywania szczegółów: {ex.Message}", "Błąd",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void WczytajPodstawoweInfo(SqlConnection conn)
+        {
+            try
+            {
+                string query = @"SELECT * FROM [dbo].[Reklamacje] WHERE Id = @IdReklamacji";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            rtbInfo.Clear();
+                            rtbInfo.AppendText($"ID REKLAMACJI: #{GetValue(reader, "Id")}\n");
+                            rtbInfo.AppendText($"Data zgłoszenia: {GetValue(reader, "DataZgloszenia")}\n");
+                            rtbInfo.AppendText($"Zgłosił: {GetValue(reader, "UserID")}\n\n");
+                            rtbInfo.AppendText($"DOKUMENT\n");
+                            rtbInfo.AppendText($"Nr dokumentu: {GetValue(reader, "NumerDokumentu")}\n");
+                            rtbInfo.AppendText($"ID dokumentu: {GetValue(reader, "IdDokumentu")}\n\n");
+                            rtbInfo.AppendText($"KONTRAHENT\n");
+                            rtbInfo.AppendText($"Nazwa: {GetValue(reader, "NazwaKontrahenta")}\n");
+                            rtbInfo.AppendText($"ID: {GetValue(reader, "IdKontrahenta")}\n\n");
+                            rtbInfo.AppendText($"REKLAMACJA\n");
+                            rtbInfo.AppendText($"Status: {GetValue(reader, "Status")}\n");
+                            rtbInfo.AppendText($"Suma kg: {GetValue(reader, "SumaKg")} kg\n");
+                            rtbInfo.AppendText($"Osoba rozpatrująca: {GetValue(reader, "OsobaRozpatrujaca")}\n");
+
+                            var dataZamkniecia = GetValue(reader, "DataZamkniecia");
+                            if (!string.IsNullOrEmpty(dataZamkniecia))
+                                rtbInfo.AppendText($"Data zamknięcia: {dataZamkniecia}\n");
+
+                            rtbInfo.AppendText($"\nOPIS PROBLEMU:\n{GetValue(reader, "Opis")}\n");
+
+                            var komentarz = GetValue(reader, "Komentarz");
+                            if (!string.IsNullOrEmpty(komentarz))
+                                rtbInfo.AppendText($"\nKOMENTARZ:\n{komentarz}\n");
+
+                            var rozwiazanie = GetValue(reader, "Rozwiazanie");
+                            if (!string.IsNullOrEmpty(rozwiazanie))
+                                rtbInfo.AppendText($"\nROZWIĄZANIE:\n{rozwiazanie}\n");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                rtbInfo.Text = $"Błąd wczytywania informacji: {ex.Message}";
+            }
+        }
+
+        private void WczytajTowary(SqlConnection conn)
+        {
+            try
+            {
+                string query = @"SELECT * FROM [dbo].[ReklamacjeTowary] WHERE IdReklamacji = @IdReklamacji ORDER BY Id";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    using (var adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        dgvTowary.DataSource = dt;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void WczytajPartie(SqlConnection conn)
+        {
+            try
+            {
+                lbPartie.Items.Clear();
+
+                // Sprawdź jakie kolumny istnieją w tabeli
+                string query = @"SELECT * FROM [dbo].[ReklamacjePartie] WHERE IdReklamacji = @IdReklamacji ORDER BY DataDodania DESC";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            // Szukaj kolumny z numerem partii (może być Partia lub NumerPartii)
+                            string partia = "";
+                            string dataDodania = "";
+
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                string colName = reader.GetName(i);
+                                if (!reader.IsDBNull(i))
+                                {
+                                    if (colName == "Partia" || colName == "NumerPartii")
+                                        partia = reader[i].ToString();
+                                    else if (colName == "DataDodania")
+                                        dataDodania = reader[i].ToString();
+                                    else if (colName == "CustomerName" && string.IsNullOrEmpty(partia))
+                                        partia = reader[i].ToString(); // Użyj nazwy dostawcy jako fallback
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(partia))
+                                lbPartie.Items.Add($"{partia} (dodano: {dataDodania})");
+                        }
+                    }
+                }
+
+                if (lbPartie.Items.Count == 0)
+                    lbPartie.Items.Add("(brak partii)");
+            }
+            catch (Exception ex)
+            {
+                lbPartie.Items.Clear();
+                lbPartie.Items.Add($"(błąd: {ex.Message})");
+            }
+        }
+
+        private void WczytajZdjecia(SqlConnection conn)
+        {
+            try
+            {
+                lbZdjecia.Items.Clear();
+                listaZdjec.Clear();
+
+                // Najpierw sprawdź czy kolumna DaneZdjecia istnieje
+                bool maKolumneDaneZdjecia = false;
+                try
+                {
+                    using (var cmdCheck = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjeZdjecia' AND COLUMN_NAME = 'DaneZdjecia'", conn))
+                    {
+                        maKolumneDaneZdjecia = Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0;
+                    }
+                }
+                catch { }
+
+                string query;
+                if (maKolumneDaneZdjecia)
+                {
+                    query = @"SELECT Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez, DaneZdjecia
+                              FROM [dbo].[ReklamacjeZdjecia] WHERE IdReklamacji = @IdReklamacji ORDER BY DataDodania";
+                }
+                else
+                {
+                    query = @"SELECT Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez
+                              FROM [dbo].[ReklamacjeZdjecia] WHERE IdReklamacji = @IdReklamacji ORDER BY DataDodania";
+                }
+
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var zdjecie = new ZdjecieReklamacji();
+
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                string colName = reader.GetName(i);
+                                if (!reader.IsDBNull(i))
+                                {
+                                    if (colName == "Id")
+                                        zdjecie.Id = Convert.ToInt32(reader[i]);
+                                    else if (colName == "NazwaPliku")
+                                        zdjecie.NazwaPliku = reader[i].ToString();
+                                    else if (colName == "SciezkaPliku")
+                                        zdjecie.SciezkaPliku = reader[i].ToString();
+                                    else if (colName == "DaneZdjecia")
+                                        zdjecie.DaneZdjecia = (byte[])reader[i];
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(zdjecie.NazwaPliku) || zdjecie.DaneZdjecia != null)
+                            {
+                                listaZdjec.Add(zdjecie);
+                                string info = zdjecie.NazwaPliku ?? "Zdjęcie";
+                                if (zdjecie.DaneZdjecia != null && zdjecie.DaneZdjecia.Length > 0)
+                                    info += " [DB]";
+                                else if (!string.IsNullOrEmpty(zdjecie.SciezkaPliku) && File.Exists(zdjecie.SciezkaPliku))
+                                    info += " [Plik]";
+                                else
+                                    info += " [Niedostępne]";
+                                lbZdjecia.Items.Add(info);
+                            }
+                        }
+                    }
+                }
+
+                if (lbZdjecia.Items.Count == 0)
+                    lbZdjecia.Items.Add("(brak zdjęć)");
+                else if (listaZdjec.Count > 0)
+                    lbZdjecia.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                lbZdjecia.Items.Clear();
+                lbZdjecia.Items.Add($"(błąd: {ex.Message})");
+            }
+        }
+
+        private void WczytajHistorie(SqlConnection conn)
+        {
+            try
+            {
+                string query = @"SELECT * FROM [dbo].[ReklamacjeHistoria] WHERE IdReklamacji = @IdReklamacji ORDER BY DataZmiany DESC";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@IdReklamacji", idReklamacji);
+                    using (var adapter = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        dgvHistoria.DataSource = dt;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // Pomocnicza metoda do bezpiecznego pobierania wartości
+        private string GetValue(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    if (reader.GetName(i).Equals(columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!reader.IsDBNull(i))
+                            return reader[i].ToString();
+                        return "";
+                    }
+                }
+            }
+            catch { }
+            return "";
         }
 
         // Pełnoekranowy podgląd zdjęcia
