@@ -350,14 +350,14 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                             ActWeight,
                             QntInCont
                         FROM dbo.In0E
-                        WHERE Data >= @DataOd AND Data < @DataDo
-                          AND Direction = '0Y'
+                        WHERE Data >= @DataOd AND Data <= @DataDo
+                          AND ISNULL(ArticleName,'') <> ''
                         ORDER BY Data, Godzina";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
-                        cmd.Parameters.AddWithValue("@DataOd", dpDataOd.SelectedDate.Value.Date);
-                        cmd.Parameters.AddWithValue("@DataDo", dpDataDo.SelectedDate.Value.Date.AddDays(1));
+                        cmd.Parameters.AddWithValue("@DataOd", dpDataOd.SelectedDate.Value.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@DataDo", dpDataDo.SelectedDate.Value.ToString("yyyy-MM-dd"));
 
                         using (var reader = cmd.ExecuteReader())
                         {
