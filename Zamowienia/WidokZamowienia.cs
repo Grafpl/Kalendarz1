@@ -1179,9 +1179,17 @@ namespace Kalendarz1
                     // Zapisz oryginalne wartości produktu do śledzenia zmian
                     if (_oryginalneWartosci != null && ilosc > 0)
                     {
+                        // Pobierz nazwę/kod towaru z _dt
+                        string nazwaTowaru = $"Towar #{kodTowaru}";
+                        var towarRows = _dt.Select($"Id = {kodTowaru}");
+                        if (towarRows.Any())
+                        {
+                            nazwaTowaru = towarRows[0].Field<string>("Kod") ?? nazwaTowaru;
+                        }
+
                         _oryginalneWartosci.Towary[kodTowaru] = new OryginalnyTowar
                         {
-                            Nazwa = $"Towar #{kodTowaru}",
+                            Nazwa = nazwaTowaru,
                             Ilosc = ilosc,
                             Cena = cena,
                             E2 = e2,
@@ -1704,7 +1712,7 @@ namespace Kalendarz1
                 if (ilosc > 0)
                 {
                     int kodTowaru = r.Field<int>("Id");
-                    string nazwa = r.Field<string>("Nazwa") ?? "Nieznany";
+                    string nazwa = r.Field<string>("Kod") ?? $"Towar #{kodTowaru}";
                     string cena = r.IsNull("Cena") ? "" : (r.Field<string>("Cena") ?? "");
                     bool e2 = r.Field<bool>("E2");
                     bool folia = r.Field<bool>("Folia");
