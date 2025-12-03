@@ -257,13 +257,22 @@
                                   Margin="0,0,10,0"
                                   SelectionChanged="CbHandlowiec_SelectionChanged"/>
 
-                        <CheckBox x:Name="chkShowCanceled" Grid.Column="2"
-                                  Content="Pokaż anulowane"
-                                  IsChecked="{Binding PokazAnulowane}"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,15,0"
-                                  Checked="ChkShowCanceled_Changed"
-                                  Unchecked="ChkShowCanceled_Changed"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                            <CheckBox x:Name="chkShowCanceled"
+                                      Content="Pokaż anulowane"
+                                      IsChecked="{Binding PokazAnulowane}"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,15,0"
+                                      Checked="ChkShowCanceled_Changed"
+                                      Unchecked="ChkShowCanceled_Changed"/>
+
+                            <CheckBox x:Name="chkOnlyNotInvoiced"
+                                      Content="Tylko niezafakturowane"
+                                      IsChecked="{Binding TylkoNiezafakturowane}"
+                                      VerticalAlignment="Center"
+                                      Checked="ChkOnlyNotInvoiced_Changed"
+                                      Unchecked="ChkOnlyNotInvoiced_Changed"/>
+                        </StackPanel>
 
                         <Button x:Name="btnClearFilters" Grid.Column="3"
                                 Content="✖ Wyczyść" Height="32" Padding="10,0"
@@ -328,11 +337,12 @@
                 </Border>
             </Grid>
 
-            <!-- Prawa strona - szczegóły i historia -->
+            <!-- Prawa strona - szczegóły, produkty i historia -->
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="45*"/>
-                    <RowDefinition Height="55*"/>
+                    <RowDefinition Height="Auto" MaxHeight="450"/>
+                    <RowDefinition Height="Auto" MaxHeight="200"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Szczegóły zamówienia -->
@@ -352,13 +362,132 @@
                             <StackPanel x:Name="pnlDetails"
                                         Visibility="{Binding MaWybraneZamowienie, Converter={StaticResource BoolToVisibility}}">
 
-                                <!-- Odbiorca -->
-                                <Border Background="#E8F5E9" CornerRadius="5" Padding="12" Margin="0,0,0,10">
-                                    <StackPanel>
-                                        <TextBlock Text="ODBIORCA" FontSize="10" FontWeight="Bold" Foreground="#5C8A3A" Margin="0,0,0,5"/>
-                                        <TextBlock Text="{Binding WybraneZamowienie.Odbiorca}"
-                                                   FontSize="15" FontWeight="SemiBold" Foreground="#2C3E50" TextWrapping="Wrap"/>
-                                    </StackPanel>
+                                <!-- Odbiorca + Status faktury -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,5,0">
+                                        <StackPanel>
+                                            <TextBlock Text="ODBIORCA" FontSize="9" FontWeight="Bold" Foreground="#5C8A3A"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.Odbiorca}"
+                                                       FontSize="14" FontWeight="SemiBold" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Status faktury -->
+                                    <Border Grid.Column="1" CornerRadius="5" Padding="10" MinWidth="120">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#FFEBEE"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding WybraneZamowienie.JestZafakturowane}" Value="True">
+                                                        <Setter Property="Background" Value="#E8F5E9"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="STATUS" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#C62828"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding WybraneZamowienie.JestZafakturowane}" Value="True">
+                                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding WybraneZamowienie.StatusFakturyTekst}" FontSize="11" FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#C62828"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding WybraneZamowienie.JestZafakturowane}" Value="True">
+                                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Dane kontaktowe -->
+                                <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,5,5">
+                                            <TextBlock Text="NIP" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.NIPWyswietlany}" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Grid.Row="0" Margin="5,0,0,5">
+                                            <TextBlock Text="TELEFON" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.TelefonWyswietlany}" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" Margin="0,0,0,5">
+                                            <TextBlock Text="EMAIL" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.EmailWyswietlany}" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2">
+                                            <TextBlock Text="ADRES" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.PelnyAdres}" FontSize="11" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Limit kredytowy i należności -->
+                                <Border CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding WybraneZamowienie.WykorzystanieLimitu}" Value="0">
+                                                    <Setter Property="Background" Value="#ECEFF1"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="LIMIT KREDYTOWY" FontSize="9" FontWeight="Bold" Foreground="#388E3C"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.LimitInfo}" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="DNI PŁATNOŚCI" FontSize="9" FontWeight="Bold" Foreground="#388E3C"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.DniPlatnosciTekst}" FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="WARTOŚĆ ZAM." FontSize="9" FontWeight="Bold" Foreground="#388E3C"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.WartoscTekst}" FontSize="11" FontWeight="SemiBold" Foreground="#2C3E50"/>
+                                        </StackPanel>
+                                    </Grid>
                                 </Border>
 
                                 <!-- Daty i transport -->
@@ -366,68 +495,114 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,5,0">
+                                    <Border Grid.Column="0" Background="#FFF3E0" CornerRadius="5" Padding="8" Margin="0,0,3,0">
                                         <StackPanel>
-                                            <TextBlock Text="DATA PRODUKCJI" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
-                                            <TextBlock Text="{Binding WybraneZamowienie.DataProdukcjiTekst}"
-                                                       FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
+                                            <TextBlock Text="DATA PRODUKCJI" FontSize="8" FontWeight="Bold" Foreground="#E65100"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.DataProdukcji, StringFormat='{}{0:dd.MM.yyyy}'}"
+                                                       FontSize="11" Foreground="#2C3E50"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="5,0,0,0">
+                                    <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="8" Margin="3,0,3,0">
                                         <StackPanel>
-                                            <TextBlock Text="DATA ODBIORU" FontSize="9" FontWeight="Bold" Foreground="#E65100"/>
-                                            <TextBlock Text="{Binding WybraneZamowienie.DataOdbioruTekst}"
-                                                       FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
+                                            <TextBlock Text="DATA ODBIORU" FontSize="8" FontWeight="Bold" Foreground="#E65100"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.DataOdbioru, StringFormat='{}{0:dd.MM.yyyy}'}"
+                                                       FontSize="11" Foreground="#2C3E50"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="2" Background="#F3E5F5" CornerRadius="5" Padding="8" Margin="3,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="TRANSPORT" FontSize="8" FontWeight="Bold" Foreground="#7B1FA2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.TransportTekst}"
+                                                       FontSize="10" Foreground="#2C3E50" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
 
-                                <!-- Transport -->
-                                <Border Background="#F3E5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                                    <StackPanel>
-                                        <TextBlock Text="TRANSPORT" FontSize="9" FontWeight="Bold" Foreground="#7B1FA2"/>
-                                        <TextBlock Text="{Binding WybraneZamowienie.TransportTekst}"
-                                                   FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Notatka -->
-                                <Border Background="#FFFDE7" CornerRadius="5" Padding="12" Margin="0,0,0,10"
+                                <!-- Notatka z przyciskami edycji -->
+                                <Border Background="#FFFDE7" CornerRadius="5" Padding="10" Margin="0,0,0,10"
                                         BorderBrush="#FFE082" BorderThickness="1">
                                     <StackPanel>
-                                        <TextBlock Text="📌 NOTATKA" FontSize="10" FontWeight="Bold" Foreground="#F57C00" Margin="0,0,0,8"/>
-                                        <TextBox x:Name="txtNotatka"
-                                                 Text="{Binding WybraneZamowienie.Notatka, Mode=TwoWay}"
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="📌 NOTATKA" FontSize="10" FontWeight="Bold" Foreground="#F57C00"/>
+
+                                            <!-- Przyciski edycji notatki -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <!-- Tryb podglądu -->
+                                                <Button Content="✏️ Edytuj" FontSize="10" Padding="8,3" Margin="0,0,3,0"
+                                                        Background="#FFA726" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                        Command="{Binding EdytujNotatkeCommand}"
+                                                        Visibility="{Binding TrybPodgladuNotatki, Converter={StaticResource BoolToVisibility}}"/>
+
+                                                <!-- Tryb edycji -->
+                                                <Button Content="💾 Zapisz" FontSize="10" Padding="8,3" Margin="0,0,3,0"
+                                                        Background="#43A047" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                        Command="{Binding ZapiszNotatkeCommand}"
+                                                        Visibility="{Binding TrybEdycjiNotatki, Converter={StaticResource BoolToVisibility}}"/>
+
+                                                <Button Content="❌ Anuluj" FontSize="10" Padding="8,3"
+                                                        Background="#E53935" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                        Command="{Binding AnulujEdycjeNotatekCommand}"
+                                                        Visibility="{Binding TrybEdycjiNotatki, Converter={StaticResource BoolToVisibility}}"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- TextBox tylko do odczytu -->
+                                        <TextBox Text="{Binding WybraneZamowienie.Notatka, Mode=OneWay}"
                                                  TextWrapping="Wrap" AcceptsReturn="True"
-                                                 MinHeight="80" MaxHeight="150"
+                                                 MinHeight="50" MaxHeight="80"
                                                  BorderThickness="0" Background="Transparent"
-                                                 FontSize="13" Foreground="#2C3E50"
+                                                 FontSize="12" Foreground="#2C3E50"
                                                  VerticalScrollBarVisibility="Auto"
-                                                 IsReadOnly="True"/>
+                                                 IsReadOnly="True"
+                                                 Visibility="{Binding TrybPodgladuNotatki, Converter={StaticResource BoolToVisibility}}"/>
+
+                                        <!-- TextBox do edycji -->
+                                        <TextBox Text="{Binding EdytowanaNotatka, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                                 MinHeight="50" MaxHeight="80"
+                                                 BorderThickness="1" BorderBrush="#FFE082"
+                                                 Background="White" Padding="5"
+                                                 FontSize="12" Foreground="#2C3E50"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Visibility="{Binding TrybEdycjiNotatki, Converter={StaticResource BoolToVisibility}}"/>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Info o utworzeniu/modyfikacji -->
-                                <Border Background="#ECEFF1" CornerRadius="5" Padding="10">
-                                    <StackPanel>
-                                        <TextBlock FontSize="11" Foreground="#607D8B">
-                                            <Run Text="Utworzono: "/>
-                                            <Run Text="{Binding WybraneZamowienie.DataUtworzenia, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontWeight="SemiBold"/>
-                                            <Run Text=" przez "/>
-                                            <Run Text="{Binding WybraneZamowienie.UtworzonyPrzez}" FontWeight="SemiBold"/>
-                                        </TextBlock>
-                                        <TextBlock FontSize="11" Foreground="#607D8B" Margin="0,3,0,0"
-                                                   Visibility="{Binding WybraneZamowienie.DataModyfikacji, Converter={StaticResource BoolToVisibility}}">
-                                            <Run Text="Ostatnia modyfikacja: "/>
-                                            <Run Text="{Binding WybraneZamowienie.DataModyfikacji, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontWeight="SemiBold"/>
-                                            <Run Text=" przez "/>
-                                            <Run Text="{Binding WybraneZamowienie.ZmodyfikowanePrzez}" FontWeight="SemiBold"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
+                                <!-- Przycisk oznaczania jako zafakturowane -->
+                                <Button Content="✅ Oznacz jako zafakturowane"
+                                        Height="35" FontSize="12" FontWeight="SemiBold"
+                                        Background="#1976D2" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        Command="{Binding OznaczZafakturowaneCommand}"
+                                        Visibility="{Binding WybraneZamowienie.JestZafakturowane, Converter={StaticResource BoolToVisibility}, ConverterParameter=Inverse}">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Opacity" Value="0.9"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
                         </ScrollViewer>
 
@@ -439,8 +614,40 @@
                     </Grid>
                 </Border>
 
+                <!-- Pozycje zamówienia (produkty) -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,10"
+                        Visibility="{Binding MaWybraneZamowienie, Converter={StaticResource BoolToVisibility}}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="📦" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Produkty" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                            <TextBlock Text="{Binding PozycjeZamowienia.Count, StringFormat=' ({0})'}" FontSize="12" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding PozycjeZamowienia}"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  RowHeight="32"
+                                  MaxHeight="140">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kod" Binding="{Binding KodProduktu}" Width="70"/>
+                                <DataGridTextColumn Header="Nazwa" Binding="{Binding NazwaProduktu}" Width="*" MinWidth="100"/>
+                                <DataGridTextColumn Header="Ilość kg" Binding="{Binding IloscKg, StringFormat=N0}" Width="60"/>
+                                <DataGridTextColumn Header="Poj." Binding="{Binding IloscPojemnikow, StringFormat=N0}" Width="40"/>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaTekst}" Width="70"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
                 <!-- Historia zmian -->
-                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                <Border Grid.Row="2" Style="{StaticResource CardStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

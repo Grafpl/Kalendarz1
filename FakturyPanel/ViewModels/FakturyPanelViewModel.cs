@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Kalendarz1.FakturyPanel.Models;
 using Kalendarz1.FakturyPanel.Services;
@@ -23,6 +24,7 @@ namespace Kalendarz1.FakturyPanel.ViewModels
         private ZamowienieFaktury _wybraneZamowienie;
         private ObservableCollection<ZamowienieFaktury> _zamowienia;
         private ObservableCollection<HistoriaZmianZamowienia> _historiaZmian;
+        private ObservableCollection<PozycjaZamowienia> _pozycjeZamowienia;
         private ObservableCollection<string> _handlowcy;
 
         // Filtry
@@ -31,10 +33,15 @@ namespace Kalendarz1.FakturyPanel.ViewModels
         private string _wybranyHandlowiec;
         private string _szukajTekst;
         private bool _pokazAnulowane;
+        private bool _tylkoNiezafakturowane;
 
         // Użytkownik
         private string _aktualnyUzytkownik;
         private string _aktualnyUzytkownikNazwa;
+
+        // Edycja notatki
+        private string _edytowanaNotatka;
+        private bool _trybEdycjiNotatki;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -43,6 +50,7 @@ namespace Kalendarz1.FakturyPanel.ViewModels
             _dataService = new FakturyDataService();
             _zamowienia = new ObservableCollection<ZamowienieFaktury>();
             _historiaZmian = new ObservableCollection<HistoriaZmianZamowienia>();
+            _pozycjeZamowienia = new ObservableCollection<PozycjaZamowienia>();
             _handlowcy = new ObservableCollection<string>();
 
             // Domyślne daty - bieżący tydzień
@@ -59,6 +67,10 @@ namespace Kalendarz1.FakturyPanel.ViewModels
             PoprzedniTydzienCommand = new RelayCommand(PoprzedniTydzien);
             NastepnyTydzienCommand = new RelayCommand(NastepnyTydzien);
             DzisCommand = new RelayCommand(UstawDzis);
+            ZapiszNotatkeCommand = new RelayCommand(async () => await ZapiszNotatkeAsync(), () => TrybEdycjiNotatki);
+            AnulujEdycjeNotatekCommand = new RelayCommand(AnulujEdycjeNotatki);
+            EdytujNotatkeCommand = new RelayCommand(WlaczEdycjeNotatki);
+            OznaczZafakturowaneCommand = new RelayCommand(async () => await OznaczJakoZafakturowaneAsync());
         }
 
         #region Properties
@@ -97,6 +109,12 @@ namespace Kalendarz1.FakturyPanel.ViewModels
             set { _historiaZmian = value; OnPropertyChanged(); }
         }
 
+        public ObservableCollection<PozycjaZamowienia> PozycjeZamowienia
+        {
+            get => _pozycjeZamowienia;
+            set { _pozycjeZamowienia = value; OnPropertyChanged(); }
+        }
+
         public ObservableCollection<string> Handlowcy
         {
             get => _handlowcy;
@@ -111,14 +129,44 @@ namespace Kalendarz1.FakturyPanel.ViewModels
                 _wybraneZamowienie = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(MaWybraneZamowienie));
+
+                // Resetuj tryb edycji
+                TrybEdycjiNotatki = false;
+                EdytowanaNotatka = value?.Notatka ?? "";
+
                 if (value != null)
                 {
                     _ = PobierzHistorieZamowieniaAsync(value.Id);
+                    _ = PobierzPozycjeZamowieniaAsync(value.Id);
+                }
+                else
+                {
+                    PozycjeZamowienia.Clear();
                 }
             }
         }
 
         public bool MaWybraneZamowienie => _wybraneZamowienie != null;
+
+        public string EdytowanaNotatka
+        {
+            get => _edytowanaNotatka;
+            set { _edytowanaNotatka = value; OnPropertyChanged(); }
+        }
+
+        public bool TrybEdycjiNotatki
+        {
+            get => _trybEdycjiNotatki;
+            set { _trybEdycjiNotatki = value; OnPropertyChanged(); OnPropertyChanged(nameof(TrybPodgladuNotatki)); }
+        }
+
+        public bool TrybPodgladuNotatki => !_trybEdycjiNotatki;
+
+        public bool TylkoNiezafakturowane
+        {
+            get => _tylkoNiezafakturowane;
+            set { _tylkoNiezafakturowane = value; OnPropertyChanged(); }
+        }
 
         // Filtry
         public DateTime? DataOd
@@ -182,6 +230,10 @@ namespace Kalendarz1.FakturyPanel.ViewModels
         public ICommand PoprzedniTydzienCommand { get; }
         public ICommand NastepnyTydzienCommand { get; }
         public ICommand DzisCommand { get; }
+        public ICommand ZapiszNotatkeCommand { get; }
+        public ICommand AnulujEdycjeNotatekCommand { get; }
+        public ICommand EdytujNotatkeCommand { get; }
+        public ICommand OznaczZafakturowaneCommand { get; }
 
         #endregion
 
@@ -244,7 +296,8 @@ namespace Kalendarz1.FakturyPanel.ViewModels
                     DataDo = _dataDo,
                     Handlowiec = _wybranyHandlowiec,
                     SzukajTekst = _szukajTekst,
-                    PokazAnulowane = _pokazAnulowane
+                    PokazAnulowane = _pokazAnulowane,
+                    TylkoNiezafakturowane = _tylkoNiezafakturowane
                 };
 
                 var zamowienia = await _dataService.PobierzZamowieniaAsync(filtr);
@@ -294,6 +347,7 @@ namespace Kalendarz1.FakturyPanel.ViewModels
             WybranyHandlowiec = null;
             SzukajTekst = null;
             PokazAnulowane = false;
+            TylkoNiezafakturowane = false;
 
             _ = OdswiezZamowieniaAsync();
         }
@@ -344,6 +398,149 @@ namespace Kalendarz1.FakturyPanel.ViewModels
         {
             SzukajTekst = tekst;
             await OdswiezZamowieniaAsync();
+        }
+
+        /// <summary>
+        /// Pobiera pozycje (produkty) dla wybranego zamówienia
+        /// </summary>
+        private async Task PobierzPozycjeZamowieniaAsync(int zamowienieId)
+        {
+            try
+            {
+                var pozycje = await _dataService.PobierzPozycjeZamowieniaAsync(zamowienieId);
+
+                PozycjeZamowienia.Clear();
+                foreach (var p in pozycje)
+                    PozycjeZamowienia.Add(p);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania pozycji zamówienia: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Włącza tryb edycji notatki
+        /// </summary>
+        private void WlaczEdycjeNotatki()
+        {
+            if (WybraneZamowienie != null)
+            {
+                EdytowanaNotatka = WybraneZamowienie.Notatka ?? "";
+                TrybEdycjiNotatki = true;
+            }
+        }
+
+        /// <summary>
+        /// Anuluje edycję notatki
+        /// </summary>
+        private void AnulujEdycjeNotatki()
+        {
+            if (WybraneZamowienie != null)
+            {
+                EdytowanaNotatka = WybraneZamowienie.Notatka ?? "";
+            }
+            TrybEdycjiNotatki = false;
+        }
+
+        /// <summary>
+        /// Zapisuje notatkę zamówienia
+        /// </summary>
+        private async Task ZapiszNotatkeAsync()
+        {
+            if (WybraneZamowienie == null)
+                return;
+
+            try
+            {
+                StatusMessage = "Zapisywanie notatki...";
+
+                var sukces = await _dataService.AktualizujNotatkeAsync(
+                    WybraneZamowienie.Id,
+                    EdytowanaNotatka,
+                    AktualnyUzytkownik,
+                    AktualnyUzytkownikNazwa);
+
+                if (sukces)
+                {
+                    WybraneZamowienie.Notatka = EdytowanaNotatka;
+                    TrybEdycjiNotatki = false;
+                    StatusMessage = "Notatka zapisana pomyślnie";
+
+                    // Odśwież historię
+                    await PobierzHistorieZamowieniaAsync(WybraneZamowienie.Id);
+                }
+                else
+                {
+                    MessageBox.Show("Nie udało się zapisać notatki.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    StatusMessage = "Błąd zapisu notatki";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu notatki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusMessage = "Błąd zapisu notatki";
+            }
+        }
+
+        /// <summary>
+        /// Oznacza zamówienie jako zafakturowane
+        /// </summary>
+        private async Task OznaczJakoZafakturowaneAsync()
+        {
+            if (WybraneZamowienie == null)
+                return;
+
+            if (WybraneZamowienie.JestZafakturowane)
+            {
+                MessageBox.Show("To zamówienie jest już zafakturowane.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Zapytaj o potwierdzenie i numer faktury
+            var result = MessageBox.Show(
+                $"Czy oznaczyć zamówienie #{WybraneZamowienie.Id} dla {WybraneZamowienie.Odbiorca} jako zafakturowane?",
+                "Oznacz jako zafakturowane",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            // Prosty numer faktury - można rozbudować o osobne okno dialogowe
+            string numerFaktury = $"FV/{DateTime.Now:yyyy/MM}/{WybraneZamowienie.Id}";
+
+            try
+            {
+                StatusMessage = "Oznaczanie jako zafakturowane...";
+
+                var sukces = await _dataService.OznaczJakoZafakturowaneAsync(
+                    WybraneZamowienie.Id,
+                    numerFaktury,
+                    AktualnyUzytkownik,
+                    AktualnyUzytkownikNazwa);
+
+                if (sukces)
+                {
+                    WybraneZamowienie.JestZafakturowane = true;
+                    WybraneZamowienie.NumerFaktury = numerFaktury;
+                    WybraneZamowienie.DataFaktury = DateTime.Now;
+                    StatusMessage = $"Zamówienie #{WybraneZamowienie.Id} oznaczono jako zafakturowane";
+
+                    // Odśwież historię
+                    await PobierzHistorieZamowieniaAsync(WybraneZamowienie.Id);
+                }
+                else
+                {
+                    MessageBox.Show("Nie udało się oznaczyć zamówienia jako zafakturowane.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    StatusMessage = "Błąd oznaczania faktury";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusMessage = "Błąd oznaczania faktury";
+            }
         }
 
         #endregion

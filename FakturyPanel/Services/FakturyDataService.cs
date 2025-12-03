@@ -47,11 +47,24 @@ namespace Kalendarz1.FakturyPanel.Services
                         z.DodanyPrzez,
                         z.DataModyfikacji,
                         z.ZmodyfikowanyPrzez,
+                        ISNULL(z.JestZafakturowane, 0) AS JestZafakturowane,
+                        z.NumerFaktury,
+                        z.DataFaktury,
                         k.Nazwa AS OdbiorcaNazwa,
                         k.id AS OdbiorcaId,
+                        k.NIP AS OdbiorcaNIP,
+                        k.Telefon AS OdbiorcaTelefon,
+                        k.Email AS OdbiorcaEmail,
+                        k.Adres AS OdbiorcaAdres,
+                        k.Miasto AS OdbiorcaMiasto,
+                        k.KodPocztowy AS OdbiorcaKodPocztowy,
+                        ISNULL(k.LimitKredytowy, 0) AS LimitKredytowy,
+                        ISNULL(k.Naleznosci, 0) AS Naleznosci,
+                        ISNULL(k.DniPlatnosci, 0) AS DniPlatnosci,
                         COALESCE(SUM(zp.Palety), 0) AS SumaPalet,
                         COALESCE(SUM(zp.Pojemniki), 0) AS SumaPojemnikow,
-                        COALESCE(SUM(zp.Ilosc), 0) AS SumaKg
+                        COALESCE(SUM(zp.Ilosc), 0) AS SumaKg,
+                        COALESCE(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) AS Wartosc
                     FROM ZamowieniaMieso z
                     LEFT JOIN Kontrahenci k ON z.OdbiorcaId = k.id
                     LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
@@ -74,6 +87,9 @@ namespace Kalendarz1.FakturyPanel.Services
 
                     if (!filtr.PokazAnulowane)
                         sql += " AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                    if (filtr.TylkoNiezafakturowane)
+                        sql += " AND (z.JestZafakturowane IS NULL OR z.JestZafakturowane = 0)";
                 }
                 else
                 {
@@ -84,7 +100,9 @@ namespace Kalendarz1.FakturyPanel.Services
                     GROUP BY z.ID, z.DataOdbioru, z.DataProdukcji, z.Godzina, z.Notatka,
                              z.Handlowiec, z.WlasnyOdbior, z.Anulowane, z.DataDodania,
                              z.DodanyPrzez, z.DataModyfikacji, z.ZmodyfikowanyPrzez,
-                             k.Nazwa, k.id
+                             z.JestZafakturowane, z.NumerFaktury, z.DataFaktury,
+                             k.Nazwa, k.id, k.NIP, k.Telefon, k.Email, k.Adres, k.Miasto,
+                             k.KodPocztowy, k.LimitKredytowy, k.Naleznosci, k.DniPlatnosci
                     ORDER BY z.DataOdbioru DESC, k.Nazwa";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -155,7 +173,26 @@ namespace Kalendarz1.FakturyPanel.Services
                             : reader.GetDateTime(reader.GetOrdinal("DataModyfikacji")),
                         ZmodyfikowanePrzez = reader.IsDBNull(reader.GetOrdinal("ZmodyfikowanyPrzez"))
                             ? ""
-                            : reader.GetString(reader.GetOrdinal("ZmodyfikowanyPrzez"))
+                            : reader.GetString(reader.GetOrdinal("ZmodyfikowanyPrzez")),
+
+                        // Status fakturowania
+                        JestZafakturowane = GetBoolOrDefault(reader, "JestZafakturowane"),
+                        NumerFaktury = GetStringOrDefault(reader, "NumerFaktury"),
+                        DataFaktury = GetDateTimeOrNull(reader, "DataFaktury"),
+
+                        // Dane kontaktowe odbiorcy
+                        OdbiorcaNIP = GetStringOrDefault(reader, "OdbiorcaNIP"),
+                        OdbiorcaTelefon = GetStringOrDefault(reader, "OdbiorcaTelefon"),
+                        OdbiorcaEmail = GetStringOrDefault(reader, "OdbiorcaEmail"),
+                        OdbiorcaAdres = GetStringOrDefault(reader, "OdbiorcaAdres"),
+                        OdbiorcaMiasto = GetStringOrDefault(reader, "OdbiorcaMiasto"),
+                        OdbiorcaKodPocztowy = GetStringOrDefault(reader, "OdbiorcaKodPocztowy"),
+
+                        // Dane finansowe
+                        LimitKredytowy = GetDecimalOrDefault(reader, "LimitKredytowy"),
+                        Naleznosci = GetDecimalOrDefault(reader, "Naleznosci"),
+                        DniPlatnosci = GetIntOrDefault(reader, "DniPlatnosci"),
+                        Wartosc = GetDecimalOrDefault(reader, "Wartosc")
                     };
 
                     zamowienia.Add(zamowienie);
@@ -604,5 +641,147 @@ namespace Kalendarz1.FakturyPanel.Services
                 return false;
             }
         }
+
+        /// <summary>
+        /// Oznacza zamówienie jako zafakturowane
+        /// </summary>
+        public async Task<bool> OznaczJakoZafakturowaneAsync(int zamowienieId, string numerFaktury, string uzytkownik, string uzytkownikNazwa = null)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                // Najpierw sprawdź czy kolumna istnieje, jeśli nie - utwórz ją
+                await EnsureFakturaColumnsExistAsync(cn);
+
+                var sql = @"
+                    UPDATE ZamowieniaMieso
+                    SET JestZafakturowane = 1,
+                        NumerFaktury = @NumerFaktury,
+                        DataFaktury = GETDATE(),
+                        DataModyfikacji = GETDATE(),
+                        ZmodyfikowanyPrzez = @Uzytkownik
+                    WHERE ID = @Id";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", zamowienieId);
+                cmd.Parameters.AddWithValue("@NumerFaktury", numerFaktury ?? "");
+                cmd.Parameters.AddWithValue("@Uzytkownik", uzytkownik);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                // Zaloguj zmianę
+                await LogujZmianeAsync(
+                    zamowienieId,
+                    "EDYCJA",
+                    uzytkownik,
+                    uzytkownikNazwa,
+                    "StatusFaktury",
+                    "Do zafakturowania",
+                    $"Zafakturowane ({numerFaktury})",
+                    $"Oznaczono zamówienie #{zamowienieId} jako zafakturowane. Nr faktury: {numerFaktury}"
+                );
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd oznaczania jako zafakturowane: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Upewnia się że kolumny fakturowania istnieją w tabeli
+        /// </summary>
+        private async Task EnsureFakturaColumnsExistAsync(SqlConnection cn)
+        {
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') AND name = 'JestZafakturowane')
+                BEGIN
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD [JestZafakturowane] BIT DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') AND name = 'NumerFaktury')
+                BEGIN
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD [NumerFaktury] NVARCHAR(50) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') AND name = 'DataFaktury')
+                BEGIN
+                    ALTER TABLE [dbo].[ZamowieniaMieso] ADD [DataFaktury] DATETIME NULL;
+                END";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        #region Metody pomocnicze
+
+        private static string GetStringOrDefault(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? "" : reader.GetString(ordinal);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static decimal GetDecimalOrDefault(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? 0 : reader.GetDecimal(ordinal);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static int GetIntOrDefault(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? 0 : reader.GetInt32(ordinal);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static bool GetBoolOrDefault(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return !reader.IsDBNull(ordinal) && reader.GetBoolean(ordinal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static DateTime? GetDateTimeOrNull(SqlDataReader reader, string columnName)
+        {
+            try
+            {
+                var ordinal = reader.GetOrdinal(columnName);
+                return reader.IsDBNull(ordinal) ? (DateTime?)null : reader.GetDateTime(ordinal);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        #endregion
     }
 }

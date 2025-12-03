@@ -99,6 +99,11 @@ namespace Kalendarz1.FakturyPanel.Views
             _viewModel.OdswiezCommand.Execute(null);
         }
 
+        private void ChkOnlyNotInvoiced_Changed(object sender, RoutedEventArgs e)
+        {
+            _viewModel.OdswiezCommand.Execute(null);
+        }
+
         private void BtnClearFilters_Click(object sender, RoutedEventArgs e)
         {
             txtSearch.Text = "";

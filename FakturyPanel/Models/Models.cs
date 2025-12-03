@@ -54,6 +54,24 @@ namespace Kalendarz1.FakturyPanel.Models
         private bool _jestAnulowane;
         private string _numerZamowienia;
 
+        // Dane kontaktowe odbiorcy
+        private string _odbiorcaNIP;
+        private string _odbiorcaTelefon;
+        private string _odbiorcaEmail;
+        private string _odbiorcaAdres;
+        private string _odbiorcaMiasto;
+        private string _odbiorcaKodPocztowy;
+
+        // Status fakturowania
+        private bool _jestZafakturowane;
+        private string _numerFaktury;
+        private DateTime? _dataFaktury;
+
+        // Informacje finansowe
+        private decimal _limitKredytowy;
+        private decimal _naleznosci;
+        private int _dniPlatnosci;
+
         public int Id
         {
             get => _id;
@@ -174,12 +192,111 @@ namespace Kalendarz1.FakturyPanel.Models
             set => SetProperty(ref _numerZamowienia, value);
         }
 
+        // Dane kontaktowe odbiorcy
+        public string OdbiorcaNIP
+        {
+            get => _odbiorcaNIP;
+            set => SetProperty(ref _odbiorcaNIP, value);
+        }
+
+        public string OdbiorcaTelefon
+        {
+            get => _odbiorcaTelefon;
+            set => SetProperty(ref _odbiorcaTelefon, value);
+        }
+
+        public string OdbiorcaEmail
+        {
+            get => _odbiorcaEmail;
+            set => SetProperty(ref _odbiorcaEmail, value);
+        }
+
+        public string OdbiorcaAdres
+        {
+            get => _odbiorcaAdres;
+            set => SetProperty(ref _odbiorcaAdres, value);
+        }
+
+        public string OdbiorcaMiasto
+        {
+            get => _odbiorcaMiasto;
+            set => SetProperty(ref _odbiorcaMiasto, value);
+        }
+
+        public string OdbiorcaKodPocztowy
+        {
+            get => _odbiorcaKodPocztowy;
+            set => SetProperty(ref _odbiorcaKodPocztowy, value);
+        }
+
+        // Status fakturowania
+        public bool JestZafakturowane
+        {
+            get => _jestZafakturowane;
+            set { SetProperty(ref _jestZafakturowane, value); OnPropertyChanged(nameof(StatusFakturyTekst)); OnPropertyChanged(nameof(StatusFakturyKolor)); }
+        }
+
+        public string NumerFaktury
+        {
+            get => _numerFaktury;
+            set => SetProperty(ref _numerFaktury, value);
+        }
+
+        public DateTime? DataFaktury
+        {
+            get => _dataFaktury;
+            set => SetProperty(ref _dataFaktury, value);
+        }
+
+        // Informacje finansowe
+        public decimal LimitKredytowy
+        {
+            get => _limitKredytowy;
+            set { SetProperty(ref _limitKredytowy, value); OnPropertyChanged(nameof(WykorzystanieLimitu)); OnPropertyChanged(nameof(LimitInfo)); }
+        }
+
+        public decimal Naleznosci
+        {
+            get => _naleznosci;
+            set { SetProperty(ref _naleznosci, value); OnPropertyChanged(nameof(WykorzystanieLimitu)); OnPropertyChanged(nameof(LimitInfo)); }
+        }
+
+        public int DniPlatnosci
+        {
+            get => _dniPlatnosci;
+            set => SetProperty(ref _dniPlatnosci, value);
+        }
+
         // Właściwości pomocnicze do wyświetlania
         public string DataProdukcjiTekst => DataProdukcji.ToString("yyyy-MM-dd (dddd)");
         public string DataOdbioruTekst => DataOdbioru.ToString("yyyy-MM-dd (dddd)");
+        public string DataOdbioruKrotki => DataOdbioru.ToString("dd.MM.yyyy");
         public string TransportTekst => WlasnyOdbior ? "Własny odbiór" : $"Dostawa o {GodzinaOdbioru}";
         public string StatusWyswietlany => JestAnulowane ? "ANULOWANE" : Status ?? "Aktywne";
         public string PodsumowanieTekst => $"{SumaKg:N0} kg | {SumaPojemnikow:N0} poj. | {SumaPalet:N1} pal.";
+        public string WartoscTekst => Wartosc > 0 ? $"{Wartosc:N2} zł" : "-";
+
+        // Właściwości pomocnicze dla danych kontaktowych
+        public string PelnyAdres => string.IsNullOrEmpty(OdbiorcaAdres)
+            ? "-"
+            : $"{OdbiorcaAdres}, {OdbiorcaKodPocztowy} {OdbiorcaMiasto}";
+        public string NIPWyswietlany => string.IsNullOrEmpty(OdbiorcaNIP) ? "-" : OdbiorcaNIP;
+        public string TelefonWyswietlany => string.IsNullOrEmpty(OdbiorcaTelefon) ? "-" : OdbiorcaTelefon;
+        public string EmailWyswietlany => string.IsNullOrEmpty(OdbiorcaEmail) ? "-" : OdbiorcaEmail;
+
+        // Właściwości pomocnicze dla statusu fakturowania
+        public string StatusFakturyTekst => JestZafakturowane
+            ? $"Zafakturowane ({NumerFaktury})"
+            : "Do zafakturowania";
+        public string StatusFakturyKolor => JestZafakturowane ? "#27AE60" : "#E74C3C";
+
+        // Właściwości pomocnicze dla limitu kredytowego
+        public decimal WykorzystanieLimitu => LimitKredytowy > 0 ? (Naleznosci / LimitKredytowy) * 100 : 0;
+        public string LimitInfo => LimitKredytowy > 0
+            ? $"{Naleznosci:N2} zł / {LimitKredytowy:N2} zł ({WykorzystanieLimitu:N0}%)"
+            : "Brak limitu";
+        public string LimitKolor => WykorzystanieLimitu > 90 ? "#E74C3C" : WykorzystanieLimitu > 70 ? "#F39C12" : "#27AE60";
+        public string DniPlatnosciTekst => DniPlatnosci > 0 ? $"{DniPlatnosci} dni" : "-";
     }
 
     /// <summary>
@@ -426,6 +543,7 @@ namespace Kalendarz1.FakturyPanel.Models
         private string _handlowiec;
         private string _szukajTekst;
         private bool _pokazAnulowane;
+        private bool _tylkoNiezafakturowane;
         private string _sortowanie;
 
         public DateTime? DataOd
@@ -456,6 +574,12 @@ namespace Kalendarz1.FakturyPanel.Models
         {
             get => _pokazAnulowane;
             set => SetProperty(ref _pokazAnulowane, value);
+        }
+
+        public bool TylkoNiezafakturowane
+        {
+            get => _tylkoNiezafakturowane;
+            set => SetProperty(ref _tylkoNiezafakturowane, value);
         }
 
         public string Sortowanie
