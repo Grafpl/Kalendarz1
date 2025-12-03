@@ -1,9 +1,12 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Kalendarz1.FakturyPanel.ViewModels;
 using Kalendarz1.FakturyPanel.Models;
+using Kalendarz1.FakturyPanel.Services;
+using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.FakturyPanel.Views
 {
@@ -14,6 +17,9 @@ namespace Kalendarz1.FakturyPanel.Views
     {
         private readonly FakturyPanelViewModel _viewModel;
         private System.Windows.Threading.DispatcherTimer _searchTimer;
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public FakturyPanelWindow()
         {
@@ -215,6 +221,418 @@ namespace Kalendarz1.FakturyPanel.Views
                         _viewModel.NastepnyTydzienCommand.Execute(null);
                         e.Handled = true;
                         break;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Menu kontekstowe - DataGrid
+
+        private void DgOrders_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            // Podwójne kliknięcie otwiera okno modyfikacji
+            if (_viewModel.WybraneZamowienie != null)
+            {
+                MenuModyfikuj_Click(sender, null);
+            }
+        }
+
+        private void DgOrders_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // Aktualizuj widoczność opcji menu w zależności od stanu zamówienia
+            if (_viewModel.WybraneZamowienie != null)
+            {
+                var zamowienie = _viewModel.WybraneZamowienie;
+                menuAnuluj.Visibility = zamowienie.JestAnulowane ? Visibility.Collapsed : Visibility.Visible;
+                menuPrzywroc.Visibility = zamowienie.JestAnulowane ? Visibility.Visible : Visibility.Collapsed;
+                menuUsun.Visibility = zamowienie.JestAnulowane ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void MenuDuplikuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var id = _viewModel.WybraneZamowienie.Id;
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można zduplikować tego zamówienia.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var dlg = new MultipleDatePickerWindow("Wybierz dni dla duplikatu zamówienia");
+                if (dlg.ShowDialog() == true && dlg.SelectedDates.Count > 0)
+                {
+                    _ = DuplikujZamowienieAsync(id, dlg.SelectedDates);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task DuplikujZamowienieAsync(int sourceId, System.Collections.Generic.List<DateTime> dates)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                foreach (var date in dates)
+                {
+                    // Duplikuj zamówienie
+                    var sql = @"
+                        INSERT INTO ZamowieniaMieso (OdbiorcaId, DataOdbioru, DataProdukcji, Godzina, Notatka,
+                            Handlowiec, WlasnyOdbior, DataDodania, DodanyPrzez, Status)
+                        SELECT OdbiorcaId, @NowaData, DATEADD(day, -1, @NowaData), Godzina, Notatka,
+                            Handlowiec, WlasnyOdbior, GETDATE(), @Uzytkownik, 'Nowe'
+                        FROM ZamowieniaMieso WHERE ID = @SourceId;
+                        SELECT SCOPE_IDENTITY();";
+
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@SourceId", sourceId);
+                    cmd.Parameters.AddWithValue("@NowaData", date);
+                    cmd.Parameters.AddWithValue("@Uzytkownik", App.UserID ?? "System");
+
+                    var newId = await cmd.ExecuteScalarAsync();
+                    if (newId != null && newId != DBNull.Value)
+                    {
+                        // Kopiuj pozycje zamówienia
+                        var sqlPoz = @"
+                            INSERT INTO ZamowieniaMiesoPozycje (ZamowienieId, ProduktId, Ilosc, Cena, Palety, Pojemniki)
+                            SELECT @NewId, ProduktId, Ilosc, Cena, Palety, Pojemniki
+                            FROM ZamowieniaMiesoPozycje WHERE ZamowienieId = @SourceId";
+
+                        await using var cmdPoz = new SqlCommand(sqlPoz, cn);
+                        cmdPoz.Parameters.AddWithValue("@NewId", Convert.ToInt32(newId));
+                        cmdPoz.Parameters.AddWithValue("@SourceId", sourceId);
+                        await cmdPoz.ExecuteNonQueryAsync();
+                    }
+                }
+
+                MessageBox.Show($"Utworzono {dates.Count} duplikat(ów) zamówienia.", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                _viewModel.OdswiezCommand.Execute(null);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas duplikowania zamówienia: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MenuCykliczne_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            MessageBox.Show("Funkcja zamówień cyklicznych jest w trakcie rozwoju.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void MenuModyfikuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var id = _viewModel.WybraneZamowienie.Id;
+            if (id <= 0)
+            {
+                MessageBox.Show("Nie można modyfikować tego zamówienia.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var widokZamowienia = new Kalendarz1.WidokZamowienia(App.UserID, id);
+                if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    _viewModel.OdswiezCommand.Execute(null);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania zamówienia: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MenuNotatka_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            // Włącz tryb edycji notatki
+            _viewModel.EdytujNotatkeCommand.Execute(null);
+        }
+
+        private void MenuSzczegolyZamowienia_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var z = _viewModel.WybraneZamowienie;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"📦 ZAMÓWIENIE #{z.Id}");
+            sb.AppendLine($"═══════════════════════════════════════");
+            sb.AppendLine($"📋 Odbiorca: {z.Odbiorca}");
+            sb.AppendLine($"👤 Handlowiec: {z.Handlowiec}");
+            sb.AppendLine($"📅 Data odbioru: {z.DataOdbioru:dd.MM.yyyy} {z.GodzinaOdbioru}");
+            sb.AppendLine($"🏭 Data produkcji: {z.DataProdukcji:dd.MM.yyyy}");
+            sb.AppendLine($"🚚 Transport: {z.TransportTekst}");
+            sb.AppendLine();
+            sb.AppendLine($"⚖️ Ilość: {z.SumaKg:N0} kg");
+            sb.AppendLine($"📦 Pojemniki: {z.SumaPojemnikow}");
+            sb.AppendLine($"🎨 Palety: {z.SumaPalet}");
+            sb.AppendLine($"💰 Wartość: {z.WartoscTekst}");
+            sb.AppendLine();
+            sb.AppendLine($"📌 Status: {z.StatusWyswietlany}");
+            sb.AppendLine($"📝 Notatka: {z.Notatka ?? "(brak)"}");
+
+            MessageBox.Show(sb.ToString(), "Szczegóły zamówienia",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void MenuSzczegolyPlatnosci_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var z = _viewModel.WybraneZamowienie;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"💳 PŁATNOŚCI - {z.Odbiorca}");
+            sb.AppendLine($"═══════════════════════════════════════");
+            sb.AppendLine($"NIP: {z.NIPWyswietlany}");
+            sb.AppendLine($"Limit kredytowy: {z.LimitInfo}");
+            sb.AppendLine($"Dni płatności: {z.DniPlatnosciTekst}");
+            sb.AppendLine();
+            sb.AppendLine($"📞 Telefon: {z.TelefonWyswietlany}");
+            sb.AppendLine($"📧 Email: {z.EmailWyswietlany}");
+            sb.AppendLine($"📍 Adres: {z.PelnyAdres}");
+
+            MessageBox.Show(sb.ToString(), "Płatności kontrahenta",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void MenuHistoriaZamowien_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            try
+            {
+                var odbiorcaId = _viewModel.WybraneZamowienie.OdbiorcaId;
+                var odbiorca = _viewModel.WybraneZamowienie.Odbiorca;
+
+                // Otwórz okno historii zamówień
+                var historiaWindow = new Kalendarz1.HistoriaZamowienWindow(odbiorcaId);
+                historiaWindow.Title = $"Historia zamówień - {odbiorca}";
+                historiaWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuTransportInfo_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var id = _viewModel.WybraneZamowienie.Id;
+
+            try
+            {
+                // Pobierz TransportKursID z zamówienia
+                int? transportKursId = null;
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var sql = "SELECT TransportKursID FROM dbo.ZamowieniaMieso WHERE Id = @Id";
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", id);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        transportKursId = Convert.ToInt32(result);
+                    }
+                }
+
+                if (!transportKursId.HasValue)
+                {
+                    MessageBox.Show("To zamówienie nie jest przypisane do żadnego transportu.",
+                        "Brak transportu", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                MessageBox.Show($"Zamówienie jest przypisane do kursu transportowego #{transportKursId.Value}.\n\n" +
+                    "Aby zobaczyć szczegóły, użyj modułu Transport.",
+                    "Informacje o transporcie", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania informacji o transporcie: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MenuOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.OdswiezCommand.Execute(null);
+        }
+
+        private async void MenuAnuluj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var z = _viewModel.WybraneZamowienie;
+            if (z.JestAnulowane)
+            {
+                MessageBox.Show("To zamówienie jest już anulowane.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz anulować to zamówienie?\n\n" +
+                $"📦 Odbiorca: {z.Odbiorca}\n" +
+                $"⚖️ Ilość: {z.SumaKg:N0} kg\n\n" +
+                $"⚠️ Zamówienie można później przywrócić.",
+                "Potwierdź anulowanie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand(
+                        "UPDATE dbo.ZamowieniaMieso SET Anulowane = 1 WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", z.Id);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujAnulowanie(z.Id, App.UserID, App.UserFullName,
+                        $"Anulowano zamówienie dla odbiorcy: {z.Odbiorca}, ilość: {z.SumaKg:N0} kg");
+
+                    MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    _viewModel.OdswiezCommand.Execute(null);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Wystąpił błąd podczas anulowania zamówienia: {ex.Message}",
+                        "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void MenuPrzywroc_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var z = _viewModel.WybraneZamowienie;
+            if (!z.JestAnulowane)
+            {
+                MessageBox.Show("To zamówienie nie jest anulowane.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz przywrócić to zamówienie?\n\n" +
+                $"📦 Odbiorca: {z.Odbiorca}\n" +
+                $"⚖️ Ilość: {z.SumaKg:N0} kg\n\n" +
+                $"✅ Zamówienie zostanie ponownie aktywowane.",
+                "Potwierdź przywrócenie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    await using var cmd = new SqlCommand(
+                        "UPDATE dbo.ZamowieniaMieso SET Anulowane = 0 WHERE Id = @Id", cn);
+                    cmd.Parameters.AddWithValue("@Id", z.Id);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujPrzywrocenie(z.Id, App.UserID, App.UserFullName);
+
+                    MessageBox.Show("Zamówienie zostało przywrócone.", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    _viewModel.OdswiezCommand.Execute(null);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Wystąpił błąd podczas przywracania zamówienia: {ex.Message}",
+                        "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void MenuUsun_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.WybraneZamowienie == null) return;
+
+            var z = _viewModel.WybraneZamowienie;
+
+            var result = MessageBox.Show(
+                $"⚠️ UWAGA! Usunięcie jest NIEODWRACALNE!\n\n" +
+                $"Czy na pewno chcesz TRWALE usunąć to zamówienie?\n\n" +
+                $"📦 Odbiorca: {z.Odbiorca}\n" +
+                $"⚖️ Ilość: {z.SumaKg:N0} kg\n\n" +
+                $"🗑️ Ta operacja nie może zostać cofnięta!",
+                "POTWIERDŹ USUNIĘCIE",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Error);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Drugie potwierdzenie
+                var result2 = MessageBox.Show(
+                    "Czy jesteś absolutnie pewien?\n\nDane zostaną trwale usunięte.",
+                    "OSTATNIE OSTRZEŻENIE",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result2 == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connHandel);
+                        await cn.OpenAsync();
+
+                        // Najpierw usuń pozycje
+                        await using var cmdPoz = new SqlCommand(
+                            "DELETE FROM ZamowieniaMiesoPozycje WHERE ZamowienieId = @Id", cn);
+                        cmdPoz.Parameters.AddWithValue("@Id", z.Id);
+                        await cmdPoz.ExecuteNonQueryAsync();
+
+                        // Potem usuń zamówienie
+                        await using var cmd = new SqlCommand(
+                            "DELETE FROM dbo.ZamowieniaMieso WHERE Id = @Id", cn);
+                        cmd.Parameters.AddWithValue("@Id", z.Id);
+                        await cmd.ExecuteNonQueryAsync();
+
+                        // Logowanie historii zmian
+                        await HistoriaZmianService.LogujUsuniecie(z.Id, App.UserID, App.UserFullName,
+                            $"Usunięto zamówienie dla odbiorcy: {z.Odbiorca}, ilość: {z.SumaKg:N0} kg");
+
+                        MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        _viewModel.OdswiezCommand.Execute(null);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Wystąpił błąd podczas usuwania zamówienia: {ex.Message}",
+                            "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
             }
         }

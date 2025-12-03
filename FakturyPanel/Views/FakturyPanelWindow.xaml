@@ -298,7 +298,28 @@
                                   ItemsSource="{Binding Zamowienia}"
                                   SelectedItem="{Binding WybraneZamowienie, Mode=TwoWay}"
                                   ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                  SelectionChanged="DgOrders_SelectionChanged">
+                                  SelectionChanged="DgOrders_SelectionChanged"
+                                  MouseDoubleClick="DgOrders_MouseDoubleClick"
+                                  MouseRightButtonUp="DgOrders_MouseRightButtonUp">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu x:Name="contextMenuOrders">
+                                    <MenuItem x:Name="menuDuplikuj" Header="🔄 Duplikuj zamówienie" Click="MenuDuplikuj_Click"/>
+                                    <MenuItem x:Name="menuCykliczne" Header="📅 Zamówienia cykliczne" Click="MenuCykliczne_Click"/>
+                                    <MenuItem x:Name="menuModyfikuj" Header="✏️ Modyfikuj zamówienie" Click="MenuModyfikuj_Click"/>
+                                    <MenuItem x:Name="menuNotatka" Header="📝 Dodaj/Edytuj notatkę" Click="MenuNotatka_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuSzczegolyZamowienia" Header="📊 Szczegóły zamówienia" Click="MenuSzczegolyZamowienia_Click"/>
+                                    <MenuItem x:Name="menuSzczegolyPlatnosci" Header="💳 Płatności kontrahenta" Click="MenuSzczegolyPlatnosci_Click"/>
+                                    <MenuItem x:Name="menuHistoriaZamowien" Header="📋 Historia zamówień klienta" Click="MenuHistoriaZamowien_Click"/>
+                                    <MenuItem x:Name="menuTransportInfo" Header="🚚 Informacje o transporcie" Click="MenuTransportInfo_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuOdswiez" Header="🔄 Odśwież dane" Click="MenuOdswiez_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuAnuluj" Header="❌ Anuluj zamówienie" Click="MenuAnuluj_Click"/>
+                                    <MenuItem x:Name="menuPrzywroc" Header="✅ Przywróć zamówienie" Click="MenuPrzywroc_Click" Visibility="Collapsed"/>
+                                    <MenuItem x:Name="menuUsun" Header="🗑️ USUŃ TRWALE zamówienie" Click="MenuUsun_Click" Visibility="Collapsed"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
                                 <DataGridTextColumn Header="Odbiorca" Binding="{Binding Odbiorca}" Width="*" MinWidth="150"/>
