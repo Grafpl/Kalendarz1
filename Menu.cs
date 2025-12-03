@@ -1,4 +1,5 @@
 ﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.FakturyPanel.Views;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
@@ -153,7 +154,8 @@ namespace Kalendarz1
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
                 [35] = "AdminPermissions",
-                [36] = "AnalizaPrzychodu"
+                [36] = "AnalizaPrzychodu",
+                [37] = "PanelFakturzystek"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -198,7 +200,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu"
+                "AdminPermissions", "AnalizaPrzychodu", "PanelFakturzystek"
             };
         }
 
@@ -414,7 +416,12 @@ namespace Kalendarz1
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
                         Color.FromArgb(21, 101, 192), // #1565C0
-                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
+                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️"),
+
+                    new MenuItemConfig("PanelFakturzystek", "Panel Fakturzystek",
+                        "Przegląd zamówień handlowców dla fakturzystek z danymi kontaktowymi i historią zmian",
+                        Color.FromArgb(13, 71, 161), // #0D47A1
+                        () => new FakturyPanelWindow(), "📋")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
