@@ -362,8 +362,8 @@
             <!-- Prawa strona - szczegóły, produkty i historia -->
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" MaxHeight="450"/>
-                    <RowDefinition Height="Auto" MaxHeight="200"/>
+                    <RowDefinition Height="Auto" MaxHeight="380"/>
+                    <RowDefinition Height="Auto" MaxHeight="350"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -636,35 +636,136 @@
                     </Grid>
                 </Border>
 
-                <!-- Pozycje zamówienia (produkty) -->
+                <!-- Pozycje zamówienia (produkty) - ROZBUDOWANA SEKCJA -->
                 <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,10"
                         Visibility="{Binding MaWybraneZamowienie, Converter={StaticResource BoolToVisibility}}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="📦" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="Produkty" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
-                            <TextBlock Text="{Binding PozycjeZamowienia.Count, StringFormat=' ({0})'}" FontSize="12" Foreground="#7F8C8D" VerticalAlignment="Center"/>
+                            <TextBlock Text="Produkty zamówienia" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                            <TextBlock Text="{Binding PozycjeZamowienia.Count, StringFormat=' ({0} pozycji)'}" FontSize="12" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <DataGrid Grid.Row="1"
                                   ItemsSource="{Binding PozycjeZamowienia}"
                                   Style="{StaticResource ModernDataGridStyle}"
                                   ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                  RowHeight="32"
-                                  MaxHeight="140">
+                                  RowHeight="36"
+                                  MaxHeight="200">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Kod" Binding="{Binding KodProduktu}" Width="70"/>
-                                <DataGridTextColumn Header="Nazwa" Binding="{Binding NazwaProduktu}" Width="*" MinWidth="100"/>
-                                <DataGridTextColumn Header="Ilość kg" Binding="{Binding IloscKg, StringFormat=N0}" Width="60"/>
-                                <DataGridTextColumn Header="Poj." Binding="{Binding IloscPojemnikow, StringFormat=N0}" Width="40"/>
-                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaTekst}" Width="70"/>
+                                <DataGridTextColumn Header="Kod" Binding="{Binding KodProduktu}" Width="80"/>
+                                <DataGridTextColumn Header="Nazwa produktu" Binding="{Binding NazwaProduktu}" Width="*" MinWidth="120"/>
+                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding IloscKg, StringFormat=N0}" Width="70"/>
+                                <DataGridTextColumn Header="Poj." Binding="{Binding IloscPojemnikow, StringFormat=N0}" Width="45"/>
+                                <DataGridTextColumn Header="Pal." Binding="{Binding IloscPalet, StringFormat=N1}" Width="45"/>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding CenaTekst}" Width="75"/>
+                                <DataGridTemplateColumn Header="Oznaczenia" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="#E8F5E9" CornerRadius="3" Padding="4,2" Margin="0,0,3,0"
+                                                        Visibility="{Binding E2, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="E2" FontSize="10" FontWeight="Bold" Foreground="#2E7D32"/>
+                                                </Border>
+                                                <Border Background="#E3F2FD" CornerRadius="3" Padding="4,2" Margin="0,0,3,0"
+                                                        Visibility="{Binding Folia, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="Folia" FontSize="10" FontWeight="Bold" Foreground="#1565C0"/>
+                                                </Border>
+                                                <Border Background="#FFF3E0" CornerRadius="3" Padding="4,2"
+                                                        Visibility="{Binding Hallal, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="Hallal" FontSize="10" FontWeight="Bold" Foreground="#E65100"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Typ" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="3" Padding="5,2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#E8F5E9"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Katalog}" Value="67153">
+                                                                <Setter Property="Background" Value="#E3F2FD"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding TypProduktu}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Katalog}" Value="67153">
+                                                                    <Setter Property="Foreground" Value="#1565C0"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Katalog}" Value="67153">
+                                            <Setter Property="Background" Value="#F3F8FF"/>
+                                        </DataTrigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
                         </DataGrid>
+
+                        <!-- Podsumowanie produktów -->
+                        <Border Grid.Row="2" Background="#F5F7FA" CornerRadius="5" Padding="10,8" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="SUMA KG" FontSize="9" FontWeight="Bold" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WybraneZamowienie.SumaKg, StringFormat='{}{0:N0} kg'}"
+                                               FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <TextBlock Text="POJEMNIKI" FontSize="9" FontWeight="Bold" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WybraneZamowienie.SumaPojemnikow, StringFormat='{}{0:N0}'}"
+                                               FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="PALETY" FontSize="9" FontWeight="Bold" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WybraneZamowienie.SumaPalet, StringFormat='{}{0:N1}'}"
+                                               FontSize="13" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                    <TextBlock Text="WARTOŚĆ" FontSize="9" FontWeight="Bold" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WybraneZamowienie.WartoscTekst}"
+                                               FontSize="13" FontWeight="Bold" Foreground="#5C8A3A" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
 
