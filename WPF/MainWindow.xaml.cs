@@ -17,7 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Kalendarz1.FakturyPanel.Services;
+using Kalendarz1.Services;
 
 
 namespace Kalendarz1.WPF

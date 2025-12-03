@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Transport;
 using Kalendarz1.Transport.Pakowanie;
-using Kalendarz1.FakturyPanel.Services;
+using Kalendarz1.Services;
 
 namespace Kalendarz1.Transport.Repozytorium
 {

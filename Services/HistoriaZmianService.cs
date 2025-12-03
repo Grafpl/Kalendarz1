@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 
-namespace Kalendarz1.FakturyPanel.Services
+namespace Kalendarz1.Services
 {
     /// <summary>
     /// Statyczny serwis do logowania historii zmian zamówień

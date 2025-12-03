@@ -1,5 +1,5 @@
 ﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
-using Kalendarz1.FakturyPanel.Views;
+using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
@@ -154,8 +154,7 @@ namespace Kalendarz1
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
                 [35] = "AdminPermissions",
-                [36] = "AnalizaPrzychodu",
-                [37] = "PanelFakturzystek"
+                [36] = "AnalizaPrzychodu"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -192,7 +191,7 @@ namespace Kalendarz1
             {
                 "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
                 "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
+                "CRM", "ZamowieniaOdbiorcow", "DashboardHandlowca", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
                 "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
@@ -200,7 +199,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu", "PanelFakturzystek"
+                "AdminPermissions", "AnalizaPrzychodu"
             };
         }
 
@@ -374,6 +373,11 @@ namespace Kalendarz1
                             return window;
                         }, "🛒"),
 
+                    new MenuItemConfig("DashboardHandlowca", "Dashboard Handlowca",
+                        "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
+                        Color.FromArgb(56, 142, 60), // #388E3C
+                        () => new HandlowiecDashboardWindow(), "📊"),
+
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",
                         Color.FromArgb(33, 150, 243), // #2196F3
@@ -416,12 +420,7 @@ namespace Kalendarz1
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
                         Color.FromArgb(21, 101, 192), // #1565C0
-                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️"),
-
-                    new MenuItemConfig("PanelFakturzystek", "Panel Fakturzystek",
-                        "Przegląd zamówień handlowców dla fakturzystek z danymi kontaktowymi i historią zmian",
-                        Color.FromArgb(13, 71, 161), // #0D47A1
-                        () => new FakturyPanelWindow(), "📋")
+                        () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════

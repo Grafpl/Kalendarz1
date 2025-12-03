@@ -7,7 +7,7 @@
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
-using Kalendarz1.FakturyPanel.Services;
+using Kalendarz1.Services;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
