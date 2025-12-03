@@ -17,6 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Kalendarz1.FakturyPanel.Services;
 
 
 namespace Kalendarz1.WPF
@@ -862,6 +863,9 @@ namespace Kalendarz1.WPF
             {
                 try
                 {
+                    // Logowanie historii zmian PRZED usunięciem
+                    await HistoriaZmianService.LogujUsuniecie(_currentOrderId.Value, UserID, App.UserFullName);
+
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
 
@@ -1228,6 +1232,10 @@ namespace Kalendarz1.WPF
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
 
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujAnulowanie(id, UserID, App.UserFullName,
+                        $"Anulowano zamówienie dla odbiorcy: {odbiorca}, ilość: {ilosc:N0} kg");
+
                     MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     await RefreshAllDataAsync();
@@ -1274,6 +1282,9 @@ namespace Kalendarz1.WPF
                         "UPDATE dbo.ZamowieniaMieso SET Status = 'Nowe' WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
+
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujPrzywrocenie(id, UserID, App.UserFullName);
 
                     MessageBox.Show("Zamówienie zostało przywrócone.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);

@@ -1,0 +1,527 @@
+<Window x:Class="Kalendarz1.FakturyPanel.Views.FakturyPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Panel Fakturzystek - Zamówienia Handlowców"
+        Height="800" Width="1400"
+        MinHeight="600" MinWidth="1000"
+        WindowState="Maximized"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <!-- Kolory -->
+            <SolidColorBrush x:Key="PrimaryGreen" Color="#5C8A3A"/>
+            <SolidColorBrush x:Key="PrimaryGreenHover" Color="#4B732F"/>
+            <SolidColorBrush x:Key="PrimaryBlue" Color="#3498DB"/>
+            <SolidColorBrush x:Key="PrimaryOrange" Color="#E67E22"/>
+            <SolidColorBrush x:Key="TextDark" Color="#2C3E50"/>
+            <SolidColorBrush x:Key="TextLight" Color="#7F8C8D"/>
+            <SolidColorBrush x:Key="BackgroundLight" Color="#F5F7FA"/>
+            <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+            <SolidColorBrush x:Key="CardBackground" Color="White"/>
+
+            <!-- Efekty -->
+            <DropShadowEffect x:Key="CardShadow" ShadowDepth="0" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+
+            <!-- Konwertery -->
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+            <!-- Style przycisków nawigacji -->
+            <Style x:Key="NavButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="Foreground" Value="#2C3E50"/>
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Width" Value="40"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="5">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#F0F0F0"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Style przycisku akcji -->
+            <Style x:Key="ActionButtonStyle" TargetType="Button">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Height" Value="38"/>
+                <Setter Property="Padding" Value="15,0"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="5"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Opacity" Value="0.9"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Opacity" Value="0.8"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Styl panelu karty -->
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="15"/>
+                <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+            </Style>
+
+            <!-- Styl nagłówka sekcji -->
+            <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#2C3E50"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+            </Style>
+
+            <!-- Styl DataGrid -->
+            <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#F0F0F0"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="RowHeight" Value="40"/>
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="CanUserDeleteRows" Value="False"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="AlternatingRowBackground" Value="#FAFBFC"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="IsReadOnly" Value="True"/>
+            </Style>
+
+            <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#2C3E50"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="Height" Value="38"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                <Setter Property="BorderBrush" Value="#3D5A80"/>
+            </Style>
+
+            <!-- Styl TextBox filtra -->
+            <Style x:Key="FilterTextBoxStyle" TargetType="TextBox">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <!-- Styl ComboBox filtra -->
+            <Style x:Key="FilterComboBoxStyle" TargetType="ComboBox">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="70"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
+            </Border.Effect>
+            <Grid Margin="15,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo i tytuł -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="📋" FontSize="28" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Panel Fakturzystek" FontSize="18" FontWeight="Bold" Foreground="#2C3E50"/>
+                        <TextBlock Text="Zamówienia handlowców" FontSize="11" Foreground="#7F8C8D"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Nawigacja tygodnia -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="30,0,0,0">
+                    <Button x:Name="btnPreviousWeek" Style="{StaticResource NavButtonStyle}"
+                            Content="◀" Click="BtnPreviousWeek_Click"/>
+
+                    <Border Background="#F5F7FA" CornerRadius="5" Padding="15,8" Margin="5,0">
+                        <TextBlock x:Name="lblDateRange" Text="{Binding ZakresDatTekst}"
+                                   FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+
+                    <Button x:Name="btnNextWeek" Style="{StaticResource NavButtonStyle}"
+                            Content="▶" Click="BtnNextWeek_Click"/>
+
+                    <Button x:Name="btnToday" Style="{StaticResource NavButtonStyle}"
+                            Content="📅" ToolTip="Dzisiejszy tydzień" Margin="10,0,0,0"
+                            Click="BtnToday_Click" Width="50"/>
+                </StackPanel>
+
+                <!-- Przyciski akcji -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
+                            Background="#3498DB" Content="🔄 Odśwież" Width="100"
+                            Click="BtnRefresh_Click"/>
+
+                    <Button x:Name="btnExport" Style="{StaticResource ActionButtonStyle}"
+                            Background="#27AE60" Content="📤 Eksportuj" Width="110"
+                            Margin="5,0,0,0" Click="BtnExport_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Główna zawartość -->
+        <Grid Grid.Row="1" Margin="15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="65*"/>
+                <ColumnDefinition Width="35*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Lewa strona - lista zamówień -->
+            <Grid Grid.Column="0" Margin="0,0,10,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Filtry -->
+                <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="txtSearch" Grid.Column="0"
+                                 Style="{StaticResource FilterTextBoxStyle}"
+                                 Tag="Szukaj odbiorcy lub w notatce..."
+                                 Margin="0,0,10,0"
+                                 TextChanged="TxtSearch_TextChanged"/>
+
+                        <ComboBox x:Name="cbHandlowiec" Grid.Column="1"
+                                  Style="{StaticResource FilterComboBoxStyle}"
+                                  ItemsSource="{Binding Handlowcy}"
+                                  SelectedItem="{Binding WybranyHandlowiec}"
+                                  Margin="0,0,10,0"
+                                  SelectionChanged="CbHandlowiec_SelectionChanged"/>
+
+                        <CheckBox x:Name="chkShowCanceled" Grid.Column="2"
+                                  Content="Pokaż anulowane"
+                                  IsChecked="{Binding PokazAnulowane}"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,15,0"
+                                  Checked="ChkShowCanceled_Changed"
+                                  Unchecked="ChkShowCanceled_Changed"/>
+
+                        <Button x:Name="btnClearFilters" Grid.Column="3"
+                                Content="✖ Wyczyść" Height="32" Padding="10,0"
+                                Background="#95A5A6" Foreground="White"
+                                BorderThickness="0" Cursor="Hand"
+                                Click="BtnClearFilters_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- Lista zamówień -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Lista zamówień" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <DataGrid x:Name="dgOrders" Grid.Row="1"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  ItemsSource="{Binding Zamowienia}"
+                                  SelectedItem="{Binding WybraneZamowienie, Mode=TwoWay}"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  SelectionChanged="DgOrders_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
+                                <DataGridTextColumn Header="Odbiorca" Binding="{Binding Odbiorca}" Width="*" MinWidth="150"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
+                                <DataGridTextColumn Header="Data odbioru" Binding="{Binding DataOdbioruTekst}" Width="140"/>
+                                <DataGridTextColumn Header="Godzina" Binding="{Binding GodzinaOdbioru}" Width="70"/>
+                                <DataGridTextColumn Header="Transport" Binding="{Binding TransportTekst}" Width="110"/>
+                                <DataGridTextColumn Header="Podsumowanie" Binding="{Binding PodsumowanieTekst}" Width="150"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusWyswietlany}" Width="90"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding JestAnulowane}" Value="True">
+                                            <Setter Property="Background" Value="#FFF0F0"/>
+                                            <Setter Property="Foreground" Value="#999"/>
+                                        </DataTrigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#F5F5F5"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+
+                        <!-- Status bar -->
+                        <Border Grid.Row="2" Background="#F5F7FA" Padding="10,8" Margin="0,10,0,0" CornerRadius="5">
+                            <TextBlock x:Name="lblStatus" Text="{Binding StatusMessage}"
+                                       FontSize="12" Foreground="#7F8C8D"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Prawa strona - szczegóły i historia -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="45*"/>
+                    <RowDefinition Height="55*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Szczegóły zamówienia -->
+                <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="📝" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Szczegóły zamówienia" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="pnlDetails"
+                                        Visibility="{Binding MaWybraneZamowienie, Converter={StaticResource BoolToVisibility}}">
+
+                                <!-- Odbiorca -->
+                                <Border Background="#E8F5E9" CornerRadius="5" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="ODBIORCA" FontSize="10" FontWeight="Bold" Foreground="#5C8A3A" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding WybraneZamowienie.Odbiorca}"
+                                                   FontSize="15" FontWeight="SemiBold" Foreground="#2C3E50" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Daty i transport -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,5,0">
+                                        <StackPanel>
+                                            <TextBlock Text="DATA PRODUKCJI" FontSize="9" FontWeight="Bold" Foreground="#1976D2"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.DataProdukcjiTekst}"
+                                                       FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="5,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="DATA ODBIORU" FontSize="9" FontWeight="Bold" Foreground="#E65100"/>
+                                            <TextBlock Text="{Binding WybraneZamowienie.DataOdbioruTekst}"
+                                                       FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Transport -->
+                                <Border Background="#F3E5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="TRANSPORT" FontSize="9" FontWeight="Bold" Foreground="#7B1FA2"/>
+                                        <TextBlock Text="{Binding WybraneZamowienie.TransportTekst}"
+                                                   FontSize="12" Foreground="#2C3E50" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Notatka -->
+                                <Border Background="#FFFDE7" CornerRadius="5" Padding="12" Margin="0,0,0,10"
+                                        BorderBrush="#FFE082" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="📌 NOTATKA" FontSize="10" FontWeight="Bold" Foreground="#F57C00" Margin="0,0,0,8"/>
+                                        <TextBox x:Name="txtNotatka"
+                                                 Text="{Binding WybraneZamowienie.Notatka, Mode=TwoWay}"
+                                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                                 MinHeight="80" MaxHeight="150"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 FontSize="13" Foreground="#2C3E50"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 IsReadOnly="True"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Info o utworzeniu/modyfikacji -->
+                                <Border Background="#ECEFF1" CornerRadius="5" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock FontSize="11" Foreground="#607D8B">
+                                            <Run Text="Utworzono: "/>
+                                            <Run Text="{Binding WybraneZamowienie.DataUtworzenia, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontWeight="SemiBold"/>
+                                            <Run Text=" przez "/>
+                                            <Run Text="{Binding WybraneZamowienie.UtworzonyPrzez}" FontWeight="SemiBold"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="11" Foreground="#607D8B" Margin="0,3,0,0"
+                                                   Visibility="{Binding WybraneZamowienie.DataModyfikacji, Converter={StaticResource BoolToVisibility}}">
+                                            <Run Text="Ostatnia modyfikacja: "/>
+                                            <Run Text="{Binding WybraneZamowienie.DataModyfikacji, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontWeight="SemiBold"/>
+                                            <Run Text=" przez "/>
+                                            <Run Text="{Binding WybraneZamowienie.ZmodyfikowanePrzez}" FontWeight="SemiBold"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Komunikat gdy brak wyboru -->
+                        <TextBlock Grid.Row="1" Text="Wybierz zamówienie z listy, aby zobaczyć szczegóły"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#95A5A6" FontSize="13"
+                                   Visibility="{Binding MaWybraneZamowienie, Converter={StaticResource BoolToVisibility}, ConverterParameter=Inverse}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Historia zmian -->
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="📜" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Historia zmian" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                        </StackPanel>
+
+                        <DataGrid x:Name="dgHistory" Grid.Row="1"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  ItemsSource="{Binding HistoriaZmian}"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  RowHeight="50">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Typ" Width="50">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding TypZmianyIkona}"
+                                                       FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataZmianyTekst}" Width="130"/>
+                                <DataGridTextColumn Header="Użytkownik" Binding="{Binding UzytkownikNazwa}" Width="120"/>
+                                <DataGridTemplateColumn Header="Opis zmiany" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ZmianaTekst}"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center"
+                                                       Padding="5"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TypZmiany}" Value="UTWORZENIE">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding TypZmiany}" Value="EDYCJA">
+                                            <Setter Property="Background" Value="#FFF8E1"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding TypZmiany}" Value="ANULOWANIE">
+                                            <Setter Property="Background" Value="#FFEBEE"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+
+                        <!-- Komunikat gdy brak historii -->
+                        <TextBlock Grid.Row="1" Text="Brak historii zmian dla tego zamówienia"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#95A5A6" FontSize="13">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HistoriaZmian.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Loading overlay -->
+        <Border Grid.RowSpan="2" Background="#80FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                <TextBlock Text="Ładowanie..." FontSize="14" Foreground="#2C3E50" Margin="0,15,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

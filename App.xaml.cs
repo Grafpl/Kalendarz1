@@ -5,6 +5,7 @@ namespace Kalendarz1
     public partial class App : Application
     {
         public static string UserID { get; set; }
+        public static string UserFullName { get; set; }
 
         protected override void OnStartup(StartupEventArgs e)
         {

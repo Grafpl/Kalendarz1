@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Kalendarz1.FakturyPanel.Services;
 
 namespace Kalendarz1
 {
@@ -1482,6 +1483,37 @@ namespace Kalendarz1
             }
 
             await tr.CommitAsync();
+
+            // === LOGOWANIE HISTORII ZMIAN ===
+            try
+            {
+                var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
+                string odbiorcaNazwaLog = odbiorca?.Nazwa ?? "Nieznany odbiorca";
+
+                if (_idZamowieniaDoEdycji.HasValue)
+                {
+                    // Edycja istniejącego zamówienia
+                    await HistoriaZmianService.LogujEdycje(
+                        orderId, UserID, App.UserFullName,
+                        opisDodatkowy: $"Zaktualizowano zamówienie dla: {odbiorcaNazwaLog}, " +
+                                       $"data produkcji: {dataProdukcji:yyyy-MM-dd}, " +
+                                       $"pojemniki: {sumaPojemnikow:N0}, palety: {sumaPalet:N1}");
+                }
+                else
+                {
+                    // Nowe zamówienie
+                    await HistoriaZmianService.LogujUtworzenie(
+                        orderId, UserID, App.UserFullName,
+                        $"Utworzono zamówienie dla: {odbiorcaNazwaLog}, " +
+                        $"data produkcji: {dataProdukcji:yyyy-MM-dd}, " +
+                        $"pojemniki: {sumaPojemnikow:N0}, palety: {sumaPalet:N1}");
+                }
+            }
+            catch (Exception exLog)
+            {
+                // Logowanie nie powinno przerywać zapisu zamówienia
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania historii: {exLog.Message}");
+            }
 
             // === ZAPIS REZERWACJI KLAS WAGOWYCH ===
             // Po zapisie zamówienia zapisujemy rezerwacje do osobnej tabeli
