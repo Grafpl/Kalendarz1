@@ -1177,20 +1177,11 @@ namespace Kalendarz1
                     zamowienieTowary.Add((kodTowaru, ilosc, pojemniki, palety, e2, folia, hallal, cena));
 
                     // Zapisz oryginalne wartości produktu do śledzenia zmian
-                    // Nazwa towaru zostanie pobrana z _dt DataTable poniżej
                     if (_oryginalneWartosci != null && ilosc > 0)
                     {
-                        // Pobierz nazwę towaru z już załadowanej tabeli _dt
-                        string nazwaTowaru = "Nieznany";
-                        var towarRows = _dt.Select($"Id = {kodTowaru}");
-                        if (towarRows.Any())
-                        {
-                            nazwaTowaru = towarRows[0].Field<string>("Nazwa") ?? "Nieznany";
-                        }
-
                         _oryginalneWartosci.Towary[kodTowaru] = new OryginalnyTowar
                         {
-                            Nazwa = nazwaTowaru,
+                            Nazwa = $"Towar #{kodTowaru}",
                             Ilosc = ilosc,
                             Cena = cena,
                             E2 = e2,
