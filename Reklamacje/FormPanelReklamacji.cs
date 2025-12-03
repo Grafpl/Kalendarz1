@@ -20,6 +20,7 @@ namespace Kalendarz1
         private Button btnSzczegoly;
         private Button btnZmienStatus;
         private Button btnStatystyki;
+        private Button btnUsun;
         private Label lblLicznik;
         private TextBox txtSzukaj;
 
@@ -187,6 +188,22 @@ namespace Kalendarz1
             btnStatystyki.Click += BtnStatystyki_Click;
             panelFiltry.Controls.Add(btnStatystyki);
 
+            // Przycisk eksportu zestawienia PDF
+            Button btnExportZestawienie = new Button
+            {
+                Text = "📄 Eksport PDF",
+                Location = new Point(1070, 35),
+                Size = new Size(120, 30),
+                BackColor = ColorTranslator.FromHtml("#e74c3c"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnExportZestawienie.FlatAppearance.BorderSize = 0;
+            btnExportZestawienie.Click += BtnExportZestawienie_Click;
+            panelFiltry.Controls.Add(btnExportZestawienie);
+
             this.Controls.Add(panelFiltry);
 
             // Panel główny z DataGridView
@@ -271,11 +288,30 @@ namespace Kalendarz1
             btnZmienStatus.Click += BtnZmienStatus_Click;
             panelFooter.Controls.Add(btnZmienStatus);
 
+            // Przycisk usuwania - tylko dla admina (11111)
+            btnUsun = new Button
+            {
+                Text = "🗑 Usuń reklamację",
+                Size = new Size(180, 40),
+                Location = new Point(420, 15),
+                BackColor = ColorTranslator.FromHtml("#c0392b"),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Enabled = false,
+                Visible = (userId == "11111") // Tylko admin widzi ten przycisk
+            };
+            btnUsun.FlatAppearance.BorderSize = 0;
+            btnUsun.Click += BtnUsun_Click;
+            panelFooter.Controls.Add(btnUsun);
+
             dgvReklamacje.SelectionChanged += (s, e) =>
             {
                 bool selected = dgvReklamacje.SelectedRows.Count > 0;
                 btnSzczegoly.Enabled = selected;
                 btnZmienStatus.Enabled = selected;
+                btnUsun.Enabled = selected;
             };
 
             this.Controls.Add(panelFooter);
@@ -595,6 +631,129 @@ namespace Kalendarz1
             }
         }
 
+        private void BtnUsun_Click(object sender, EventArgs e)
+        {
+            if (dgvReklamacje.SelectedRows.Count == 0) return;
+
+            // Sprawdź czy użytkownik to admin
+            if (userId != "11111")
+            {
+                MessageBox.Show("Tylko administrator może usuwać reklamacje.",
+                    "Brak uprawnień", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int idReklamacji = Convert.ToInt32(dgvReklamacje.SelectedRows[0].Cells["Id"].Value);
+            string numerDokumentu = dgvReklamacje.SelectedRows[0].Cells["NumerDokumentu"].Value?.ToString() ?? "";
+            string kontrahent = dgvReklamacje.SelectedRows[0].Cells["NazwaKontrahenta"].Value?.ToString() ?? "";
+
+            // Potwierdzenie usunięcia
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz TRWALE usunąć reklamację?\n\n" +
+                $"ID: {idReklamacji}\n" +
+                $"Nr dokumentu: {numerDokumentu}\n" +
+                $"Kontrahent: {kontrahent}\n\n" +
+                $"⚠ UWAGA: Operacja jest nieodwracalna!\n" +
+                $"Zostaną usunięte wszystkie powiązane dane:\n" +
+                $"- towary reklamacji\n" +
+                $"- partie\n" +
+                $"- zdjęcia\n" +
+                $"- historia zmian",
+                "Potwierdzenie usunięcia",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (result != DialogResult.Yes) return;
+
+            // Drugie potwierdzenie dla pewności
+            var result2 = MessageBox.Show(
+                "Czy NA PEWNO chcesz usunąć tę reklamację?\n\nTo jest ostateczne potwierdzenie.",
+                "Ostateczne potwierdzenie",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Stop,
+                MessageBoxDefaultButton.Button2);
+
+            if (result2 != DialogResult.Yes) return;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Usuń zdjęcia reklamacji
+                            using (SqlCommand cmd = new SqlCommand(
+                                "DELETE FROM [dbo].[ReklamacjeZdjecia] WHERE ReklamacjaId = @Id", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Usuń partie reklamacji
+                            using (SqlCommand cmd = new SqlCommand(
+                                "DELETE FROM [dbo].[ReklamacjePartie] WHERE ReklamacjaId = @Id", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Usuń towary reklamacji
+                            using (SqlCommand cmd = new SqlCommand(
+                                "DELETE FROM [dbo].[ReklamacjeTowary] WHERE ReklamacjaId = @Id", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Usuń historię zmian
+                            using (SqlCommand cmd = new SqlCommand(
+                                "DELETE FROM [dbo].[ReklamacjeHistoria] WHERE ReklamacjaId = @Id", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Na końcu usuń główną reklamację
+                            using (SqlCommand cmd = new SqlCommand(
+                                "DELETE FROM [dbo].[Reklamacje] WHERE Id = @Id", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", idReklamacji);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            transaction.Commit();
+
+                            MessageBox.Show(
+                                $"Reklamacja #{idReklamacji} została trwale usunięta.",
+                                "Sukces",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+
+                            WczytajReklamacje();
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            throw new Exception($"Błąd podczas usuwania: {ex.Message}", ex);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Błąd podczas usuwania reklamacji:\n{ex.Message}",
+                    "Błąd",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         private void BtnStatystyki_Click(object sender, EventArgs e)
         {
             try
@@ -644,6 +803,33 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas pobierania statystyk:\n{ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnExportZestawienie_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string status = cmbFiltrStatus.SelectedIndex > 0 ? cmbFiltrStatus.SelectedItem.ToString() : null;
+
+                var generator = new ReklamacjePDFGenerator(connectionString);
+                var sciezka = generator.GenerujZestawienie(dtpOd.Value, dtpDo.Value, status);
+
+                var result = MessageBox.Show(
+                    $"Zestawienie reklamacji zostało wygenerowane:\n{sciezka}\n\nCzy otworzyć raport w przeglądarce?",
+                    "Sukces",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+
+                if (result == DialogResult.Yes)
+                {
+                    generator.OtworzRaport(sciezka);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania zestawienia:\n{ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

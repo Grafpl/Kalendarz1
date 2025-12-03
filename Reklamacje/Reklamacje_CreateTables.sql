@@ -107,6 +107,7 @@ BEGIN
         [SciezkaPliku] NVARCHAR(500) NOT NULL,
         [DataDodania] DATETIME NOT NULL DEFAULT GETDATE(),
         [DodanePrzez] NVARCHAR(50) NULL,
+        [DaneZdjecia] VARBINARY(MAX) NULL,  -- Dane binarne zdjęcia (BLOB)
         CONSTRAINT [PK_ReklamacjeZdjecia] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [FK_ReklamacjeZdjecia_Reklamacje] FOREIGN KEY([IdReklamacji])
             REFERENCES [dbo].[Reklamacje] ([Id]) ON DELETE CASCADE
@@ -255,9 +256,9 @@ BEGIN
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania DESC;
 
-    -- 4. Zdjęcia
+    -- 4. Zdjęcia (z danymi binarnymi BLOB)
     SELECT
-        Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez
+        Id, NazwaPliku, SciezkaPliku, DataDodania, DodanePrzez, DaneZdjecia
     FROM [dbo].[ReklamacjeZdjecia]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania;

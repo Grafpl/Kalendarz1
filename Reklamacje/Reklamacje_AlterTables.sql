@@ -216,6 +216,12 @@ BEGIN
     PRINT 'Dodano kolumne IdReklamacji'
 END
 
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ReklamacjeZdjecia]') AND name = 'DaneZdjecia')
+BEGIN
+    ALTER TABLE [dbo].[ReklamacjeZdjecia] ADD [DaneZdjecia] VARBINARY(MAX) NULL
+    PRINT 'Dodano kolumne DaneZdjecia (BLOB)'
+END
+
 GO
 
 -- ============================================
@@ -306,13 +312,14 @@ BEGIN
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania DESC;
 
-    -- 4. Zdjęcia (z obsluga brakujacych kolumn)
+    -- 4. Zdjęcia (z obsluga brakujacych kolumn i BLOB)
     SELECT
         Id,
         ISNULL(NazwaPliku, '') AS NazwaPliku,
         ISNULL(SciezkaPliku, '') AS SciezkaPliku,
         DataDodania,
-        ISNULL(DodanePrzez, '') AS DodanePrzez
+        ISNULL(DodanePrzez, '') AS DodanePrzez,
+        DaneZdjecia
     FROM [dbo].[ReklamacjeZdjecia]
     WHERE IdReklamacji = @IdReklamacji
     ORDER BY DataDodania;

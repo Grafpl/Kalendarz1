@@ -448,9 +448,32 @@ namespace Kalendarz1.Reklamacje
                             var zaznaczonePartie = partie.Where(p => p.IsSelected).ToList();
                             if (zaznaczonePartie.Count > 0)
                             {
-                                string queryPartie = @"
+                                // Sprawdź jakie kolumny istnieją w tabeli
+                                bool maKolumnePartia = false;
+                                bool maKolumneNumerPartii = false;
+                                try
+                                {
+                                    using (var cmdCheck = new SqlCommand(
+                                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjePartie' AND COLUMN_NAME IN ('Partia', 'NumerPartii')", conn, transaction))
+                                    {
+                                        using (var reader = cmdCheck.ExecuteReader())
+                                        {
+                                            while (reader.Read())
+                                            {
+                                                string colName = reader.GetString(0);
+                                                if (colName == "Partia") maKolumnePartia = true;
+                                                if (colName == "NumerPartii") maKolumneNumerPartii = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { maKolumnePartia = true; } // Domyślnie użyj Partia
+
+                                string nazwaKolumnyPartii = maKolumnePartia ? "Partia" : (maKolumneNumerPartii ? "NumerPartii" : "Partia");
+
+                                string queryPartie = $@"
                                     INSERT INTO [dbo].[ReklamacjePartie]
-                                    (IdReklamacji, GuidPartii, Partia, CustomerID, CustomerName)
+                                    (IdReklamacji, GuidPartii, [{nazwaKolumnyPartii}], CustomerID, CustomerName)
                                     VALUES
                                     (@IdReklamacji, @GuidPartii, @Partia, @CustomerID, @CustomerName)";
 
@@ -478,17 +501,42 @@ namespace Kalendarz1.Reklamacje
 
                                 Directory.CreateDirectory(folderReklamacji);
 
-                                string queryZdjecia = @"
-                                    INSERT INTO [dbo].[ReklamacjeZdjecia]
-                                    (IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez)
-                                    VALUES
-                                    (@IdReklamacji, @NazwaPliku, @SciezkaPliku, @DodanePrzez)";
+                                // Sprawdź czy kolumna DaneZdjecia istnieje
+                                bool maKolumneDaneZdjecia = false;
+                                try
+                                {
+                                    using (var cmdCheck = new SqlCommand(
+                                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ReklamacjeZdjecia' AND COLUMN_NAME = 'DaneZdjecia'", conn, transaction))
+                                    {
+                                        maKolumneDaneZdjecia = Convert.ToInt32(cmdCheck.ExecuteScalar()) > 0;
+                                    }
+                                }
+                                catch { }
+
+                                string queryZdjecia;
+                                if (maKolumneDaneZdjecia)
+                                {
+                                    queryZdjecia = @"
+                                        INSERT INTO [dbo].[ReklamacjeZdjecia]
+                                        (IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez, DaneZdjecia)
+                                        VALUES
+                                        (@IdReklamacji, @NazwaPliku, @SciezkaPliku, @DodanePrzez, @DaneZdjecia)";
+                                }
+                                else
+                                {
+                                    queryZdjecia = @"
+                                        INSERT INTO [dbo].[ReklamacjeZdjecia]
+                                        (IdReklamacji, NazwaPliku, SciezkaPliku, DodanePrzez)
+                                        VALUES
+                                        (@IdReklamacji, @NazwaPliku, @SciezkaPliku, @DodanePrzez)";
+                                }
 
                                 foreach (string sciezkaZrodlowa in sciezkiZdjec)
                                 {
                                     string nazwaPliku = Path.GetFileName(sciezkaZrodlowa);
                                     string nowaSciezka = Path.Combine(folderReklamacji, nazwaPliku);
 
+                                    // Skopiuj plik lokalnie
                                     File.Copy(sciezkaZrodlowa, nowaSciezka, true);
 
                                     using (SqlCommand cmd = new SqlCommand(queryZdjecia, conn, transaction))
@@ -497,6 +545,14 @@ namespace Kalendarz1.Reklamacje
                                         cmd.Parameters.AddWithValue("@NazwaPliku", nazwaPliku);
                                         cmd.Parameters.AddWithValue("@SciezkaPliku", nowaSciezka);
                                         cmd.Parameters.AddWithValue("@DodanePrzez", userId);
+
+                                        // Dodaj BLOB tylko jeśli kolumna istnieje
+                                        if (maKolumneDaneZdjecia)
+                                        {
+                                            byte[] daneZdjecia = File.ReadAllBytes(sciezkaZrodlowa);
+                                            cmd.Parameters.Add("@DaneZdjecia", SqlDbType.VarBinary, -1).Value = daneZdjecia;
+                                        }
+
                                         cmd.ExecuteNonQuery();
                                     }
                                 }
