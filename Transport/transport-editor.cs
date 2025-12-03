@@ -7,6 +7,7 @@
 
 using Kalendarz1.Transport.Pakowanie;
 using Kalendarz1.Transport.Repozytorium;
+using Kalendarz1.FakturyPanel.Services;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -2564,27 +2565,50 @@ Adres: {zamowienie.Adres}";
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
+                // Pobierz informacje o kursie do logowania
+                string kursInfo = "";
+                if (_kurs != null)
+                {
+                    string kierowca = _kurs.KierowcaNazwisko ?? "Nieprzypisany";
+                    string pojazd = _kurs.PojazdNumerRejestracyjny ?? "Nieprzypisany";
+                    kursInfo = $"Kurs #{_kursId}: {kierowca}, {pojazd}";
+                }
+
                 foreach (var zamId in _zamowieniaDoUsuniecia)
                 {
-                    var sql = @"UPDATE dbo.ZamowieniaMieso 
-                               SET TransportStatus = 'Oczekuje', TransportKursId = NULL 
+                    var sql = @"UPDATE dbo.ZamowieniaMieso
+                               SET TransportStatus = 'Oczekuje', TransportKursId = NULL
                                WHERE Id = @ZamowienieId";
 
                     using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@ZamowienieId", zamId);
                     await cmd.ExecuteNonQueryAsync();
+
+                    // Loguj usunięcie z kursu
+                    await HistoriaZmianService.LogujEdycje(zamId, _uzytkownik, App.UserFullName,
+                        "Transport - usunięcie z kursu",
+                        kursInfo,
+                        "Oczekuje na przypisanie",
+                        $"Zamówienie usunięte z kursu transportowego");
                 }
 
                 foreach (var zam in _zamowieniaDoDodania)
                 {
-                    var sql = @"UPDATE dbo.ZamowieniaMieso 
-                               SET TransportStatus = 'Przypisany', TransportKursId = @KursId 
+                    var sql = @"UPDATE dbo.ZamowieniaMieso
+                               SET TransportStatus = 'Przypisany', TransportKursId = @KursId
                                WHERE Id = @ZamowienieId";
 
                     using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@ZamowienieId", zam.ZamowienieId);
                     cmd.Parameters.AddWithValue("@KursId", _kursId.Value);
                     await cmd.ExecuteNonQueryAsync();
+
+                    // Loguj przypisanie do kursu
+                    await HistoriaZmianService.LogujEdycje(zam.ZamowienieId, _uzytkownik, App.UserFullName,
+                        "Transport - przypisanie do kursu",
+                        "Oczekuje na przypisanie",
+                        kursInfo,
+                        $"Zamówienie przypisane do kursu transportowego");
                 }
 
                 _zamowieniaDoDodania.Clear();
