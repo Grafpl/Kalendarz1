@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Kalendarz1.FakturyPanel.ViewModels;
 using Kalendarz1.FakturyPanel.Models;
 using Kalendarz1.FakturyPanel.Services;
+using Kalendarz1.WPF;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.FakturyPanel.Views
@@ -415,7 +416,7 @@ namespace Kalendarz1.FakturyPanel.Views
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void MenuHistoriaZamowien_Click(object sender, RoutedEventArgs e)
+        private async void MenuHistoriaZamowien_Click(object sender, RoutedEventArgs e)
         {
             if (_viewModel.WybraneZamowienie == null) return;
 
@@ -424,10 +425,75 @@ namespace Kalendarz1.FakturyPanel.Views
                 var odbiorcaId = _viewModel.WybraneZamowienie.OdbiorcaId;
                 var odbiorca = _viewModel.WybraneZamowienie.Odbiorca;
 
-                // Otwórz okno historii zamówień
-                var historiaWindow = new Kalendarz1.HistoriaZamowienWindow(odbiorcaId);
-                historiaWindow.Title = $"Historia zamówień - {odbiorca}";
-                historiaWindow.Show();
+                if (odbiorcaId <= 0)
+                {
+                    MessageBox.Show("Brak informacji o kliencie.", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var historia = new System.Text.StringBuilder();
+                historia.AppendLine($"📋 HISTORIA ZAMÓWIEŃ - {odbiorca}");
+                historia.AppendLine(new string('━', 60));
+                historia.AppendLine();
+
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+
+                    string sql = @"
+                        SELECT TOP 20
+                            zm.Id,
+                            zm.DataOdbioru,
+                            zm.Status,
+                            zm.Anulowane,
+                            SUM(ISNULL(zmp.Ilosc, 0)) as IloscCalkowita
+                        FROM ZamowieniaMieso zm
+                        LEFT JOIN ZamowieniaMiesoPozycje zmp ON zm.Id = zmp.ZamowienieId
+                        WHERE zm.OdbiorcaId = @ClientId
+                            AND zm.DataOdbioru >= DATEADD(MONTH, -6, GETDATE())
+                        GROUP BY zm.Id, zm.DataOdbioru, zm.Status, zm.Anulowane
+                        ORDER BY zm.DataOdbioru DESC";
+
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ClientId", odbiorcaId);
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    decimal sumaKg = 0;
+                    int liczbaZamowien = 0;
+
+                    while (await reader.ReadAsync())
+                    {
+                        int id = reader.GetInt32(0);
+                        DateTime data = reader.GetDateTime(1);
+                        string statusZam = reader.IsDBNull(2) ? "Brak" : reader.GetString(2);
+                        bool anulowane = !reader.IsDBNull(3) && reader.GetBoolean(3);
+                        decimal ilosc = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
+
+                        string statusDisplay = anulowane ? "❌ Anulowane" : statusZam;
+                        historia.AppendLine($"#{id} | {data:dd.MM.yyyy} | {statusDisplay,-14} | {ilosc,7:N0} kg");
+
+                        if (!anulowane)
+                        {
+                            sumaKg += ilosc;
+                            liczbaZamowien++;
+                        }
+                    }
+
+                    historia.AppendLine();
+                    historia.AppendLine(new string('━', 60));
+                    historia.AppendLine($"Razem (ostatnie 6 m-cy): {liczbaZamowien} zamówień | {sumaKg:N0} kg");
+
+                    if (liczbaZamowien > 0)
+                    {
+                        decimal srednia = sumaKg / liczbaZamowien;
+                        historia.AppendLine($"Średnia na zamówienie: {srednia:N0} kg");
+                    }
+                }
+
+                MessageBox.Show(historia.ToString(), "Historia zamówień",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -621,8 +687,7 @@ namespace Kalendarz1.FakturyPanel.Views
                         await cmd.ExecuteNonQueryAsync();
 
                         // Logowanie historii zmian
-                        await HistoriaZmianService.LogujUsuniecie(z.Id, App.UserID, App.UserFullName,
-                            $"Usunięto zamówienie dla odbiorcy: {z.Odbiorca}, ilość: {z.SumaKg:N0} kg");
+                        await HistoriaZmianService.LogujUsuniecie(z.Id, App.UserID, App.UserFullName);
 
                         MessageBox.Show("Zamówienie zostało trwale usunięte.", "Sukces",
                             MessageBoxButton.OK, MessageBoxImage.Information);
