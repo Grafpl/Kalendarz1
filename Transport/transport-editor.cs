@@ -2569,8 +2569,8 @@ Adres: {zamowienie.Adres}";
                 string kursInfo = "";
                 if (_kurs != null)
                 {
-                    string kierowca = _kurs.KierowcaNazwisko ?? "Nieprzypisany";
-                    string pojazd = _kurs.PojazdNumerRejestracyjny ?? "Nieprzypisany";
+                    string kierowca = _kurs.KierowcaNazwa ?? "Nieprzypisany";
+                    string pojazd = _kurs.PojazdRejestracja ?? "Nieprzypisany";
                     kursInfo = $"Kurs #{_kursId}: {kierowca}, {pojazd}";
                 }
 

@@ -509,13 +509,13 @@ namespace Kalendarz1
             var contextMenu = new ContextMenuStrip();
 
             var menuModyfikuj = new ToolStripMenuItem("✏️ Modyfikuj zamówienie");
-            menuModyfikuj.Click += async (s, e) => await btnModyfikuj_Click(s, e);
+            menuModyfikuj.Click += (s, e) => btnModyfikuj_Click(s, e);
 
             var menuDuplikuj = new ToolStripMenuItem("🔄 Duplikuj zamówienie");
             menuDuplikuj.Click += (s, e) => btnDuplikuj.PerformClick();
 
             var menuNotatka = new ToolStripMenuItem("📝 Dodaj/Edytuj notatkę");
-            menuNotatka.Click += async (s, e) => await btnDodajNotatke_Click(s, e);
+            menuNotatka.Click += (s, e) => btnDodajNotatke_Click(s, e);
 
             var menuHistoriaZmian = new ToolStripMenuItem("📜 Historia zmian zamówienia");
             menuHistoriaZmian.Click += async (s, e) => await PokazHistorieZmianAsync();
@@ -524,7 +524,7 @@ namespace Kalendarz1
             menuAnuluj.Click += (s, e) => btnAnuluj.PerformClick();
 
             var menuOdswiez = new ToolStripMenuItem("🔄 Odśwież dane");
-            menuOdswiez.Click += async (s, e) => await btnOdswiez_Click(s, e);
+            menuOdswiez.Click += (s, e) => btnOdswiez_Click(s, e);
 
             contextMenu.Items.Add(menuModyfikuj);
             contextMenu.Items.Add(menuDuplikuj);
