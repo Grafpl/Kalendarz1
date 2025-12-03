@@ -1156,10 +1156,8 @@ namespace Kalendarz1
         SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Pojemniki, 0) as Pojemniki,
                ISNULL(zmt.Palety, 0) as Palety, ISNULL(zmt.E2, 0) as E2,
                ISNULL(zmt.Folia, 0) as Folia, ISNULL(zmt.Hallal, 0) as Hallal,
-               ISNULL(zmt.Cena, '0') as Cena,
-               ISNULL(t.Nazwa, 'Nieznany') as NazwaTowaru
+               ISNULL(zmt.Cena, '0') as Cena
         FROM [dbo].[ZamowieniaMiesoTowar] zmt
-        LEFT JOIN [dbo].[Towary] t ON zmt.KodTowaru = t.Id
         WHERE zmt.ZamowienieId=@Id", cn))
             {
                 cmdT.Parameters.AddWithValue("@Id", id);
@@ -1175,13 +1173,21 @@ namespace Kalendarz1
                     bool folia = rd.GetBoolean(5);
                     bool hallal = rd.GetBoolean(6);
                     string cena = rd.GetString(7);
-                    string nazwaTowaru = rd.GetString(8);
 
                     zamowienieTowary.Add((kodTowaru, ilosc, pojemniki, palety, e2, folia, hallal, cena));
 
                     // Zapisz oryginalne wartości produktu do śledzenia zmian
+                    // Nazwa towaru zostanie pobrana z _dt DataTable poniżej
                     if (_oryginalneWartosci != null && ilosc > 0)
                     {
+                        // Pobierz nazwę towaru z już załadowanej tabeli _dt
+                        string nazwaTowaru = "Nieznany";
+                        var towarRows = _dt.Select($"Id = {kodTowaru}");
+                        if (towarRows.Any())
+                        {
+                            nazwaTowaru = towarRows[0].Field<string>("Nazwa") ?? "Nieznany";
+                        }
+
                         _oryginalneWartosci.Towary[kodTowaru] = new OryginalnyTowar
                         {
                             Nazwa = nazwaTowaru,
