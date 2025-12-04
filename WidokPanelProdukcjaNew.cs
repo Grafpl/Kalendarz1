@@ -600,24 +600,45 @@ namespace Kalendarz1
             // 2. Pobierz informacje o kursach z TransportPL
             var transportConn = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
             var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, string Status, DateTime DataKursu)>();
+            var zamowienieToKurs = new Dictionary<int, long>(); // Mapowanie zamówienie -> kurs z tabeli Ladunek
 
             try
             {
                 using var cn = new SqlConnection(transportConn);
                 await cn.OpenAsync();
 
+                // Pobierz wszystkie kursy
                 var sql = "SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs";
-                var cmd = new SqlCommand(sql, cn);
-
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+                using (var cmd = new SqlCommand(sql, cn))
+                using (var rd = await cmd.ExecuteReaderAsync())
                 {
-                    var kursId = rd.GetInt64(0);
-                    var godzWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
-                    var status = rd.IsDBNull(2) ? "" : rd.GetString(2);
-                    var dataKursu = rd.GetDateTime(3);
+                    while (await rd.ReadAsync())
+                    {
+                        var kursId = rd.GetInt64(0);
+                        var godzWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
+                        var status = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                        var dataKursu = rd.GetDateTime(3);
 
-                    kursyInfo[kursId] = (godzWyjazdu, status, dataKursu);
+                        kursyInfo[kursId] = (godzWyjazdu, status, dataKursu);
+                    }
+                }
+
+                // Pobierz mapowanie zamówienie -> kurs z tabeli Ladunek (dla łączonych kursów)
+                var sqlLadunek = @"SELECT l.KursID, l.KodKlienta
+                                   FROM dbo.Ladunek l
+                                   WHERE l.KodKlienta LIKE 'ZAM_%'";
+                using (var cmd = new SqlCommand(sqlLadunek, cn))
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                    {
+                        var kursId = rd.GetInt64(0);
+                        var kodKlienta = rd.GetString(1);
+                        if (kodKlienta.StartsWith("ZAM_") && int.TryParse(kodKlienta.Substring(4), out int zamId))
+                        {
+                            zamowienieToKurs[zamId] = kursId;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -628,7 +649,22 @@ namespace Kalendarz1
             // 3. Przypisz informacje o kursach do zamówień
             foreach (var orderInfo in orderListForGrid.Where(o => !o.IsShipmentOnly))
             {
-                if (long.TryParse(orderInfo.StatusTransportu, out var kursId) && kursyInfo.TryGetValue(kursId, out var kursInfo))
+                long? kursId = null;
+
+                // Najpierw spróbuj użyć TransportKursID z ZamowieniaMieso
+                if (long.TryParse(orderInfo.StatusTransportu, out var parsedKursId))
+                {
+                    kursId = parsedKursId;
+                }
+
+                // Jeśli nie ma TransportKursID lub kurs nie istnieje, sprawdź tabelę Ladunek
+                if ((!kursId.HasValue || !kursyInfo.ContainsKey(kursId.Value)) && zamowienieToKurs.TryGetValue(orderInfo.Id, out var ladunekKursId))
+                {
+                    kursId = ladunekKursId;
+                }
+
+                // Przypisz dane kursu jeśli znaleziono
+                if (kursId.HasValue && kursyInfo.TryGetValue(kursId.Value, out var kursInfo))
                 {
                     orderInfo.CzasWyjazdu = kursInfo.CzasWyjazdu;
                     orderInfo.StatusTransportu = kursInfo.Status;

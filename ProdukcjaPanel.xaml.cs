@@ -380,16 +380,53 @@ namespace Kalendarz1
             {
                 using var cn = new SqlConnection(_connTransport);
                 await cn.OpenAsync();
-                var cmd = new SqlCommand("SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs", cn);
-                using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
+
+                // Pobierz wszystkie kursy do słownika
+                var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, DateTime DataKursu)>();
+                using (var cmd = new SqlCommand("SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs", cn))
+                using (var rd = await cmd.ExecuteReaderAsync())
                 {
-                    var kursId = rd.GetInt64(0);
-                    var order = _zamowienia.Values.FirstOrDefault(z => z.TransportKursId == kursId);
-                    if (order != null)
+                    while (await rd.ReadAsync())
                     {
-                        order.CzasWyjazdu = rd.IsDBNull(1) ? null : rd.GetTimeSpan(1);
-                        order.DataKursu = rd.GetDateTime(3);
+                        var kursId = rd.GetInt64(0);
+                        var godzWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
+                        var dataKursu = rd.GetDateTime(3);
+                        kursyInfo[kursId] = (godzWyjazdu, dataKursu);
+                    }
+                }
+
+                // Pobierz mapowanie zamówienie -> kurs z tabeli Ladunek (dla łączonych kursów)
+                var zamowienieToKurs = new Dictionary<int, long>();
+                using (var cmd = new SqlCommand("SELECT KursID, KodKlienta FROM dbo.Ladunek WHERE KodKlienta LIKE 'ZAM_%'", cn))
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
+                    {
+                        var kursId = rd.GetInt64(0);
+                        var kodKlienta = rd.GetString(1);
+                        if (kodKlienta.StartsWith("ZAM_") && int.TryParse(kodKlienta.Substring(4), out int zamId))
+                        {
+                            zamowienieToKurs[zamId] = kursId;
+                        }
+                    }
+                }
+
+                // Przypisz informacje o kursach do WSZYSTKICH zamówień (nie tylko pierwszego!)
+                foreach (var order in _zamowienia.Values)
+                {
+                    long? kursId = order.TransportKursId;
+
+                    // Jeśli nie ma TransportKursId, sprawdź tabelę Ladunek
+                    if (!kursId.HasValue && zamowienieToKurs.TryGetValue(order.Id, out var ladunekKursId))
+                    {
+                        kursId = ladunekKursId;
+                    }
+
+                    // Przypisz dane kursu
+                    if (kursId.HasValue && kursyInfo.TryGetValue(kursId.Value, out var info))
+                    {
+                        order.CzasWyjazdu = info.CzasWyjazdu;
+                        order.DataKursu = info.DataKursu;
                     }
                 }
             }

@@ -249,35 +249,26 @@ namespace Kalendarz1
                 }
 
                 // KROK 2: Pobierz dane kursów z TransportPL (kierowca, pojazd, godzina)
-                var kursIds = _zamowienia.Values
-                    .Where(z => z.TransportKursId.HasValue)
-                    .Select(z => z.TransportKursId.Value)
-                    .Distinct()
-                    .ToList();
+                using var cnTransport = new SqlConnection(_connTransport);
+                await cnTransport.OpenAsync();
 
-                if (kursIds.Any())
+                // Pobierz wszystkie kursy
+                var kursData = new Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca, string Rejestracja, int? PaletyH1)>();
+                string sqlKursy = @"
+                    SELECT
+                        k.KursID,
+                        k.DataKursu,
+                        k.GodzWyjazdu,
+                        ISNULL(kie.Imie + ' ' + kie.Nazwisko, 'Nie przypisano') as Kierowca,
+                        p.Rejestracja,
+                        p.PaletyH1
+                    FROM dbo.Kurs k
+                    LEFT JOIN dbo.Kierowca kie ON k.KierowcaID = kie.KierowcaID
+                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID";
+
+                using (var cmd = new SqlCommand(sqlKursy, cnTransport))
+                using (var rd = await cmd.ExecuteReaderAsync())
                 {
-                    using var cn = new SqlConnection(_connTransport);
-                    await cn.OpenAsync();
-
-                    string sql = @"
-                        SELECT 
-                            k.KursID,
-                            k.DataKursu,
-                            k.GodzWyjazdu,
-                            ISNULL(kie.Imie + ' ' + kie.Nazwisko, 'Nie przypisano') as Kierowca,
-                            p.Rejestracja,
-                            p.PaletyH1
-                        FROM dbo.Kurs k
-                        LEFT JOIN dbo.Kierowca kie ON k.KierowcaID = kie.KierowcaID
-                        LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
-                        WHERE k.KursID IN (" + string.Join(",", kursIds) + ")";
-
-                    var cmd = new SqlCommand(sql, cn);
-                    using var rd = await cmd.ExecuteReaderAsync();
-
-                    var kursData = new Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca, string Rejestracja, int? PaletyH1)>();
-
                     while (await rd.ReadAsync())
                     {
                         long kursId = rd.GetInt64(0);
@@ -289,19 +280,43 @@ namespace Kalendarz1
 
                         kursData[kursId] = (dataKursu, godzWyjazdu, kierowca, rejestracja, paletyH1);
                     }
+                }
 
-                    // Przypisz dane kursów do zamówień
-                    foreach (var zamowienie in _zamowienia.Values)
+                // Pobierz mapowanie zamówienie -> kurs z tabeli Ladunek (dla łączonych kursów)
+                var zamowienieToKurs = new Dictionary<int, long>();
+                using (var cmd = new SqlCommand("SELECT KursID, KodKlienta FROM dbo.Ladunek WHERE KodKlienta LIKE 'ZAM_%'", cnTransport))
+                using (var rd = await cmd.ExecuteReaderAsync())
+                {
+                    while (await rd.ReadAsync())
                     {
-                        if (zamowienie.TransportKursId.HasValue &&
-                            kursData.TryGetValue(zamowienie.TransportKursId.Value, out var kurs))
+                        var kursId = rd.GetInt64(0);
+                        var kodKlienta = rd.GetString(1);
+                        if (kodKlienta.StartsWith("ZAM_") && int.TryParse(kodKlienta.Substring(4), out int zamId))
                         {
-                            zamowienie.DataKursu = kurs.DataKursu;
-                            zamowienie.CzasWyjazdu = kurs.GodzWyjazdu;
-                            zamowienie.Kierowca = kurs.Kierowca;
-                            zamowienie.NumerRejestracyjny = kurs.Rejestracja;
-                            zamowienie.PaletyH1 = kurs.PaletyH1;
+                            zamowienieToKurs[zamId] = kursId;
                         }
+                    }
+                }
+
+                // Przypisz dane kursów do WSZYSTKICH zamówień
+                foreach (var zamowienie in _zamowienia.Values)
+                {
+                    long? kursId = zamowienie.TransportKursId;
+
+                    // Jeśli nie ma TransportKursId, sprawdź tabelę Ladunek
+                    if (!kursId.HasValue && zamowienieToKurs.TryGetValue(zamowienie.Id, out var ladunekKursId))
+                    {
+                        kursId = ladunekKursId;
+                    }
+
+                    // Przypisz dane kursu
+                    if (kursId.HasValue && kursData.TryGetValue(kursId.Value, out var kurs))
+                    {
+                        zamowienie.DataKursu = kurs.DataKursu;
+                        zamowienie.CzasWyjazdu = kurs.GodzWyjazdu;
+                        zamowienie.Kierowca = kurs.Kierowca;
+                        zamowienie.NumerRejestracyjny = kurs.Rejestracja;
+                        zamowienie.PaletyH1 = kurs.PaletyH1;
                     }
                 }
 
