@@ -190,21 +190,21 @@
                         <CheckBox x:Name="cbPokazWydaniaSymfonia" Content="Symfonia" Foreground="Gray" Margin="15,0,0,0" VerticalAlignment="Center" Click="cbPokazWydaniaSymfonia_Click"/>
                     </StackPanel>
 
-                    <!-- Mini Progress -->
-                    <Border Grid.Column="1" Background="#363842" CornerRadius="4" Padding="10,5" Margin="0,0,20,0" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <ProgressBar x:Name="progressRing" Style="{StaticResource CircularProgressBar}" Value="{Binding RealizationProgress}" Width="40" Height="40" Foreground="#4CAF50"/>
-                            <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding RealizationProgressText}" Foreground="White" FontSize="14" FontWeight="Bold"/>
-                                <TextBlock Text="zrealizowane" Foreground="Gray" FontSize="10"/>
+                    <!-- Progress - prosty pasek -->
+                    <Border Grid.Column="1" Background="#1E1E1E" CornerRadius="6" Padding="12,8" Margin="0,0,20,0" VerticalAlignment="Center">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="{Binding RealizationProgressText}" Foreground="#4CAF50" FontSize="18" FontWeight="Bold"/>
+                                <TextBlock Text=" zrealizowano" Foreground="Gray" FontSize="12" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
                             </StackPanel>
+                            <ProgressBar x:Name="progressRing" Value="{Binding RealizationProgress}" Height="8" Width="150" Foreground="#4CAF50" Background="#333" BorderThickness="0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Filtr towaru -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="Towar:" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <ComboBox x:Name="cbFiltrProdukt" Width="200" Height="30" FontSize="12" Background="#2D2F3E" BorderBrush="#505050" Foreground="White"/>
+                        <ComboBox x:Name="cbFiltrProdukt" Width="200" Height="35" FontSize="13" Background="#1A1A1A" BorderBrush="#333" Foreground="White"/>
                     </StackPanel>
 
                     <!-- Legenda ikon -->
@@ -253,7 +253,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0" Background="#22242E" CornerRadius="5" Margin="0,0,5,0">
-                        <DataGrid x:Name="dgvZamowienia1" ItemsSource="{Binding ZamowieniaList1}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia1_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="32" Margin="5" FontSize="12">
+                        <DataGrid x:Name="dgvZamowienia1" ItemsSource="{Binding ZamowieniaList1}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia1_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="38" Margin="5" FontSize="14">
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                     <Setter Property="Background" Value="{Binding RowColor}"/>
@@ -261,9 +261,9 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="3*"/>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*"/>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
-                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="*">
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -271,7 +271,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
@@ -284,7 +284,7 @@
                     </Border>
 
                     <Border Grid.Column="1" Background="#22242E" CornerRadius="5" Margin="5,0,5,0">
-                        <DataGrid x:Name="dgvZamowienia2" ItemsSource="{Binding ZamowieniaList2}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia2_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="32" Margin="5" FontSize="12">
+                        <DataGrid x:Name="dgvZamowienia2" ItemsSource="{Binding ZamowieniaList2}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia2_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="38" Margin="5" FontSize="14">
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                     <Setter Property="Background" Value="{Binding RowColor}"/>
@@ -292,9 +292,9 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="3*"/>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*"/>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
-                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="*">
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -302,7 +302,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
