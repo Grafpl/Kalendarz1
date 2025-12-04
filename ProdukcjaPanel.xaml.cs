@@ -472,10 +472,13 @@ namespace Kalendarz1
                 dgvPozycje.ItemsSource = null;
                 txtUwagi.Text = "";
                 txtNotatkiTransportu.Text = "";
+                lblHandlowiec.Text = "-";
                 return;
             }
 
             var info = vm.Info;
+            lblHandlowiec.Text = string.IsNullOrWhiteSpace(info.Handlowiec) ? "-" : info.Handlowiec;
+
             if (info.IsShipmentOnly)
             {
                 await LoadShipmentOnlyAsync(info.KlientId);

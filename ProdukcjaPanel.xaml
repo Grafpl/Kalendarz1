@@ -160,105 +160,83 @@
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="150"/>
+            <RowDefinition Height="Auto"/>
             <!-- Top Control Panel -->
             <RowDefinition Height="*"/>
             <!-- Tabbed Content -->
         </Grid.RowDefinitions>
 
-        <!-- TOP CONTROL PANEL -->
-        <Border Grid.Row="0" Background="#282A32" CornerRadius="8">
+        <!-- TOP CONTROL PANEL - kompaktowy design -->
+        <Border Grid.Row="0" Background="#282A32" CornerRadius="6" Padding="10,8">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- Date and Symfonia Checkbox -->
-                <StackPanel Grid.Column="0" Margin="20,0,20,0" VerticalAlignment="Center">
-                    <TextBlock x:Name="lblData" 
-                               FontSize="32" 
-                               FontWeight="Bold" 
-                               Foreground="White"/>
-                    <CheckBox x:Name="cbPokazWydaniaSymfonia"
-                              Content="Pokaż wydania Symfonia"
-                              Foreground="White"
-                              Margin="0,15,0,0"
-                              Click="cbPokazWydaniaSymfonia_Click">
-                        <CheckBox.LayoutTransform>
-                            <ScaleTransform ScaleX="1.5" ScaleY="1.5"/>
-                        </CheckBox.LayoutTransform>
-                    </CheckBox>
-                </StackPanel>
+                <!-- Górny rząd: Data, Progress, Filtr, Nawigacja -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Realization Progress Circle -->
-                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="20,0">
-                    <ProgressBar x:Name="progressRing"
-                                 Style="{StaticResource CircularProgressBar}"
-                                 Value="{Binding RealizationProgress}"
-                                 Width="100" Height="100"
-                                 IsIndeterminate="False"
-                                 Foreground="#4CAF50"/>
-                    <TextBlock Text="{Binding RealizationProgressText, StringFormat={}{0}%}"
-                               Foreground="White"
-                               FontSize="24"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
-                    <TextBlock Text="Zrealizowane"
-                               Foreground="LightGray"
-                               FontSize="12"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Margin="0,50,0,0"/>
-                </Grid>
+                    <!-- Data -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+                        <TextBlock x:Name="lblData" FontSize="22" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="cbPokazWydaniaSymfonia" Content="Symfonia" Foreground="Gray" Margin="15,0,0,0" VerticalAlignment="Center" Click="cbPokazWydaniaSymfonia_Click"/>
+                    </StackPanel>
 
-                <!-- Filter ComboBox -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="40,0,0,0">
-                    <TextBlock Text="Filtruj towar:"
-                               Foreground="White"
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"
-                               FontSize="16"
-                               Margin="0,0,0,5"/>
-                    <ComboBox x:Name="cbFiltrProdukt"
-                              Width="350"
-                              Height="50"
-                              FontSize="18"
-                              Background="#2D2F3E"
-                              BorderBrush="#787878"
-                              Foreground="White"/>
-                    <!-- Legenda ikon -->
-                    <Border Background="#3A3C48" CornerRadius="5" Margin="0,10,0,0" Padding="8,5">
+                    <!-- Mini Progress -->
+                    <Border Grid.Column="1" Background="#363842" CornerRadius="4" Padding="10,5" Margin="0,0,20,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📝" FontSize="14" VerticalAlignment="Center" ToolTip="Notatka do zamówienia"/>
-                            <TextBlock Text="= Notatka  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
-                            <TextBlock Text="🎞️" FontSize="14" VerticalAlignment="Center" ToolTip="Folia/skrzynka wymagana"/>
-                            <TextBlock Text="= Folia  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
-                            <TextBlock Text="📦" FontSize="14" VerticalAlignment="Center" ToolTip="Zamówienie Symfonia (wydania)"/>
-                            <TextBlock Text="= Symfonia  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
-                            <TextBlock Text="🟠" FontSize="14" VerticalAlignment="Center" ToolTip="Kurs transportowy przypisany"/>
-                            <TextBlock Text="= Kurs" Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            <ProgressBar x:Name="progressRing" Style="{StaticResource CircularProgressBar}" Value="{Binding RealizationProgress}" Width="40" Height="40" Foreground="#4CAF50"/>
+                            <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding RealizationProgressText}" Foreground="White" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock Text="zrealizowane" Foreground="Gray" FontSize="10"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
-                </StackPanel>
 
-                <!-- Action Buttons -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" 
-                            HorizontalAlignment="Right" 
-                            VerticalAlignment="Center"
-                            Margin="0,0,15,0">
-                    <Button x:Name="btnPrev" Content="◀" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,10,0" Click="btnPrev_Click"/>
-                    <Button x:Name="btnNext" Content="▶" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,10,0" Click="btnNext_Click"/>
-                    <Button x:Name="btnToday" Content="Dziś" Style="{StaticResource TopButtonStyle}" Background="#3C468E" Margin="0,0,20,0" Click="btnToday_Click"/>
-                    <Button x:Name="btnRefresh" Content="Odśwież" Style="{StaticResource TopButtonStyle}" Background="#376EA0" Margin="0,0,20,0" Click="btnRefresh_Click"/>
-                    <Button x:Name="btnLive" Content="Live" Style="{StaticResource TopButtonStyle}" Background="#555A8C" Margin="0,0,20,0" Click="btnLive_Click"/>
-                    <Button x:Name="btnUndo" Content="Cofnij" Style="{StaticResource TopButtonStyle}" Background="#8C643C" Margin="0,0,20,0" Click="btnUndo_Click"/>
-                    <Button x:Name="btnSaveNotes" Content="Zapisz not." Style="{StaticResource TopButtonStyle}" Background="#5F5F5F" Margin="0,0,20,0" Click="btnSaveNotes_Click"/>
-                    <Button x:Name="btnZrealizowano" Content="ZREAL." Style="{StaticResource TopButtonStyle}" Width="120" FontSize="15" Background="#19874B" Margin="0,0,20,0" Click="btnZrealizowano_Click"/>
-                    <Button x:Name="btnClose" Content="X" Style="{StaticResource TopButtonStyle}" Background="#AA2832" Click="btnClose_Click"/>
+                    <!-- Filtr towaru -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Towar:" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="cbFiltrProdukt" Width="200" Height="30" FontSize="12" Background="#2D2F3E" BorderBrush="#505050" Foreground="White"/>
+                    </StackPanel>
+
+                    <!-- Legenda ikon -->
+                    <Border Grid.Column="3" Background="#3A3C48" CornerRadius="4" Padding="8,4" Margin="15,0" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📝" FontSize="11" VerticalAlignment="Center" ToolTip="Notatka"/>
+                            <TextBlock Text="notatka" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,10,0"/>
+                            <TextBlock Text="🎞️" FontSize="11" VerticalAlignment="Center" ToolTip="Folia"/>
+                            <TextBlock Text="folia" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,10,0"/>
+                            <TextBlock Text="📦" FontSize="11" VerticalAlignment="Center" ToolTip="Symfonia"/>
+                            <TextBlock Text="symfonia" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,10,0"/>
+                            <TextBlock Text="🟠" FontSize="11" VerticalAlignment="Center" ToolTip="Kurs"/>
+                            <TextBlock Text="kurs" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Nawigacja daty -->
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="btnPrev" Content="◀" Width="32" Height="28" FontSize="12" Background="#3C468E" Foreground="White" BorderThickness="0" Margin="0,0,3,0" Click="btnPrev_Click" Cursor="Hand"/>
+                        <Button x:Name="btnToday" Content="Dziś" Width="45" Height="28" FontSize="11" Background="#3C468E" Foreground="White" BorderThickness="0" Margin="0,0,3,0" Click="btnToday_Click" Cursor="Hand"/>
+                        <Button x:Name="btnNext" Content="▶" Width="32" Height="28" FontSize="12" Background="#3C468E" Foreground="White" BorderThickness="0" Click="btnNext_Click" Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Dolny rząd: Przyciski akcji -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Height="30" Padding="12,0" FontSize="11" Background="#376EA0" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Click="btnRefresh_Click" Cursor="Hand"/>
+                    <Button x:Name="btnLive" Content="📡 Live" Height="30" Padding="12,0" FontSize="11" Background="#555A8C" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Click="btnLive_Click" Cursor="Hand"/>
+                    <Button x:Name="btnSaveNotes" Content="💾 Zapisz" Height="30" Padding="12,0" FontSize="11" Background="#5F5F5F" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Click="btnSaveNotes_Click" Cursor="Hand"/>
+                    <Button x:Name="btnUndo" Content="↩ Cofnij" Height="30" Padding="12,0" FontSize="11" Background="#8C643C" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Click="btnUndo_Click" Cursor="Hand"/>
+                    <Button x:Name="btnZrealizowano" Content="✓ ZREALIZOWANO" Height="30" Padding="15,0" FontSize="11" FontWeight="Bold" Background="#19874B" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Click="btnZrealizowano_Click" Cursor="Hand"/>
+                    <Button x:Name="btnClose" Content="✕" Width="30" Height="30" FontSize="12" Background="#AA2832" Foreground="White" BorderThickness="0" Click="btnClose_Click" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -275,7 +253,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0" Background="#22242E" CornerRadius="5" Margin="0,0,5,0">
-                        <DataGrid x:Name="dgvZamowienia1" ItemsSource="{Binding ZamowieniaList1}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia1_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="40" Margin="5">
+                        <DataGrid x:Name="dgvZamowienia1" ItemsSource="{Binding ZamowieniaList1}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia1_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="32" Margin="5" FontSize="12">
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                     <Setter Property="Background" Value="{Binding RowColor}"/>
@@ -283,9 +261,9 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Nazwa Klienta" Binding="{Binding Klient}" Width="2.5*"/>
-                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
-                                <DataGridTextColumn Header="Wyjazd o" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*"/>
+                                <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -293,8 +271,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
@@ -307,7 +284,7 @@
                     </Border>
 
                     <Border Grid.Column="1" Background="#22242E" CornerRadius="5" Margin="5,0,5,0">
-                        <DataGrid x:Name="dgvZamowienia2" ItemsSource="{Binding ZamowieniaList2}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia2_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="40" Margin="5">
+                        <DataGrid x:Name="dgvZamowienia2" ItemsSource="{Binding ZamowieniaList2}" Style="{StaticResource CustomDataGridStyle}" SelectionChanged="dgvZamowienia2_SelectionChanged" MouseDoubleClick="dgvZamowienia_MouseDoubleClick" IsReadOnly="True" RowHeight="32" Margin="5" FontSize="12">
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                     <Setter Property="Background" Value="{Binding RowColor}"/>
@@ -315,9 +292,9 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Nazwa Klienta" Binding="{Binding Klient}" Width="2.5*"/>
-                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
-                                <DataGridTextColumn Header="Wyjazd o" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*"/>
+                                <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="Auto"/>
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="Orange"/>
@@ -325,8 +302,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding StatusColor}"/>
@@ -340,14 +316,22 @@
 
                     <Grid Grid.Column="2" Margin="5,0,0,0">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="60*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="55*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="20*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="20*"/>
                         </Grid.RowDefinitions>
-                        <Border Grid.Row="0" Background="#262832" CornerRadius="5" Margin="0,0,0,5">
-                            <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="32" Margin="5">
+                        <!-- Info o handlowcu -->
+                        <Border Grid.Row="0" Background="#363842" CornerRadius="4" Padding="8,6" Margin="0,0,0,5">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="👤 Handlowiec:" Foreground="Gray" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblHandlowiec" Text="-" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Background="#262832" CornerRadius="5" Margin="0,0,0,5">
+                            <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="28" Margin="5" FontSize="11">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*"/>
                                     <DataGridTextColumn Header="Zamówiono" Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="*">
@@ -378,13 +362,13 @@
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
-                        <TextBlock Grid.Row="1" Text="Notatka zamówienia" Background="#323440" Foreground="Yellow" FontWeight="Bold" FontSize="14" Padding="5"/>
-                        <Border Grid.Row="2" Background="#343642" CornerRadius="5" Margin="0,5">
-                            <TextBox x:Name="txtUwagi" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="28" Margin="5"/>
+                        <TextBlock Grid.Row="2" Text="Notatka zamówienia" Background="#323440" Foreground="Yellow" FontWeight="Bold" FontSize="12" Padding="5,3"/>
+                        <Border Grid.Row="3" Background="#343642" CornerRadius="5" Margin="0,3">
+                            <TextBox x:Name="txtUwagi" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="16" Margin="5"/>
                         </Border>
-                        <TextBlock Grid.Row="3" Text="Notatka produkcji" Background="#323440" Foreground="LightBlue" FontWeight="Bold" FontSize="14" Padding="5"/>
-                        <Border Grid.Row="4" Background="#343642" CornerRadius="5" Margin="0,5,0,0">
-                            <TextBox x:Name="txtNotatkiTransportu" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="28" Margin="5"/>
+                        <TextBlock Grid.Row="4" Text="Notatka produkcji" Background="#323440" Foreground="LightBlue" FontWeight="Bold" FontSize="12" Padding="5,3"/>
+                        <Border Grid.Row="5" Background="#343642" CornerRadius="5" Margin="0,3,0,0">
+                            <TextBox x:Name="txtNotatkiTransportu" Background="Transparent" Foreground="White" BorderThickness="0" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="16" Margin="5"/>
                         </Border>
                     </Grid>
                 </Grid>
