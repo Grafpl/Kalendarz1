@@ -35,6 +35,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         // Flaga do kontroli czy okno jest w pelni zaladowane
         private bool _isWindowFullyLoaded = false;
 
+        // Wybrana partia dla szczegolowej analizy
+        private string _wybranaPartia = null;
+
         // Binding properties dla wykresow
         private ChartValues<double> _przychodValues;
         public ChartValues<double> PrzychodValues
@@ -131,9 +134,15 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void InitializeFilters()
         {
-            // Domyslne daty - poprzedni dzien
-            dpDataOd.SelectedDate = DateTime.Today.AddDays(-1);
+            // Domyslnie tylko data "do" aktywna (dzis)
+            // Data "od" nieaktywna - wyszarzona
+            dpDataOd.SelectedDate = DateTime.Today;
             dpDataDo.SelectedDate = DateTime.Today;
+
+            // Domyslnie checkbox odznaczony - pojedynczy dzien
+            chkOkresCzasu.IsChecked = false;
+            dpDataOd.IsEnabled = false;
+            dpDataOd.Opacity = 0.5;
 
             // Zaladuj slowniki
             LoadTowary();
@@ -432,6 +441,220 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         {
             if (_przefiltrowaneDane == null || !_przefiltrowaneDane.Any()) return;
             UpdateChartType();
+        }
+
+        private void ChkOkresCzasu_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkOkresCzasu == null || dpDataOd == null || lblDataOd == null) return;
+
+            if (chkOkresCzasu.IsChecked == true)
+            {
+                // Aktywuj date "od"
+                dpDataOd.IsEnabled = true;
+                dpDataOd.Opacity = 1.0;
+                lblDataOd.Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)); // ciemny
+                dpDataOd.SelectedDate = DateTime.Today.AddDays(-7); // Domyslnie tydzien wstecz
+            }
+            else
+            {
+                // Dezaktywuj date "od"
+                dpDataOd.IsEnabled = false;
+                dpDataOd.Opacity = 0.5;
+                lblDataOd.Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)); // szary
+                dpDataOd.SelectedDate = dpDataDo.SelectedDate; // Ustaw ta sama date
+            }
+
+            // Auto-odswierz dane
+            if (_isWindowFullyLoaded)
+            {
+                LoadData();
+            }
+        }
+
+        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isWindowFullyLoaded) return;
+
+            // Jezeli checkbox nie zaznaczony, synchronizuj daty
+            if (chkOkresCzasu?.IsChecked != true && sender == dpDataDo)
+            {
+                dpDataOd.SelectedDate = dpDataDo.SelectedDate;
+            }
+
+            // Auto-odswierz dane
+            LoadData();
+        }
+
+        private void DgPartie_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dgPartie.SelectedItem is PartiaStats partia)
+            {
+                _wybranaPartia = partia.Partia;
+                UpdatePartieDetails(partia.Partia);
+            }
+        }
+
+        private void DgPartie_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgPartie.SelectedItem is PartiaStats partia)
+            {
+                ShowWazeniaWindow(partia.Partia, null);
+            }
+        }
+
+        private void DgPartieArtykuly_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgPartieArtykuly.SelectedItem is PartiaArticleStats artykul && !string.IsNullOrEmpty(_wybranaPartia))
+            {
+                ShowWazeniaWindow(_wybranaPartia, artykul.ArticleID);
+            }
+        }
+
+        private void BtnPokazWszystkieWazenia_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_wybranaPartia))
+            {
+                ShowWazeniaWindow(_wybranaPartia, null);
+            }
+        }
+
+        private void UpdatePartieDetails(string partia)
+        {
+            if (string.IsNullOrEmpty(partia))
+            {
+                dgPartieArtykuly.ItemsSource = null;
+                txtPartiaHeader.Text = "SZCZEGOLY PARTII";
+                txtPartiaInfo.Text = "Wybierz partie z listy";
+                btnPokazWszystkieWazenia.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            txtPartiaHeader.Text = $"PARTIA: {partia}";
+
+            // Pobierz artykuly z tej partii
+            var artykulyPartii = _przefiltrowaneDane
+                .Where(r => r.Partia == partia || (string.IsNullOrEmpty(r.Partia) && partia == "(brak partii)"))
+                .GroupBy(r => r.ArticleID)
+                .Select(g =>
+                {
+                    string articleName = g.First().NazwaTowaru;
+                    if (_articleDict.TryGetValue(g.Key, out ArticleInfo artInfo) && !string.IsNullOrEmpty(artInfo.Name))
+                        articleName = artInfo.Name;
+
+                    return new PartiaArticleStats
+                    {
+                        ArticleID = g.Key,
+                        ArticleName = articleName,
+                        SumaKg = g.Sum(r => r.ActWeight),
+                        LiczbaWazen = g.Count()
+                    };
+                })
+                .OrderByDescending(a => a.SumaKg)
+                .ToList();
+
+            decimal suma = artykulyPartii.Sum(a => a.SumaKg);
+            foreach (var a in artykulyPartii)
+            {
+                a.Procent = suma > 0 ? (a.SumaKg / suma * 100) : 0;
+            }
+
+            txtPartiaInfo.Text = $"{artykulyPartii.Count} artykulow, {suma:N2} kg lacznie";
+            dgPartieArtykuly.ItemsSource = artykulyPartii;
+            btnPokazWszystkieWazenia.Visibility = Visibility.Visible;
+        }
+
+        private void ShowWazeniaWindow(string partia, string articleId)
+        {
+            var wazenia = _przefiltrowaneDane
+                .Where(r => (r.Partia == partia || (string.IsNullOrEmpty(r.Partia) && partia == "(brak partii)"))
+                           && (string.IsNullOrEmpty(articleId) || r.ArticleID == articleId))
+                .OrderByDescending(r => r.Data)
+                .ThenByDescending(r => r.Godzina)
+                .ToList();
+
+            string tytul = string.IsNullOrEmpty(articleId)
+                ? $"Wszystkie wazenia - Partia: {partia}"
+                : $"Wazenia - Partia: {partia}, Artykul: {articleId}";
+
+            // Utworz okno z lista wazen
+            var window = new Window
+            {
+                Title = tytul,
+                Width = 900,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Header
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Padding = new Thickness(15, 10, 15, 10)
+            };
+            var headerText = new TextBlock
+            {
+                Text = $"{tytul} ({wazenia.Count} rekordow, {wazenia.Sum(w => w.ActWeight):N2} kg)",
+                Foreground = Brushes.White,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold
+            };
+            header.Child = headerText;
+            Grid.SetRow(header, 0);
+            grid.Children.Add(header);
+
+            // DataGrid
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                Margin = new Thickness(10),
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                RowBackground = Brushes.White,
+                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 249, 250))
+            };
+
+            dg.Columns.Add(new DataGridTextColumn { Header = "Data", Binding = new System.Windows.Data.Binding("Data") { StringFormat = "yyyy-MM-dd" }, Width = 90 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Godzina", Binding = new System.Windows.Data.Binding("Godzina") { StringFormat = "HH:mm:ss" }, Width = 80 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Towar", Binding = new System.Windows.Data.Binding("NazwaTowaru"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Waga kg", Binding = new System.Windows.Data.Binding("ActWeight") { StringFormat = "N2" }, Width = 90 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Operator", Binding = new System.Windows.Data.Binding("Operator"), Width = 120 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Terminal", Binding = new System.Windows.Data.Binding("Terminal"), Width = 80 });
+            dg.Columns.Add(new DataGridTextColumn { Header = "Klasa", Binding = new System.Windows.Data.Binding("Klasa"), Width = 50 });
+
+            dg.ItemsSource = wazenia;
+            Grid.SetRow(dg, 1);
+            grid.Children.Add(dg);
+
+            // Footer z przyciskiem zamknij
+            var footer = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(10)
+            };
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnClose.Click += (s, ev) => window.Close();
+            footer.Children.Add(btnClose);
+            Grid.SetRow(footer, 2);
+            grid.Children.Add(footer);
+
+            window.Content = grid;
+            window.ShowDialog();
         }
 
         #endregion
@@ -1521,6 +1744,15 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         public decimal Procent { get; set; }
         public int LiczbaWazen { get; set; }
         public decimal SredniaKg { get; set; }
+    }
+
+    public class PartiaArticleStats
+    {
+        public string ArticleID { get; set; }
+        public string ArticleName { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal Procent { get; set; }
+        public int LiczbaWazen { get; set; }
     }
 
     #endregion

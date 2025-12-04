@@ -161,11 +161,17 @@
 
                 <!-- Wiersz 1: Daty i podstawowe filtry -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Data od:" VerticalAlignment="Center" Margin="5" FontWeight="SemiBold"/>
-                    <DatePicker x:Name="dpDataOd" Style="{StaticResource ModernDatePicker}" Width="130"/>
+                    <CheckBox x:Name="chkOkresCzasu" Content="Okres czasu" VerticalAlignment="Center"
+                              Margin="5" FontWeight="SemiBold" Checked="ChkOkresCzasu_Changed" Unchecked="ChkOkresCzasu_Changed"/>
 
-                    <TextBlock Text="Data do:" VerticalAlignment="Center" Margin="15,5,5,5" FontWeight="SemiBold"/>
-                    <DatePicker x:Name="dpDataDo" Style="{StaticResource ModernDatePicker}" Width="130"/>
+                    <TextBlock x:Name="lblDataOd" Text="od:" VerticalAlignment="Center" Margin="10,5,5,5"
+                               FontWeight="SemiBold" Foreground="#95A5A6"/>
+                    <DatePicker x:Name="dpDataOd" Style="{StaticResource ModernDatePicker}" Width="130"
+                                IsEnabled="False" Opacity="0.5" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+
+                    <TextBlock Text="Data:" VerticalAlignment="Center" Margin="15,5,5,5" FontWeight="SemiBold"/>
+                    <DatePicker x:Name="dpDataDo" Style="{StaticResource ModernDatePicker}" Width="130"
+                                SelectedDateChanged="DatePicker_SelectedDateChanged"/>
 
                     <TextBlock Text="Towar:" VerticalAlignment="Center" Margin="20,5,5,5" FontWeight="SemiBold"/>
                     <ComboBox x:Name="cbTowar" Style="{StaticResource ModernComboBox}" Width="250"
@@ -176,11 +182,8 @@
                     <ComboBox x:Name="cbOperator" Style="{StaticResource ModernComboBox}" Width="180"
                               DisplayMemberPath="Nazwa" SelectedValuePath="Id"/>
 
-                    <Button Content="Wczytaj dane" Style="{StaticResource FilterButtonStyle}"
-                            Click="BtnLoadData_Click" Margin="20,5,5,5"/>
-
-                    <Button Content="Odswierz" Background="#9B59B6" Foreground="White"
-                            Padding="15,8" Cursor="Hand" BorderThickness="0" Click="BtnRefresh_Click" Margin="5">
+                    <Button Content="Odswierz filtry" Background="#9B59B6" Foreground="White"
+                            Padding="15,8" Cursor="Hand" BorderThickness="0" Click="BtnRefresh_Click" Margin="20,5,5,5">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
@@ -355,35 +358,142 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 3: Analiza partii (tylko tabela) -->
+            <!-- TAB 3: Analiza partii (interaktywna) -->
             <TabItem Header="Analiza partii">
-                <Border Background="White" Margin="10" CornerRadius="8">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="450"/>
+                    </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="PODSUMOWANIE PARTII (P1)" FontSize="14" FontWeight="Bold"
-                                   Foreground="#2C3E50" Margin="15,15,15,10"/>
+                    <!-- Lista partii -->
+                    <Border Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                        <DataGrid x:Name="dgPartie" Grid.Row="1" Margin="10"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                                  BorderThickness="0" Background="Transparent"
-                                  RowBackground="White" AlternatingRowBackground="#F8F9FA">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="*" MinWidth="150"/>
-                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="120"/>
-                                <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="70"/>
-                                <DataGridTextColumn Header="Liczba wazen" Binding="{Binding Liczba}" Width="100"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
+                            <StackPanel Margin="15,15,15,10">
+                                <TextBlock Text="PARTIE (P1)" FontSize="14" FontWeight="Bold" Foreground="#2C3E50"/>
+                                <TextBlock Text="Kliknij partie aby zobaczyc szczegoly, dwuklik na artykul pokazuje wazenia"
+                                           FontSize="10" Foreground="#95A5A6" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="dgPartie" Grid.Row="1" Margin="10"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowBackground="White" AlternatingRowBackground="#F8F9FA"
+                                      SelectionChanged="DgPartie_SelectionChanged"
+                                      MouseDoubleClick="DgPartie_MouseDoubleClick">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="*" MinWidth="120">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#2C3E50"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#27AE60"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wazen" Binding="{Binding Liczba}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Szczegoly partii - artykuly w partii -->
+                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Margin="15,15,15,10">
+                                <TextBlock x:Name="txtPartiaHeader" Text="SZCZEGOLY PARTII" FontSize="14"
+                                           FontWeight="Bold" Foreground="#2C3E50"/>
+                                <TextBlock x:Name="txtPartiaInfo" Text="Wybierz partie z listy"
+                                           FontSize="10" Foreground="#95A5A6" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="dgPartieArtykuly" Grid.Row="1" Margin="10"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="0" Background="Transparent"
+                                      RowBackground="White" AlternatingRowBackground="#FEF9E7"
+                                      MouseDoubleClick="DgPartieArtykuly_MouseDoubleClick">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Artykul" Binding="{Binding ArticleName}" Width="*" MinWidth="150"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Szt" Binding="{Binding LiczbaWazen}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Button x:Name="btnPokazWszystkieWazenia" Grid.Row="2" Content="Pokaz wszystkie wazenia z tej partii"
+                                    Margin="10,5,10,10" Padding="10,8" Background="#3498DB" Foreground="White"
+                                    FontWeight="SemiBold" Cursor="Hand" BorderThickness="0"
+                                    Click="BtnPokazWszystkieWazenia_Click" Visibility="Collapsed">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
             </TabItem>
 
             <!-- TAB: Przychody wg artykulow -->
