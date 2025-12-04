@@ -744,14 +744,18 @@ namespace Kalendarz1
             int total = _zamowienia.Values.Count(z => !z.IsShipmentOnly);
             if (total == 0)
             {
-                RealizationProgress = 0;
-                RealizationProgressText = "0%";
+                lblZrealizowanoCount.Text = "0";
+                lblZrealizowanoPercent.Text = "0%";
+                lblWydanoCount.Text = "0";
                 return;
             }
             int realized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyZrealizowane);
             int issued = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane);
-            RealizationProgress = (double)realized / total * 100;
-            RealizationProgressText = $"{RealizationProgress:F0}%\n🔧{realized} 📦{issued}";
+            double percent = (double)realized / total * 100;
+
+            lblZrealizowanoCount.Text = realized.ToString();
+            lblZrealizowanoPercent.Text = $"{percent:F0}%";
+            lblWydanoCount.Text = issued.ToString();
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
