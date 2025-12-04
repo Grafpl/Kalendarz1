@@ -46,6 +46,7 @@ namespace Kalendarz1
             if (ValidateUser(username))
             {
                 App.UserID = username;
+                App.UserFullName = GetUserFullName(username) ?? username;
                 try
                 {
                     this.Hide();
@@ -104,6 +105,29 @@ namespace Kalendarz1
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
+        }
+
+        private string GetUserFullName(string userId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    // Próba pobrania pełnej nazwy użytkownika z tabeli operators
+                    string query = "SELECT TOP 1 ISNULL(Name, ID) FROM operators WHERE ID = @username";
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@username", userId);
+                        var result = command.ExecuteScalar();
+                        return result?.ToString() ?? userId;
+                    }
+                }
+            }
+            catch
+            {
+                return userId;
+            }
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

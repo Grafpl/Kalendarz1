@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Transport;
 using Kalendarz1.Transport.Pakowanie;
+using Kalendarz1.Services;
 
 namespace Kalendarz1.Transport.Repozytorium
 {
@@ -504,13 +505,24 @@ namespace Kalendarz1.Transport.Repozytorium
                     foreach (var zamId in zamowieniaIds)
                     {
                         var sqlUpdate = @"
-                    UPDATE dbo.ZamowieniaMieso 
-                    SET TransportStatus = 'Oczekuje', TransportKursId = NULL 
+                    UPDATE dbo.ZamowieniaMieso
+                    SET TransportStatus = 'Oczekuje', TransportKursId = NULL
                     WHERE Id = @ZamowienieId";
 
                         using var cmdUpdate = new SqlCommand(sqlUpdate, cnLibra);
                         cmdUpdate.Parameters.AddWithValue("@ZamowienieId", zamId);
                         await cmdUpdate.ExecuteNonQueryAsync();
+
+                        // Loguj usunięcie z kursu (przy usuwaniu całego kursu)
+                        try
+                        {
+                            await HistoriaZmianService.LogujEdycje(zamId, "SYSTEM", null,
+                                "Transport - usunięcie kursu",
+                                $"Kurs #{kursId}",
+                                "Oczekuje na przypisanie",
+                                $"Zamówienie automatycznie zwolnione z powodu usunięcia kursu #{kursId}");
+                        }
+                        catch { /* Logowanie nie powinno przerywać operacji */ }
                     }
                 }
             }

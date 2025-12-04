@@ -17,6 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Kalendarz1.Services;
 
 
 namespace Kalendarz1.WPF
@@ -916,6 +917,9 @@ namespace Kalendarz1.WPF
             {
                 try
                 {
+                    // Logowanie historii zmian PRZED usunięciem
+                    await HistoriaZmianService.LogujUsuniecie(_currentOrderId.Value, UserID, App.UserFullName);
+
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
 
@@ -1282,6 +1286,10 @@ namespace Kalendarz1.WPF
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
 
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujAnulowanie(id, UserID, App.UserFullName,
+                        $"Anulowano zamówienie dla odbiorcy: {odbiorca}, ilość: {ilosc:N0} kg");
+
                     MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     await RefreshAllDataAsync();
@@ -1328,6 +1336,9 @@ namespace Kalendarz1.WPF
                         "UPDATE dbo.ZamowieniaMieso SET Status = 'Nowe' WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
+
+                    // Logowanie historii zmian
+                    await HistoriaZmianService.LogujPrzywrocenie(id, UserID, App.UserFullName);
 
                     MessageBox.Show("Zamówienie zostało przywrócone.", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1766,6 +1777,117 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas pobierania historii:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void MenuHistoriaZmian_Click(object sender, RoutedEventArgs e)
+        {
+            if (_contextMenuSelectedRow == null || !_currentOrderId.HasValue) return;
+
+            var orderId = _currentOrderId.Value;
+            var odbiorca = CzyscNazweZEmoji(_contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany");
+
+            try
+            {
+                var historia = new System.Text.StringBuilder();
+                historia.AppendLine($"📜 HISTORIA ZMIAN ZAMÓWIENIA #{orderId}");
+                historia.AppendLine($"Odbiorca: {odbiorca}");
+                historia.AppendLine(new string('━', 60));
+                historia.AppendLine();
+
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Sprawdź czy tabela istnieje
+                    var checkSql = @"SELECT COUNT(*) FROM sys.objects
+                        WHERE object_id = OBJECT_ID(N'[dbo].[HistoriaZmianZamowien]') AND type in (N'U')";
+                    using var checkCmd = new SqlCommand(checkSql, cn);
+                    var tableExists = (int)await checkCmd.ExecuteScalarAsync() > 0;
+
+                    if (!tableExists)
+                    {
+                        MessageBox.Show("Brak zapisanej historii zmian dla tego zamówienia.\n\n" +
+                            "Historia zmian będzie dostępna po wprowadzeniu pierwszych zmian.",
+                            "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    var sql = @"
+                        SELECT
+                            TypZmiany,
+                            PoleZmienione,
+                            WartoscPoprzednia,
+                            WartoscNowa,
+                            ISNULL(UzytkownikNazwa, Uzytkownik) as Uzytkownik,
+                            DataZmiany,
+                            OpisZmiany
+                        FROM HistoriaZmianZamowien
+                        WHERE ZamowienieId = @ZamowienieId
+                        ORDER BY DataZmiany DESC";
+
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@ZamowienieId", orderId);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    int licznik = 0;
+
+                    while (await reader.ReadAsync())
+                    {
+                        licznik++;
+                        string typZmiany = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        string poleZmienione = reader.IsDBNull(1) ? null : reader.GetString(1);
+                        string wartoscPoprzednia = reader.IsDBNull(2) ? null : reader.GetString(2);
+                        string wartoscNowa = reader.IsDBNull(3) ? null : reader.GetString(3);
+                        string uzytkownik = reader.IsDBNull(4) ? "Nieznany" : reader.GetString(4);
+                        DateTime dataZmiany = reader.GetDateTime(5);
+                        string opisZmiany = reader.IsDBNull(6) ? null : reader.GetString(6);
+
+                        string ikona = typZmiany switch
+                        {
+                            "UTWORZENIE" => "➕",
+                            "EDYCJA" => "✏️",
+                            "ANULOWANIE" => "❌",
+                            "PRZYWROCENIE" => "✅",
+                            "USUNIECIE" => "🗑️",
+                            _ => "📝"
+                        };
+
+                        historia.AppendLine($"{ikona} {dataZmiany:yyyy-MM-dd HH:mm} | {uzytkownik}");
+
+                        if (!string.IsNullOrEmpty(opisZmiany))
+                        {
+                            historia.AppendLine($"   {opisZmiany}");
+                        }
+                        else if (!string.IsNullOrEmpty(poleZmienione))
+                        {
+                            historia.AppendLine($"   {poleZmienione}: '{wartoscPoprzednia ?? "(puste)"}' → '{wartoscNowa ?? "(puste)"}'");
+                        }
+                        else
+                        {
+                            historia.AppendLine($"   {typZmiany}");
+                        }
+                        historia.AppendLine();
+                    }
+
+                    if (licznik == 0)
+                    {
+                        historia.AppendLine("Brak zapisanych zmian dla tego zamówienia.");
+                    }
+                    else
+                    {
+                        historia.AppendLine(new string('━', 60));
+                        historia.AppendLine($"Łącznie: {licznik} zmian");
+                    }
+                }
+
+                MessageBox.Show(historia.ToString(), $"Historia zmian - Zamówienie #{orderId}",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania historii zmian:\n{ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

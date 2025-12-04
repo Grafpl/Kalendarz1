@@ -1,4 +1,5 @@
 ﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
@@ -190,7 +191,7 @@ namespace Kalendarz1
             {
                 "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
                 "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
+                "CRM", "ZamowieniaOdbiorcow", "DashboardHandlowca", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
                 "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
@@ -371,6 +372,11 @@ namespace Kalendarz1
                             window.UserID = App.UserID;
                             return window;
                         }, "🛒"),
+
+                    new MenuItemConfig("DashboardHandlowca", "Dashboard Handlowca",
+                        "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
+                        Color.FromArgb(56, 142, 60), // #388E3C
+                        () => new HandlowiecDashboardWindow(), "📊"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
                         "Przeglądanie i drukowanie faktur sprzedaży wraz z dokumentami WZ",

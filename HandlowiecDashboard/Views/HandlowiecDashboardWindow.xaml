@@ -1,0 +1,411 @@
+<Window x:Class="Kalendarz1.HandlowiecDashboard.Views.HandlowiecDashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        Title="Dashboard Handlowca - Analiza Sprzedaży" Height="900" Width="1400"
+        WindowStartupLocation="CenterScreen" Background="#F5F7FA">
+
+    <Window.Resources>
+        <!-- Konwerter Bool to Visibility -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- Style KPI Card -->
+        <Style x:Key="KpiCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.15" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style Section Card -->
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.15" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style nagłówka sekcji -->
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <!-- Style KPI wartości -->
+        <Style x:Key="KpiValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+        </Style>
+
+        <!-- Style KPI label -->
+        <Style x:Key="KpiLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#7F8C8D"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+        </Style>
+
+        <!-- Style zmiana pozytywna -->
+        <Style x:Key="ChangePositiveStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#27AE60"/>
+        </Style>
+
+        <!-- Style zmiana negatywna -->
+        <Style x:Key="ChangeNegativeStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#E74C3C"/>
+        </Style>
+
+        <!-- DataGrid Style -->
+        <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#FAFBFC"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8F9FA"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="White" Padding="20,15">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="5" ShadowDepth="1" Opacity="0.1" Direction="270"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="📊" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Dashboard Handlowca" FontSize="20" FontWeight="Bold" Foreground="#2C3E50"/>
+                        <TextBlock Text="Analiza sprzedaży miesiąc do miesiąca" FontSize="12" Foreground="#7F8C8D"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#7F8C8D"/>
+                    <ComboBox x:Name="cmbHandlowiec" Width="200" Height="32"
+                              SelectionChanged="CmbHandlowiec_SelectionChanged"
+                              FontSize="13"/>
+                    <Button x:Name="btnOdswiez" Content="🔄 Odśwież" Margin="15,0,0,0"
+                            Padding="15,8" Background="#3498DB" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Click="BtnOdswiez_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- KPI Cards -->
+        <Grid Grid.Row="1" Margin="15,15,15,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- KPI: Zamówienia -->
+            <Border Grid.Column="0" Style="{StaticResource KpiCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="📦" FontSize="20" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtZamowienia" Text="0" Style="{StaticResource KpiValueStyle}"/>
+                    <TextBlock Text="Zamówienia (miesiąc)" Style="{StaticResource KpiLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock x:Name="txtZamowieniaZmiana" Text="+0%" Style="{StaticResource ChangePositiveStyle}"/>
+                        <TextBlock Text=" vs poprzedni" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- KPI: Suma kg -->
+            <Border Grid.Column="1" Style="{StaticResource KpiCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="⚖️" FontSize="20" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtKg" Text="0 kg" Style="{StaticResource KpiValueStyle}"/>
+                    <TextBlock Text="Suma kg (miesiąc)" Style="{StaticResource KpiLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock x:Name="txtKgZmiana" Text="+0%" Style="{StaticResource ChangePositiveStyle}"/>
+                        <TextBlock Text=" vs poprzedni" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- KPI: Wartość -->
+            <Border Grid.Column="2" Style="{StaticResource KpiCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="💰" FontSize="20" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtWartosc" Text="0 zł" Style="{StaticResource KpiValueStyle}"/>
+                    <TextBlock Text="Wartość (miesiąc)" Style="{StaticResource KpiLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock x:Name="txtWartoscZmiana" Text="+0%" Style="{StaticResource ChangePositiveStyle}"/>
+                        <TextBlock Text=" vs poprzedni" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- KPI: Odbiorcy -->
+            <Border Grid.Column="3" Style="{StaticResource KpiCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="👥" FontSize="20" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtOdbiorcy" Text="0" Style="{StaticResource KpiValueStyle}"/>
+                    <TextBlock Text="Aktywni odbiorcy" Style="{StaticResource KpiLabelStyle}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock x:Name="txtOdbiorcyZmiana" Text="+0%" Style="{StaticResource ChangePositiveStyle}"/>
+                        <TextBlock Text=" vs poprzedni" FontSize="11" Foreground="#95A5A6" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- KPI: Średnia wartość -->
+            <Border Grid.Column="4" Style="{StaticResource KpiCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="📈" FontSize="20" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="txtSrednia" Text="0 zł" Style="{StaticResource KpiValueStyle}"/>
+                    <TextBlock Text="Śr. wartość zamówienia" Style="{StaticResource KpiLabelStyle}"/>
+                    <TextBlock Text="bieżący miesiąc" FontSize="11" Foreground="#95A5A6" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Główna zawartość -->
+        <Grid Grid.Row="2" Margin="15,5,15,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Wykres trendu miesięcznego -->
+            <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Trend sprzedaży (12 miesięcy)" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                    </StackPanel>
+
+                    <lvc:CartesianChart Grid.Row="1" x:Name="chartTrend" Margin="0,10,0,0">
+                        <lvc:CartesianChart.Series>
+                            <lvc:LineSeries x:Name="seriesWartosc" Title="Wartość (tys. zł)"
+                                            Values="{Binding}"
+                                            Stroke="#3498DB"
+                                            StrokeThickness="3"
+                                            Fill="Transparent"
+                                            PointGeometrySize="8"
+                                            LineSmoothness="0.3"/>
+                            <lvc:ColumnSeries x:Name="seriesKg" Title="Kg (tys.)"
+                                              Values="{Binding}"
+                                              Fill="#27AE60"
+                                              MaxColumnWidth="30"/>
+                        </lvc:CartesianChart.Series>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis x:Name="axisXTrend" Labels="{Binding}" ShowLabels="True" FontSize="10" Foreground="#7F8C8D">
+                                <lvc:Axis.Separator>
+                                    <lvc:Separator StrokeThickness="0"/>
+                                </lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Title="" MinValue="0" Foreground="#7F8C8D" FontSize="10">
+                                <lvc:Axis.Separator>
+                                    <lvc:Separator Stroke="#E0E0E0" StrokeThickness="1"/>
+                                </lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                </Grid>
+            </Border>
+
+            <!-- Top odbiorcy -->
+            <Border Grid.Column="1" Grid.Row="0" Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <TextBlock Text="🏆" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Top 10 Odbiorców (3 mies.)" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" x:Name="dgTopOdbiorcy"
+                              Style="{StaticResource ModernDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                              RowHeight="32">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="30"/>
+                            <DataGridTextColumn Header="Odbiorca" Binding="{Binding Nazwa}" Width="*" MinWidth="120"/>
+                            <DataGridTextColumn Header="Kg" Binding="{Binding SumaKgTekst}" Width="70"/>
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding SumaWartoscTekst}" Width="90"/>
+                            <DataGridTextColumn Header="Udział" Binding="{Binding UdzialTekst}" Width="55"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- Porównanie miesięcy (tabela) -->
+            <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="📅" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Porównanie miesięcy" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" Grid.Column="0" x:Name="dgPorownanie"
+                              Style="{StaticResource ModernDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                              RowHeight="36" Margin="0,0,15,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Miesiąc" Binding="{Binding OkresNazwa}" Width="130"/>
+                            <DataGridTextColumn Header="Zamówienia" Binding="{Binding LiczbaZamowien}" Width="85"/>
+                            <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N0}" Width="90"/>
+                            <DataGridTextColumn Header="Wartość (zł)" Binding="{Binding SumaWartosc, StringFormat=N2}" Width="110"/>
+                            <DataGridTextColumn Header="Odbiorcy" Binding="{Binding LiczbaOdbiorcow}" Width="75"/>
+                        </DataGrid.Columns>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="White"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding JestBiezacy}" Value="True">
+                                        <Setter Property="Background" Value="#E8F6F3"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                    </DataGrid>
+
+                    <!-- Mini wykres kołowy kategorii -->
+                    <Border Grid.Row="1" Grid.Column="1" Width="200" Background="#F8F9FA" CornerRadius="8" Padding="15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Kategorie produktów" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#2C3E50" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                            <lvc:PieChart Grid.Row="1" x:Name="chartKategorie"
+                                          LegendLocation="Bottom" Hoverable="True">
+                                <lvc:PieChart.Series>
+                                    <lvc:PieSeries x:Name="pieKategorie"
+                                                   Values="{Binding}"
+                                                   DataLabels="True"
+                                                   LabelPoint="{Binding}"/>
+                                </lvc:PieChart.Series>
+                            </lvc:PieChart>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Ostatnie zamówienia -->
+            <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Ostatnie zamówienia" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" x:Name="dgOstatnie"
+                              Style="{StaticResource ModernDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                              RowHeight="30">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioruTekst}" Width="75"/>
+                            <DataGridTextColumn Header="Odbiorca" Binding="{Binding Odbiorca}" Width="*" MinWidth="100"/>
+                            <DataGridTextColumn Header="Kg" Binding="{Binding KgTekst}" Width="60"/>
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding WartoscTekst}" Width="75"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Loading overlay -->
+        <Border Grid.RowSpan="3" Background="#80FFFFFF" x:Name="loadingOverlay" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                <TextBlock Text="Ładowanie danych..." FontSize="14" Foreground="#2C3E50" Margin="0,15,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

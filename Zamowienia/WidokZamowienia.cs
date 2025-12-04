@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Kalendarz1.Services;
 
 namespace Kalendarz1
 {
@@ -84,6 +85,36 @@ namespace Kalendarz1
 
         // Klasy wagowe dla tuszki (Kurczak A)
         private RozkladKlasWagowych? _rozkladKlasKurczakA;
+
+        // Śledzenie zmian - oryginalne wartości przy edycji
+        private OryginalneWartosciZamowienia? _oryginalneWartosci;
+
+        /// <summary>
+        /// Przechowuje oryginalne wartości zamówienia do śledzenia zmian
+        /// </summary>
+        private class OryginalneWartosciZamowienia
+        {
+            public DateTime DataZamowienia { get; set; }
+            public DateTime DataPrzyjazdu { get; set; }
+            public DateTime? DataProdukcji { get; set; }
+            public int KlientId { get; set; }
+            public string? KlientNazwa { get; set; }
+            public string? Uwagi { get; set; }
+            public string? TransportStatus { get; set; }
+            public Dictionary<int, OryginalnyTowar> Towary { get; set; } = new();
+        }
+
+        private class OryginalnyTowar
+        {
+            public string Nazwa { get; set; } = "";
+            public decimal Ilosc { get; set; }
+            public string? Cena { get; set; }
+            public bool E2 { get; set; }
+            public bool Folia { get; set; }
+            public bool Hallal { get; set; }
+            public int Pojemniki { get; set; }
+            public decimal Palety { get; set; }
+        }
 
         public WidokZamowienia() : this(App.UserID ?? string.Empty, null) { }
         public WidokZamowienia(int? idZamowienia) : this(App.UserID ?? string.Empty, idZamowienia) { }
@@ -1046,22 +1077,33 @@ namespace Kalendarz1
                 ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
                 : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
 
+            // Inicjalizacja śledzenia zmian
+            _oryginalneWartosci = new OryginalneWartosciZamowienia();
+
             await using (var cmdZ = new SqlCommand(sqlQuery, cn))
             {
                 cmdZ.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdZ.ExecuteReaderAsync();
                 if (await rd.ReadAsync())
                 {
-                    dateTimePickerSprzedaz.Value = rd.GetDateTime(0);
-                    UstawOdbiorce(rd.GetInt32(1).ToString());
-                    textBoxUwagi.Text = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
-                    dateTimePickerGodzinaPrzyjazdu.Value = rd.GetDateTime(3);
+                    var dataZamowienia = rd.GetDateTime(0);
+                    var klientId = rd.GetInt32(1);
+                    var uwagi = await rd.IsDBNullAsync(2) ? "" : rd.GetString(2);
+                    var dataPrzyjazdu = rd.GetDateTime(3);
+                    DateTime? dataProdukcji = null;
+                    string transportStatus = "Oczekuje";
+
+                    dateTimePickerSprzedaz.Value = dataZamowienia;
+                    UstawOdbiorce(klientId.ToString());
+                    textBoxUwagi.Text = uwagi;
+                    dateTimePickerGodzinaPrzyjazdu.Value = dataPrzyjazdu;
 
                     if (dateTimePickerProdukcji != null)
                     {
                         if (dataProdukcjiExists && rd.FieldCount > 4 && !await rd.IsDBNullAsync(4))
                         {
-                            dateTimePickerProdukcji.Value = rd.GetDateTime(4);
+                            dataProdukcji = rd.GetDateTime(4);
+                            dateTimePickerProdukcji.Value = dataProdukcji.Value;
                         }
                         else
                         {
@@ -1075,7 +1117,7 @@ namespace Kalendarz1
                         int transportStatusIndex = dataProdukcjiExists ? 5 : 4;
                         if (rd.FieldCount > transportStatusIndex && !await rd.IsDBNullAsync(transportStatusIndex))
                         {
-                            string transportStatus = rd.GetString(transportStatusIndex);
+                            transportStatus = rd.GetString(transportStatusIndex);
                             chkWlasnyOdbior.Checked = (transportStatus == "Wlasny");
                         }
                         else
@@ -1083,6 +1125,15 @@ namespace Kalendarz1
                             chkWlasnyOdbior.Checked = false;
                         }
                     }
+
+                    // Zapisz oryginalne wartości do śledzenia zmian
+                    _oryginalneWartosci.DataZamowienia = dataZamowienia;
+                    _oryginalneWartosci.DataPrzyjazdu = dataPrzyjazdu;
+                    _oryginalneWartosci.DataProdukcji = dataProdukcji;
+                    _oryginalneWartosci.KlientId = klientId;
+                    _oryginalneWartosci.KlientNazwa = _kontrahenci.FirstOrDefault(k => k.Id == klientId.ToString())?.Nazwa;
+                    _oryginalneWartosci.Uwagi = uwagi;
+                    _oryginalneWartosci.TransportStatus = transportStatus;
                 }
             }
 
@@ -1102,28 +1153,52 @@ namespace Kalendarz1
             var zamowienieTowary = new List<(int KodTowaru, decimal Ilosc, int Pojemniki, decimal Palety, bool E2, bool Folia, bool Hallal, string Cena)>();
 
             await using (var cmdT = new SqlCommand(@"
-        SELECT KodTowaru, Ilosc, ISNULL(Pojemniki, 0) as Pojemniki, 
-               ISNULL(Palety, 0) as Palety, ISNULL(E2, 0) as E2, 
-               ISNULL(Folia, 0) as Folia, ISNULL(Hallal, 0) as Hallal,
-               ISNULL(Cena, '0') as Cena
-        FROM [dbo].[ZamowieniaMiesoTowar]
-        WHERE ZamowienieId=@Id", cn))
+        SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Pojemniki, 0) as Pojemniki,
+               ISNULL(zmt.Palety, 0) as Palety, ISNULL(zmt.E2, 0) as E2,
+               ISNULL(zmt.Folia, 0) as Folia, ISNULL(zmt.Hallal, 0) as Hallal,
+               ISNULL(zmt.Cena, '0') as Cena
+        FROM [dbo].[ZamowieniaMiesoTowar] zmt
+        WHERE zmt.ZamowienieId=@Id", cn))
             {
                 cmdT.Parameters.AddWithValue("@Id", id);
                 await using var rd = await cmdT.ExecuteReaderAsync();
 
                 while (await rd.ReadAsync())
                 {
-                    zamowienieTowary.Add((
-                        rd.GetInt32(0),
-                        await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1),
-                        rd.GetInt32(2),
-                        rd.GetDecimal(3),
-                        rd.GetBoolean(4),
-                        rd.GetBoolean(5),
-                        rd.GetBoolean(6),
-                        rd.GetString(7)  // STRING!
-                    ));
+                    int kodTowaru = rd.GetInt32(0);
+                    decimal ilosc = await rd.IsDBNullAsync(1) ? 0m : rd.GetDecimal(1);
+                    int pojemniki = rd.GetInt32(2);
+                    decimal palety = rd.GetDecimal(3);
+                    bool e2 = rd.GetBoolean(4);
+                    bool folia = rd.GetBoolean(5);
+                    bool hallal = rd.GetBoolean(6);
+                    string cena = rd.GetString(7);
+
+                    zamowienieTowary.Add((kodTowaru, ilosc, pojemniki, palety, e2, folia, hallal, cena));
+
+                    // Zapisz oryginalne wartości produktu do śledzenia zmian
+                    if (_oryginalneWartosci != null && ilosc > 0)
+                    {
+                        // Pobierz nazwę/kod towaru z _dt
+                        string nazwaTowaru = $"Towar #{kodTowaru}";
+                        var towarRows = _dt.Select($"Id = {kodTowaru}");
+                        if (towarRows.Any())
+                        {
+                            nazwaTowaru = towarRows[0].Field<string>("Kod") ?? nazwaTowaru;
+                        }
+
+                        _oryginalneWartosci.Towary[kodTowaru] = new OryginalnyTowar
+                        {
+                            Nazwa = nazwaTowaru,
+                            Ilosc = ilosc,
+                            Cena = cena,
+                            E2 = e2,
+                            Folia = folia,
+                            Hallal = hallal,
+                            Pojemniki = pojemniki,
+                            Palety = palety
+                        };
+                    }
                 }
             }
 
@@ -1483,6 +1558,35 @@ namespace Kalendarz1
 
             await tr.CommitAsync();
 
+            // === LOGOWANIE HISTORII ZMIAN ===
+            try
+            {
+                var odbiorca = _kontrahenci.FirstOrDefault(k => k.Id == _selectedKlientId);
+                string odbiorcaNazwaLog = odbiorca?.Nazwa ?? "Nieznany odbiorca";
+                var dataPrzyjazdu = dateTimePickerSprzedaz.Value.Date.Add(dateTimePickerGodzinaPrzyjazdu.Value.TimeOfDay);
+
+                if (_idZamowieniaDoEdycji.HasValue && _oryginalneWartosci != null)
+                {
+                    // Edycja istniejącego zamówienia - szczegółowe śledzenie zmian
+                    await LogujSzczegoloweZmianyAsync(orderId, dataProdukcji, dataPrzyjazdu, transportStatus, odbiorcaNazwaLog);
+                }
+                else
+                {
+                    // Nowe zamówienie
+                    await HistoriaZmianService.LogujUtworzenie(
+                        orderId, UserID, App.UserFullName,
+                        $"Utworzono zamówienie dla: {odbiorcaNazwaLog}, " +
+                        $"data produkcji: {dataProdukcji:yyyy-MM-dd}, " +
+                        $"godzina przyjazdu: {dataPrzyjazdu:HH:mm}, " +
+                        $"pojemniki: {sumaPojemnikow:N0}, palety: {sumaPalet:N1}");
+                }
+            }
+            catch (Exception exLog)
+            {
+                // Logowanie nie powinno przerywać zapisu zamówienia
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania historii: {exLog.Message}");
+            }
+
             // === ZAPIS REZERWACJI KLAS WAGOWYCH ===
             // Po zapisie zamówienia zapisujemy rezerwacje do osobnej tabeli
             if (_rozkladKlasKurczakA != null && _rozkladKlasKurczakA.SumaPojemnikow > 0)
@@ -1516,6 +1620,203 @@ namespace Kalendarz1
                     // Nie przerywaj zapisu zamówienia z powodu błędu rezerwacji
                     System.Diagnostics.Debug.WriteLine($"Błąd zapisu rezerwacji: {exRez.Message}");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Loguje szczegółowe zmiany w zamówieniu porównując oryginalne i nowe wartości
+        /// </summary>
+        private async Task LogujSzczegoloweZmianyAsync(int orderId, DateTime dataProdukcji, DateTime dataPrzyjazdu,
+            string transportStatus, string odbiorcaNazwa)
+        {
+            if (_oryginalneWartosci == null) return;
+
+            var listaZmian = new List<string>();
+
+            // === Porównanie podstawowych pól ===
+
+            // Data zamówienia (sprzedaży)
+            if (_oryginalneWartosci.DataZamowienia.Date != dateTimePickerSprzedaz.Value.Date)
+            {
+                await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                    "Data sprzedaży",
+                    _oryginalneWartosci.DataZamowienia.ToString("yyyy-MM-dd"),
+                    dateTimePickerSprzedaz.Value.ToString("yyyy-MM-dd"));
+                listaZmian.Add($"Data sprzedaży: {_oryginalneWartosci.DataZamowienia:dd.MM} → {dateTimePickerSprzedaz.Value:dd.MM}");
+            }
+
+            // Godzina przyjazdu
+            if (_oryginalneWartosci.DataPrzyjazdu.TimeOfDay != dataPrzyjazdu.TimeOfDay)
+            {
+                await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                    "Godzina przyjazdu",
+                    _oryginalneWartosci.DataPrzyjazdu.ToString("HH:mm"),
+                    dataPrzyjazdu.ToString("HH:mm"));
+                listaZmian.Add($"Godzina: {_oryginalneWartosci.DataPrzyjazdu:HH:mm} → {dataPrzyjazdu:HH:mm}");
+            }
+
+            // Data produkcji
+            if (dateTimePickerProdukcji != null)
+            {
+                DateTime nowaDataProdukcji = dateTimePickerProdukcji.Value.Date;
+                if (_oryginalneWartosci.DataProdukcji.HasValue && _oryginalneWartosci.DataProdukcji.Value.Date != nowaDataProdukcji)
+                {
+                    await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                        "Data produkcji",
+                        _oryginalneWartosci.DataProdukcji.Value.ToString("yyyy-MM-dd"),
+                        nowaDataProdukcji.ToString("yyyy-MM-dd"));
+                    listaZmian.Add($"Data produkcji: {_oryginalneWartosci.DataProdukcji.Value:dd.MM} → {nowaDataProdukcji:dd.MM}");
+                }
+            }
+
+            // Zmiana odbiorcy
+            int nowyKlientId = int.Parse(_selectedKlientId ?? "0");
+            if (_oryginalneWartosci.KlientId != nowyKlientId)
+            {
+                await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                    "Odbiorca",
+                    _oryginalneWartosci.KlientNazwa ?? _oryginalneWartosci.KlientId.ToString(),
+                    odbiorcaNazwa);
+                listaZmian.Add($"Odbiorca: {_oryginalneWartosci.KlientNazwa} → {odbiorcaNazwa}");
+            }
+
+            // Transport status
+            if (_oryginalneWartosci.TransportStatus != transportStatus)
+            {
+                string staraWartoscDisplay = _oryginalneWartosci.TransportStatus == "Wlasny" ? "Własny odbiór" : "Transport firmy";
+                string nowaWartoscDisplay = transportStatus == "Wlasny" ? "Własny odbiór" : "Transport firmy";
+                await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                    "Typ transportu",
+                    staraWartoscDisplay,
+                    nowaWartoscDisplay);
+                listaZmian.Add($"Transport: {staraWartoscDisplay} → {nowaWartoscDisplay}");
+            }
+
+            // Uwagi/notatka
+            string staraNotatka = _oryginalneWartosci.Uwagi ?? "";
+            string nowaNotatka = textBoxUwagi.Text ?? "";
+            if (staraNotatka.Trim() != nowaNotatka.Trim())
+            {
+                await HistoriaZmianService.LogujZmianeNotatki(orderId, UserID, staraNotatka, nowaNotatka, App.UserFullName);
+                listaZmian.Add("Zmieniono notatkę");
+            }
+
+            // === Porównanie produktów ===
+            var produktyZmiany = new List<string>();
+            var noweIlosciProduktow = new Dictionary<int, (string nazwa, decimal ilosc, string cena, bool e2, bool folia, bool hallal)>();
+
+            // Zbierz aktualne wartości produktów
+            foreach (DataRow r in _dt.Rows)
+            {
+                decimal ilosc = r.Field<decimal>("Ilosc");
+                if (ilosc > 0)
+                {
+                    int kodTowaru = r.Field<int>("Id");
+                    string nazwa = r.Field<string>("Kod") ?? $"Towar #{kodTowaru}";
+                    string cena = r.IsNull("Cena") ? "" : (r.Field<string>("Cena") ?? "");
+                    bool e2 = r.Field<bool>("E2");
+                    bool folia = r.Field<bool>("Folia");
+                    bool hallal = r.Field<bool>("Hallal");
+                    noweIlosciProduktow[kodTowaru] = (nazwa, ilosc, cena, e2, folia, hallal);
+                }
+            }
+
+            // Porównaj z oryginalnymi
+            foreach (var orig in _oryginalneWartosci.Towary)
+            {
+                int kodTowaru = orig.Key;
+                var origTowar = orig.Value;
+
+                if (noweIlosciProduktow.TryGetValue(kodTowaru, out var nowy))
+                {
+                    // Produkt istniał i nadal istnieje - sprawdź zmiany
+                    if (origTowar.Ilosc != nowy.ilosc)
+                    {
+                        await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                            $"Ilość - {origTowar.Nazwa}",
+                            $"{origTowar.Ilosc:N0} kg",
+                            $"{nowy.ilosc:N0} kg");
+                        produktyZmiany.Add($"{origTowar.Nazwa}: {origTowar.Ilosc:N0} → {nowy.ilosc:N0} kg");
+                    }
+
+                    // Sprawdź zmianę ceny
+                    string staraCena = origTowar.Cena ?? "";
+                    string nowaCena = nowy.cena ?? "";
+                    if (decimal.TryParse(staraCena, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cenaStara) &&
+                        decimal.TryParse(nowaCena, NumberStyles.Any, _pl, out decimal cenaNowa))
+                    {
+                        if (cenaStara != cenaNowa && (cenaStara > 0 || cenaNowa > 0))
+                        {
+                            await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                                $"Cena - {origTowar.Nazwa}",
+                                cenaStara > 0 ? $"{cenaStara:N2} zł" : "brak",
+                                cenaNowa > 0 ? $"{cenaNowa:N2} zł" : "brak");
+                            produktyZmiany.Add($"Cena {origTowar.Nazwa}: {cenaStara:N2} → {cenaNowa:N2} zł");
+                        }
+                    }
+
+                    // Sprawdź zmianę E2
+                    if (origTowar.E2 != nowy.e2)
+                    {
+                        await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                            $"Tryb E2 - {origTowar.Nazwa}",
+                            origTowar.E2 ? "TAK" : "NIE",
+                            nowy.e2 ? "TAK" : "NIE");
+                    }
+
+                    // Sprawdź zmianę Folia
+                    if (origTowar.Folia != nowy.folia)
+                    {
+                        await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                            $"Folia - {origTowar.Nazwa}",
+                            origTowar.Folia ? "TAK" : "NIE",
+                            nowy.folia ? "TAK" : "NIE");
+                    }
+
+                    // Sprawdź zmianę Hallal
+                    if (origTowar.Hallal != nowy.hallal)
+                    {
+                        await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                            $"Hallal - {origTowar.Nazwa}",
+                            origTowar.Hallal ? "TAK" : "NIE",
+                            nowy.hallal ? "TAK" : "NIE");
+                    }
+                }
+                else
+                {
+                    // Produkt został usunięty
+                    await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                        $"Usunięto produkt",
+                        $"{origTowar.Nazwa} ({origTowar.Ilosc:N0} kg)",
+                        "(usunięto)");
+                    produktyZmiany.Add($"Usunięto: {origTowar.Nazwa} ({origTowar.Ilosc:N0} kg)");
+                }
+            }
+
+            // Sprawdź dodane produkty
+            foreach (var nowy in noweIlosciProduktow)
+            {
+                if (!_oryginalneWartosci.Towary.ContainsKey(nowy.Key))
+                {
+                    await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                        $"Dodano produkt",
+                        "(brak)",
+                        $"{nowy.Value.nazwa} ({nowy.Value.ilosc:N0} kg)");
+                    produktyZmiany.Add($"Dodano: {nowy.Value.nazwa} ({nowy.Value.ilosc:N0} kg)");
+                }
+            }
+
+            // Jeśli były jakiekolwiek zmiany produktów, dodaj do listy
+            if (produktyZmiany.Count > 0)
+            {
+                listaZmian.AddRange(produktyZmiany);
+            }
+
+            // Jeśli nie było żadnych szczegółowych zmian, zaloguj ogólną edycję
+            if (listaZmian.Count == 0)
+            {
+                await HistoriaZmianService.LogujEdycje(orderId, UserID, App.UserFullName,
+                    opisDodatkowy: $"Zapisano zamówienie bez wykrytych zmian dla: {odbiorcaNazwa}");
             }
         }
         #endregion

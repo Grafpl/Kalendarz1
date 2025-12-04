@@ -287,6 +287,7 @@
                             <MenuItem x:Name="menuSzczegolyZamowienia" Header="📊 Szczegóły zamówienia" Click="MenuSzczegolyZamowienia_Click"/>
                             <MenuItem x:Name="menuSzczegolyPlatnosci" Header="💳 Płatności kontrahenta" Click="MenuSzczegolyPlatnosci_Click"/>
                             <MenuItem x:Name="menuHistoriaZamowien" Header="📋 Historia zamówień" Click="MenuHistoriaZamowien_Click"/>
+                            <MenuItem x:Name="menuHistoriaZmian" Header="📜 Historia zmian zamówienia" Click="MenuHistoriaZmian_Click"/>
                             <MenuItem x:Name="menuTransportInfo" Header="🚚 Informacje o transporcie" Click="MenuTransportInfo_Click"/>
                             <Separator/>
                             <MenuItem x:Name="menuOdswiez" Header="🔄 Odśwież dane" Click="MenuOdswiez_Click"/>
