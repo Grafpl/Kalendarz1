@@ -451,6 +451,26 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             Close();
         }
 
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isWindowFullyLoaded) return;
+            if (e.Source != tabControl) return; // Ignoruj zdarzenia z innych kontrolek
+
+            // Sprawdz czy wybrano zakladke "Mapa cieplna"
+            if (tabControl.SelectedItem is TabItem tabItem)
+            {
+                string header = tabItem.Header?.ToString() ?? "";
+                if (header == "Mapa cieplna")
+                {
+                    // Odswiez mape cieplna z opoznieniem aby zapewnic renderowanie
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdateHeatmap();
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
+            }
+        }
+
         private void ChartType_Changed(object sender, RoutedEventArgs e)
         {
             if (_przefiltrowaneDane == null || !_przefiltrowaneDane.Any()) return;
@@ -1481,6 +1501,24 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             {
                 icHeatmap.Items.Clear();
 
+                // Informacja diagnostyczna
+                int liczbaRekordow = _przefiltrowaneDane?.Count ?? 0;
+                var dniUnique = _przefiltrowaneDane?
+                    .Select(r => r.Data.Date)
+                    .Where(d => d != DateTime.MinValue)
+                    .Distinct()
+                    .ToList() ?? new List<DateTime>();
+
+                // Naglowek informacyjny
+                icHeatmap.Items.Add(new TextBlock
+                {
+                    Text = $"Mapa cieplna: {liczbaRekordow} rekordow, {dniUnique.Count} dni",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(10, 5, 10, 10)
+                });
+
                 if (!_przefiltrowaneDane.Any())
                 {
                     // Pokaz komunikat gdy brak danych
@@ -1495,10 +1533,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 }
 
                 // Pobierz dni
-                var dni = _przefiltrowaneDane
-                    .Select(r => r.Data.Date)
-                    .Where(d => d != DateTime.MinValue)
-                    .Distinct()
+                var dni = dniUnique
                     .OrderBy(d => d)
                     .Take(30) // Max 30 dni
                     .ToList();

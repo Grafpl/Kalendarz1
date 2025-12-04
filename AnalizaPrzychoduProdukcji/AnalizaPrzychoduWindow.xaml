@@ -269,7 +269,7 @@
         </Border>
 
         <!-- GLOWNA ZAWARTOSC - TABS -->
-        <TabControl Grid.Row="3" Margin="10" x:Name="tabControl">
+        <TabControl Grid.Row="3" Margin="10" x:Name="tabControl" SelectionChanged="TabControl_SelectionChanged">
 
             <!-- TAB 1: Wykres godzinowy -->
             <TabItem Header="Wykres przychodu">
