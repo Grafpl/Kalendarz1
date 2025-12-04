@@ -55,7 +55,22 @@ namespace Kalendarz1
             public TimeSpan? CzasWyjazdu { get; set; } = null;
             public string StatusTransportu { get; set; } = "";
             public DateTime? DataKursu { get; set; } = null;
-            public bool MaFolie { get; set; } = false; // NOWE
+            public bool MaFolie { get; set; } = false;
+            public bool CzyZrealizowane { get; set; } = false;
+            public bool CzyWydane { get; set; } = false;
+
+            // Kombinowany status do wyświetlania
+            public string StatusKombinowany
+            {
+                get
+                {
+                    if (IsShipmentOnly) return "Symfonia";
+                    if (CzyWydane && CzyZrealizowane) return "✓ Zreal. + Wydane";
+                    if (CzyWydane && !CzyZrealizowane) return "⚠ Tylko wydane";
+                    if (CzyZrealizowane) return "✓ Zrealizowane";
+                    return "Nowe";
+                }
+            }
         }
         private sealed class ContractorInfo { public int Id; public string Shortcut = ""; public string Handlowiec = "(Brak)"; }
         private sealed class TowarInfo { public int Id; public string Kod = ""; }
@@ -88,16 +103,27 @@ namespace Kalendarz1
             var top = new Panel { Dock = DockStyle.Top, Height = 150, BackColor = Color.FromArgb(40, 42, 50) };
             lblData = new Label { AutoSize = true, Left = 16, Top = 10, Font = new Font("Segoe UI Semibold", 30f, FontStyle.Bold) };
             lblUser = new Label { AutoSize = true, Left = 18, Top = 72, Font = new Font("Segoe UI", 11f, FontStyle.Italic), ForeColor = Color.LightGray };
-            lblStats = new Label { AutoSize = true, Left = 320, Top = 76, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.Khaki };
+            lblStats = new Label { AutoSize = true, Left = 18, Top = 100, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.Khaki };
+
+            // Legenda ikon
+            var lblLegenda = new Label
+            {
+                Text = "📝 Notatka   🎞️ Folia   ✓ Zrealizowane   ⚠ Wydane bez realizacji",
+                Left = 18,
+                Top = 125,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.LightGray
+            };
 
             var lblFiltr = new Label { Text = "Towar:", Left = 320, Top = 18, AutoSize = true, Font = new Font("Segoe UI", 11f, FontStyle.Bold) };
             cbFiltrProdukt = new ComboBox { Left = 380, Top = 14, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
             cbFiltrProdukt.SelectedIndexChanged += async (s, e) => { if (cbFiltrProdukt.SelectedItem is ComboItem it) { _filteredProductId = it.Value == 0 ? null : it.Value; await LoadOrdersAsync(); await LoadPozycjeForSelectedAsync(); } };
 
-            // RADIO BUTTONY - NOWE
-            var lblDataSource = new Label { Text = "Źródło daty:", Left = 320, Top = 106, AutoSize = true, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.LightBlue };
-            rbDataUboju = new RadioButton { Text = "Data uboju", Left = 420, Top = 104, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.White, Checked = true };
-            rbDataZamowienia = new RadioButton { Text = "Data zamówienia (stary)", Left = 550, Top = 104, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.LightGray };
+            // RADIO BUTTONY
+            var lblDataSource = new Label { Text = "Źródło daty:", Left = 320, Top = 50, AutoSize = true, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.LightBlue };
+            rbDataUboju = new RadioButton { Text = "Data uboju", Left = 420, Top = 48, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.White, Checked = true };
+            rbDataZamowienia = new RadioButton { Text = "Data zamówienia", Left = 550, Top = 48, AutoSize = true, Font = new Font("Segoe UI", 10f), ForeColor = Color.LightGray };
             rbDataUboju.CheckedChanged += async (s, e) => { if (rbDataUboju.Checked) await ReloadAllAsync(); };
             rbDataZamowienia.CheckedChanged += async (s, e) => { if (rbDataZamowienia.Checked) await ReloadAllAsync(); };
 
@@ -144,7 +170,7 @@ namespace Kalendarz1
             btnPrev.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnPrev.Left = btnNext.Left - btnPrev.Width - rightMargin;
 
-            top.Controls.AddRange(new Control[] { lblData, lblUser, lblStats, lblFiltr, cbFiltrProdukt, lblDataSource, rbDataUboju, rbDataZamowienia, btnPrev, btnNext, btnToday, btnRefresh, btnLive, btnUndo, btnSaveNotes, btnZrealizowano, btnClose });
+            top.Controls.AddRange(new Control[] { lblData, lblUser, lblStats, lblLegenda, lblFiltr, cbFiltrProdukt, lblDataSource, rbDataUboju, rbDataZamowienia, btnPrev, btnNext, btnToday, btnRefresh, btnLive, btnUndo, btnSaveNotes, btnZrealizowano, btnClose });
             root.Controls.Add(top, 0, 0);
 
             // MAIN
@@ -235,9 +261,13 @@ namespace Kalendarz1
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "Status",
-                DataPropertyName = "Status",
+                DataPropertyName = "StatusKombinowany",
                 HeaderText = "Status",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold)
+                }
             });
 
             dgvZamowienia.Columns.Add(new DataGridViewTextBoxColumn
@@ -282,6 +312,31 @@ namespace Kalendarz1
                         {
                             e.Value = info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu";
                             e.FormattingApplied = true;
+                        }
+                    }
+                }
+
+                // Kolorowanie kolumny Status
+                if (e.ColumnIndex == dgvZamowienia.Columns["Status"]?.Index && e.RowIndex >= 0)
+                {
+                    var row = dgvZamowienia.Rows[e.RowIndex];
+                    if (row.DataBoundItem is ZamowienieInfo info)
+                    {
+                        if (info.CzyWydane && info.CzyZrealizowane)
+                        {
+                            e.CellStyle.ForeColor = Color.LimeGreen;
+                        }
+                        else if (info.CzyWydane && !info.CzyZrealizowane)
+                        {
+                            e.CellStyle.ForeColor = Color.Orange; // Ostrzeżenie - wydane bez realizacji
+                        }
+                        else if (info.CzyZrealizowane)
+                        {
+                            e.CellStyle.ForeColor = Color.LightGreen;
+                        }
+                        else
+                        {
+                            e.CellStyle.ForeColor = Color.Gray;
                         }
                     }
                 }
@@ -553,7 +608,9 @@ namespace Kalendarz1
                              ") AS TotalIlosc, " +
                              "z.DataUtworzenia, " +
                              "z.TransportKursID, " +
-                             "CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie " +
+                             "CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, " +
+                             "ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, " +
+                             "ISNULL(z.CzyWydane, 0) AS CzyWydane " +
                              "FROM dbo.ZamowieniaMieso z " +
                              $"WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
@@ -585,7 +642,9 @@ namespace Kalendarz1
                         MaNotatke = !string.IsNullOrWhiteSpace(uwagi),
                         CzasWyjazdu = null,
                         StatusTransportu = "",
-                        MaFolie = !rd.IsDBNull(7) && rd.GetBoolean(7) // POPRAWIONE - GetBoolean zamiast GetInt32
+                        MaFolie = !rd.IsDBNull(7) && rd.GetBoolean(7),
+                        CzyZrealizowane = !rd.IsDBNull(8) && rd.GetBoolean(8),
+                        CzyWydane = !rd.IsDBNull(9) && rd.GetBoolean(9)
                     };
 
                     var transportKursId = rd.IsDBNull(6) ? (long?)null : rd.GetInt64(6);
@@ -1137,8 +1196,16 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
             if (MessageBox.Show("Oznaczyć zamówienie jako zrealizowane?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Zrealizowane' WHERE Id=@I", cn);
+            // Ustaw CzyZrealizowane + DataRealizacji + KtoZrealizowal + Status (dla kompatybilności)
+            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                       SET CzyZrealizowane = 1,
+                                           DataRealizacji = GETDATE(),
+                                           KtoZrealizowal = @UserID,
+                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Zrealizowane' END
+                                       WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
+            int.TryParse(UserID, out int userId);
+            cmd.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
             await ReloadAllAsync();
         }
@@ -1149,7 +1216,13 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
             if (MessageBox.Show("Cofnąć realizację?", "Potwierdzenie", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Nowe' WHERE Id=@I", cn);
+            // Cofnij tylko CzyZrealizowane (nie ruszaj CzyWydane)
+            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                       SET CzyZrealizowane = 0,
+                                           DataRealizacji = NULL,
+                                           KtoZrealizowal = NULL,
+                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Nowe' END
+                                       WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
             await cmd.ExecuteNonQueryAsync();
             await ReloadAllAsync();
@@ -1180,7 +1253,26 @@ AND MG.data=@D AND MG.khid=@K AND TW.katalog=67095"
         }
         private async Task<int> ResolveTowarIdByKodAsync(string kod) { if (string.IsNullOrWhiteSpace(kod)) return 0; if (kod.StartsWith("ID:") && int.TryParse(kod[3..], out int id)) return id; try { using var cn = new SqlConnection(_connHandel); await cn.OpenAsync(); var cmd = new SqlCommand("SELECT TOP 1 ID FROM HM.TW WHERE kod=@K", cn); cmd.Parameters.AddWithValue("@K", kod); var o = await cmd.ExecuteScalarAsync(); return o == null || o is DBNull ? 0 : Convert.ToInt32(o); } catch { return 0; } }
         private async Task EnsureNotesTableAsync() { if (_notesTableEnsured) return; try { using var cn = new SqlConnection(_connLibra); await cn.OpenAsync(); var cmd = new SqlCommand(@"IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE name='ZamowieniaMiesoTowarNotatki' AND type='U') BEGIN CREATE TABLE dbo.ZamowieniaMiesoTowarNotatki( ZamowienieId INT NOT NULL, KodTowaru INT NOT NULL, Notatka NVARCHAR(4000) NULL, CONSTRAINT PK_ZamTowNot PRIMARY KEY (ZamowienieId,KodTowaru)); END", cn); await cmd.ExecuteNonQueryAsync(); } catch { } _notesTableEnsured = true; }
-        private void UpdateStatsLabel() { int total = _zamowienia.Count; if (total == 0) { lblStats.Text = "Brak zamówień"; return; } int realized = _zamowienia.Values.Count(z => string.Equals(z.Status, "Zrealizowane", StringComparison.OrdinalIgnoreCase)); lblStats.Text = $"Zrealizowane: {realized}/{total} ({100.0 * realized / total:N1}%)"; }
+        private void UpdateStatsLabel()
+        {
+            int total = _zamowienia.Values.Count(z => !z.IsShipmentOnly);
+            if (total == 0)
+            {
+                lblStats.Text = "Brak zamówień";
+                return;
+            }
+
+            int realized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyZrealizowane);
+            int issued = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane);
+            int issuedWithoutRealized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane && !z.CzyZrealizowane);
+
+            double realizedPct = 100.0 * realized / total;
+            double issuedPct = 100.0 * issued / total;
+
+            string warning = issuedWithoutRealized > 0 ? $"  ⚠ {issuedWithoutRealized} wydane bez realizacji" : "";
+
+            lblStats.Text = $"🔧 Zrealizowane: {realized}/{total} ({realizedPct:N0}%)   📦 Wydane: {issued}/{total} ({issuedPct:N0}%){warning}";
+        }
         private void TryOpenShipmentDetails()
         {
             if (dgvZamowienia.CurrentRow?.DataBoundItem is ZamowienieInfo info && info.IsShipmentOnly)

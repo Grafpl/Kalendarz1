@@ -115,10 +115,12 @@ namespace Kalendarz1
                     using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
 
-                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso 
-                                               SET Status = 'Wydany', 
-                                                   DataWydania = GETDATE(), 
-                                                   KtoWydal = @UserID 
+                    // Ustaw CzyWydane + DataWydania + KtoWydal + Status (dla kompatybilności)
+                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                               SET CzyWydane = 1,
+                                                   DataWydania = GETDATE(),
+                                                   KtoWydal = @UserID,
+                                                   Status = 'Wydany'
                                                WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
                     cmd.Parameters.AddWithValue("@UserID", UserID);
@@ -163,10 +165,12 @@ namespace Kalendarz1
                     using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
 
-                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso 
-                                               SET Status = 'Nowe', 
-                                                   DataWydania = NULL, 
-                                                   KtoWydal = NULL 
+                    // Cofnij tylko CzyWydane (nie ruszaj CzyZrealizowane)
+                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                               SET CzyWydane = 0,
+                                                   DataWydania = NULL,
+                                                   KtoWydal = NULL,
+                                                   Status = CASE WHEN CzyZrealizowane = 1 THEN 'Zrealizowane' ELSE 'Nowe' END
                                                WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
 

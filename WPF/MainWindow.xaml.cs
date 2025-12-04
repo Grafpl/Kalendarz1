@@ -611,6 +611,7 @@ namespace Kalendarz1.WPF
         {
             await CheckAndCreateSlaughterDateColumnAsync();
             await CheckAndCreateTransportKursIDColumnAsync();
+            await CheckAndCreateStatusColumnsAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -743,7 +744,7 @@ namespace Kalendarz1.WPF
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                                          WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID'";
 
                 await using var cmdCheck = new SqlCommand(checkSql, cn);
@@ -759,6 +760,59 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 // Kolumna może już istnieć
+            }
+        }
+
+        private async Task CheckAndCreateStatusColumnsAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Lista kolumn do utworzenia
+                var columns = new[]
+                {
+                    ("CzyZrealizowane", "BIT DEFAULT 0 NOT NULL"),
+                    ("DataRealizacji", "DATETIME NULL"),
+                    ("KtoZrealizowal", "INT NULL"),
+                    ("CzyWydane", "BIT DEFAULT 0 NOT NULL")
+                };
+
+                foreach (var (columnName, columnDef) in columns)
+                {
+                    var checkSql = $@"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                     WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = '{columnName}'";
+
+                    await using var cmdCheck = new SqlCommand(checkSql, cn);
+                    int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                    if (count == 0)
+                    {
+                        var alterSql = $@"ALTER TABLE [dbo].[ZamowieniaMieso] ADD {columnName} {columnDef}";
+                        await using var cmdAlter = new SqlCommand(alterSql, cn);
+                        await cmdAlter.ExecuteNonQueryAsync();
+                    }
+                }
+
+                // Migracja istniejących danych - tylko raz przy pierwszym uruchomieniu
+                var migrationSql = @"
+                    -- Ustaw CzyZrealizowane na podstawie Status
+                    UPDATE dbo.ZamowieniaMieso
+                    SET CzyZrealizowane = 1
+                    WHERE Status IN ('Zrealizowane', 'Wydany') AND CzyZrealizowane = 0;
+
+                    -- Ustaw CzyWydane na podstawie Status lub DataWydania
+                    UPDATE dbo.ZamowieniaMieso
+                    SET CzyWydane = 1
+                    WHERE (Status = 'Wydany' OR DataWydania IS NOT NULL) AND CzyWydane = 0;";
+
+                await using var cmdMigrate = new SqlCommand(migrationSql, cn);
+                await cmdMigrate.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd tworzenia kolumn statusów: {ex.Message}");
             }
         }
 
