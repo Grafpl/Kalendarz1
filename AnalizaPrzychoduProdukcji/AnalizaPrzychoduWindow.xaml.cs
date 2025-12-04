@@ -176,10 +176,13 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            string id = reader.GetString(0);
-                            string nazwa = reader.GetString(1);
-                            towary.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
-                            _towaryDict[id] = nazwa;
+                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(id))
+                            {
+                                towary.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
+                                _towaryDict[id] = nazwa;
+                            }
                         }
                     }
                 }
@@ -214,10 +217,13 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            string id = reader.GetString(0);
-                            string nazwa = reader.IsDBNull(1) ? $"Operator {id}" : reader.GetString(1);
-                            operatorzy.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
-                            _operatorzyDict[id] = nazwa;
+                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                            string nazwa = reader.IsDBNull(1) ? $"Operator {id}" : reader.GetValue(1)?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(id))
+                            {
+                                operatorzy.Add(new ComboItemString { Wartosc = id, Nazwa = nazwa });
+                                _operatorzyDict[id] = nazwa;
+                            }
                         }
                     }
                 }
@@ -252,9 +258,12 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            int id = Convert.ToInt32(reader.GetValue(0));
-                            string typ = reader.IsDBNull(1) ? $"T{id}" : reader.GetString(1);
-                            terminale.Add(new ComboItem { Id = id, Nazwa = typ });
+                            int id = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetValue(0));
+                            string typ = reader.IsDBNull(1) ? $"T{id}" : reader.GetValue(1)?.ToString() ?? $"T{id}";
+                            if (id > 0)
+                            {
+                                terminale.Add(new ComboItem { Id = id, Nazwa = typ });
+                            }
                         }
                     }
                 }
@@ -289,8 +298,11 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     {
                         while (reader.Read())
                         {
-                            string p1 = reader.GetString(0);
-                            partie.Add(new ComboItemString { Wartosc = p1, Nazwa = p1 });
+                            string p1 = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(p1))
+                            {
+                                partie.Add(new ComboItemString { Wartosc = p1, Nazwa = p1 });
+                            }
                         }
                     }
                 }
@@ -983,7 +995,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                         Title = "Przychod (kg)",
                         Values = PrzychodValues,
                         Fill = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        MaxColumnWidth = 50
+                        MaxColumnWidth = 50,
+                        DataLabels = true,
+                        LabelPoint = point => $"{point.Y:N0}"
                     });
                 }
                 else if (rbWykresLiniowy.IsChecked == true)
@@ -994,7 +1008,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                         Values = PrzychodValues,
                         Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                         Fill = Brushes.Transparent,
-                        PointGeometrySize = 10
+                        PointGeometrySize = 10,
+                        DataLabels = true,
+                        LabelPoint = point => $"{point.Y:N0}"
                     });
                 }
                 else // Obszarowy
@@ -1005,7 +1021,9 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                         Values = PrzychodValues,
                         Stroke = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                         Fill = new SolidColorBrush(Color.FromArgb(100, 52, 152, 219)),
-                        PointGeometrySize = 8
+                        PointGeometrySize = 8,
+                        DataLabels = true,
+                        LabelPoint = point => $"{point.Y:N0}"
                     });
                 }
             }
@@ -1072,7 +1090,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                     SumaKg = g.Sum(r => r.ActWeight),
                     Liczba = g.Count()
                 })
-                .OrderByDescending(g => g.SumaKg)
+                .OrderBy(g => g.SumaKg)  // Sortowanie od najmniejszego do najwiekszego
                 .ToList();
 
             decimal suma = grupyPartii.Sum(p => p.SumaKg);
@@ -1124,10 +1142,24 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 .ToList();
 
             decimal suma = grupyArtykulow.Sum(a => a.SumaKg);
+            int sumaWazen = grupyArtykulow.Sum(a => a.LiczbaWazen);
             foreach (var a in grupyArtykulow)
             {
                 a.Procent = suma > 0 ? (a.SumaKg / suma * 100) : 0;
             }
+
+            // Dodaj wiersz sumy na poczatku
+            var sumRow = new ArticleStats
+            {
+                ArticleID = "",
+                ShortName = "SUMA",
+                ArticleName = "*** RAZEM ***",
+                SumaKg = suma,
+                Procent = 100,
+                LiczbaWazen = sumaWazen,
+                SredniaKg = sumaWazen > 0 ? suma / sumaWazen : 0
+            };
+            grupyArtykulow.Insert(0, sumRow);
 
             dgPrzychodyArtykuly.ItemsSource = grupyArtykulow;
         }
@@ -1429,6 +1461,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
 
         private void UpdateHeatmap()
         {
+            if (!_isWindowFullyLoaded) return;
             if (icHeatmap == null) return;
 
             icHeatmap.Items.Clear();
