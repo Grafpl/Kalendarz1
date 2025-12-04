@@ -280,7 +280,9 @@ namespace Kalendarz1
                     sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND t.KodTowaru=@P");
                     sqlBuilder.Append(") AS TotalIlosc, z.DataUtworzenia, z.TransportKursID, ");
-                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie ");
+                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, ");
+                    sqlBuilder.Append("ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, ");
+                    sqlBuilder.Append("ISNULL(z.CzyWydane, 0) AS CzyWydane ");
                     sqlBuilder.Append($"FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
@@ -301,7 +303,9 @@ namespace Kalendarz1
                             DataUtworzenia = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
                             TransportKursId = rd.IsDBNull(6) ? null : rd.GetInt64(6),
                             MaFolie = rd.GetBoolean(7),
-                            MaNotatke = !string.IsNullOrWhiteSpace(rd.GetString(2))
+                            MaNotatke = !string.IsNullOrWhiteSpace(rd.GetString(2)),
+                            CzyZrealizowane = rd.GetBoolean(8),
+                            CzyWydane = rd.GetBoolean(9)
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -734,16 +738,17 @@ namespace Kalendarz1
 
         private void UpdateProgressInfo()
         {
-            int total = _zamowienia.Count;
+            int total = _zamowienia.Values.Count(z => !z.IsShipmentOnly);
             if (total == 0)
             {
                 RealizationProgress = 0;
-                RealizationProgressText = "0";
+                RealizationProgressText = "0%";
                 return;
             }
-            int realized = _zamowienia.Values.Count(z => z.Status == "Zrealizowane");
+            int realized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyZrealizowane);
+            int issued = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane);
             RealizationProgress = (double)realized / total * 100;
-            RealizationProgressText = $"{RealizationProgress:F0}";
+            RealizationProgressText = $"{RealizationProgress:F0}%\n🔧{realized} 📦{issued}";
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
@@ -834,8 +839,16 @@ namespace Kalendarz1
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Zrealizowane' WHERE Id=@I", cn);
+            // Ustaw CzyZrealizowane + DataRealizacji + KtoZrealizowal + Status (dla kompatybilności)
+            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                       SET CzyZrealizowane = 1,
+                                           DataRealizacji = GETDATE(),
+                                           KtoZrealizowal = @UserID,
+                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Zrealizowane' END
+                                       WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
+            int.TryParse(UserID, out int userId);
+            cmd.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
             await LoadOrdersAsync();
         }
@@ -848,7 +861,13 @@ namespace Kalendarz1
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET Status='Nowe' WHERE Id=@I", cn);
+            // Cofnij tylko CzyZrealizowane (nie ruszaj CzyWydane)
+            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                       SET CzyZrealizowane = 0,
+                                           DataRealizacji = NULL,
+                                           KtoZrealizowal = NULL,
+                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Nowe' END
+                                       WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
             await cmd.ExecuteNonQueryAsync();
             await LoadOrdersAsync();
@@ -944,6 +963,8 @@ namespace Kalendarz1
             public DateTime? DataKursu { get; set; }
             public bool MaFolie { get; set; }
             public long? TransportKursId { get; set; }
+            public bool CzyZrealizowane { get; set; }
+            public bool CzyWydane { get; set; }
         }
 
         public class ContractorInfo
@@ -974,7 +995,32 @@ namespace Kalendarz1
             public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
-            public string Status => Info.Status;
+
+            // Kombinowany status
+            public string Status
+            {
+                get
+                {
+                    if (Info.IsShipmentOnly) return "Symfonia";
+                    if (Info.CzyWydane && Info.CzyZrealizowane) return "✓ Zreal. + Wydane";
+                    if (Info.CzyWydane && !Info.CzyZrealizowane) return "⚠ Tylko wydane";
+                    if (Info.CzyZrealizowane) return "✓ Zrealizowane";
+                    return "Nowe";
+                }
+            }
+
+            // Kolor statusu
+            public Brush StatusColor
+            {
+                get
+                {
+                    if (Info.CzyWydane && Info.CzyZrealizowane) return Brushes.LimeGreen;
+                    if (Info.CzyWydane && !Info.CzyZrealizowane) return Brushes.Orange;
+                    if (Info.CzyZrealizowane) return Brushes.LightGreen;
+                    return Brushes.Gray;
+                }
+            }
+
             public string CzasWyjazdDisplay => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue
                 ? $"{Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}"
                 : (Info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu");

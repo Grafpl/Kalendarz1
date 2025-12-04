@@ -217,19 +217,32 @@
 
                 <!-- Filter ComboBox -->
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="40,0,0,0">
-                    <TextBlock Text="Filtruj towar:" 
-                               Foreground="White" 
-                               FontWeight="Bold" 
-                               VerticalAlignment="Center" 
+                    <TextBlock Text="Filtruj towar:"
+                               Foreground="White"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
                                FontSize="16"
                                Margin="0,0,0,5"/>
-                    <ComboBox x:Name="cbFiltrProdukt" 
-                              Width="350" 
+                    <ComboBox x:Name="cbFiltrProdukt"
+                              Width="350"
                               Height="50"
                               FontSize="18"
                               Background="#2D2F3E"
                               BorderBrush="#787878"
                               Foreground="White"/>
+                    <!-- Legenda ikon -->
+                    <Border Background="#3A3C48" CornerRadius="5" Margin="0,10,0,0" Padding="8,5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📝" FontSize="14" VerticalAlignment="Center" ToolTip="Notatka do zamówienia"/>
+                            <TextBlock Text="= Notatka  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
+                            <TextBlock Text="🎞️" FontSize="14" VerticalAlignment="Center" ToolTip="Folia/skrzynka wymagana"/>
+                            <TextBlock Text="= Folia  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
+                            <TextBlock Text="📦" FontSize="14" VerticalAlignment="Center" ToolTip="Zamówienie Symfonia (wydania)"/>
+                            <TextBlock Text="= Symfonia  " Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,8,0"/>
+                            <TextBlock Text="🟠" FontSize="14" VerticalAlignment="Center" ToolTip="Kurs transportowy przypisany"/>
+                            <TextBlock Text="= Kurs" Foreground="LightGray" FontSize="11" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Action Buttons -->
@@ -281,7 +294,14 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{Binding StatusColor}"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -306,7 +326,14 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{Binding StatusColor}"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
