@@ -355,45 +355,80 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 3: Analiza partii -->
+            <!-- TAB 3: Analiza partii (tylko tabela) -->
             <TabItem Header="Analiza partii">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="350"/>
-                    </Grid.ColumnDefinitions>
+                <Border Background="White" Margin="10" CornerRadius="8">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                    <lvc:PieChart x:Name="chartPartie" Margin="10" LegendLocation="Right"/>
+                        <TextBlock Text="PODSUMOWANIE PARTII (P1)" FontSize="14" FontWeight="Bold"
+                                   Foreground="#2C3E50" Margin="15,15,15,10"/>
 
-                    <!-- Lista partii -->
-                    <Border Grid.Column="1" Background="White" Margin="10" CornerRadius="8">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
-                        </Border.Effect>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                        <DataGrid x:Name="dgPartie" Grid.Row="1" Margin="10"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  BorderThickness="0" Background="Transparent"
+                                  RowBackground="White" AlternatingRowBackground="#F8F9FA">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="*" MinWidth="150"/>
+                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="120"/>
+                                <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="70"/>
+                                <DataGridTextColumn Header="Liczba wazen" Binding="{Binding Liczba}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
 
-                            <TextBlock Text="PODSUMOWANIE PARTII" FontSize="14" FontWeight="Bold"
-                                       Foreground="#2C3E50" Margin="15,15,15,10"/>
+            <!-- TAB: Przychody wg artykulow -->
+            <TabItem Header="Przychody wg artykulow">
+                <Border Background="White" Margin="10" CornerRadius="8">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                            <DataGrid x:Name="dgPartie" Grid.Row="1" Margin="10"
-                                      AutoGenerateColumns="False" IsReadOnly="True"
-                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                                      BorderThickness="0" Background="Transparent"
-                                      RowBackground="White" AlternatingRowBackground="#F8F9FA">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Partia" Binding="{Binding Partia}" Width="*"/>
-                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="90"/>
-                                    <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="50"/>
-                                    <DataGridTextColumn Header="Liczba" Binding="{Binding Liczba}" Width="60"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
-                    </Border>
-                </Grid>
+                        <StackPanel Margin="15,15,15,10">
+                            <TextBlock Text="PRZYCHODY WG ARTYKULOW" FontSize="14" FontWeight="Bold"
+                                       Foreground="#2C3E50"/>
+                            <TextBlock Text="Nazwy artykulow z tabeli Article (LibraNet)" FontSize="10"
+                                       Foreground="#95A5A6" Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <DataGrid x:Name="dgPrzychodyArtykuly" Grid.Row="1" Margin="10"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  BorderThickness="0" Background="Transparent"
+                                  RowBackground="White" AlternatingRowBackground="#F8F9FA">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding ArticleID}" Width="50"/>
+                                <DataGridTextColumn Header="Skrot" Binding="{Binding ShortName}" Width="120"/>
+                                <DataGridTextColumn Header="Nazwa artykulu" Binding="{Binding ArticleName}" Width="*" MinWidth="250"/>
+                                <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKg, StringFormat=N2}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="%" Binding="{Binding Procent, StringFormat=N1}" Width="60"/>
+                                <DataGridTextColumn Header="Liczba wazen" Binding="{Binding LiczbaWazen}" Width="100"/>
+                                <DataGridTextColumn Header="Sred. kg" Binding="{Binding SredniaKg, StringFormat=N2}" Width="90"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
             </TabItem>
 
             <!-- TAB 4: Szczegolowe dane -->

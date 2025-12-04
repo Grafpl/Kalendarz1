@@ -30,6 +30,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         // Słowniki
         private Dictionary<string, string> _towaryDict = new Dictionary<string, string>();
         private Dictionary<string, string> _operatorzyDict = new Dictionary<string, string>();
+        private Dictionary<string, ArticleInfo> _articleDict = new Dictionary<string, ArticleInfo>();
 
         // Flaga do kontroli czy okno jest w pelni zaladowane
         private bool _isWindowFullyLoaded = false;
@@ -141,6 +142,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             LoadPartie();
             LoadKlasyKurczaka();
             LoadGodziny();
+            LoadArticles();
 
             // LoadData() jest teraz wywolywane w Window_Loaded
         }
@@ -342,6 +344,47 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             cbGodzinaDo.DisplayMemberPath = "Nazwa";
             cbGodzinaDo.SelectedValuePath = "Id";
             cbGodzinaDo.SelectedIndex = 0;
+        }
+
+        private void LoadArticles()
+        {
+            try
+            {
+                _articleDict.Clear();
+
+                using (var conn = new SqlConnection(_connLibra))
+                {
+                    conn.Open();
+                    string sql = @"SELECT ID, ShortName, Name
+                                   FROM dbo.Article
+                                   WHERE ID IS NOT NULL AND ID <> ''";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string id = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                            string shortName = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "";
+                            string name = reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "";
+
+                            if (!string.IsNullOrEmpty(id) && !_articleDict.ContainsKey(id))
+                            {
+                                _articleDict[id] = new ArticleInfo
+                                {
+                                    ID = id,
+                                    ShortName = shortName,
+                                    Name = name
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                txtStatus.Text = $"Blad ladowania artykulow: {ex.Message}";
+            }
         }
 
         #endregion
@@ -622,6 +665,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
             UpdatePrzychodChart();
             UpdateOperatorChart();
             UpdatePartieChart();
+            UpdatePrzychodyArtykuly();
             UpdateZmianyChart();
             UpdateTerminaleChart();
             UpdateKlasyChart();
@@ -789,7 +833,7 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         private void UpdatePartieChart()
         {
             if (!_isWindowFullyLoaded) return;
-            if (chartPartie == null || !chartPartie.IsLoaded || dgPartie == null) return;
+            if (dgPartie == null) return;
 
             if (!_przefiltrowaneDane.Any())
             {
@@ -814,43 +858,55 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
                 p.Procent = suma > 0 ? (p.SumaKg / suma * 100) : 0;
             }
 
-            try
-            {
-                chartPartie.Series.Clear();
+            dgPartie.ItemsSource = grupyPartii;
+        }
 
-                // Wykres kolowy
-                var kolory = new[] {
-                    Color.FromRgb(52, 152, 219),
-                    Color.FromRgb(46, 204, 113),
-                    Color.FromRgb(155, 89, 182),
-                    Color.FromRgb(241, 196, 15),
-                    Color.FromRgb(230, 126, 34),
-                    Color.FromRgb(231, 76, 60),
-                    Color.FromRgb(26, 188, 156),
-                    Color.FromRgb(52, 73, 94)
-                };
+        private void UpdatePrzychodyArtykuly()
+        {
+            if (!_isWindowFullyLoaded) return;
+            if (dgPrzychodyArtykuly == null) return;
 
-                int kolorIndex = 0;
-                foreach (var partia in grupyPartii.Take(8))
-                {
-                    chartPartie.Series.Add(new PieSeries
-                    {
-                        Title = partia.Partia,
-                        Values = new ChartValues<double> { (double)partia.SumaKg },
-                        Fill = new SolidColorBrush(kolory[kolorIndex % kolory.Length]),
-                        DataLabels = true,
-                        LabelPoint = point => $"{partia.Partia}: {point.Y:N0} kg"
-                    });
-                    kolorIndex++;
-                }
-            }
-            catch (NullReferenceException)
+            if (!_przefiltrowaneDane.Any())
             {
-                Dispatcher.BeginInvoke(new Action(() => UpdatePartieChart()), System.Windows.Threading.DispatcherPriority.Background);
+                dgPrzychodyArtykuly.ItemsSource = null;
                 return;
             }
 
-            dgPartie.ItemsSource = grupyPartii;
+            var grupyArtykulow = _przefiltrowaneDane
+                .GroupBy(r => r.ArticleID)
+                .Select(g =>
+                {
+                    // Pobierz dane artykulu ze slownika
+                    string shortName = "";
+                    string articleName = g.First().NazwaTowaru; // domyslnie z In0E
+
+                    if (_articleDict.TryGetValue(g.Key, out ArticleInfo artInfo))
+                    {
+                        shortName = artInfo.ShortName;
+                        if (!string.IsNullOrEmpty(artInfo.Name))
+                            articleName = artInfo.Name;
+                    }
+
+                    return new ArticleStats
+                    {
+                        ArticleID = g.Key,
+                        ShortName = shortName,
+                        ArticleName = articleName,
+                        SumaKg = g.Sum(r => r.ActWeight),
+                        LiczbaWazen = g.Count(),
+                        SredniaKg = g.Average(r => r.ActWeight)
+                    };
+                })
+                .OrderByDescending(g => g.SumaKg)
+                .ToList();
+
+            decimal suma = grupyArtykulow.Sum(a => a.SumaKg);
+            foreach (var a in grupyArtykulow)
+            {
+                a.Procent = suma > 0 ? (a.SumaKg / suma * 100) : 0;
+            }
+
+            dgPrzychodyArtykuly.ItemsSource = grupyArtykulow;
         }
 
         private void UpdateZmianyChart()
@@ -1447,6 +1503,24 @@ namespace Kalendarz1.AnalizaPrzychoduProdukcji
         public decimal SumaKg { get; set; }
         public decimal SredniaKg { get; set; }
         public int LiczbaDni { get; set; }
+    }
+
+    public class ArticleInfo
+    {
+        public string ID { get; set; }
+        public string ShortName { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class ArticleStats
+    {
+        public string ArticleID { get; set; }
+        public string ShortName { get; set; }
+        public string ArticleName { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal Procent { get; set; }
+        public int LiczbaWazen { get; set; }
+        public decimal SredniaKg { get; set; }
     }
 
     #endregion
