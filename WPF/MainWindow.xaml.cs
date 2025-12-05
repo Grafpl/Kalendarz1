@@ -2016,6 +2016,7 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
                 _dtOrders.Columns.Add("Trans", typeof(string));
                 _dtOrders.Columns.Add("Prod", typeof(string));
+                _dtOrders.Columns.Add("Wydane", typeof(string));
             }
             else
             {
@@ -2078,19 +2079,20 @@ namespace Kalendarz1.WPF
                     string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
 
                     string sql = $@"
-SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
+SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
+       zm.DataWydania,
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1) 
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
                                 (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                 $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -2101,6 +2103,39 @@ ORDER BY zm.Id";
                     using var da = new SqlDataAdapter(cmd);
                     da.Fill(temp);
                 }
+            }
+
+            // Load transport departure times from dbo.Kurs
+            var transportTimes = new Dictionary<int, TimeSpan?>();
+            var transportKursIds = new List<int>();
+            foreach (DataRow r in temp.Rows)
+            {
+                if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
+                {
+                    int kursId = Convert.ToInt32(r["TransportKursID"]);
+                    if (!transportKursIds.Contains(kursId))
+                        transportKursIds.Add(kursId);
+                }
+            }
+
+            if (transportKursIds.Any())
+            {
+                try
+                {
+                    await using var cnTransport = new SqlConnection(_connTransport);
+                    await cnTransport.OpenAsync();
+                    var kursIdsList = string.Join(",", transportKursIds);
+                    var sqlKurs = $"SELECT KursID, GodzWyjazdu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
+                    await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
+                    await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
+                    while (await rdKurs.ReadAsync())
+                    {
+                        int kursId = rdKurs.GetInt32(0);
+                        TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
+                        transportTimes[kursId] = godzWyjazdu;
+                    }
+                }
+                catch { /* Ignore transport errors - show just checkmark */ }
             }
 
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
@@ -2205,8 +2240,29 @@ ORDER BY zm.Id";
                     createdBy = imie;
                 }
 
-                string transColumn = transportKursId.HasValue ? "✓" : "";
+                // Transport column - show departure time if available
+                string transColumn = "";
+                if (transportKursId.HasValue)
+                {
+                    if (transportTimes.TryGetValue(transportKursId.Value, out var godzWyjazdu) && godzWyjazdu.HasValue)
+                    {
+                        transColumn = godzWyjazdu.Value.ToString(@"hh\:mm");
+                    }
+                    else
+                    {
+                        transColumn = "✓";
+                    }
+                }
+
                 string prodColumn = status == "Zrealizowane" ? "✓" : "";
+
+                // Warehouse column - show shipping time if available
+                DateTime? dataWydania = null;
+                if (temp.Columns.Contains("DataWydania") && !(r["DataWydania"] is DBNull))
+                {
+                    dataWydania = Convert.ToDateTime(r["DataWydania"]);
+                }
+                string wydaneColumn = dataWydania.HasValue ? dataWydania.Value.ToString("HH:mm") : "";
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
@@ -2222,7 +2278,7 @@ ORDER BY zm.Id";
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn, wydaneColumn
                 );
             }
 
@@ -2263,6 +2319,7 @@ ORDER BY zm.Id";
                 row["MaHallal"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
+                row["Wydane"] = "";
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -2317,6 +2374,7 @@ ORDER BY zm.Id";
                 summaryRow["MaHallal"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
+                summaryRow["Wydane"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2395,21 +2453,30 @@ ORDER BY zm.Id";
                 MinWidth = 130
             });
 
-            // 8. Trans
+            // 8. Trans - departure time
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "T",
+                Header = "Wyjazd",
                 Binding = new System.Windows.Data.Binding("Trans"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 9. Prod - production status
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Prod",
+                Binding = new System.Windows.Data.Binding("Prod"),
                 Width = new DataGridLength(35),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 9. Prod
+            // 10. Wydane - warehouse shipping time
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "P",
-                Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(35),
+                Header = "Wydane",
+                Binding = new System.Windows.Data.Binding("Wydane"),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }

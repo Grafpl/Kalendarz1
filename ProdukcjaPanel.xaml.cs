@@ -117,7 +117,34 @@ namespace Kalendarz1
 
         private async void btnZrealizowano_Click(object sender, RoutedEventArgs e)
         {
-            await MarkOrderRealizedAsync();
+            var selected = SelectedZamowienie;
+            if (selected == null) return;
+
+            if (selected.Info.CzyZrealizowane)
+            {
+                // Cofnij realizację
+                await UndoRealizedAsync();
+            }
+            else
+            {
+                // Oznacz jako zrealizowane z opcjonalną notatką
+                await MarkOrderRealizedWithNoteAsync();
+            }
+        }
+
+        private void UpdateZrealizowanoButtonState()
+        {
+            var selected = SelectedZamowienie;
+            if (selected != null && selected.Info.CzyZrealizowane)
+            {
+                btnZrealizowano.Content = "↩ COFNIJ REAL.";
+                btnZrealizowano.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+            }
+            else
+            {
+                btnZrealizowano.Content = "✓ ZREALIZOWANO";
+                btnZrealizowano.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#19874B"));
+            }
         }
 
         private void btnClose_Click(object sender, RoutedEventArgs e)
@@ -132,6 +159,7 @@ namespace Kalendarz1
                 dgvZamowienia2.SelectedItem = null;
                 await LoadPozycjeForSelectedAsync();
             }
+            UpdateZrealizowanoButtonState();
         }
 
         private async void dgvZamowienia2_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -141,6 +169,7 @@ namespace Kalendarz1
                 dgvZamowienia1.SelectedItem = null;
                 await LoadPozycjeForSelectedAsync();
             }
+            UpdateZrealizowanoButtonState();
         }
 
         private void dgvZamowienia_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -282,7 +311,10 @@ namespace Kalendarz1
                     sqlBuilder.Append(") AS TotalIlosc, z.DataUtworzenia, z.TransportKursID, ");
                     sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, ");
                     sqlBuilder.Append("ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, ");
-                    sqlBuilder.Append("ISNULL(z.CzyWydane, 0) AS CzyWydane ");
+                    sqlBuilder.Append("ISNULL(z.CzyWydane, 0) AS CzyWydane, ");
+                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Hallal, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaHalal, ");
+                    sqlBuilder.Append("CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport, ");
+                    sqlBuilder.Append("z.DataPrzyjazdu ");
                     sqlBuilder.Append($"FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
@@ -305,7 +337,10 @@ namespace Kalendarz1
                             MaFolie = rd.GetBoolean(7),
                             MaNotatke = !string.IsNullOrWhiteSpace(rd.GetString(2)),
                             CzyZrealizowane = rd.GetBoolean(8),
-                            CzyWydane = rd.GetBoolean(9)
+                            CzyWydane = rd.GetBoolean(9),
+                            MaHalal = rd.GetBoolean(10),
+                            WlasnyTransport = rd.GetBoolean(11),
+                            DataPrzyjazdu = rd.IsDBNull(12) ? null : rd.GetDateTime(12)
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -365,7 +400,8 @@ namespace Kalendarz1
                 }
             }
 
-            var sorted = orderListForGrid.OrderBy(o => StatusOrder(o.Status)).ThenBy(o => o.SortDateTime).ThenBy(o => o.Handlowiec).ThenBy(o => o.Klient).ToList();
+            // Sort only by departure time (earliest first), "Brak kursu" at the end
+            var sorted = orderListForGrid.OrderBy(o => o.SortDateTime).ThenBy(o => o.Klient).ToList();
 
             ZamowieniaList1.Clear();
             ZamowieniaList2.Clear();
@@ -702,35 +738,11 @@ namespace Kalendarz1
 
         private void UpdateRowColor(ZamowienieViewModel item)
         {
-            if (item.Status == "Zrealizowane")
-            {
-                item.RowColor = new SolidColorBrush(Color.FromRgb(32, 80, 44));
-                item.TextColor = Brushes.LightGreen;
-            }
-            else if (item.Info.IsShipmentOnly)
+            // Simple coloring - no time-based urgency colors
+            if (item.Info.IsShipmentOnly)
             {
                 item.RowColor = new SolidColorBrush(Color.FromRgb(80, 58, 32));
                 item.TextColor = Brushes.Gold;
-            }
-            else if (item.Info.CzasWyjazdu.HasValue && item.Info.DataKursu.HasValue)
-            {
-                var wyjazd = item.Info.DataKursu.Value.Add(item.Info.CzasWyjazdu.Value);
-                var roznica = (wyjazd - DateTime.Now).TotalMinutes;
-                if (roznica < 0)
-                {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(139, 0, 0));
-                    item.TextColor = Brushes.White;
-                }
-                else if (roznica <= 30)
-                {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(218, 165, 32));
-                    item.TextColor = Brushes.Black;
-                }
-                else
-                {
-                    item.RowColor = Brushes.Transparent;
-                    item.TextColor = Brushes.White;
-                }
             }
             else
             {
@@ -742,20 +754,45 @@ namespace Kalendarz1
         private void UpdateProgressInfo()
         {
             int total = _zamowienia.Values.Count(z => !z.IsShipmentOnly);
+            int realized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyZrealizowane);
+            int issued = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane);
+            decimal sumaKg = _zamowienia.Values.Where(z => !z.IsShipmentOnly).Sum(z => z.TotalIlosc);
+
             if (total == 0)
             {
                 lblZrealizowanoCount.Text = "0";
                 lblZrealizowanoPercent.Text = "0%";
                 lblWydanoCount.Text = "0";
+                lblWydanoPercent.Text = "0%";
+                // Statystyki tab
+                lblStatZamowienia.Text = "0";
+                lblStatZrealizowane.Text = "0";
+                lblStatZrealProc.Text = "0%";
+                lblStatWydane.Text = "0";
+                lblStatWydaneProc.Text = "0%";
+                lblStatSumaKg.Text = "0";
+                lblStatSrednia.Text = "0";
                 return;
             }
-            int realized = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyZrealizowane);
-            int issued = _zamowienia.Values.Count(z => !z.IsShipmentOnly && z.CzyWydane);
-            double percent = (double)realized / total * 100;
 
+            double realizedPercent = (double)realized / total * 100;
+            double issuedPercent = (double)issued / total * 100;
+            decimal srednia = sumaKg / total;
+
+            // Panel główny
             lblZrealizowanoCount.Text = realized.ToString();
-            lblZrealizowanoPercent.Text = $"{percent:F0}%";
+            lblZrealizowanoPercent.Text = $"{realizedPercent:F0}%";
             lblWydanoCount.Text = issued.ToString();
+            lblWydanoPercent.Text = $"{issuedPercent:F0}%";
+
+            // Statystyki tab
+            lblStatZamowienia.Text = total.ToString();
+            lblStatZrealizowane.Text = realized.ToString();
+            lblStatZrealProc.Text = $"{realizedPercent:F0}%";
+            lblStatWydane.Text = issued.ToString();
+            lblStatWydaneProc.Text = $"{issuedPercent:F0}%";
+            lblStatSumaKg.Text = $"{sumaKg:N0}";
+            lblStatSrednia.Text = $"{srednia:N0}";
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
@@ -838,6 +875,73 @@ namespace Kalendarz1
         #endregion
 
         #region Actions
+        private async Task MarkOrderRealizedWithNoteAsync()
+        {
+            var orderId = GetSelectedOrderId();
+            if (!orderId.HasValue) return;
+
+            // Pokaż dialog z opcjonalną notatką
+            var dialog = new Window
+            {
+                Title = "Zrealizowano zamówienie",
+                Width = 450,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2D2D30")),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            stack.Children.Add(new TextBlock { Text = "Notatka produkcji (opcjonalna):", Foreground = Brushes.White, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
+            var txtNote = new TextBox { Height = 80, FontSize = 14, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E")), Foreground = Brushes.White, BorderBrush = Brushes.Gray };
+            stack.Children.Add(txtNote);
+
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 15, 0, 0) };
+            var btnOk = new Button { Content = "✓ Zrealizuj", Width = 120, Height = 35, FontSize = 13, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#19874B")), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 10, 0) };
+            var btnCancel = new Button { Content = "Anuluj", Width = 80, Height = 35, FontSize = 13, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555")), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+
+            btnOk.Click += (s, e) => { dialog.DialogResult = true; dialog.Close(); };
+            btnCancel.Click += (s, e) => { dialog.DialogResult = false; dialog.Close(); };
+
+            btnStack.Children.Add(btnOk);
+            btnStack.Children.Add(btnCancel);
+            stack.Children.Add(btnStack);
+            dialog.Content = stack;
+
+            if (dialog.ShowDialog() != true) return;
+
+            string note = txtNote.Text?.Trim() ?? "";
+
+            using var cn = new SqlConnection(_connLibra);
+            await cn.OpenAsync();
+
+            // Zapisz notatkę produkcji jeśli podano
+            if (!string.IsNullOrEmpty(note))
+            {
+                await EnsureNotesTableAsync();
+                var cmdNote = new SqlCommand(@"IF EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id)
+                                               UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki SET NotatkaProdukcja = @N WHERE ZamowienieId = @Id
+                                               ELSE INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki (ZamowienieId, NotatkaProdukcja) VALUES (@Id, @N)", cn);
+                cmdNote.Parameters.AddWithValue("@Id", orderId.Value);
+                cmdNote.Parameters.AddWithValue("@N", note);
+                await cmdNote.ExecuteNonQueryAsync();
+            }
+
+            // Oznacz jako zrealizowane
+            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                       SET CzyZrealizowane = 1,
+                                           DataRealizacji = GETDATE(),
+                                           KtoZrealizowal = @UserID,
+                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Zrealizowane' END
+                                       WHERE Id = @I", cn);
+            cmd.Parameters.AddWithValue("@I", orderId.Value);
+            int.TryParse(UserID, out int userId);
+            cmd.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+            await LoadOrdersAsync();
+        }
+
         private async Task MarkOrderRealizedAsync()
         {
             var orderId = GetSelectedOrderId();
@@ -972,6 +1076,9 @@ namespace Kalendarz1
             public long? TransportKursId { get; set; }
             public bool CzyZrealizowane { get; set; }
             public bool CzyWydane { get; set; }
+            public bool MaHalal { get; set; }
+            public bool WlasnyTransport { get; set; }
+            public DateTime? DataPrzyjazdu { get; set; }
         }
 
         public class ContractorInfo
@@ -999,7 +1106,8 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{Info.Klient}";
+            // Własny transport indicator stays at Klient name (🚚 only if own transport)
+            public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{(Info.MaHalal ? "🔪 " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
 
@@ -1028,10 +1136,34 @@ namespace Kalendarz1
                 }
             }
 
-            public string CzasWyjazdDisplay => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue
-                ? $"{Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}"
-                : (Info.IsShipmentOnly ? "Nie zrobiono zamówienia" : "Brak kursu");
-            public DateTime SortDateTime => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue ? Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value) : DateTime.MaxValue;
+            public string CzasWyjazdDisplay
+            {
+                get
+                {
+                    // Własny transport - car icon + time
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                        return $"🚗 {Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
+                    if (Info.WlasnyTransport)
+                        return "🚗 Własny";
+                    // Regular transport - car icon + time
+                    if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
+                        return $"🚗 {Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
+                    if (Info.IsShipmentOnly)
+                        return "Nie zrobiono zamówienia";
+                    return "Brak kursu";
+                }
+            }
+            public DateTime SortDateTime
+            {
+                get
+                {
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                        return Info.DataPrzyjazdu.Value;
+                    if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
+                        return Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value);
+                    return DateTime.MaxValue;
+                }
+            }
 
             private Brush _rowColor = Brushes.Transparent;
             public Brush RowColor { get => _rowColor; set { _rowColor = value; OnPropertyChanged(); } }
