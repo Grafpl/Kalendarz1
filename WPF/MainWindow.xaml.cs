@@ -2081,19 +2081,22 @@ namespace Kalendarz1.WPF
                     string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
 
                     string sql = $@"
-SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc, 
+SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
+       ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
+       ISNULL(zm.CzyWydane, 0) AS CzyWydane,
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1) 
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
                                 (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                 $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
+     zm.CzyZrealizowane, zm.CzyWydane{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -2108,7 +2111,6 @@ ORDER BY zm.Id";
 
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
             var transportInfo = await GetTransportInfoAsync(day);
-            var wydaniaInfo = await GetWydaniaInfoAsync(day);
             var cultureInfo = new CultureInfo("pl-PL");
 
             decimal totalOrdered = 0m;
@@ -2148,6 +2150,10 @@ ORDER BY zm.Id";
                 {
                     transportKursId = Convert.ToInt64(r["TransportKursID"]);
                 }
+
+                // Pobierz flagi CzyZrealizowane i CzyWydane
+                bool czyZrealizowane = temp.Columns.Contains("CzyZrealizowane") && !(r["CzyZrealizowane"] is DBNull) && Convert.ToBoolean(r["CzyZrealizowane"]);
+                bool czyWydane = temp.Columns.Contains("CzyWydane") && !(r["CzyWydane"] is DBNull) && Convert.ToBoolean(r["CzyWydane"]);
 
                 int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
                 decimal pallets = Math.Ceiling(r["LiczbaPalet"] is DBNull ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
@@ -2225,15 +2231,11 @@ ORDER BY zm.Id";
                     }
                 }
 
-                // Produkcja - czy zrealizowano w panelu produkcji
-                string produkcjaColumn = (status == "Zrealizowane" || status == "Wyprodukowane") ? "✓" : "";
+                // Produkcja - czy zrealizowano w panelu produkcji (CzyZrealizowane = 1)
+                string produkcjaColumn = czyZrealizowane ? "✓" : "";
 
-                // Wydano - czy wydano w panelu magazyniera (checkmark jeśli są wydania)
-                string wydanoColumn = "";
-                if (wydaniaInfo.TryGetValue(clientId, out var wInfo) && wInfo.DataWydania.HasValue)
-                {
-                    wydanoColumn = "✓";
-                }
+                // Wydano - czy wydano w panelu magazyniera (CzyWydane = 1)
+                string wydanoColumn = czyWydane ? "✓" : "";
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
@@ -2291,15 +2293,8 @@ ORDER BY zm.Id";
                 row["MaHallal"] = false;
                 row["TransportInfo"] = "";
                 row["Produkcja"] = "";
-                // Wydano dla wydań bez zamówień - checkmark jeśli są wydania
-                if (wydaniaInfo.TryGetValue(clientId, out var wInfoBez) && wInfoBez.DataWydania.HasValue)
-                {
-                    row["Wydano"] = "✓";
-                }
-                else
-                {
-                    row["Wydano"] = "";
-                }
+                // Wydano dla wydań bez zamówień - zawsze checkmark (bo to są wydania)
+                row["Wydano"] = "✓";
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -2504,9 +2499,9 @@ ORDER BY zm.Id";
 
                 string sqlKursy = @"SELECT k.KursID, CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca,
                                    p.Rejestracja as Pojazd, k.GodzWyjazdu, k.Trasa, k.Status
-                                   FROM [dbo].[Kursy] k
-                                   LEFT JOIN [dbo].[Kierowcy] ki ON k.KierowcaID = ki.KierowcaID
-                                   LEFT JOIN [dbo].[Pojazdy] p ON k.PojazdID = p.PojazdID
+                                   FROM [dbo].[Kurs] k
+                                   LEFT JOIN [dbo].[Kierowca] ki ON k.KierowcaID = ki.KierowcaID
+                                   LEFT JOIN [dbo].[Pojazd] p ON k.PojazdID = p.PojazdID
                                    WHERE k.DataKursu = @Day";
 
                 await using var cmdKursy = new SqlCommand(sqlKursy, cnTrans);
@@ -2752,8 +2747,8 @@ ORDER BY zm.Id";
 
                 string sql = @"SELECT k.KursID, k.DataKursu, k.GodzWyjazdu,
                               CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca
-                              FROM [dbo].[Kursy] k
-                              LEFT JOIN [dbo].[Kierowcy] ki ON k.KierowcaID = ki.KierowcaID
+                              FROM [dbo].[Kurs] k
+                              LEFT JOIN [dbo].[Kierowca] ki ON k.KierowcaID = ki.KierowcaID
                               WHERE k.DataKursu = @Day";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -2772,48 +2767,6 @@ ORDER BY zm.Id";
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych transportu: {ex.Message}");
-            }
-            return result;
-        }
-
-        private async Task<Dictionary<int, (DateTime? DataWydania, string Kierowca)>> GetWydaniaInfoAsync(DateTime day)
-        {
-            var result = new Dictionary<int, (DateTime? DataWydania, string Kierowca)>();
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-
-                string sql = @"SELECT mg.khid, mg.data, mg.czas
-                              FROM [HANDEL].[HM].[MG] mg
-                              WHERE mg.seria IN ('sWZ','sWZ-W') AND mg.aktywny = 1
-                              AND mg.data = @Day AND mg.khid IS NOT NULL
-                              GROUP BY mg.khid, mg.data, mg.czas";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-
-                while (await rdr.ReadAsync())
-                {
-                    int clientId = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
-                    DateTime? dataWydania = rdr.IsDBNull(1) ? null : rdr.GetDateTime(1);
-                    TimeSpan? czasWydania = rdr.IsDBNull(2) ? null : rdr.GetTimeSpan(2);
-
-                    if (dataWydania.HasValue && czasWydania.HasValue)
-                    {
-                        dataWydania = dataWydania.Value.Add(czasWydania.Value);
-                    }
-
-                    if (!result.ContainsKey(clientId))
-                    {
-                        result[clientId] = (dataWydania, "");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych wydań: {ex.Message}");
             }
             return result;
         }
