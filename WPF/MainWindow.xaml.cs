@@ -45,6 +45,7 @@ namespace Kalendarz1.WPF
 
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
+        private readonly DataTable _dtHistoriaZmian = new();
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<string, string> _userCache = new();
@@ -1976,6 +1977,12 @@ namespace Kalendarz1.WPF
                 await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
+                // Załaduj historię zmian dla całego tygodnia
+                int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
+                DateTime startOfWeek = _selectedDate.AddDays(-delta);
+                DateTime endOfWeek = startOfWeek.AddDays(6);
+                await LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
+
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
                 {
                     await DisplayOrderDetailsAsync(_currentOrderId.Value);
@@ -2016,9 +2023,10 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
                 _dtOrders.Columns.Add("MaFolie", typeof(bool));
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
+                _dtOrders.Columns.Add("TerminInfo", typeof(string));
                 _dtOrders.Columns.Add("TransportInfo", typeof(string));
-                _dtOrders.Columns.Add("Produkcja", typeof(string));
-                _dtOrders.Columns.Add("Wydano", typeof(string));
+                _dtOrders.Columns.Add("Wyprodukowano", typeof(string));
+                _dtOrders.Columns.Add("WydanoInfo", typeof(string));
             }
             else
             {
@@ -2086,6 +2094,7 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
        ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
        ISNULL(zm.CzyWydane, 0) AS CzyWydane,
+       zm.DataWydania,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
@@ -2096,7 +2105,7 @@ WHERE {dateColumn} = @Day " +
                                 (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                 $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-     zm.CzyZrealizowane, zm.CzyWydane{slaughterDateGroupBy}
+     zm.CzyZrealizowane, zm.CzyWydane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -2216,6 +2225,14 @@ ORDER BY zm.Id";
                     createdBy = imie;
                 }
 
+                // Termin - godzina przyjazdu + dzień tygodnia
+                string terminInfo = "";
+                if (arrivalDate.HasValue)
+                {
+                    string dzienTerminu = arrivalDate.Value.ToString("ddd", cultureInfo);
+                    terminInfo = $"{arrivalDate.Value:HH:mm} {dzienTerminu}";
+                }
+
                 // Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
                 string transportInfoColumn = "";
                 if (transportKursId.HasValue && transportInfo.TryGetValue(transportKursId.Value, out var tInfo))
@@ -2231,11 +2248,22 @@ ORDER BY zm.Id";
                     }
                 }
 
-                // Produkcja - czy zrealizowano w panelu produkcji (CzyZrealizowane = 1)
-                string produkcjaColumn = czyZrealizowane ? "✓" : "";
+                // Wyprodukowano - czy zrealizowano w panelu produkcji (CzyZrealizowane = 1)
+                string wyprodukowano = czyZrealizowane ? "✓" : "";
 
-                // Wydano - czy wydano w panelu magazyniera (CzyWydane = 1)
-                string wydanoColumn = czyWydane ? "✓" : "";
+                // Wydano - godzina + dzień tygodnia (jeśli CzyWydane = 1)
+                string wydanoInfo = "";
+                DateTime? dataWydania = temp.Columns.Contains("DataWydania") && !(r["DataWydania"] is DBNull)
+                    ? Convert.ToDateTime(r["DataWydania"]) : null;
+                if (czyWydane && dataWydania.HasValue)
+                {
+                    string dzienWydania = dataWydania.Value.ToString("ddd", cultureInfo);
+                    wydanoInfo = $"{dataWydania.Value:HH:mm} {dzienWydania}";
+                }
+                else if (czyWydane)
+                {
+                    wydanoInfo = "✓";
+                }
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
@@ -2246,13 +2274,13 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
-                // Dodanie wiersza z kolumnami Transport, Produkcja, Wydano
+                // Dodanie wiersza z kolumnami Termin, Transport, Wyprodukowano, Wydano
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
                     createdBy, status, hasNote, hasFoil, hasHallal,
-                    transportInfoColumn, produkcjaColumn, wydanoColumn
+                    terminInfo, transportInfoColumn, wyprodukowano, wydanoInfo
                 );
             }
 
@@ -2291,10 +2319,11 @@ ORDER BY zm.Id";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
                 row["MaHallal"] = false;
+                row["TerminInfo"] = "";
                 row["TransportInfo"] = "";
-                row["Produkcja"] = "";
-                // Wydano dla wydań bez zamówień - zawsze checkmark (bo to są wydania)
-                row["Wydano"] = "✓";
+                row["Wyprodukowano"] = "";
+                // Wydano dla wydań bez zamówień - checkmark
+                row["WydanoInfo"] = "✓";
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -2347,9 +2376,10 @@ ORDER BY zm.Id";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
                 summaryRow["MaHallal"] = false;
+                summaryRow["TerminInfo"] = "";
                 summaryRow["TransportInfo"] = "";
-                summaryRow["Produkcja"] = "";
-                summaryRow["Wydano"] = "";
+                summaryRow["Wyprodukowano"] = "";
+                summaryRow["WydanoInfo"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2410,39 +2440,48 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 6. Utworzone przez
+            // 6. Utworzone przez - węższa kolumna
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 120
+                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
+                MinWidth = 100
             });
 
-            // 7. Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
+            // 7. Termin - godzina przyjazdu + dzień tygodnia
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Termin",
+                Binding = new System.Windows.Data.Binding("TerminInfo"),
+                Width = new DataGridLength(75),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 8. Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Transport",
                 Binding = new System.Windows.Data.Binding("TransportInfo"),
-                Width = new DataGridLength(85),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 8. Produkcja - czy zrealizowano w panelu produkcji
+            // 9. Wyprodukowano - czy zrealizowano w panelu produkcji
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Produkcja",
-                Binding = new System.Windows.Data.Binding("Produkcja"),
-                Width = new DataGridLength(70),
+                Header = "Wypr.",
+                Binding = new System.Windows.Data.Binding("Wyprodukowano"),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 9. Wydano - czy wydano w panelu magazyniera
+            // 10. Wydano - godzina + dzień tygodnia
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("Wydano"),
-                Width = new DataGridLength(60),
+                Binding = new System.Windows.Data.Binding("WydanoInfo"),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
@@ -2583,6 +2622,9 @@ ORDER BY zm.Id";
         {
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             dgTransport.Columns.Clear();
+
+            dgTransport.LoadingRow -= DgTransport_LoadingRow;
+            dgTransport.LoadingRow += DgTransport_LoadingRow;
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
@@ -2735,6 +2777,208 @@ ORDER BY zm.Id";
                 _colorIndex++;
             }
             return _salesmanColors[salesman];
+        }
+
+        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var salesman = rowView.Row.Field<string>("Handlowiec") ?? "";
+                var statusTrans = rowView.Row.Field<string>("StatusTransportu") ?? "";
+
+                // Kolorowanie według statusu transportu
+                if (statusTrans == "Wydany")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 255, 200)); // Jasny zielony
+                }
+                else if (statusTrans == "W drodze")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 255, 200)); // Jasny żółty
+                }
+                else if (!string.IsNullOrEmpty(salesman))
+                {
+                    // Kolorowanie według handlowca (tak samo jak w zakładce Zamówienia)
+                    var color = GetColorForSalesman(salesman);
+                    e.Row.Background = new SolidColorBrush(color);
+                }
+            }
+        }
+
+        private void SetupHistoriaZmianDataGrid()
+        {
+            dgHistoriaZmian.ItemsSource = _dtHistoriaZmian.DefaultView;
+            dgHistoriaZmian.Columns.Clear();
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zamówienie",
+                Binding = new System.Windows.Data.Binding("ZamowienieId"),
+                Width = new DataGridLength(85),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data zmiany",
+                Binding = new System.Windows.Data.Binding("DataZmiany") { StringFormat = "yyyy-MM-dd HH:mm" },
+                Width = new DataGridLength(130)
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Typ",
+                Binding = new System.Windows.Data.Binding("TypZmiany"),
+                Width = new DataGridLength(90),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Handlowiec",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("BoldCellStyle")
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Odbiorca",
+                Binding = new System.Windows.Data.Binding("Odbiorca"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 100
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kto edytował",
+                Binding = new System.Windows.Data.Binding("UzytkownikNazwa"),
+                Width = new DataGridLength(120)
+            });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Opis zmiany",
+                Binding = new System.Windows.Data.Binding("OpisZmiany"),
+                Width = new DataGridLength(1.5, DataGridLengthUnitType.Star),
+                MinWidth = 150
+            });
+        }
+
+        private async Task LoadHistoriaZmianAsync(DateTime startDate, DateTime endDate)
+        {
+            if (_dtHistoriaZmian.Columns.Count == 0)
+            {
+                _dtHistoriaZmian.Columns.Add("Id", typeof(int));
+                _dtHistoriaZmian.Columns.Add("ZamowienieId", typeof(int));
+                _dtHistoriaZmian.Columns.Add("DataZmiany", typeof(DateTime));
+                _dtHistoriaZmian.Columns.Add("TypZmiany", typeof(string));
+                _dtHistoriaZmian.Columns.Add("Handlowiec", typeof(string));
+                _dtHistoriaZmian.Columns.Add("Odbiorca", typeof(string));
+                _dtHistoriaZmian.Columns.Add("UzytkownikNazwa", typeof(string));
+                _dtHistoriaZmian.Columns.Add("OpisZmiany", typeof(string));
+            }
+            else
+            {
+                _dtHistoriaZmian.Clear();
+            }
+
+            // Pobierz dane kontrahentów
+            var contractors = new Dictionary<int, (string Name, string Salesman)>();
+            await using (var cnHandel = new SqlConnection(_connHandel))
+            {
+                await cnHandel.OpenAsync();
+                const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
+                                FROM [HANDEL].[SSCommon].[STContractors] c
+                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
+                                ON c.Id = wym.ElementId";
+                await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
+                await using var rd = await cmdContr.ExecuteReaderAsync();
+
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string shortcut = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                    contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
+                }
+            }
+
+            // Pobierz mapowanie zamówień do klientów
+            var orderToClient = new Dictionary<int, int>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+
+                // Sprawdź czy tabela historii istnieje
+                string checkSql = @"SELECT COUNT(*) FROM sys.objects
+                                   WHERE object_id = OBJECT_ID(N'[dbo].[HistoriaZmianZamowien]') AND type in (N'U')";
+                using var checkCmd = new SqlCommand(checkSql, cnLibra);
+                var tableExists = (int)await checkCmd.ExecuteScalarAsync() > 0;
+
+                if (!tableExists)
+                {
+                    SetupHistoriaZmianDataGrid();
+                    return;
+                }
+
+                // Pobierz zamówienia z zakresu dat
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sqlOrders = $@"SELECT Id, KlientId FROM dbo.ZamowieniaMieso
+                                     WHERE {dateColumn} BETWEEN @StartDate AND @EndDate";
+                await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
+                cmdOrders.Parameters.AddWithValue("@StartDate", startDate);
+                cmdOrders.Parameters.AddWithValue("@EndDate", endDate);
+                await using var rdrOrders = await cmdOrders.ExecuteReaderAsync();
+
+                while (await rdrOrders.ReadAsync())
+                {
+                    int orderId = rdrOrders.GetInt32(0);
+                    int clientId = rdrOrders.GetInt32(1);
+                    orderToClient[orderId] = clientId;
+                }
+
+                await rdrOrders.CloseAsync();
+
+                if (orderToClient.Count == 0)
+                {
+                    SetupHistoriaZmianDataGrid();
+                    return;
+                }
+
+                // Pobierz historię zmian dla tych zamówień
+                string orderIds = string.Join(",", orderToClient.Keys);
+                string sqlHistory = $@"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
+                                      FROM HistoriaZmianZamowien
+                                      WHERE ZamowienieId IN ({orderIds})
+                                      ORDER BY DataZmiany DESC";
+
+                await using var cmdHistory = new SqlCommand(sqlHistory, cnLibra);
+                await using var rdrHistory = await cmdHistory.ExecuteReaderAsync();
+
+                while (await rdrHistory.ReadAsync())
+                {
+                    int id = rdrHistory.GetInt32(0);
+                    int zamowienieId = rdrHistory.GetInt32(1);
+                    DateTime dataZmiany = rdrHistory.GetDateTime(2);
+                    string typZmiany = rdrHistory.IsDBNull(3) ? "" : rdrHistory.GetString(3);
+                    string uzytkownikNazwa = rdrHistory.IsDBNull(4) ? "" : rdrHistory.GetString(4);
+                    string opisZmiany = rdrHistory.IsDBNull(5) ? "" : rdrHistory.GetString(5);
+
+                    string handlowiec = "";
+                    string odbiorca = "";
+                    if (orderToClient.TryGetValue(zamowienieId, out int clientId) &&
+                        contractors.TryGetValue(clientId, out var contr))
+                    {
+                        handlowiec = contr.Salesman;
+                        odbiorca = contr.Name;
+                    }
+
+                    _dtHistoriaZmian.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
+                        handlowiec, odbiorca, uzytkownikNazwa, opisZmiany);
+                }
+            }
+
+            SetupHistoriaZmianDataGrid();
         }
 
         private async Task<Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
