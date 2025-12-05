@@ -431,19 +431,20 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(_connHandel))
                 {
                     conn.Open();
+                    // Użyj tabel DK (nagłówki dokumentów) z CDN schema zamiast STDocuments
                     string query = @"
                         SELECT
-                            COUNT(DISTINCT d.DocumentID) AS LiczbaFaktur,
-                            ISNULL(SUM(d.GrossValue), 0) AS WartoscBrutto,
-                            ISNULL(SUM(d.NetValue), 0) AS WartoscNetto,
-                            ISNULL(AVG(d.GrossValue), 0) AS SredniaWartosc,
-                            MIN(d.DocumentDate) AS PierwszaFaktura,
-                            MAX(d.DocumentDate) AS OstatniaFaktura
-                        FROM [HANDEL].[SSCommon].[STDocuments] d
-                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON d.ContractorGuid = c.Guid
+                            COUNT(DISTINCT DK.ID) AS LiczbaFaktur,
+                            ISNULL(SUM(DK.WartBrutto), 0) AS WartoscBrutto,
+                            ISNULL(SUM(DK.WartNetto), 0) AS WartoscNetto,
+                            ISNULL(AVG(DK.WartBrutto), 0) AS SredniaWartosc,
+                            MIN(DK.data) AS PierwszaFaktura,
+                            MAX(DK.data) AS OstatniaFaktura
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON DK.podmiot_id = c.id
                         WHERE c.Shortcut = @NazwaOdbiorcy
-                            AND d.DocumentType IN (310, 311)
-                            AND d.DocumentDate >= DATEADD(YEAR, -1, GETDATE())";
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(YEAR, -1, GETDATE())";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -528,16 +529,11 @@ namespace Kalendarz1
                         }
                     }
 
-                    // Dane transportowe
+                    // Dane transportowe - tylko podstawowe kolumny które istnieją
                     string queryTransport = @"
                         SELECT
                             ISNULL(KosztTransportuKm, 3.50) AS KosztKm,
-                            ISNULL(KosztStalyDostawy, 0) AS KosztStaly,
-                            ISNULL(KosztGodzinyKierowcy, 50) AS KosztGodziny,
-                            ISNULL(SredniPrzebiegLitr, 25) AS Przebieg,
-                            ISNULL(CenaPaliwaLitr, 6.50) AS CenaPaliwa,
-                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku,
-                            ISNULL(MinWartoscDlaDarmowegoTransportu, 0) AS MinDarmowy
+                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku
                         FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
                     using (SqlCommand cmd = new SqlCommand(queryTransport, conn))
                     {
@@ -547,12 +543,7 @@ namespace Kalendarz1
                             if (reader.Read())
                             {
                                 kosztKm = Convert.ToDecimal(reader["KosztKm"]);
-                                kosztStalyDostawy = Convert.ToDecimal(reader["KosztStaly"]);
-                                kosztGodzinyKierowcy = Convert.ToDecimal(reader["KosztGodziny"]);
-                                sredniPrzebiegLitr = Convert.ToDecimal(reader["Przebieg"]);
-                                cenaPaliwaLitr = Convert.ToDecimal(reader["CenaPaliwa"]);
                                 czasRozladunku = Convert.ToInt32(reader["CzasRozladunku"]);
-                                minWartoscDarmowy = Convert.ToDecimal(reader["MinDarmowy"]);
                             }
                         }
                     }
@@ -602,17 +593,17 @@ namespace Kalendarz1
                 {
                     conn.Open();
                     string queryFak = @"
-                        SELECT ISNULL(AVG(d.NetValue), 0) AS SredniaWartosc
-                        FROM [HANDEL].[SSCommon].[STDocuments] d
-                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON d.ContractorGuid = c.Guid
+                        SELECT ISNULL(AVG(DK.WartNetto), 0) AS SredniaWartosc
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON DK.podmiot_id = c.id
                         WHERE c.Shortcut = @NazwaOdbiorcy
-                            AND d.DocumentType IN (310, 311)
-                            AND d.DocumentDate >= DATEADD(MONTH, -3, GETDATE())";
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(MONTH, -3, GETDATE())";
                     using (SqlCommand cmd = new SqlCommand(queryFak, conn))
                     {
                         cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
                         var result = cmd.ExecuteScalar();
-                        if (result != DBNull.Value)
+                        if (result != DBNull.Value && result != null)
                             srednieZamowieniePLN = Convert.ToDecimal(result);
                     }
                 }
@@ -857,19 +848,17 @@ namespace Kalendarz1
                         }
                     }
 
-                    // Oblicz koszt transportu
+                    // Oblicz koszt transportu - używaj domyślnych wartości
                     decimal kosztKm = 3.50m;
                     decimal kosztGodzinyKierowcy = 50m;
                     decimal sredniPrzebiegLitr = 25m;
                     decimal cenaPaliwaLitr = 6.50m;
                     int czasRozladunku = 30;
 
+                    // Pobierz tylko podstawowe kolumny które istnieją
                     string queryTransport = @"
                         SELECT
                             ISNULL(KosztTransportuKm, 3.50) AS KosztKm,
-                            ISNULL(KosztGodzinyKierowcy, 50) AS KosztGodziny,
-                            ISNULL(SredniPrzebiegLitr, 25) AS Przebieg,
-                            ISNULL(CenaPaliwaLitr, 6.50) AS CenaPaliwa,
                             ISNULL(CzasRozladunku, 30) AS CzasRozladunku
                         FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
                     using (SqlCommand cmd = new SqlCommand(queryTransport, conn))
@@ -880,9 +869,6 @@ namespace Kalendarz1
                             if (reader.Read())
                             {
                                 kosztKm = Convert.ToDecimal(reader["KosztKm"]);
-                                kosztGodzinyKierowcy = Convert.ToDecimal(reader["KosztGodziny"]);
-                                sredniPrzebiegLitr = Convert.ToDecimal(reader["Przebieg"]);
-                                cenaPaliwaLitr = Convert.ToDecimal(reader["CenaPaliwa"]);
                                 czasRozladunku = Convert.ToInt32(reader["CzasRozladunku"]);
                             }
                         }
