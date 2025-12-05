@@ -400,7 +400,8 @@ namespace Kalendarz1
                 }
             }
 
-            var sorted = orderListForGrid.OrderBy(o => StatusOrder(o.Status)).ThenBy(o => o.SortDateTime).ThenBy(o => o.Handlowiec).ThenBy(o => o.Klient).ToList();
+            // Sort only by departure time (earliest first), "Brak kursu" at the end
+            var sorted = orderListForGrid.OrderBy(o => o.SortDateTime).ThenBy(o => o.Klient).ToList();
 
             ZamowieniaList1.Clear();
             ZamowieniaList2.Clear();
@@ -1129,6 +1130,7 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
+            // Własny transport indicator stays at Klient name (🚚 only if own transport)
             public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{(Info.MaHalal ? "🔪 " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
@@ -1162,12 +1164,14 @@ namespace Kalendarz1
             {
                 get
                 {
+                    // Własny transport - show truck icon at Klient, here just show time
                     if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
-                        return $"🚚 {Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
+                        return $"{Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
                     if (Info.WlasnyTransport)
-                        return "🚚 Własny";
+                        return "Własny";
+                    // Regular transport - show car icon in Wyjazd column
                     if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
-                        return $"{Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
+                        return $"🚗 {Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
                     if (Info.IsShipmentOnly)
                         return "Nie zrobiono zamówienia";
                     return "Brak kursu";
