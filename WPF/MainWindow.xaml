@@ -52,12 +52,12 @@
             <Style x:Key="DayButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="#F5F7FA"/>
                 <Setter Property="Foreground" Value="#2C3E50"/>
-                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontSize" Value="9"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Width" Value="75"/>
-                <Setter Property="Height" Value="45"/>
-                <Setter Property="Margin" Value="2,0"/>
+                <Setter Property="Width" Value="60"/>
+                <Setter Property="Height" Value="38"/>
+                <Setter Property="Margin" Value="1,0"/>
             </Style>
 
             <Style x:Key="FilterTextBoxStyle" TargetType="TextBox">
@@ -224,7 +224,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="#ECEFF1" 
+                <Border Grid.Row="0" Background="#ECEFF1"
                         Padding="10,8" CornerRadius="5" Margin="0,0,0,5">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -237,7 +237,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="txtFilterRecipient" Grid.Column="0" 
+                        <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
                                  Style="{StaticResource FilterTextBoxStyle}"
                                  Tag="Filtruj odbiorcę..." Margin="0,0,5,0"
                                  TextChanged="TxtFilterRecipient_TextChanged"/>
@@ -263,41 +263,53 @@
                         <RadioButton x:Name="rbPickupDate" Grid.Column="5"
                                      Content="Data odbioru" GroupName="DateFilter"
                                      VerticalAlignment="Center" Margin="10,0,5,0"
-                                     Checked="RbDateFilter_Checked"/>
+                                     Checked="RbDateFilter_Checked"
+                                     Visibility="Collapsed"/>
 
                         <RadioButton x:Name="rbSlaughterDate" Grid.Column="6"
                                      Content="Data uboju" GroupName="DateFilter"
                                      VerticalAlignment="Center" Margin="5,0,0,0"
-                                     Checked="RbDateFilter_Checked"/>
+                                     Checked="RbDateFilter_Checked"
+                                     Visibility="Collapsed" IsChecked="True"/>
                     </Grid>
                 </Border>
 
-                <DataGrid x:Name="dgOrders" Grid.Row="1" 
-                          Style="{StaticResource ModernDataGridStyle}"
-                          SelectionChanged="DgOrders_SelectionChanged"
-                          MouseDoubleClick="DgOrders_MouseDoubleClick"
-                          MouseRightButtonUp="DgOrders_MouseRightButtonUp">
-                    <DataGrid.ContextMenu>
-                        <ContextMenu x:Name="contextMenuOrders">
-                            <MenuItem x:Name="menuDuplikuj" Header="🔄 Duplikuj zamówienie" Click="MenuDuplikuj_Click"/>
-                            <MenuItem x:Name="menuCykliczne" Header="📅 Zamówienia cykliczne" Click="MenuCykliczne_Click"/>
-                            <MenuItem x:Name="menuModyfikuj" Header="✏️ Modyfikuj zamówienie" Click="MenuModyfikuj_Click"/>
-                            <MenuItem x:Name="menuNotatka" Header="📝 Dodaj/Edytuj notatkę" Click="MenuNotatka_Click"/>
-                            <Separator/>
-                            <MenuItem x:Name="menuSzczegolyZamowienia" Header="📊 Szczegóły zamówienia" Click="MenuSzczegolyZamowienia_Click"/>
-                            <MenuItem x:Name="menuSzczegolyPlatnosci" Header="💳 Płatności kontrahenta" Click="MenuSzczegolyPlatnosci_Click"/>
-                            <MenuItem x:Name="menuHistoriaZamowien" Header="📋 Historia zamówień" Click="MenuHistoriaZamowien_Click"/>
-                            <MenuItem x:Name="menuHistoriaZmian" Header="📜 Historia zmian zamówienia" Click="MenuHistoriaZmian_Click"/>
-                            <MenuItem x:Name="menuTransportInfo" Header="🚚 Informacje o transporcie" Click="MenuTransportInfo_Click"/>
-                            <Separator/>
-                            <MenuItem x:Name="menuOdswiez" Header="🔄 Odśwież dane" Click="MenuOdswiez_Click"/>
-                            <Separator/>
-                            <MenuItem x:Name="menuAnuluj" Header="❌ Anuluj zamówienie" Click="MenuAnuluj_Click"/>
-                            <MenuItem x:Name="menuPrzywroc" Header="✅ Przywróć zamówienie" Click="MenuPrzywroc_Click" Visibility="Collapsed"/>
-                            <MenuItem x:Name="menuUsun" Header="🗑️ USUŃ TRWALE zamówienie" Click="MenuUsun_Click" Visibility="Collapsed"/>
-                        </ContextMenu>
-                    </DataGrid.ContextMenu>
-                </DataGrid>
+                <TabControl x:Name="tabOrders" Grid.Row="1" Background="Transparent" BorderThickness="0">
+                    <TabItem Header="Zamówienia" FontSize="12" FontWeight="SemiBold">
+                        <DataGrid x:Name="dgOrders"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  SelectionChanged="DgOrders_SelectionChanged"
+                                  MouseDoubleClick="DgOrders_MouseDoubleClick"
+                                  MouseRightButtonUp="DgOrders_MouseRightButtonUp">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu x:Name="contextMenuOrders">
+                                    <MenuItem x:Name="menuDuplikuj" Header="Duplikuj zamówienie" Click="MenuDuplikuj_Click"/>
+                                    <MenuItem x:Name="menuCykliczne" Header="Zamówienia cykliczne" Click="MenuCykliczne_Click"/>
+                                    <MenuItem x:Name="menuModyfikuj" Header="Modyfikuj zamówienie" Click="MenuModyfikuj_Click"/>
+                                    <MenuItem x:Name="menuNotatka" Header="Dodaj/Edytuj notatkę" Click="MenuNotatka_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuSzczegolyZamowienia" Header="Szczegóły zamówienia" Click="MenuSzczegolyZamowienia_Click"/>
+                                    <MenuItem x:Name="menuSzczegolyPlatnosci" Header="Płatności kontrahenta" Click="MenuSzczegolyPlatnosci_Click"/>
+                                    <MenuItem x:Name="menuHistoriaZamowien" Header="Historia zamówień" Click="MenuHistoriaZamowien_Click"/>
+                                    <MenuItem x:Name="menuHistoriaZmian" Header="Historia zmian zamówienia" Click="MenuHistoriaZmian_Click"/>
+                                    <MenuItem x:Name="menuTransportInfo" Header="Informacje o transporcie" Click="MenuTransportInfo_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuOdswiez" Header="Odśwież dane" Click="MenuOdswiez_Click"/>
+                                    <Separator/>
+                                    <MenuItem x:Name="menuAnuluj" Header="Anuluj zamówienie" Click="MenuAnuluj_Click"/>
+                                    <MenuItem x:Name="menuPrzywroc" Header="Przywróć zamówienie" Click="MenuPrzywroc_Click" Visibility="Collapsed"/>
+                                    <MenuItem x:Name="menuUsun" Header="USUŃ TRWALE zamówienie" Click="MenuUsun_Click" Visibility="Collapsed"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                        </DataGrid>
+                    </TabItem>
+                    <TabItem Header="Transport" FontSize="12" FontWeight="SemiBold">
+                        <DataGrid x:Name="dgTransport"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  AutoGenerateColumns="False"
+                                  SelectionChanged="DgTransport_SelectionChanged"/>
+                    </TabItem>
+                </TabControl>
             </Grid>
 
             <Grid Grid.Column="1" Margin="5,10,10,10">

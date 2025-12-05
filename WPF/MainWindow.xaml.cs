@@ -44,6 +44,7 @@ namespace Kalendarz1.WPF
         private bool _showAnulowane = false;
 
         private readonly DataTable _dtOrders = new();
+        private readonly DataTable _dtTransport = new();
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<string, string> _userCache = new();
@@ -146,9 +147,9 @@ namespace Kalendarz1.WPF
 
                         if (dgAggregation != null)
                         {
-                            dgAggregation.FontSize = 8;
-                            dgAggregation.RowHeight = 20;
-                            SetHeaderStyle(dgAggregation, 8, 26);
+                            dgAggregation.FontSize = 10;
+                            dgAggregation.RowHeight = 28;
+                            SetHeaderStyle(dgAggregation, 10, 32);
                         }
 
                         if (txtNotes != null)
@@ -175,9 +176,9 @@ namespace Kalendarz1.WPF
 
                         if (dgAggregation != null)
                         {
-                            dgAggregation.FontSize = 9;
-                            dgAggregation.RowHeight = 24;
-                            SetHeaderStyle(dgAggregation, 9, 28);
+                            dgAggregation.FontSize = 11;
+                            dgAggregation.RowHeight = 32;
+                            SetHeaderStyle(dgAggregation, 11, 36);
                         }
 
                         if (txtNotes != null)
@@ -204,9 +205,9 @@ namespace Kalendarz1.WPF
 
                         if (dgAggregation != null)
                         {
-                            dgAggregation.FontSize = 10;
-                            dgAggregation.RowHeight = 28;
-                            SetHeaderStyle(dgAggregation, 10, 32);
+                            dgAggregation.FontSize = 12;
+                            dgAggregation.RowHeight = 36;
+                            SetHeaderStyle(dgAggregation, 12, 40);
                         }
 
                         if (txtNotes != null)
@@ -233,9 +234,9 @@ namespace Kalendarz1.WPF
 
                         if (dgAggregation != null)
                         {
-                            dgAggregation.FontSize = 11;
-                            dgAggregation.RowHeight = 32;
-                            SetHeaderStyle(dgAggregation, 11, 36);
+                            dgAggregation.FontSize = 13;
+                            dgAggregation.RowHeight = 40;
+                            SetHeaderStyle(dgAggregation, 13, 44);
                         }
 
                         if (txtNotes != null)
@@ -285,8 +286,8 @@ namespace Kalendarz1.WPF
                 // Domyślne wartości bazowe
                 const double DEFAULT_ORDER_FONT = 12;
                 const double DEFAULT_ORDER_ROW = 35;
-                const double DEFAULT_AGG_FONT = 10;
-                const double DEFAULT_AGG_ROW = 28;
+                const double DEFAULT_AGG_FONT = 13;
+                const double DEFAULT_AGG_ROW = 40;
                 const double DEFAULT_DETAILS_FONT = 10;
                 const double DEFAULT_DETAILS_ROW = 26;
 
@@ -395,19 +396,19 @@ namespace Kalendarz1.WPF
                     double aggAvailableHeight = (windowHeight - 250) * 0.55; // 55% dolnej części
                     double aggOptimalHeight = aggAvailableHeight / (aggRowCount + 1);
 
-                    if (aggRowCount > 15 || aggOptimalHeight < 20)
+                    if (aggRowCount > 15 || aggOptimalHeight < 28)
                     {
-                        dgAggregation.FontSize = 8;
-                        dgAggregation.RowHeight = Math.Max(18, Math.Min(aggOptimalHeight, 22));
+                        dgAggregation.FontSize = 10;
+                        dgAggregation.RowHeight = Math.Max(26, Math.Min(aggOptimalHeight, 32));
                     }
-                    else if (aggRowCount > 10 || aggOptimalHeight < 24)
+                    else if (aggRowCount > 10 || aggOptimalHeight < 34)
                     {
-                        dgAggregation.FontSize = 9;
-                        dgAggregation.RowHeight = Math.Max(22, Math.Min(aggOptimalHeight, 26));
+                        dgAggregation.FontSize = 11;
+                        dgAggregation.RowHeight = Math.Max(30, Math.Min(aggOptimalHeight, 36));
                     }
                     else
                     {
-                        // ✅ RESET DO DOMYŚLNYCH
+                        // ✅ RESET DO DOMYŚLNYCH - większe wiersze
                         dgAggregation.FontSize = DEFAULT_AGG_FONT;
                         dgAggregation.RowHeight = DEFAULT_AGG_ROW;
                     }
@@ -545,27 +546,27 @@ namespace Kalendarz1.WPF
         {
             string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
-            // Najpierw dodaj przycisk "Dziś"
+            // Najpierw dodaj przycisk "Dziś" - mniejsze kafelki
             btnToday = new Button
             {
                 Style = (Style)FindResource("DayButtonStyle"),
-                Width = 75,
-                Height = 45,
-                Margin = new Thickness(0, 0, 5, 0)
+                Width = 60,
+                Height = 38,
+                Margin = new Thickness(0, 0, 3, 0)
             };
 
             var stackToday = new StackPanel();
             stackToday.Children.Add(new TextBlock
             {
                 Text = "Dziś",
-                FontSize = 9,
+                FontSize = 8,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
             });
             stackToday.Children.Add(new TextBlock
             {
                 Text = DateTime.Today.ToString("dd.MM"),
-                FontSize = 9,
+                FontSize = 8,
                 Foreground = Brushes.White
             });
             btnToday.Content = stackToday;
@@ -588,7 +589,7 @@ namespace Kalendarz1.WPF
             };
             panelDays.Children.Add(separator);
 
-            // Teraz dodaj przyciski dni tygodnia
+            // Teraz dodaj przyciski dni tygodnia - mniejsze kafelki
             for (int i = 0; i < 7; i++)
             {
                 var btn = new Button
@@ -597,8 +598,8 @@ namespace Kalendarz1.WPF
                 };
 
                 var stack = new StackPanel();
-                stack.Children.Add(new TextBlock { Text = dayNames[i], FontSize = 9, FontWeight = FontWeights.Bold });
-                stack.Children.Add(new TextBlock { Text = DateTime.Today.AddDays(i).ToString("dd.MM"), FontSize = 9 });
+                stack.Children.Add(new TextBlock { Text = dayNames[i], FontSize = 8, FontWeight = FontWeights.Bold });
+                stack.Children.Add(new TextBlock { Text = DateTime.Today.AddDays(i).ToString("dd.MM"), FontSize = 8 });
                 btn.Content = stack;
 
                 btn.Click += DayButton_Click;
@@ -1972,6 +1973,7 @@ namespace Kalendarz1.WPF
             try
             {
                 await LoadOrdersForDayAsync(_selectedDate);
+                await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
@@ -2016,6 +2018,8 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
                 _dtOrders.Columns.Add("Trans", typeof(string));
                 _dtOrders.Columns.Add("Prod", typeof(string));
+                _dtOrders.Columns.Add("Wyjazd", typeof(string));
+                _dtOrders.Columns.Add("WydanoData", typeof(string));
             }
             else
             {
@@ -2104,6 +2108,8 @@ ORDER BY zm.Id";
             }
 
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
+            var transportInfo = await GetTransportInfoAsync(day);
+            var wydaniaInfo = await GetWydaniaInfoAsync(day);
             var cultureInfo = new CultureInfo("pl-PL");
 
             decimal totalOrdered = 0m;
@@ -2206,7 +2212,30 @@ ORDER BY zm.Id";
                 }
 
                 string transColumn = transportKursId.HasValue ? "✓" : "";
-                string prodColumn = status == "Zrealizowane" ? "✓" : "";
+                string prodColumn = (status == "Zrealizowane" || status == "Wyprodukowane") ? "✓" : "";
+
+                // Wyjazd - informacje o transporcie (dzień + godzina)
+                string wyjazdColumn = "";
+                if (transportKursId.HasValue && transportInfo.TryGetValue(transportKursId.Value, out var tInfo))
+                {
+                    string dzienWyjazdu = tInfo.DataKursu.ToString("ddd", cultureInfo);
+                    if (tInfo.GodzWyjazdu.HasValue)
+                    {
+                        wyjazdColumn = $"{dzienWyjazdu} {tInfo.GodzWyjazdu.Value:hh\\:mm}";
+                    }
+                    else
+                    {
+                        wyjazdColumn = dzienWyjazdu;
+                    }
+                }
+
+                // Wydano - data i godzina wydania (dzień + godzina)
+                string wydanoColumn = "";
+                if (wydaniaInfo.TryGetValue(clientId, out var wInfo) && wInfo.DataWydania.HasValue)
+                {
+                    string dzienWydania = wInfo.DataWydania.Value.ToString("ddd", cultureInfo);
+                    wydanoColumn = $"{dzienWydania} {wInfo.DataWydania.Value:HH:mm}";
+                }
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
@@ -2217,12 +2246,13 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
-                // PO (bez zmian - formatowanie w SetupOrdersDataGrid):
+                // Dodanie wiersza z nowymi kolumnami Wyjazd i WydanoData
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
+                    wyjazdColumn, wydanoColumn
                 );
             }
 
@@ -2263,6 +2293,17 @@ ORDER BY zm.Id";
                 row["MaHallal"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
+                row["Wyjazd"] = "";
+                // Wydano dla wydań bez zamówień
+                if (wydaniaInfo.TryGetValue(clientId, out var wInfoBez) && wInfoBez.DataWydania.HasValue)
+                {
+                    string dzienWyd = wInfoBez.DataWydania.Value.ToString("ddd", cultureInfo);
+                    row["WydanoData"] = $"{dzienWyd} {wInfoBez.DataWydania.Value:HH:mm}";
+                }
+                else
+                {
+                    row["WydanoData"] = "";
+                }
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -2317,6 +2358,8 @@ ORDER BY zm.Id";
                 summaryRow["MaHallal"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
+                summaryRow["Wyjazd"] = "";
+                summaryRow["WydanoData"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2332,13 +2375,13 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
-            // 1. Odbiorca - 15% szerszy (1.15 zamiast 1.0)
+            // 1. Odbiorca - zmniejszona szerokość
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(1.15, DataGridLengthUnitType.Star), // ✅ +15%
-                MinWidth = 140
+                Width = new DataGridLength(0.85, DataGridLengthUnitType.Star),
+                MinWidth = 120
             });
 
             // 2. Handlowiec
@@ -2377,42 +2420,287 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 6. Termin Odbioru
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Termin",
-                Binding = new System.Windows.Data.Binding("TerminOdbioru"),
-                Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
-                MinWidth = 150
-            });
-
-            // 7. Utworzone przez
+            // 6. Utworzone przez
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 130
+                MinWidth = 120
             });
 
-            // 8. Trans
+            // 7. Wyjazd (dzień + godzina transportu)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "T",
-                Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(35),
+                Header = "Wyjazd",
+                Binding = new System.Windows.Data.Binding("Wyjazd"),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 9. Prod
+            // 8. Prod (Wyprodukowano)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "P",
                 Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(35),
+                Width = new DataGridLength(30),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 9. Wydano (dzień + godzina wydania)
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wydano",
+                Binding = new System.Windows.Data.Binding("WydanoData"),
+                Width = new DataGridLength(85),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 10. Trans
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "T",
+                Binding = new System.Windows.Data.Binding("Trans"),
+                Width = new DataGridLength(30),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
+
+        private async Task LoadTransportForDayAsync(DateTime day)
+        {
+            day = ValidateSqlDate(day);
+
+            if (_dtTransport.Columns.Count == 0)
+            {
+                _dtTransport.Columns.Add("Id", typeof(int));
+                _dtTransport.Columns.Add("Odbiorca", typeof(string));
+                _dtTransport.Columns.Add("Handlowiec", typeof(string));
+                _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
+                _dtTransport.Columns.Add("IloscWydana", typeof(decimal));
+                _dtTransport.Columns.Add("Palety", typeof(decimal));
+                _dtTransport.Columns.Add("Kierowca", typeof(string));
+                _dtTransport.Columns.Add("Pojazd", typeof(string));
+                _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
+                _dtTransport.Columns.Add("Trasa", typeof(string));
+                _dtTransport.Columns.Add("StatusTransportu", typeof(string));
+                _dtTransport.Columns.Add("Uwagi", typeof(string));
+            }
+            else
+            {
+                _dtTransport.Clear();
+            }
+
+            var contractors = new Dictionary<int, (string Name, string Salesman)>();
+            await using (var cnHandel = new SqlConnection(_connHandel))
+            {
+                await cnHandel.OpenAsync();
+                const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
+                                FROM [HANDEL].[SSCommon].[STContractors] c
+                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
+                                ON c.Id = wym.ElementId";
+                await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
+                await using var rd = await cmdContr.ExecuteReaderAsync();
+
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string shortcut = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                    contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
+                }
+            }
+
+            var transportInfo = new Dictionary<int, (string Kierowca, string Pojazd, TimeSpan? GodzWyjazdu, string Trasa, string Status)>();
+            try
+            {
+                await using var cnTrans = new SqlConnection(_connTransport);
+                await cnTrans.OpenAsync();
+
+                string sqlKursy = @"SELECT k.KursID, CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca,
+                                   p.Rejestracja as Pojazd, k.GodzWyjazdu, k.Trasa, k.Status
+                                   FROM [dbo].[Kursy] k
+                                   LEFT JOIN [dbo].[Kierowcy] ki ON k.KierowcaID = ki.KierowcaID
+                                   LEFT JOIN [dbo].[Pojazdy] p ON k.PojazdID = p.PojazdID
+                                   WHERE k.DataKursu = @Day";
+
+                await using var cmdKursy = new SqlCommand(sqlKursy, cnTrans);
+                cmdKursy.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdrKursy = await cmdKursy.ExecuteReaderAsync();
+
+                while (await rdrKursy.ReadAsync())
+                {
+                    int kursId = rdrKursy.GetInt32(0);
+                    string kierowca = rdrKursy.IsDBNull(1) ? "" : rdrKursy.GetString(1);
+                    string pojazd = rdrKursy.IsDBNull(2) ? "" : rdrKursy.GetString(2);
+                    TimeSpan? godzWyjazdu = rdrKursy.IsDBNull(3) ? null : rdrKursy.GetTimeSpan(3);
+                    string trasa = rdrKursy.IsDBNull(4) ? "" : rdrKursy.GetString(4);
+                    string status = rdrKursy.IsDBNull(5) ? "" : rdrKursy.GetString(5);
+                    transportInfo[kursId] = (kierowca, pojazd, godzWyjazdu, trasa, status);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych transportu: {ex.Message}");
+            }
+
+            var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
+            var cultureInfo = new CultureInfo("pl-PL");
+
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+
+                string sql = $@"
+                    SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
+                           zm.LiczbaPalet, zm.TransportKursID, zm.Uwagi
+                    FROM [dbo].[ZamowieniaMieso] zm
+                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+                    WHERE {dateColumn} = @Day AND zm.TransportKursID IS NOT NULL
+                    GROUP BY zm.Id, zm.KlientId, zm.LiczbaPalet, zm.TransportKursID, zm.Uwagi
+                    ORDER BY zm.TransportKursID, zm.Id";
+
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int id = rdr.GetInt32(0);
+                    int clientId = rdr.GetInt32(1);
+                    decimal quantity = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
+                    decimal pallets = rdr.IsDBNull(3) ? 0m : rdr.GetDecimal(3);
+                    int? transportKursId = rdr.IsDBNull(4) ? null : rdr.GetInt32(4);
+                    string uwagi = rdr.IsDBNull(5) ? "" : rdr.GetString(5);
+
+                    var (name, salesman) = contractors.TryGetValue(clientId, out var c) ? c : ($"Nieznany ({clientId})", "");
+
+                    decimal released = 0m;
+                    if (releasesPerClientProduct.TryGetValue(clientId, out var perProduct))
+                    {
+                        released = perProduct.Values.Sum();
+                    }
+
+                    string kierowca = "", pojazd = "", godzWyjazdStr = "", trasa = "", statusTrans = "";
+                    if (transportKursId.HasValue && transportInfo.TryGetValue(transportKursId.Value, out var tInfo))
+                    {
+                        kierowca = tInfo.Kierowca;
+                        pojazd = tInfo.Pojazd;
+                        godzWyjazdStr = tInfo.GodzWyjazdu.HasValue ? tInfo.GodzWyjazdu.Value.ToString(@"hh\:mm") : "";
+                        trasa = tInfo.Trasa;
+                        statusTrans = tInfo.Status;
+                    }
+
+                    _dtTransport.Rows.Add(id, name, salesman, quantity, released, pallets, kierowca, pojazd, godzWyjazdStr, trasa, statusTrans, uwagi);
+                }
+            }
+
+            SetupTransportDataGrid();
+        }
+
+        private void SetupTransportDataGrid()
+        {
+            dgTransport.ItemsSource = _dtTransport.DefaultView;
+            dgTransport.Columns.Clear();
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Odbiorca",
+                Binding = new System.Windows.Data.Binding("Odbiorca"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 120
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hand.",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("BoldCellStyle")
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zam.",
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
+                Width = new DataGridLength(65),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wyd.",
+                Binding = new System.Windows.Data.Binding("IloscWydana") { StringFormat = "N0" },
+                Width = new DataGridLength(65),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pal.",
+                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
+                Width = new DataGridLength(45),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kierowca",
+                Binding = new System.Windows.Data.Binding("Kierowca"),
+                Width = new DataGridLength(100)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pojazd",
+                Binding = new System.Windows.Data.Binding("Pojazd"),
+                Width = new DataGridLength(85)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Godz.",
+                Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Trasa",
+                Binding = new System.Windows.Data.Binding("Trasa"),
+                Width = new DataGridLength(120)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Status",
+                Binding = new System.Windows.Data.Binding("StatusTransportu"),
+                Width = new DataGridLength(80)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Uwagi",
+                Binding = new System.Windows.Data.Binding("Uwagi"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 80
+            });
+        }
+
+        private void DgTransport_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dgTransport.SelectedItem is DataRowView rowView)
+            {
+                var id = rowView.Row.Field<int>("Id");
+                if (id > 0)
+                {
+                    _currentOrderId = id;
+                    _ = DisplayOrderDetailsAsync(id);
+                }
+            }
+        }
+
         private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -2466,6 +2754,82 @@ ORDER BY zm.Id";
                 _colorIndex++;
             }
             return _salesmanColors[salesman];
+        }
+
+        private async Task<Dictionary<int, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
+        {
+            var result = new Dictionary<int, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>();
+            try
+            {
+                await using var cn = new SqlConnection(_connTransport);
+                await cn.OpenAsync();
+
+                string sql = @"SELECT k.KursID, k.DataKursu, k.GodzWyjazdu,
+                              CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca
+                              FROM [dbo].[Kursy] k
+                              LEFT JOIN [dbo].[Kierowcy] ki ON k.KierowcaID = ki.KierowcaID
+                              WHERE k.DataKursu = @Day";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int kursId = rdr.GetInt32(0);
+                    DateTime dataKursu = rdr.GetDateTime(1);
+                    TimeSpan? godzWyjazdu = rdr.IsDBNull(2) ? null : rdr.GetTimeSpan(2);
+                    string kierowca = rdr.IsDBNull(3) ? "" : rdr.GetString(3);
+                    result[kursId] = (dataKursu, godzWyjazdu, kierowca);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych transportu: {ex.Message}");
+            }
+            return result;
+        }
+
+        private async Task<Dictionary<int, (DateTime? DataWydania, string Kierowca)>> GetWydaniaInfoAsync(DateTime day)
+        {
+            var result = new Dictionary<int, (DateTime? DataWydania, string Kierowca)>();
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                string sql = @"SELECT mg.khid, mg.data, mg.czas
+                              FROM [HANDEL].[HM].[MG] mg
+                              WHERE mg.seria IN ('sWZ','sWZ-W') AND mg.aktywny = 1
+                              AND mg.data = @Day AND mg.khid IS NOT NULL
+                              GROUP BY mg.khid, mg.data, mg.czas";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int clientId = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
+                    DateTime? dataWydania = rdr.IsDBNull(1) ? null : rdr.GetDateTime(1);
+                    TimeSpan? czasWydania = rdr.IsDBNull(2) ? null : rdr.GetTimeSpan(2);
+
+                    if (dataWydania.HasValue && czasWydania.HasValue)
+                    {
+                        dataWydania = dataWydania.Value.Add(czasWydania.Value);
+                    }
+
+                    if (!result.ContainsKey(clientId))
+                    {
+                        result[clientId] = (dataWydania, "");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych wydań: {ex.Message}");
+            }
+            return result;
         }
 
         private async Task<Dictionary<int, Dictionary<int, decimal>>> GetReleasesPerClientProductAsync(DateTime day)
