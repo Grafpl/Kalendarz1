@@ -3974,15 +3974,15 @@ ORDER BY zm.Id";
             if (cbFilterSalesman.SelectedIndex > 0)
                 salesmanFilter = cbFilterSalesman.SelectedItem?.ToString()?.Replace("'", "''");
 
-            // Filtruj zamówienia
-            if (_dtOrders.DefaultView != null)
+            // Filtruj zamówienia - sprawdź czy kolumny istnieją
+            if (_dtOrders.Columns.Count > 0 && _dtOrders.Columns.Contains("Status"))
             {
                 var conditions = new List<string>();
 
-                if (!string.IsNullOrEmpty(txt))
+                if (!string.IsNullOrEmpty(txt) && _dtOrders.Columns.Contains("Odbiorca"))
                     conditions.Add($"Odbiorca LIKE '%{txt}%'");
 
-                if (!string.IsNullOrEmpty(salesmanFilter))
+                if (!string.IsNullOrEmpty(salesmanFilter) && _dtOrders.Columns.Contains("Handlowiec"))
                     conditions.Add($"Handlowiec = '{salesmanFilter}'");
 
                 if (!_showReleasesWithoutOrders)
