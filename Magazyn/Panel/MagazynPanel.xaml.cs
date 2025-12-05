@@ -223,10 +223,12 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
 
-                    string sql = @"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, 
+                    string sql = @"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
                                   (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
-                                  z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal
-                                  FROM dbo.ZamowieniaMieso z 
+                                  z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
+                                  CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
+                                  z.DataPrzyjazdu
+                                  FROM dbo.ZamowieniaMieso z
                                   WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
                     var cmd = new SqlCommand(sql, cn);
@@ -245,7 +247,9 @@ namespace Kalendarz1
                             DataUtworzenia = rd.IsDBNull(5) ? (DateTime?)null : rd.GetDateTime(5),
                             TransportKursId = rd.IsDBNull(6) ? null : rd.GetInt64(6),
                             DataWydania = rd.IsDBNull(7) ? null : rd.GetDateTime(7),
-                            KtoWydal = rd.GetString(8)
+                            KtoWydal = rd.GetString(8),
+                            WlasnyTransport = rd.GetBoolean(9),
+                            DataPrzyjazdu = rd.IsDBNull(10) ? null : rd.GetDateTime(10)
                         };
 
                         _zamowienia[info.Id] = info;
@@ -324,7 +328,26 @@ namespace Kalendarz1
                     }
                 }
 
-                // KROK 3: Załaduj dane klientów z Handel
+                // KROK 3: Załaduj nazwy operatorów (kto wydał) z LibraNet
+                var operatorIds = _zamowienia.Values
+                    .Where(z => !string.IsNullOrEmpty(z.KtoWydal) && int.TryParse(z.KtoWydal, out _))
+                    .Select(z => int.Parse(z.KtoWydal))
+                    .Distinct()
+                    .ToList();
+                var operatorNames = await LoadOperatorNamesAsync(operatorIds);
+                foreach (var zam in _zamowienia.Values)
+                {
+                    if (!string.IsNullOrEmpty(zam.KtoWydal) && int.TryParse(zam.KtoWydal, out int opId) && operatorNames.TryGetValue(opId, out string nazwa))
+                    {
+                        zam.KtoWydalNazwa = nazwa;
+                    }
+                    else
+                    {
+                        zam.KtoWydalNazwa = zam.KtoWydal;
+                    }
+                }
+
+                // KROK 4: Załaduj dane klientów z Handel
                 var orderClientIds = _zamowienia.Values.Select(o => o.KlientId).Distinct().ToList();
                 if (orderClientIds.Any())
                 {
@@ -368,6 +391,26 @@ namespace Kalendarz1
         }
 
         private static string Normalize(string s) => string.IsNullOrWhiteSpace(s) ? "" : s.Trim();
+
+        private async Task<Dictionary<int, string>> LoadOperatorNamesAsync(List<int> ids)
+        {
+            var dict = new Dictionary<int, string>();
+            if (!ids.Any()) return dict;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var cmd = new SqlCommand($"SELECT ID, Name FROM dbo.operators WHERE ID IN ({string.Join(',', ids)})", cn);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    dict[rd.GetInt32(0)] = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                }
+            }
+            catch { /* Ignore errors, fallback to ID */ }
+            return dict;
+        }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
         {
@@ -413,6 +456,7 @@ namespace Kalendarz1
             {
                 dgvPozycje.ItemsSource = null;
                 txtKlient.Text = "--";
+                txtHandlowiec.Text = "--";
                 txtCzasWyjazdu.Text = "--";
                 txtPojazd.Text = "--";
                 txtKierowca.Text = "--";
@@ -427,9 +471,10 @@ namespace Kalendarz1
 
             // Wypełnij dane podstawowe
             txtKlient.Text = info.Klient;
+            txtHandlowiec.Text = string.IsNullOrEmpty(info.Handlowiec) ? "--" : info.Handlowiec;
             txtCzasWyjazdu.Text = selected.CzasWyjazdDisplay;
-            txtPojazd.Text = info.NumerRejestracyjny ?? "Nie przypisano";
-            txtKierowca.Text = info.Kierowca ?? "Nie przypisano";
+            txtPojazd.Text = info.WlasnyTransport ? "Własny" : (info.NumerRejestracyjny ?? "Nie przypisano");
+            txtKierowca.Text = info.WlasnyTransport ? "Własny odbiór" : (info.Kierowca ?? "Nie przypisano");
             txtUwagi.Text = info.Uwagi;
 
             // Pokaż/ukryj przyciski w zależności od statusu
@@ -441,7 +486,8 @@ namespace Kalendarz1
                 // Pokaż informację kto i kiedy wydał
                 if (info.DataWydania.HasValue)
                 {
-                    txtShipmentInfo.Text = $"✅ Wydano: {info.DataWydania.Value:yyyy-MM-dd HH:mm} przez {info.KtoWydal}";
+                    string wydawca = !string.IsNullOrEmpty(info.KtoWydalNazwa) ? info.KtoWydalNazwa : info.KtoWydal;
+                    txtShipmentInfo.Text = $"✅ Wydano: {info.DataWydania.Value:yyyy-MM-dd HH:mm} przez {wydawca}";
                     txtShipmentInfo.Foreground = Brushes.LimeGreen;
                 }
                 else
@@ -606,6 +652,9 @@ namespace Kalendarz1
             public int? PaletyH1 { get; set; } // Ile palet mieści pojazd
             public DateTime? DataWydania { get; set; } // Kiedy wydano
             public string KtoWydal { get; set; } = ""; // Kto wydał
+            public string KtoWydalNazwa { get; set; } = ""; // Pełna nazwa użytkownika
+            public bool WlasnyTransport { get; set; } // Własny transport
+            public DateTime? DataPrzyjazdu { get; set; } // Godzina odbioru dla własnego transportu
         }
 
         public class ContractorInfo
@@ -626,7 +675,8 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            public string Klient => Info.Klient;
+            // Klient z ikoną ciężarówki dla własnego transportu
+            public string Klient => Info.WlasnyTransport ? $"🚚 {Info.Klient}" : Info.Klient;
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
@@ -638,6 +688,8 @@ namespace Kalendarz1
             {
                 get
                 {
+                    if (Info.WlasnyTransport)
+                        return "Własny";
                     if (string.IsNullOrEmpty(Info.NumerRejestracyjny))
                         return "Brak";
 
@@ -649,15 +701,58 @@ namespace Kalendarz1
             }
 
             // Wyświetlanie kierowcy - samo imię i nazwisko
-            public string KierowcaDisplay => string.IsNullOrEmpty(Info.Kierowca) ? "Brak" : Info.Kierowca;
+            public string KierowcaDisplay => Info.WlasnyTransport ? "Własny odbiór" : (string.IsNullOrEmpty(Info.Kierowca) ? "Brak" : Info.Kierowca);
 
-            public string CzasWyjazdDisplay => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue
-                ? $"{Info.CzasWyjazdu.Value:hh\\:mm}"
-                : "Brak";
+            // Wyjazd: ikona + czas + skrócony dzień tygodnia
+            public string CzasWyjazdDisplay
+            {
+                get
+                {
+                    // Własny transport - ikona auta + czas odbioru + dzień
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                    {
+                        string dzien = GetShortDayName(Info.DataPrzyjazdu.Value);
+                        return $"🚗 {Info.DataPrzyjazdu.Value:HH:mm} {dzien}";
+                    }
+                    if (Info.WlasnyTransport)
+                        return "🚗 Własny";
 
-            public DateTime SortDateTime => Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue
-                ? Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value)
-                : DateTime.MaxValue;
+                    // Zwykły transport - ikona auta + czas wyjazdu + dzień
+                    if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
+                    {
+                        string dzien = GetShortDayName(Info.DataKursu.Value);
+                        return $"🚗 {Info.CzasWyjazdu.Value:hh\\:mm} {dzien}";
+                    }
+                    return "Brak kursu";
+                }
+            }
+
+            private static string GetShortDayName(DateTime date)
+            {
+                return date.DayOfWeek switch
+                {
+                    DayOfWeek.Monday => "pon.",
+                    DayOfWeek.Tuesday => "wt.",
+                    DayOfWeek.Wednesday => "śr.",
+                    DayOfWeek.Thursday => "czw.",
+                    DayOfWeek.Friday => "pt.",
+                    DayOfWeek.Saturday => "sob.",
+                    DayOfWeek.Sunday => "niedz.",
+                    _ => ""
+                };
+            }
+
+            public DateTime SortDateTime
+            {
+                get
+                {
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                        return Info.DataPrzyjazdu.Value;
+                    if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
+                        return Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value);
+                    return DateTime.MaxValue;
+                }
+            }
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
