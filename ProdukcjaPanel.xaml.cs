@@ -1163,7 +1163,7 @@ namespace Kalendarz1
                 get
                 {
                     if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
-                        return $"🚚 {Info.DataPrzyjazdu.Value:HH:mm}";
+                        return $"🚚 {Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
                     if (Info.WlasnyTransport)
                         return "🚚 Własny";
                     if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
