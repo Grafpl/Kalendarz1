@@ -312,9 +312,9 @@ namespace Kalendarz1
                     sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, ");
                     sqlBuilder.Append("ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, ");
                     sqlBuilder.Append("ISNULL(z.CzyWydane, 0) AS CzyWydane, ");
-                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Halal, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaHalal, ");
-                    sqlBuilder.Append("ISNULL(z.WlasnyTransport, 0) AS WlasnyTransport, ");
-                    sqlBuilder.Append("z.GodzinaPrzyjazdu ");
+                    sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND ISNULL(t.Hallal, 0) = 1) THEN 1 ELSE 0 END AS BIT) AS MaHalal, ");
+                    sqlBuilder.Append("CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport, ");
+                    sqlBuilder.Append("z.DataPrzyjazdu ");
                     sqlBuilder.Append($"FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
@@ -340,7 +340,7 @@ namespace Kalendarz1
                             CzyWydane = rd.GetBoolean(9),
                             MaHalal = rd.GetBoolean(10),
                             WlasnyTransport = rd.GetBoolean(11),
-                            GodzinaPrzyjazdu = rd.IsDBNull(12) ? null : rd.GetTimeSpan(12)
+                            DataPrzyjazdu = rd.IsDBNull(12) ? null : rd.GetDateTime(12)
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -1101,7 +1101,7 @@ namespace Kalendarz1
             public bool CzyWydane { get; set; }
             public bool MaHalal { get; set; }
             public bool WlasnyTransport { get; set; }
-            public TimeSpan? GodzinaPrzyjazdu { get; set; }
+            public DateTime? DataPrzyjazdu { get; set; }
         }
 
         public class ContractorInfo
@@ -1162,8 +1162,8 @@ namespace Kalendarz1
             {
                 get
                 {
-                    if (Info.WlasnyTransport && Info.GodzinaPrzyjazdu.HasValue)
-                        return $"🚚 {Info.GodzinaPrzyjazdu.Value:hh\\:mm}";
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                        return $"🚚 {Info.DataPrzyjazdu.Value:HH:mm}";
                     if (Info.WlasnyTransport)
                         return "🚚 Własny";
                     if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
@@ -1177,8 +1177,8 @@ namespace Kalendarz1
             {
                 get
                 {
-                    if (Info.WlasnyTransport && Info.GodzinaPrzyjazdu.HasValue)
-                        return DateTime.Today.Add(Info.GodzinaPrzyjazdu.Value);
+                    if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
+                        return Info.DataPrzyjazdu.Value;
                     if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
                         return Info.DataKursu.Value.Add(Info.CzasWyjazdu.Value);
                     return DateTime.MaxValue;
