@@ -2627,6 +2627,8 @@ ORDER BY zm.Id";
 
         private void SetupTransportDataGrid()
         {
+            // Sortowanie po Trasie, potem po godzinie wyjazdu
+            _dtTransport.DefaultView.Sort = "Trasa ASC, GodzWyjazdu ASC";
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             dgTransport.Columns.Clear();
 
