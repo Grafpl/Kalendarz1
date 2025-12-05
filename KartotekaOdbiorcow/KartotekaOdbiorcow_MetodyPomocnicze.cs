@@ -430,7 +430,7 @@ namespace Kalendarz1
                 {
                     conn.Open();
                     string query = @"
-                        SELECT 
+                        SELECT
                             COUNT(DISTINCT d.DocumentID) AS LiczbaFaktur,
                             ISNULL(SUM(d.GrossValue), 0) AS WartoscBrutto,
                             ISNULL(SUM(d.NetValue), 0) AS WartoscNetto,
@@ -446,28 +446,28 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
-                        
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
                                 int row = 0;
                                 DodajNaglowekSekcji(gridStatystyki, "📊 Statystyki Sprzedaży (12 miesięcy)", ref row);
-                                
+
                                 DodajPoleTekstowe(gridStatystyki, "Liczba faktur:", reader["LiczbaFaktur"].ToString(), ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Wartość netto:", 
+                                DodajPoleTekstowe(gridStatystyki, "Wartość netto:",
                                     Convert.ToDecimal(reader["WartoscNetto"]).ToString("N2") + " PLN", ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Wartość brutto:", 
+                                DodajPoleTekstowe(gridStatystyki, "Wartość brutto:",
                                     Convert.ToDecimal(reader["WartoscBrutto"]).ToString("N2") + " PLN", ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Średnia wartość faktury:", 
+                                DodajPoleTekstowe(gridStatystyki, "Średnia wartość faktury:",
                                     Convert.ToDecimal(reader["SredniaWartosc"]).ToString("N2") + " PLN", ref row);
-                                
+
                                 if (reader["PierwszaFaktura"] != DBNull.Value)
-                                    DodajPoleTekstowe(gridStatystyki, "Pierwsza faktura:", 
+                                    DodajPoleTekstowe(gridStatystyki, "Pierwsza faktura:",
                                         Convert.ToDateTime(reader["PierwszaFaktura"]).ToString("dd.MM.yyyy"), ref row);
-                                
+
                                 if (reader["OstatniaFaktura"] != DBNull.Value)
-                                    DodajPoleTekstowe(gridStatystyki, "Ostatnia faktura:", 
+                                    DodajPoleTekstowe(gridStatystyki, "Ostatnia faktura:",
                                         Convert.ToDateTime(reader["OstatniaFaktura"]).ToString("dd.MM.yyyy"), ref row);
                             }
                         }
@@ -478,6 +478,343 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void WczytajAnalizaKosztow()
+        {
+            if (!wybranyOdbiorcaID.HasValue) return;
+
+            gridAnalizaKosztow.Children.Clear();
+            gridAnalizaKosztow.RowDefinitions.Clear();
+            gridAnalizaKosztow.ColumnDefinitions.Clear();
+
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            try
+            {
+                // Pobierz dane odbiorcy i transportu
+                decimal odlegloscKm = 0;
+                decimal kosztKm = 3.50m;
+                decimal kosztStalyDostawy = 0;
+                decimal kosztGodzinyKierowcy = 50m;
+                decimal sredniPrzebiegLitr = 25m;
+                decimal cenaPaliwaLitr = 6.50m;
+                int czasRozladunku = 30;
+                decimal minWartoscDarmowy = 0;
+                string nazwaOdbiorcy = "";
+
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+
+                    // Dane odbiorcy
+                    string queryOdbiorca = "SELECT NazwaSkrot, OdlegloscKm FROM Odbiorcy WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryOdbiorca, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                nazwaOdbiorcy = reader["NazwaSkrot"].ToString();
+                                if (reader["OdlegloscKm"] != DBNull.Value)
+                                    odlegloscKm = Convert.ToDecimal(reader["OdlegloscKm"]);
+                            }
+                        }
+                    }
+
+                    // Dane transportowe
+                    string queryTransport = @"
+                        SELECT
+                            ISNULL(KosztTransportuKm, 3.50) AS KosztKm,
+                            ISNULL(KosztStalyDostawy, 0) AS KosztStaly,
+                            ISNULL(KosztGodzinyKierowcy, 50) AS KosztGodziny,
+                            ISNULL(SredniPrzebiegLitr, 25) AS Przebieg,
+                            ISNULL(CenaPaliwaLitr, 6.50) AS CenaPaliwa,
+                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku,
+                            ISNULL(MinWartoscDlaDarmowegoTransportu, 0) AS MinDarmowy
+                        FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryTransport, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                kosztKm = Convert.ToDecimal(reader["KosztKm"]);
+                                kosztStalyDostawy = Convert.ToDecimal(reader["KosztStaly"]);
+                                kosztGodzinyKierowcy = Convert.ToDecimal(reader["KosztGodziny"]);
+                                sredniPrzebiegLitr = Convert.ToDecimal(reader["Przebieg"]);
+                                cenaPaliwaLitr = Convert.ToDecimal(reader["CenaPaliwa"]);
+                                czasRozladunku = Convert.ToInt32(reader["CzasRozladunku"]);
+                                minWartoscDarmowy = Convert.ToDecimal(reader["MinDarmowy"]);
+                            }
+                        }
+                    }
+                }
+
+                // Obliczenia kosztów transportu
+                decimal dystansWObie = odlegloscKm * 2;
+                decimal kosztPaliwa = (dystansWObie / sredniPrzebiegLitr) * cenaPaliwaLitr;
+                decimal czasJazdyGodzin = dystansWObie / 60m; // zakładamy 60 km/h średnio
+                decimal czasCalkowityGodzin = czasJazdyGodzin + (czasRozladunku / 60m);
+                decimal kosztKierowcy = czasCalkowityGodzin * kosztGodzinyKierowcy;
+                decimal kosztCalkowityDostawy = kosztStalyDostawy + kosztPaliwa + kosztKierowcy;
+
+                // Pobierz statystyki zamówień
+                int liczbaZamowien = 0;
+                decimal srednieZamowienieKg = 0;
+                decimal srednieZamowieniePLN = 0;
+
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+                    string queryZam = @"
+                        SELECT
+                            COUNT(*) AS Liczba,
+                            ISNULL(AVG(CAST(zm.IloscKg AS DECIMAL)), 0) AS SredniaKg
+                        FROM ZamowieniaMieso zm
+                        INNER JOIN Odbiorcy o ON zm.KlientId = o.IdOdbiorcy
+                        WHERE o.OdbiorcaID = @OdbiorcaID
+                            AND zm.DataPrzyjazdu >= DATEADD(MONTH, -3, GETDATE())
+                            AND zm.Status NOT IN ('Anulowane')";
+                    using (SqlCommand cmd = new SqlCommand(queryZam, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                liczbaZamowien = Convert.ToInt32(reader["Liczba"]);
+                                srednieZamowienieKg = Convert.ToDecimal(reader["SredniaKg"]);
+                            }
+                        }
+                    }
+                }
+
+                // Pobierz średnią wartość faktury z Handel
+                using (SqlConnection conn = new SqlConnection(_connHandel))
+                {
+                    conn.Open();
+                    string queryFak = @"
+                        SELECT ISNULL(AVG(d.NetValue), 0) AS SredniaWartosc
+                        FROM [HANDEL].[SSCommon].[STDocuments] d
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON d.ContractorGuid = c.Guid
+                        WHERE c.Shortcut = @NazwaOdbiorcy
+                            AND d.DocumentType IN (310, 311)
+                            AND d.DocumentDate >= DATEADD(MONTH, -3, GETDATE())";
+                    using (SqlCommand cmd = new SqlCommand(queryFak, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
+                        var result = cmd.ExecuteScalar();
+                        if (result != DBNull.Value)
+                            srednieZamowieniePLN = Convert.ToDecimal(result);
+                    }
+                }
+
+                // Oblicz wskaźniki
+                decimal kosztNaKg = srednieZamowienieKg > 0 ? kosztCalkowityDostawy / srednieZamowienieKg : 0;
+                decimal procentKosztuTransportu = srednieZamowieniePLN > 0 ? (kosztCalkowityDostawy / srednieZamowieniePLN) * 100 : 0;
+
+                // Buduj UI
+                int row = 0;
+
+                // Sekcja 1: Parametry transportu
+                DodajNaglowekSekcji(gridAnalizaKosztow, "🚚 Parametry Transportu", ref row);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Odległość od firmy:", $"{odlegloscKm:N1} km", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Dystans w obie strony:", $"{dystansWObie:N1} km", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt stały dostawy:", $"{kosztStalyDostawy:N2} PLN", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Czas rozładunku:", $"{czasRozladunku} min", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Cena paliwa:", $"{cenaPaliwaLitr:N2} PLN/l", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średni przebieg:", $"{sredniPrzebiegLitr:N1} km/l", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt godziny kierowcy:", $"{kosztGodzinyKierowcy:N2} PLN/h", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Szacowany czas jazdy:", $"{czasJazdyGodzin:N1} h", ref row, 2, true);
+
+                // Sekcja 2: Kalkulacja kosztów
+                DodajNaglowekSekcji(gridAnalizaKosztow, "💰 Kalkulacja Kosztów Dostawy", ref row);
+
+                // Panel z kosztami
+                var panelKoszty = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F9FF")),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 10, 0, 20)
+                };
+
+                var stackKoszty = new StackPanel();
+                stackKoszty.Children.Add(CreateCostLine("Koszt paliwa:", $"{kosztPaliwa:N2} PLN", "(dystans / przebieg × cena)"));
+                stackKoszty.Children.Add(CreateCostLine("Koszt kierowcy:", $"{kosztKierowcy:N2} PLN", $"({czasCalkowityGodzin:N1}h × {kosztGodzinyKierowcy:N0} PLN)"));
+                stackKoszty.Children.Add(CreateCostLine("Koszt stały:", $"{kosztStalyDostawy:N2} PLN", ""));
+                stackKoszty.Children.Add(new System.Windows.Shapes.Rectangle { Height = 2, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")), Margin = new Thickness(0, 10, 0, 10) });
+
+                var totalLine = CreateCostLine("RAZEM KOSZT DOSTAWY:", $"{kosztCalkowityDostawy:N2} PLN", "");
+                ((totalLine.Children[0] as TextBlock)!).FontSize = 16;
+                ((totalLine.Children[0] as TextBlock)!).FontWeight = FontWeights.Bold;
+                ((totalLine.Children[1] as TextBlock)!).FontSize = 18;
+                ((totalLine.Children[1] as TextBlock)!).Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
+                stackKoszty.Children.Add(totalLine);
+
+                panelKoszty.Child = stackKoszty;
+
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelKoszty, row);
+                Grid.SetColumnSpan(panelKoszty, 4);
+                gridAnalizaKosztow.Children.Add(panelKoszty);
+                row++;
+
+                // Sekcja 3: Wskaźniki rentowności
+                DodajNaglowekSekcji(gridAnalizaKosztow, "📊 Wskaźniki Rentowności (3 miesiące)", ref row);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Liczba dostaw:", $"{liczbaZamowien}", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średnie zamówienie:", $"{srednieZamowienieKg:N0} kg", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średnia wartość faktury:", $"{srednieZamowieniePLN:N2} PLN", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt transportu na kg:", $"{kosztNaKg:N2} PLN/kg", ref row, 2, true);
+
+                // Panel z procentem
+                var panelProcent = new Border
+                {
+                    Background = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF2F2")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0FDF4")),
+                    BorderBrush = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 15, 0, 0)
+                };
+
+                var stackProcent = new StackPanel { Orientation = Orientation.Horizontal };
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = "Udział transportu w wartości zamówienia: ",
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = $"{procentKosztuTransportu:N1}%",
+                    FontSize = 24,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 10, 0)
+                });
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = procentKosztuTransportu > 10 ? "⚠️ Wysoki!" : procentKosztuTransportu > 5 ? "📊 Średni" : "✅ Niski",
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                panelProcent.Child = stackProcent;
+
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelProcent, row);
+                Grid.SetColumnSpan(panelProcent, 4);
+                gridAnalizaKosztow.Children.Add(panelProcent);
+                row++;
+
+                // Minimalna wartość dla darmowego transportu
+                if (minWartoscDarmowy > 0)
+                {
+                    gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var txtDarmowy = new TextBlock
+                    {
+                        Text = $"💡 Minimalna wartość zamówienia dla darmowego transportu: {minWartoscDarmowy:N2} PLN",
+                        FontStyle = FontStyles.Italic,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
+                        Margin = new Thickness(0, 15, 0, 0)
+                    };
+                    Grid.SetRow(txtDarmowy, row);
+                    Grid.SetColumnSpan(txtDarmowy, 4);
+                    gridAnalizaKosztow.Children.Add(txtDarmowy);
+                    row++;
+                }
+
+                // Przycisk edycji parametrów
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var btnEdytuj = new Button
+                {
+                    Content = "✏️ Edytuj parametry transportu",
+                    Style = (Style)FindResource("ButtonPrimary"),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Width = 250,
+                    Margin = new Thickness(0, 25, 0, 0)
+                };
+                btnEdytuj.Click += BtnEdytujParametryTransportu_Click;
+                Grid.SetRow(btnEdytuj, row);
+                Grid.SetColumnSpan(btnEdytuj, 4);
+                gridAnalizaKosztow.Children.Add(btnEdytuj);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private StackPanel CreateCostLine(string label, string value, string formula)
+        {
+            var stack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
+            stack.Children.Add(new TextBlock { Text = label, Width = 200, FontWeight = FontWeights.Medium });
+            stack.Children.Add(new TextBlock { Text = value, Width = 120, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1F2937")) });
+            if (!string.IsNullOrEmpty(formula))
+                stack.Children.Add(new TextBlock { Text = formula, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF")), FontStyle = FontStyles.Italic });
+            return stack;
+        }
+
+        private void DodajPoleTekstoweKolumna(Grid grid, string label, string wartosc, ref int row, int kolumna, bool nowyWiersz = false)
+        {
+            if (kolumna == 0)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var labelControl = new TextBlock
+            {
+                Text = label,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(labelControl, row);
+            Grid.SetColumn(labelControl, kolumna);
+            grid.Children.Add(labelControl);
+
+            var wartoscControl = new TextBlock
+            {
+                Text = wartosc,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(wartoscControl, row);
+            Grid.SetColumn(wartoscControl, kolumna + 1);
+            grid.Children.Add(wartoscControl);
+
+            if (nowyWiersz)
+                row++;
+        }
+
+        private void BtnEdytujParametryTransportu_Click(object sender, RoutedEventArgs e)
+        {
+            if (!wybranyOdbiorcaID.HasValue) return;
+
+            var dialog = new EdytujParametryTransportuDialog(wybranyOdbiorcaID.Value, _connLibraNet);
+            dialog.ParametryZapisane += (s, ev) => WczytajAnalizaKosztow();
+            dialog.ShowDialog();
         }
 
         // Metody pomocnicze UI

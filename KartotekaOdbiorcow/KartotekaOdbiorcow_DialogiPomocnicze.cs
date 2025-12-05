@@ -758,4 +758,291 @@ namespace Kalendarz1
             }
         }
     }
+
+    // ============================================
+    // Dialog edycji parametrów transportu
+    // ============================================
+    public class EdytujParametryTransportuDialog : Window
+    {
+        private int _odbiorcaID;
+        private string _connectionString;
+
+        private TextBox txtKosztStaly, txtKosztGodziny, txtPrzebieg, txtCenaPaliwa, txtCzasRozladunku, txtMinDarmowy;
+        private ComboBox cmbTypTransportu;
+
+        public event EventHandler ParametryZapisane;
+
+        public EdytujParametryTransportuDialog(int odbiorcaID, string connString)
+        {
+            _odbiorcaID = odbiorcaID;
+            _connectionString = connString;
+
+            Title = "Edytuj Parametry Transportu";
+            Width = 550;
+            Height = 550;
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+            InicjalizujUI();
+            WczytajDane();
+        }
+
+        private void InicjalizujUI()
+        {
+            var grid = new Grid { Margin = new Thickness(20) };
+
+            for (int i = 0; i < 10; i++)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            int row = 0;
+
+            // Nagłówek
+            var header = new TextBlock
+            {
+                Text = "🚚 Parametry kalkulacji kosztów transportu",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            Grid.SetRow(header, row);
+            Grid.SetColumnSpan(header, 2);
+            grid.Children.Add(header);
+            row++;
+
+            // Typ transportu
+            AddLabel(grid, "Typ transportu:", row);
+            cmbTypTransportu = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
+            cmbTypTransportu.Items.Add("Własny");
+            cmbTypTransportu.Items.Add("Wynajęty");
+            cmbTypTransportu.Items.Add("Odbiorca");
+            Grid.SetRow(cmbTypTransportu, row);
+            Grid.SetColumn(cmbTypTransportu, 1);
+            grid.Children.Add(cmbTypTransportu);
+            row++;
+
+            // Koszt stały
+            AddLabel(grid, "Koszt stały dostawy (PLN):", row);
+            txtKosztStaly = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtKosztStaly, row);
+            Grid.SetColumn(txtKosztStaly, 1);
+            grid.Children.Add(txtKosztStaly);
+            row++;
+
+            // Koszt godziny kierowcy
+            AddLabel(grid, "Koszt godziny kierowcy (PLN/h):", row);
+            txtKosztGodziny = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtKosztGodziny, row);
+            Grid.SetColumn(txtKosztGodziny, 1);
+            grid.Children.Add(txtKosztGodziny);
+            row++;
+
+            // Średni przebieg
+            AddLabel(grid, "Średni przebieg (km/l):", row);
+            txtPrzebieg = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtPrzebieg, row);
+            Grid.SetColumn(txtPrzebieg, 1);
+            grid.Children.Add(txtPrzebieg);
+            row++;
+
+            // Cena paliwa
+            AddLabel(grid, "Cena paliwa (PLN/l):", row);
+            txtCenaPaliwa = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtCenaPaliwa, row);
+            Grid.SetColumn(txtCenaPaliwa, 1);
+            grid.Children.Add(txtCenaPaliwa);
+            row++;
+
+            // Czas rozładunku
+            AddLabel(grid, "Czas rozładunku (min):", row);
+            txtCzasRozladunku = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtCzasRozladunku, row);
+            Grid.SetColumn(txtCzasRozladunku, 1);
+            grid.Children.Add(txtCzasRozladunku);
+            row++;
+
+            // Min wartość darmowy
+            AddLabel(grid, "Min. wartość dla darmowego transp. (PLN):", row);
+            txtMinDarmowy = new TextBox { Margin = new Thickness(0, 0, 0, 10) };
+            Grid.SetRow(txtMinDarmowy, row);
+            Grid.SetColumn(txtMinDarmowy, 1);
+            grid.Children.Add(txtMinDarmowy);
+            row++;
+
+            // Info
+            var info = new TextBlock
+            {
+                Text = "💡 Te parametry są używane do kalkulacji kosztu dostawy dla tego odbiorcy.",
+                TextWrapping = TextWrapping.Wrap,
+                FontStyle = FontStyles.Italic,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            Grid.SetRow(info, row);
+            Grid.SetColumnSpan(info, 2);
+            grid.Children.Add(info);
+
+            // Przyciski
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
+
+            var btnZapisz = new Button { Content = "Zapisz", Width = 100, Height = 35, Margin = new Thickness(0, 0, 10, 0) };
+            btnZapisz.Click += BtnZapisz_Click;
+            panel.Children.Add(btnZapisz);
+
+            var btnAnuluj = new Button { Content = "Anuluj", Width = 100, Height = 35 };
+            btnAnuluj.Click += (s, e) => Close();
+            panel.Children.Add(btnAnuluj);
+
+            Grid.SetRow(panel, 11);
+            Grid.SetColumnSpan(panel, 2);
+            grid.Children.Add(panel);
+
+            Content = grid;
+        }
+
+        private void AddLabel(Grid grid, string text, int row)
+        {
+            var label = new TextBlock
+            {
+                Text = text,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 10)
+            };
+            Grid.SetRow(label, row);
+            grid.Children.Add(label);
+        }
+
+        private void WczytajDane()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT
+                            TypTransportu,
+                            ISNULL(KosztStalyDostawy, 0) AS KosztStaly,
+                            ISNULL(KosztGodzinyKierowcy, 50) AS KosztGodziny,
+                            ISNULL(SredniPrzebiegLitr, 25) AS Przebieg,
+                            ISNULL(CenaPaliwaLitr, 6.50) AS CenaPaliwa,
+                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku,
+                            ISNULL(MinWartoscDlaDarmowegoTransportu, 0) AS MinDarmowy
+                        FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", _odbiorcaID);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                cmbTypTransportu.SelectedItem = reader["TypTransportu"].ToString();
+                                txtKosztStaly.Text = Convert.ToDecimal(reader["KosztStaly"]).ToString("0.00");
+                                txtKosztGodziny.Text = Convert.ToDecimal(reader["KosztGodziny"]).ToString("0.00");
+                                txtPrzebieg.Text = Convert.ToDecimal(reader["Przebieg"]).ToString("0.0");
+                                txtCenaPaliwa.Text = Convert.ToDecimal(reader["CenaPaliwa"]).ToString("0.00");
+                                txtCzasRozladunku.Text = Convert.ToInt32(reader["CzasRozladunku"]).ToString();
+                                txtMinDarmowy.Text = Convert.ToDecimal(reader["MinDarmowy"]).ToString("0.00");
+                            }
+                            else
+                            {
+                                // Wartości domyślne
+                                cmbTypTransportu.SelectedIndex = 0;
+                                txtKosztStaly.Text = "0.00";
+                                txtKosztGodziny.Text = "50.00";
+                                txtPrzebieg.Text = "25.0";
+                                txtCenaPaliwa.Text = "6.50";
+                                txtCzasRozladunku.Text = "30";
+                                txtMinDarmowy.Text = "0.00";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnZapisz_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                decimal kosztStaly = decimal.Parse(txtKosztStaly.Text.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                decimal kosztGodziny = decimal.Parse(txtKosztGodziny.Text.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                decimal przebieg = decimal.Parse(txtPrzebieg.Text.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                decimal cenaPaliwa = decimal.Parse(txtCenaPaliwa.Text.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+                int czasRozladunku = int.Parse(txtCzasRozladunku.Text);
+                decimal minDarmowy = decimal.Parse(txtMinDarmowy.Text.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+
+                using (SqlConnection conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy rekord istnieje
+                    string checkQuery = "SELECT COUNT(*) FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand checkCmd = new SqlCommand(checkQuery, conn))
+                    {
+                        checkCmd.Parameters.AddWithValue("@OdbiorcaID", _odbiorcaID);
+                        int count = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                        string query;
+                        if (count > 0)
+                        {
+                            query = @"
+                                UPDATE OdbiorcyTransport SET
+                                    TypTransportu = @TypTransportu,
+                                    KosztStalyDostawy = @KosztStaly,
+                                    KosztGodzinyKierowcy = @KosztGodziny,
+                                    SredniPrzebiegLitr = @Przebieg,
+                                    CenaPaliwaLitr = @CenaPaliwa,
+                                    CzasRozladunku = @CzasRozladunku,
+                                    MinWartoscDlaDarmowegoTransportu = @MinDarmowy
+                                WHERE OdbiorcaID = @OdbiorcaID";
+                        }
+                        else
+                        {
+                            query = @"
+                                INSERT INTO OdbiorcyTransport
+                                (OdbiorcaID, TypTransportu, KosztStalyDostawy, KosztGodzinyKierowcy, SredniPrzebiegLitr, CenaPaliwaLitr, CzasRozladunku, MinWartoscDlaDarmowegoTransportu, DataUtworzenia)
+                                VALUES
+                                (@OdbiorcaID, @TypTransportu, @KosztStaly, @KosztGodziny, @Przebieg, @CenaPaliwa, @CzasRozladunku, @MinDarmowy, GETDATE())";
+                        }
+
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@OdbiorcaID", _odbiorcaID);
+                            cmd.Parameters.AddWithValue("@TypTransportu", cmbTypTransportu.SelectedItem?.ToString() ?? "Własny");
+                            cmd.Parameters.AddWithValue("@KosztStaly", kosztStaly);
+                            cmd.Parameters.AddWithValue("@KosztGodziny", kosztGodziny);
+                            cmd.Parameters.AddWithValue("@Przebieg", przebieg);
+                            cmd.Parameters.AddWithValue("@CenaPaliwa", cenaPaliwa);
+                            cmd.Parameters.AddWithValue("@CzasRozladunku", czasRozladunku);
+                            cmd.Parameters.AddWithValue("@MinDarmowy", minDarmowy);
+
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                MessageBox.Show("Parametry transportu zostały zapisane!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                ParametryZapisane?.Invoke(this, EventArgs.Empty);
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
 }

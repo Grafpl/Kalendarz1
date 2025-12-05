@@ -393,6 +393,14 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
+
+                    <TabItem Header="💵 Analiza Kosztów">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20">
+                                <Grid x:Name="gridAnalizaKosztow"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
                 </TabControl>
             </Border>
         </Grid>

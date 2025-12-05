@@ -127,6 +127,8 @@ namespace Kalendarz1
                 WczytajLokalizacje();
             else if (tabControl.SelectedIndex == 6) // Statystyki
                 WczytajStatystyki();
+            else if (tabControl.SelectedIndex == 7) // Analiza Kosztów
+                WczytajAnalizaKosztow();
         }
 
         #endregion
