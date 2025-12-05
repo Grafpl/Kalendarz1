@@ -2200,7 +2200,7 @@ ORDER BY zm.Id";
                 bool czyZrealizowane = temp.Columns.Contains("CzyZrealizowane") && !(r["CzyZrealizowane"] is DBNull) && Convert.ToBoolean(r["CzyZrealizowane"]);
                 bool czyWydane = temp.Columns.Contains("CzyWydane") && !(r["CzyWydane"] is DBNull) && Convert.ToBoolean(r["CzyWydane"]);
 
-                int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
+                int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : (int)Math.Round(Convert.ToDecimal(r["LiczbaPojemnikow"]));
                 decimal pallets = Math.Ceiling(r["LiczbaPalet"] is DBNull ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
                 bool modeE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
                 string modeText = modeE2 ? "E2 (40)" : "STD (36)";
