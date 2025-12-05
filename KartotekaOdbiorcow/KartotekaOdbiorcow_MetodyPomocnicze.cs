@@ -1,6 +1,8 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -1364,186 +1366,191 @@ namespace Kalendarz1
         private void DodajNaglowekSekcji(Grid grid, string tekst, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var separator = new Border
             {
-                Height = 3,
+                Height = 2,
                 Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
-                Margin = new Thickness(0, row == 0 ? 0 : 20, 0, 10),
-                CornerRadius = new CornerRadius(2)
+                Margin = new Thickness(0, row == 0 ? 0 : 12, 0, 6),
+                CornerRadius = new CornerRadius(1)
             };
             Grid.SetRow(separator, row);
             Grid.SetColumnSpan(separator, grid.ColumnDefinitions.Count);
             grid.Children.Add(separator);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var textBlock = new TextBlock
             {
                 Text = tekst,
-                FontSize = 16,
+                FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
-                Margin = new Thickness(0, 0, 0, 15)
+                Margin = new Thickness(0, 0, 0, 8)
             };
             Grid.SetRow(textBlock, row);
             Grid.SetColumnSpan(textBlock, grid.ColumnDefinitions.Count);
             grid.Children.Add(textBlock);
-            
+
             row++;
         }
 
         private void DodajPoleFormularza(Grid grid, string label, string nazwa, ref int row, int kolumna, int colspan = 2)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 0, 5),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"))
+                Margin = new Thickness(0, 0, 0, 3),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"))
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, kolumna);
             grid.Children.Add(labelControl);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var textBox = new TextBox
             {
                 Name = nazwa,
                 Style = (Style)FindResource("TextBoxModern"),
-                Margin = new Thickness(0, 0, kolumna == 0 && colspan == 2 ? 20 : 0, 15)
+                Margin = new Thickness(0, 0, kolumna == 0 && colspan == 2 ? 15 : 0, 10)
             };
             Grid.SetRow(textBox, row);
             Grid.SetColumn(textBox, kolumna);
             Grid.SetColumnSpan(textBox, colspan);
             grid.Children.Add(textBox);
-            
+
             row++;
         }
 
         private void DodajComboBoxFormularza(Grid grid, string label, string nazwa, string[] items, ref int row, int kolumna)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 0, 5),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"))
+                Margin = new Thickness(0, 0, 0, 3),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"))
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, kolumna);
             grid.Children.Add(labelControl);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var comboBox = new ComboBox
             {
                 Name = nazwa,
                 Style = (Style)FindResource("ComboBoxModern"),
-                Margin = new Thickness(0, 0, 20, 15)
+                Margin = new Thickness(0, 0, 15, 10)
             };
-            
+
             foreach (var item in items)
                 comboBox.Items.Add(new ComboBoxItem { Content = item });
-            
+
             Grid.SetRow(comboBox, row);
             Grid.SetColumn(comboBox, kolumna);
             grid.Children.Add(comboBox);
-            
+
             row++;
         }
 
         private void DodajCheckBoxFormularza(Grid grid, string label, string nazwa, ref int row, int kolumna)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var checkBox = new CheckBox
             {
                 Name = nazwa,
                 Content = label,
+                FontSize = 12,
                 FontWeight = FontWeights.Medium,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
-                Margin = new Thickness(0, 0, 0, 15),
+                Margin = new Thickness(0, 0, 0, 10),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetRow(checkBox, row);
             Grid.SetColumn(checkBox, kolumna);
             grid.Children.Add(checkBox);
-            
+
             row++;
         }
 
         private void DodajPrzyciskiAkcji(Grid grid, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var stackPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 20, 0, 0)
+                Margin = new Thickness(0, 12, 0, 0)
             };
-            
+
             var btnZapisz = new Button
             {
-                Content = "💾 Zapisz zmiany",
+                Content = "Zapisz",
                 Style = (Style)FindResource("ButtonSuccess"),
-                Margin = new Thickness(0, 0, 10, 0),
-                Width = 150
+                Margin = new Thickness(0, 0, 8, 0),
+                Width = 100
             };
             btnZapisz.Click += (s, e) => ZapiszDanePodstawowe();
             stackPanel.Children.Add(btnZapisz);
-            
+
             var btnSynchronizuj = new Button
             {
-                Content = "🔄 Synchronizuj z Handel",
+                Content = "Synchronizuj z Handel",
                 Style = (Style)FindResource("ButtonPrimary"),
-                Width = 200
+                Width = 150
             };
             btnSynchronizuj.Click += BtnSynchronizuj_Click;
             stackPanel.Children.Add(btnSynchronizuj);
-            
+
             Grid.SetRow(stackPanel, row);
             Grid.SetColumnSpan(stackPanel, grid.ColumnDefinitions.Count);
             grid.Children.Add(stackPanel);
-            
+
             row++;
         }
 
         private void DodajPoleTekstowe(Grid grid, string label, string wartosc, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
-                Margin = new Thickness(0, 0, 0, 5)
+                Margin = new Thickness(0, 0, 0, 2)
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, 0);
             grid.Children.Add(labelControl);
-            
+
             var wartoscControl = new TextBlock
             {
                 Text = wartosc,
+                FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
-                Margin = new Thickness(0, 0, 0, 15),
+                Margin = new Thickness(0, 0, 0, 8),
                 TextWrapping = TextWrapping.Wrap
             };
             Grid.SetRow(wartoscControl, row);
             Grid.SetColumn(wartoscControl, 1);
             grid.Children.Add(wartoscControl);
-            
+
             row++;
         }
 
