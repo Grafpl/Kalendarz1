@@ -636,6 +636,7 @@ namespace Kalendarz1.WPF
             await CheckAndCreateSlaughterDateColumnAsync();
             await CheckAndCreateTransportKursIDColumnAsync();
             await CheckAndCreateStatusColumnsAsync();
+            await CheckAndCreateAnulowanieColumnsAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -840,6 +841,41 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Błąd tworzenia kolumn statusów: {ex.Message}");
+            }
+        }
+
+        private async Task CheckAndCreateAnulowanieColumnsAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                var columns = new[]
+                {
+                    ("AnulowanePrzez", "NVARCHAR(100) NULL"),
+                    ("DataAnulowania", "DATETIME NULL")
+                };
+
+                foreach (var (columnName, columnDef) in columns)
+                {
+                    var checkSql = $@"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                     WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = '{columnName}'";
+
+                    await using var cmdCheck = new SqlCommand(checkSql, cn);
+                    int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                    if (count == 0)
+                    {
+                        var alterSql = $@"ALTER TABLE [dbo].[ZamowieniaMieso] ADD {columnName} {columnDef}";
+                        await using var cmdAlter = new SqlCommand(alterSql, cn);
+                        await cmdAlter.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd tworzenia kolumn anulowania: {ex.Message}");
             }
         }
 
@@ -1400,8 +1436,14 @@ namespace Kalendarz1.WPF
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
                     await using var cmd = new SqlCommand(
-                        "UPDATE dbo.ZamowieniaMieso SET Status = 'Anulowane' WHERE Id = @Id", cn);
+                        @"UPDATE dbo.ZamowieniaMieso
+                          SET Status = 'Anulowane',
+                              AnulowanePrzez = @AnulowanePrzez,
+                              DataAnulowania = @DataAnulowania
+                          WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", id);
+                    cmd.Parameters.AddWithValue("@AnulowanePrzez", App.UserFullName ?? UserID ?? "Nieznany");
+                    cmd.Parameters.AddWithValue("@DataAnulowania", DateTime.Now);
                     await cmd.ExecuteNonQueryAsync();
 
                     // Logowanie historii zmian
@@ -1451,7 +1493,11 @@ namespace Kalendarz1.WPF
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
                     await using var cmd = new SqlCommand(
-                        "UPDATE dbo.ZamowieniaMieso SET Status = 'Nowe' WHERE Id = @Id", cn);
+                        @"UPDATE dbo.ZamowieniaMieso
+                          SET Status = 'Nowe',
+                              AnulowanePrzez = NULL,
+                              DataAnulowania = NULL
+                          WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", id);
                     await cmd.ExecuteNonQueryAsync();
 
