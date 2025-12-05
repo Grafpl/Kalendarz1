@@ -1385,7 +1385,7 @@ namespace Kalendarz1.WPF
             try
             {
                 // Pobierz TransportKursID z zamówienia
-                int? transportKursId = null;
+                long? transportKursId = null;
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
@@ -1395,7 +1395,7 @@ namespace Kalendarz1.WPF
                     var result = await cmd.ExecuteScalarAsync();
                     if (result != null && result != DBNull.Value)
                     {
-                        transportKursId = Convert.ToInt32(result);
+                        transportKursId = Convert.ToInt64(result);
                     }
                 }
 
@@ -1479,7 +1479,7 @@ namespace Kalendarz1.WPF
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        private async Task<TransportInfo> GetTransportInfoAsync(int kursId)
+        private async Task<TransportInfo> GetTransportInfoAsync(long kursId)
         {
             var info = new TransportInfo { KursId = kursId };
 
@@ -2144,10 +2144,10 @@ ORDER BY zm.Id";
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
                 bool hasHallal = temp.Columns.Contains("MaHallal") && !(r["MaHallal"] is DBNull) && Convert.ToBoolean(r["MaHallal"]);
 
-                int? transportKursId = null;
+                long? transportKursId = null;
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
                 {
-                    transportKursId = Convert.ToInt32(r["TransportKursID"]);
+                    transportKursId = Convert.ToInt64(r["TransportKursID"]);
                 }
 
                 int containers = r["LiczbaPojemnikow"] is DBNull ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
@@ -2510,7 +2510,7 @@ ORDER BY zm.Id";
                 }
             }
 
-            var transportInfo = new Dictionary<int, (string Kierowca, string Pojazd, TimeSpan? GodzWyjazdu, string Trasa, string Status)>();
+            var transportInfo = new Dictionary<long, (string Kierowca, string Pojazd, TimeSpan? GodzWyjazdu, string Trasa, string Status)>();
             try
             {
                 await using var cnTrans = new SqlConnection(_connTransport);
@@ -2529,7 +2529,7 @@ ORDER BY zm.Id";
 
                 while (await rdrKursy.ReadAsync())
                 {
-                    int kursId = rdrKursy.GetInt32(0);
+                    long kursId = rdrKursy.GetInt64(0);
                     string kierowca = rdrKursy.IsDBNull(1) ? "" : rdrKursy.GetString(1);
                     string pojazd = rdrKursy.IsDBNull(2) ? "" : rdrKursy.GetString(2);
                     TimeSpan? godzWyjazdu = rdrKursy.IsDBNull(3) ? null : rdrKursy.GetTimeSpan(3);
@@ -2570,7 +2570,7 @@ ORDER BY zm.Id";
                     int clientId = rdr.GetInt32(1);
                     decimal quantity = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
                     decimal pallets = rdr.IsDBNull(3) ? 0m : rdr.GetDecimal(3);
-                    int? transportKursId = rdr.IsDBNull(4) ? null : rdr.GetInt32(4);
+                    long? transportKursId = rdr.IsDBNull(4) ? null : Convert.ToInt64(rdr.GetValue(4));
                     string uwagi = rdr.IsDBNull(5) ? "" : rdr.GetString(5);
 
                     var (name, salesman) = contractors.TryGetValue(clientId, out var c) ? c : ($"Nieznany ({clientId})", "");
@@ -2756,9 +2756,9 @@ ORDER BY zm.Id";
             return _salesmanColors[salesman];
         }
 
-        private async Task<Dictionary<int, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
+        private async Task<Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
         {
-            var result = new Dictionary<int, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>();
+            var result = new Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>();
             try
             {
                 await using var cn = new SqlConnection(_connTransport);
@@ -2776,7 +2776,7 @@ ORDER BY zm.Id";
 
                 while (await rdr.ReadAsync())
                 {
-                    int kursId = rdr.GetInt32(0);
+                    long kursId = rdr.GetInt64(0);
                     DateTime dataKursu = rdr.GetDateTime(1);
                     TimeSpan? godzWyjazdu = rdr.IsDBNull(2) ? null : rdr.GetTimeSpan(2);
                     string kierowca = rdr.IsDBNull(3) ? "" : rdr.GetString(3);
@@ -3785,7 +3785,7 @@ ORDER BY zm.Id";
 
         public class TransportInfo
         {
-            public int KursId { get; set; }
+            public long KursId { get; set; }
             public DateTime DataKursu { get; set; }
             public string Trasa { get; set; } = "";
             public TimeSpan? GodzWyjazdu { get; set; }
