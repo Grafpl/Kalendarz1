@@ -295,7 +295,7 @@ SELECT
     -- Transport
     t.TypTransportu,
     t.PreferowaneDniDostawy,
-    t.OdlegloscKm AS KosztKm,
+    t.KosztTransportuKm AS KosztKm,
     
     o.DataUtworzenia,
     o.KtoStworzyl,
