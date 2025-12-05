@@ -319,6 +319,12 @@
                                   AutoGenerateColumns="False"
                                   CanUserSortColumns="True"/>
                     </TabItem>
+                    <TabItem Header="Rentowność klientów" FontSize="12" FontWeight="SemiBold">
+                        <DataGrid x:Name="dgRentownoscKlientow"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  AutoGenerateColumns="False"
+                                  CanUserSortColumns="True"/>
+                    </TabItem>
                 </TabControl>
             </Grid>
 
