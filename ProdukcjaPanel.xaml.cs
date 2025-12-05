@@ -738,35 +738,11 @@ namespace Kalendarz1
 
         private void UpdateRowColor(ZamowienieViewModel item)
         {
-            if (item.Status == "Zrealizowane")
-            {
-                item.RowColor = new SolidColorBrush(Color.FromRgb(32, 80, 44));
-                item.TextColor = Brushes.LightGreen;
-            }
-            else if (item.Info.IsShipmentOnly)
+            // Simple coloring - no time-based urgency colors
+            if (item.Info.IsShipmentOnly)
             {
                 item.RowColor = new SolidColorBrush(Color.FromRgb(80, 58, 32));
                 item.TextColor = Brushes.Gold;
-            }
-            else if (item.Info.CzasWyjazdu.HasValue && item.Info.DataKursu.HasValue)
-            {
-                var wyjazd = item.Info.DataKursu.Value.Add(item.Info.CzasWyjazdu.Value);
-                var roznica = (wyjazd - DateTime.Now).TotalMinutes;
-                if (roznica < 0)
-                {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(139, 0, 0));
-                    item.TextColor = Brushes.White;
-                }
-                else if (roznica <= 30)
-                {
-                    item.RowColor = new SolidColorBrush(Color.FromRgb(218, 165, 32));
-                    item.TextColor = Brushes.Black;
-                }
-                else
-                {
-                    item.RowColor = Brushes.Transparent;
-                    item.TextColor = Brushes.White;
-                }
             }
             else
             {
@@ -1164,12 +1140,12 @@ namespace Kalendarz1
             {
                 get
                 {
-                    // Własny transport - show truck icon at Klient, here just show time
+                    // Własny transport - car icon + time
                     if (Info.WlasnyTransport && Info.DataPrzyjazdu.HasValue)
-                        return $"{Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
+                        return $"🚗 {Info.DataPrzyjazdu.Value:HH:mm} {Info.DataPrzyjazdu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
                     if (Info.WlasnyTransport)
-                        return "Własny";
-                    // Regular transport - show car icon in Wyjazd column
+                        return "🚗 Własny";
+                    // Regular transport - car icon + time
                     if (Info.CzasWyjazdu.HasValue && Info.DataKursu.HasValue)
                         return $"🚗 {Info.CzasWyjazdu.Value:hh\\:mm} {Info.DataKursu.Value.ToString("dddd", new CultureInfo("pl-PL"))}";
                     if (Info.IsShipmentOnly)
