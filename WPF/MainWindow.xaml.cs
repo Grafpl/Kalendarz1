@@ -43,6 +43,7 @@ namespace Kalendarz1.WPF
         private bool _isInitialized = false;
         private bool _showAnulowane = false;
         private bool _isRefreshing = false;
+        private System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
 
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
@@ -460,6 +461,22 @@ namespace Kalendarz1.WPF
 
             // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
             ApplyResponsiveLayout();
+
+            // Auto-odświeżanie co 1 minutę
+            _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
+            _autoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+            _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
+            _autoRefreshTimer.Start();
+        }
+
+        private async void AutoRefreshTimer_Tick(object sender, EventArgs e)
+        {
+            await RefreshAllDataAsync();
+        }
+
+        private async void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshAllDataAsync();
         }
         #region Konfiguracja Wydajności i Produktów
 
@@ -2035,6 +2052,8 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
                 _dtOrders.Columns.Add("MaFolie", typeof(bool));
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
+                _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
+                _dtOrders.Columns.Add("CenaInfo", typeof(string));
                 _dtOrders.Columns.Add("TerminInfo", typeof(string));
                 _dtOrders.Columns.Add("TransportInfo", typeof(string));
                 _dtOrders.Columns.Add("Wyprodukowano", typeof(string));
@@ -2106,7 +2125,10 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
-            THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
+            THEN 1 ELSE 0 END AS BIT) AS MaHallal,
+       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = 0))
+            AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
+            THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
@@ -2161,6 +2183,8 @@ ORDER BY zm.Id";
                 bool hasNote = !string.IsNullOrWhiteSpace(notes);
                 bool hasFoil = temp.Columns.Contains("MaFolie") && !(r["MaFolie"] is DBNull) && Convert.ToBoolean(r["MaFolie"]);
                 bool hasHallal = temp.Columns.Contains("MaHallal") && !(r["MaHallal"] is DBNull) && Convert.ToBoolean(r["MaHallal"]);
+                bool czyMaCeny = temp.Columns.Contains("CzyMaCeny") && !(r["CzyMaCeny"] is DBNull) && Convert.ToBoolean(r["CzyMaCeny"]);
+                string cenaInfo = czyMaCeny ? "✓" : "✗";
 
                 long? transportKursId = null;
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
@@ -2282,12 +2306,12 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
-                // Dodanie wiersza z kolumnami Termin, Transport, Wyprodukowano, Wydano
+                // Dodanie wiersza z kolumnami Cena, Termin, Transport, Wyprodukowano, Wydano
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal,
+                    createdBy, status, hasNote, hasFoil, hasHallal, czyMaCeny, cenaInfo,
                     terminInfo, transportInfoColumn, wyprodukowano, wydanoInfo
                 );
             }
@@ -2327,6 +2351,8 @@ ORDER BY zm.Id";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
                 row["MaHallal"] = false;
+                row["CzyMaCeny"] = false;
+                row["CenaInfo"] = "";
                 row["TerminInfo"] = "";
                 row["TransportInfo"] = "";
                 row["Wyprodukowano"] = "";
@@ -2384,6 +2410,8 @@ ORDER BY zm.Id";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
                 summaryRow["MaHallal"] = false;
+                summaryRow["CzyMaCeny"] = false;
+                summaryRow["CenaInfo"] = "";
                 summaryRow["TerminInfo"] = "";
                 summaryRow["TransportInfo"] = "";
                 summaryRow["Wyprodukowano"] = "";
@@ -2408,8 +2436,8 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(0.85, DataGridLengthUnitType.Star),
-                MinWidth = 120
+                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
+                MinWidth = 100
             });
 
             // 2. Handlowiec
@@ -2417,7 +2445,7 @@ ORDER BY zm.Id";
             {
                 Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(60),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -2426,7 +2454,7 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(75),
+                Width = new DataGridLength(65),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -2435,26 +2463,39 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(75),
+                Width = new DataGridLength(65),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 5. Palety
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Pal.",
-                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(50),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 6. Utworzone przez - węższa kolumna
+            // 5. Utworzone przez - węższa kolumna
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(0.8, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
+                MinWidth = 90
+            });
+
+            // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
+            var cenaStyle = new Style(typeof(TextBlock));
+            cenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            cenaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            var greenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyMaCeny"), Value = true };
+            greenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+
+            var redTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyMaCeny"), Value = false };
+            redTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+
+            cenaStyle.Triggers.Add(greenTrigger);
+            cenaStyle.Triggers.Add(redTrigger);
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Cena",
+                Binding = new System.Windows.Data.Binding("CenaInfo"),
+                Width = new DataGridLength(45),
+                ElementStyle = cenaStyle
             });
 
             // 7. Termin - godzina przyjazdu + dzień tygodnia
@@ -2480,7 +2521,7 @@ ORDER BY zm.Id";
             {
                 Header = "Wypr.",
                 Binding = new System.Windows.Data.Binding("Wyprodukowano"),
-                Width = new DataGridLength(75),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
@@ -2653,33 +2694,9 @@ ORDER BY zm.Id";
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zam.",
-                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wyd.",
-                Binding = new System.Windows.Data.Binding("IloscWydana") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Pal.",
-                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(45),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
                 Header = "Kierowca",
                 Binding = new System.Windows.Data.Binding("Kierowca"),
-                Width = new DataGridLength(100)
+                Width = new DataGridLength(150)
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
@@ -2701,14 +2718,8 @@ ORDER BY zm.Id";
             {
                 Header = "Trasa",
                 Binding = new System.Windows.Data.Binding("Trasa"),
-                Width = new DataGridLength(120)
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Status",
-                Binding = new System.Windows.Data.Binding("StatusTransportu"),
-                Width = new DataGridLength(80)
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 180
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
