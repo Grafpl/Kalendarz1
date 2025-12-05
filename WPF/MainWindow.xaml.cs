@@ -2016,10 +2016,9 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaNotatke", typeof(bool));
                 _dtOrders.Columns.Add("MaFolie", typeof(bool));
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
-                _dtOrders.Columns.Add("Trans", typeof(string));
-                _dtOrders.Columns.Add("Prod", typeof(string));
-                _dtOrders.Columns.Add("Wyjazd", typeof(string));
-                _dtOrders.Columns.Add("WydanoData", typeof(string));
+                _dtOrders.Columns.Add("TransportInfo", typeof(string));
+                _dtOrders.Columns.Add("Produkcja", typeof(string));
+                _dtOrders.Columns.Add("Wydano", typeof(string));
             }
             else
             {
@@ -2211,30 +2210,29 @@ ORDER BY zm.Id";
                     createdBy = imie;
                 }
 
-                string transColumn = transportKursId.HasValue ? "✓" : "";
-                string prodColumn = (status == "Zrealizowane" || status == "Wyprodukowane") ? "✓" : "";
-
-                // Wyjazd - informacje o transporcie (dzień + godzina)
-                string wyjazdColumn = "";
+                // Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
+                string transportInfoColumn = "";
                 if (transportKursId.HasValue && transportInfo.TryGetValue(transportKursId.Value, out var tInfo))
                 {
-                    string dzienWyjazdu = tInfo.DataKursu.ToString("ddd", cultureInfo);
                     if (tInfo.GodzWyjazdu.HasValue)
                     {
-                        wyjazdColumn = $"{dzienWyjazdu} {tInfo.GodzWyjazdu.Value:hh\\:mm}";
+                        string dzienWyjazdu = tInfo.DataKursu.ToString("ddd", cultureInfo);
+                        transportInfoColumn = $"{tInfo.GodzWyjazdu.Value:hh\\:mm} {dzienWyjazdu}";
                     }
                     else
                     {
-                        wyjazdColumn = dzienWyjazdu;
+                        transportInfoColumn = tInfo.DataKursu.ToString("ddd", cultureInfo);
                     }
                 }
 
-                // Wydano - data i godzina wydania (dzień + godzina)
+                // Produkcja - czy zrealizowano w panelu produkcji
+                string produkcjaColumn = (status == "Zrealizowane" || status == "Wyprodukowane") ? "✓" : "";
+
+                // Wydano - czy wydano w panelu magazyniera (checkmark jeśli są wydania)
                 string wydanoColumn = "";
                 if (wydaniaInfo.TryGetValue(clientId, out var wInfo) && wInfo.DataWydania.HasValue)
                 {
-                    string dzienWydania = wInfo.DataWydania.Value.ToString("ddd", cultureInfo);
-                    wydanoColumn = $"{dzienWydania} {wInfo.DataWydania.Value:HH:mm}";
+                    wydanoColumn = "✓";
                 }
 
                 totalOrdersCount++;
@@ -2246,13 +2244,13 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
-                // Dodanie wiersza z nowymi kolumnami Wyjazd i WydanoData
+                // Dodanie wiersza z kolumnami Transport, Produkcja, Wydano
                 _dtOrders.Rows.Add(
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
-                    wyjazdColumn, wydanoColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal,
+                    transportInfoColumn, produkcjaColumn, wydanoColumn
                 );
             }
 
@@ -2291,18 +2289,16 @@ ORDER BY zm.Id";
                 row["MaNotatke"] = false;
                 row["MaFolie"] = false;
                 row["MaHallal"] = false;
-                row["Trans"] = "";
-                row["Prod"] = "";
-                row["Wyjazd"] = "";
-                // Wydano dla wydań bez zamówień
+                row["TransportInfo"] = "";
+                row["Produkcja"] = "";
+                // Wydano dla wydań bez zamówień - checkmark jeśli są wydania
                 if (wydaniaInfo.TryGetValue(clientId, out var wInfoBez) && wInfoBez.DataWydania.HasValue)
                 {
-                    string dzienWyd = wInfoBez.DataWydania.Value.ToString("ddd", cultureInfo);
-                    row["WydanoData"] = $"{dzienWyd} {wInfoBez.DataWydania.Value:HH:mm}";
+                    row["Wydano"] = "✓";
                 }
                 else
                 {
-                    row["WydanoData"] = "";
+                    row["Wydano"] = "";
                 }
                 releasesWithoutOrders.Add(row);
 
@@ -2356,10 +2352,9 @@ ORDER BY zm.Id";
                 summaryRow["MaNotatke"] = false;
                 summaryRow["MaFolie"] = false;
                 summaryRow["MaHallal"] = false;
-                summaryRow["Trans"] = "";
-                summaryRow["Prod"] = "";
-                summaryRow["Wyjazd"] = "";
-                summaryRow["WydanoData"] = "";
+                summaryRow["TransportInfo"] = "";
+                summaryRow["Produkcja"] = "";
+                summaryRow["Wydano"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2429,39 +2424,30 @@ ORDER BY zm.Id";
                 MinWidth = 120
             });
 
-            // 7. Wyjazd (dzień + godzina transportu)
+            // 7. Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "Wyjazd",
-                Binding = new System.Windows.Data.Binding("Wyjazd"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 8. Prod (Wyprodukowano)
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "P",
-                Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(30),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 9. Wydano (dzień + godzina wydania)
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("WydanoData"),
+                Header = "Transport",
+                Binding = new System.Windows.Data.Binding("TransportInfo"),
                 Width = new DataGridLength(85),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 10. Trans
+            // 8. Produkcja - czy zrealizowano w panelu produkcji
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "T",
-                Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(30),
+                Header = "Produkcja",
+                Binding = new System.Windows.Data.Binding("Produkcja"),
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 9. Wydano - czy wydano w panelu magazyniera
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wydano",
+                Binding = new System.Windows.Data.Binding("Wydano"),
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
