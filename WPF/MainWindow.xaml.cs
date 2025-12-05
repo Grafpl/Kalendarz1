@@ -48,9 +48,11 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
-        private readonly DataTable _dtRentownoscKlientow = new();
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
+        private readonly Dictionary<int, string> _productCatalogSwieze = new();
+        private readonly Dictionary<int, string> _productCatalogMrozone = new();
+        private int? _selectedProductId = null;
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
         private bool _showReleasesWithoutOrders = false;
@@ -637,6 +639,8 @@ namespace Kalendarz1.WPF
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
+            _productCatalogSwieze.Clear();
+            _productCatalogMrozone.Clear();
 
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -650,30 +654,31 @@ namespace Kalendarz1.WPF
                     string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
                     object katObj = reader.GetValue(2);
 
-                    bool inCatalog = false;
+                    _productCodeCache[idtw] = kod;
+
                     if (!(katObj is DBNull))
                     {
+                        int katalog = 0;
                         if (katObj is int ki)
-                            inCatalog = (ki == 67095 || ki == 67153);
+                            katalog = ki;
                         else
+                            int.TryParse(Convert.ToString(katObj), out katalog);
+
+                        if (katalog == 67095)
                         {
-                            string katStr = Convert.ToString(katObj);
-                            inCatalog = (katStr == "67095" || katStr == "67153");
+                            _productCatalogSwieze[idtw] = kod;
+                            _productCatalogCache[idtw] = kod;
+                        }
+                        else if (katalog == 67153)
+                        {
+                            _productCatalogMrozone[idtw] = kod;
+                            _productCatalogCache[idtw] = kod;
                         }
                     }
-
-                    _productCodeCache[idtw] = kod;
-                    if (inCatalog)
-                        _productCatalogCache[idtw] = kod;
                 }
             }
 
-            var productList = _productCatalogCache.OrderBy(x => x.Value)
-                .Select(k => new KeyValuePair<int, string>(k.Key, k.Value)).ToList();
-            productList.Insert(0, new KeyValuePair<int, string>(0, "— Wszystkie towary —"));
-
-            cbFilterProduct.ItemsSource = productList;
-            cbFilterProduct.SelectedIndex = 0;
+            GenerateProductButtons();
 
             _userCache.Clear();
             await using (var cn2 = new SqlConnection(_connLibra))
@@ -1041,6 +1046,98 @@ namespace Kalendarz1.WPF
                 _showBySlaughterDate = false;
                 await RefreshAllDataAsync();
             }
+        }
+
+        private async void RbProductCatalog_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_isInitialized) return;
+            GenerateProductButtons();
+            _selectedProductId = null;
+            await RefreshAllDataAsync();
+        }
+
+        private void GenerateProductButtons()
+        {
+            pnlProductButtons.Children.Clear();
+
+            var catalog = rbSwieze.IsChecked == true ? _productCatalogSwieze : _productCatalogMrozone;
+
+            // Przycisk "Wszystkie"
+            var btnAll = new Button
+            {
+                Content = "Wszystkie",
+                Margin = new Thickness(2),
+                Padding = new Thickness(8, 4, 8, 4),
+                FontSize = 11,
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = (int?)null
+            };
+            btnAll.Click += ProductButton_Click;
+            pnlProductButtons.Children.Add(btnAll);
+
+            foreach (var product in catalog.OrderBy(x => x.Value))
+            {
+                var btn = new Button
+                {
+                    Content = product.Value,
+                    Margin = new Thickness(2),
+                    Padding = new Thickness(8, 4, 8, 4),
+                    FontSize = 11,
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Foreground = Brushes.Black,
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Tag = product.Key
+                };
+                btn.Click += ProductButton_Click;
+                pnlProductButtons.Children.Add(btn);
+            }
+        }
+
+        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                // Reset all buttons
+                foreach (var child in pnlProductButtons.Children.OfType<Button>())
+                {
+                    if (child.Tag == null)
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+                        child.Foreground = Brushes.White;
+                    }
+                    else
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
+                        child.Foreground = Brushes.Black;
+                    }
+                }
+
+                // Highlight selected
+                btn.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                btn.Foreground = Brushes.White;
+
+                _selectedProductId = btn.Tag as int?;
+                await RefreshAllDataAsync();
+            }
+        }
+
+        private void MenuShowAnulowane_Click(object sender, RoutedEventArgs e)
+        {
+            _showAnulowane = menuShowAnulowane.IsChecked;
+            chkShowAnulowane.IsChecked = _showAnulowane;
+            ApplyFilters();
+        }
+
+        private void MenuShowWydaniaBezZam_Click(object sender, RoutedEventArgs e)
+        {
+            _showReleasesWithoutOrders = menuShowWydaniaBezZam.IsChecked;
+            chkShowReleasesWithoutOrders.IsChecked = _showReleasesWithoutOrders;
+            ApplyFilters();
         }
 
         #endregion
@@ -2006,9 +2103,6 @@ namespace Kalendarz1.WPF
                 DateTime endOfWeek = startOfWeek.AddDays(6);
                 await LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
 
-                // Załaduj dashboard rentowności klientów
-                await LoadRentownoscKlientowAsync();
-
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
                 {
                     await DisplayOrderDetailsAsync(_currentOrderId.Value);
@@ -2084,9 +2178,7 @@ namespace Kalendarz1.WPF
                 }
             }
 
-            int? selectedProductId = null;
-            if (cbFilterProduct.SelectedIndex > 0 && cbFilterProduct.SelectedValue is int selectedId)
-                selectedProductId = selectedId;
+            int? selectedProductId = _selectedProductId;
 
             var temp = new DataTable();
             var clientsWithOrders = new HashSet<int>();
@@ -3004,367 +3096,6 @@ ORDER BY zm.Id";
             SetupHistoriaZmianDataGrid();
         }
 
-        private async Task LoadRentownoscKlientowAsync()
-        {
-            _dtRentownoscKlientow.Rows.Clear();
-
-            if (_dtRentownoscKlientow.Columns.Count == 0)
-            {
-                _dtRentownoscKlientow.Columns.Add("KontrahentId", typeof(int));
-                _dtRentownoscKlientow.Columns.Add("NazwaKontrahenta", typeof(string));
-                _dtRentownoscKlientow.Columns.Add("Handlowiec", typeof(string));
-                _dtRentownoscKlientow.Columns.Add("LiczbaZamowien", typeof(int));
-                _dtRentownoscKlientow.Columns.Add("SumaKg", typeof(decimal));
-                _dtRentownoscKlientow.Columns.Add("SumaPLN", typeof(decimal));
-                _dtRentownoscKlientow.Columns.Add("LiczbaReklamacji", typeof(int));
-                _dtRentownoscKlientow.Columns.Add("WartoscReklamacji", typeof(decimal));
-                _dtRentownoscKlientow.Columns.Add("KwotaNiezaplacona", typeof(decimal));
-                _dtRentownoscKlientow.Columns.Add("DniPoTerminie", typeof(int));
-                _dtRentownoscKlientow.Columns.Add("SaldoE2", typeof(int));
-                _dtRentownoscKlientow.Columns.Add("Score", typeof(string));
-            }
-
-            // Pobierz kontrahentów z Handel
-            var clientData = new Dictionary<int, (string Name, string Salesman, decimal Revenue, decimal Unpaid, int MaxOverdue)>();
-            try
-            {
-                await using var cnHandel = new SqlConnection(_connHandel);
-                await cnHandel.OpenAsync();
-
-                // Pobierz przychody i płatności z ostatnich 12 miesięcy
-                string sqlRevenue = @"
-                    WITH PNAgg AS (
-                        SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl, 0)) AS KwotaRozliczona
-                        FROM [HANDEL].[HM].[PN] PN
-                        GROUP BY PN.dkid
-                    )
-                    SELECT
-                        C.id AS KontrahentId,
-                        C.Shortcut AS NazwaKontrahenta,
-                        ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
-                        CAST(SUM(ISNULL(DK.walbrutto, 0)) AS DECIMAL(18,2)) AS SumaPLN,
-                        CAST(SUM(ISNULL(DK.walbrutto, 0) - ISNULL(PA.KwotaRozliczona, 0)) AS DECIMAL(18,2)) AS KwotaNiezaplacona,
-                        MAX(CASE WHEN GETDATE() > DK.plattermin AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona, 0)) > 0.01
-                            THEN DATEDIFF(day, DK.plattermin, GETDATE()) ELSE 0 END) AS DniPoTerminie
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.id = WYM.ElementId
-                    LEFT JOIN PNAgg PA ON DK.id = PA.dkid
-                    WHERE DK.anulowany = 0
-                      AND DK.data >= DATEADD(MONTH, -12, GETDATE())
-                    GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val
-                    HAVING SUM(ISNULL(DK.walbrutto, 0)) > 0
-                    ORDER BY SUM(ISNULL(DK.walbrutto, 0)) DESC";
-
-                await using var cmdRevenue = new SqlCommand(sqlRevenue, cnHandel);
-                cmdRevenue.CommandTimeout = 60;
-                await using var rdrRevenue = await cmdRevenue.ExecuteReaderAsync();
-
-                while (await rdrRevenue.ReadAsync())
-                {
-                    int kontrahentId = rdrRevenue.GetInt32(0);
-                    string nazwa = rdrRevenue.IsDBNull(1) ? "" : rdrRevenue.GetString(1);
-                    string handlowiec = rdrRevenue.IsDBNull(2) ? "-" : rdrRevenue.GetString(2);
-                    decimal sumaPLN = rdrRevenue.IsDBNull(3) ? 0m : rdrRevenue.GetDecimal(3);
-                    decimal niezaplacona = rdrRevenue.IsDBNull(4) ? 0m : rdrRevenue.GetDecimal(4);
-                    int dniPoTerminie = rdrRevenue.IsDBNull(5) ? 0 : rdrRevenue.GetInt32(5);
-
-                    clientData[kontrahentId] = (nazwa, handlowiec, sumaPLN, niezaplacona < 0 ? 0 : niezaplacona, dniPoTerminie);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych przychodów: {ex.Message}");
-            }
-
-            // Pobierz dane zamówień z LibraNet (ostatnie 12 miesięcy)
-            var orderData = new Dictionary<int, (int Count, decimal SumKg)>();
-            try
-            {
-                await using var cnLibra = new SqlConnection(_connLibra);
-                await cnLibra.OpenAsync();
-
-                string sqlOrders = @"
-                    SELECT zm.KlientId, COUNT(DISTINCT zm.Id) AS LiczbaZamowien, SUM(ISNULL(zmt.Ilosc, 0)) AS SumaKg
-                    FROM [dbo].[ZamowieniaMieso] zm
-                    LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-                    WHERE zm.DataZamowienia >= DATEADD(MONTH, -12, GETDATE())
-                      AND zm.Status != 'Anulowane'
-                    GROUP BY zm.KlientId";
-
-                await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
-                await using var rdrOrders = await cmdOrders.ExecuteReaderAsync();
-
-                while (await rdrOrders.ReadAsync())
-                {
-                    int klientId = rdrOrders.GetInt32(0);
-                    int liczba = rdrOrders.GetInt32(1);
-                    decimal sumaKg = rdrOrders.IsDBNull(2) ? 0m : rdrOrders.GetDecimal(2);
-                    orderData[klientId] = (liczba, sumaKg);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych zamówień: {ex.Message}");
-            }
-
-            // Pobierz reklamacje
-            var complaintData = new Dictionary<int, (int Count, decimal Value)>();
-            try
-            {
-                await using var cnLibra = new SqlConnection(_connLibra);
-                await cnLibra.OpenAsync();
-
-                // Sprawdź czy tabela Reklamacje istnieje
-                string checkSql = @"SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Reklamacje]') AND type in (N'U')";
-                using var checkCmd = new SqlCommand(checkSql, cnLibra);
-                var tableExists = (int)await checkCmd.ExecuteScalarAsync() > 0;
-
-                if (tableExists)
-                {
-                    string sqlComplaints = @"
-                        SELECT IdKontrahenta, COUNT(*) AS LiczbaReklamacji, SUM(ISNULL(SumaWartosc, 0)) AS WartoscReklamacji
-                        FROM [dbo].[Reklamacje]
-                        WHERE DataZgloszenia >= DATEADD(MONTH, -12, GETDATE())
-                        GROUP BY IdKontrahenta";
-
-                    await using var cmdComplaints = new SqlCommand(sqlComplaints, cnLibra);
-                    await using var rdrComplaints = await cmdComplaints.ExecuteReaderAsync();
-
-                    while (await rdrComplaints.ReadAsync())
-                    {
-                        int klientId = rdrComplaints.GetInt32(0);
-                        int liczba = rdrComplaints.GetInt32(1);
-                        decimal wartosc = rdrComplaints.IsDBNull(2) ? 0m : rdrComplaints.GetDecimal(2);
-                        complaintData[klientId] = (liczba, wartosc);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania reklamacji: {ex.Message}");
-            }
-
-            // Pobierz salda opakowań E2
-            var packagingData = new Dictionary<int, int>();
-            try
-            {
-                await using var cnLibra = new SqlConnection(_connLibra);
-                await cnLibra.OpenAsync();
-
-                string checkSql = @"SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[HistoriaSaldOpakowan]') AND type in (N'U')";
-                using var checkCmd = new SqlCommand(checkSql, cnLibra);
-                var tableExists = (int)await checkCmd.ExecuteScalarAsync() > 0;
-
-                if (tableExists)
-                {
-                    string sqlPackaging = @"
-                        SELECT KontrahentId, SaldoE2
-                        FROM [dbo].[HistoriaSaldOpakowan]
-                        WHERE Data = (SELECT MAX(Data) FROM [dbo].[HistoriaSaldOpakowan])";
-
-                    await using var cmdPackaging = new SqlCommand(sqlPackaging, cnLibra);
-                    await using var rdrPackaging = await cmdPackaging.ExecuteReaderAsync();
-
-                    while (await rdrPackaging.ReadAsync())
-                    {
-                        int klientId = rdrPackaging.GetInt32(0);
-                        int saldoE2 = rdrPackaging.IsDBNull(1) ? 0 : rdrPackaging.GetInt32(1);
-                        packagingData[klientId] = saldoE2;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania sald opakowań: {ex.Message}");
-            }
-
-            // Złóż wszystkie dane razem
-            foreach (var kv in clientData)
-            {
-                int kontrahentId = kv.Key;
-                var (nazwa, handlowiec, sumaPLN, niezaplacona, dniPoTerminie) = kv.Value;
-
-                var (liczbaZamowien, sumaKg) = orderData.TryGetValue(kontrahentId, out var ord) ? ord : (0, 0m);
-                var (liczbaReklamacji, wartoscReklamacji) = complaintData.TryGetValue(kontrahentId, out var comp) ? comp : (0, 0m);
-                int saldoE2 = packagingData.TryGetValue(kontrahentId, out var pkg) ? pkg : 0;
-
-                // Oblicz score rentowności (A-F)
-                string score = CalculateProfitabilityScore(sumaPLN, niezaplacona, dniPoTerminie, liczbaReklamacji, wartoscReklamacji);
-
-                _dtRentownoscKlientow.Rows.Add(
-                    kontrahentId, nazwa, handlowiec,
-                    liczbaZamowien, sumaKg, sumaPLN,
-                    liczbaReklamacji, wartoscReklamacji,
-                    niezaplacona, dniPoTerminie, saldoE2, score
-                );
-            }
-
-            SetupRentownoscKlientowDataGrid();
-        }
-
-        private string CalculateProfitabilityScore(decimal revenue, decimal unpaid, int daysOverdue, int complaints, decimal complaintValue)
-        {
-            // Punktacja: maksymalnie 100 punktów
-            double points = 100;
-
-            // Kara za niezapłacone faktury (max -30 punktów)
-            if (revenue > 0)
-            {
-                double unpaidRatio = (double)(unpaid / revenue);
-                points -= Math.Min(30, unpaidRatio * 100);
-            }
-
-            // Kara za dni po terminie (max -25 punktów)
-            if (daysOverdue > 0)
-            {
-                points -= Math.Min(25, daysOverdue * 0.5);
-            }
-
-            // Kara za reklamacje (max -25 punktów)
-            points -= Math.Min(25, complaints * 5);
-
-            // Kara za wartość reklamacji względem przychodu (max -20 punktów)
-            if (revenue > 0)
-            {
-                double complaintRatio = (double)(complaintValue / revenue);
-                points -= Math.Min(20, complaintRatio * 200);
-            }
-
-            // Przypisz ocenę literową
-            if (points >= 90) return "A";
-            if (points >= 75) return "B";
-            if (points >= 60) return "C";
-            if (points >= 45) return "D";
-            if (points >= 30) return "E";
-            return "F";
-        }
-
-        private void SetupRentownoscKlientowDataGrid()
-        {
-            _dtRentownoscKlientow.DefaultView.Sort = "SumaPLN DESC";
-            dgRentownoscKlientow.ItemsSource = _dtRentownoscKlientow.DefaultView;
-            dgRentownoscKlientow.Columns.Clear();
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Klient",
-                Binding = new System.Windows.Data.Binding("NazwaKontrahenta"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 150
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Hand.",
-                Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("BoldCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zam.",
-                Binding = new System.Windows.Data.Binding("LiczbaZamowien"),
-                Width = new DataGridLength(50),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Suma kg",
-                Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Przychód PLN",
-                Binding = new System.Windows.Data.Binding("SumaPLN") { StringFormat = "N0" },
-                Width = new DataGridLength(100),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Rekl.",
-                Binding = new System.Windows.Data.Binding("LiczbaReklamacji"),
-                Width = new DataGridLength(45),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wart.rekl.",
-                Binding = new System.Windows.Data.Binding("WartoscReklamacji") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Niezapł.",
-                Binding = new System.Windows.Data.Binding("KwotaNiezaplacona") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Dni po term.",
-                Binding = new System.Windows.Data.Binding("DniPoTerminie"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "E2",
-                Binding = new System.Windows.Data.Binding("SaldoE2"),
-                Width = new DataGridLength(50),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // Score z kolorowaniem
-            var scoreStyle = new Style(typeof(TextBlock));
-            scoreStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-            scoreStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-            scoreStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 14.0));
-
-            var triggerA = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "A" };
-            triggerA.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
-
-            var triggerB = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "B" };
-            triggerB.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 180, 0))));
-
-            var triggerC = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "C" };
-            triggerC.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 180, 0))));
-
-            var triggerD = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "D" };
-            triggerD.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(255, 140, 0))));
-
-            var triggerE = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "E" };
-            triggerE.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(255, 80, 0))));
-
-            var triggerF = new DataTrigger { Binding = new System.Windows.Data.Binding("Score"), Value = "F" };
-            triggerF.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
-
-            scoreStyle.Triggers.Add(triggerA);
-            scoreStyle.Triggers.Add(triggerB);
-            scoreStyle.Triggers.Add(triggerC);
-            scoreStyle.Triggers.Add(triggerD);
-            scoreStyle.Triggers.Add(triggerE);
-            scoreStyle.Triggers.Add(triggerF);
-
-            dgRentownoscKlientow.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Score",
-                Binding = new System.Windows.Data.Binding("Score"),
-                Width = new DataGridLength(55),
-                ElementStyle = scoreStyle
-            });
-        }
 
         private async Task<Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
         {
@@ -4238,32 +3969,48 @@ ORDER BY zm.Id";
 
         private void ApplyFilters()
         {
-            if (_dtOrders.DefaultView == null) return;
-
-            var conditions = new List<string>();
-
             var txt = txtFilterRecipient.Text?.Trim().Replace("'", "''");
-            if (!string.IsNullOrEmpty(txt))
-                conditions.Add($"Odbiorca LIKE '%{txt}%'");
-
+            string salesmanFilter = null;
             if (cbFilterSalesman.SelectedIndex > 0)
+                salesmanFilter = cbFilterSalesman.SelectedItem?.ToString()?.Replace("'", "''");
+
+            // Filtruj zamówienia
+            if (_dtOrders.DefaultView != null)
             {
-                var salesman = cbFilterSalesman.SelectedItem?.ToString()?.Replace("'", "''");
-                if (!string.IsNullOrEmpty(salesman))
-                    conditions.Add($"Handlowiec = '{salesman}'");
+                var conditions = new List<string>();
+
+                if (!string.IsNullOrEmpty(txt))
+                    conditions.Add($"Odbiorca LIKE '%{txt}%'");
+
+                if (!string.IsNullOrEmpty(salesmanFilter))
+                    conditions.Add($"Handlowiec = '{salesmanFilter}'");
+
+                if (!_showReleasesWithoutOrders)
+                    conditions.Add("Status <> 'Wydanie bez zamówienia'");
+
+                if (!_showAnulowane)
+                    conditions.Add("Status <> 'Anulowane'");
+
+                _dtOrders.DefaultView.RowFilter = string.Join(" AND ", conditions);
             }
 
-            if (!_showReleasesWithoutOrders)
+            // Filtruj Transport
+            if (_dtTransport.DefaultView != null && _dtTransport.Columns.Contains("Odbiorca"))
             {
-                conditions.Add("Status <> 'Wydanie bez zamówienia'");
+                var transportConditions = new List<string>();
+                if (!string.IsNullOrEmpty(txt))
+                    transportConditions.Add($"Odbiorca LIKE '%{txt}%'");
+                _dtTransport.DefaultView.RowFilter = string.Join(" AND ", transportConditions);
             }
 
-            if (!_showAnulowane)
+            // Filtruj Historię zmian
+            if (_dtHistoriaZmian.DefaultView != null && _dtHistoriaZmian.Columns.Contains("Odbiorca"))
             {
-                conditions.Add("Status <> 'Anulowane'");
+                var historiaConditions = new List<string>();
+                if (!string.IsNullOrEmpty(txt))
+                    historiaConditions.Add($"Odbiorca LIKE '%{txt}%'");
+                _dtHistoriaZmian.DefaultView.RowFilter = string.Join(" AND ", historiaConditions);
             }
-
-            _dtOrders.DefaultView.RowFilter = string.Join(" AND ", conditions);
         }
 
         private void ClearDetails()
