@@ -42,6 +42,7 @@ namespace Kalendarz1.WPF
         private bool _slaughterDateColumnExists = true;
         private bool _isInitialized = false;
         private bool _showAnulowane = false;
+        private bool _isRefreshing = false;
 
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
@@ -1971,6 +1972,10 @@ namespace Kalendarz1.WPF
 
         private async Task RefreshAllDataAsync()
         {
+            // Zapobiegaj równoległym wywołaniom
+            if (_isRefreshing) return;
+            _isRefreshing = true;
+
             try
             {
                 await LoadOrdersForDayAsync(_selectedDate);
@@ -1997,11 +2002,18 @@ namespace Kalendarz1.WPF
                 MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}",
                     "Błąd Krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            finally
+            {
+                _isRefreshing = false;
+            }
         }
 
         private async Task LoadOrdersForDayAsync(DateTime day)
         {
             day = ValidateSqlDate(day);
+
+            // Zawsze czyść dane przed ładowaniem
+            _dtOrders.Rows.Clear();
 
             if (_dtOrders.Columns.Count == 0)
             {
@@ -2027,10 +2039,6 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("TransportInfo", typeof(string));
                 _dtOrders.Columns.Add("Wyprodukowano", typeof(string));
                 _dtOrders.Columns.Add("WydanoInfo", typeof(string));
-            }
-            else
-            {
-                _dtOrders.Clear();
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2490,6 +2498,9 @@ ORDER BY zm.Id";
         {
             day = ValidateSqlDate(day);
 
+            // Zawsze czyść dane przed ładowaniem
+            _dtTransport.Rows.Clear();
+
             if (_dtTransport.Columns.Count == 0)
             {
                 _dtTransport.Columns.Add("Id", typeof(int));
@@ -2504,10 +2515,6 @@ ORDER BY zm.Id";
                 _dtTransport.Columns.Add("Trasa", typeof(string));
                 _dtTransport.Columns.Add("StatusTransportu", typeof(string));
                 _dtTransport.Columns.Add("Uwagi", typeof(string));
-            }
-            else
-            {
-                _dtTransport.Clear();
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2866,6 +2873,9 @@ ORDER BY zm.Id";
 
         private async Task LoadHistoriaZmianAsync(DateTime startDate, DateTime endDate)
         {
+            // Zawsze czyść dane przed ładowaniem
+            _dtHistoriaZmian.Rows.Clear();
+
             if (_dtHistoriaZmian.Columns.Count == 0)
             {
                 _dtHistoriaZmian.Columns.Add("Id", typeof(int));
@@ -2876,10 +2886,6 @@ ORDER BY zm.Id";
                 _dtHistoriaZmian.Columns.Add("Odbiorca", typeof(string));
                 _dtHistoriaZmian.Columns.Add("UzytkownikNazwa", typeof(string));
                 _dtHistoriaZmian.Columns.Add("OpisZmiany", typeof(string));
-            }
-            else
-            {
-                _dtHistoriaZmian.Clear();
             }
 
             // Pobierz dane kontrahentów
