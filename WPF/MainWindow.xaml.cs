@@ -2130,7 +2130,7 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
        CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaHallal,
-       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = 0))
+       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = '' OR Cena = '0' OR TRY_CAST(Cena AS DECIMAL(18,2)) = 0))
             AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
             THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
