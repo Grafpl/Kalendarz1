@@ -421,6 +421,25 @@
                                   CellStyle="{StaticResource DataGridCellStyle}"
                                   SelectionChanged="DgKontakty_SelectionChanged"
                                   MouseDoubleClick="DgKontakty_MouseDoubleClick">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <!-- Zaległe - delikatne czerwone tło -->
+                                        <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="1">
+                                            <Setter Property="Background" Value="#FEF2F2"/>
+                                        </DataTrigger>
+                                        <!-- Dziś - delikatne niebieskie tło -->
+                                        <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="2">
+                                            <Setter Property="Background" Value="#EFF6FF"/>
+                                        </DataTrigger>
+                                        <!-- Zaznaczenie -->
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#DBEAFE"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="📞 Zadzwoń (click-to-call)" Click="MenuZadzwon_Click" FontWeight="SemiBold"/>
@@ -441,6 +460,7 @@
                                         <MenuItem Header="Poprosił o usunięcie" Click="MenuStatus_Click" Tag="Poprosił o usunięcie"/>
                                         <MenuItem Header="Błędny rekord" Click="MenuStatus_Click" Tag="Błędny rekord (do raportu)"/>
                                     </MenuItem>
+                                    <MenuItem Header="📅 Ustaw datę kontaktu" Click="MenuUstawDate_Click" FontWeight="SemiBold"/>
                                     <Separator/>
                                     <MenuItem Header="📋 Kopiuj telefon" Click="MenuKopiujTelefon_Click"/>
                                     <MenuItem Header="📋 Kopiuj email" Click="MenuKopiujEmail_Click"/>
@@ -487,7 +507,41 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Nazwa firmy" Binding="{Binding NAZWA}" Width="*" MinWidth="200">
+                                <DataGridTemplateColumn Header="Następny kontakt" Width="115">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="dataBorder" CornerRadius="6" Padding="6,4" HorizontalAlignment="Left">
+                                                <TextBlock x:Name="dataText" Text="{Binding DataNastepnegoKontaktu, StringFormat=dd.MM.yyyy}" FontSize="11" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <!-- Zaległe - czerwone -->
+                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="1">
+                                                    <Setter TargetName="dataBorder" Property="Background" Value="#FEE2E2"/>
+                                                    <Setter TargetName="dataText" Property="Foreground" Value="#DC2626"/>
+                                                    <Setter TargetName="dataText" Property="Text" Value="{Binding DataNastepnegoKontaktu, StringFormat='⚠ dd.MM'}"/>
+                                                </DataTrigger>
+                                                <!-- Dziś - niebieskie -->
+                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="2">
+                                                    <Setter TargetName="dataBorder" Property="Background" Value="#DBEAFE"/>
+                                                    <Setter TargetName="dataText" Property="Foreground" Value="#1D4ED8"/>
+                                                    <Setter TargetName="dataText" Property="Text" Value="DZIŚ"/>
+                                                </DataTrigger>
+                                                <!-- Przyszłe - szare -->
+                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="3">
+                                                    <Setter TargetName="dataBorder" Property="Background" Value="#F3F4F6"/>
+                                                    <Setter TargetName="dataText" Property="Foreground" Value="#6B7280"/>
+                                                </DataTrigger>
+                                                <!-- Brak daty -->
+                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="0">
+                                                    <Setter TargetName="dataBorder" Property="Background" Value="Transparent"/>
+                                                    <Setter TargetName="dataText" Property="Text" Value="-"/>
+                                                    <Setter TargetName="dataText" Property="Foreground" Value="#D1D5DB"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Nazwa firmy" Binding="{Binding NAZWA}" Width="*" MinWidth="180">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -561,6 +615,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Nazwa i status -->
@@ -595,8 +650,24 @@
                             <TextBlock x:Name="txtKlientAdres" Text="-" FontSize="12" Foreground="{StaticResource ColorText}" TextWrapping="Wrap"/>
                         </StackPanel>
 
+                        <!-- Następny kontakt -->
+                        <Border Grid.Row="3" x:Name="panelNastepnyKontakt" Background="#F0F9FF" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Następny kontakt" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                    <TextBlock x:Name="txtKlientNastepnyKontakt" Text="-" FontSize="14" FontWeight="Bold" Foreground="{StaticResource ColorPrimary}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="📅" Style="{StaticResource ButtonIcon}" FontSize="16"
+                                        ToolTip="Zmień datę kontaktu" Click="BtnZmienDate_Click" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
                         <!-- Przyciski akcji -->
-                        <StackPanel Grid.Row="3" Orientation="Horizontal">
+                        <StackPanel Grid.Row="4" Orientation="Horizontal">
                             <Button x:Name="btnKlientZadzwon" Content="📞 Zadzwoń" Style="{StaticResource ButtonPrimary}"
                                     Padding="12,8" FontSize="11" Margin="0,0,8,0" Click="BtnKlientZadzwon_Click"/>
                             <Button x:Name="btnKlientOferta" Content="💵 Oferta" Style="{StaticResource ButtonSuccess}"

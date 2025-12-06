@@ -90,6 +90,22 @@ namespace Kalendarz1.CRM
                             )
                         END", conn);
                     cmdNotatki.ExecuteNonQuery();
+
+                    // Kolumna DataNastepnegoKontaktu
+                    var cmdKolumna = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'DataNastepnegoKontaktu')
+                        BEGIN
+                            ALTER TABLE OdbiorcyCRM ADD DataNastepnegoKontaktu DATETIME NULL
+                        END", conn);
+                    cmdKolumna.ExecuteNonQuery();
+
+                    // Kolumna LiczbaProbKontaktu
+                    var cmdProby = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'LiczbaProbKontaktu')
+                        BEGIN
+                            ALTER TABLE OdbiorcyCRM ADD LiczbaProbKontaktu INT DEFAULT 0
+                        END", conn);
+                    cmdProby.ExecuteNonQuery();
                 }
             }
             catch (Exception ex)
@@ -145,8 +161,48 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    var cmd = new SqlCommand("sp_PobierzOdbiorcow", conn);
-                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    // Własne zapytanie z DataNastepnegoKontaktu
+                    var cmd = new SqlCommand(@"
+                        SELECT
+                            o.ID,
+                            o.Nazwa as NAZWA,
+                            o.KOD,
+                            o.MIASTO,
+                            o.ULICA,
+                            o.Telefon_K as TELEFON_K,
+                            o.Email,
+                            o.Wojewodztwo,
+                            o.Powiat,
+                            o.PKD_Opis,
+                            ISNULL(o.Status, 'Do zadzwonienia') as Status,
+                            o.Imie,
+                            o.Nazwisko,
+                            o.Stanowisko,
+                            o.TelefonDodatkowy,
+                            o.DataNastepnegoKontaktu,
+                            ISNULL(o.LiczbaProbKontaktu, 0) as LiczbaProbKontaktu,
+                            (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
+                            CASE
+                                WHEN o.DataNastepnegoKontaktu IS NULL THEN 0
+                                WHEN CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE) THEN 1
+                                WHEN CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE) THEN 2
+                                ELSE 3
+                            END as PriorytetKontaktu
+                        FROM OdbiorcyCRM o
+                        LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                        WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
+                            AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
+                        ORDER BY
+                            CASE
+                                WHEN o.DataNastepnegoKontaktu IS NULL THEN 2
+                                WHEN CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE) THEN 0
+                                WHEN CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE) THEN 1
+                                ELSE 3
+                            END,
+                            o.DataNastepnegoKontaktu ASC,
+                            o.Nazwa", conn);
+
                     cmd.Parameters.AddWithValue("@OperatorID", operatorID);
 
                     var adapter = new SqlDataAdapter(cmd);
@@ -179,17 +235,31 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Statystyki statusów
+                    // Statystyki - dziś na podstawie DataNastepnegoKontaktu
                     var cmd = new SqlCommand(@"
                         SELECT
-                            ISNULL(SUM(CASE WHEN Status = 'Nowy' OR Status = 'Do zadzwonienia' OR Status IS NULL THEN 1 ELSE 0 END), 0) as DoZadzwonienia,
+                            -- Dziś do zadzwonienia (na podstawie daty kontaktu)
+                            ISNULL(SUM(CASE
+                                WHEN DataNastepnegoKontaktu IS NOT NULL
+                                    AND CAST(DataNastepnegoKontaktu AS DATE) <= CAST(GETDATE() AS DATE)
+                                THEN 1 ELSE 0 END), 0) as DzisDoZadzwonienia,
+                            -- Zaległe (przeterminowane)
+                            ISNULL(SUM(CASE
+                                WHEN DataNastepnegoKontaktu IS NOT NULL
+                                    AND CAST(DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE)
+                                THEN 1 ELSE 0 END), 0) as Zalegle,
+                            -- Próby kontaktu
                             ISNULL(SUM(CASE WHEN Status = 'Próba kontaktu' THEN 1 ELSE 0 END), 0) as ProbaKontaktu,
+                            -- Nawiązane kontakty
                             ISNULL(SUM(CASE WHEN Status = 'Nawiązano kontakt' OR Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as Nawiazane,
+                            -- Do wysłania oferty
                             ISNULL(SUM(CASE WHEN Status = 'Do wysłania oferta' THEN 1 ELSE 0 END), 0) as DoOferty,
+                            -- Razem aktywnych
                             COUNT(*) as Razem
                         FROM OdbiorcyCRM o
                         LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
-                        WHERE w.OperatorID = @OperatorID OR w.OperatorID IS NULL", conn);
+                        WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
+                            AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)', 'Nie zainteresowany')", conn);
 
                     cmd.Parameters.AddWithValue("@OperatorID", operatorID);
 
@@ -197,7 +267,15 @@ namespace Kalendarz1.CRM
                     {
                         if (reader.Read())
                         {
-                            txtKpiDzisiaj.Text = reader["DoZadzwonienia"].ToString();
+                            int dzis = Convert.ToInt32(reader["DzisDoZadzwonienia"]);
+                            int zalegle = Convert.ToInt32(reader["Zalegle"]);
+
+                            // Pokazuj zaległe w czerwonym jeśli są
+                            if (zalegle > 0)
+                                txtKpiDzisiaj.Text = $"{dzis} ({zalegle} zaległych)";
+                            else
+                                txtKpiDzisiaj.Text = dzis.ToString();
+
                             txtKpiProby.Text = reader["ProbaKontaktu"].ToString();
                             txtKpiNawiazane.Text = reader["Nawiazane"].ToString();
                             txtKpiOferty.Text = reader["DoOferty"].ToString();
@@ -440,6 +518,39 @@ namespace Kalendarz1.CRM
 
             // Ustaw kolor badge statusu
             UstawKolorStatusu(row["Status"]?.ToString() ?? "");
+
+            // Wyświetl datę następnego kontaktu
+            var dataNastepnego = row["DataNastepnegoKontaktu"] as DateTime?;
+            if (dataNastepnego.HasValue)
+            {
+                var data = dataNastepnego.Value;
+                if (data.Date == DateTime.Today)
+                {
+                    txtKlientNastepnyKontakt.Text = "DZIŚ";
+                    panelNastepnyKontakt.Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#DBEAFE"));
+                }
+                else if (data.Date < DateTime.Today)
+                {
+                    txtKlientNastepnyKontakt.Text = $"ZALEGŁY ({data:dd.MM.yyyy})";
+                    panelNastepnyKontakt.Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FEE2E2"));
+                }
+                else
+                {
+                    string dzienTygodnia = data.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+                    dzienTygodnia = char.ToUpper(dzienTygodnia[0]) + dzienTygodnia.Substring(1);
+                    txtKlientNastepnyKontakt.Text = $"{dzienTygodnia}, {data:dd.MM.yyyy}";
+                    panelNastepnyKontakt.Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F0F9FF"));
+                }
+            }
+            else
+            {
+                txtKlientNastepnyKontakt.Text = "Nie ustawiono";
+                panelNastepnyKontakt.Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F9FAFB"));
+            }
         }
 
         private void UstawKolorStatusu(string status)
@@ -554,6 +665,12 @@ namespace Kalendarz1.CRM
         private void BtnKlientEdytuj_Click(object sender, RoutedEventArgs e)
         {
             MenuEdytuj_Click(sender, e);
+        }
+
+        private void BtnZmienDate_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnyOdbiorcaID <= 0) return;
+            MenuUstawDate_Click(sender, e);
         }
 
         private void BtnDodajNotatke_Click(object sender, RoutedEventArgs e)
@@ -750,14 +867,51 @@ namespace Kalendarz1.CRM
         {
             try
             {
+                // Określ domyślną datę następnego kontaktu na podstawie statusu
+                DateTime? dataNastepnegoKontaktu = null;
+                bool inkrementujProby = false;
+
+                switch (nowyStatus)
+                {
+                    case "Próba kontaktu":
+                        // Nie odebrał - zadzwoń za 2 dni
+                        dataNastepnegoKontaktu = DateTime.Today.AddDays(2);
+                        inkrementujProby = true;
+                        break;
+                    case "Nawiązano kontakt":
+                        // Rozmowa OK - follow-up za tydzień
+                        dataNastepnegoKontaktu = DateTime.Today.AddDays(7);
+                        break;
+                    case "Zgoda na dalszy kontakt":
+                        // Zainteresowany - szybki follow-up za 3 dni
+                        dataNastepnegoKontaktu = DateTime.Today.AddDays(3);
+                        break;
+                    case "Do wysłania oferta":
+                        // Wyślij ofertę dzisiaj, follow-up za 2 dni
+                        dataNastepnegoKontaktu = DateTime.Today.AddDays(2);
+                        break;
+                    case "Nie zainteresowany":
+                        // Może za pół roku
+                        dataNastepnegoKontaktu = DateTime.Today.AddMonths(6);
+                        break;
+                }
+
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     using (var transaction = conn.BeginTransaction())
                     {
-                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn, transaction);
+                        // Aktualizuj status i datę następnego kontaktu
+                        var cmdUpdate = new SqlCommand(@"
+                            UPDATE OdbiorcyCRM SET
+                                Status = @status,
+                                DataNastepnegoKontaktu = @dataKontaktu,
+                                LiczbaProbKontaktu = CASE WHEN @inkrementuj = 1 THEN ISNULL(LiczbaProbKontaktu, 0) + 1 ELSE LiczbaProbKontaktu END
+                            WHERE ID = @id", conn, transaction);
                         cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
                         cmdUpdate.Parameters.AddWithValue("@status", nowyStatus);
+                        cmdUpdate.Parameters.AddWithValue("@dataKontaktu", dataNastepnegoKontaktu.HasValue ? (object)dataNastepnegoKontaktu.Value : DBNull.Value);
+                        cmdUpdate.Parameters.AddWithValue("@inkrementuj", inkrementujProby ? 1 : 0);
                         cmdUpdate.ExecuteNonQuery();
 
                         var cmdLog = new SqlCommand(@"
@@ -772,10 +926,52 @@ namespace Kalendarz1.CRM
                         transaction.Commit();
                     }
                 }
+
+                // Pokaż informację o następnym kontakcie
+                if (dataNastepnegoKontaktu.HasValue)
+                {
+                    MessageBox.Show($"Następny kontakt zaplanowany na: {dataNastepnegoKontaktu.Value:dd.MM.yyyy}",
+                        "Zaplanowano kontakt", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UstawDateNastepnegoKontaktu(int idOdbiorcy, DateTime data)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("UPDATE OdbiorcyCRM SET DataNastepnegoKontaktu = @data WHERE ID = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", idOdbiorcy);
+                    cmd.Parameters.AddWithValue("@data", data);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ustawiania daty: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void MenuUstawDate_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgKontakty.SelectedItem is DataRowView row)
+            {
+                int id = Convert.ToInt32(row["ID"]);
+                string nazwa = row["NAZWA"]?.ToString() ?? "";
+
+                var dialog = new UstawDateKontaktuDialog(nazwa);
+                if (dialog.ShowDialog() == true && dialog.WybranaData.HasValue)
+                {
+                    UstawDateNastepnegoKontaktu(id, dialog.WybranaData.Value);
+                    WczytajDane();
+                }
             }
         }
 
