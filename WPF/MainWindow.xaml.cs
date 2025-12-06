@@ -2140,7 +2140,6 @@ namespace Kalendarz1.WPF
             try
             {
                 await LoadOrdersForDayAsync(_selectedDate);
-                await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
                 // Załaduj historię zmian dla całego tygodnia
