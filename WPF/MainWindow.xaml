@@ -217,66 +217,69 @@
         </Border>
 
         <Grid x:Name="mainContentGrid" Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="leftColumnDef" Width="60*"/>
-                <ColumnDefinition x:Name="rightColumnDef" Width="40*"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <Grid Grid.Column="0" Margin="10,10,5,10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <!-- PASEK FILTRÓW I PRODUKTÓW - na całą szerokość -->
+            <Border Grid.Row="0" Background="#ECEFF1"
+                    Padding="8,6" CornerRadius="5" Margin="10,10,10,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <Border Grid.Row="0" Background="#ECEFF1"
-                        Padding="8,6" CornerRadius="5" Margin="0,0,0,5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="85"/>
-                            <ColumnDefinition Width="85"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
+                             Style="{StaticResource FilterTextBoxStyle}"
+                             Tag="Odbiorca..." Margin="0,0,5,0"
+                             TextChanged="TxtFilterRecipient_TextChanged"/>
 
-                        <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
-                                 Style="{StaticResource FilterTextBoxStyle}"
-                                 Tag="Odbiorca..." Margin="0,0,5,0"
-                                 TextChanged="TxtFilterRecipient_TextChanged"/>
+                    <ComboBox x:Name="cbFilterSalesman" Grid.Column="1"
+                              Style="{StaticResource FilterComboBoxStyle}" Margin="0,0,5,0"
+                              SelectionChanged="CbFilter_SelectionChanged"/>
 
-                        <ComboBox x:Name="cbFilterSalesman" Grid.Column="1"
-                                  Style="{StaticResource FilterComboBoxStyle}" Margin="0,0,5,0"
-                                  SelectionChanged="CbFilter_SelectionChanged"/>
+                    <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
+                        <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
+                                     VerticalAlignment="Center" Margin="0,0,0,2" IsChecked="True"
+                                     Checked="RbProductCatalog_Checked"/>
+                        <RadioButton x:Name="rbMrozone" Content="Mr" GroupName="ProductCatalog"
+                                     VerticalAlignment="Center"
+                                     Checked="RbProductCatalog_Checked"/>
+                    </StackPanel>
 
-                        <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
-                            <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
-                                         VerticalAlignment="Center" Margin="0,0,0,2" IsChecked="True"
-                                         Checked="RbProductCatalog_Checked"/>
-                            <RadioButton x:Name="rbMrozone" Content="Mr" GroupName="ProductCatalog"
-                                         VerticalAlignment="Center"
-                                         Checked="RbProductCatalog_Checked"/>
-                        </StackPanel>
+                    <ScrollViewer Grid.Column="3" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
+                        <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
+                    </ScrollViewer>
 
-                        <ScrollViewer Grid.Column="3" HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
-                            <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
-                        </ScrollViewer>
+                    <!-- Hidden elements for compatibility -->
+                    <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
+                              DisplayMemberPath="Value" SelectedValuePath="Key"/>
+                    <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
+                              Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
+                    <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
+                              Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
+                    <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
+                                 Checked="RbDateFilter_Checked"/>
+                    <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
+                                 Checked="RbDateFilter_Checked" IsChecked="True"/>
+                </Grid>
+            </Border>
 
-                        <!-- Hidden elements for compatibility -->
-                        <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
-                                  DisplayMemberPath="Value" SelectedValuePath="Key"/>
-                        <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
-                                  Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
-                        <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
-                                  Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
-                        <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
-                                     Checked="RbDateFilter_Checked"/>
-                        <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
-                                     Checked="RbDateFilter_Checked" IsChecked="True"/>
-                    </Grid>
-                </Border>
+            <!-- ZAWARTOŚĆ - dwie kolumny -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="leftColumnDef" Width="60*"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="40*"/>
+                </Grid.ColumnDefinitions>
 
-                <TabControl x:Name="tabOrders" Grid.Row="1" Background="Transparent" BorderThickness="0"
-                            SelectionChanged="TabOrders_SelectionChanged">
+                <!-- Lewa kolumna - zakładki -->
+                <TabControl x:Name="tabOrders" Grid.Column="0" Background="Transparent" BorderThickness="0"
+                            Margin="10,0,5,10" SelectionChanged="TabOrders_SelectionChanged">
                     <TabItem Header="Zamówienia" FontSize="12" FontWeight="SemiBold">
                         <DataGrid x:Name="dgOrders"
                                   Style="{StaticResource ModernDataGridStyle}"
@@ -634,9 +637,9 @@
                         </ScrollViewer>
                     </TabItem>
                 </TabControl>
-            </Grid>
 
-            <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,55,10,10">
+                <!-- Prawa kolumna - szczegóły i podsumowanie -->
+                <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,0,10,10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="30*"/>
                     <RowDefinition Height="Auto"/>
@@ -671,6 +674,7 @@
                               Style="{StaticResource ModernDataGridStyle}"
                               AutoGenerateColumns="False"/>
                 </Border>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>
