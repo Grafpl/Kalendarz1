@@ -2548,6 +2548,124 @@ ORDER BY zm.Id";
             SetupOrdersDataGrid();
             ApplyFilters();
         }
+
+        private async Task LoadTransportForDayAsync(DateTime day)
+        {
+            day = ValidateSqlDate(day);
+
+            _dtTransport.Rows.Clear();
+
+            if (_dtTransport.Columns.Count == 0)
+            {
+                _dtTransport.Columns.Add("Id", typeof(int));
+                _dtTransport.Columns.Add("KlientId", typeof(int));
+                _dtTransport.Columns.Add("Odbiorca", typeof(string));
+                _dtTransport.Columns.Add("Handlowiec", typeof(string));
+                _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
+                _dtTransport.Columns.Add("Kierowca", typeof(string));
+                _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
+                _dtTransport.Columns.Add("Pojemniki", typeof(int));
+                _dtTransport.Columns.Add("Palety", typeof(decimal));
+                _dtTransport.Columns.Add("Status", typeof(string));
+            }
+
+            var transportInfo = await GetTransportInfoAsync(day);
+
+            foreach (DataRow row in _dtOrders.Rows)
+            {
+                string trans = row["Trans"]?.ToString() ?? "";
+                if (trans != "✓") continue;
+
+                int id = Convert.ToInt32(row["Id"]);
+                if (id == -1) continue;
+
+                int clientId = Convert.ToInt32(row["KlientId"]);
+                string odbiorca = row["Odbiorca"]?.ToString() ?? "";
+                string handlowiec = row["Handlowiec"]?.ToString() ?? "";
+                decimal ilosc = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
+                int pojemniki = row["Pojemniki"] is DBNull ? 0 : Convert.ToInt32(row["Pojemniki"]);
+                decimal palety = row["Palety"] is DBNull ? 0m : Convert.ToDecimal(row["Palety"]);
+                string status = row["Status"]?.ToString() ?? "";
+
+                string kierowca = "";
+                string godzWyjazdu = "";
+
+                foreach (var kvp in transportInfo)
+                {
+                    kierowca = kvp.Value.Kierowca;
+                    godzWyjazdu = kvp.Value.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                    break;
+                }
+
+                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, ilosc, kierowca, godzWyjazdu, pojemniki, palety, status);
+            }
+
+            SetupTransportDataGrid();
+        }
+
+        private void SetupTransportDataGrid()
+        {
+            dgTransport.ItemsSource = _dtTransport.DefaultView;
+            dgTransport.Columns.Clear();
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Odbiorca",
+                Binding = new System.Windows.Data.Binding("Odbiorca"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 120
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hand.",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(55)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Ilość",
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
+                Width = new DataGridLength(60)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kierowca",
+                Binding = new System.Windows.Data.Binding("Kierowca"),
+                Width = new DataGridLength(120)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Godz.",
+                Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
+                Width = new DataGridLength(50)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Poj.",
+                Binding = new System.Windows.Data.Binding("Pojemniki"),
+                Width = new DataGridLength(40)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Palety",
+                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
+                Width = new DataGridLength(50)
+            });
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Status",
+                Binding = new System.Windows.Data.Binding("Status"),
+                Width = new DataGridLength(80)
+            });
+        }
+
         private void SetupOrdersDataGrid()
         {
             dgOrders.ItemsSource = _dtOrders.DefaultView;
