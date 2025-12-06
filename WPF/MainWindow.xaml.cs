@@ -2198,6 +2198,13 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
                 _dtOrders.Columns.Add("Trans", typeof(string));
                 _dtOrders.Columns.Add("Prod", typeof(string));
+                _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
+                _dtOrders.Columns.Add("CenaInfo", typeof(string));
+                _dtOrders.Columns.Add("TerminInfo", typeof(string));
+                _dtOrders.Columns.Add("TransportInfo", typeof(string));
+                _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
+                _dtOrders.Columns.Add("WyprInfo", typeof(string));
+                _dtOrders.Columns.Add("WydanoInfo", typeof(string));
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2257,16 +2264,21 @@ namespace Kalendarz1.WPF
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1) 
-            THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
+            THEN 1 ELSE 0 END AS BIT) AS MaHallal,
+       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = '' OR Cena = '0'))
+            AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
+            THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny,
+       ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
+       zm.DataWydania{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
                                 (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                 $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -2280,7 +2292,7 @@ ORDER BY zm.Id";
             }
 
             // Load transport departure times from dbo.Kurs
-            var transportTimes = new Dictionary<int, TimeSpan?>();
+            var transportTimes = new Dictionary<int, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var transportKursIds = new List<int>();
             foreach (DataRow r in temp.Rows)
             {
@@ -2299,14 +2311,15 @@ ORDER BY zm.Id";
                     await using var cnTransport = new SqlConnection(_connTransport);
                     await cnTransport.OpenAsync();
                     var kursIdsList = string.Join(",", transportKursIds);
-                    var sqlKurs = $"SELECT KursID, GodzWyjazdu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
+                    var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
                     await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
                     await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
                     while (await rdKurs.ReadAsync())
                     {
                         int kursId = rdKurs.GetInt32(0);
                         TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
-                        transportTimes[kursId] = godzWyjazdu;
+                        DateTime? dataKursu = rdKurs.IsDBNull(2) ? null : rdKurs.GetDateTime(2);
+                        transportTimes[kursId] = (godzWyjazdu, dataKursu);
                     }
                 }
                 catch { /* Ignore transport errors - show just checkmark */ }
@@ -2424,13 +2437,40 @@ ORDER BY zm.Id";
                 string transColumn = transportKursId.HasValue ? "✓" : "";
                 string prodColumn = status == "Zrealizowane" ? "✓" : "";
 
-                // Warehouse column - show shipping time if available
+                // TerminInfo - godzina + skrócony dzień tygodnia odbioru
+                string terminInfo = "";
+                if (arrivalDate.HasValue)
+                {
+                    string dzienSkrot = arrivalDate.Value.ToString("ddd", cultureInfo);
+                    terminInfo = $"{arrivalDate.Value:HH:mm} {dzienSkrot}";
+                }
+
+                // TransportInfo - godzina:minuta + skrócony dzień wyjazdu z firmy
+                string transportInfoStr = "";
+                if (transportKursId.HasValue && transportTimes.TryGetValue((int)transportKursId.Value, out var kursInfo))
+                {
+                    if (kursInfo.GodzWyjazdu.HasValue)
+                    {
+                        string dzienKursu = kursInfo.DataKursu.HasValue ? kursInfo.DataKursu.Value.ToString("ddd", cultureInfo) : "";
+                        transportInfoStr = $"{kursInfo.GodzWyjazdu.Value:hh\\:mm} {dzienKursu}";
+                    }
+                }
+
+                // WyprInfo - czy wyprodukowane
+                string wyprInfo = czyZrealizowane || status == "Zrealizowane" ? "✓" : "✗";
+
+                // WydanoInfo - godzina:minuta + skrócony dzień wydania
                 DateTime? dataWydania = null;
                 if (temp.Columns.Contains("DataWydania") && !(r["DataWydania"] is DBNull))
                 {
                     dataWydania = Convert.ToDateTime(r["DataWydania"]);
                 }
-                string wydaneColumn = dataWydania.HasValue ? dataWydania.Value.ToString("HH:mm") : "";
+                string wydanoInfo = "";
+                if (dataWydania.HasValue)
+                {
+                    string dzienWyd = dataWydania.Value.ToString("ddd", cultureInfo);
+                    wydanoInfo = $"{dataWydania.Value:HH:mm} {dzienWyd}";
+                }
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
@@ -2446,7 +2486,8 @@ ORDER BY zm.Id";
                     id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
+                    czyMaCeny, cenaInfo, terminInfo, transportInfoStr, czyZrealizowane, wyprInfo, wydanoInfo
                 );
             }
 
@@ -2487,6 +2528,13 @@ ORDER BY zm.Id";
                 row["MaHallal"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
+                row["CzyMaCeny"] = false;
+                row["CenaInfo"] = "";
+                row["TerminInfo"] = "";
+                row["TransportInfo"] = "";
+                row["CzyZrealizowane"] = false;
+                row["WyprInfo"] = "";
+                row["WydanoInfo"] = "";
                 releasesWithoutOrders.Add(row);
 
                 totalReleased += released;
@@ -2541,6 +2589,13 @@ ORDER BY zm.Id";
                 summaryRow["MaHallal"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
+                summaryRow["CzyMaCeny"] = false;
+                summaryRow["CenaInfo"] = "";
+                summaryRow["TerminInfo"] = "";
+                summaryRow["TransportInfo"] = "";
+                summaryRow["CzyZrealizowane"] = false;
+                summaryRow["WyprInfo"] = "";
+                summaryRow["WydanoInfo"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2863,7 +2918,7 @@ ORDER BY zm.Id";
                 ElementStyle = cenaStyle
             });
 
-            // 7. Termin - godzina przyjazdu + dzień tygodnia
+            // 7. Termin - godzina + skrócony dzień tygodnia odbioru
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
@@ -2872,7 +2927,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 8. Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
+            // 8. Transport - godzina:minuta + skrócony dzień wyjazdu z firmy
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Transport",
@@ -2881,21 +2936,34 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 8. Trans
+            // 9. Wypr. - czy wyprodukowane (zielone V / czerwone X)
+            var wyprStyle = new Style(typeof(TextBlock));
+            wyprStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            wyprStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            var wyprGreenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = true };
+            wyprGreenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+
+            var wyprRedTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = false };
+            wyprRedTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+
+            wyprStyle.Triggers.Add(wyprGreenTrigger);
+            wyprStyle.Triggers.Add(wyprRedTrigger);
+
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "T",
-                Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(35),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+                Header = "Wypr.",
+                Binding = new System.Windows.Data.Binding("WyprInfo"),
+                Width = new DataGridLength(45),
+                ElementStyle = wyprStyle
             });
 
-            // 9. Prod
+            // 10. Wydano - godzina:minuta + skrócony dzień wydania
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "P",
-                Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(35),
+                Header = "Wydano",
+                Binding = new System.Windows.Data.Binding("WydanoInfo"),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
