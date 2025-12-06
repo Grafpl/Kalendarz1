@@ -651,7 +651,6 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="50"/>
                         </Grid.RowDefinitions>
 
@@ -660,7 +659,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Szczegóły / Notatki:"
+                            <TextBlock Grid.Column="0" Text="Szczegóły zamówienia:"
                                        Style="{StaticResource SectionHeaderStyle}"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
                                 <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
@@ -676,15 +675,9 @@
                                   Style="{StaticResource ModernDataGridStyle}"
                                   AutoGenerateColumns="False" Margin="0,5,0,0"/>
 
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
-                            <TextBlock Text="Cena:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
-                            <TextBox x:Name="txtCenaPanel" Width="80" Height="22" FontSize="11"
-                                     VerticalContentAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBlock x:Name="lblCenaWaluta" Text="PLN/kg" VerticalAlignment="Center" FontSize="11"/>
-                        </StackPanel>
-
-                        <TextBox x:Name="txtNotes" Grid.Row="3"
-                                 Style="{StaticResource NotesTextBoxStyle}" Margin="0,5,0,0"/>
+                        <TextBox x:Name="txtNotes" Grid.Row="2"
+                                 Style="{StaticResource NotesTextBoxStyle}" Margin="0,5,0,0"
+                                 ToolTip="Notatki do zamówienia"/>
                     </Grid>
                 </Border>
 
