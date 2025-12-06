@@ -520,9 +520,12 @@ namespace Kalendarz1.CRM
             var kod = row["KOD"]?.ToString() ?? "";
             var miasto = row["MIASTO"]?.ToString() ?? "";
             txtKlientAdres.Text = $"{ulica}, {kod} {miasto}".Trim().TrimStart(',').Trim();
+            txtKlientWoj.Text = row["Wojewodztwo"]?.ToString() ?? "-";
+            txtKlientBranza.Text = row["PKD_Opis"]?.ToString() ?? "-";
 
-            // Wczytaj notatki
+            // Wczytaj notatki i historię
             WczytajNotatki(aktualnyOdbiorcaID);
+            WczytajHistorie(aktualnyOdbiorcaID);
 
             // Ustaw kolor badge statusu
             UstawKolorStatusu(row["Status"]?.ToString() ?? "");
@@ -1024,6 +1027,141 @@ namespace Kalendarz1.CRM
         }
 
         #endregion
+
+        #region Sortowanie
+
+        private string aktualnaKolumnaSortowania = "PriorytetKontaktu";
+        private bool sortowanieRosnace = true;
+
+        private void BtnSortPriorytet_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnaKolumnaSortowania == "PriorytetKontaktu")
+                sortowanieRosnace = !sortowanieRosnace;
+            else
+            {
+                aktualnaKolumnaSortowania = "PriorytetKontaktu";
+                sortowanieRosnace = true;
+            }
+            ZastosujSortowanie();
+        }
+
+        private void BtnSortBranza_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnaKolumnaSortowania == "CzyPriorytetowaBranza")
+                sortowanieRosnace = !sortowanieRosnace;
+            else
+            {
+                aktualnaKolumnaSortowania = "CzyPriorytetowaBranza";
+                sortowanieRosnace = false; // Najpierw priorytetowe
+            }
+            ZastosujSortowanie();
+        }
+
+        private void BtnSortNazwa_Click(object sender, RoutedEventArgs e)
+        {
+            if (aktualnaKolumnaSortowania == "NAZWA")
+                sortowanieRosnace = !sortowanieRosnace;
+            else
+            {
+                aktualnaKolumnaSortowania = "NAZWA";
+                sortowanieRosnace = true;
+            }
+            ZastosujSortowanie();
+        }
+
+        private void ZastosujSortowanie()
+        {
+            if (dtKontakty == null) return;
+
+            var dv = dtKontakty.DefaultView;
+            string kierunek = sortowanieRosnace ? "ASC" : "DESC";
+
+            if (aktualnaKolumnaSortowania == "CzyPriorytetowaBranza")
+            {
+                // Priorytetowe branże najpierw, potem po nazwie
+                dv.Sort = $"CzyPriorytetowaBranza {kierunek}, NAZWA ASC";
+            }
+            else if (aktualnaKolumnaSortowania == "PriorytetKontaktu")
+            {
+                // Sortowanie priorytetowe: zaległe -> dziś -> przyszłe -> brak daty
+                dv.Sort = $"PriorytetKontaktu {kierunek}, DataNastepnegoKontaktu ASC, NAZWA ASC";
+            }
+            else
+            {
+                dv.Sort = $"{aktualnaKolumnaSortowania} {kierunek}";
+            }
+
+            dgKontakty.ItemsSource = dv;
+        }
+
+        #endregion
+
+        #region Historia zmian
+
+        private void WczytajHistorie(int idOdbiorcy)
+        {
+            var historia = new List<HistoriaZmiany>();
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        SELECT TOP 20 DataZmiany, TypZmiany, Opis, Operator
+                        FROM HistoriaZmianCRM
+                        WHERE IDOdbiorcy = @IDOdbiorcy
+                        ORDER BY DataZmiany DESC", conn);
+
+                    cmd.Parameters.AddWithValue("@IDOdbiorcy", idOdbiorcy);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var typZmiany = reader["TypZmiany"]?.ToString() ?? "";
+                            historia.Add(new HistoriaZmiany
+                            {
+                                Data = reader.GetDateTime(reader.GetOrdinal("DataZmiany")),
+                                Opis = reader["Opis"]?.ToString() ?? typZmiany,
+                                Operator = reader["Operator"]?.ToString() ?? "-",
+                                Ikona = PobierzIkoneHistorii(typZmiany)
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            listaHistorii.ItemsSource = historia;
+        }
+
+        private string PobierzIkoneHistorii(string typZmiany)
+        {
+            return typZmiany switch
+            {
+                "Zmiana statusu" => "📊",
+                "Dodano notatkę" => "📝",
+                "Edycja danych" => "✏️",
+                "Utworzenie" => "➕",
+                "Kontakt telefoniczny" => "📞",
+                "Wysłano ofertę" => "📄",
+                "Ustawiono datę kontaktu" => "📅",
+                _ => "📌"
+            };
+        }
+
+        #endregion
+
+        #region Ustawienia
+
+        private void BtnUstawienia_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Ustawienia CRM będą dostępne w przyszłej aktualizacji.\n\nPlanowane funkcje:\n• Konfiguracja priorytetowych branż\n• Ustawienia powiadomień\n• Eksport danych",
+                "Ustawienia", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
     }
 
     // Model notatki
@@ -1032,5 +1170,14 @@ namespace Kalendarz1.CRM
         public string Tresc { get; set; }
         public DateTime DataUtworzenia { get; set; }
         public string Operator { get; set; }
+    }
+
+    // Model historii zmian
+    public class HistoriaZmiany
+    {
+        public DateTime Data { get; set; }
+        public string Opis { get; set; }
+        public string Operator { get; set; }
+        public string Ikona { get; set; }
     }
 }
