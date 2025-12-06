@@ -2071,10 +2071,9 @@ namespace Kalendarz1
                     dgvStanMagazynu.Rows[lastRowIndex].DefaultCellStyle.BackColor =
                         Color.FromArgb(200, 220, 240);
 
-                    // Aktualizuj karty statystyk i rezerwacje
+                    // Aktualizuj karty statystyk
                     int liczbaProdukow = dtFinal.Rows.Count - 1; // Minus wiersz sumy
                     UpdateStanStatystyki(sumaStan, sumaWartosc, liczbaProdukow);
-                    LoadRezerwacje();
 
                     // Załaduj zamówienia w prawym panelu
                     LoadZamowienia();
