@@ -40,6 +40,7 @@ namespace Kalendarz1.WPF
 
         private bool _showBySlaughterDate = true;
         private bool _slaughterDateColumnExists = true;
+        private bool _walutaColumnExists = false;
         private bool _isInitialized = false;
         private bool _showAnulowane = false;
         private bool _isRefreshing = false;
@@ -639,6 +640,7 @@ namespace Kalendarz1.WPF
             await CheckAndCreateTransportKursIDColumnAsync();
             await CheckAndCreateStatusColumnsAsync();
             await CheckAndCreateAnulowanieColumnsAsync();
+            await CheckAndCreateWalutaColumnAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -764,6 +766,38 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 _slaughterDateColumnExists = false;
+            }
+        }
+
+        private async Task CheckAndCreateWalutaColumnAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                         WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'Waluta'";
+
+                await using var cmdCheck = new SqlCommand(checkSql, cn);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    const string alterSql = @"ALTER TABLE [dbo].[ZamowieniaMieso] ADD Waluta NVARCHAR(10) NULL DEFAULT 'PLN'";
+                    await using var cmdAlter = new SqlCommand(alterSql, cn);
+                    await cmdAlter.ExecuteNonQueryAsync();
+
+                    _walutaColumnExists = true;
+                }
+                else
+                {
+                    _walutaColumnExists = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _walutaColumnExists = false;
             }
         }
 
@@ -3349,6 +3383,7 @@ ORDER BY zm.Id";
 
                 int clientId = 0;
                 string notes = "";
+                string waluta = "PLN";
                 var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena)>(); // STRING!
                 DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
@@ -3357,9 +3392,10 @@ ORDER BY zm.Id";
                     await cn.OpenAsync();
 
                     string slaughterDateSelect = _slaughterDateColumnExists ? ", DataUboju" : "";
+                    string walutaSelect = _walutaColumnExists ? ", ISNULL(Waluta, 'PLN') as Waluta" : "";
                     using (var cmdInfo = new SqlCommand($@"
-                SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect} 
-                FROM dbo.ZamowieniaMieso 
+                SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect}{walutaSelect}
+                FROM dbo.ZamowieniaMieso
                 WHERE Id = @Id", cn))
                     {
                         cmdInfo.Parameters.AddWithValue("@Id", orderId);
@@ -3376,6 +3412,16 @@ ORDER BY zm.Id";
                             if (_slaughterDateColumnExists && !readerInfo.IsDBNull(3))
                             {
                                 slaughterDate = readerInfo.GetDateTime(3);
+                            }
+
+                            // Odczytaj walutę
+                            if (_walutaColumnExists)
+                            {
+                                int walutaIndex = _slaughterDateColumnExists ? 4 : 3;
+                                if (readerInfo.FieldCount > walutaIndex && !readerInfo.IsDBNull(walutaIndex))
+                                {
+                                    waluta = readerInfo.GetString(walutaIndex);
+                                }
                             }
 
                             dateForReleases = (_showBySlaughterDate && slaughterDate.HasValue)
@@ -3484,6 +3530,23 @@ ORDER BY zm.Id";
                 }
 
                 txtNotes.Text = notes;
+
+                // Ustaw walutę w panelu
+                if (cbWalutaPanel != null)
+                {
+                    foreach (ComboBoxItem item in cbWalutaPanel.Items)
+                    {
+                        if (item.Content?.ToString() == waluta)
+                        {
+                            cbWalutaPanel.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+                if (lblCenaWaluta != null)
+                {
+                    lblCenaWaluta.Text = $"{waluta}/kg";
+                }
 
                 if (dt.Rows.Count > 0)
                 {
@@ -4706,6 +4769,48 @@ ORDER BY zm.Id";
                 else
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(230, 255, 230)); // Zielony
+                }
+            }
+        }
+
+        #endregion
+
+        #region Currency Panel Events
+
+        private async void CbWalutaPanel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized || !_currentOrderId.HasValue || _currentOrderId.Value <= 0)
+                return;
+
+            if (cbWalutaPanel.SelectedItem is ComboBoxItem selectedItem)
+            {
+                string waluta = selectedItem.Content?.ToString() ?? "PLN";
+
+                // Aktualizuj etykietę waluty
+                if (lblCenaWaluta != null)
+                {
+                    lblCenaWaluta.Text = $"{waluta}/kg";
+                }
+
+                // Zapisz walutę w bazie
+                if (_walutaColumnExists)
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+
+                        await using var cmd = new SqlCommand(
+                            "UPDATE dbo.ZamowieniaMieso SET Waluta = @waluta WHERE Id = @id", cn);
+                        cmd.Parameters.AddWithValue("@waluta", waluta);
+                        cmd.Parameters.AddWithValue("@id", _currentOrderId.Value);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas zapisywania waluty:\n{ex.Message}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
             }
         }
