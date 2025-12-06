@@ -4347,16 +4347,19 @@ ORDER BY zm.Id";
                 _dtDashboard.Columns.Add("Status", typeof(string));
             }
 
-            // Pobierz dane konfiguracji
+            // Pobierz dane konfiguracji wydajności
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
 
-            // Pobierz masę deklaracji
+            // Pobierz konfigurację produktów (TowarID -> ProcentUdzialu z TuszkiB)
+            var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
+
+            // Pobierz masę deklaracji z HarmonogramDostaw
             decimal totalMassDek = 0m;
             await using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
                 const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
-                                     WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
+                                     WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -4368,11 +4371,12 @@ ORDER BY zm.Id";
                 }
             }
 
+            // Oblicz pulę tuszki na podstawie wydajności
             decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
-            // Pobierz faktyczne przychody
+            // Pobierz faktyczne przychody (produkcja)
             var actualIncome = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -4436,24 +4440,42 @@ ORDER BY zm.Id";
             // Dodaj produkty do tabeli
             decimal totalZamowienia = 0m;
             decimal totalWydania = 0m;
+            decimal totalPlan = 0m;
 
             foreach (var product in _productCatalogCache)
             {
                 int productId = product.Key;
                 string productName = product.Value;
 
+                // Oblicz plan na podstawie konfiguracji wydajności
                 decimal plan = 0m;
-                if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase))
+
+                // Sprawdź czy produkt ma skonfigurowany procent udziału
+                if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
+                {
+                    // Produkty z konfiguracji są liczone jako % z TuszkiB
+                    plan = pulaTuszkiB * (procentUdzialu / 100m);
+                }
+                // Fallback na nazwy produktów dla tuszek
+                else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                         productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                {
                     plan = pulaTuszkiA;
-                else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                }
+                else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                         productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                {
                     plan = pulaTuszkiB;
+                }
 
                 decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
                 decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
                 decimal zamowienia = orderSum.TryGetValue(productId, out var z) ? z : 0m;
 
-                if (zamowienia == 0 && fakt == 0 && stan == 0) continue;
+                // Pokaż produkt jeśli ma jakiekolwiek dane lub ma plan
+                if (zamowienia == 0 && fakt == 0 && stan == 0 && plan == 0) continue;
 
+                // Bilans = dostępne (fakt lub plan) + stan - zamówienia
                 decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
 
                 string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
@@ -4462,6 +4484,7 @@ ORDER BY zm.Id";
 
                 totalZamowienia += zamowienia;
                 totalWydania += fakt;
+                totalPlan += plan;
             }
 
             // Aktualizuj KPI
@@ -4483,6 +4506,7 @@ ORDER BY zm.Id";
             txtKpiWydaniaKlienci.Text = $"({wydanychCount} wydanych)";
             txtKpiRoznica.Text = $"{totalZamowienia - totalWydania:N0} kg";
             txtKpiRealizacja.Text = $"{realizacja:N1}%";
+            txtKpiRealizacjaInfo.Text = totalPlan > 0 ? $"Plan: {totalPlan:N0} kg" : "";
 
             SetupDashboardDataGrid();
         }
