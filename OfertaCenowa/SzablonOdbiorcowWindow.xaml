@@ -66,9 +66,15 @@
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="👁️" Tag="{Binding}" Click="BtnPodgladSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Podgląd odbiorców"/>
                                                 <Button Content="✏️" Tag="{Binding}" Click="BtnEdytujSzablon_Click"
                                                         Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
-                                                        ToolTip="Edytuj nazwę"/>
+                                                        ToolTip="Edytuj szablon"/>
+                                                <Button Content="📋" Tag="{Binding}" Click="BtnDuplikujSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Duplikuj szablon"/>
                                                 <Button Content="🗑️" Tag="{Binding}" Click="BtnUsunSzablon_Click"
                                                         Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
                                                         ToolTip="Usuń szablon"/>
