@@ -137,10 +137,10 @@
                     <GradientStop Color="#5A9447" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <Grid Height="60">
+            <Grid Height="70">
                 <StackPanel Orientation="Horizontal" Margin="15,0" VerticalAlignment="Center">
                     <!-- Logo firmy -->
-                    <Image x:Name="imgLogoHeader" Height="45" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                    <Image x:Name="imgLogoHeader" Height="55" Margin="0,0,15,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Kreator Ofert Handlowych" FontSize="16" FontWeight="Bold" Foreground="White"/>
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
