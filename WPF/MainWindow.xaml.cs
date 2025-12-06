@@ -2184,6 +2184,7 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("Handlowiec", typeof(string));
                 _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
                 _dtOrders.Columns.Add("IloscFaktyczna", typeof(decimal));
+                _dtOrders.Columns.Add("Roznica", typeof(decimal));
                 _dtOrders.Columns.Add("Pojemniki", typeof(int));
                 _dtOrders.Columns.Add("Palety", typeof(decimal));
                 _dtOrders.Columns.Add("TrybE2", typeof(string));
@@ -2487,9 +2488,12 @@ ORDER BY zm.Id";
                     actualOrdersCount++;
                 }
 
+                // Różnica = Zamówiono - Wydano
+                decimal roznica = quantity - released;
+
                 // Dodanie wiersza z kolumnami Cena, Termin, Transport, Wyprodukowano, Wydano
                 _dtOrders.Rows.Add(
-                    id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
+                    id, clientId, name, salesman, quantity, released, roznica, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
                     createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
@@ -2517,6 +2521,7 @@ ORDER BY zm.Id";
                 row["Handlowiec"] = salesman;
                 row["IloscZamowiona"] = 0m;
                 row["IloscFaktyczna"] = released;
+                row["Roznica"] = -released; // 0 - released
                 row["Pojemniki"] = 0;
                 row["Palety"] = 0m;
                 row["TrybE2"] = "";
@@ -2581,6 +2586,7 @@ ORDER BY zm.Id";
 
                 summaryRow["IloscZamowiona"] = totalOrdered;
                 summaryRow["IloscFaktyczna"] = totalReleased;
+                summaryRow["Roznica"] = totalOrdered - totalReleased;
                 summaryRow["Pojemniki"] = 0;
                 summaryRow["Palety"] = totalPallets;
                 summaryRow["TrybE2"] = "";
@@ -2862,8 +2868,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                Width = new DataGridLength(150)
             });
 
             // 2. Handlowiec
@@ -2871,7 +2876,7 @@ ORDER BY zm.Id";
             {
                 Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -2880,7 +2885,7 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -2889,17 +2894,30 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 5. Utworzone przez - węższa kolumna
+            // 5. +/- (Różnica: Zam - Wyd)
+            var roznicaStyle = new Style(typeof(TextBlock));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "+/-",
+                Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
+                Width = new DataGridLength(50),
+                ElementStyle = roznicaStyle
+            });
+
+            // 6. Utworzone przez - węższa kolumna
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
-                MinWidth = 90
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 80
             });
 
             // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
