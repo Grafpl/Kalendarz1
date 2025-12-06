@@ -481,9 +481,9 @@ namespace Kalendarz1
             var datesLayout = new TableLayoutPanel
             {
                 Location = new Point(10, 35),
-                Size = new Size(390, 210),
+                Size = new Size(390, 175),
                 ColumnCount = 2,
-                RowCount = 6
+                RowCount = 5
             };
 
             datesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -492,7 +492,6 @@ namespace Kalendarz1
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-            datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
             datesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
 
             var lblProdukcja = new Label
@@ -588,33 +587,9 @@ namespace Kalendarz1
 
             datesLayout.Controls.Add(panelSugestieGodzin, 1, 4);
 
-            // Waluta zamówienia
-            var lblWaluta = new Label
-            {
-                Text = "Waluta:",
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(31, 41, 55),
-                AutoSize = true,
-                Padding = new Padding(0, 5, 0, 0)
-            };
-
-            cbWaluta = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10f),
-                Width = 80,
-                Margin = new Padding(0, 2, 0, 0)
-            };
-            cbWaluta.Items.AddRange(new object[] { "PLN", "EUR" });
-            cbWaluta.SelectedIndex = 0; // Domyślnie PLN
-            StyleComboBox(cbWaluta);
-
-            datesLayout.Controls.Add(lblWaluta, 0, 5);
-            datesLayout.Controls.Add(cbWaluta, 1, 5);
-
             panelTransport = new Panel
             {
-                Location = new Point(10, 255),
+                Location = new Point(10, 220),
                 Size = new Size(390, 50),
                 BackColor = Color.Transparent
             };
@@ -2500,6 +2475,33 @@ namespace Kalendarz1
             {
                 btnAnuluj.Text = "Anuluj";
                 StyleButton(btnAnuluj, Color.FromArgb(243, 244, 246), Color.FromArgb(75, 85, 99));
+            }
+
+            // Waluta zamówienia - przy przyciskach
+            if (panelAkcji != null)
+            {
+                var lblWaluta = new Label
+                {
+                    Text = "Waluta:",
+                    Font = new Font("Segoe UI", 9f),
+                    ForeColor = Color.FromArgb(75, 85, 99),
+                    AutoSize = true,
+                    Location = new Point(15, 24)
+                };
+
+                cbWaluta = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Font = new Font("Segoe UI", 9f),
+                    Width = 65,
+                    Location = new Point(65, 20)
+                };
+                cbWaluta.Items.AddRange(new object[] { "PLN", "EUR" });
+                cbWaluta.SelectedIndex = 0;
+                StyleComboBox(cbWaluta);
+
+                panelAkcji.Controls.Add(lblWaluta);
+                panelAkcji.Controls.Add(cbWaluta);
             }
 
             if (panelMaster != null)
