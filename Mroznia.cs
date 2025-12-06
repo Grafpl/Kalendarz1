@@ -10,6 +10,7 @@ using System.Windows.Forms.DataVisualization.Charting;
 using System.Threading.Tasks;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 
 namespace Kalendarz1
 {
@@ -30,7 +31,7 @@ namespace Kalendarz1
 
         // === KONTROLKI UI ===
         private DateTimePicker dtpOd, dtpDo, dtpStanMagazynu;
-        private Button btnAnalizuj, btnWykres, btnStanMagazynu, btnEksport, btnResetFiltr, btnSzybkiRaport;
+        private Button btnAnalizuj, btnWykres, btnStanMagazynu, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
         private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu;
         private TabControl tabControl;
         private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp;
@@ -496,7 +497,11 @@ namespace Kalendarz1
             Button btnObliczStan = CreateModernButton("Oblicz stan", 280, 23, 110, PrimaryColor);
             btnObliczStan.Click += BtnStanMagazynu_Click;
 
-            stanHeader.Controls.AddRange(new Control[] { lblInfoStan, lblStanNa, dtpStanMagazynu, chkGrupowanie, btnObliczStan });
+            btnMapowanie = CreateModernButton("🥩↔️❄️ Mapowanie", 405, 23, 140, InfoColor);
+            btnMapowanie.Click += BtnMapowanie_Click;
+            toolTip.SetToolTip(btnMapowanie, "Zarządzaj mapowaniem produktów świeżych na mrożone");
+
+            stanHeader.Controls.AddRange(new Control[] { lblInfoStan, lblStanNa, dtpStanMagazynu, chkGrupowanie, btnObliczStan, btnMapowanie });
 
             dgvStanMagazynu = CreateStyledDataGridView();
             dgvStanMagazynu.DoubleClick += DgvStanMagazynu_DoubleClick;
@@ -1737,12 +1742,48 @@ namespace Kalendarz1
                     else
                     {
                         // Bez grupowania - szczegółowe kody
-                        // Słownik dla poprzedniego stanu
-                        var dictPoprzedni = dtPoprzedni.AsEnumerable()
+                        // Wczytaj mapowania świeży -> mrożony
+                        var mapowania = WczytajMapowaniaSwiezyMrozony();
+
+                        // Słownik dla poprzedniego stanu (z uwzględnieniem mapowania)
+                        var dictPoprzedniRaw = dtPoprzedni.AsEnumerable()
                             .ToDictionary(
                                 row => row.Field<string>("kod"),
                                 row => Convert.ToDecimal(row["SumaIlosc"])
                             );
+
+                        // Scal dane poprzednie wg mapowania
+                        var dictPoprzedni = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var kvp in dictPoprzedniRaw)
+                        {
+                            string kodDocelowy = mapowania.ContainsKey(kvp.Key) ? mapowania[kvp.Key] : kvp.Key;
+                            if (!dictPoprzedni.ContainsKey(kodDocelowy))
+                                dictPoprzedni[kodDocelowy] = 0;
+                            dictPoprzedni[kodDocelowy] += kvp.Value;
+                        }
+
+                        // Słownik do sumowania scalonych produktów (kod mrożony -> (stan, wartość, kodyŹródłowe))
+                        var scaloneDane = new Dictionary<string, (decimal Stan, decimal Wartosc, List<string> KodyZrodlowe)>(StringComparer.OrdinalIgnoreCase);
+
+                        foreach (DataRow row in dtRaw.Rows)
+                        {
+                            string kodOryginalny = row["kod"].ToString();
+                            decimal stan = Convert.ToDecimal(row["SumaIlosc"]);
+                            decimal wartosc = Convert.ToDecimal(row["SumaWartosc"]);
+
+                            // Sprawdź czy ten kod jest świeży i ma mapowanie na mrożony
+                            string kodDocelowy = mapowania.ContainsKey(kodOryginalny) ? mapowania[kodOryginalny] : kodOryginalny;
+
+                            if (!scaloneDane.ContainsKey(kodDocelowy))
+                                scaloneDane[kodDocelowy] = (0, 0, new List<string>());
+
+                            var dane = scaloneDane[kodDocelowy];
+                            dane.Stan += stan;
+                            dane.Wartosc += wartosc;
+                            if (!dane.KodyZrodlowe.Contains(kodOryginalny))
+                                dane.KodyZrodlowe.Add(kodOryginalny);
+                            scaloneDane[kodDocelowy] = dane;
+                        }
 
                         dtFinal = new DataTable();
                         dtFinal.Columns.Add("Kod", typeof(string));
@@ -1751,12 +1792,14 @@ namespace Kalendarz1
                         dtFinal.Columns.Add("Cena śr. (zł/kg)", typeof(decimal));
                         dtFinal.Columns.Add("Zmiana", typeof(string));
                         dtFinal.Columns.Add("Status", typeof(string));
+                        dtFinal.Columns.Add("Info", typeof(string));
 
-                        foreach (DataRow row in dtRaw.Rows)
+                        // Sortuj po stanie malejąco
+                        foreach (var kvp in scaloneDane.OrderByDescending(x => x.Value.Stan))
                         {
-                            string kod = row["kod"].ToString();
-                            decimal stan = Convert.ToDecimal(row["SumaIlosc"]);
-                            decimal wartosc = Convert.ToDecimal(row["SumaWartosc"]);
+                            string kod = kvp.Key;
+                            decimal stan = kvp.Value.Stan;
+                            decimal wartosc = kvp.Value.Wartosc;
                             decimal cena = stan > 0 ? wartosc / stan : 0;
                             string status = GetStatus(stan);
 
@@ -1765,7 +1808,16 @@ namespace Kalendarz1
                             decimal roznica = stan - stanPoprzedni;
                             string zmiana = GetZmianaStrzalka(roznica, stan);
 
-                            dtFinal.Rows.Add(kod, stan, wartosc, cena, zmiana, status);
+                            // Info o scaleniu
+                            string info = "";
+                            if (kvp.Value.KodyZrodlowe.Count > 1)
+                            {
+                                var kodySwiezego = kvp.Value.KodyZrodlowe.Where(k => k != kod).ToList();
+                                if (kodySwiezego.Any())
+                                    info = $"❄️+🥩 ({string.Join(", ", kodySwiezego)})";
+                            }
+
+                            dtFinal.Rows.Add(kod, stan, wartosc, cena, zmiana, status, info);
                         }
                     }
 
@@ -1777,6 +1829,13 @@ namespace Kalendarz1
                     FormatujKolumne(dgvStanMagazynu, "Wartość (zł)", "Wartość (zł)", "N0");
                     FormatujKolumne(dgvStanMagazynu, "Cena śr. (zł/kg)", "Cena śr. (zł/kg)", "N2");
                     FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana (7 dni)");
+
+                    // Formatuj kolumnę Info jeśli istnieje (tylko bez grupowania)
+                    if (!isGrupowanie && dgvStanMagazynu.Columns.Contains("Info"))
+                    {
+                        dgvStanMagazynu.Columns["Info"].HeaderText = "Scalenie";
+                        dgvStanMagazynu.Columns["Info"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                    }
 
                     // Kolorowanie
                     foreach (DataGridViewRow row in dgvStanMagazynu.Rows)
@@ -1804,6 +1863,17 @@ namespace Kalendarz1
                             row.Cells["Zmiana"].Style.ForeColor = Color.Green;
                         else
                             row.Cells["Zmiana"].Style.ForeColor = Color.Gray;
+
+                        // Koloruj kolumnę Info dla scalonych wierszy
+                        if (!isGrupowanie && dgvStanMagazynu.Columns.Contains("Info"))
+                        {
+                            string info = row.Cells["Info"].Value?.ToString();
+                            if (!string.IsNullOrEmpty(info))
+                            {
+                                row.Cells["Info"].Style.ForeColor = Color.FromArgb(59, 130, 246); // Niebieski
+                                row.Cells["Info"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                            }
+                        }
                     }
 
                     // Dodaj wiersz sumy
@@ -1817,6 +1887,8 @@ namespace Kalendarz1
                     sumRow["Cena śr. (zł/kg)"] = sumaStan > 0 ? sumaWartosc / sumaStan : 0;
                     sumRow["Zmiana"] = "";
                     sumRow["Status"] = GetStatus(sumaStan);
+                    if (dtFinal.Columns.Contains("Info"))
+                        sumRow["Info"] = "";
                     dtFinal.Rows.Add(sumRow);
 
                     // Pogrubienie wiersza sumy
@@ -2101,5 +2173,104 @@ namespace Kalendarz1
             btnSzybkiRaport.Enabled = true;
             btnEksport.Enabled = true;
         }
+
+        /// <summary>
+        /// Wczytuje mapowania świeży-mrożony z pliku JSON
+        /// </summary>
+        private Dictionary<string, string> WczytajMapowaniaSwiezyMrozony()
+        {
+            var mapowanie = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string plikMapowan = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "OfertaHandlowa", "mapowania_swiezy_mrozony.json");
+
+                if (File.Exists(plikMapowan))
+                {
+                    string json = File.ReadAllText(plikMapowan);
+                    var lista = JsonSerializer.Deserialize<List<MapowanieItem>>(json);
+                    if (lista != null)
+                    {
+                        foreach (var item in lista)
+                        {
+                            if (!string.IsNullOrEmpty(item.KodSwiezy) && !string.IsNullOrEmpty(item.KodMrozony))
+                            {
+                                mapowanie[item.KodSwiezy] = item.KodMrozony;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania mapowań: {ex.Message}");
+            }
+            return mapowanie;
+        }
+
+        /// <summary>
+        /// Otwiera okno mapowania produktów świeżych na mrożone
+        /// </summary>
+        private void BtnMapowanie_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Wczytaj produkty świeże i mrożone z bazy
+                var towarySwiezy = new List<OfertaCenowa.TowarOferta>();
+                var towaryMrozone = new List<OfertaCenowa.TowarOferta>();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"SELECT Id, Kod, Nazwa, katalog
+                                    FROM [HANDEL].[HM].[TW]
+                                    WHERE katalog IN ('67095', '67153')
+                                    ORDER BY Kod ASC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader rd = cmd.ExecuteReader())
+                    {
+                        while (rd.Read())
+                        {
+                            var towar = new OfertaCenowa.TowarOferta
+                            {
+                                Id = rd.GetInt32(0),
+                                Kod = rd["Kod"]?.ToString() ?? "",
+                                Nazwa = rd["Nazwa"]?.ToString() ?? "",
+                                Katalog = rd["katalog"]?.ToString() ?? ""
+                            };
+
+                            if (towar.Katalog == "67095")
+                                towarySwiezy.Add(towar);
+                            else if (towar.Katalog == "67153")
+                                towaryMrozone.Add(towar);
+                        }
+                    }
+                }
+
+                // Otwórz okno WPF mapowania
+                var okno = new OfertaCenowa.MapowanieSwiezyMrozonyWindow(towarySwiezy, towaryMrozone);
+                okno.ShowDialog();
+
+                statusLabel.Text = "Mapowanie zaktualizowane. Kliknij 'Oblicz stan' aby odświeżyć.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania okna mapowania: {ex.Message}", "Błąd",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Model danych mapowania świeży-mrożony (do deserializacji JSON)
+    /// </summary>
+    public class MapowanieItem
+    {
+        public int IdSwiezy { get; set; }
+        public string KodSwiezy { get; set; } = "";
+        public int IdMrozony { get; set; }
+        public string KodMrozony { get; set; } = "";
     }
 }
