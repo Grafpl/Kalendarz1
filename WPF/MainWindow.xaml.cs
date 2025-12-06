@@ -4552,6 +4552,10 @@ ORDER BY zm.Id";
             txtTuszkaA.Text = $"{procentA:N0}%";
             txtTuszkaB.Text = $"{procentB:N0}%";
 
+            // Aktualizuj pasek postępu wydajności (max 100%, skala 0-250px)
+            double progressWidth = (double)(wspolczynnikTuszki / 100m) * 250;
+            progressWydajnosc.Width = Math.Min(progressWidth, 250);
+
             SetupDashboardDataGrid();
             SetupTopProduktyDataGrid();
         }
