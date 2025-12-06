@@ -24,9 +24,9 @@
         <Style x:Key="ButtonPrimary" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource ColorPrimary}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -79,8 +79,8 @@
 
         <!-- Kompaktowy TextBox -->
         <Style x:Key="TextBoxModern" TargetType="TextBox">
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="White"/>
@@ -90,8 +90,8 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="6,4"/>
+                                CornerRadius="3">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="4,2"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -105,8 +105,8 @@
 
         <!-- Kompaktowy ComboBox -->
         <Style x:Key="ComboBoxModern" TargetType="ComboBox">
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="White"/>
@@ -125,34 +125,34 @@
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="AlternatingRowBackground" Value="#FAFBFC"/>
-            <Setter Property="RowHeight" Value="32"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="RowHeight" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
 
         <!-- Style nagłówków -->
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="{StaticResource ColorPrimary}"/>
         </Style>
 
         <Style x:Key="SubHeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource ColorText}"/>
         </Style>
 
         <Style x:Key="LabelTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Foreground" Value="{StaticResource ColorTextLight}"/>
-            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
         </Style>
 
         <!-- Styl zakładek -->
         <Style TargetType="TabItem">
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
     </Window.Resources>
 
@@ -163,7 +163,7 @@
         </Grid.RowDefinitions>
 
         <!-- Kompaktowy nagłówek z wyszukiwaniem -->
-        <Border Grid.Row="0" Background="White" Padding="15,10" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="White" Padding="8,5" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -176,22 +176,20 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Tytuł -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
-                    <TextBlock Text="👥" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock Text="Kartoteka Odbiorców" Style="{StaticResource HeaderTextStyle}" VerticalAlignment="Center"/>
-                </StackPanel>
+                <TextBlock Grid.Column="0" Text="Kartoteka Odbiorców" Style="{StaticResource HeaderTextStyle}"
+                           VerticalAlignment="Center" Margin="0,0,15,0"/>
 
                 <!-- Wyszukiwanie -->
-                <StackPanel Grid.Column="1" Margin="0,0,15,0">
-                    <TextBlock Text="Szukaj" Style="{StaticResource LabelTextStyle}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="Szukaj:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource ColorTextLight}"/>
                     <TextBox x:Name="txtSzukaj" Style="{StaticResource TextBoxModern}"
-                             TextChanged="TxtSzukaj_TextChanged" Width="200"/>
+                             TextChanged="TxtSzukaj_TextChanged" Width="150"/>
                 </StackPanel>
 
                 <!-- Kategoria -->
-                <StackPanel Grid.Column="3" Margin="0,0,10,0">
-                    <TextBlock Text="Kategoria" Style="{StaticResource LabelTextStyle}"/>
-                    <ComboBox x:Name="cmbKategoria" Style="{StaticResource ComboBoxModern}" Width="90"
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <TextBlock Text="Kat:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource ColorTextLight}"/>
+                    <ComboBox x:Name="cmbKategoria" Style="{StaticResource ComboBoxModern}" Width="70"
                               SelectionChanged="CmbFiltr_SelectionChanged">
                         <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
                         <ComboBoxItem Content="A"/>
@@ -201,9 +199,9 @@
                 </StackPanel>
 
                 <!-- Typ -->
-                <StackPanel Grid.Column="4" Margin="0,0,10,0">
-                    <TextBlock Text="Typ" Style="{StaticResource LabelTextStyle}"/>
-                    <ComboBox x:Name="cmbTypOdbiorcy" Style="{StaticResource ComboBoxModern}" Width="110"
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <TextBlock Text="Typ:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource ColorTextLight}"/>
+                    <ComboBox x:Name="cmbTypOdbiorcy" Style="{StaticResource ComboBoxModern}" Width="90"
                               SelectionChanged="CmbFiltr_SelectionChanged">
                         <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
                         <ComboBoxItem Content="Hurtownia"/>
@@ -215,9 +213,9 @@
                 </StackPanel>
 
                 <!-- Status -->
-                <StackPanel Grid.Column="5" Margin="0,0,15,0">
-                    <TextBlock Text="Status" Style="{StaticResource LabelTextStyle}"/>
-                    <ComboBox x:Name="cmbStatus" Style="{StaticResource ComboBoxModern}" Width="90"
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="Status:" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{StaticResource ColorTextLight}"/>
+                    <ComboBox x:Name="cmbStatus" Style="{StaticResource ComboBoxModern}" Width="75"
                               SelectionChanged="CmbFiltr_SelectionChanged">
                         <ComboBoxItem Content="Aktywni" IsSelected="True"/>
                         <ComboBoxItem Content="Nieaktywni"/>
@@ -226,9 +224,9 @@
                 </StackPanel>
 
                 <!-- Przyciski -->
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="+ Nowy" Style="{StaticResource ButtonSuccess}"
-                            Click="BtnNowyOdbiorca_Click" Margin="0,0,8,0"/>
+                            Click="BtnNowyOdbiorca_Click" Margin="0,0,5,0"/>
                     <Button Content="Odśwież" Style="{StaticResource ButtonPrimary}"
                             Click="BtnOdswiez_Click"/>
                 </StackPanel>
@@ -236,15 +234,15 @@
         </Border>
 
         <!-- Główna zawartość -->
-        <Grid Grid.Row="1" Margin="10">
+        <Grid Grid.Row="1" Margin="6">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="260"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Lista odbiorców -->
-            <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="10"
-                    BorderBrush="{StaticResource ColorBorder}" BorderThickness="1" Margin="0,0,10,0">
+            <Border Grid.Column="0" Background="White" CornerRadius="4" Padding="6"
+                    BorderBrush="{StaticResource ColorBorder}" BorderThickness="1" Margin="0,0,6,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -252,7 +250,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Odbiorcy" Style="{StaticResource SubHeaderTextStyle}" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="0" Text="Odbiorcy" Style="{StaticResource SubHeaderTextStyle}" Margin="0,0,0,4"/>
 
                     <DataGrid x:Name="dgOdbiorcy" Grid.Row="1" Style="{StaticResource DataGridModern}"
                               SelectionChanged="DgOdbiorcy_SelectionChanged">
@@ -261,12 +259,12 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="FontWeight" Value="Medium"/>
-                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="Padding" Value="2,0"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Kat" Binding="{Binding KategoriaOdbiorcy}" Width="35">
+                            <DataGridTextColumn Header="K" Binding="{Binding KategoriaOdbiorcy}" Width="22">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -275,10 +273,10 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Miasto" Binding="{Binding Miejscowosc}" Width="90">
+                            <DataGridTextColumn Header="Miasto" Binding="{Binding Miejscowosc}" Width="70">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="Padding" Value="2,0"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
@@ -286,9 +284,9 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Razem: " FontSize="11" Foreground="{StaticResource ColorTextLight}" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="12" FontWeight="Bold"
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Razem: " FontSize="10" Foreground="{StaticResource ColorTextLight}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource ColorPrimary}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
@@ -302,8 +300,8 @@
                 </Grid.RowDefinitions>
 
                 <!-- Karta podsumowania klienta -->
-                <Border x:Name="panelPodsumowanieKlienta" Grid.Row="0" Background="White" CornerRadius="6"
-                        Padding="15,10" Margin="0,0,0,10" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1"
+                <Border x:Name="panelPodsumowanieKlienta" Grid.Row="0" Background="White" CornerRadius="4"
+                        Padding="10,6" Margin="0,0,0,6" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1"
                         Visibility="Collapsed">
                     <Grid x:Name="gridPodsumowanieKlienta">
                         <Grid.ColumnDefinitions>
@@ -316,72 +314,72 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Nazwa i typ -->
-                        <StackPanel Grid.Column="0" Margin="0,0,30,0">
-                            <TextBlock x:Name="txtKlientNazwa" Text="-" FontSize="16" FontWeight="Bold" Foreground="{StaticResource ColorPrimary}"/>
-                            <TextBlock x:Name="txtKlientTyp" Text="-" FontSize="11" Foreground="{StaticResource ColorTextLight}"/>
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <TextBlock x:Name="txtKlientNazwa" Text="-" FontSize="13" FontWeight="Bold" Foreground="{StaticResource ColorPrimary}"/>
+                            <TextBlock x:Name="txtKlientTyp" Text="-" FontSize="10" Foreground="{StaticResource ColorTextLight}"/>
                         </StackPanel>
 
                         <!-- Adres -->
-                        <StackPanel Grid.Column="2" Margin="0,0,25,0">
-                            <TextBlock Text="Adres" FontSize="10" Foreground="{StaticResource ColorTextLight}"/>
-                            <TextBlock x:Name="txtKlientAdres" Text="-" FontSize="12" FontWeight="Medium"/>
+                        <StackPanel Grid.Column="2" Margin="0,0,15,0">
+                            <TextBlock Text="Adres" FontSize="9" Foreground="{StaticResource ColorTextLight}"/>
+                            <TextBlock x:Name="txtKlientAdres" Text="-" FontSize="11" FontWeight="Medium"/>
                         </StackPanel>
 
                         <!-- Telefon -->
-                        <StackPanel Grid.Column="3" Margin="0,0,25,0">
-                            <TextBlock Text="Telefon" FontSize="10" Foreground="{StaticResource ColorTextLight}"/>
-                            <TextBlock x:Name="txtKlientTelefon" Text="-" FontSize="12" FontWeight="Medium"/>
+                        <StackPanel Grid.Column="3" Margin="0,0,15,0">
+                            <TextBlock Text="Tel" FontSize="9" Foreground="{StaticResource ColorTextLight}"/>
+                            <TextBlock x:Name="txtKlientTelefon" Text="-" FontSize="11" FontWeight="Medium"/>
                         </StackPanel>
 
                         <!-- Saldo -->
-                        <StackPanel Grid.Column="4" Margin="0,0,25,0">
-                            <TextBlock Text="Saldo" FontSize="10" Foreground="{StaticResource ColorTextLight}"/>
-                            <TextBlock x:Name="txtKlientSaldo" Text="-" FontSize="12" FontWeight="Bold"/>
+                        <StackPanel Grid.Column="4" Margin="0,0,15,0">
+                            <TextBlock Text="Saldo" FontSize="9" Foreground="{StaticResource ColorTextLight}"/>
+                            <TextBlock x:Name="txtKlientSaldo" Text="-" FontSize="11" FontWeight="Bold"/>
                         </StackPanel>
 
                         <!-- Ostatnie zamówienie -->
                         <StackPanel Grid.Column="5">
-                            <TextBlock Text="Ostatnie zam." FontSize="10" Foreground="{StaticResource ColorTextLight}"/>
-                            <TextBlock x:Name="txtKlientOstatnieZam" Text="-" FontSize="12" FontWeight="Medium"/>
+                            <TextBlock Text="Ost. zam." FontSize="9" Foreground="{StaticResource ColorTextLight}"/>
+                            <TextBlock x:Name="txtKlientOstatnieZam" Text="-" FontSize="11" FontWeight="Medium"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- Zakładki -->
-                <Border Grid.Row="1" Background="White" CornerRadius="6"
+                <Border Grid.Row="1" Background="White" CornerRadius="4"
                         BorderBrush="{StaticResource ColorBorder}" BorderThickness="1">
                     <TabControl x:Name="tabControl" SelectionChanged="TabControl_SelectionChanged" Padding="0">
                         <TabItem Header="Dane">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridDanePodstawowe"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
 
                         <TabItem Header="Kontakty">
-                            <Grid Margin="15">
+                            <Grid Margin="8">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
                                     <Button Content="+ Dodaj" Style="{StaticResource ButtonSuccess}"
-                                            Click="BtnDodajKontakt_Click" Margin="0,0,8,0"/>
+                                            Click="BtnDodajKontakt_Click" Margin="0,0,5,0"/>
                                     <Button Content="Edytuj" Style="{StaticResource ButtonPrimary}"
-                                            x:Name="btnEdytujKontakt" Click="BtnEdytujKontakt_Click" Margin="0,0,8,0"/>
+                                            x:Name="btnEdytujKontakt" Click="BtnEdytujKontakt_Click" Margin="0,0,5,0"/>
                                     <Button Content="Usuń" Style="{StaticResource ButtonDanger}"
                                             x:Name="btnUsunKontakt" Click="BtnUsunKontakt_Click"/>
                                 </StackPanel>
 
                                 <DataGrid x:Name="dgKontakty" Grid.Row="1" Style="{StaticResource DataGridModern}">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Typ" Binding="{Binding TypKontaktu}" Width="100"/>
+                                        <DataGridTextColumn Header="Typ" Binding="{Binding TypKontaktu}" Width="80"/>
                                         <DataGridTextColumn Header="Imię i Nazwisko" Binding="{Binding ImieNazwisko}" Width="*"/>
-                                        <DataGridTextColumn Header="Stanowisko" Binding="{Binding Stanowisko}" Width="120"/>
-                                        <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="110"/>
-                                        <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="180"/>
+                                        <DataGridTextColumn Header="Stanowisko" Binding="{Binding Stanowisko}" Width="100"/>
+                                        <DataGridTextColumn Header="Tel" Binding="{Binding Telefon}" Width="95"/>
+                                        <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="150"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>
@@ -389,7 +387,7 @@
 
                         <TabItem Header="Finanse">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridDaneFinansowe"/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -397,27 +395,27 @@
 
                         <TabItem Header="Transport">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridTransport"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
 
                         <TabItem Header="Notatki">
-                            <Grid Margin="15">
+                            <Grid Margin="8">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Button Grid.Row="0" Content="+ Dodaj notatkę" Style="{StaticResource ButtonSuccess}"
-                                        HorizontalAlignment="Left" Margin="0,0,0,10" Click="BtnDodajNotatke_Click"/>
+                                <Button Grid.Row="0" Content="+ Notatka" Style="{StaticResource ButtonSuccess}"
+                                        HorizontalAlignment="Left" Margin="0,0,0,6" Click="BtnDodajNotatke_Click"/>
 
                                 <DataGrid x:Name="dgNotatki" Grid.Row="1" Style="{StaticResource DataGridModern}">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM.yy HH:mm}" Width="100"/>
+                                        <DataGridTextColumn Header="Data" Binding="{Binding DataUtworzenia, StringFormat=dd.MM.yy HH:mm}" Width="90"/>
                                         <DataGridTextColumn Header="Treść" Binding="{Binding Tresc}" Width="*"/>
-                                        <DataGridTextColumn Header="Autor" Binding="{Binding KtoStworzyl}" Width="60"/>
+                                        <DataGridTextColumn Header="Autor" Binding="{Binding KtoStworzyl}" Width="50"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>
@@ -425,7 +423,7 @@
 
                         <TabItem Header="Lokalizacja">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridLokalizacja"/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -433,7 +431,7 @@
 
                         <TabItem Header="Statystyki">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridStatystyki"/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -441,7 +439,7 @@
 
                         <TabItem Header="Koszty">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridAnalizaKosztow"/>
                                 </StackPanel>
                             </ScrollViewer>
@@ -449,7 +447,7 @@
 
                         <TabItem Header="Rentowność">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Margin="15">
+                                <StackPanel Margin="8">
                                     <Grid x:Name="gridRentownosc"/>
                                 </StackPanel>
                             </ScrollViewer>
