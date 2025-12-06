@@ -2981,31 +2981,6 @@ ORDER BY zm.Id";
             return _salesmanColors[salesman];
         }
 
-        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.Item is DataRowView rowView)
-            {
-                var salesman = rowView.Row.Field<string>("Handlowiec") ?? "";
-                var statusTrans = rowView.Row.Field<string>("StatusTransportu") ?? "";
-
-                // Kolorowanie według statusu transportu
-                if (statusTrans == "Wydany")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 255, 200)); // Jasny zielony
-                }
-                else if (statusTrans == "W drodze")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 255, 200)); // Jasny żółty
-                }
-                else if (!string.IsNullOrEmpty(salesman))
-                {
-                    // Kolorowanie według handlowca (tak samo jak w zakładce Zamówienia)
-                    var color = GetColorForSalesman(salesman);
-                    e.Row.Background = new SolidColorBrush(color);
-                }
-            }
-        }
-
         private void SetupHistoriaZmianDataGrid()
         {
             dgHistoriaZmian.ItemsSource = _dtHistoriaZmian.DefaultView;
