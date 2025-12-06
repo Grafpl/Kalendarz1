@@ -246,10 +246,10 @@ namespace Kalendarz1.CRM
                     // Statystyki - dziś na podstawie DataNastepnegoKontaktu
                     var cmd = new SqlCommand(@"
                         SELECT
-                            -- Dziś do zadzwonienia (na podstawie daty kontaktu)
+                            -- Dziś do zadzwonienia (tylko dziś)
                             ISNULL(SUM(CASE
                                 WHEN DataNastepnegoKontaktu IS NOT NULL
-                                    AND CAST(DataNastepnegoKontaktu AS DATE) <= CAST(GETDATE() AS DATE)
+                                    AND CAST(DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE)
                                 THEN 1 ELSE 0 END), 0) as DzisDoZadzwonienia,
                             -- Zaległe (przeterminowane)
                             ISNULL(SUM(CASE
@@ -259,9 +259,18 @@ namespace Kalendarz1.CRM
                             -- Próby kontaktu
                             ISNULL(SUM(CASE WHEN Status = 'Próba kontaktu' THEN 1 ELSE 0 END), 0) as ProbaKontaktu,
                             -- Nawiązane kontakty
-                            ISNULL(SUM(CASE WHEN Status = 'Nawiązano kontakt' OR Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as Nawiazane,
+                            ISNULL(SUM(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 ELSE 0 END), 0) as Nawiazane,
+                            -- Zgoda na dalszy kontakt
+                            ISNULL(SUM(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as Zgoda,
                             -- Do wysłania oferty
                             ISNULL(SUM(CASE WHEN Status = 'Do wysłania oferta' THEN 1 ELSE 0 END), 0) as DoOferty,
+                            -- Priorytetowe branże (mięso)
+                            ISNULL(SUM(CASE WHEN PKD_Opis IN (
+                                'Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach',
+                                'Przetwarzanie i konserwowanie mięsa z drobiu',
+                                'Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego',
+                                'Ubój zwierząt, z wyłączeniem drobiu i królików'
+                            ) THEN 1 ELSE 0 END), 0) as Priorytetowe,
                             -- Razem aktywnych
                             COUNT(*) as Razem
                         FROM OdbiorcyCRM o
@@ -275,18 +284,13 @@ namespace Kalendarz1.CRM
                     {
                         if (reader.Read())
                         {
-                            int dzis = Convert.ToInt32(reader["DzisDoZadzwonienia"]);
-                            int zalegle = Convert.ToInt32(reader["Zalegle"]);
-
-                            // Pokazuj zaległe w czerwonym jeśli są
-                            if (zalegle > 0)
-                                txtKpiDzisiaj.Text = $"{dzis} ({zalegle} zaległych)";
-                            else
-                                txtKpiDzisiaj.Text = dzis.ToString();
-
+                            txtKpiDzisiaj.Text = reader["DzisDoZadzwonienia"].ToString();
+                            txtKpiZalegle.Text = reader["Zalegle"].ToString();
                             txtKpiProby.Text = reader["ProbaKontaktu"].ToString();
                             txtKpiNawiazane.Text = reader["Nawiazane"].ToString();
+                            txtKpiZgoda.Text = reader["Zgoda"].ToString();
                             txtKpiOferty.Text = reader["DoOferty"].ToString();
+                            txtKpiPriorytet.Text = reader["Priorytetowe"].ToString();
                             txtKpiRazem.Text = reader["Razem"].ToString();
                         }
                     }
