@@ -308,13 +308,19 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="📁 Wczytaj" Style="{StaticResource SecondaryButtonStyle}"
                                     Click="BtnWczytajSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="0,0,4,0"
                                     ToolTip="Wczytaj zapisany szablon odbiorców"/>
                             <Button Grid.Column="1" Content="💾 Zapisz" Style="{StaticResource SecondaryButtonStyle}"
-                                    Click="BtnZapiszSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="4,0,0,0"
-                                    ToolTip="Zapisz aktualnych odbiorców jako szablon"/>
+                                    Click="BtnZapiszSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="4,0,4,0"
+                                    ToolTip="Zapisz aktualnych odbiorców jako nowy szablon"/>
+                            <Button x:Name="btnNadpiszSzablon" Grid.Column="2" Content="🔄 Nadpisz"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnNadpiszSzablon_Click" Padding="8,6" FontSize="11" Margin="0,0,0,0"
+                                    ToolTip="Nadpisz wczytany szablon aktualnymi odbiorcami"
+                                    Visibility="Collapsed"/>
                         </Grid>
                         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="panelWybraniOdbiorcy">

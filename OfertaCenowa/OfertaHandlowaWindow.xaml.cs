@@ -239,6 +239,7 @@ namespace Kalendarz1.OfertaCenowa
 
         private int _aktualnyKrok = 1;
         private readonly SzablonyManager _szablonyManager = new();
+        private SzablonOdbiorcow? _ostatnioWczytanySzablon = null;
         private readonly OfertaRepository _ofertaRepository = new();
         private string _nazwaOperatora = "";
         private string _emailOperatora = "";
@@ -883,6 +884,10 @@ namespace Kalendarz1.OfertaCenowa
 
             if (okno.ShowDialog() == true && okno.WybranySzablon != null)
             {
+                // Zapamiętaj wczytany szablon
+                _ostatnioWczytanySzablon = okno.WybranySzablon;
+                btnNadpiszSzablon.Visibility = Visibility.Visible;
+
                 // Wyczyść aktualnych odbiorców
                 WybraniOdbiorcy.Clear();
 
@@ -954,6 +959,52 @@ namespace Kalendarz1.OfertaCenowa
 
                 MessageBox.Show($"Zapisano szablon \"{szablon.Nazwa}\"\nLiczba odbiorców: {szablon.LiczbaOdbiorcow}",
                     "Szablon zapisany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnNadpiszSzablon_Click(object sender, RoutedEventArgs e)
+        {
+            if (_ostatnioWczytanySzablon == null)
+            {
+                MessageBox.Show("Najpierw wczytaj szablon.", "Brak szablonu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (WybraniOdbiorcy.Count == 0)
+            {
+                MessageBox.Show("Lista odbiorców jest pusta.", "Brak odbiorców", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz nadpisać szablon \"{_ostatnioWczytanySzablon.Nazwa}\"?\n\nAktualna liczba odbiorców: {WybraniOdbiorcy.Count}",
+                "Potwierdź nadpisanie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Aktualizuj odbiorców w szablonie
+                _ostatnioWczytanySzablon.Odbiorcy = WybraniOdbiorcy.Select(o => new OdbiorcaSzablonu
+                {
+                    Id = o.Id,
+                    Nazwa = o.Nazwa,
+                    NIP = o.NIP,
+                    Adres = o.Adres,
+                    KodPocztowy = o.KodPocztowy,
+                    Miejscowosc = o.Miejscowosc,
+                    Telefon = o.Telefon,
+                    Email = o.Email,
+                    OsobaKontaktowa = o.OsobaKontaktowa,
+                    Zrodlo = o.Zrodlo
+                }).ToList();
+
+                _ostatnioWczytanySzablon.Opis = $"{WybraniOdbiorcy.Count} odbiorców";
+
+                _szablonyManager.AktualizujSzablonOdbiorcow(_userId, _ostatnioWczytanySzablon);
+
+                MessageBox.Show($"Szablon \"{_ostatnioWczytanySzablon.Nazwa}\" został nadpisany.\nLiczba odbiorców: {WybraniOdbiorcy.Count}",
+                    "Szablon zaktualizowany", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
