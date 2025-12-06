@@ -655,13 +655,24 @@
                         </Grid.RowDefinitions>
 
                         <Grid Grid.Row="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Szczegóły zamówienia:"
-                                       Style="{StaticResource SectionHeaderStyle}"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Szczegóły zamówienia"
+                                           Style="{StaticResource SectionHeaderStyle}"/>
+                                <TextBlock x:Name="txtOrderInfo" Text=""
+                                           FontSize="11" Foreground="#666"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
                                 <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
                                 <ComboBox x:Name="cbWalutaPanel" Width="60" Height="22" FontSize="11"
                                           SelectionChanged="CbWalutaPanel_SelectionChanged">
@@ -669,6 +680,10 @@
                                     <ComboBoxItem Content="EUR"/>
                                 </ComboBox>
                             </StackPanel>
+
+                            <TextBlock x:Name="txtOrderClient" Grid.Row="1" Grid.ColumnSpan="2"
+                                       Text="" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#2C3E50" Margin="0,2,0,0"/>
                         </Grid>
 
                         <DataGrid x:Name="dgDetails" Grid.Row="1"

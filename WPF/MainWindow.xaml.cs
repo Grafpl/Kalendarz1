@@ -3380,6 +3380,8 @@ ORDER BY zm.Id";
             {
                 dgDetails.ItemsSource = null;
                 txtNotes.Clear();
+                if (txtOrderInfo != null) txtOrderInfo.Text = "";
+                if (txtOrderClient != null) txtOrderClient.Text = "";
 
                 int clientId = 0;
                 string notes = "";
@@ -3527,6 +3529,31 @@ ORDER BY zm.Id";
 
                 txtNotes.Text = notes;
 
+                // Wyświetl informacje o zamówieniu
+                string clientName = "";
+                if (clientId > 0)
+                {
+                    await using var cnHandel = new SqlConnection(_connHandel);
+                    await cnHandel.OpenAsync();
+                    using var cmdClient = new SqlCommand("SELECT Shortcut FROM [HANDEL].[SSCommon].[STContractors] WHERE Id = @Id", cnHandel);
+                    cmdClient.Parameters.AddWithValue("@Id", clientId);
+                    var result = await cmdClient.ExecuteScalarAsync();
+                    clientName = result?.ToString() ?? "";
+                }
+
+                // Oblicz sumy
+                decimal sumaZam = orderItems.Sum(x => x.Quantity);
+                int iloscPozycji = orderItems.Count;
+
+                if (txtOrderInfo != null)
+                {
+                    txtOrderInfo.Text = $"(ID: {orderId} | Pozycji: {iloscPozycji} | Suma: {sumaZam:#,##0} kg)";
+                }
+                if (txtOrderClient != null)
+                {
+                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? $"👤 {clientName}" : "";
+                }
+
                 // Ustaw walutę w panelu
                 if (cbWalutaPanel != null)
                 {
@@ -3583,17 +3610,18 @@ ORDER BY zm.Id";
                 IsReadOnly = true
             });
 
-            // Edytowalna kolumna ilości
+            // Edytowalna kolumna ilości - z separatorem tysięcy
             var zamowioneBinding = new System.Windows.Data.Binding("Zamówiono")
             {
                 Mode = System.Windows.Data.BindingMode.TwoWay,
-                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
+                StringFormat = "#,##0"
             };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zam.",
                 Binding = zamowioneBinding,
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
                 IsReadOnly = false
             });
@@ -3601,8 +3629,8 @@ ORDER BY zm.Id";
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wyd.",
-                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "N0" },
-                Width = new DataGridLength(50),
+                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "#,##0" },
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
                 IsReadOnly = true
             });
@@ -3610,8 +3638,8 @@ ORDER BY zm.Id";
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Róż.",
-                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "N0" },
-                Width = new DataGridLength(50),
+                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "#,##0" },
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
                 IsReadOnly = true
             });
