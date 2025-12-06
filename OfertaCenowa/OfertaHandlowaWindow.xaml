@@ -320,7 +320,7 @@
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Click="BtnNadpiszSzablon_Click" Padding="8,6" FontSize="11" Margin="0,0,0,0"
                                     ToolTip="Nadpisz wczytany szablon aktualnymi odbiorcami"
-                                    Visibility="Collapsed"/>
+                                    IsEnabled="False"/>
                         </Grid>
                         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="panelWybraniOdbiorcy">

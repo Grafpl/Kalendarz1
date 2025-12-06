@@ -841,8 +841,24 @@ namespace Kalendarz1.OfertaCenowa
 
             stackDane.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
 
+            // Panel kontaktowy (telefon i email)
+            var kontaktPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
+
             if (!string.IsNullOrEmpty(odbiorca.Telefon))
-                stackDane.Children.Add(new TextBlock { Text = $"📞 {odbiorca.Telefon}", FontSize = 10, Foreground = (SolidColorBrush)FindResource("PrimaryGreenBrush"), Margin = new Thickness(0, 3, 0, 0) });
+                kontaktPanel.Children.Add(new TextBlock { Text = $"📞 {odbiorca.Telefon}", FontSize = 10, Foreground = (SolidColorBrush)FindResource("PrimaryGreenBrush"), Margin = new Thickness(0, 0, 10, 0) });
+
+            // Wskaźnik emaila
+            if (!string.IsNullOrEmpty(odbiorca.Email))
+            {
+                kontaktPanel.Children.Add(new TextBlock { Text = $"✉️ {odbiorca.Email}", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(59, 130, 246)) });
+            }
+            else
+            {
+                kontaktPanel.Children.Add(new TextBlock { Text = "⚠️ Brak emaila", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)) });
+            }
+
+            if (kontaktPanel.Children.Count > 0)
+                stackDane.Children.Add(kontaktPanel);
 
             Grid.SetColumn(stackDane, 0);
             grid.Children.Add(stackDane);
@@ -886,7 +902,7 @@ namespace Kalendarz1.OfertaCenowa
             {
                 // Zapamiętaj wczytany szablon
                 _ostatnioWczytanySzablon = okno.WybranySzablon;
-                btnNadpiszSzablon.Visibility = Visibility.Visible;
+                btnNadpiszSzablon.IsEnabled = true;
 
                 // Wyczyść aktualnych odbiorców
                 WybraniOdbiorcy.Clear();
