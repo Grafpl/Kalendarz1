@@ -77,8 +77,6 @@ namespace Kalendarz1.Reklamacje
                 Location = new Point(20, 15)
             };
             panelHeader.Controls.Add(lblHeader);
-            this.Controls.Add(redStripe);
-            this.Controls.Add(panelHeader);
 
             // Główny panel z zakładkami
             tabControl = new TabControl
@@ -402,8 +400,12 @@ namespace Kalendarz1.Reklamacje
             panelButtons.Controls.Add(btnEmail);
             panelButtons.Controls.Add(btnZamknij);
 
-            Controls.Add(tabControl);
-            Controls.Add(panelButtons);
+            // WAŻNE: Kolejność dodawania kontrolek z Dock jest kluczowa!
+            // Najpierw Bottom, potem Top, na końcu Fill
+            Controls.Add(panelButtons);    // Bottom - pierwszy
+            Controls.Add(panelHeader);     // Top - drugi
+            Controls.Add(redStripe);       // Top - trzeci (nad header)
+            Controls.Add(tabControl);      // Fill - ostatni (wypełnia resztę)
         }
 
         private void WczytajSzczegoly()
