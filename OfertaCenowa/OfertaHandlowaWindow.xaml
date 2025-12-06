@@ -137,15 +137,17 @@
                     <GradientStop Color="#5A9447" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <Grid Height="50">
-                <StackPanel Orientation="Horizontal" Margin="20,0" VerticalAlignment="Center">
-                    <TextBlock Text="📋 Oferta Handlowa" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,15,0" VerticalAlignment="Center"/>
-                    <Border Background="#3A6D2E" CornerRadius="5" Padding="12,6" VerticalAlignment="Center">
-                        <TextBlock FontSize="12" Foreground="White">
-                            <Run Text="👤 "/>
-                            <Run x:Name="txtWystawiajacy" Text="..." FontWeight="SemiBold"/>
-                        </TextBlock>
-                    </Border>
+            <Grid Height="60">
+                <StackPanel Orientation="Horizontal" Margin="15,0" VerticalAlignment="Center">
+                    <!-- Logo firmy -->
+                    <Image x:Name="imgLogoHeader" Height="45" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Kreator Ofert Handlowych" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="👤 " FontSize="11" Foreground="White" Opacity="0.9"/>
+                            <TextBlock x:Name="txtWystawiajacy" Text="..." FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="—" Click="MinimizeButton_Click" Style="{StaticResource WindowButtonStyle}"/>

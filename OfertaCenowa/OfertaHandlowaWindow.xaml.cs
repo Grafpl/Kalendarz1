@@ -8,12 +8,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 
@@ -273,6 +275,9 @@ namespace Kalendarz1.OfertaCenowa
 
             TowaryWOfercie.CollectionChanged += TowaryWOfercie_CollectionChanged;
 
+            // Wczytaj logo do nagłówka
+            WczytajLogoDoNaglowka();
+
             LoadDataAsync();
             _szablonyManager.UtworzSzablonyPrzykladowe();
 
@@ -300,6 +305,84 @@ namespace Kalendarz1.OfertaCenowa
 
             DodajNowyPustyWiersz();
             AktualizujWidokKroku();
+        }
+
+        // =====================================================
+        // LOGO W NAGŁÓWKU
+        // =====================================================
+
+        private void WczytajLogoDoNaglowka()
+        {
+            try
+            {
+                // Próbuj wczytać logo z embedded resources
+                var assemblies = new[]
+                {
+                    Assembly.GetExecutingAssembly(),
+                    Assembly.GetEntryAssembly(),
+                    Assembly.GetCallingAssembly()
+                }.Where(a => a != null).Distinct().ToList();
+
+                foreach (var assembly in assemblies)
+                {
+                    if (assembly == null) continue;
+
+                    var allResources = assembly.GetManifestResourceNames();
+
+                    // Szukaj białego logo (logo2white) - idealne na zielone tło
+                    string? resourceName = allResources
+                        .FirstOrDefault(name => name.ToLower().Contains("logo2white") || name.ToLower().Contains("logo-2-white"));
+
+                    if (resourceName != null)
+                    {
+                        using var stream = assembly.GetManifestResourceStream(resourceName);
+                        if (stream != null)
+                        {
+                            var bitmap = new BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.StreamSource = stream;
+                            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                            bitmap.EndInit();
+                            bitmap.Freeze();
+
+                            imgLogoHeader.Source = bitmap;
+                            return;
+                        }
+                    }
+                }
+
+                // Fallback: spróbuj wczytać z folderu aplikacji
+                var exeAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+                string appFolder = Path.GetDirectoryName(exeAssembly.Location) ?? AppDomain.CurrentDomain.BaseDirectory;
+
+                var possiblePaths = new[]
+                {
+                    Path.Combine(appFolder, "logo2white.png"),
+                    Path.Combine(appFolder, "logo-2-white.png"),
+                    Path.Combine(appFolder, "logo-2-green.png"),
+                    Path.Combine(appFolder, "Logo.png")
+                };
+
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(logoPath);
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+
+                        imgLogoHeader.Source = bitmap;
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd wczytywania logo do nagłówka: {ex.Message}");
+            }
         }
 
         // =====================================================
