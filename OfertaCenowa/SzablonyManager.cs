@@ -139,6 +139,81 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         // =====================================================
+        // SZABLONY ODBIORCÓW (per handlowiec)
+        // =====================================================
+
+        private string GetPlikSzablonowOdbiorcow(string operatorId)
+        {
+            if (string.IsNullOrEmpty(operatorId))
+                operatorId = "default";
+            return Path.Combine(_folderSzablonow, $"szablony_odbiorcow_{operatorId}.json");
+        }
+
+        public List<SzablonOdbiorcow> WczytajSzablonyOdbiorcow(string operatorId)
+        {
+            try
+            {
+                string plik = GetPlikSzablonowOdbiorcow(operatorId);
+                if (File.Exists(plik))
+                {
+                    string json = File.ReadAllText(plik);
+                    var szablony = JsonSerializer.Deserialize<List<SzablonOdbiorcow>>(json);
+                    return szablony ?? new List<SzablonOdbiorcow>();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd wczytywania szablonów odbiorców: {ex.Message}");
+            }
+
+            return new List<SzablonOdbiorcow>();
+        }
+
+        public void ZapiszSzablonyOdbiorcow(string operatorId, List<SzablonOdbiorcow> szablony)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(szablony, options);
+                File.WriteAllText(GetPlikSzablonowOdbiorcow(operatorId), json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd zapisywania szablonów odbiorców: {ex.Message}");
+            }
+        }
+
+        public void DodajSzablonOdbiorcow(string operatorId, SzablonOdbiorcow szablon)
+        {
+            var szablony = WczytajSzablonyOdbiorcow(operatorId);
+            szablon.Id = szablony.Count > 0 ? szablony.Max(s => s.Id) + 1 : 1;
+            szablon.OperatorId = operatorId;
+            szablon.DataUtworzenia = DateTime.Now;
+            szablon.DataModyfikacji = DateTime.Now;
+            szablony.Add(szablon);
+            ZapiszSzablonyOdbiorcow(operatorId, szablony);
+        }
+
+        public void AktualizujSzablonOdbiorcow(string operatorId, SzablonOdbiorcow szablon)
+        {
+            var szablony = WczytajSzablonyOdbiorcow(operatorId);
+            var index = szablony.FindIndex(s => s.Id == szablon.Id);
+            if (index >= 0)
+            {
+                szablon.DataModyfikacji = DateTime.Now;
+                szablony[index] = szablon;
+                ZapiszSzablonyOdbiorcow(operatorId, szablony);
+            }
+        }
+
+        public void UsunSzablonOdbiorcow(string operatorId, int szablonId)
+        {
+            var szablony = WczytajSzablonyOdbiorcow(operatorId);
+            szablony.RemoveAll(s => s.Id == szablonId);
+            ZapiszSzablonyOdbiorcow(operatorId, szablony);
+        }
+
+        // =====================================================
         // PRZYKŁADOWE SZABLONY
         // =====================================================
 

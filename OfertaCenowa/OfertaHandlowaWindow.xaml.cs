@@ -873,6 +873,91 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         // =====================================================
+        // SZABLONY ODBIORCÓW
+        // =====================================================
+
+        private void BtnWczytajSzablonOdbiorcow_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new SzablonOdbiorcowWindow(_userId);
+            okno.Owner = this;
+
+            if (okno.ShowDialog() == true && okno.WybranySzablon != null)
+            {
+                // Wyczyść aktualnych odbiorców
+                WybraniOdbiorcy.Clear();
+
+                // Wczytaj odbiorców z szablonu
+                foreach (var odbiorcaSzablonu in okno.WybranySzablon.Odbiorcy)
+                {
+                    var odbiorca = new OdbiorcaOferta
+                    {
+                        Id = odbiorcaSzablonu.Id,
+                        Nazwa = odbiorcaSzablonu.Nazwa,
+                        NIP = odbiorcaSzablonu.NIP,
+                        Adres = odbiorcaSzablonu.Adres,
+                        KodPocztowy = odbiorcaSzablonu.KodPocztowy,
+                        Miejscowosc = odbiorcaSzablonu.Miejscowosc,
+                        Telefon = odbiorcaSzablonu.Telefon,
+                        Email = odbiorcaSzablonu.Email,
+                        OsobaKontaktowa = odbiorcaSzablonu.OsobaKontaktowa,
+                        Zrodlo = odbiorcaSzablonu.Zrodlo
+                    };
+                    WybraniOdbiorcy.Add(odbiorca);
+                }
+
+                OdswiezListeWybranychOdbiorcow();
+
+                // Odznacz checkbox "Bez odbiorcy" jeśli był zaznaczony
+                if (chkBezOdbiorcy.IsChecked == true)
+                    chkBezOdbiorcy.IsChecked = false;
+
+                MessageBox.Show($"Wczytano szablon \"{okno.WybranySzablon.Nazwa}\"\nLiczba odbiorców: {okno.WybranySzablon.LiczbaOdbiorcow}",
+                    "Szablon wczytany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnZapiszSzablonOdbiorcow_Click(object sender, RoutedEventArgs e)
+        {
+            if (WybraniOdbiorcy.Count == 0)
+            {
+                MessageBox.Show("Najpierw dodaj odbiorców do listy.", "Brak odbiorców", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Dialog do wprowadzenia nazwy szablonu
+            var inputDialog = new InputDialog("Zapisz szablon odbiorców", "Nazwa szablonu:", $"Szablon {DateTime.Now:dd.MM.yyyy}");
+            inputDialog.Owner = this;
+
+            if (inputDialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(inputDialog.InputText))
+            {
+                var szablon = new SzablonOdbiorcow
+                {
+                    Nazwa = inputDialog.InputText,
+                    Opis = $"{WybraniOdbiorcy.Count} odbiorców",
+                    OperatorId = _userId,
+                    Odbiorcy = WybraniOdbiorcy.Select(o => new OdbiorcaSzablonu
+                    {
+                        Id = o.Id,
+                        Nazwa = o.Nazwa,
+                        NIP = o.NIP,
+                        Adres = o.Adres,
+                        KodPocztowy = o.KodPocztowy,
+                        Miejscowosc = o.Miejscowosc,
+                        Telefon = o.Telefon,
+                        Email = o.Email,
+                        OsobaKontaktowa = o.OsobaKontaktowa,
+                        Zrodlo = o.Zrodlo
+                    }).ToList()
+                };
+
+                _szablonyManager.DodajSzablonOdbiorcow(_userId, szablon);
+
+                MessageBox.Show($"Zapisano szablon \"{szablon.Nazwa}\"\nLiczba odbiorców: {szablon.LiczbaOdbiorcow}",
+                    "Szablon zapisany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // =====================================================
         // ZARZĄDZANIE PRODUKTAMI
         // =====================================================
 

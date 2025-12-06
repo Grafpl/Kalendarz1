@@ -175,6 +175,39 @@ namespace Kalendarz1.OfertaCenowa
     }
 
     /// <summary>
+    /// Szablon zestawu odbiorców - dla szybkiego wyboru grupy odbiorców
+    /// </summary>
+    public class SzablonOdbiorcow
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; } = "";
+        public string Opis { get; set; } = "";
+        public string OperatorId { get; set; } = ""; // ID handlowca - każdy ma swoje szablony
+        public DateTime DataUtworzenia { get; set; } = DateTime.Now;
+        public DateTime DataModyfikacji { get; set; } = DateTime.Now;
+        public List<OdbiorcaSzablonu> Odbiorcy { get; set; } = new List<OdbiorcaSzablonu>();
+        public int LiczbaOdbiorcow => Odbiorcy?.Count ?? 0;
+        public override string ToString() => $"{Nazwa} ({LiczbaOdbiorcow} odb.)";
+    }
+
+    /// <summary>
+    /// Odbiorca w szablonie
+    /// </summary>
+    public class OdbiorcaSzablonu
+    {
+        public string Id { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public string NIP { get; set; } = "";
+        public string Adres { get; set; } = "";
+        public string KodPocztowy { get; set; } = "";
+        public string Miejscowosc { get; set; } = "";
+        public string Telefon { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string OsobaKontaktowa { get; set; } = "";
+        public string Zrodlo { get; set; } = "HANDEL"; // HANDEL, CRM, RECZNY
+    }
+
+    /// <summary>
     /// Tłumaczenie produktu na angielski
     /// </summary>
     public class TlumaczenieProduktu : INotifyPropertyChanged

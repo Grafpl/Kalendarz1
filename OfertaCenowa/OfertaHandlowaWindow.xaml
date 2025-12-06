@@ -289,18 +289,34 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="✅ WYBRANI (" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
-                                <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
-                                <TextBlock Text=")" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,5">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="✅ WYBRANI (" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                    <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                    <TextBlock Text=")" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtTrybOdbiorcow" Text="Brak" FontSize="11" Foreground="{StaticResource LightTextBrush}"/>
                             </StackPanel>
-                            <TextBlock x:Name="txtTrybOdbiorcow" Text="Brak" FontSize="11" Foreground="{StaticResource LightTextBrush}"/>
-                        </StackPanel>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        </Grid>
+                        <!-- Przyciski szablonów odbiorców -->
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="📁 Wczytaj" Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnWczytajSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="0,0,4,0"
+                                    ToolTip="Wczytaj zapisany szablon odbiorców"/>
+                            <Button Grid.Column="1" Content="💾 Zapisz" Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnZapiszSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="4,0,0,0"
+                                    ToolTip="Zapisz aktualnych odbiorców jako szablon"/>
+                        </Grid>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="panelWybraniOdbiorcy">
                                 <StackPanel x:Name="placeholderBrakWybranych" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,30,0,0">
                                     <TextBlock Text="👤" FontSize="40" HorizontalAlignment="Center" Opacity="0.3"/>
@@ -308,7 +324,7 @@
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
-                        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
                             <CheckBox x:Name="chkBezOdbiorcy"
                                       Content="📋 Bez odbiorcy (oferta ogólna)"
                                       FontSize="12"
