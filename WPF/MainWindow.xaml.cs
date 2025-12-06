@@ -2693,8 +2693,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(0.6, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                Width = new DataGridLength(180)
             });
 
             // 2. Handlowiec
@@ -2722,61 +2721,44 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(55)
             });
 
-            // 5. Palety
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Pal.",
-                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(40)
-            });
-
-            // 6. Kierowca
+            // 5. Kierowca
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kierowca",
                 Binding = new System.Windows.Data.Binding("Kierowca"),
-                Width = new DataGridLength(120)
+                Width = new DataGridLength(150)
             });
 
-            // 7. Pojazd
+            // 6. Pojazd
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Pojazd",
                 Binding = new System.Windows.Data.Binding("Pojazd"),
-                Width = new DataGridLength(75)
+                Width = new DataGridLength(85)
             });
 
-            // 8. Godzina wyjazdu
+            // 7. Godzina wyjazdu
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Godz",
                 Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
-                Width = new DataGridLength(45)
+                Width = new DataGridLength(50)
             });
 
-            // 9. Trasa
+            // 8. Trasa
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Trasa",
                 Binding = new System.Windows.Data.Binding("Trasa"),
-                Width = new DataGridLength(80)
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
 
-            // 10. Status
+            // 9. Status
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Status",
                 Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(70)
-            });
-
-            // 11. Uwagi
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Uwagi",
-                Binding = new System.Windows.Data.Binding("Uwagi"),
-                Width = new DataGridLength(0.4, DataGridLengthUnitType.Star),
-                MinWidth = 80
+                Width = new DataGridLength(80)
             });
         }
 
