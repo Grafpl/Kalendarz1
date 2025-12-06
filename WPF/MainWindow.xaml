@@ -636,11 +636,11 @@
                 </TabControl>
             </Grid>
 
-            <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,10,10,10">
+            <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,55,10,10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="35*"/>
+                    <RowDefinition Height="30*"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="65*"/>
+                    <RowDefinition Height="70*"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Style="{StaticResource PanelBorderStyle}">
