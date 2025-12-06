@@ -4499,16 +4499,112 @@ ORDER BY zm.Id";
                 .Count();
 
             decimal realizacja = totalZamowienia > 0 ? (totalWydania / totalZamowienia) * 100m : 0m;
+            decimal roznica = totalZamowienia - totalWydania;
 
-            txtKpiZamowienia.Text = $"{totalZamowienia:N0} kg";
-            txtKpiZamowieniaKlienci.Text = $"({klientowCount} klientów)";
+            // KPI 1: Plan produkcji
+            txtKpiPlan.Text = $"{totalPlan:N0} kg";
+            txtKpiSurowiec.Text = $"{totalMassDek:N0} kg";
+            txtKpiWydajnosc.Text = $"{wspolczynnikTuszki:N0}%";
+
+            // KPI 2: Faktyczna produkcja
             txtKpiWydania.Text = $"{totalWydania:N0} kg";
-            txtKpiWydaniaKlienci.Text = $"({wydanychCount} wydanych)";
-            txtKpiRoznica.Text = $"{totalZamowienia - totalWydania:N0} kg";
+            decimal wydaniaVsPlan = totalPlan > 0 ? (totalWydania / totalPlan) * 100m : 0m;
+            txtKpiWydaniaVsPlan.Text = $"{wydaniaVsPlan:N1}%";
+            txtKpiWydaniaVsPlan.Foreground = wydaniaVsPlan >= 100 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+            txtKpiWydaniaKlienci.Text = $"{wydanychCount}";
+
+            // KPI 3: Zamówienia
+            txtKpiZamowienia.Text = $"{totalZamowienia:N0} kg";
+            txtKpiZamowieniaKlienci.Text = $"{klientowCount}";
+            txtKpiRoznica.Text = $"{roznica:N0} kg";
+            txtKpiRoznica.Foreground = roznica <= 0 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+
+            // KPI 4: Realizacja
             txtKpiRealizacja.Text = $"{realizacja:N1}%";
-            txtKpiRealizacjaInfo.Text = totalPlan > 0 ? $"Plan: {totalPlan:N0} kg" : "";
+            string statusText = realizacja >= 100 ? "Zrealizowane" : (realizacja > 50 ? "W trakcie" : "Oczekuje");
+            txtKpiRealizacjaStatus.Text = statusText;
+            txtKpiRealizacjaStatus.Foreground = realizacja >= 100 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                (realizacja > 50 ? new SolidColorBrush(Color.FromRgb(243, 156, 18)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60)));
+
+            decimal bilansTotal = (totalWydania > 0 ? totalWydania : totalPlan) - totalZamowienia;
+            txtKpiRealizacjaInfo.Text = $"{bilansTotal:N0} kg";
+            txtKpiRealizacjaInfo.Foreground = bilansTotal >= 0 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+
+            // Zlicz statusy bilansu
+            int okCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "✅");
+            int uwagaCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "⚠️");
+            int brakCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "❌");
+
+            txtBilansOk.Text = okCount.ToString();
+            txtBilansUwaga.Text = uwagaCount.ToString();
+            txtBilansBrak.Text = brakCount.ToString();
+
+            // Wydajność główna
+            txtWydajnoscGlowna.Text = $"{wspolczynnikTuszki:N0}%";
+            txtTuszkaA.Text = $"{procentA:N0}%";
+            txtTuszkaB.Text = $"{procentB:N0}%";
 
             SetupDashboardDataGrid();
+            SetupTopProduktyDataGrid();
+        }
+
+        private void SetupTopProduktyDataGrid()
+        {
+            // Pobierz top 5 produktów wg zamówień
+            var topProdukty = _dtDashboard.AsEnumerable()
+                .Where(r => r.Field<decimal>("Zamowienia") > 0)
+                .OrderByDescending(r => r.Field<decimal>("Zamowienia"))
+                .Take(5)
+                .Select(r => new
+                {
+                    Produkt = r.Field<string>("Produkt"),
+                    Zamowienia = r.Field<decimal>("Zamowienia"),
+                    Bilans = r.Field<decimal>("Bilans"),
+                    Status = r.Field<string>("Status")
+                })
+                .ToList();
+
+            dgTopProdukty.ItemsSource = topProdukty;
+            dgTopProdukty.Columns.Clear();
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Produkt",
+                Binding = new System.Windows.Data.Binding("Produkt"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zamów.",
+                Binding = new System.Windows.Data.Binding("Zamowienia") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Bilans",
+                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "",
+                Binding = new System.Windows.Data.Binding("Status"),
+                Width = new DataGridLength(30),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
         }
 
         private void SetupDashboardDataGrid()
