@@ -353,7 +353,7 @@ namespace Kalendarz1
                     new MenuItemConfig("CRM", "Relacje z Klientami",
                         "Zarządzanie relacjami z odbiorcami - kontakty, notatki, historia współpracy",
                         Color.FromArgb(144, 202, 249), // Jasny niebieski #90CAF9
-                        () => new CRM { UserID = App.UserID }, "🤝"),
+                        () => new CRM.CRMWindow { UserID = App.UserID }, "🤝"),
 
                     new MenuItemConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców",
                         "Pełna baza danych klientów z danymi kontaktowymi, warunkami handlowymi i historią zamówień",

@@ -188,7 +188,7 @@ namespace Kalendarz1
                 },
                 ["Sprzedaz"] = new List<ModuleConfig>
                 {
-                    new ModuleConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", "#3498DB", () => new CRM { UserID = App.UserID }, "👥"),
+                    new ModuleConfig("CRM", "CRM", "Zarządzaj relacjami z klientami", "#3498DB", () => new CRM.CRMWindow { UserID = App.UserID }, "👥"),
                     new ModuleConfig("ZamowieniaOdbiorcow", "Zamówienia Mięsa", "Przeglądaj i zarządzaj zamówieniami", "#3498DB", () => new WidokZamowieniaPodsumowanie { UserID = App.UserID }, "📦"),
                     new ModuleConfig("DokumentySprzedazy", "Faktury Sprzedaży", "Generuj i przeglądaj faktury", "#3498DB", () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
                     new ModuleConfig("PrognozyUboju", "Prognoza Uboju", "Analizuj średnie tygodniowe zakupów", "#9B59B6", () => new PrognozyUboju.PrognozyUbojuWindow(), "📈"),

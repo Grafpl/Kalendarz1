@@ -1,0 +1,700 @@
+<Window x:Class="Kalendarz1.CRM.CRMWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CRM - Relacje z Klientami"
+        WindowState="Maximized"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F2F5"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <!-- === KOLORY === -->
+        <SolidColorBrush x:Key="ColorPrimary" Color="#2563EB"/>
+        <SolidColorBrush x:Key="ColorPrimaryDark" Color="#1D4ED8"/>
+        <SolidColorBrush x:Key="ColorPrimaryLight" Color="#DBEAFE"/>
+        <SolidColorBrush x:Key="ColorSuccess" Color="#10B981"/>
+        <SolidColorBrush x:Key="ColorSuccessLight" Color="#D1FAE5"/>
+        <SolidColorBrush x:Key="ColorWarning" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="ColorWarningLight" Color="#FEF3C7"/>
+        <SolidColorBrush x:Key="ColorDanger" Color="#EF4444"/>
+        <SolidColorBrush x:Key="ColorDangerLight" Color="#FEE2E2"/>
+        <SolidColorBrush x:Key="ColorInfo" Color="#8B5CF6"/>
+        <SolidColorBrush x:Key="ColorInfoLight" Color="#EDE9FE"/>
+        <SolidColorBrush x:Key="ColorText" Color="#1F2937"/>
+        <SolidColorBrush x:Key="ColorTextLight" Color="#6B7280"/>
+        <SolidColorBrush x:Key="ColorTextMuted" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="ColorBorder" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="ColorBackground" Color="#F9FAFB"/>
+
+        <!-- === STYL KARTY === -->
+        <Style x:Key="CardPanel" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.08" BlurRadius="16"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- === PRZYCISKI === -->
+        <Style x:Key="ButtonPrimary" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ColorPrimary}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.12" BlurRadius="6"/>
+                            </Border.Effect>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource ColorPrimaryDark}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ButtonSuccess" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+            <Setter Property="Background" Value="{StaticResource ColorSuccess}"/>
+        </Style>
+
+        <Style x:Key="ButtonWarning" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+            <Setter Property="Background" Value="{StaticResource ColorWarning}"/>
+        </Style>
+
+        <Style x:Key="ButtonDanger" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+            <Setter Property="Background" Value="{StaticResource ColorDanger}"/>
+        </Style>
+
+        <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+            <Setter Property="Background" Value="#6B7280"/>
+        </Style>
+
+        <Style x:Key="ButtonIcon" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- === TEXTBOX === -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource ColorPrimary}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- === COMBOBOX === -->
+        <Style x:Key="ModernComboBox" TargetType="ComboBox">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+
+        <!-- === DATAGRID === -->
+        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#F3F4F6"/>
+            <Setter Property="AlternatingRowBackground" Value="#FAFBFC"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeight" Value="52"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="Foreground" Value="{StaticResource ColorText}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ColorBorder}"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
+
+        <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" BorderThickness="0" Padding="12,8">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ColorPrimaryLight}"/>
+                    <Setter Property="Foreground" Value="{StaticResource ColorText}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- === KPI CARD === -->
+        <Style x:Key="KpiCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.06" BlurRadius="10"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- === STATUS BADGE === -->
+        <Style x:Key="StatusBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,5"/>
+        </Style>
+
+        <!-- === CONTEXT MENU === -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+        </Style>
+
+        <Style TargetType="MenuItem">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ColorPrimaryLight}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- === NAGŁÓWEK === -->
+        <Border Grid.Row="0" Background="White" Padding="20,16" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.04" BlurRadius="8" Direction="270"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo i tytuł -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{StaticResource ColorPrimaryLight}" CornerRadius="10" Padding="10" Margin="0,0,14,0">
+                        <TextBlock Text="CRM" FontSize="16" FontWeight="Bold" Foreground="{StaticResource ColorPrimary}"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Relacje z Klientami" FontSize="18" FontWeight="Bold" Foreground="{StaticResource ColorText}"/>
+                        <TextBlock Text="Zarządzanie potencjalnymi klientami i kontaktami" FontSize="11" Foreground="{StaticResource ColorTextLight}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Przyciski akcji -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnDodaj" Content="+ Nowy kontakt" Style="{StaticResource ButtonSuccess}" Margin="0,0,10,0" Click="BtnDodaj_Click"/>
+                    <Button x:Name="btnMapa" Content="Mapa" Style="{StaticResource ButtonSecondary}" Margin="0,0,10,0" Click="BtnMapa_Click"/>
+                    <Button x:Name="btnZadania" Content="Zadania" Style="{StaticResource ButtonWarning}" Margin="0,0,10,0" Click="BtnZadania_Click"/>
+                    <Button x:Name="btnOdswiez" Content="Odśwież" Style="{StaticResource ButtonPrimary}" Click="BtnOdswiez_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- === PANEL KPI I FILTRÓW === -->
+        <Border Grid.Row="1" Background="#F8FAFC" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- KPI -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <!-- Dziś do zadzwonienia -->
+                    <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0" BorderBrush="{StaticResource ColorPrimary}" BorderThickness="0,0,0,3">
+                        <StackPanel>
+                            <TextBlock Text="Dziś do zadzwonienia" FontSize="10" Foreground="{StaticResource ColorTextLight}" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtKpiDzisiaj" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource ColorPrimary}"/>
+                                <TextBlock Text=" kontaktów" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Próby kontaktu -->
+                    <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0" BorderBrush="{StaticResource ColorWarning}" BorderThickness="0,0,0,3">
+                        <StackPanel>
+                            <TextBlock Text="Próby kontaktu" FontSize="10" Foreground="{StaticResource ColorTextLight}" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtKpiProby" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource ColorWarning}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Nawiązane kontakty -->
+                    <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0" BorderBrush="{StaticResource ColorSuccess}" BorderThickness="0,0,0,3">
+                        <StackPanel>
+                            <TextBlock Text="Nawiązane kontakty" FontSize="10" Foreground="{StaticResource ColorTextLight}" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtKpiNawiazane" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource ColorSuccess}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Do wysłania oferty -->
+                    <Border Style="{StaticResource KpiCard}" Margin="0,0,12,0" BorderBrush="{StaticResource ColorInfo}" BorderThickness="0,0,0,3">
+                        <StackPanel>
+                            <TextBlock Text="Do wysłania oferty" FontSize="10" Foreground="{StaticResource ColorTextLight}" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource ColorInfo}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Suma wszystkich -->
+                    <Border Style="{StaticResource KpiCard}" BorderBrush="{StaticResource ColorTextLight}" BorderThickness="0,0,0,3">
+                        <StackPanel>
+                            <TextBlock Text="Razem w bazie" FontSize="10" Foreground="{StaticResource ColorTextLight}" FontWeight="Medium"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock x:Name="txtKpiRazem" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource ColorText}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Filtry -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Szukaj -->
+                    <Border Background="White" CornerRadius="8" Padding="4" Margin="0,0,10,0" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="8,0,6,0" Foreground="{StaticResource ColorTextMuted}"/>
+                            <TextBox x:Name="txtSzukaj" Grid.Column="1" Width="200" BorderThickness="0" Padding="4,8"
+                                     FontSize="12" Background="Transparent" VerticalAlignment="Center"
+                                     TextChanged="TxtSzukaj_TextChanged"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Status -->
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="Status" FontSize="10" Foreground="{StaticResource ColorTextLight}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="cmbStatus" Style="{StaticResource ModernComboBox}" Width="160"
+                                  SelectionChanged="CmbStatus_SelectionChanged">
+                            <ComboBoxItem Content="Wszystkie statusy" IsSelected="True"/>
+                            <ComboBoxItem Content="Do zadzwonienia"/>
+                            <ComboBoxItem Content="Próba kontaktu"/>
+                            <ComboBoxItem Content="Nawiązano kontakt"/>
+                            <ComboBoxItem Content="Zgoda na dalszy kontakt"/>
+                            <ComboBoxItem Content="Do wysłania oferta"/>
+                            <ComboBoxItem Content="Nie zainteresowany"/>
+                            <ComboBoxItem Content="Poprosił o usunięcie"/>
+                            <ComboBoxItem Content="Błędny rekord"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Województwo -->
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="Województwo" FontSize="10" Foreground="{StaticResource ColorTextLight}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="cmbWojewodztwo" Style="{StaticResource ModernComboBox}" Width="140"
+                                  SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
+                    </StackPanel>
+
+                    <!-- Branża -->
+                    <StackPanel>
+                        <TextBlock Text="Branża (PKD)" FontSize="10" Foreground="{StaticResource ColorTextLight}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="cmbBranza" Style="{StaticResource ModernComboBox}" Width="200"
+                                  SelectionChanged="CmbBranza_SelectionChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- === GŁÓWNA ZAWARTOŚĆ === -->
+        <Grid Grid.Row="2" Margin="14,8,14,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="600"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Lista kontaktów -->
+            <Border Grid.Column="0" Style="{StaticResource CardPanel}" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek listy -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Lista kontaktów" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ColorText}" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock x:Name="txtLiczbaWynikow" Text="0 wyników" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <Button x:Name="btnAdmin" Content="⚙ Admin" Style="{StaticResource ButtonIcon}" FontSize="11" Foreground="{StaticResource ColorTextLight}"
+                                    Click="BtnAdmin_Click" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- DataGrid -->
+                    <Border Grid.Row="1" BorderBrush="{StaticResource ColorBorder}" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+                        <DataGrid x:Name="dgKontakty"
+                                  Style="{StaticResource ModernDataGrid}"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  CellStyle="{StaticResource DataGridCellStyle}"
+                                  SelectionChanged="DgKontakty_SelectionChanged"
+                                  MouseDoubleClick="DgKontakty_MouseDoubleClick">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="📞 Zadzwoń (click-to-call)" Click="MenuZadzwon_Click" FontWeight="SemiBold"/>
+                                    <MenuItem Header="✏️ Edytuj dane kontaktowe" Click="MenuEdytuj_Click"/>
+                                    <MenuItem Header="💵 Utwórz ofertę cenową" Click="MenuOferta_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="🔍 Szukaj w Google" Click="MenuGoogle_Click"/>
+                                    <MenuItem Header="🗺️ Pokaż trasę na mapie" Click="MenuTrasa_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="Zmień status">
+                                        <MenuItem Header="Do zadzwonienia" Click="MenuStatus_Click" Tag="Do zadzwonienia"/>
+                                        <MenuItem Header="Próba kontaktu" Click="MenuStatus_Click" Tag="Próba kontaktu"/>
+                                        <MenuItem Header="Nawiązano kontakt" Click="MenuStatus_Click" Tag="Nawiązano kontakt"/>
+                                        <MenuItem Header="Zgoda na dalszy kontakt" Click="MenuStatus_Click" Tag="Zgoda na dalszy kontakt"/>
+                                        <MenuItem Header="Do wysłania oferta" Click="MenuStatus_Click" Tag="Do wysłania oferta"/>
+                                        <Separator/>
+                                        <MenuItem Header="Nie zainteresowany" Click="MenuStatus_Click" Tag="Nie zainteresowany"/>
+                                        <MenuItem Header="Poprosił o usunięcie" Click="MenuStatus_Click" Tag="Poprosił o usunięcie"/>
+                                        <MenuItem Header="Błędny rekord" Click="MenuStatus_Click" Tag="Błędny rekord (do raportu)"/>
+                                    </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="📋 Kopiuj telefon" Click="MenuKopiujTelefon_Click"/>
+                                    <MenuItem Header="📋 Kopiuj email" Click="MenuKopiujEmail_Click"/>
+                                    <MenuItem Header="📋 Kopiuj adres" Click="MenuKopiujAdres_Click"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Status" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="statusBorder" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                                <TextBlock x:Name="statusText" Text="{Binding Status}" FontSize="10" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#E5E7EB"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#374151"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FEF3C7"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#92400E"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#DBEAFE"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#1E40AF"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#D1FAE5"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#065F46"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#EDE9FE"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#5B21B6"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FEE2E2"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#991B1B"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Poprosił o usunięcie">
+                                                    <Setter TargetName="statusBorder" Property="Background" Value="#FEE2E2"/>
+                                                    <Setter TargetName="statusText" Property="Foreground" Value="#991B1B"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Nazwa firmy" Binding="{Binding NAZWA}" Width="*" MinWidth="200">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#1F2937"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#2563EB"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Województwo" Binding="{Binding Wojewodztwo}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#6B7280"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Branża" Binding="{Binding PKD_Opis}" Width="180">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#6B7280"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Ostatnia zmiana" Binding="{Binding OstatniaZmiana, StringFormat=dd.MM.yy HH:mm}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#9CA3AF"/>
+                                            <Setter Property="FontSize" Value="11"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Panel szczegółów (prawy) -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Karta klienta -->
+                <Border Grid.Row="0" Style="{StaticResource CardPanel}" Margin="0,0,0,8">
+                    <Grid x:Name="panelKlient">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nazwa i status -->
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock x:Name="txtKlientNazwa" Text="Wybierz kontakt z listy" FontSize="16" FontWeight="Bold" Foreground="{StaticResource ColorText}" TextWrapping="Wrap"/>
+                            <Border x:Name="badgeKlientStatus" Background="#E5E7EB" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left" Margin="0,8,0,0">
+                                <TextBlock x:Name="txtKlientStatus" Text="-" FontSize="10" FontWeight="SemiBold" Foreground="#374151"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Dane kontaktowe -->
+                        <Grid Grid.Row="1" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Telefon" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                <TextBlock x:Name="txtKlientTelefon" Text="-" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ColorPrimary}" Cursor="Hand" MouseLeftButtonUp="TxtKlientTelefon_Click"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Email" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                <TextBlock x:Name="txtKlientEmail" Text="-" FontSize="12" Foreground="{StaticResource ColorPrimary}" TextTrimming="CharacterEllipsis" Cursor="Hand"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Adres -->
+                        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                            <TextBlock Text="Adres" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                            <TextBlock x:Name="txtKlientAdres" Text="-" FontSize="12" Foreground="{StaticResource ColorText}" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <!-- Przyciski akcji -->
+                        <StackPanel Grid.Row="3" Orientation="Horizontal">
+                            <Button x:Name="btnKlientZadzwon" Content="📞 Zadzwoń" Style="{StaticResource ButtonPrimary}"
+                                    Padding="12,8" FontSize="11" Margin="0,0,8,0" Click="BtnKlientZadzwon_Click"/>
+                            <Button x:Name="btnKlientOferta" Content="💵 Oferta" Style="{StaticResource ButtonSuccess}"
+                                    Padding="12,8" FontSize="11" Margin="0,0,8,0" Click="BtnKlientOferta_Click"/>
+                            <Button x:Name="btnKlientEdytuj" Content="✏️ Edytuj" Style="{StaticResource ButtonSecondary}"
+                                    Padding="12,8" FontSize="11" Click="BtnKlientEdytuj_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Notatki i Historia -->
+                <Border Grid.Row="1" Style="{StaticResource CardPanel}" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek notatek -->
+                        <TextBlock Grid.Row="0" Text="Notatki" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ColorText}" Margin="0,0,0,10"/>
+
+                        <!-- Lista notatek -->
+                        <Border Grid.Row="1" Background="#F9FAFB" CornerRadius="8" Padding="8" Margin="0,0,0,10">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="200">
+                                <ItemsControl x:Name="listaNotatek">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="White" CornerRadius="6" Padding="10" Margin="0,0,0,6" BorderBrush="#E5E7EB" BorderThickness="1">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Tresc}" FontSize="12" Foreground="{StaticResource ColorText}" TextWrapping="Wrap"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                        <TextBlock Text="{Binding DataUtworzenia, StringFormat=dd.MM.yy HH:mm}" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                                        <TextBlock Text=" • " FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                                        <TextBlock Text="{Binding Operator}" FontSize="10" Foreground="{StaticResource ColorTextMuted}"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!-- Nowa notatka -->
+                        <TextBox x:Name="txtNowaNotatka" Grid.Row="2" Style="{StaticResource ModernTextBox}"
+                                 Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+
+                        <Button x:Name="btnDodajNotatke" Grid.Row="3" Content="+ Dodaj notatkę"
+                                Style="{StaticResource ButtonPrimary}" HorizontalAlignment="Stretch"
+                                Click="BtnDodajNotatke_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- Ranking handlowców (zwinięty) -->
+                <Expander Grid.Row="2" Header="Ranking handlowców" IsExpanded="False" Margin="0">
+                    <Border Background="White" CornerRadius="0,0,12,12" Padding="12">
+                        <DataGrid x:Name="dgRanking" Height="150"
+                                  Style="{StaticResource ModernDataGrid}"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  CellStyle="{StaticResource DataGridCellStyle}"
+                                  RowHeight="32" FontSize="11">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Operator}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Próby" Binding="{Binding Proby}" Width="50"/>
+                                <DataGridTextColumn Header="Kontakt" Binding="{Binding Kontakt}" Width="55"/>
+                                <DataGridTextColumn Header="Zgoda" Binding="{Binding Zgoda}" Width="50"/>
+                                <DataGridTextColumn Header="Suma" Binding="{Binding Suma}" Width="50">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#10B981"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Expander>
+            </Grid>
+        </Grid>
+
+        <!-- Loading overlay -->
+        <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#80FFFFFF" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"/>
+                <TextBlock Text="Ładowanie danych..." FontSize="14" Foreground="{StaticResource ColorText}" Margin="0,15,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
