@@ -2292,13 +2292,13 @@ ORDER BY zm.Id";
             }
 
             // Load transport departure times from dbo.Kurs
-            var transportTimes = new Dictionary<int, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
-            var transportKursIds = new List<int>();
+            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
+            var transportKursIds = new List<long>();
             foreach (DataRow r in temp.Rows)
             {
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
                 {
-                    int kursId = Convert.ToInt32(r["TransportKursID"]);
+                    long kursId = Convert.ToInt64(r["TransportKursID"]);
                     if (!transportKursIds.Contains(kursId))
                         transportKursIds.Add(kursId);
                 }
@@ -2316,7 +2316,7 @@ ORDER BY zm.Id";
                     await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
                     while (await rdKurs.ReadAsync())
                     {
-                        int kursId = rdKurs.GetInt32(0);
+                        long kursId = rdKurs.GetInt64(0);
                         TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
                         DateTime? dataKursu = rdKurs.IsDBNull(2) ? null : rdKurs.GetDateTime(2);
                         transportTimes[kursId] = (godzWyjazdu, dataKursu);
@@ -2447,12 +2447,18 @@ ORDER BY zm.Id";
 
                 // TransportInfo - godzina:minuta + skrócony dzień wyjazdu z firmy
                 string transportInfoStr = "";
-                if (transportKursId.HasValue && transportTimes.TryGetValue((int)transportKursId.Value, out var kursInfo))
+                if (transportKursId.HasValue && transportTimes.TryGetValue(transportKursId.Value, out var kursInfo))
                 {
                     if (kursInfo.GodzWyjazdu.HasValue)
                     {
                         string dzienKursu = kursInfo.DataKursu.HasValue ? kursInfo.DataKursu.Value.ToString("ddd", cultureInfo) : "";
                         transportInfoStr = $"{kursInfo.GodzWyjazdu.Value:hh\\:mm} {dzienKursu}";
+                    }
+                    else if (kursInfo.DataKursu.HasValue)
+                    {
+                        // Jeśli nie ma godziny wyjazdu, pokaż tylko dzień
+                        string dzienKursu = kursInfo.DataKursu.Value.ToString("ddd", cultureInfo);
+                        transportInfoStr = dzienKursu;
                     }
                 }
 
