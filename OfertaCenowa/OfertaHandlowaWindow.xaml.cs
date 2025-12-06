@@ -863,13 +863,67 @@ namespace Kalendarz1.OfertaCenowa
             Grid.SetColumn(stackDane, 0);
             grid.Children.Add(stackDane);
 
-            var btnUsun = new Button { Content = "❌", Style = (Style)FindResource("SmallButtonStyle"), FontSize = 14, VerticalAlignment = VerticalAlignment.Top, Tag = odbiorca };
+            // Panel z przyciskami (edytuj i usuń)
+            var btnPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+
+            // Przycisk edycji kontaktu - tylko dla CRM
+            if (odbiorca.Zrodlo == "CRM" && int.TryParse(odbiorca.Id, out _))
+            {
+                var btnEdytuj = new Button
+                {
+                    Content = "✏️",
+                    Style = (Style)FindResource("SmallButtonStyle"),
+                    FontSize = 14,
+                    Tag = odbiorca,
+                    ToolTip = "Edytuj dane kontaktowe",
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+                btnEdytuj.Click += BtnEdytujKontaktOdbiorcy_Click;
+                btnPanel.Children.Add(btnEdytuj);
+            }
+
+            var btnUsun = new Button { Content = "❌", Style = (Style)FindResource("SmallButtonStyle"), FontSize = 14, Tag = odbiorca, ToolTip = "Usuń z listy" };
             btnUsun.Click += BtnUsunOdbiorce_Click;
-            Grid.SetColumn(btnUsun, 1);
-            grid.Children.Add(btnUsun);
+            btnPanel.Children.Add(btnUsun);
+
+            Grid.SetColumn(btnPanel, 1);
+            grid.Children.Add(btnPanel);
 
             border.Child = grid;
             return border;
+        }
+
+        private void BtnEdytujKontaktOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                if (!int.TryParse(odbiorca.Id, out int klientId))
+                {
+                    MessageBox.Show("Nie można edytować tego odbiorcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var okno = new EdycjaKontaktuWindow
+                {
+                    KlientID = klientId,
+                    KlientNazwa = odbiorca.Nazwa,
+                    OperatorID = _userId
+                };
+                okno.Owner = this;
+
+                if (okno.ShowDialog() == true && okno.ZapisanoZmiany)
+                {
+                    // Zaktualizuj dane odbiorcy w liście
+                    odbiorca.Email = okno.NowyEmail ?? "";
+                    odbiorca.Telefon = okno.NowyTelefon ?? "";
+                    odbiorca.OsobaKontaktowa = $"{okno.NoweImie} {okno.NoweNazwisko}".Trim();
+
+                    // Odśwież widok
+                    OdswiezListeWybranychOdbiorcow();
+
+                    MessageBox.Show("Dane kontaktowe zostały zaktualizowane.", "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
         }
 
         private void BtnUsunOdbiorce_Click(object sender, RoutedEventArgs e)
