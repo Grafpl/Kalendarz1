@@ -216,10 +216,10 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Grid x:Name="mainContentGrid" Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="60*"/>
-                <ColumnDefinition Width="40*"/>
+                <ColumnDefinition x:Name="leftColumnDef" Width="60*"/>
+                <ColumnDefinition x:Name="rightColumnDef" Width="40*"/>
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Margin="10,10,5,10">
@@ -275,7 +275,8 @@
                     </Grid>
                 </Border>
 
-                <TabControl x:Name="tabOrders" Grid.Row="1" Background="Transparent" BorderThickness="0">
+                <TabControl x:Name="tabOrders" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                            SelectionChanged="TabOrders_SelectionChanged">
                     <TabItem Header="Zamówienia" FontSize="12" FontWeight="SemiBold">
                         <DataGrid x:Name="dgOrders"
                                   Style="{StaticResource ModernDataGridStyle}"
@@ -321,10 +322,58 @@
                                   AutoGenerateColumns="False"
                                   CanUserSortColumns="True"/>
                     </TabItem>
+                    <TabItem x:Name="tabDashboard" Header="📊 Dashboard" FontSize="12" FontWeight="SemiBold">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Karty KPI -->
+                            <Border Grid.Row="0" Background="#ECEFF1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                                <StackPanel x:Name="panelKPI" Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Border Background="#4CAF50" CornerRadius="5" Padding="15,10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="📦 ZAMÓWIENIA" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiZamowienia" Text="0 kg" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                            <TextBlock x:Name="txtKpiZamowieniaKlienci" Text="(0 klientów)" FontSize="10" Foreground="#E8F5E9"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#2196F3" CornerRadius="5" Padding="15,10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="🚚 WYDANIA" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiWydania" Text="0 kg" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                            <TextBlock x:Name="txtKpiWydaniaKlienci" Text="(0 wydanych)" FontSize="10" Foreground="#E3F2FD"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#FF9800" CornerRadius="5" Padding="15,10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="⚖️ RÓŻNICA" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiRoznica" Text="0 kg" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                            <TextBlock Text="(do wydania)" FontSize="10" Foreground="#FFF3E0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#9C27B0" CornerRadius="5" Padding="15,10" Margin="5">
+                                        <StackPanel>
+                                            <TextBlock Text="📈 REALIZACJA" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiRealizacja" Text="0%" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                            <TextBlock x:Name="txtKpiRealizacjaInfo" Text="" FontSize="10" Foreground="#F3E5F5"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Tabela produktów -->
+                            <DataGrid x:Name="dgDashboardProdukty" Grid.Row="1"
+                                      Style="{StaticResource ModernDataGridStyle}"
+                                      AutoGenerateColumns="False"
+                                      CanUserSortColumns="True"/>
+                        </Grid>
+                    </TabItem>
                 </TabControl>
             </Grid>
 
-            <Grid Grid.Column="1" Margin="5,10,10,10">
+            <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,10,10,10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="45*"/>
                     <RowDefinition Height="Auto"/>
