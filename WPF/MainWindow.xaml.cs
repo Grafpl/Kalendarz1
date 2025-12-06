@@ -2562,14 +2562,83 @@ ORDER BY zm.Id";
                 _dtTransport.Columns.Add("Odbiorca", typeof(string));
                 _dtTransport.Columns.Add("Handlowiec", typeof(string));
                 _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
-                _dtTransport.Columns.Add("Kierowca", typeof(string));
-                _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
-                _dtTransport.Columns.Add("Pojemniki", typeof(int));
+                _dtTransport.Columns.Add("IloscWydana", typeof(decimal));
                 _dtTransport.Columns.Add("Palety", typeof(decimal));
+                _dtTransport.Columns.Add("Kierowca", typeof(string));
+                _dtTransport.Columns.Add("Pojazd", typeof(string));
+                _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
+                _dtTransport.Columns.Add("Trasa", typeof(string));
                 _dtTransport.Columns.Add("Status", typeof(string));
+                _dtTransport.Columns.Add("Uwagi", typeof(string));
             }
 
-            var transportInfo = await GetTransportInfoAsync(day);
+            // Pobierz pełne dane transportu z bazy
+            var transportDetails = new Dictionary<long, (string Kierowca, string Pojazd, string Trasa, TimeSpan? GodzWyjazdu)>();
+
+            // Pobierz listę KursID z zamówień
+            var kursIds = new HashSet<long>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT DISTINCT TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day AND TransportKursID IS NOT NULL";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    kursIds.Add(rd.GetInt64(0));
+                }
+            }
+
+            // Pobierz szczegóły transportu
+            if (kursIds.Any())
+            {
+                try
+                {
+                    await using var cnTransport = new SqlConnection(_connTransport);
+                    await cnTransport.OpenAsync();
+                    var kursIdsList = string.Join(",", kursIds);
+                    var sqlKurs = $@"SELECT k.KursID, k.Trasa, k.GodzWyjazdu,
+                                    CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca,
+                                    p.Rejestracja
+                                    FROM dbo.Kurs k
+                                    LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+                                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                                    WHERE k.KursID IN ({kursIdsList})";
+                    await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
+                    await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
+                    while (await rdKurs.ReadAsync())
+                    {
+                        long kursId = rdKurs.GetInt64(0);
+                        string trasa = rdKurs.IsDBNull(1) ? "" : rdKurs.GetString(1);
+                        TimeSpan? godzWyjazdu = rdKurs.IsDBNull(2) ? null : rdKurs.GetTimeSpan(2);
+                        string kierowca = rdKurs.IsDBNull(3) ? "" : rdKurs.GetString(3);
+                        string pojazd = rdKurs.IsDBNull(4) ? "" : rdKurs.GetString(4);
+                        transportDetails[kursId] = (kierowca, pojazd, trasa, godzWyjazdu);
+                    }
+                }
+                catch { /* Ignoruj błędy transportu */ }
+            }
+
+            // Pobierz uwagi i TransportKursID dla każdego zamówienia
+            var orderNotes = new Dictionary<int, (string Uwagi, long? KursId)>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT Id, Uwagi, TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day AND TransportKursID IS NOT NULL";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string uwagi = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    long? kursId = rd.IsDBNull(2) ? null : rd.GetInt64(2);
+                    orderNotes[id] = (uwagi, kursId);
+                }
+            }
 
             foreach (DataRow row in _dtOrders.Rows)
             {
@@ -2582,22 +2651,30 @@ ORDER BY zm.Id";
                 int clientId = Convert.ToInt32(row["KlientId"]);
                 string odbiorca = row["Odbiorca"]?.ToString() ?? "";
                 string handlowiec = row["Handlowiec"]?.ToString() ?? "";
-                decimal ilosc = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
-                int pojemniki = row["Pojemniki"] is DBNull ? 0 : Convert.ToInt32(row["Pojemniki"]);
+                decimal iloscZam = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
+                decimal iloscWyd = row["IloscFaktyczna"] is DBNull ? 0m : Convert.ToDecimal(row["IloscFaktyczna"]);
                 decimal palety = row["Palety"] is DBNull ? 0m : Convert.ToDecimal(row["Palety"]);
                 string status = row["Status"]?.ToString() ?? "";
 
                 string kierowca = "";
+                string pojazd = "";
+                string trasa = "";
                 string godzWyjazdu = "";
+                string uwagi = "";
 
-                foreach (var kvp in transportInfo)
+                if (orderNotes.TryGetValue(id, out var noteInfo))
                 {
-                    kierowca = kvp.Value.Kierowca;
-                    godzWyjazdu = kvp.Value.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
-                    break;
+                    uwagi = noteInfo.Uwagi;
+                    if (noteInfo.KursId.HasValue && transportDetails.TryGetValue(noteInfo.KursId.Value, out var td))
+                    {
+                        kierowca = td.Kierowca;
+                        pojazd = td.Pojazd;
+                        trasa = td.Trasa;
+                        godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                    }
                 }
 
-                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, ilosc, kierowca, godzWyjazdu, pojemniki, palety, status);
+                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, uwagi);
             }
 
             SetupTransportDataGrid();
@@ -2608,28 +2685,52 @@ ORDER BY zm.Id";
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             dgTransport.Columns.Clear();
 
+            dgTransport.LoadingRow -= DgTransport_LoadingRow;
+            dgTransport.LoadingRow += DgTransport_LoadingRow;
+
+            // 1. Odbiorca
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 120
+                Width = new DataGridLength(0.6, DataGridLengthUnitType.Star),
+                MinWidth = 100
             });
 
+            // 2. Handlowiec
             dgTransport.Columns.Add(new DataGridTextColumn
             {
-                Header = "Hand.",
+                Header = "Hand",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("BoldCellStyle")
+            });
+
+            // 3. Zamówiono
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zam.",
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
                 Width = new DataGridLength(55)
             });
 
+            // 4. Wydano
             dgTransport.Columns.Add(new DataGridTextColumn
             {
-                Header = "Ilość",
-                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(60)
+                Header = "Wyd.",
+                Binding = new System.Windows.Data.Binding("IloscWydana") { StringFormat = "N0" },
+                Width = new DataGridLength(55)
             });
 
+            // 5. Palety
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pal.",
+                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
+                Width = new DataGridLength(40)
+            });
+
+            // 6. Kierowca
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Kierowca",
@@ -2637,33 +2738,67 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(120)
             });
 
+            // 7. Pojazd
             dgTransport.Columns.Add(new DataGridTextColumn
             {
-                Header = "Godz.",
+                Header = "Pojazd",
+                Binding = new System.Windows.Data.Binding("Pojazd"),
+                Width = new DataGridLength(75)
+            });
+
+            // 8. Godzina wyjazdu
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Godz",
                 Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
-                Width = new DataGridLength(50)
+                Width = new DataGridLength(45)
             });
 
+            // 9. Trasa
             dgTransport.Columns.Add(new DataGridTextColumn
             {
-                Header = "Poj.",
-                Binding = new System.Windows.Data.Binding("Pojemniki"),
-                Width = new DataGridLength(40)
+                Header = "Trasa",
+                Binding = new System.Windows.Data.Binding("Trasa"),
+                Width = new DataGridLength(80)
             });
 
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Palety",
-                Binding = new System.Windows.Data.Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(50)
-            });
-
+            // 10. Status
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Status",
                 Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(80)
+                Width = new DataGridLength(70)
             });
+
+            // 11. Uwagi
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Uwagi",
+                Binding = new System.Windows.Data.Binding("Uwagi"),
+                Width = new DataGridLength(0.4, DataGridLengthUnitType.Star),
+                MinWidth = 80
+            });
+        }
+
+        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var status = rowView.Row.Field<string>("Status") ?? "";
+                var handlowiec = rowView.Row.Field<string>("Handlowiec") ?? "";
+
+                if (status == "Anulowane")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230));
+                    e.Row.Foreground = new SolidColorBrush(Colors.Gray);
+                    e.Row.FontStyle = FontStyles.Italic;
+                }
+                else if (!string.IsNullOrEmpty(handlowiec))
+                {
+                    var color = GetColorForSalesman(handlowiec);
+                    e.Row.Background = new SolidColorBrush(color);
+                }
+            }
         }
 
         private void SetupOrdersDataGrid()
