@@ -55,18 +55,24 @@ namespace Kalendarz1.Reklamacje
             StartPosition = FormStartPosition.CenterParent;
             BackColor = ColorTranslator.FromHtml("#f8f9fa");
 
-            // Panel nagłówka
-            Panel panelHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = ColorTranslator.FromHtml("#1e8449")
-            };
+            // ============================================
+            // STRUKTURA: RedStripe -> Header -> TabControl -> Buttons
+            // ============================================
+
+            // 1. Czerwony pasek na samej górze
             Panel redStripe = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 4,
                 BackColor = ColorTranslator.FromHtml("#c0392b")
+            };
+
+            // 2. Panel nagłówka pod czerwonym paskiem
+            Panel panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 56,
+                BackColor = ColorTranslator.FromHtml("#1e8449")
             };
             Label lblHeader = new Label
             {
@@ -74,11 +80,26 @@ namespace Kalendarz1.Reklamacje
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(20, 15)
+                Location = new Point(20, 12)
             };
             panelHeader.Controls.Add(lblHeader);
 
-            // Główny panel z zakładkami
+            // 3. Panel przycisków na dole
+            Panel panelButtons = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 65,
+                BackColor = ColorTranslator.FromHtml("#d5f5e3")
+            };
+            panelButtons.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(ColorTranslator.FromHtml("#27ae60"), 2))
+                {
+                    e.Graphics.DrawLine(pen, 0, 0, panelButtons.Width, 0);
+                }
+            };
+
+            // 4. Główny panel z zakładkami (wypełnia środek)
             tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
@@ -260,7 +281,7 @@ namespace Kalendarz1.Reklamacje
             tabZdjecia.Controls.Add(splitZdjecia);
 
             // Zakładka: Historia
-            TabPage tabHistoria = new TabPage("📜 Historia zmian");
+            TabPage tabHistoria = new TabPage("Historia");
             tabHistoria.BackColor = Color.White;
 
             dgvHistoria = new DataGridView
@@ -281,22 +302,7 @@ namespace Kalendarz1.Reklamacje
             tabControl.TabPages.Add(tabZdjecia);
             tabControl.TabPages.Add(tabHistoria);
 
-            // Panel przycisków
-            Panel panelButtons = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 65,
-                BackColor = ColorTranslator.FromHtml("#d5f5e3"),
-                Padding = new Padding(15)
-            };
-            panelButtons.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(ColorTranslator.FromHtml("#27ae60"), 2))
-                {
-                    e.Graphics.DrawLine(pen, 0, 0, panelButtons.Width, 0);
-                }
-            };
-
+            // Przyciski w panelu dolnym (panelButtons zdefiniowany wcześniej)
             Button btnZmienStatus = new Button
             {
                 Text = "Zmień status",
@@ -400,12 +406,27 @@ namespace Kalendarz1.Reklamacje
             panelButtons.Controls.Add(btnEmail);
             panelButtons.Controls.Add(btnZamknij);
 
-            // WAŻNE: Kolejność dodawania kontrolek z Dock jest kluczowa!
-            // Najpierw Bottom, potem Top, na końcu Fill
-            Controls.Add(panelButtons);    // Bottom - pierwszy
-            Controls.Add(panelHeader);     // Top - drugi
-            Controls.Add(redStripe);       // Top - trzeci (nad header)
-            Controls.Add(tabControl);      // Fill - ostatni (wypełnia resztę)
+            // ============================================
+            // DODAWANIE KONTROLEK - KOLEJNOŚĆ KRYTYCZNA!
+            // Dla prawidłowego Dock: najpierw Bottom i Top, potem Fill
+            // ============================================
+
+            // Wyczyść i dodaj w prawidłowej kolejności
+            this.SuspendLayout();
+
+            this.Controls.Add(tabControl);      // Fill - dodaj pierwszy (będzie renderowany ostatni)
+            this.Controls.Add(panelButtons);    // Bottom
+            this.Controls.Add(panelHeader);     // Top - pod redStripe
+            this.Controls.Add(redStripe);       // Top - na samej górze
+
+            // Ustaw kolejność renderowania (Z-order)
+            redStripe.BringToFront();
+            panelHeader.BringToFront();
+            panelButtons.BringToFront();
+            tabControl.BringToFront();
+
+            this.ResumeLayout(false);
+            this.PerformLayout();
         }
 
         private void WczytajSzczegoly()
