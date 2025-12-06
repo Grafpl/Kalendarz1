@@ -582,12 +582,12 @@ namespace Kalendarz1
                 lblStanSuma, lblStanRezerwacje, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
-            // === SPLITCONTAINER: LEWA (Stan) + PRAWA (Zamówienia) ===
+            // === SPLITCONTAINER: LEWA (Stan) + PRAWA (Rezerwacje) ===
             SplitContainer splitStan = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 450,
+                SplitterDistance = 350,
                 SplitterWidth = 5,
                 BackColor = BackgroundColor
             };
