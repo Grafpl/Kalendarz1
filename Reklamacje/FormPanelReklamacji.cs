@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -80,17 +81,26 @@ namespace Kalendarz1
             };
             panelHeader.Controls.Add(lblLicznik);
 
-            // Logo/ikona po prawej stronie nagłówka
-            Label lblLogo = new Label
+            // Logo po prawej stronie nagłówka
+            PictureBox pbLogo = new PictureBox
             {
-                Text = "PIÓRKOWSCY",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = ColorTranslator.FromHtml("#d5f5e3"),
-                AutoSize = true,
+                Size = new Size(180, 80),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(panelHeader.Width - 180, 35)
+                Location = new Point(this.Width - 220, 10)
             };
-            panelHeader.Controls.Add(lblLogo);
+
+            // Załaduj logo
+            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
+            if (!File.Exists(logoPath))
+                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "logo-2-green.png");
+            if (File.Exists(logoPath))
+            {
+                try { pbLogo.Image = Image.FromFile(logoPath); }
+                catch { }
+            }
+            panelHeader.Controls.Add(pbLogo);
 
             this.Controls.Add(panelHeader);
 

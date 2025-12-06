@@ -71,7 +71,7 @@ namespace Kalendarz1.Reklamacje
             Panel panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 56,
+                Height = 70,
                 BackColor = ColorTranslator.FromHtml("#1e8449")
             };
             Label lblHeader = new Label
@@ -80,9 +80,30 @@ namespace Kalendarz1.Reklamacje
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(20, 12)
+                Location = new Point(20, 18)
             };
             panelHeader.Controls.Add(lblHeader);
+
+            // Logo po prawej stronie nagłówka
+            PictureBox pbLogo = new PictureBox
+            {
+                Size = new Size(150, 60),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(this.Width - 180, 5)
+            };
+
+            // Załaduj logo
+            string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
+            if (!File.Exists(logoPath))
+                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "logo-2-green.png");
+            if (File.Exists(logoPath))
+            {
+                try { pbLogo.Image = Image.FromFile(logoPath); }
+                catch { }
+            }
+            panelHeader.Controls.Add(pbLogo);
 
             // 3. Panel przycisków na dole
             Panel panelButtons = new Panel
