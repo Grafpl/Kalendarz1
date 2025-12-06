@@ -327,41 +327,44 @@ namespace Kalendarz1.OfertaCenowa
         {
             container.PaddingHorizontal(25).PaddingVertical(15).Column(col =>
             {
-                // Sekcja odbiorcy i dostawcy obok siebie
+                // Sekcja odbiorcy i dostawcy obok siebie (lub tylko dostawca jeśli bez odbiorcy)
                 col.Item().Row(row =>
                 {
-                    // ODBIORCA - lewa strona
-                    row.RelativeItem().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(odbCol =>
+                    // ODBIORCA - lewa strona (tylko jeśli nie jest to oferta bez odbiorcy)
+                    if (!parametry.BezOdbiorcy)
                     {
-                        // Nagłówek z czerwonym akcentem
-                        odbCol.Item().Row(headerRow =>
+                        row.RelativeItem().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(odbCol =>
                         {
-                            headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
-                            headerRow.RelativeItem().Background(Color.FromHex(KolorZielonyJasny)).Padding(8)
-                                .Text(txt["odbiorca"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+                            // Nagłówek z czerwonym akcentem
+                            odbCol.Item().Row(headerRow =>
+                            {
+                                headerRow.ConstantItem(4).Background(Color.FromHex(KolorCzerwony));
+                                headerRow.RelativeItem().Background(Color.FromHex(KolorZielonyJasny)).Padding(8)
+                                    .Text(txt["odbiorca"]).FontSize(10).Bold().FontColor(Color.FromHex(KolorZielonyCiemny));
+                            });
+
+                            odbCol.Item().Padding(10).Column(daneCol =>
+                            {
+                                daneCol.Item().Text(klient.Nazwa).FontSize(11).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
+
+                                if (!string.IsNullOrEmpty(klient.NIP))
+                                    daneCol.Item().PaddingTop(3).Text($"{txt["nip"]}: {klient.NIP}")
+                                        .FontSize(9).FontColor(Color.FromHex(KolorSzary));
+
+                                string adres = $"{klient.Adres}".Trim();
+                                string miejscowosc = $"{klient.KodPocztowy} {klient.Miejscowosc}".Trim();
+
+                                if (!string.IsNullOrEmpty(adres))
+                                    daneCol.Item().PaddingTop(2).Text(adres).FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                                if (!string.IsNullOrEmpty(miejscowosc))
+                                    daneCol.Item().Text(miejscowosc).FontSize(9).FontColor(Color.FromHex(KolorSzary));
+                            });
                         });
 
-                        odbCol.Item().Padding(10).Column(daneCol =>
-                        {
-                            daneCol.Item().Text(klient.Nazwa).FontSize(11).Bold().FontColor(Color.FromHex(KolorSzaryCiemny));
+                        row.ConstantItem(15);
+                    }
 
-                            if (!string.IsNullOrEmpty(klient.NIP))
-                                daneCol.Item().PaddingTop(3).Text($"{txt["nip"]}: {klient.NIP}")
-                                    .FontSize(9).FontColor(Color.FromHex(KolorSzary));
-
-                            string adres = $"{klient.Adres}".Trim();
-                            string miejscowosc = $"{klient.KodPocztowy} {klient.Miejscowosc}".Trim();
-
-                            if (!string.IsNullOrEmpty(adres))
-                                daneCol.Item().PaddingTop(2).Text(adres).FontSize(9).FontColor(Color.FromHex(KolorSzary));
-                            if (!string.IsNullOrEmpty(miejscowosc))
-                                daneCol.Item().Text(miejscowosc).FontSize(9).FontColor(Color.FromHex(KolorSzary));
-                        });
-                    });
-
-                    row.ConstantItem(15);
-
-                    // DOSTAWCA - prawa strona (dane firmy + kto sporządził)
+                    // DOSTAWCA - prawa strona (lub pełna szerokość jeśli bez odbiorcy)
                     row.RelativeItem().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Column(dostCol =>
                     {
                         // Nagłówek z czerwonym akcentem

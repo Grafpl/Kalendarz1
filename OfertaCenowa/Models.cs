@@ -105,6 +105,11 @@ namespace Kalendarz1.OfertaCenowa
         public string WystawiajacyNazwa { get; set; } = "";
         public string WystawiajacyEmail { get; set; } = "";
         public string WystawiajacyTelefon { get; set; } = "";
+
+        /// <summary>
+        /// Czy oferta jest generowana bez danych odbiorcy (oferta ogólna)
+        /// </summary>
+        public bool BezOdbiorcy { get; set; } = false;
     }
 
     /// <summary>

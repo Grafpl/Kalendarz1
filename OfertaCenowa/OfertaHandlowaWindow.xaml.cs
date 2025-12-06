@@ -574,6 +574,36 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         /// <summary>
+        /// Obsługa checkboxa "Bez odbiorcy" - oferta ogólna bez danych klienta
+        /// </summary>
+        private void ChkBezOdbiorcy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkBezOdbiorcy.IsChecked == true)
+            {
+                // Zaznaczony - wyczyść wybranych odbiorców i pokaż komunikat
+                WybraniOdbiorcy.Clear();
+                OdswiezListeWybranychOdbiorcow();
+                txtTrybOdbiorcow.Text = "Bez odbiorcy";
+                placeholderBrakWybranych.Visibility = Visibility.Collapsed;
+
+                // Pokaż informację w panelu wybranych
+                var infoPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+                var infoIcon = new TextBlock { Text = "📋", FontSize = 32, HorizontalAlignment = HorizontalAlignment.Center, Opacity = 0.7 };
+                var infoText = new TextBlock { Text = "Oferta ogólna", FontSize = 14, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0), Foreground = new SolidColorBrush(Color.FromRgb(147, 51, 234)) };
+                var infoDesc = new TextBlock { Text = "bez danych odbiorcy", FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("LightTextBrush") };
+                infoPanel.Children.Add(infoIcon);
+                infoPanel.Children.Add(infoText);
+                infoPanel.Children.Add(infoDesc);
+                panelWybraniOdbiorcy.Children.Add(infoPanel);
+            }
+            else
+            {
+                // Odznaczony - przywróć normalny widok
+                OdswiezListeWybranychOdbiorcow();
+            }
+        }
+
+        /// <summary>
         /// Wczytuje wszystkich klientów CRM ze statusem "Do wysłania oferta"
         /// </summary>
         private async Task WczytajKlientowDoWyslaniaOfertaAsync()
@@ -1347,9 +1377,10 @@ namespace Kalendarz1.OfertaCenowa
             switch (krok)
             {
                 case 1:
-                    if (WybraniOdbiorcy.Count == 0)
+                    // Pozwól przejść jeśli zaznaczono "Bez odbiorcy" lub wybrano co najmniej jednego odbiorcę
+                    if (WybraniOdbiorcy.Count == 0 && chkBezOdbiorcy.IsChecked != true)
                     {
-                        MessageBox.Show("Wybierz przynajmniej jednego odbiorcę.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("Wybierz przynajmniej jednego odbiorcę lub zaznacz opcję 'Bez odbiorcy'.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return false;
                     }
                     return true;
@@ -1419,14 +1450,26 @@ namespace Kalendarz1.OfertaCenowa
             txtPodWystawiajacy.Text = _nazwaOperatora;
 
             panelPodsumowanieOdbiorcy.Children.Clear();
-            foreach (var odbiorca in WybraniOdbiorcy)
+
+            // Sprawdź czy to oferta bez odbiorcy
+            if (chkBezOdbiorcy.IsChecked == true)
             {
                 var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-                sp.Children.Add(new TextBlock { Text = odbiorca.Nazwa, FontSize = 14, FontWeight = FontWeights.SemiBold });
-                sp.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
-                if (!string.IsNullOrEmpty(odbiorca.NIP))
-                    sp.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                sp.Children.Add(new TextBlock { Text = "📋 Oferta ogólna", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(147, 51, 234)) });
+                sp.Children.Add(new TextBlock { Text = "bez danych odbiorcy", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
                 panelPodsumowanieOdbiorcy.Children.Add(sp);
+            }
+            else
+            {
+                foreach (var odbiorca in WybraniOdbiorcy)
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = odbiorca.Nazwa, FontSize = 14, FontWeight = FontWeights.SemiBold });
+                    sp.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                    if (!string.IsNullOrEmpty(odbiorca.NIP))
+                        sp.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                    panelPodsumowanieOdbiorcy.Children.Add(sp);
+                }
             }
 
             txtPodTermin.Text = (cboTerminPlatnosci.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "-";
@@ -1511,9 +1554,20 @@ namespace Kalendarz1.OfertaCenowa
         {
             try
             {
-                var odbiorca = WybraniOdbiorcy.First();
-                var klient = odbiorca.ToKlientOferta();
-                
+                bool bezOdbiorcy = chkBezOdbiorcy.IsChecked == true;
+
+                // Utwórz klienta - pustego jeśli bez odbiorcy
+                KlientOferta klient;
+                if (bezOdbiorcy)
+                {
+                    klient = new KlientOferta { Nazwa = "", NIP = "", Adres = "", KodPocztowy = "", Miejscowosc = "" };
+                }
+                else
+                {
+                    var odbiorca = WybraniOdbiorcy.First();
+                    klient = odbiorca.ToKlientOferta();
+                }
+
                 int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1");
 
                 var parametry = new ParametryOferty
@@ -1530,7 +1584,8 @@ namespace Kalendarz1.OfertaCenowa
                     PokazTerminPlatnosci = chkPdfPokazTermin.IsChecked == true,
                     WystawiajacyNazwa = _nazwaOperatora,
                     WystawiajacyEmail = _emailOperatora,
-                    WystawiajacyTelefon = _telefonOperatora
+                    WystawiajacyTelefon = _telefonOperatora,
+                    BezOdbiorcy = bezOdbiorcy
                 };
 
                 var produkty = TowaryWOfercie
@@ -1539,10 +1594,18 @@ namespace Kalendarz1.OfertaCenowa
                     .ToList();
 
                 string transport = rbTransportWlasny.IsChecked == true ? "Transport własny" : "Transport klienta";
-                string nazwaKlienta = klient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
-                if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
 
-                string nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                string nazwaPliku;
+                if (bezOdbiorcy)
+                {
+                    nazwaPliku = $"Oferta_Ogolna_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                }
+                else
+                {
+                    string nazwaKlienta = klient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
+                    if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
+                    nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                }
                 string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Oferty");
                 Directory.CreateDirectory(folder);
                 string sciezka = Path.Combine(folder, nazwaPliku);
@@ -1561,7 +1624,8 @@ namespace Kalendarz1.OfertaCenowa
                     MessageBox.Show($"PDF wygenerowany:\n{sciezka}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
-                if (WybraniOdbiorcy.Count > 1)
+                // Generuj dla pozostałych odbiorców (tylko jeśli nie jest to oferta bez odbiorcy)
+                if (!bezOdbiorcy && WybraniOdbiorcy.Count > 1)
                 {
                     MessageBox.Show($"Wygenerowano dla pierwszego odbiorcy.\nGeneruję dla pozostałych {WybraniOdbiorcy.Count - 1}...", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -1569,12 +1633,12 @@ namespace Kalendarz1.OfertaCenowa
                     {
                         var kolejnyOdbiorca = WybraniOdbiorcy[i];
                         var kolejnyKlient = kolejnyOdbiorca.ToKlientOferta();
-                        nazwaKlienta = kolejnyKlient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
+                        string nazwaKlienta = kolejnyKlient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
                         if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
                         nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
                         sciezka = Path.Combine(folder, nazwaPliku);
                         generator.GenerujPDF(sciezka, kolejnyKlient, produkty, txtNotatki.Text, transport, parametry);
-                        
+
                         // Zapisz też kolejną ofertę do bazy
                         await ZapiszOferteDoBazyAsync(kolejnyKlient, produkty, parametry, txtNotatki.Text, transport, sciezka, nazwaPliku);
                     }
@@ -1596,10 +1660,10 @@ namespace Kalendarz1.OfertaCenowa
                 bool pokazIlosc = chkPdfPokazIlosc.IsChecked == true;
                 bool pokazOpakowanie = chkPdfPokazOpakowanie.IsChecked == true;
                 bool pokazWartosc = pokazIlosc && pokazCene;
-                
-                string temat = Uri.EscapeDataString("Oferta cenowa - Piórkowscy");
+
+                string temat = "Oferta cenowa - Piórkowscy";
                 string dniSlowo = dniWaznosci == 1 ? "dzień" : "dni";
-                
+
                 var sb = new StringBuilder();
                 sb.AppendLine("Szanowni Państwo,");
                 sb.AppendLine();
@@ -1616,21 +1680,21 @@ namespace Kalendarz1.OfertaCenowa
                 foreach (var p in produkty)
                 {
                     sb.AppendLine($"{lp}. {p.Nazwa}");
-                    
+
                     if (pokazCene && p.CenaJednostkowa > 0)
                         sb.AppendLine($"   Cena: {p.CenaJednostkowa:N2} zł/kg");
-                    
+
                     if (pokazIlosc && p.Ilosc > 0)
                         sb.AppendLine($"   Ilość: {p.Ilosc:N0} kg");
-                    
+
                     decimal wartosc = p.Ilosc * p.CenaJednostkowa;
-                    
+
                     if (pokazWartosc && wartosc > 0)
                         sb.AppendLine($"   Wartość: {wartosc:N2} zł");
-                    
+
                     if (pokazOpakowanie)
                         sb.AppendLine($"   Opakowanie: {p.Opakowanie}");
-                    
+
                     sb.AppendLine();
                     suma += wartosc;
                     lp++;
@@ -1641,7 +1705,7 @@ namespace Kalendarz1.OfertaCenowa
                     sb.AppendLine("═══════════════════════════════════════");
                     sb.AppendLine($"SUMA: {suma:N2} zł");
                 }
-                
+
                 sb.AppendLine("═══════════════════════════════════════");
                 sb.AppendLine();
                 sb.AppendLine("Ceny nie zawierają podatku VAT.");
@@ -1652,17 +1716,68 @@ namespace Kalendarz1.OfertaCenowa
                 sb.AppendLine("Koziołki 40, 95-061 Dmosin");
                 sb.AppendLine("Tel: +48 46 874 71 70");
 
-                string tresc = Uri.EscapeDataString(sb.ToString());
+                string tresc = sb.ToString();
 
-                string mailtoUrl = $"mailto:?subject={temat}&body={tresc}";
-                Process.Start(new ProcessStartInfo(mailtoUrl) { UseShellExecute = true });
-                Process.Start(new ProcessStartInfo(sciezkaPDF) { UseShellExecute = true });
+                // Próbuj otworzyć Outlook z załącznikiem
+                bool outlookOtworzony = SprobujOtworzycOutlookZZalacznikiem(temat, tresc, sciezkaPDF);
 
-                MessageBox.Show($"Otwarto klienta email i PDF.\nDołącz PDF ręcznie:\n{sciezkaPDF}", "Email", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (!outlookOtworzony)
+                {
+                    // Fallback - użyj mailto i skopiuj ścieżkę do schowka
+                    string mailtoUrl = $"mailto:?subject={Uri.EscapeDataString(temat)}&body={Uri.EscapeDataString(tresc)}";
+                    Process.Start(new ProcessStartInfo(mailtoUrl) { UseShellExecute = true });
+
+                    // Skopiuj ścieżkę PDF do schowka
+                    Clipboard.SetText(sciezkaPDF);
+
+                    // Otwórz PDF
+                    Process.Start(new ProcessStartInfo(sciezkaPDF) { UseShellExecute = true });
+
+                    MessageBox.Show($"Otwarto klienta email i PDF.\n\n📎 Ścieżka do PDF została skopiowana do schowka.\nWklej załącznik (Ctrl+V) w oknie email:\n{sciezkaPDF}",
+                        "Email", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwierania email: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Próbuje otworzyć Microsoft Outlook z załącznikiem PDF
+        /// </summary>
+        private bool SprobujOtworzycOutlookZZalacznikiem(string temat, string tresc, string sciezkaPDF)
+        {
+            try
+            {
+                // Użyj dynamic aby uniknąć referencji do Outlook Interop
+                Type outlookType = Type.GetTypeFromProgID("Outlook.Application");
+                if (outlookType == null)
+                    return false;
+
+                dynamic outlookApp = Activator.CreateInstance(outlookType);
+                dynamic mailItem = outlookApp.CreateItem(0); // olMailItem = 0
+
+                mailItem.Subject = temat;
+                mailItem.Body = tresc;
+
+                // Dodaj załącznik PDF
+                if (File.Exists(sciezkaPDF))
+                {
+                    mailItem.Attachments.Add(sciezkaPDF);
+                }
+
+                mailItem.Display(); // Otwórz okno nowej wiadomości
+
+                MessageBox.Show("Otwarto Microsoft Outlook z załączonym PDF.\nWypełnij adres odbiorcy i wyślij.",
+                    "📧 Email gotowy", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                return true;
+            }
+            catch
+            {
+                // Outlook nie jest zainstalowany lub wystąpił błąd
+                return false;
             }
         }
 
