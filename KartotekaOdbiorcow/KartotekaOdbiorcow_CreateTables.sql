@@ -123,11 +123,56 @@ BEGIN
         [WymaganyTypPojazdu] [nvarchar](100) NULL,
         [Uwagi] [nvarchar](500) NULL,
         [DataUtworzenia] [datetime] NOT NULL DEFAULT(GETDATE()),
-        
+
+        -- Koszty stałe transportu
+        [KosztStalyDostawy] [decimal](10, 2) NULL DEFAULT(0), -- PLN za dostawę
+        [KosztKmWDwieStrony] [bit] NULL DEFAULT(1), -- Czy liczyć km w obie strony
+        [KosztGodzinyKierowcy] [decimal](8, 2) NULL DEFAULT(50), -- PLN/h
+        [SredniPrzebiegLitr] [decimal](5, 2) NULL DEFAULT(25), -- km/l paliwa
+        [CenaPaliwaLitr] [decimal](6, 2) NULL DEFAULT(6.50), -- PLN/l
+        [MinWartoscDlaDarmowegoTransportu] [decimal](10, 2) NULL, -- PLN
+        [ProcentMarzyNaTransport] [decimal](5, 2) NULL DEFAULT(0), -- % doliczany do kosztu
+
+        -- Dane rozliczeniowe
+        [CzyDoliczaTransportDoFaktury] [bit] NULL DEFAULT(0),
+        [StalaCenaTransportu] [decimal](10, 2) NULL, -- jeśli cena stała zamiast kalkulacji
+
         CONSTRAINT [PK_OdbiorcyTransport] PRIMARY KEY CLUSTERED ([TransportID] ASC),
         CONSTRAINT [FK_OdbiorcyTransport_Odbiorcy] FOREIGN KEY([OdbiorcaID])
             REFERENCES [dbo].[Odbiorcy] ([OdbiorcaID]) ON DELETE CASCADE
     )
+END
+GO
+
+-- Dodanie nowych kolumn jeśli tabela istnieje
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND type in (N'U'))
+BEGIN
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'KosztStalyDostawy')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [KosztStalyDostawy] [decimal](10, 2) NULL DEFAULT(0);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'KosztKmWDwieStrony')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [KosztKmWDwieStrony] [bit] NULL DEFAULT(1);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'KosztGodzinyKierowcy')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [KosztGodzinyKierowcy] [decimal](8, 2) NULL DEFAULT(50);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'SredniPrzebiegLitr')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [SredniPrzebiegLitr] [decimal](5, 2) NULL DEFAULT(25);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'CenaPaliwaLitr')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [CenaPaliwaLitr] [decimal](6, 2) NULL DEFAULT(6.50);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'MinWartoscDlaDarmowegoTransportu')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [MinWartoscDlaDarmowegoTransportu] [decimal](10, 2) NULL;
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'ProcentMarzyNaTransport')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [ProcentMarzyNaTransport] [decimal](5, 2) NULL DEFAULT(0);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'CzyDoliczaTransportDoFaktury')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [CzyDoliczaTransportDoFaktury] [bit] NULL DEFAULT(0);
+
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[OdbiorcyTransport]') AND name = 'StalaCenaTransportu')
+        ALTER TABLE [dbo].[OdbiorcyTransport] ADD [StalaCenaTransportu] [decimal](10, 2) NULL;
 END
 GO
 
@@ -250,7 +295,7 @@ SELECT
     -- Transport
     t.TypTransportu,
     t.PreferowaneDniDostawy,
-    t.OdlegloscKm AS KosztKm,
+    t.KosztTransportuKm AS KosztKm,
     
     o.DataUtworzenia,
     o.KtoStworzyl,

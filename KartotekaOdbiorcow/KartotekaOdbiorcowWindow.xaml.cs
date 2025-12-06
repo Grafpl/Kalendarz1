@@ -21,8 +21,7 @@ namespace Kalendarz1
         {
             InitializeComponent();
             UserID = App.UserID;
-            txtUserID.Text = UserID;
-            
+
             Loaded += KartotekaOdbiorcowWindow_Loaded;
         }
 
@@ -104,7 +103,73 @@ namespace Kalendarz1
             if (dgOdbiorcy.SelectedItem is DataRowView row)
             {
                 wybranyOdbiorcaID = Convert.ToInt32(row["OdbiorcaID"]);
+                WczytajPodsumowanieKlienta();
                 WczytajSzczegolyOdbiorcy();
+            }
+        }
+
+        private void WczytajPodsumowanieKlienta()
+        {
+            if (!wybranyOdbiorcaID.HasValue)
+            {
+                panelPodsumowanieKlienta.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT
+                            o.NazwaSkrot, o.PelnaNazwa, o.TypOdbiorcy, o.KategoriaOdbiorcy,
+                            o.Miejscowosc, o.Ulica, o.AktualnaSaldo, o.DataOstatniegoZakupu,
+                            (SELECT TOP 1 ISNULL(Telefon, TelefonKomorkowy) FROM OdbiorcyKontakty
+                             WHERE OdbiorcaID = o.OdbiorcaID ORDER BY JestGlownyKontakt DESC) AS Telefon
+                        FROM Odbiorcy o
+                        WHERE o.OdbiorcaID = @OdbiorcaID";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                txtKlientNazwa.Text = reader["NazwaSkrot"].ToString();
+                                txtKlientTyp.Text = $"{reader["TypOdbiorcy"]} | Kat. {reader["KategoriaOdbiorcy"]}";
+                                txtKlientAdres.Text = $"{reader["Miejscowosc"]}";
+                                txtKlientTelefon.Text = reader["Telefon"] != DBNull.Value ? reader["Telefon"].ToString() : "-";
+
+                                if (reader["AktualnaSaldo"] != DBNull.Value)
+                                {
+                                    decimal saldo = Convert.ToDecimal(reader["AktualnaSaldo"]);
+                                    txtKlientSaldo.Text = $"{saldo:N2} PLN";
+                                    txtKlientSaldo.Foreground = saldo > 0
+                                        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+                                        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                                }
+                                else
+                                {
+                                    txtKlientSaldo.Text = "0 PLN";
+                                    txtKlientSaldo.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"));
+                                }
+
+                                if (reader["DataOstatniegoZakupu"] != DBNull.Value)
+                                    txtKlientOstatnieZam.Text = Convert.ToDateTime(reader["DataOstatniegoZakupu"]).ToString("dd.MM.yy");
+                                else
+                                    txtKlientOstatnieZam.Text = "-";
+
+                                panelPodsumowanieKlienta.Visibility = Visibility.Visible;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                panelPodsumowanieKlienta.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -127,6 +192,10 @@ namespace Kalendarz1
                 WczytajLokalizacje();
             else if (tabControl.SelectedIndex == 6) // Statystyki
                 WczytajStatystyki();
+            else if (tabControl.SelectedIndex == 7) // Analiza Kosztów
+                WczytajAnalizaKosztow();
+            else if (tabControl.SelectedIndex == 8) // Rentowność
+                WczytajRentownosc();
         }
 
         #endregion

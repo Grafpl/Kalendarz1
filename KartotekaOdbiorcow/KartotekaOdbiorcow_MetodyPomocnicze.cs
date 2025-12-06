@@ -1,6 +1,8 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -429,45 +431,46 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(_connHandel))
                 {
                     conn.Open();
+                    // Użyj tabel DK (nagłówki dokumentów) z CDN schema zamiast STDocuments
                     string query = @"
-                        SELECT 
-                            COUNT(DISTINCT d.DocumentID) AS LiczbaFaktur,
-                            ISNULL(SUM(d.GrossValue), 0) AS WartoscBrutto,
-                            ISNULL(SUM(d.NetValue), 0) AS WartoscNetto,
-                            ISNULL(AVG(d.GrossValue), 0) AS SredniaWartosc,
-                            MIN(d.DocumentDate) AS PierwszaFaktura,
-                            MAX(d.DocumentDate) AS OstatniaFaktura
-                        FROM [HANDEL].[SSCommon].[STDocuments] d
-                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON d.ContractorGuid = c.Guid
+                        SELECT
+                            COUNT(DISTINCT DK.ID) AS LiczbaFaktur,
+                            ISNULL(SUM(DK.WartBrutto), 0) AS WartoscBrutto,
+                            ISNULL(SUM(DK.WartNetto), 0) AS WartoscNetto,
+                            ISNULL(AVG(DK.WartBrutto), 0) AS SredniaWartosc,
+                            MIN(DK.data) AS PierwszaFaktura,
+                            MAX(DK.data) AS OstatniaFaktura
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON DK.podmiot_id = c.id
                         WHERE c.Shortcut = @NazwaOdbiorcy
-                            AND d.DocumentType IN (310, 311)
-                            AND d.DocumentDate >= DATEADD(YEAR, -1, GETDATE())";
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(YEAR, -1, GETDATE())";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
-                        
+
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             if (reader.Read())
                             {
                                 int row = 0;
                                 DodajNaglowekSekcji(gridStatystyki, "📊 Statystyki Sprzedaży (12 miesięcy)", ref row);
-                                
+
                                 DodajPoleTekstowe(gridStatystyki, "Liczba faktur:", reader["LiczbaFaktur"].ToString(), ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Wartość netto:", 
+                                DodajPoleTekstowe(gridStatystyki, "Wartość netto:",
                                     Convert.ToDecimal(reader["WartoscNetto"]).ToString("N2") + " PLN", ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Wartość brutto:", 
+                                DodajPoleTekstowe(gridStatystyki, "Wartość brutto:",
                                     Convert.ToDecimal(reader["WartoscBrutto"]).ToString("N2") + " PLN", ref row);
-                                DodajPoleTekstowe(gridStatystyki, "Średnia wartość faktury:", 
+                                DodajPoleTekstowe(gridStatystyki, "Średnia wartość faktury:",
                                     Convert.ToDecimal(reader["SredniaWartosc"]).ToString("N2") + " PLN", ref row);
-                                
+
                                 if (reader["PierwszaFaktura"] != DBNull.Value)
-                                    DodajPoleTekstowe(gridStatystyki, "Pierwsza faktura:", 
+                                    DodajPoleTekstowe(gridStatystyki, "Pierwsza faktura:",
                                         Convert.ToDateTime(reader["PierwszaFaktura"]).ToString("dd.MM.yyyy"), ref row);
-                                
+
                                 if (reader["OstatniaFaktura"] != DBNull.Value)
-                                    DodajPoleTekstowe(gridStatystyki, "Ostatnia faktura:", 
+                                    DodajPoleTekstowe(gridStatystyki, "Ostatnia faktura:",
                                         Convert.ToDateTime(reader["OstatniaFaktura"]).ToString("dd.MM.yyyy"), ref row);
                             }
                         }
@@ -480,191 +483,1060 @@ namespace Kalendarz1
             }
         }
 
+        private void WczytajAnalizaKosztow()
+        {
+            if (!wybranyOdbiorcaID.HasValue) return;
+
+            gridAnalizaKosztow.Children.Clear();
+            gridAnalizaKosztow.RowDefinitions.Clear();
+            gridAnalizaKosztow.ColumnDefinitions.Clear();
+
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridAnalizaKosztow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            try
+            {
+                // Pobierz dane odbiorcy i transportu
+                decimal odlegloscKm = 0;
+                decimal kosztKm = 3.50m;
+                decimal kosztStalyDostawy = 0;
+                decimal kosztGodzinyKierowcy = 50m;
+                decimal sredniPrzebiegLitr = 25m;
+                decimal cenaPaliwaLitr = 6.50m;
+                int czasRozladunku = 30;
+                decimal minWartoscDarmowy = 0;
+                string nazwaOdbiorcy = "";
+
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+
+                    // Dane odbiorcy
+                    string queryOdbiorca = "SELECT NazwaSkrot, OdlegloscKm FROM Odbiorcy WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryOdbiorca, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                nazwaOdbiorcy = reader["NazwaSkrot"].ToString();
+                                if (reader["OdlegloscKm"] != DBNull.Value)
+                                    odlegloscKm = Convert.ToDecimal(reader["OdlegloscKm"]);
+                            }
+                        }
+                    }
+
+                    // Dane transportowe - tylko podstawowe kolumny które istnieją
+                    string queryTransport = @"
+                        SELECT
+                            ISNULL(KosztTransportuKm, 3.50) AS KosztKm,
+                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku
+                        FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryTransport, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                kosztKm = Convert.ToDecimal(reader["KosztKm"]);
+                                czasRozladunku = Convert.ToInt32(reader["CzasRozladunku"]);
+                            }
+                        }
+                    }
+                }
+
+                // Obliczenia kosztów transportu
+                decimal dystansWObie = odlegloscKm * 2;
+                decimal kosztPaliwa = (dystansWObie / sredniPrzebiegLitr) * cenaPaliwaLitr;
+                decimal czasJazdyGodzin = dystansWObie / 60m; // zakładamy 60 km/h średnio
+                decimal czasCalkowityGodzin = czasJazdyGodzin + (czasRozladunku / 60m);
+                decimal kosztKierowcy = czasCalkowityGodzin * kosztGodzinyKierowcy;
+                decimal kosztCalkowityDostawy = kosztStalyDostawy + kosztPaliwa + kosztKierowcy;
+
+                // Pobierz statystyki zamówień
+                int liczbaZamowien = 0;
+                decimal srednieZamowienieKg = 0;
+                decimal srednieZamowieniePLN = 0;
+
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+                    string queryZam = @"
+                        SELECT
+                            COUNT(*) AS Liczba,
+                            ISNULL(AVG(CAST(zm.IloscKg AS DECIMAL)), 0) AS SredniaKg
+                        FROM ZamowieniaMieso zm
+                        INNER JOIN Odbiorcy o ON zm.KlientId = o.IdOdbiorcy
+                        WHERE o.OdbiorcaID = @OdbiorcaID
+                            AND zm.DataPrzyjazdu >= DATEADD(MONTH, -3, GETDATE())
+                            AND zm.Status NOT IN ('Anulowane')";
+                    using (SqlCommand cmd = new SqlCommand(queryZam, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                liczbaZamowien = Convert.ToInt32(reader["Liczba"]);
+                                srednieZamowienieKg = Convert.ToDecimal(reader["SredniaKg"]);
+                            }
+                        }
+                    }
+                }
+
+                // Pobierz średnią wartość faktury z Handel
+                using (SqlConnection conn = new SqlConnection(_connHandel))
+                {
+                    conn.Open();
+                    string queryFak = @"
+                        SELECT ISNULL(AVG(DK.WartNetto), 0) AS SredniaWartosc
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] c ON DK.podmiot_id = c.id
+                        WHERE c.Shortcut = @NazwaOdbiorcy
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(MONTH, -3, GETDATE())";
+                    using (SqlCommand cmd = new SqlCommand(queryFak, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
+                        var result = cmd.ExecuteScalar();
+                        if (result != DBNull.Value && result != null)
+                            srednieZamowieniePLN = Convert.ToDecimal(result);
+                    }
+                }
+
+                // Oblicz wskaźniki
+                decimal kosztNaKg = srednieZamowienieKg > 0 ? kosztCalkowityDostawy / srednieZamowienieKg : 0;
+                decimal procentKosztuTransportu = srednieZamowieniePLN > 0 ? (kosztCalkowityDostawy / srednieZamowieniePLN) * 100 : 0;
+
+                // Buduj UI
+                int row = 0;
+
+                // Sekcja 1: Parametry transportu
+                DodajNaglowekSekcji(gridAnalizaKosztow, "🚚 Parametry Transportu", ref row);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Odległość od firmy:", $"{odlegloscKm:N1} km", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Dystans w obie strony:", $"{dystansWObie:N1} km", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt stały dostawy:", $"{kosztStalyDostawy:N2} PLN", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Czas rozładunku:", $"{czasRozladunku} min", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Cena paliwa:", $"{cenaPaliwaLitr:N2} PLN/l", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średni przebieg:", $"{sredniPrzebiegLitr:N1} km/l", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt godziny kierowcy:", $"{kosztGodzinyKierowcy:N2} PLN/h", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Szacowany czas jazdy:", $"{czasJazdyGodzin:N1} h", ref row, 2, true);
+
+                // Sekcja 2: Kalkulacja kosztów
+                DodajNaglowekSekcji(gridAnalizaKosztow, "💰 Kalkulacja Kosztów Dostawy", ref row);
+
+                // Panel z kosztami
+                var panelKoszty = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0F9FF")),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 10, 0, 20)
+                };
+
+                var stackKoszty = new StackPanel();
+                stackKoszty.Children.Add(CreateCostLine("Koszt paliwa:", $"{kosztPaliwa:N2} PLN", "(dystans / przebieg × cena)"));
+                stackKoszty.Children.Add(CreateCostLine("Koszt kierowcy:", $"{kosztKierowcy:N2} PLN", $"({czasCalkowityGodzin:N1}h × {kosztGodzinyKierowcy:N0} PLN)"));
+                stackKoszty.Children.Add(CreateCostLine("Koszt stały:", $"{kosztStalyDostawy:N2} PLN", ""));
+                stackKoszty.Children.Add(new System.Windows.Shapes.Rectangle { Height = 2, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")), Margin = new Thickness(0, 10, 0, 10) });
+
+                var totalLine = CreateCostLine("RAZEM KOSZT DOSTAWY:", $"{kosztCalkowityDostawy:N2} PLN", "");
+                ((totalLine.Children[0] as TextBlock)!).FontSize = 16;
+                ((totalLine.Children[0] as TextBlock)!).FontWeight = FontWeights.Bold;
+                ((totalLine.Children[1] as TextBlock)!).FontSize = 18;
+                ((totalLine.Children[1] as TextBlock)!).Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
+                stackKoszty.Children.Add(totalLine);
+
+                panelKoszty.Child = stackKoszty;
+
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelKoszty, row);
+                Grid.SetColumnSpan(panelKoszty, 4);
+                gridAnalizaKosztow.Children.Add(panelKoszty);
+                row++;
+
+                // Sekcja 3: Wskaźniki rentowności
+                DodajNaglowekSekcji(gridAnalizaKosztow, "📊 Wskaźniki Rentowności (3 miesiące)", ref row);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Liczba dostaw:", $"{liczbaZamowien}", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średnie zamówienie:", $"{srednieZamowienieKg:N0} kg", ref row, 2, true);
+
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Średnia wartość faktury:", $"{srednieZamowieniePLN:N2} PLN", ref row, 0);
+                DodajPoleTekstoweKolumna(gridAnalizaKosztow, "Koszt transportu na kg:", $"{kosztNaKg:N2} PLN/kg", ref row, 2, true);
+
+                // Panel z procentem
+                var panelProcent = new Border
+                {
+                    Background = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF2F2")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0FDF4")),
+                    BorderBrush = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 15, 0, 0)
+                };
+
+                var stackProcent = new StackPanel { Orientation = Orientation.Horizontal };
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = "Udział transportu w wartości zamówienia: ",
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = $"{procentKosztuTransportu:N1}%",
+                    FontSize = 24,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = procentKosztuTransportu > 10 ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 10, 0)
+                });
+                stackProcent.Children.Add(new TextBlock
+                {
+                    Text = procentKosztuTransportu > 10 ? "⚠️ Wysoki!" : procentKosztuTransportu > 5 ? "📊 Średni" : "✅ Niski",
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                panelProcent.Child = stackProcent;
+
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelProcent, row);
+                Grid.SetColumnSpan(panelProcent, 4);
+                gridAnalizaKosztow.Children.Add(panelProcent);
+                row++;
+
+                // Minimalna wartość dla darmowego transportu
+                if (minWartoscDarmowy > 0)
+                {
+                    gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    var txtDarmowy = new TextBlock
+                    {
+                        Text = $"💡 Minimalna wartość zamówienia dla darmowego transportu: {minWartoscDarmowy:N2} PLN",
+                        FontStyle = FontStyles.Italic,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
+                        Margin = new Thickness(0, 15, 0, 0)
+                    };
+                    Grid.SetRow(txtDarmowy, row);
+                    Grid.SetColumnSpan(txtDarmowy, 4);
+                    gridAnalizaKosztow.Children.Add(txtDarmowy);
+                    row++;
+                }
+
+                // Przycisk edycji parametrów
+                gridAnalizaKosztow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var btnEdytuj = new Button
+                {
+                    Content = "✏️ Edytuj parametry transportu",
+                    Style = (Style)FindResource("ButtonPrimary"),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Width = 250,
+                    Margin = new Thickness(0, 25, 0, 0)
+                };
+                btnEdytuj.Click += BtnEdytujParametryTransportu_Click;
+                Grid.SetRow(btnEdytuj, row);
+                Grid.SetColumnSpan(btnEdytuj, 4);
+                gridAnalizaKosztow.Children.Add(btnEdytuj);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private StackPanel CreateCostLine(string label, string value, string formula)
+        {
+            var stack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
+            stack.Children.Add(new TextBlock { Text = label, Width = 200, FontWeight = FontWeights.Medium });
+            stack.Children.Add(new TextBlock { Text = value, Width = 120, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1F2937")) });
+            if (!string.IsNullOrEmpty(formula))
+                stack.Children.Add(new TextBlock { Text = formula, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF")), FontStyle = FontStyles.Italic });
+            return stack;
+        }
+
+        private void DodajPoleTekstoweKolumna(Grid grid, string label, string wartosc, ref int row, int kolumna, bool nowyWiersz = false)
+        {
+            if (kolumna == 0)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var labelControl = new TextBlock
+            {
+                Text = label,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(labelControl, row);
+            Grid.SetColumn(labelControl, kolumna);
+            grid.Children.Add(labelControl);
+
+            var wartoscControl = new TextBlock
+            {
+                Text = wartosc,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(wartoscControl, row);
+            Grid.SetColumn(wartoscControl, kolumna + 1);
+            grid.Children.Add(wartoscControl);
+
+            if (nowyWiersz)
+                row++;
+        }
+
+        private void BtnEdytujParametryTransportu_Click(object sender, RoutedEventArgs e)
+        {
+            if (!wybranyOdbiorcaID.HasValue) return;
+
+            var dialog = new EdytujParametryTransportuDialog(wybranyOdbiorcaID.Value, _connLibraNet);
+            dialog.ParametryZapisane += (s, ev) => WczytajAnalizaKosztow();
+            dialog.ShowDialog();
+        }
+
+        private void WczytajRentownosc()
+        {
+            if (!wybranyOdbiorcaID.HasValue) return;
+
+            gridRentownosc.Children.Clear();
+            gridRentownosc.RowDefinitions.Clear();
+            gridRentownosc.ColumnDefinitions.Clear();
+
+            gridRentownosc.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridRentownosc.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            gridRentownosc.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
+            gridRentownosc.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            try
+            {
+                string nazwaOdbiorcy = "";
+                decimal odlegloscKm = 0;
+                decimal kosztTransportuDostawy = 0;
+
+                // Pobierz dane odbiorcy
+                using (SqlConnection conn = new SqlConnection(_connLibraNet))
+                {
+                    conn.Open();
+                    string queryOdbiorca = "SELECT NazwaSkrot, OdlegloscKm FROM Odbiorcy WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryOdbiorca, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                nazwaOdbiorcy = reader["NazwaSkrot"].ToString();
+                                if (reader["OdlegloscKm"] != DBNull.Value)
+                                    odlegloscKm = Convert.ToDecimal(reader["OdlegloscKm"]);
+                            }
+                        }
+                    }
+
+                    // Oblicz koszt transportu - używaj domyślnych wartości
+                    decimal kosztKm = 3.50m;
+                    decimal kosztGodzinyKierowcy = 50m;
+                    decimal sredniPrzebiegLitr = 25m;
+                    decimal cenaPaliwaLitr = 6.50m;
+                    int czasRozladunku = 30;
+
+                    // Pobierz tylko podstawowe kolumny które istnieją
+                    string queryTransport = @"
+                        SELECT
+                            ISNULL(KosztTransportuKm, 3.50) AS KosztKm,
+                            ISNULL(CzasRozladunku, 30) AS CzasRozladunku
+                        FROM OdbiorcyTransport WHERE OdbiorcaID = @OdbiorcaID";
+                    using (SqlCommand cmd = new SqlCommand(queryTransport, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@OdbiorcaID", wybranyOdbiorcaID.Value);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                kosztKm = Convert.ToDecimal(reader["KosztKm"]);
+                                czasRozladunku = Convert.ToInt32(reader["CzasRozladunku"]);
+                            }
+                        }
+                    }
+
+                    decimal dystansWObie = odlegloscKm * 2;
+                    decimal kosztPaliwa = (dystansWObie / sredniPrzebiegLitr) * cenaPaliwaLitr;
+                    decimal czasJazdyGodzin = dystansWObie / 60m;
+                    decimal czasCalkowityGodzin = czasJazdyGodzin + (czasRozladunku / 60m);
+                    decimal kosztKierowcy = czasCalkowityGodzin * kosztGodzinyKierowcy;
+                    kosztTransportuDostawy = kosztPaliwa + kosztKierowcy;
+                }
+
+                // Pobierz ceny zakupu z PZ (średnia ważona z ostatnich 3 miesięcy)
+                var cenyZakupu = new Dictionary<string, (decimal cena, decimal ilosc, string nazwa)>();
+
+                using (SqlConnection conn = new SqlConnection(_connHandel))
+                {
+                    conn.Open();
+
+                    // Pobierz średnie ceny zakupu z PZ dla głównych produktów
+                    string queryPZ = @"
+                        SELECT
+                            TW.symbol AS SymbolTowaru,
+                            TW.nazwa AS NazwaTowaru,
+                            SUM(MZ.wartn) AS WartoscNetto,
+                            SUM(MZ.ilosc) AS Ilosc
+                        FROM [HANDEL].[CDN].[MZ] MZ
+                        INNER JOIN [HANDEL].[CDN].[TW] TW ON MZ.tw_id = TW.ID
+                        WHERE MZ.seria = 'sPZ'
+                            AND MZ.data >= DATEADD(MONTH, -3, GETDATE())
+                            AND MZ.ilosc > 0
+                            AND TW.symbol LIKE '%TUSZKA%' OR TW.symbol LIKE '%KURCZAK%' OR TW.symbol LIKE '%NOGI%'
+                                OR TW.symbol LIKE '%SKRZYD%' OR TW.symbol LIKE '%FILET%' OR TW.symbol LIKE '%UDZIEC%'
+                        GROUP BY TW.symbol, TW.nazwa
+                        HAVING SUM(MZ.ilosc) > 0";
+
+                    using (SqlCommand cmd = new SqlCommand(queryPZ, conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string symbol = reader["SymbolTowaru"].ToString();
+                                decimal wartosc = Convert.ToDecimal(reader["WartoscNetto"]);
+                                decimal ilosc = Convert.ToDecimal(reader["Ilosc"]);
+                                string nazwa = reader["NazwaTowaru"].ToString();
+                                decimal sredniaCena = ilosc > 0 ? wartosc / ilosc : 0;
+                                cenyZakupu[symbol] = (sredniaCena, ilosc, nazwa);
+                            }
+                        }
+                    }
+                }
+
+                // Pobierz ceny sprzedaży dla tego odbiorcy
+                var cenySprzedazy = new Dictionary<string, (decimal cena, decimal ilosc, decimal wartosc)>();
+                decimal sumaSprzedazyNetto = 0;
+                decimal sumaIlosciKg = 0;
+                int liczbaFaktur = 0;
+
+                using (SqlConnection conn = new SqlConnection(_connHandel))
+                {
+                    conn.Open();
+
+                    string querySprzedaz = @"
+                        SELECT
+                            TW.symbol AS SymbolTowaru,
+                            SUM(DP.ilosc) AS Ilosc,
+                            SUM(DP.wartn) AS WartoscNetto
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[CDN].[DP] DP ON DK.ID = DP.dk_id
+                        INNER JOIN [HANDEL].[CDN].[TW] TW ON DP.tw_id = TW.ID
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.podmiot_id = C.id
+                        WHERE C.Shortcut = @NazwaOdbiorcy
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(MONTH, -3, GETDATE())
+                            AND DP.ilosc > 0
+                        GROUP BY TW.symbol";
+
+                    using (SqlCommand cmd = new SqlCommand(querySprzedaz, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string symbol = reader["SymbolTowaru"].ToString();
+                                decimal ilosc = Convert.ToDecimal(reader["Ilosc"]);
+                                decimal wartosc = Convert.ToDecimal(reader["WartoscNetto"]);
+                                decimal cena = ilosc > 0 ? wartosc / ilosc : 0;
+                                cenySprzedazy[symbol] = (cena, ilosc, wartosc);
+                                sumaSprzedazyNetto += wartosc;
+                                sumaIlosciKg += ilosc;
+                            }
+                        }
+                    }
+
+                    // Liczba faktur
+                    string queryLiczbaFaktur = @"
+                        SELECT COUNT(DISTINCT DK.ID) AS Liczba
+                        FROM [HANDEL].[CDN].[DK] DK
+                        INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.podmiot_id = C.id
+                        WHERE C.Shortcut = @NazwaOdbiorcy
+                            AND DK.seria IN ('sFV', 'sFKOR')
+                            AND DK.data >= DATEADD(MONTH, -3, GETDATE())";
+                    using (SqlCommand cmd = new SqlCommand(queryLiczbaFaktur, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@NazwaOdbiorcy", nazwaOdbiorcy);
+                        var result = cmd.ExecuteScalar();
+                        if (result != DBNull.Value) liczbaFaktur = Convert.ToInt32(result);
+                    }
+                }
+
+                // Oblicz marże dla każdego produktu
+                var marze = new List<(string symbol, string nazwa, decimal cenaZakupu, decimal cenaSprzedazy, decimal marza, decimal marzaProc, decimal ilosc)>();
+                decimal sumaMarzy = 0;
+                decimal sumaKosztuZakupu = 0;
+
+                foreach (var sprzedaz in cenySprzedazy)
+                {
+                    string symbol = sprzedaz.Key;
+                    decimal cenaSprzedazy = sprzedaz.Value.cena;
+                    decimal ilosc = sprzedaz.Value.ilosc;
+                    decimal wartosc = sprzedaz.Value.wartosc;
+
+                    decimal cenaZakupu = 0;
+                    string nazwa = symbol;
+
+                    // Znajdź cenę zakupu dla tego produktu
+                    if (cenyZakupu.ContainsKey(symbol))
+                    {
+                        cenaZakupu = cenyZakupu[symbol].cena;
+                        nazwa = cenyZakupu[symbol].nazwa;
+                    }
+                    else
+                    {
+                        // Spróbuj znaleźć podobny produkt
+                        var podobny = cenyZakupu.FirstOrDefault(x => symbol.Contains(x.Key) || x.Key.Contains(symbol));
+                        if (podobny.Key != null)
+                        {
+                            cenaZakupu = podobny.Value.cena;
+                            nazwa = podobny.Value.nazwa;
+                        }
+                    }
+
+                    decimal marza = cenaSprzedazy - cenaZakupu;
+                    decimal marzaProc = cenaZakupu > 0 ? (marza / cenaZakupu) * 100 : 0;
+
+                    marze.Add((symbol, nazwa, cenaZakupu, cenaSprzedazy, marza, marzaProc, ilosc));
+                    sumaMarzy += marza * ilosc;
+                    sumaKosztuZakupu += cenaZakupu * ilosc;
+                }
+
+                // Oblicz rentowność
+                decimal sredniaMarza = sumaIlosciKg > 0 ? sumaMarzy / sumaIlosciKg : 0;
+                decimal sredniaCenaSprzedazy = sumaIlosciKg > 0 ? sumaSprzedazyNetto / sumaIlosciKg : 0;
+                decimal sredniaCenaZakupu = sumaIlosciKg > 0 ? sumaKosztuZakupu / sumaIlosciKg : 0;
+                decimal kosztTransportuNaKg = sumaIlosciKg > 0 && liczbaFaktur > 0 ? (kosztTransportuDostawy * liczbaFaktur) / sumaIlosciKg : 0;
+                decimal marzaPoTransporcie = sredniaMarza - kosztTransportuNaKg;
+                decimal marzaProcPoTransporcie = sredniaCenaSprzedazy > 0 ? (marzaPoTransporcie / sredniaCenaSprzedazy) * 100 : 0;
+                decimal zyskCalkowity = sumaMarzy - (kosztTransportuDostawy * liczbaFaktur);
+
+                // Buduj UI
+                int row = 0;
+
+                // Nagłówek
+                DodajNaglowekSekcji(gridRentownosc, "📈 Analiza Rentowności Klienta (3 miesiące)", ref row);
+
+                // Panel podsumowania
+                var panelPodsumowanie = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F0FDF4")),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(25),
+                    Margin = new Thickness(0, 10, 0, 20)
+                };
+
+                var stackPodsumowanie = new StackPanel();
+
+                // Główny wskaźnik rentowności
+                var headerStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+                headerStack.Children.Add(new TextBlock
+                {
+                    Text = "RENTOWNOŚĆ KLIENTA: ",
+                    FontSize = 18,
+                    FontWeight = FontWeights.Bold,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                bool jestRentowny = marzaPoTransporcie > 0.50m; // min 0.50 PLN/kg zysku
+                bool jestOK = marzaPoTransporcie > 0;
+
+                headerStack.Children.Add(new TextBlock
+                {
+                    Text = jestRentowny ? "WYSOKA" : (jestOK ? "ŚREDNIA" : "NISKA"),
+                    FontSize = 22,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                        jestRentowny ? "#10B981" : (jestOK ? "#F59E0B" : "#EF4444"))),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 10, 0)
+                });
+                headerStack.Children.Add(new TextBlock
+                {
+                    Text = jestRentowny ? "✅" : (jestOK ? "⚠️" : "❌"),
+                    FontSize = 22,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                stackPodsumowanie.Children.Add(headerStack);
+
+                // Szczegóły
+                var gridSzczegoly = new Grid();
+                gridSzczegoly.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                gridSzczegoly.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                gridSzczegoly.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                // Kolumna 1: Sprzedaż
+                var stack1 = CreateSummaryColumn("💰 SPRZEDAŻ", new[] {
+                    ($"Wartość netto:", $"{sumaSprzedazyNetto:N2} PLN"),
+                    ($"Ilość:", $"{sumaIlosciKg:N0} kg"),
+                    ($"Średnia cena/kg:", $"{sredniaCenaSprzedazy:N2} PLN"),
+                    ($"Liczba faktur:", $"{liczbaFaktur}")
+                });
+                Grid.SetColumn(stack1, 0);
+                gridSzczegoly.Children.Add(stack1);
+
+                // Kolumna 2: Zakup
+                var stack2 = CreateSummaryColumn("📦 ZAKUP", new[] {
+                    ($"Koszt zakupu:", $"{sumaKosztuZakupu:N2} PLN"),
+                    ($"Średnia cena/kg:", $"{sredniaCenaZakupu:N2} PLN"),
+                    ($"Marża brutto/kg:", $"{sredniaMarza:N2} PLN"),
+                    ($"Marża brutto %:", $"{(sredniaCenaZakupu > 0 ? (sredniaMarza/sredniaCenaZakupu)*100 : 0):N1}%")
+                });
+                Grid.SetColumn(stack2, 1);
+                gridSzczegoly.Children.Add(stack2);
+
+                // Kolumna 3: Transport
+                var stack3 = CreateSummaryColumn("🚚 TRANSPORT", new[] {
+                    ($"Koszt dostawy:", $"{kosztTransportuDostawy:N2} PLN"),
+                    ($"Koszt/kg:", $"{kosztTransportuNaKg:N2} PLN"),
+                    ($"Razem transport:", $"{(kosztTransportuDostawy * liczbaFaktur):N2} PLN"),
+                    ($"Odległość:", $"{odlegloscKm:N0} km")
+                });
+                Grid.SetColumn(stack3, 2);
+                gridSzczegoly.Children.Add(stack3);
+
+                stackPodsumowanie.Children.Add(gridSzczegoly);
+
+                // Separator
+                stackPodsumowanie.Children.Add(new System.Windows.Shapes.Rectangle
+                {
+                    Height = 2,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")),
+                    Margin = new Thickness(0, 20, 0, 20)
+                });
+
+                // Wynik końcowy
+                var wynikGrid = new Grid();
+                wynikGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                wynikGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var wynikStack1 = new StackPanel();
+                wynikStack1.Children.Add(new TextBlock
+                {
+                    Text = "MARŻA NETTO (po transporcie):",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold
+                });
+                wynikStack1.Children.Add(new TextBlock
+                {
+                    Text = $"{marzaPoTransporcie:N2} PLN/kg ({marzaProcPoTransporcie:N1}%)",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                        marzaPoTransporcie > 0.50m ? "#10B981" : (marzaPoTransporcie > 0 ? "#F59E0B" : "#EF4444")))
+                });
+                Grid.SetColumn(wynikStack1, 0);
+                wynikGrid.Children.Add(wynikStack1);
+
+                var wynikStack2 = new StackPanel();
+                wynikStack2.Children.Add(new TextBlock
+                {
+                    Text = "ZYSK CAŁKOWITY (3 miesiące):",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold
+                });
+                wynikStack2.Children.Add(new TextBlock
+                {
+                    Text = $"{zyskCalkowity:N2} PLN",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                        zyskCalkowity > 0 ? "#10B981" : "#EF4444"))
+                });
+                Grid.SetColumn(wynikStack2, 1);
+                wynikGrid.Children.Add(wynikStack2);
+
+                stackPodsumowanie.Children.Add(wynikGrid);
+
+                panelPodsumowanie.Child = stackPodsumowanie;
+
+                gridRentownosc.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelPodsumowanie, row);
+                Grid.SetColumnSpan(panelPodsumowanie, 4);
+                gridRentownosc.Children.Add(panelPodsumowanie);
+                row++;
+
+                // Sekcja szczegółów produktów
+                if (marze.Count > 0)
+                {
+                    DodajNaglowekSekcji(gridRentownosc, "📊 Szczegóły Marży wg Produktów", ref row);
+
+                    // DataGrid z produktami
+                    var dgProdukty = new DataGrid
+                    {
+                        AutoGenerateColumns = false,
+                        CanUserAddRows = false,
+                        CanUserDeleteRows = false,
+                        IsReadOnly = true,
+                        HeadersVisibility = DataGridHeadersVisibility.Column,
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                        Background = new SolidColorBrush(Colors.White),
+                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E7EB")),
+                        BorderThickness = new Thickness(1),
+                        RowHeight = 35,
+                        MaxHeight = 300
+                    };
+
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Produkt",
+                        Binding = new System.Windows.Data.Binding("Nazwa"),
+                        Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                    });
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Ilość (kg)",
+                        Binding = new System.Windows.Data.Binding("Ilosc") { StringFormat = "N0" },
+                        Width = 80
+                    });
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Cena zakupu",
+                        Binding = new System.Windows.Data.Binding("CenaZakupu") { StringFormat = "N2" },
+                        Width = 100
+                    });
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Cena sprzedaży",
+                        Binding = new System.Windows.Data.Binding("CenaSprzedazy") { StringFormat = "N2" },
+                        Width = 110
+                    });
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Marża/kg",
+                        Binding = new System.Windows.Data.Binding("Marza") { StringFormat = "N2" },
+                        Width = 80
+                    });
+                    dgProdukty.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Marża %",
+                        Binding = new System.Windows.Data.Binding("MarzaProc") { StringFormat = "N1" },
+                        Width = 70
+                    });
+
+                    var produktyData = marze.Select(m => new
+                    {
+                        Nazwa = m.nazwa,
+                        Ilosc = m.ilosc,
+                        CenaZakupu = m.cenaZakupu,
+                        CenaSprzedazy = m.cenaSprzedazy,
+                        Marza = m.marza,
+                        MarzaProc = m.marzaProc
+                    }).OrderByDescending(x => x.Ilosc).ToList();
+
+                    dgProdukty.ItemsSource = produktyData;
+
+                    gridRentownosc.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    Grid.SetRow(dgProdukty, row);
+                    Grid.SetColumnSpan(dgProdukty, 4);
+                    gridRentownosc.Children.Add(dgProdukty);
+                    row++;
+                }
+
+                // Sekcja rekomendacji
+                DodajNaglowekSekcji(gridRentownosc, "💡 Rekomendacje", ref row);
+
+                var panelRekomendacje = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF3C7")),
+                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 10, 0, 0)
+                };
+
+                var stackRekomendacje = new StackPanel();
+
+                if (marzaPoTransporcie < 0)
+                {
+                    stackRekomendacje.Children.Add(CreateRecommendation("❌", "Klient jest NIERENTOWNY - koszt transportu przewyższa marżę na produktach"));
+                    stackRekomendacje.Children.Add(CreateRecommendation("💰", $"Minimalna cena sprzedaży powinna wynosić: {(sredniaCenaZakupu + kosztTransportuNaKg + 0.50m):N2} PLN/kg"));
+                }
+                else if (marzaPoTransporcie < 0.50m)
+                {
+                    stackRekomendacje.Children.Add(CreateRecommendation("⚠️", "Rentowność jest NISKA - rozważ podwyżkę cen lub zwiększenie wolumenu"));
+                    stackRekomendacje.Children.Add(CreateRecommendation("📦", $"Przy zwiększeniu zamówienia o 50% marża wzrośnie do: {(marzaPoTransporcie + kosztTransportuNaKg * 0.33m):N2} PLN/kg"));
+                }
+                else
+                {
+                    stackRekomendacje.Children.Add(CreateRecommendation("✅", "Klient jest RENTOWNY - utrzymuj dotychczasowe warunki współpracy"));
+                }
+
+                if (kosztTransportuNaKg > 0.30m)
+                {
+                    stackRekomendacje.Children.Add(CreateRecommendation("🚚", $"Wysoki udział transportu ({(kosztTransportuNaKg/sredniaCenaSprzedazy*100):N1}%) - rozważ łączenie dostaw lub min. wartość zamówienia"));
+                }
+
+                panelRekomendacje.Child = stackRekomendacje;
+
+                gridRentownosc.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(panelRekomendacje, row);
+                Grid.SetColumnSpan(panelRekomendacje, 4);
+                gridRentownosc.Children.Add(panelRekomendacje);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private StackPanel CreateSummaryColumn(string header, (string label, string value)[] items)
+        {
+            var stack = new StackPanel { Margin = new Thickness(0, 0, 20, 0) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = header,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            foreach (var item in items)
+            {
+                var itemStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                itemStack.Children.Add(new TextBlock
+                {
+                    Text = item.label,
+                    Width = 120,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"))
+                });
+                itemStack.Children.Add(new TextBlock
+                {
+                    Text = item.value,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"))
+                });
+                stack.Children.Add(itemStack);
+            }
+
+            return stack;
+        }
+
+        private TextBlock CreateRecommendation(string icon, string text)
+        {
+            return new TextBlock
+            {
+                Text = $"{icon} {text}",
+                FontSize = 13,
+                Margin = new Thickness(0, 5, 0, 5),
+                TextWrapping = TextWrapping.Wrap
+            };
+        }
+
         // Metody pomocnicze UI
 
         private void DodajNaglowekSekcji(Grid grid, string tekst, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var separator = new Border
             {
-                Height = 3,
+                Height = 2,
                 Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
-                Margin = new Thickness(0, row == 0 ? 0 : 20, 0, 10),
-                CornerRadius = new CornerRadius(2)
+                Margin = new Thickness(0, row == 0 ? 0 : 12, 0, 6),
+                CornerRadius = new CornerRadius(1)
             };
             Grid.SetRow(separator, row);
             Grid.SetColumnSpan(separator, grid.ColumnDefinitions.Count);
             grid.Children.Add(separator);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var textBlock = new TextBlock
             {
                 Text = tekst,
-                FontSize = 16,
+                FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")),
-                Margin = new Thickness(0, 0, 0, 15)
+                Margin = new Thickness(0, 0, 0, 8)
             };
             Grid.SetRow(textBlock, row);
             Grid.SetColumnSpan(textBlock, grid.ColumnDefinitions.Count);
             grid.Children.Add(textBlock);
-            
+
             row++;
         }
 
         private void DodajPoleFormularza(Grid grid, string label, string nazwa, ref int row, int kolumna, int colspan = 2)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 0, 5),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"))
+                Margin = new Thickness(0, 0, 0, 3),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"))
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, kolumna);
             grid.Children.Add(labelControl);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var textBox = new TextBox
             {
                 Name = nazwa,
                 Style = (Style)FindResource("TextBoxModern"),
-                Margin = new Thickness(0, 0, kolumna == 0 && colspan == 2 ? 20 : 0, 15)
+                Margin = new Thickness(0, 0, kolumna == 0 && colspan == 2 ? 15 : 0, 10)
             };
             Grid.SetRow(textBox, row);
             Grid.SetColumn(textBox, kolumna);
             Grid.SetColumnSpan(textBox, colspan);
             grid.Children.Add(textBox);
-            
+
             row++;
         }
 
         private void DodajComboBoxFormularza(Grid grid, string label, string nazwa, string[] items, ref int row, int kolumna)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 0, 5),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"))
+                Margin = new Thickness(0, 0, 0, 3),
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"))
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, kolumna);
             grid.Children.Add(labelControl);
-            
+
             row++;
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var comboBox = new ComboBox
             {
                 Name = nazwa,
                 Style = (Style)FindResource("ComboBoxModern"),
-                Margin = new Thickness(0, 0, 20, 15)
+                Margin = new Thickness(0, 0, 15, 10)
             };
-            
+
             foreach (var item in items)
                 comboBox.Items.Add(new ComboBoxItem { Content = item });
-            
+
             Grid.SetRow(comboBox, row);
             Grid.SetColumn(comboBox, kolumna);
             grid.Children.Add(comboBox);
-            
+
             row++;
         }
 
         private void DodajCheckBoxFormularza(Grid grid, string label, string nazwa, ref int row, int kolumna)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var checkBox = new CheckBox
             {
                 Name = nazwa,
                 Content = label,
+                FontSize = 12,
                 FontWeight = FontWeights.Medium,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
-                Margin = new Thickness(0, 0, 0, 15),
+                Margin = new Thickness(0, 0, 0, 10),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetRow(checkBox, row);
             Grid.SetColumn(checkBox, kolumna);
             grid.Children.Add(checkBox);
-            
+
             row++;
         }
 
         private void DodajPrzyciskiAkcji(Grid grid, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var stackPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 20, 0, 0)
+                Margin = new Thickness(0, 12, 0, 0)
             };
-            
+
             var btnZapisz = new Button
             {
-                Content = "💾 Zapisz zmiany",
+                Content = "Zapisz",
                 Style = (Style)FindResource("ButtonSuccess"),
-                Margin = new Thickness(0, 0, 10, 0),
-                Width = 150
+                Margin = new Thickness(0, 0, 8, 0),
+                Width = 100
             };
             btnZapisz.Click += (s, e) => ZapiszDanePodstawowe();
             stackPanel.Children.Add(btnZapisz);
-            
+
             var btnSynchronizuj = new Button
             {
-                Content = "🔄 Synchronizuj z Handel",
+                Content = "Synchronizuj z Handel",
                 Style = (Style)FindResource("ButtonPrimary"),
-                Width = 200
+                Width = 150
             };
             btnSynchronizuj.Click += BtnSynchronizuj_Click;
             stackPanel.Children.Add(btnSynchronizuj);
-            
+
             Grid.SetRow(stackPanel, row);
             Grid.SetColumnSpan(stackPanel, grid.ColumnDefinitions.Count);
             grid.Children.Add(stackPanel);
-            
+
             row++;
         }
 
         private void DodajPoleTekstowe(Grid grid, string label, string wartosc, ref int row)
         {
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            
+
             var labelControl = new TextBlock
             {
                 Text = label,
+                FontSize = 11,
                 FontWeight = FontWeights.Medium,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
-                Margin = new Thickness(0, 0, 0, 5)
+                Margin = new Thickness(0, 0, 0, 2)
             };
             Grid.SetRow(labelControl, row);
             Grid.SetColumn(labelControl, 0);
             grid.Children.Add(labelControl);
-            
+
             var wartoscControl = new TextBlock
             {
                 Text = wartosc,
+                FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
-                Margin = new Thickness(0, 0, 0, 15),
+                Margin = new Thickness(0, 0, 0, 8),
                 TextWrapping = TextWrapping.Wrap
             };
             Grid.SetRow(wartoscControl, row);
             Grid.SetColumn(wartoscControl, 1);
             grid.Children.Add(wartoscControl);
-            
+
             row++;
         }
 

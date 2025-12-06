@@ -1603,7 +1603,7 @@ namespace Kalendarz1
                 string uwagi = r["Uwagi"]?.ToString() ?? "";
                 bool maNotatke = !string.IsNullOrWhiteSpace(uwagi);
 
-                int pojemniki = r["LiczbaPojemnikow"] == DBNull.Value ? 0 : Convert.ToInt32(r["LiczbaPojemnikow"]);
+                int pojemniki = r["LiczbaPojemnikow"] == DBNull.Value ? 0 : (int)Math.Round(Convert.ToDecimal(r["LiczbaPojemnikow"]));
                 decimal palety = Math.Ceiling(r["LiczbaPalet"] == DBNull.Value ? 0m : Convert.ToDecimal(r["LiczbaPalet"]));
                 bool trybE2 = r["TrybE2"] != DBNull.Value && Convert.ToBoolean(r["TrybE2"]);
                 string trybText = trybE2 ? "E2 (40)" : "STD (36)";
