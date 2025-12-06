@@ -624,22 +624,22 @@ namespace Kalendarz1
             leftPanel.Controls.Add(leftGridPanel);
             leftPanel.Controls.Add(lblLeftHeader);
 
-            // --- PRAWA STRONA: ZAMÓWIENIA ---
+            // --- PRAWA STRONA: REZERWACJE ---
             Panel rightPanel = new Panel { Dock = DockStyle.Fill, BackColor = CardColor, Padding = new Padding(5) };
 
             Label lblRightHeader = new Label
             {
-                Text = "ZAMÓWIENIA (kliknij aby zarezerwować)",
+                Text = "REZERWACJE (kliknij 2x aby anulować)",
                 Dock = DockStyle.Top,
                 Height = 25,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = SuccessColor,
+                ForeColor = DangerColor,
                 Padding = new Padding(5, 5, 0, 0)
             };
 
             dgvZamowienia = CreateStyledDataGridView();
-            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = SuccessColor;
-            dgvZamowienia.CellDoubleClick += DgvZamowienia_CellDoubleClick;
+            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = DangerColor;
+            dgvZamowienia.CellDoubleClick += DgvRezerwacje_CellDoubleClick;
 
             Panel rightGridPanel = new Panel { Dock = DockStyle.Fill };
             rightGridPanel.Controls.Add(dgvZamowienia);
@@ -1938,7 +1938,6 @@ namespace Kalendarz1
                         dtFinal.Columns.Add("Cena śr. (zł/kg)", typeof(decimal));
                         dtFinal.Columns.Add("Zmiana", typeof(string));
                         dtFinal.Columns.Add("Status", typeof(string));
-                        dtFinal.Columns.Add("Info", typeof(string));
 
                         // Pobierz rezerwacje per produkt
                         var rezerwacjePerProdukt = GetRezerwacjePoProduktach();
@@ -1957,19 +1956,10 @@ namespace Kalendarz1
                             decimal roznica = stan - stanPoprzedni;
                             string zmiana = GetZmianaStrzalka(roznica, stan);
 
-                            // Info o scaleniu
-                            string info = "";
-                            if (kvp.Value.KodyZrodlowe.Count > 1)
-                            {
-                                var kodySwiezego = kvp.Value.KodyZrodlowe.Where(k => k != kod).ToList();
-                                if (kodySwiezego.Any())
-                                    info = $"❄️+🥩 ({string.Join(", ", kodySwiezego)})";
-                            }
-
                             // Pobierz rezerwację dla produktu
                             decimal rezerwacja = rezerwacjePerProdukt.ContainsKey(kod) ? rezerwacjePerProdukt[kod] : 0;
 
-                            dtFinal.Rows.Add(kod, stan, rezerwacja, wartosc, cena, zmiana, status, info);
+                            dtFinal.Rows.Add(kod, stan, rezerwacja, wartosc, cena, zmiana, status);
                         }
                     }
 
@@ -1982,13 +1972,6 @@ namespace Kalendarz1
                     FormatujKolumne(dgvStanMagazynu, "Wartość (zł)", "Wartość (zł)", "N0");
                     FormatujKolumne(dgvStanMagazynu, "Cena śr. (zł/kg)", "Cena śr. (zł/kg)", "N2");
                     FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana (7 dni)");
-
-                    // Formatuj kolumnę Info jeśli istnieje (tylko bez grupowania)
-                    if (!isGrupowanie && dgvStanMagazynu.Columns.Contains("Info"))
-                    {
-                        dgvStanMagazynu.Columns["Info"].HeaderText = "Scalenie";
-                        dgvStanMagazynu.Columns["Info"].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-                    }
 
                     // Kolorowanie
                     foreach (DataGridViewRow row in dgvStanMagazynu.Rows)
@@ -2016,17 +1999,6 @@ namespace Kalendarz1
                             row.Cells["Zmiana"].Style.ForeColor = Color.Green;
                         else
                             row.Cells["Zmiana"].Style.ForeColor = Color.Gray;
-
-                        // Koloruj kolumnę Info dla scalonych wierszy
-                        if (!isGrupowanie && dgvStanMagazynu.Columns.Contains("Info"))
-                        {
-                            string info = row.Cells["Info"].Value?.ToString();
-                            if (!string.IsNullOrEmpty(info))
-                            {
-                                row.Cells["Info"].Style.ForeColor = Color.FromArgb(59, 130, 246); // Niebieski
-                                row.Cells["Info"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                            }
-                        }
 
                         // Koloruj kolumnę Rezerwacja jeśli są zarezerwowane kg
                         if (dgvStanMagazynu.Columns.Contains("Rezerwacja"))
@@ -2061,8 +2033,6 @@ namespace Kalendarz1
                     sumRow["Cena śr. (zł/kg)"] = sumaStan > 0 ? sumaWartosc / sumaStan : 0;
                     sumRow["Zmiana"] = "";
                     sumRow["Status"] = "";
-                    if (dtFinal.Columns.Contains("Info"))
-                        sumRow["Info"] = "";
                     dtFinal.Rows.InsertAt(sumRow, 0);
 
                     // Pogrubienie wiersza sumy (pierwszy wiersz)
@@ -2075,8 +2045,8 @@ namespace Kalendarz1
                     int liczbaProdukow = dtFinal.Rows.Count - 1; // Minus wiersz sumy
                     UpdateStanStatystyki(sumaStan, sumaWartosc, liczbaProdukow);
 
-                    // Załaduj zamówienia w prawym panelu
-                    LoadZamowienia();
+                    // Załaduj rezerwacje w prawym panelu
+                    LoadRezerwacjeDoTabeli();
                 }
 
                 statusLabel.Text = $"Stan magazynu na {dataStan:yyyy-MM-dd} (porównanie z {dataPoprzedni:yyyy-MM-dd})";
@@ -2490,80 +2460,91 @@ namespace Kalendarz1
             return handlowcy.FirstOrDefault() ?? App.UserFullName ?? userId;
         }
 
-        private void LoadZamowienia()
+        private void LoadRezerwacjeDoTabeli()
         {
             try
             {
-                string connZam = "Server=192.168.0.112;Database=pronova;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                var rezerwacje = WczytajRezerwacje();
+
+                // Filtruj przeterminowane rezerwacje
+                var aktywne = rezerwacje.Where(r => r.DataWaznosci >= DateTime.Today).ToList();
+                var przeterminowane = rezerwacje.Where(r => r.DataWaznosci < DateTime.Today).ToList();
+
+                // Usuń przeterminowane
+                if (przeterminowane.Any())
+                {
+                    ZapiszRezerwacje(aktywne);
+                    statusLabel.Text = $"Usunięto {przeterminowane.Count} przeterminowanych rezerwacji";
+                }
 
                 DataTable dt = new DataTable();
-                dt.Columns.Add("ID", typeof(long));
-                dt.Columns.Add("Data", typeof(DateTime));
-                dt.Columns.Add("Odbiorca", typeof(string));
+                dt.Columns.Add("ID", typeof(string));
+                dt.Columns.Add("Produkt", typeof(string));
+                dt.Columns.Add("Ilość kg", typeof(decimal));
                 dt.Columns.Add("Handlowiec", typeof(string));
-                dt.Columns.Add("Towary", typeof(string));
-                dt.Columns.Add("Suma kg", typeof(decimal));
+                dt.Columns.Add("Ważna do", typeof(DateTime));
+                dt.Columns.Add("Uwagi", typeof(string));
 
-                using (SqlConnection conn = new SqlConnection(connZam))
+                foreach (var r in aktywne.OrderBy(x => x.DataWaznosci))
                 {
-                    conn.Open();
-                    string query = @"
-                        SELECT TOP 100 z.Id, z.DataDostawy, z.Odbiorca, z.Handlowiec,
-                            (SELECT STRING_AGG(t.KodTowaru + ' (' + CAST(t.Ilosc AS VARCHAR) + ' kg)', ', ')
-                             FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS Towary,
-                            (SELECT SUM(t.Ilosc) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS SumaKg
-                        FROM dbo.ZamowieniaMieso z
-                        WHERE z.DataDostawy >= DATEADD(day, -7, GETDATE())
-                          AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')
-                        ORDER BY z.DataDostawy DESC, z.Id DESC";
-
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    using (SqlDataReader rd = cmd.ExecuteReader())
-                    {
-                        while (rd.Read())
-                        {
-                            dt.Rows.Add(
-                                rd.GetInt64(0),
-                                rd.IsDBNull(1) ? DateTime.Today : rd.GetDateTime(1),
-                                rd["Odbiorca"]?.ToString() ?? "",
-                                rd["Handlowiec"]?.ToString() ?? "",
-                                rd["Towary"]?.ToString() ?? "",
-                                rd.IsDBNull(5) ? 0 : Convert.ToDecimal(rd[5])
-                            );
-                        }
-                    }
+                    dt.Rows.Add(r.Id, r.KodProduktu, r.Ilosc, r.Handlowiec, r.DataWaznosci, r.Uwagi);
                 }
 
                 dgvZamowienia.DataSource = dt;
                 dgvZamowienia.Columns["ID"].Visible = false;
-                dgvZamowienia.Columns["Data"].DefaultCellStyle.Format = "dd.MM";
-                dgvZamowienia.Columns["Suma kg"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["Ilość kg"].DefaultCellStyle.Format = "N0";
+                dgvZamowienia.Columns["Ważna do"].DefaultCellStyle.Format = "dd.MM.yyyy";
+
+                // Koloruj wiersze bliskie wygaśnięciu
+                foreach (DataGridViewRow row in dgvZamowienia.Rows)
+                {
+                    var waznosc = row.Cells["Ważna do"].Value;
+                    if (waznosc != null && waznosc != DBNull.Value)
+                    {
+                        DateTime dataWaznosci = Convert.ToDateTime(waznosc);
+                        if (dataWaznosci <= DateTime.Today.AddDays(1))
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 200, 200); // Czerwony - wygasa dziś/jutro
+                        else if (dataWaznosci <= DateTime.Today.AddDays(3))
+                            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 200); // Żółty - wygasa za 2-3 dni
+                    }
+                }
+
+                // Aktualizuj etykietę rezerwacji
+                decimal sumaRez = aktywne.Sum(r => r.Ilosc);
+                lblStanRezerwacje.Text = $"Zarezerwowano: {sumaRez:N0} kg";
             }
             catch (Exception ex)
             {
-                statusLabel.Text = $"Błąd ładowania zamówień: {ex.Message}";
+                statusLabel.Text = $"Błąd ładowania rezerwacji: {ex.Message}";
             }
         }
 
-        private void DgvZamowienia_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private void DgvRezerwacje_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            if (dgvStanMagazynu.SelectedRows.Count == 0)
+
+            var row = dgvZamowienia.Rows[e.RowIndex];
+            string id = row.Cells["ID"].Value?.ToString() ?? "";
+            string produkt = row.Cells["Produkt"].Value?.ToString() ?? "";
+            decimal ilosc = Convert.ToDecimal(row.Cells["Ilość kg"].Value ?? 0);
+            string handlowiec = row.Cells["Handlowiec"].Value?.ToString() ?? "";
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz anulować rezerwację?\n\nProdukt: {produkt}\nIlość: {ilosc:N0} kg\nHandlowiec: {handlowiec}",
+                "Anuluj rezerwację",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
             {
-                MessageBox.Show("Najpierw wybierz produkt z tabeli stanu magazynu (po lewej).",
-                    "Wybierz produkt", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                var rezerwacje = WczytajRezerwacje();
+                rezerwacje.RemoveAll(r => r.Id == id);
+                ZapiszRezerwacje(rezerwacje);
+
+                // Odśwież widok
+                BtnStanMagazynu_Click(null, null);
+                statusLabel.Text = $"Anulowano rezerwację {produkt} ({ilosc:N0} kg)";
             }
-
-            var zamRow = dgvZamowienia.Rows[e.RowIndex];
-            string handlowiec = zamRow.Cells["Handlowiec"].Value?.ToString() ?? "";
-            string odbiorca = zamRow.Cells["Odbiorca"].Value?.ToString() ?? "";
-
-            if (string.IsNullOrEmpty(handlowiec))
-                handlowiec = GetCurrentHandlowiec();
-
-            // Rezerwuj produkt dla tego handlowca
-            RezerwujProdukt(handlowiec, odbiorca);
         }
 
         private void DgvStanMagazynu_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -2582,11 +2563,11 @@ namespace Kalendarz1
 
             DataGridViewRow row = dgvStanMagazynu.SelectedRows[0];
             string kodProduktu = row.Cells["Kod"].Value?.ToString() ?? "";
-            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA") return;
+            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA CAŁKOWITA") return;
 
             decimal stanAktualny = Convert.ToDecimal(row.Cells["Stan (kg)"].Value ?? 0);
             var rezerwacje = WczytajRezerwacje();
-            decimal juzZarezerwowano = rezerwacje.Where(r => r.KodProduktu == kodProduktu).Sum(r => r.Ilosc);
+            decimal juzZarezerwowano = rezerwacje.Where(r => r.KodProduktu == kodProduktu && r.DataWaznosci >= DateTime.Today).Sum(r => r.Ilosc);
             decimal dostepne = stanAktualny - juzZarezerwowano;
 
             if (dostepne <= 0)
@@ -2595,33 +2576,30 @@ namespace Kalendarz1
                 return;
             }
 
-            // Szybki dialog - tylko ilość
-            string input = Microsoft.VisualBasic.Interaction.InputBox(
-                $"Produkt: {kodProduktu}\nDostępne: {dostepne:N0} kg\nHandlowiec: {handlowiec}\n\nPodaj ilość kg do zarezerwowania:",
-                "Rezerwacja", Math.Min(100, dostepne).ToString("N0"));
-
-            if (string.IsNullOrEmpty(input)) return;
-
-            if (decimal.TryParse(input.Replace(" ", ""), out decimal ilosc) && ilosc > 0 && ilosc <= dostepne)
+            // Dialog rezerwacji z datą ważności
+            using (var dlg = new RezerwacjaInputDialog(kodProduktu, dostepne, handlowiec))
             {
-                var nowaRezerwacja = new RezerwacjaItem
+                if (dlg.ShowDialog() == DialogResult.OK)
                 {
-                    Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
-                    KodProduktu = kodProduktu,
-                    Ilosc = ilosc,
-                    Handlowiec = handlowiec,
-                    DataRezerwacji = DateTime.Now,
-                    DataWaznosci = DateTime.Today.AddDays(7),
-                    Uwagi = uwagi
-                };
+                    var nowaRezerwacja = new RezerwacjaItem
+                    {
+                        Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                        KodProduktu = kodProduktu,
+                        Ilosc = dlg.Ilosc,
+                        Handlowiec = handlowiec,
+                        DataRezerwacji = DateTime.Now,
+                        DataWaznosci = dlg.DataWaznosci,
+                        Uwagi = uwagi
+                    };
 
-                rezerwacje.Add(nowaRezerwacja);
-                ZapiszRezerwacje(rezerwacje);
+                    rezerwacje.Add(nowaRezerwacja);
+                    ZapiszRezerwacje(rezerwacje);
 
-                // Odśwież widok
-                BtnStanMagazynu_Click(null, null);
+                    // Odśwież widok
+                    BtnStanMagazynu_Click(null, null);
 
-                statusLabel.Text = $"Zarezerwowano {ilosc:N0} kg {kodProduktu} dla {handlowiec}";
+                    statusLabel.Text = $"Zarezerwowano {dlg.Ilosc:N0} kg {kodProduktu} dla {handlowiec} (ważne do {dlg.DataWaznosci:dd.MM.yyyy})";
+                }
             }
         }
 
@@ -2631,7 +2609,7 @@ namespace Kalendarz1
 
             DataGridViewRow row = dgvStanMagazynu.SelectedRows[0];
             string kodProduktu = row.Cells["Kod"].Value?.ToString() ?? "";
-            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA") return;
+            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA CAŁKOWITA") return;
 
             var rezerwacje = WczytajRezerwacje();
             int usuniete = rezerwacje.RemoveAll(r => r.KodProduktu == kodProduktu);
@@ -2716,29 +2694,20 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// Dialog do wprowadzania rezerwacji towaru
+    /// Prosty dialog rezerwacji z ilością i datą ważności
     /// </summary>
-    public class RezerwacjaDialog : Form
+    public class RezerwacjaInputDialog : Form
     {
         public decimal Ilosc { get; private set; }
-        public string Handlowiec { get; private set; } = "";
         public DateTime DataWaznosci { get; private set; }
-        public string Uwagi { get; private set; } = "";
 
         private NumericUpDown nudIlosc;
-        private TextBox txtHandlowiec;
         private DateTimePicker dtpWaznosc;
-        private TextBox txtUwagi;
 
-        public RezerwacjaDialog(string kodProduktu, decimal stanMagazynu, decimal dostepne)
+        public RezerwacjaInputDialog(string kodProduktu, decimal dostepne, string handlowiec)
         {
-            InitializeDialog(kodProduktu, stanMagazynu, dostepne);
-        }
-
-        private void InitializeDialog(string kodProduktu, decimal stanMagazynu, decimal dostepne)
-        {
-            this.Text = "🔒 Rezerwacja towaru";
-            this.Size = new Size(450, 420);
+            this.Text = "Rezerwacja towaru";
+            this.Size = new Size(320, 220);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -2746,190 +2715,68 @@ namespace Kalendarz1
             this.BackColor = Color.White;
             this.Font = new Font("Segoe UI", 10F);
 
-            // Panel nagłówka
-            Panel headerPanel = new Panel
+            int y = 15;
+
+            // Info o produkcie
+            Label lblInfo = new Label
             {
-                Dock = DockStyle.Top,
-                Height = 70,
-                BackColor = Color.FromArgb(239, 68, 68),
-                Padding = new Padding(20, 15, 20, 15)
+                Text = $"Produkt: {kodProduktu}\nDostępne: {dostepne:N0} kg\nHandlowiec: {handlowiec}",
+                Location = new Point(15, y),
+                Size = new Size(280, 50),
+                Font = new Font("Segoe UI", 9F)
             };
-
-            Label lblHeader = new Label
-            {
-                Text = $"📦 {kodProduktu}",
-                Dock = DockStyle.Top,
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
-                ForeColor = Color.White
-            };
-
-            Label lblSubHeader = new Label
-            {
-                Text = $"Stan: {stanMagazynu:N0} kg | Dostępne: {dostepne:N0} kg",
-                Dock = DockStyle.Bottom,
-                Font = new Font("Segoe UI", 10F),
-                ForeColor = Color.FromArgb(254, 226, 226)
-            };
-
-            headerPanel.Controls.AddRange(new Control[] { lblSubHeader, lblHeader });
-
-            // Panel formularza
-            Panel formPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(25, 20, 25, 20)
-            };
-
-            int y = 10;
+            y += 55;
 
             // Ilość
-            Label lblIlosc = new Label
-            {
-                Text = "Ilość do zarezerwowania (kg):",
-                Location = new Point(0, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-            y += 28;
-
+            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(15, y), AutoSize = true };
             nudIlosc = new NumericUpDown
             {
-                Location = new Point(0, y),
-                Size = new Size(180, 30),
-                Font = new Font("Segoe UI", 12F),
+                Location = new Point(120, y - 3),
+                Size = new Size(100, 25),
                 Minimum = 1,
-                Maximum = (decimal)Math.Max(1, (double)dostepne),
+                Maximum = Math.Max(1, dostepne),
                 Value = Math.Min(100, Math.Max(1, dostepne)),
-                DecimalPlaces = 0,
-                ThousandsSeparator = true
+                DecimalPlaces = 0
             };
-            y += 45;
-
-            // Handlowiec
-            Label lblHandlowiec = new Label
-            {
-                Text = "Handlowiec / Osoba rezerwująca:",
-                Location = new Point(0, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-            y += 28;
-
-            txtHandlowiec = new TextBox
-            {
-                Location = new Point(0, y),
-                Size = new Size(380, 30),
-                Font = new Font("Segoe UI", 11F)
-            };
-            y += 45;
+            y += 35;
 
             // Data ważności
-            Label lblWaznosc = new Label
-            {
-                Text = "Rezerwacja ważna do:",
-                Location = new Point(0, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
-            };
-            y += 28;
-
+            Label lblWaznosc = new Label { Text = "Ważna do:", Location = new Point(15, y), AutoSize = true };
             dtpWaznosc = new DateTimePicker
             {
-                Location = new Point(0, y),
-                Size = new Size(180, 30),
-                Font = new Font("Segoe UI", 11F),
+                Location = new Point(120, y - 3),
+                Size = new Size(120, 25),
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Today.AddDays(7),
                 MinDate = DateTime.Today
             };
             y += 45;
 
-            // Uwagi
-            Label lblUwagi = new Label
+            // Przyciski
+            Button btnOK = new Button
             {
-                Text = "Uwagi (opcjonalnie):",
-                Location = new Point(0, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Text = "Zarezerwuj",
+                Location = new Point(100, y),
+                Size = new Size(90, 30),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(239, 68, 68),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
             };
-            y += 28;
+            btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.Click += (s, e) => { Ilosc = nudIlosc.Value; DataWaznosci = dtpWaznosc.Value.Date; };
 
-            txtUwagi = new TextBox
-            {
-                Location = new Point(0, y),
-                Size = new Size(380, 50),
-                Font = new Font("Segoe UI", 10F),
-                Multiline = true
-            };
-
-            formPanel.Controls.AddRange(new Control[] {
-                lblIlosc, nudIlosc,
-                lblHandlowiec, txtHandlowiec,
-                lblWaznosc, dtpWaznosc,
-                lblUwagi, txtUwagi
-            });
-
-            // Panel przycisków
-            Panel buttonPanel = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 60,
-                Padding = new Padding(20, 10, 20, 10)
-            };
-
-            Button btnAnuluj = new Button
+            Button btnCancel = new Button
             {
                 Text = "Anuluj",
-                Size = new Size(120, 40),
-                Location = new Point(180, 10),
-                Font = new Font("Segoe UI", 10F),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(243, 244, 246),
-                ForeColor = Color.FromArgb(55, 65, 81),
+                Location = new Point(200, y),
+                Size = new Size(70, 30),
                 DialogResult = DialogResult.Cancel
             };
-            btnAnuluj.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219);
 
-            Button btnZarezerwuj = new Button
-            {
-                Text = "🔒 Zarezerwuj",
-                Size = new Size(140, 40),
-                Location = new Point(310, 10),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(239, 68, 68),
-                ForeColor = Color.White
-            };
-            btnZarezerwuj.FlatAppearance.BorderSize = 0;
-            btnZarezerwuj.Click += BtnZarezerwuj_Click;
-
-            buttonPanel.Controls.AddRange(new Control[] { btnAnuluj, btnZarezerwuj });
-
-            this.Controls.Add(formPanel);
-            this.Controls.Add(buttonPanel);
-            this.Controls.Add(headerPanel);
-
-            this.AcceptButton = btnZarezerwuj;
-            this.CancelButton = btnAnuluj;
-        }
-
-        private void BtnZarezerwuj_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtHandlowiec.Text))
-            {
-                MessageBox.Show("Podaj nazwisko handlowca lub osoby rezerwującej.",
-                    "Brak danych", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtHandlowiec.Focus();
-                return;
-            }
-
-            Ilosc = nudIlosc.Value;
-            Handlowiec = txtHandlowiec.Text.Trim();
-            DataWaznosci = dtpWaznosc.Value.Date;
-            Uwagi = txtUwagi.Text.Trim();
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
+            this.Controls.AddRange(new Control[] { lblInfo, lblIlosc, nudIlosc, lblWaznosc, dtpWaznosc, btnOK, btnCancel });
+            this.AcceptButton = btnOK;
+            this.CancelButton = btnCancel;
         }
     }
 }
