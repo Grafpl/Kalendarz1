@@ -2710,7 +2710,8 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(55)
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             // 4. Wydano
@@ -2718,7 +2719,8 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscWydana") { StringFormat = "N0" },
-                Width = new DataGridLength(55)
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
             // 5. Kierowca
@@ -2734,7 +2736,8 @@ ORDER BY zm.Id";
             {
                 Header = "Pojazd",
                 Binding = new System.Windows.Data.Binding("Pojazd"),
-                Width = new DataGridLength(85)
+                Width = new DataGridLength(85),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
             // 7. Godzina wyjazdu
@@ -2742,7 +2745,8 @@ ORDER BY zm.Id";
             {
                 Header = "Godz",
                 Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
-                Width = new DataGridLength(50)
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
             // 8. Trasa
@@ -2758,7 +2762,8 @@ ORDER BY zm.Id";
             {
                 Header = "Status",
                 Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(80)
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
 
