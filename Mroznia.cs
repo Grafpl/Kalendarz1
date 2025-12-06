@@ -549,18 +549,16 @@ namespace Kalendarz1
                 Value = DateTime.Now,
                 Font = new Font("Segoe UI", 9F)
             };
+            dtpStanMagazynu.ValueChanged += (s, e) => BtnStanMagazynu_Click(null, null);
 
-            Button btnObliczStan = CreateModernButton("Oblicz", 140, 8, 70, PrimaryColor);
-            btnObliczStan.Click += BtnStanMagazynu_Click;
-
-            btnMapowanie = CreateModernButton("Mapowanie", 220, 8, 90, InfoColor);
+            btnMapowanie = CreateModernButton("Mapowanie", 140, 8, 90, InfoColor);
             btnMapowanie.Click += BtnMapowanie_Click;
 
             // Statystyki inline
             lblStanSuma = new Label
             {
                 Text = "Stan: 0 kg",
-                Location = new Point(330, 13),
+                Location = new Point(250, 13),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = PrimaryColor
@@ -569,7 +567,7 @@ namespace Kalendarz1
             lblStanRezerwacje = new Label
             {
                 Text = "Zarezerwowano: 0 kg",
-                Location = new Point(460, 13),
+                Location = new Point(380, 13),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = DangerColor
@@ -580,7 +578,7 @@ namespace Kalendarz1
             chkGrupowanie = new CheckBox { Checked = false, Visible = false };
 
             stanToolbar.Controls.AddRange(new Control[] {
-                dtpStanMagazynu, btnObliczStan, btnMapowanie,
+                dtpStanMagazynu, btnMapowanie,
                 lblStanSuma, lblStanRezerwacje, lblStanWartosc, lblStanProdukty, chkGrupowanie
             });
 
@@ -589,7 +587,7 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 600,
+                SplitterDistance = 450,
                 SplitterWidth = 5,
                 BackColor = BackgroundColor
             };
@@ -657,7 +655,8 @@ namespace Kalendarz1
 
             tab4.Controls.Add(stanMainPanel);
 
-            tc.TabPages.AddRange(new TabPage[] { tab1, tab2, tab3, tab4 });
+            // Stan magazynu jako pierwsza zakładka
+            tc.TabPages.AddRange(new TabPage[] { tab4, tab1, tab2, tab3 });
             return tc;
         }
 
@@ -868,8 +867,8 @@ namespace Kalendarz1
         private void SetupEvents()
         {
             btnAnalizuj.Click += BtnAnalizuj_Click;
-            btnWykres.Click += (s, e) => tabControl.SelectedIndex = 2;
-            btnStanMagazynu.Click += (s, e) => tabControl.SelectedIndex = 3;
+            btnWykres.Click += (s, e) => tabControl.SelectedIndex = 3;
+            btnStanMagazynu.Click += (s, e) => tabControl.SelectedIndex = 0;
             btnSzybkiRaport.Click += BtnSzybkiRaport_Click;
             btnEksport.Click += BtnEksport_Click;
             btnResetFiltr.Click += (s, e) => ResetujFiltry();
@@ -885,7 +884,8 @@ namespace Kalendarz1
             dtpOd.Value = DateTime.Now.AddDays(-30);
             dtpDo.Value = DateTime.Now;
 
-            statusLabel.Text = "Witaj w systemie analitycznym! Kliknij 'Analizuj' aby rozpocząć.";
+            // Automatycznie oblicz stan magazynu przy starcie (pierwsza zakładka)
+            BtnStanMagazynu_Click(null, null);
         }
 
         private void LoadInitialData()
@@ -2044,13 +2044,14 @@ namespace Kalendarz1
                         }
                     }
 
-                    // Dodaj wiersz sumy
+                    // Oblicz sumy
                     decimal sumaStan = dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Stan (kg)"]));
                     decimal sumaRezerwacja = dtFinal.Columns.Contains("Rezerwacja")
                         ? dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Rezerwacja"]))
                         : 0;
                     decimal sumaWartosc = dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Wartość (zł)"]));
 
+                    // Wstaw wiersz sumy NA GÓRĘ tabeli
                     DataRow sumRow = dtFinal.NewRow();
                     sumRow[colName] = "SUMA CAŁKOWITA";
                     sumRow["Stan (kg)"] = sumaStan;
@@ -2059,16 +2060,15 @@ namespace Kalendarz1
                     sumRow["Wartość (zł)"] = sumaWartosc;
                     sumRow["Cena śr. (zł/kg)"] = sumaStan > 0 ? sumaWartosc / sumaStan : 0;
                     sumRow["Zmiana"] = "";
-                    sumRow["Status"] = GetStatus(sumaStan);
+                    sumRow["Status"] = "";
                     if (dtFinal.Columns.Contains("Info"))
                         sumRow["Info"] = "";
-                    dtFinal.Rows.Add(sumRow);
+                    dtFinal.Rows.InsertAt(sumRow, 0);
 
-                    // Pogrubienie wiersza sumy
-                    int lastRowIndex = dgvStanMagazynu.Rows.Count - 1;
-                    dgvStanMagazynu.Rows[lastRowIndex].DefaultCellStyle.Font =
+                    // Pogrubienie wiersza sumy (pierwszy wiersz)
+                    dgvStanMagazynu.Rows[0].DefaultCellStyle.Font =
                         new Font("Segoe UI", 10F, FontStyle.Bold);
-                    dgvStanMagazynu.Rows[lastRowIndex].DefaultCellStyle.BackColor =
+                    dgvStanMagazynu.Rows[0].DefaultCellStyle.BackColor =
                         Color.FromArgb(200, 220, 240);
 
                     // Aktualizuj karty statystyk
