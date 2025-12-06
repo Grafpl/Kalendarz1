@@ -720,15 +720,19 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Branża" Binding="{Binding PKD_Opis}" Width="180">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#64748B"/>
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Branża" Width="180">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock x:Name="branzaText" Text="{Binding PKD_Opis}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="#64748B"/>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding CzyPriorytetowaBranza}" Value="1">
+                                                    <Setter TargetName="branzaText" Property="Foreground" Value="#DC2626"/>
+                                                    <Setter TargetName="branzaText" Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Ostatnia zmiana" Binding="{Binding OstatniaZmiana, StringFormat=dd.MM.yy HH:mm}" Width="120">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">

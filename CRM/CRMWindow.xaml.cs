@@ -188,7 +188,15 @@ namespace Kalendarz1.CRM
                                 WHEN CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE) THEN 1
                                 WHEN CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE) THEN 2
                                 ELSE 3
-                            END as PriorytetKontaktu
+                            END as PriorytetKontaktu,
+                            CASE
+                                WHEN o.PKD_Opis IN (
+                                    'Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach',
+                                    'Przetwarzanie i konserwowanie mięsa z drobiu',
+                                    'Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego',
+                                    'Ubój zwierząt, z wyłączeniem drobiu i królików'
+                                ) THEN 1 ELSE 0
+                            END as CzyPriorytetowaBranza
                         FROM OdbiorcyCRM o
                         LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                         WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
