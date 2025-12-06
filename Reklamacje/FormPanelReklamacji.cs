@@ -91,13 +91,9 @@ namespace Kalendarz1
                 Location = new Point(this.Width - 220, 10)
             };
 
-            // Załaduj logo - szukaj w wielu lokalizacjach
-            string logoPath = ZnajdzSciezkeLogo();
-            if (!string.IsNullOrEmpty(logoPath) && File.Exists(logoPath))
-            {
-                try { pbLogo.Image = Image.FromFile(logoPath); }
-                catch { }
-            }
+            // Załaduj logo firmy
+            try { pbLogo.Image = Reklamacje.LogoFirmyBase64.GetLogo(); }
+            catch { }
             panelHeader.Controls.Add(pbLogo);
 
             this.Controls.Add(panelHeader);
@@ -886,49 +882,5 @@ namespace Kalendarz1
             }
         }
 
-        /// <summary>
-        /// Szuka pliku logo w wielu możliwych lokalizacjach
-        /// </summary>
-        private string ZnajdzSciezkeLogo()
-        {
-            string nazwaPliku = "logo-2-green.png";
-
-            // Lista możliwych ścieżek do sprawdzenia
-            var sciezki = new[]
-            {
-                // Katalog roboczy aplikacji
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, nazwaPliku),
-                // Katalogi nadrzędne (z bin/Debug do głównego)
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", nazwaPliku),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", nazwaPliku),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", nazwaPliku),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", nazwaPliku),
-                // Typowa ścieżka projektu
-                Path.Combine(Environment.CurrentDirectory, nazwaPliku),
-                Path.Combine(Environment.CurrentDirectory, "..", nazwaPliku),
-                Path.Combine(Environment.CurrentDirectory, "..", "..", nazwaPliku),
-                // Ścieżka absolutna jako fallback
-                "/home/user/Kalendarz1/logo-2-green.png",
-                "C:\\Projects\\Kalendarz1\\logo-2-green.png",
-                // Obok pliku wykonywalnego w różnych konfiguracjach
-                Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "", nazwaPliku),
-                Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "", "..", "..", "..", nazwaPliku),
-            };
-
-            foreach (var sciezka in sciezki)
-            {
-                try
-                {
-                    string pelnasciezka = Path.GetFullPath(sciezka);
-                    if (File.Exists(pelnasciezka))
-                    {
-                        return pelnasciezka;
-                    }
-                }
-                catch { }
-            }
-
-            return null;
-        }
     }
 }
