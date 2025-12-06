@@ -270,8 +270,8 @@ namespace Kalendarz1.OfertaCenowa
         public EdytujSzablonDialog(string nazwa, string opis)
         {
             Title = "Edytuj szablon";
-            Width = 450;
-            Height = 280;
+            Width = 550;
+            Height = 320;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -431,8 +431,8 @@ namespace Kalendarz1.OfertaCenowa
             _odbiorcy = szablon.Odbiorcy.ToList();
 
             Title = $"Odbiorcy w szablonie: {szablon.Nazwa}";
-            Width = 700;
-            Height = 550;
+            Width = 900;
+            Height = 700;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -595,6 +595,32 @@ namespace Kalendarz1.OfertaCenowa
 
             leftPanel.Children.Add(usunZaznaczoneBtn);
 
+            // Przycisk dodawania nowego odbiorcy
+            var dodajOdbiorceBtnMargin = new System.Windows.Controls.Button
+            {
+                Content = "➕ Dodaj odbiorcę",
+                Padding = new Thickness(15, 10, 15, 10),
+                Margin = new Thickness(10, 0, 0, 0),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            dodajOdbiorceBtnMargin.Click += (s, e) =>
+            {
+                var dialog = new DodajOdbiorceSzablonuDialog();
+                dialog.Owner = this;
+                if (dialog.ShowDialog() == true && dialog.NowyOdbiorca != null)
+                {
+                    _odbiorcy.Add(dialog.NowyOdbiorca);
+                    _szablon.Odbiorcy = _odbiorcy;
+                    _szablonyManager.AktualizujSzablonOdbiorcow(_operatorId, _szablon);
+                    _zmodyfikowano = true;
+                    RefreshList(listBox, infoText);
+                }
+            };
+            leftPanel.Children.Add(dodajOdbiorceBtnMargin);
+
             var zamknijBtn = new System.Windows.Controls.Button
             {
                 Content = "Zamknij",
@@ -694,6 +720,304 @@ namespace Kalendarz1.OfertaCenowa
 
             // Ustaw SelectionMode na Extended dla wielokrotnego zaznaczania
             listBox.SelectionMode = System.Windows.Controls.SelectionMode.Extended;
+        }
+    }
+
+    /// <summary>
+    /// Dialog do dodawania nowego odbiorcy do szablonu
+    /// </summary>
+    public partial class DodajOdbiorceSzablonuDialog : Window
+    {
+        public OdbiorcaSzablonu? NowyOdbiorca { get; private set; }
+
+        private System.Windows.Controls.TextBox _nazwaBox = null!;
+        private System.Windows.Controls.TextBox _nipBox = null!;
+        private System.Windows.Controls.TextBox _adresBox = null!;
+        private System.Windows.Controls.TextBox _kodPocztowyBox = null!;
+        private System.Windows.Controls.TextBox _miejscowoscBox = null!;
+        private System.Windows.Controls.TextBox _telefonBox = null!;
+        private System.Windows.Controls.TextBox _emailBox = null!;
+        private System.Windows.Controls.TextBox _osobaKontaktowaBox = null!;
+
+        public DodajOdbiorceSzablonuDialog()
+        {
+            Title = "Dodaj odbiorcę";
+            Width = 600;
+            Height = 580;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = System.Windows.Media.Brushes.Transparent;
+            ResizeMode = ResizeMode.NoResize;
+
+            BuildUI();
+        }
+
+        private void BuildUI()
+        {
+            var mainBorder = new System.Windows.Controls.Border
+            {
+                Background = System.Windows.Media.Brushes.White,
+                CornerRadius = new CornerRadius(12),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(1)
+            };
+
+            mainBorder.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 20,
+                ShadowDepth = 0,
+                Opacity = 0.3
+            };
+
+            var mainGrid = new System.Windows.Controls.Grid();
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+            // Nagłówek
+            var headerBorder = new System.Windows.Controls.Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)),
+                CornerRadius = new CornerRadius(12, 12, 0, 0),
+                Padding = new Thickness(20, 15, 20, 15)
+            };
+            headerBorder.MouseLeftButtonDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) DragMove(); };
+
+            var headerGrid = new System.Windows.Controls.Grid();
+            var headerText = new System.Windows.Controls.TextBlock
+            {
+                Text = "➕ Dodaj nowego odbiorcę",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = System.Windows.Media.Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var closeBtn = new System.Windows.Controls.Button
+            {
+                Content = "✕",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 16,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            closeBtn.Click += (s, e) => { DialogResult = false; Close(); };
+
+            headerGrid.Children.Add(headerText);
+            headerGrid.Children.Add(closeBtn);
+            headerBorder.Child = headerGrid;
+            System.Windows.Controls.Grid.SetRow(headerBorder, 0);
+
+            // Formularz
+            var scrollViewer = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Padding = new Thickness(25, 20, 25, 20)
+            };
+
+            var formPanel = new System.Windows.Controls.StackPanel();
+
+            // Nazwa firmy (wymagane)
+            formPanel.Children.Add(CreateLabel("Nazwa firmy / odbiorcy *"));
+            _nazwaBox = CreateTextBox("np. ABC Sp. z o.o.");
+            formPanel.Children.Add(_nazwaBox);
+
+            // NIP
+            formPanel.Children.Add(CreateLabel("NIP"));
+            _nipBox = CreateTextBox("np. 1234567890");
+            formPanel.Children.Add(_nipBox);
+
+            // Dwa pola obok siebie: Adres
+            formPanel.Children.Add(CreateLabel("Adres"));
+            _adresBox = CreateTextBox("np. ul. Główna 15");
+            formPanel.Children.Add(_adresBox);
+
+            // Kod pocztowy i miejscowość
+            var lokalizacjaPanel = new System.Windows.Controls.Grid();
+            lokalizacjaPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            lokalizacjaPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(10) });
+            lokalizacjaPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(2, System.Windows.GridUnitType.Star) });
+
+            var kodPanel = new System.Windows.Controls.StackPanel();
+            kodPanel.Children.Add(CreateLabel("Kod pocztowy"));
+            _kodPocztowyBox = CreateTextBox("00-000");
+            kodPanel.Children.Add(_kodPocztowyBox);
+            System.Windows.Controls.Grid.SetColumn(kodPanel, 0);
+
+            var miejscowoscPanel = new System.Windows.Controls.StackPanel();
+            miejscowoscPanel.Children.Add(CreateLabel("Miejscowość"));
+            _miejscowoscBox = CreateTextBox("np. Warszawa");
+            miejscowoscPanel.Children.Add(_miejscowoscBox);
+            System.Windows.Controls.Grid.SetColumn(miejscowoscPanel, 2);
+
+            lokalizacjaPanel.Children.Add(kodPanel);
+            lokalizacjaPanel.Children.Add(miejscowoscPanel);
+            formPanel.Children.Add(lokalizacjaPanel);
+
+            // Telefon i email
+            var kontaktPanel = new System.Windows.Controls.Grid { Margin = new Thickness(0, 5, 0, 0) };
+            kontaktPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            kontaktPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(10) });
+            kontaktPanel.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+
+            var telPanel = new System.Windows.Controls.StackPanel();
+            telPanel.Children.Add(CreateLabel("Telefon"));
+            _telefonBox = CreateTextBox("np. 123 456 789");
+            telPanel.Children.Add(_telefonBox);
+            System.Windows.Controls.Grid.SetColumn(telPanel, 0);
+
+            var emailPanel = new System.Windows.Controls.StackPanel();
+            emailPanel.Children.Add(CreateLabel("Email"));
+            _emailBox = CreateTextBox("np. kontakt@firma.pl");
+            emailPanel.Children.Add(_emailBox);
+            System.Windows.Controls.Grid.SetColumn(emailPanel, 2);
+
+            kontaktPanel.Children.Add(telPanel);
+            kontaktPanel.Children.Add(emailPanel);
+            formPanel.Children.Add(kontaktPanel);
+
+            // Osoba kontaktowa
+            formPanel.Children.Add(CreateLabel("Osoba kontaktowa"));
+            _osobaKontaktowaBox = CreateTextBox("np. Jan Kowalski");
+            formPanel.Children.Add(_osobaKontaktowaBox);
+
+            scrollViewer.Content = formPanel;
+            System.Windows.Controls.Grid.SetRow(scrollViewer, 1);
+
+            // Stopka
+            var footerBorder = new System.Windows.Controls.Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(249, 250, 251)),
+                CornerRadius = new CornerRadius(0, 0, 12, 12),
+                Padding = new Thickness(20, 15, 20, 15)
+            };
+
+            var footerPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(20, 10, 20, 10),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(209, 213, 219)),
+                BorderThickness = new Thickness(1),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            cancelBtn.Click += (s, e) => { DialogResult = false; Close(); };
+
+            var saveBtn = new System.Windows.Controls.Button
+            {
+                Content = "✅ Dodaj odbiorcę",
+                Padding = new Thickness(20, 10, 20, 10),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(75, 131, 60)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            saveBtn.Click += (s, e) =>
+            {
+                var nazwa = GetTextBoxValue(_nazwaBox);
+                if (string.IsNullOrWhiteSpace(nazwa))
+                {
+                    MessageBox.Show("Nazwa odbiorcy jest wymagana.", "Błąd walidacji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    _nazwaBox.Focus();
+                    return;
+                }
+
+                NowyOdbiorca = new OdbiorcaSzablonu
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Nazwa = nazwa,
+                    NIP = GetTextBoxValue(_nipBox),
+                    Adres = GetTextBoxValue(_adresBox),
+                    KodPocztowy = GetTextBoxValue(_kodPocztowyBox),
+                    Miejscowosc = GetTextBoxValue(_miejscowoscBox),
+                    Telefon = GetTextBoxValue(_telefonBox),
+                    Email = GetTextBoxValue(_emailBox),
+                    OsobaKontaktowa = GetTextBoxValue(_osobaKontaktowaBox),
+                    Zrodlo = "Ręczne"
+                };
+
+                DialogResult = true;
+                Close();
+            };
+
+            footerPanel.Children.Add(cancelBtn);
+            footerPanel.Children.Add(saveBtn);
+            footerBorder.Child = footerPanel;
+            System.Windows.Controls.Grid.SetRow(footerBorder, 2);
+
+            mainGrid.Children.Add(headerBorder);
+            mainGrid.Children.Add(scrollViewer);
+            mainGrid.Children.Add(footerBorder);
+
+            mainBorder.Child = mainGrid;
+            Content = mainBorder;
+
+            Loaded += (s, e) => _nazwaBox.Focus();
+        }
+
+        private System.Windows.Controls.TextBlock CreateLabel(string text)
+        {
+            return new System.Windows.Controls.TextBlock
+            {
+                Text = text,
+                FontSize = 12,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(107, 114, 128)),
+                Margin = new Thickness(0, 10, 0, 5)
+            };
+        }
+
+        private System.Windows.Controls.TextBox CreateTextBox(string placeholder)
+        {
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                FontSize = 14,
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+
+            // Placeholder efekt
+            textBox.Tag = placeholder;
+            textBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(156, 163, 175));
+            textBox.Text = placeholder;
+
+            textBox.GotFocus += (s, e) =>
+            {
+                if (textBox.Text == (string)textBox.Tag)
+                {
+                    textBox.Text = "";
+                    textBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(31, 41, 55));
+                }
+            };
+
+            textBox.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    textBox.Text = (string)textBox.Tag;
+                    textBox.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(156, 163, 175));
+                }
+            };
+
+            return textBox;
+        }
+
+        // Helper do pobierania wartości z textbox z placeholder
+        private string GetTextBoxValue(System.Windows.Controls.TextBox textBox)
+        {
+            if (textBox.Text == (string)textBox.Tag)
+                return "";
+            return textBox.Text?.Trim() ?? "";
         }
     }
 }
