@@ -3584,10 +3584,15 @@ ORDER BY zm.Id";
             });
 
             // Edytowalna kolumna ilości
+            var zamowioneBinding = new System.Windows.Data.Binding("Zamówiono")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus
+            };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zam.",
-                Binding = new System.Windows.Data.Binding("Zamówiono") { StringFormat = "N0", UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus },
+                Binding = zamowioneBinding,
                 Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
                 IsReadOnly = false
@@ -3612,28 +3617,44 @@ ORDER BY zm.Id";
             });
 
             // Checkbox Folia
+            var foliaBinding = new System.Windows.Data.Binding("Folia")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+            };
             dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "Folia",
-                Binding = new System.Windows.Data.Binding("Folia") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                Binding = foliaBinding,
                 Width = new DataGridLength(40),
                 IsReadOnly = false
             });
 
             // Checkbox Hallal
+            var hallalBinding = new System.Windows.Data.Binding("Hallal")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+            };
             dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "Hallal",
-                Binding = new System.Windows.Data.Binding("Hallal") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                Binding = hallalBinding,
                 Width = new DataGridLength(45),
                 IsReadOnly = false
             });
 
             // Edytowalna kolumna ceny
+            var cenaBinding = new System.Windows.Data.Binding("Cena")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
+                StringFormat = "N2"
+            };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Cena",
-                Binding = new System.Windows.Data.Binding("Cena") { StringFormat = "N2", UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus },
+                Binding = cenaBinding,
                 Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
                 IsReadOnly = false
@@ -3644,6 +3665,10 @@ ORDER BY zm.Id";
             dgDetails.CellEditEnding += DgDetails_CellEditEnding;
             dgDetails.PreviewKeyDown -= DgDetails_PreviewKeyDown;
             dgDetails.PreviewKeyDown += DgDetails_PreviewKeyDown;
+
+            // Obsługa kliknięć w checkboxy (Folia/Hallal)
+            dgDetails.BeginningEdit -= DgDetails_BeginningEdit;
+            dgDetails.BeginningEdit += DgDetails_BeginningEdit;
         }
         private async Task DisplayReleaseWithoutOrderDetailsAsync(int clientId, DateTime day)
         {
@@ -4829,6 +4854,11 @@ ORDER BY zm.Id";
 
         #region Details Grid Edit Events
 
+        private object? _editOldValue = null;
+        private string _editColumnName = "";
+        private int _editKodTowaru = 0;
+        private string _editProduktNazwa = "";
+
         private void DgDetails_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == System.Windows.Input.Key.Enter)
@@ -4840,10 +4870,34 @@ ORDER BY zm.Id";
             }
         }
 
+        private void DgDetails_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            if (e.Row.Item is not DataRowView rowView)
+                return;
+
+            var row = rowView.Row;
+            _editKodTowaru = row.Field<int>("KodTowaru");
+            _editProduktNazwa = row.Field<string>("Produkt") ?? "";
+            _editColumnName = e.Column.Header?.ToString() ?? "";
+
+            // Zapisz starą wartość przed edycją
+            _editOldValue = _editColumnName switch
+            {
+                "Zam." => row.Field<decimal>("Zamówiono"),
+                "Cena" => row.Field<decimal>("Cena"),
+                "Folia" => row.Field<bool>("Folia"),
+                "Hallal" => row.Field<bool>("Hallal"),
+                _ => null
+            };
+        }
+
         private async void DgDetails_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             if (e.EditAction == DataGridEditAction.Cancel)
+            {
+                _editOldValue = null;
                 return;
+            }
 
             if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
                 return;
@@ -4851,14 +4905,8 @@ ORDER BY zm.Id";
             if (e.Row.Item is not DataRowView rowView)
                 return;
 
-            var row = rowView.Row;
-            int kodTowaru = row.Field<int>("KodTowaru");
-            string produkt = row.Field<string>("Produkt") ?? "";
             string columnName = e.Column.Header?.ToString() ?? "";
-
-            // Pobierz nową wartość
             object? newValue = null;
-            object? oldValue = null;
 
             if (e.EditingElement is TextBox textBox)
             {
@@ -4866,7 +4914,6 @@ ORDER BY zm.Id";
 
                 if (columnName == "Zam.")
                 {
-                    oldValue = row.Field<decimal>("Zamówiono");
                     if (decimal.TryParse(newText, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal newQty))
                     {
                         newValue = newQty;
@@ -4874,7 +4921,6 @@ ORDER BY zm.Id";
                 }
                 else if (columnName == "Cena")
                 {
-                    oldValue = row.Field<decimal>("Cena");
                     if (decimal.TryParse(newText, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal newPrice))
                     {
                         newValue = newPrice;
@@ -4883,24 +4929,18 @@ ORDER BY zm.Id";
             }
             else if (e.EditingElement is CheckBox checkBox)
             {
-                bool isChecked = checkBox.IsChecked ?? false;
-                if (columnName == "Folia")
-                {
-                    oldValue = row.Field<bool>("Folia");
-                    newValue = isChecked;
-                }
-                else if (columnName == "Hallal")
-                {
-                    oldValue = row.Field<bool>("Hallal");
-                    newValue = isChecked;
-                }
+                newValue = checkBox.IsChecked ?? false;
             }
 
-            if (newValue == null || (oldValue != null && oldValue.Equals(newValue)))
+            if (newValue == null || (_editOldValue != null && _editOldValue.Equals(newValue)))
+            {
+                _editOldValue = null;
                 return;
+            }
 
             // Zapisz zmianę w bazie
-            await SaveOrderItemChangeAsync(kodTowaru, columnName, oldValue, newValue, produkt);
+            await SaveOrderItemChangeAsync(_editKodTowaru, columnName, _editOldValue, newValue, _editProduktNazwa);
+            _editOldValue = null;
         }
 
         private async Task SaveOrderItemChangeAsync(int kodTowaru, string columnName, object? oldValue, object? newValue, string produktNazwa)
