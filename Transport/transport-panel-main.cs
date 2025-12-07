@@ -207,9 +207,8 @@ namespace Kalendarz1.Transport.Formularze
             var btnRaport = CreateActionButton("RAPORT", Color.FromArgb(155, 89, 182), 100);
             btnRaport.Click += BtnRaport_Click;
 
-            btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
+            btnMapa = CreateActionButton("🗺️ MAPA", Color.FromArgb(156, 39, 176), 90);
             btnMapa.Click += BtnMapa_Click;
-            btnMapa.Enabled = false;
 
             btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
             btnKierowcy.Click += SafeBtnKierowcy_Click;
@@ -1083,22 +1082,22 @@ namespace Kalendarz1.Transport.Formularze
 
         private async void BtnMapa_Click(object sender, EventArgs e)
         {
-            if (dgvKursy.CurrentRow == null)
-            {
-                MessageBox.Show("Proszę wybrać kurs do wyświetlenia trasy.",
-                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
             try
             {
                 Cursor = Cursors.WaitCursor;
-                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
-                await OtworzMapeTrasy(kursId);
+
+                // Connection strings
+                var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+                var connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+                var connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
+                // Open new Transport Map Window
+                var mapWindow = new TransportMapWindow(connTransport, connHandel, connLibra, _selectedDate, _currentUser);
+                mapWindow.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas otwierania mapy: {ex.Message}",
+                MessageBox.Show($"Błąd podczas otwierania mapy transportu: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
