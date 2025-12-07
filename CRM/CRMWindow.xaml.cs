@@ -168,14 +168,16 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string whereDate = wszystkieDni ? "" : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL";
-                    if (wszystkieDni) whereDate = "WHERE h.TypZmiany IS NOT NULL";
+                    // Liczymy tylko prawdziwe akcje handlowca (bez "Do zadzwonienia" i "Nowy")
+                    string whereDate = wszystkieDni
+                        ? "WHERE h.TypZmiany IS NOT NULL AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')"
+                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')";
 
                     var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
                             ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
                             COUNT(*) as Suma,
-                            SUM(CASE WHEN WartoscNowa = 'Do zadzwonienia' OR WartoscNowa = 'Nowy' THEN 1 ELSE 0 END) as DoZadzwonienia,
+                            0 as DoZadzwonienia,
                             SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
                             SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
                             SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
