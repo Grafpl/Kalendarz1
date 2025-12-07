@@ -34,6 +34,7 @@ namespace Kalendarz1.WPF
         public string UserID { get; set; } = string.Empty;
         private DateTime _selectedDate;
         private int? _currentOrderId;
+        private string _originalNotesValue = ""; // Śledzenie oryginalnej wartości notatek do edycji
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private Button? btnToday; // Dodaj to pole na początku klasy
@@ -473,6 +474,9 @@ namespace Kalendarz1.WPF
             _autoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
             _autoRefreshTimer.Start();
+
+            // Obsługa edycji notatek - zapisz przy utracie fokusa
+            txtNotes.LostFocus += TxtNotes_LostFocus;
         }
 
         private async void AutoRefreshTimer_Tick(object sender, EventArgs e)
@@ -2371,6 +2375,7 @@ ORDER BY zm.Id";
             decimal totalPallets = 0m;
             int totalOrdersCount = 0;
             int actualOrdersCount = 0;
+            var clientsReleasedCounted = new HashSet<int>(); // Śledzenie klientów, których wydania już policzono
 
             foreach (DataRow r in temp.Rows)
             {
@@ -2519,7 +2524,12 @@ ORDER BY zm.Id";
                 if (status != "Anulowane")
                 {
                     totalOrdered += quantity;
-                    totalReleased += released;
+                    // Wydania liczone raz na klienta, nie na każde zamówienie
+                    if (!clientsReleasedCounted.Contains(clientId))
+                    {
+                        totalReleased += released;
+                        clientsReleasedCounted.Add(clientId);
+                    }
                     totalPallets += pallets;
                     actualOrdersCount++;
                 }
@@ -2584,7 +2594,12 @@ ORDER BY zm.Id";
                 row["WydanoInfo"] = "";
                 releasesWithoutOrders.Add(row);
 
-                totalReleased += released;
+                // Wydania bez zamówień - każdy klient tutaj jest unikalny (już sprawdzono clientsWithOrders)
+                if (!clientsReleasedCounted.Contains(clientId))
+                {
+                    totalReleased += released;
+                    clientsReleasedCounted.Add(clientId);
+                }
             }
 
             foreach (var row in releasesWithoutOrders.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
@@ -3528,6 +3543,7 @@ ORDER BY zm.Id";
                 }
 
                 txtNotes.Text = notes;
+                _originalNotesValue = notes; // Zapisz oryginalną wartość do porównania przy edycji
 
                 // Wyświetl informacje o zamówieniu
                 string clientName = "";
@@ -3585,6 +3601,7 @@ ORDER BY zm.Id";
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 dgDetails.ItemsSource = null;
                 txtNotes.Clear();
+                _originalNotesValue = "";
             }
         }
         private void SetupDetailsDataGrid()
@@ -3751,10 +3768,12 @@ ORDER BY zm.Id";
                 }
             }
 
-            txtNotes.Text = $"📦 Wydanie bez zamówienia\n\n" +
+            string notesContent = $"📦 Wydanie bez zamówienia\n\n" +
                            $"Odbiorca: {recipientName} (ID: {clientId})\n" +
                            $"Data: {day:yyyy-MM-dd dddd}\n\n" +
                            $"Poniżej lista wydanych produktów (tylko towary z katalogów 67095 i 67153)";
+            txtNotes.Text = notesContent;
+            _originalNotesValue = notesContent; // Wydanie bez zamówienia - notatki generowane, nie edytowalne
 
             dgDetails.ItemsSource = dt.DefaultView;
             dgDetails.Columns.Clear();
@@ -4316,6 +4335,7 @@ ORDER BY zm.Id";
         {
             dgDetails.ItemsSource = null;
             txtNotes.Clear();
+            _originalNotesValue = "";
             _currentOrderId = null;
         }
 
@@ -5064,6 +5084,66 @@ ORDER BY zm.Id";
                 "Hallal" => (bool)value ? "TAK" : "NIE",
                 _ => value.ToString() ?? "brak"
             };
+        }
+
+        private async void TxtNotes_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!_currentOrderId.HasValue) return;
+
+            string newNotes = txtNotes.Text ?? "";
+            string oldNotes = _originalNotesValue ?? "";
+
+            // Sprawdź czy notatki się zmieniły
+            if (newNotes == oldNotes) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Aktualizuj notatki w bazie
+                await using var cmdUpdate = new SqlCommand(
+                    "UPDATE dbo.ZamowieniaMieso SET Uwagi = @uwagi WHERE Id = @orderId", cn);
+                cmdUpdate.Parameters.AddWithValue("@uwagi", newNotes);
+                cmdUpdate.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                await cmdUpdate.ExecuteNonQueryAsync();
+
+                // Zapisz zmianę w historii
+                string staraWartosc = string.IsNullOrEmpty(oldNotes) ? "(puste)" :
+                    (oldNotes.Length > 50 ? oldNotes.Substring(0, 50) + "..." : oldNotes);
+                string nowaWartosc = string.IsNullOrEmpty(newNotes) ? "(puste)" :
+                    (newNotes.Length > 50 ? newNotes.Substring(0, 50) + "..." : newNotes);
+
+                string opisZmiany = $"Notatki: \"{staraWartosc}\" → \"{nowaWartosc}\"";
+
+                await using var cmdHistory = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
+                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
+                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                cmdHistory.Parameters.AddWithValue("@user", UserID);
+                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja notatek");
+                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
+
+                try
+                {
+                    await cmdHistory.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // Tabela historii może nie istnieć - ignoruj
+                }
+
+                // Zaktualizuj oryginalną wartość
+                _originalNotesValue = newNotes;
+
+                // Krótkie potwierdzenie
+                System.Diagnostics.Debug.WriteLine($"Notatki zapisane dla zamówienia {_currentOrderId.Value}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania notatek:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
