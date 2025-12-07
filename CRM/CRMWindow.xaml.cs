@@ -204,6 +204,16 @@ namespace Kalendarz1.CRM
             WczytajRanking(rbWszystkie.IsChecked == true);
         }
 
+        private void ListaRanking_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (listaRanking.SelectedItem is DataRowView row)
+            {
+                bool wszystkie = rbWszystkie?.IsChecked == true;
+                var okno = new HistoriaHandlowcaWindow(connectionString, row, wszystkie);
+                okno.Show();
+            }
+        }
+
         private void WypelnijFiltryDynamiczne()
         {
             if (dtKontakty == null) return;

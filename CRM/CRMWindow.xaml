@@ -514,7 +514,7 @@
 
                         <Border Style="{StaticResource CardStyle}" Padding="20">
                             <StackPanel>
-                                <Grid Margin="0,0,0,8">
+                                <Grid Margin="0,0,0,4">
                                     <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <RadioButton x:Name="rb30Dni" Content="30 dni" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,10,0" FontSize="10" Checked="RbOkresRankingu_Checked"/>
@@ -522,20 +522,40 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Legenda -->
-                                <Border Background="#F9FAFB" CornerRadius="6" Padding="8,6" Margin="0,0,0,12">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="📞" FontSize="9" ToolTip="Do zadzwonienia" Margin="0,0,3,0"/>
-                                        <TextBlock Text="⏳" FontSize="9" ToolTip="Próba kontaktu" Margin="6,0,3,0"/>
-                                        <TextBlock Text="✅" FontSize="9" ToolTip="Nawiązano kontakt" Margin="6,0,3,0"/>
-                                        <TextBlock Text="🤝" FontSize="9" ToolTip="Zgoda na dalszy kontakt" Margin="6,0,3,0"/>
-                                        <TextBlock Text="📄" FontSize="9" ToolTip="Do wysłania oferta" Margin="6,0,3,0"/>
-                                        <TextBlock Text="❌" FontSize="9" ToolTip="Nie zainteresowany" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                <!-- Legenda z opisami -->
+                                <Border Background="#F9FAFB" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                                    <WrapPanel HorizontalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
+                                            <TextBlock Text="📞" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Do zadz." FontSize="9" Foreground="#64748B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
+                                            <TextBlock Text="⏳" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Próba" FontSize="9" Foreground="#9A3412" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
+                                            <TextBlock Text="✅" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Nawiązano" FontSize="9" Foreground="#166534" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
+                                            <TextBlock Text="🤝" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Zgoda" FontSize="9" Foreground="#0D9488" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
+                                            <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Oferta" FontSize="9" Foreground="#1E40AF" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                            <TextBlock Text="❌" FontSize="10" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Odmowa" FontSize="9" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </WrapPanel>
                                 </Border>
 
-                                <ItemsControl x:Name="listaRanking">
-                                    <ItemsControl.ItemTemplate>
+                                <TextBlock Text="Kliknij 2x aby zobaczyć szczegóły" FontSize="9" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" Margin="0,0,0,8" FontStyle="Italic"/>
+
+                                <ListBox x:Name="listaRanking" BorderThickness="0" Background="Transparent" MouseDoubleClick="ListaRanking_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#FAFAFA" CornerRadius="8" Padding="10" Margin="0,0,0,8" BorderBrush="#E5E7EB" BorderThickness="1">
                                                 <Grid>
@@ -616,8 +636,23 @@
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    </ListBox.ItemTemplate>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <ContentPresenter/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                </ListBox>
                             </StackPanel>
                         </Border>
 
