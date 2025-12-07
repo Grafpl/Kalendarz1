@@ -556,158 +556,134 @@ namespace Kalendarz1.CRM
                 WriteIndented = false
             });
 
-            // Google Maps z klastrowaniem (MarkerClusterer)
+            // Leaflet + OpenStreetMap (bez klucza API, niezawodne)
             return $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'/>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
     <title>Mapa CRM</title>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         html, body {{ height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }}
         #map {{ height: 100%; width: 100%; }}
-        .gm-style-iw {{ max-width: 320px !important; }}
-        .popup-container {{ padding: 12px; min-width: 260px; }}
+        .leaflet-popup-content-wrapper {{ border-radius: 12px; padding: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }}
+        .leaflet-popup-content {{ margin: 0; min-width: 280px; }}
+        .popup-container {{ padding: 16px; }}
         .popup-title {{ font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 8px; line-height: 1.3; }}
-        .popup-info {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }}
+        .popup-info {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; }}
         .popup-info strong {{ color: #374151; }}
         .popup-status {{ display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }}
         .popup-priority {{ display: inline-block; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }}
         .popup-actions {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; display: flex; gap: 8px; }}
-        .popup-btn {{ flex: 1; padding: 10px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; transition: all 0.2s; display: inline-block; }}
+        .popup-btn {{ flex: 1; padding: 10px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }}
         .popup-btn-primary {{ background: #16A34A; color: white; }}
-        .popup-btn-primary:hover {{ background: #15803D; }}
         .popup-btn-secondary {{ background: #F1F5F9; color: #475569; }}
-        .popup-btn-secondary:hover {{ background: #E2E8F0; }}
+        .marker-cluster-small {{ background-color: rgba(22, 163, 74, 0.6); }}
+        .marker-cluster-small div {{ background-color: rgba(22, 163, 74, 0.8); }}
+        .marker-cluster-medium {{ background-color: rgba(245, 158, 11, 0.6); }}
+        .marker-cluster-medium div {{ background-color: rgba(245, 158, 11, 0.8); }}
+        .marker-cluster-large {{ background-color: rgba(239, 68, 68, 0.6); }}
+        .marker-cluster-large div {{ background-color: rgba(239, 68, 68, 0.8); }}
+        .marker-cluster {{ color: white; font-weight: bold; }}
     </style>
 </head>
 <body>
 <div id='map'></div>
+<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
 <script>
 var data = {dataJson};
-var map, markers = [], infoWindow;
 
-function initMap() {{
-    map = new google.maps.Map(document.getElementById('map'), {{
-        center: {{ lat: 52.0, lng: 19.0 }},
-        zoom: 6,
-        mapTypeControl: true,
-        mapTypeControlOptions: {{
-            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-            position: google.maps.ControlPosition.TOP_RIGHT
-        }},
-        streetViewControl: false,
-        fullscreenControl: true,
-        styles: [
-            {{ featureType: 'poi', stylers: [{{ visibility: 'off' }}] }},
-            {{ featureType: 'transit', stylers: [{{ visibility: 'off' }}] }}
-        ]
-    }});
+var map = L.map('map').setView([52.0, 19.0], 6);
 
-    infoWindow = new google.maps.InfoWindow();
+L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    attribution: '© OpenStreetMap',
+    maxZoom: 18
+}}).addTo(map);
 
-    var bounds = new google.maps.LatLngBounds();
-
-    for (var i = 0; i < data.length; i++) {{
-        var p = data[i];
-        var position = {{ lat: p.Lat, lng: p.Lng }};
-        bounds.extend(position);
-
-        var marker = new google.maps.Marker({{
-            position: position,
-            map: map,
-            title: p.Nazwa,
-            icon: {{
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: p.KolorHex,
-                fillOpacity: 1,
-                strokeColor: p.CzyPriorytetowa ? '#DC2626' : '#374151',
-                strokeWeight: p.CzyPriorytetowa ? 3 : 2,
-                scale: 10
-            }}
-        }});
-
-        marker.kontakt = p;
-        markers.push(marker);
-
-        google.maps.event.addListener(marker, 'click', (function(marker) {{
-            return function() {{
-                var p = marker.kontakt;
-                var adres = [p.Ulica, p.Miasto].filter(function(x) {{ return x; }}).join(', ');
-                var priorityBadge = p.CzyPriorytetowa ? '<span class=""popup-priority"">PRIORYTET</span>' : '';
-
-                var content = [
-                    '<div class=""popup-container"">',
-                    '  <div class=""popup-title"">' + (p.Nazwa || 'Brak nazwy') + '</div>',
-                    '  <div class=""popup-info"">📍 ' + (adres || 'Brak adresu') + '</div>',
-                    '  <div class=""popup-info"">📞 <strong>' + (p.Telefon || '-') + '</strong></div>',
-                    p.Email ? '  <div class=""popup-info"">✉️ ' + p.Email + '</div>' : '',
-                    p.Branza ? '  <div class=""popup-info"" style=""font-size:10px;color:#9CA3AF"">🏢 ' + (p.Branza.length > 50 ? p.Branza.substring(0, 50) + '...' : p.Branza) + '</div>' : '',
-                    '  <div style=""margin-top:10px"">',
-                    '    <span class=""popup-status"" style=""background:' + getStatusBg(p.Status) + ';color:' + getStatusColor(p.Status) + '"">' + p.Status + '</span>',
-                    priorityBadge,
-                    '  </div>',
-                    '  <div class=""popup-actions"">',
-                    '    <a class=""popup-btn popup-btn-primary"" href=""tel:' + (p.Telefon || '').replace(/\s/g, '') + '"">📞 Zadzwoń</a>',
-                    '    <a class=""popup-btn popup-btn-secondary"" href=""https://www.google.com/maps/dir//' + encodeURIComponent(adres) + '"" target=""_blank"">🗺️ Trasa</a>',
-                    '  </div>',
-                    '</div>'
-                ].join('');
-
-                infoWindow.setContent(content);
-                infoWindow.open(map, marker);
-            }};
-        }})(marker));
-    }}
-
-    // Zastosuj klastrowanie
-    if (typeof MarkerClusterer !== 'undefined' && markers.length > 0) {{
-        new MarkerClusterer({{ markers: markers, map: map }});
-    }}
-
-    if (data.length > 0) {{
-        map.fitBounds(bounds);
-        var listener = google.maps.event.addListener(map, 'idle', function() {{
-            if (map.getZoom() > 15) map.setZoom(15);
-            google.maps.event.removeListener(listener);
-        }});
-    }}
-}}
+var markers = L.markerClusterGroup({{
+    showCoverageOnHover: false,
+    maxClusterRadius: 60,
+    spiderfyOnMaxZoom: true,
+    disableClusteringAtZoom: 14
+}});
 
 function getStatusBg(status) {{
-    switch(status) {{
-        case 'Do zadzwonienia': return '#F1F5F9';
-        case 'Próba kontaktu': return '#FFEDD5';
-        case 'Nawiązano kontakt': return '#DCFCE7';
-        case 'Zgoda na dalszy kontakt': return '#CCFBF1';
-        case 'Do wysłania oferta': return '#CFFAFE';
-        case 'Nie zainteresowany': return '#FEE2E2';
-        default: return '#F3F4F6';
-    }}
+    var colors = {{
+        'Do zadzwonienia': '#F1F5F9',
+        'Próba kontaktu': '#FFEDD5',
+        'Nawiązano kontakt': '#DCFCE7',
+        'Zgoda na dalszy kontakt': '#CCFBF1',
+        'Do wysłania oferta': '#CFFAFE',
+        'Nie zainteresowany': '#FEE2E2'
+    }};
+    return colors[status] || '#F3F4F6';
 }}
 
 function getStatusColor(status) {{
-    switch(status) {{
-        case 'Do zadzwonienia': return '#475569';
-        case 'Próba kontaktu': return '#9A3412';
-        case 'Nawiązano kontakt': return '#166534';
-        case 'Zgoda na dalszy kontakt': return '#0D9488';
-        case 'Do wysłania oferta': return '#155E75';
-        case 'Nie zainteresowany': return '#991B1B';
-        default: return '#4B5563';
-    }}
+    var colors = {{
+        'Do zadzwonienia': '#475569',
+        'Próba kontaktu': '#9A3412',
+        'Nawiązano kontakt': '#166534',
+        'Zgoda na dalszy kontakt': '#0D9488',
+        'Do wysłania oferta': '#155E75',
+        'Nie zainteresowany': '#991B1B'
+    }};
+    return colors[status] || '#4B5563';
+}}
+
+for (var i = 0; i < data.length; i++) {{
+    var p = data[i];
+
+    var borderColor = p.CzyPriorytetowa ? '#DC2626' : '#374151';
+    var borderWidth = p.CzyPriorytetowa ? 3 : 2;
+    var size = p.CzyPriorytetowa ? 18 : 14;
+
+    var icon = L.divIcon({{
+        html: '<div style=""width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + p.KolorHex + ';border:' + borderWidth + 'px solid ' + borderColor + ';box-shadow:0 2px 6px rgba(0,0,0,0.3)""></div>',
+        className: '',
+        iconSize: [size, size],
+        iconAnchor: [size/2, size/2]
+    }});
+
+    var adres = [p.Ulica, p.Miasto].filter(function(x) {{ return x; }}).join(', ');
+    var priorityBadge = p.CzyPriorytetowa ? '<span class=""popup-priority"">PRIORYTET</span>' : '';
+
+    var popup = '<div class=""popup-container"">' +
+        '<div class=""popup-title"">' + (p.Nazwa || 'Brak nazwy') + '</div>' +
+        '<div class=""popup-info"">📍 ' + (adres || 'Brak adresu') + '</div>' +
+        '<div class=""popup-info"">📞 <strong>' + (p.Telefon || '-') + '</strong></div>' +
+        (p.Email ? '<div class=""popup-info"">✉️ ' + p.Email + '</div>' : '') +
+        (p.Branza ? '<div class=""popup-info"" style=""font-size:10px;color:#9CA3AF"">🏢 ' + (p.Branza.length > 40 ? p.Branza.substring(0, 40) + '...' : p.Branza) + '</div>' : '') +
+        '<div style=""margin-top:10px"">' +
+        '<span class=""popup-status"" style=""background:' + getStatusBg(p.Status) + ';color:' + getStatusColor(p.Status) + '"">' + p.Status + '</span>' +
+        priorityBadge +
+        '</div>' +
+        '<div class=""popup-actions"">' +
+        '<a class=""popup-btn popup-btn-primary"" href=""tel:' + (p.Telefon || '').replace(/\s/g, '') + '"">📞 Zadzwoń</a>' +
+        '<a class=""popup-btn popup-btn-secondary"" href=""https://www.google.com/maps/dir//' + encodeURIComponent(adres) + '"" target=""_blank"">🗺️ Trasa</a>' +
+        '</div></div>';
+
+    var m = L.marker([p.Lat, p.Lng], {{ icon: icon }});
+    m.bindPopup(popup, {{ maxWidth: 320 }});
+    markers.addLayer(m);
+}}
+
+map.addLayer(markers);
+
+if (data.length > 0) {{
+    var group = new L.featureGroup(markers.getLayers());
+    map.fitBounds(group.getBounds().pad(0.1));
 }}
 
 window.setView = function(lat, lng, zoom) {{
-    if (map) {{
-        map.setCenter({{ lat: lat, lng: lng }});
-        map.setZoom(zoom || 16);
-    }}
+    map.setView([lat, lng], zoom || 16);
 }};
 </script>
-<script src='https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js'></script>
-<script async defer src='https://maps.googleapis.com/maps/api/js?callback=initMap&v=weekly'></script>
 </body>
 </html>";
         }
@@ -834,8 +810,7 @@ window.setView = function(lat, lng, zoom) {{
                 {
                     var lat = kontakt.Lat.ToString(CultureInfo.InvariantCulture);
                     var lng = kontakt.Lng.ToString(CultureInfo.InvariantCulture);
-                    // Dla Google Maps używamy window.setView
-                    await webView.ExecuteScriptAsync($"if(typeof setView === 'function') setView({lat}, {lng}, 16); else if(map && map.setView) map.setView([{lat}, {lng}], 16);");
+                    await webView.ExecuteScriptAsync($"setView({lat}, {lng}, 16);");
                 }
                 catch { }
             }
