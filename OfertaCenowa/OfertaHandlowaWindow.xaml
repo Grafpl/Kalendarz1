@@ -359,6 +359,7 @@
                 <Grid Grid.Row="0" Margin="0,0,0,12">
                     <TextBlock Text="Dodaj produkty" FontSize="20" FontWeight="Bold" Foreground="{StaticResource DarkTextBrush}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="📋 Kopiuj ostatnią" Style="{StaticResource SecondaryButtonStyle}" Click="BtnKopiujOstatniaOferte_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8" ToolTip="Wczytaj produkty z ostatniej oferty"/>
                         <Button Content="📊 Marże" Style="{StaticResource SecondaryButtonStyle}" Click="BtnMarze_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>
                         <Button Content="🥩↔️❄️ Mapowanie" Style="{StaticResource SecondaryButtonStyle}" Click="BtnMapowanie_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>
                         <Button Content="🌐 Tłumaczenia" Style="{StaticResource SecondaryButtonStyle}" Click="BtnTlumaczenia_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>

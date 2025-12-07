@@ -239,6 +239,7 @@ namespace Kalendarz1.OfertaCenowa
 
         private int _aktualnyKrok = 1;
         private readonly SzablonyManager _szablonyManager = new();
+        private readonly UlubieniOdbiorcyManager _ulubieniManager = new();
         private SzablonOdbiorcow? _ostatnioWczytanySzablon = null;
         private readonly OfertaRepository _ofertaRepository = new();
         private string _nazwaOperatora = "";
@@ -820,6 +821,25 @@ namespace Kalendarz1.OfertaCenowa
             var stackDane = new StackPanel();
 
             var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+
+            // Gwiazdka ulubionego
+            bool czyUlubiony = _ulubieniManager.CzyUlubiony(_userId, odbiorca.Id, odbiorca.Zrodlo);
+            var btnUlubiony = new Button
+            {
+                Content = czyUlubiony ? "⭐" : "☆",
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = odbiorca,
+                ToolTip = czyUlubiony ? "Usuń z ulubionych" : "Dodaj do ulubionych",
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btnUlubiony.Click += BtnPrzelaczUlubiony_Click;
+            badgePanel.Children.Add(btnUlubiony);
+
             var badge = new Border
             {
                 Background = odbiorca.ZrodloBadgeBackground,
@@ -863,8 +883,21 @@ namespace Kalendarz1.OfertaCenowa
             Grid.SetColumn(stackDane, 0);
             grid.Children.Add(stackDane);
 
-            // Panel z przyciskami (edytuj i usuń)
+            // Panel z przyciskami (statystyki, edytuj, usuń)
             var btnPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+
+            // Przycisk statystyk
+            var btnStatystyka = new Button
+            {
+                Content = "📊",
+                Style = (Style)FindResource("SmallButtonStyle"),
+                FontSize = 14,
+                Tag = odbiorca,
+                ToolTip = "Pokaż statystyki ofert",
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            btnStatystyka.Click += BtnStatystykaOdbiorcy_Click;
+            btnPanel.Children.Add(btnStatystyka);
 
             // Przycisk edycji kontaktu - tylko dla CRM
             if (odbiorca.Zrodlo == "CRM" && int.TryParse(odbiorca.Id, out _))
@@ -922,6 +955,42 @@ namespace Kalendarz1.OfertaCenowa
                     OdswiezListeWybranychOdbiorcow();
 
                     MessageBox.Show("Dane kontaktowe zostały zaktualizowane.", "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+
+        private void BtnPrzelaczUlubiony_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                bool terazUlubiony = _ulubieniManager.PrzelaczUlubiony(_userId, odbiorca.Id, odbiorca.Zrodlo);
+                btn.Content = terazUlubiony ? "⭐" : "☆";
+                btn.ToolTip = terazUlubiony ? "Usuń z ulubionych" : "Dodaj do ulubionych";
+            }
+        }
+
+        private async void BtnStatystykaOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                try
+                {
+                    var stat = await _ofertaRepository.PobierzStatystykeOdbiorcyAsync(odbiorca.Id, odbiorca.Nazwa);
+
+                    string info = $"📊 Statystyki dla: {odbiorca.Nazwa}\n\n" +
+                                  $"Liczba ofert: {stat.LiczbaOfert}\n" +
+                                  $"Ostatnia oferta: {stat.OstatniaOfertaTekst}\n" +
+                                  $"Suma wartości: {stat.SumaWartosci:N2} PLN\n\n" +
+                                  $"✅ Zaakceptowane: {stat.Zaakceptowane}\n" +
+                                  $"📤 Wysłane: {stat.Wyslane}\n" +
+                                  $"❌ Odrzucone: {stat.Odrzucone}\n\n" +
+                                  $"Procent akceptacji: {stat.ProcentAkceptacji}%";
+
+                    MessageBox.Show(info, "Statystyki odbiorcy", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd pobierania statystyk: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -1483,6 +1552,81 @@ namespace Kalendarz1.OfertaCenowa
             string kierunek = marzaProcent > 0 ? "podniesione" : "obniżone";
             MessageBox.Show($"Ceny zostały {kierunek} o {Math.Abs(marzaProcent):N1}% dla {zmieniono} produktów.", 
                 "Marża zastosowana", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Kopiuj produkty z ostatniej oferty
+        private async void BtnKopiujOstatniaOferte_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var ostatniaOferta = await _ofertaRepository.PobierzOstatniaOferteHandlowcaAsync(_userId);
+
+                if (ostatniaOferta == null || ostatniaOferta.Pozycje.Count == 0)
+                {
+                    MessageBox.Show("Nie znaleziono poprzedniej oferty z produktami.", "Brak oferty", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    $"Znaleziono ofertę: {ostatniaOferta.NumerOferty}\n" +
+                    $"Data: {ostatniaOferta.DataWystawienia:dd.MM.yyyy}\n" +
+                    $"Klient: {ostatniaOferta.KlientNazwa}\n" +
+                    $"Produktów: {ostatniaOferta.Pozycje.Count}\n\n" +
+                    "Czy chcesz wczytać produkty z tej oferty?",
+                    "Kopiuj ostatnią ofertę",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Wyczyść aktualną listę
+                    foreach (var w in TowaryWOfercie)
+                    {
+                        w.PropertyChanged -= TowarWiersz_PropertyChanged;
+                        w.TowarZmieniony -= TowarWiersz_TowarZmieniony;
+                        w.TypZmieniony -= TowarWiersz_TypZmieniony;
+                    }
+                    TowaryWOfercie.Clear();
+
+                    // Dodaj produkty z ostatniej oferty
+                    foreach (var pozycja in ostatniaOferta.Pozycje)
+                    {
+                        // Znajdź towar w dostępnych
+                        var towar = DostepneTowary.FirstOrDefault(t => t.Kod == pozycja.TowarKod);
+
+                        var wiersz = new TowarWiersz
+                        {
+                            Lp = TowaryWOfercie.Count + 1,
+                            WybranyTowar = towar,
+                            Nazwa = pozycja.TowarNazwa,
+                            NazwaTekst = pozycja.TowarNazwa,
+                            Katalog = towar?.Katalog ?? "",
+                            Ilosc = pozycja.Ilosc,
+                            IloscTekst = pozycja.Ilosc.ToString("N0"),
+                            Cena = pozycja.CenaJednostkowa,
+                            CenaTekst = pozycja.CenaJednostkowa.ToString("N2", System.Globalization.CultureInfo.InvariantCulture).Replace(",", "."),
+                            Opakowanie = pozycja.Opakowanie,
+                            DostepneTowary = DostepneTowary
+                        };
+
+                        wiersz.PropertyChanged += TowarWiersz_PropertyChanged;
+                        wiersz.TowarZmieniony += TowarWiersz_TowarZmieniony;
+                        wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+
+                        TowaryWOfercie.Add(wiersz);
+                    }
+
+                    DodajNowyPustyWiersz();
+                    AktualizujPodsumowanieTowary();
+
+                    MessageBox.Show($"Wczytano {ostatniaOferta.Pozycje.Count} produktów z oferty {ostatniaOferta.NumerOferty}",
+                        "Produkty wczytane", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wczytywania ostatniej oferty: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // NOWY: Otwórz okno wyboru szablonu (nie od razu edytor)
