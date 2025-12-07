@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -22,12 +23,15 @@ namespace Kalendarz1.CRM
     {
         private readonly string connectionString;
         private readonly string operatorID;
-        private DataTable? dtKontakty;
+        private DataTable dtKontakty;
         private List<MapKontakt> kontaktyNaMapie = new List<MapKontakt>();
         private bool isLoading = false;
         private bool isWebViewReady = false;
 
-        // HTTP dla geokodowania
+        // WSPÓŁRZĘDNE BAZY: Koziołki 40, 95-061 Dmosin
+        private const double BazaLat = 51.907335;
+        private const double BazaLng = 19.678605;
+
         private static readonly HttpClient http = new HttpClient(new HttpClientHandler
         {
             AutomaticDecompression = System.Net.DecompressionMethods.All
@@ -41,23 +45,24 @@ namespace Kalendarz1.CRM
             InitializeComponent();
             connectionString = connString;
             operatorID = opID;
+            this.WindowState = WindowState.Maximized;
             Loaded += MapaCRMWindow_Loaded;
         }
 
         private async void MapaCRMWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InicjalizujFiltry();
-
             try
             {
-                txtLoadingStatus.Text = "Inicjalizacja WebView2...";
+                txtLoadingStatus.Text = "Inicjalizacja mapy...";
                 await webView.EnsureCoreWebView2Async();
                 isWebViewReady = true;
+                await Task.Delay(500);
                 await OdswiezMapeAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd inicjalizacji WebView2: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd inicjalizacji mapy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
@@ -86,33 +91,38 @@ namespace Kalendarz1.CRM
             try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
-                txtLoadingStatus.Text = "Pobieranie danych...";
+                txtLoadingStatus.Text = "Pobieranie bazy danych...";
 
                 await Task.Run(() => WczytajDaneZBazy());
                 WypelnijFiltrBranz();
 
-                txtLoadingStatus.Text = "Filtrowanie...";
+                txtLoadingStatus.Text = "Obliczanie dystansów...";
                 var przefiltrowane = await FiltrujKontaktyAsync();
 
-                txtLoadingStatus.Text = $"Renderowanie mapy ({przefiltrowane.Count} punktów)...";
-                var html = GenerujHtmlMapy(przefiltrowane);
-                webView.NavigateToString(html);
+                txtLoadingStatus.Text = $"Generowanie mapy ({przefiltrowane.Count} punktów)...";
+                var htmlContent = GenerujHtmlMapy(przefiltrowane);
+
+                var tempPath = Path.Combine(Path.GetTempPath(), "mapa_crm_trasa.html");
+                File.WriteAllText(tempPath, htmlContent);
+                webView.CoreWebView2.Navigate(tempPath);
 
                 kontaktyNaMapie = przefiltrowane;
-                listaKontaktow.ItemsSource = kontaktyNaMapie.Take(100).ToList();
-                txtLiczbaKontaktow.Text = $"{kontaktyNaMapie.Count} kontaktów";
 
+                // Sortowanie po odległości (najbliżsi na górze)
+                var listaDoWyswietlenia = kontaktyNaMapie.OrderBy(k => k.DystansKm).Take(100).ToList();
+                listaKontaktow.ItemsSource = listaDoWyswietlenia;
+
+                txtLiczbaKontaktow.Text = $"{kontaktyNaMapie.Count} kontaktów";
                 AktualizujStatystyki(przefiltrowane);
-                loadingOverlay.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                loadingOverlay.Visibility = Visibility.Collapsed;
+                MessageBox.Show($"Błąd odświeżania: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 isLoading = false;
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -121,8 +131,6 @@ namespace Kalendarz1.CRM
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-
-                // Prosty JOIN z tabelą KodyPocztowe - współrzędne pobierane z gotowej tabeli
                 var sql = @"
                     SELECT
                         o.ID,
@@ -139,15 +147,14 @@ namespace Kalendarz1.CRM
                         kp.Latitude,
                         kp.Longitude
                     FROM OdbiorcyCRM o
-                    LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
-                    LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
-                    WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
-                        AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')";
+                    INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
+                    WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
+                      AND kp.Latitude IS NOT NULL 
+                      AND kp.Longitude IS NOT NULL";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@OperatorID", operatorID);
                     var adapter = new SqlDataAdapter(cmd);
                     dtKontakty = new DataTable();
                     adapter.Fill(dtKontakty);
@@ -173,8 +180,31 @@ namespace Kalendarz1.CRM
                 cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże" });
                 foreach (var branza in branze)
                     cmbBranza.Items.Add(new ComboBoxItem { Content = branza, Tag = branza });
-                cmbBranza.SelectedIndex = currentIndex >= 0 && currentIndex < cmbBranza.Items.Count ? currentIndex : 0;
+
+                if (currentIndex > 0 && currentIndex < cmbBranza.Items.Count)
+                    cmbBranza.SelectedIndex = currentIndex;
+                else
+                    cmbBranza.SelectedIndex = 0;
             });
+        }
+
+        // Funkcja obliczająca odległość w linii prostej (Haversine Formula)
+        private double ObliczDystans(double lat1, double lon1, double lat2, double lon2)
+        {
+            var R = 6371; // Promień ziemi w km
+            var dLat = Deg2Rad(lat2 - lat1);
+            var dLon = Deg2Rad(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(Deg2Rad(lat1)) * Math.Cos(Deg2Rad(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            var d = R * c; // Dystans w km
+            return Math.Round(d, 1);
+        }
+
+        private double Deg2Rad(double deg)
+        {
+            return deg * (Math.PI / 180);
         }
 
         private async Task<List<MapKontakt>> FiltrujKontaktyAsync()
@@ -182,7 +212,7 @@ namespace Kalendarz1.CRM
             if (dtKontakty == null) return new List<MapKontakt>();
 
             var wynik = new List<MapKontakt>();
-            string filtrWoj = "", filtrBranza = "";
+            string filtrWoj = "", filtrBranza = "", szukanaFraza = "";
             bool tylkoPriorytetowe = false;
             var statusyDoPokazania = new List<string>();
 
@@ -197,6 +227,7 @@ namespace Kalendarz1.CRM
                     filtrBranza = item?.Tag?.ToString() ?? item?.Content?.ToString() ?? "";
                 }
 
+                szukanaFraza = txtSzukaj.Text?.Trim().ToLower() ?? "";
                 tylkoPriorytetowe = chkTylkoPriorytetowe.IsChecked == true;
 
                 if (chkDoZadzwonienia.IsChecked == true) statusyDoPokazania.Add("Do zadzwonienia");
@@ -210,8 +241,7 @@ namespace Kalendarz1.CRM
             foreach (DataRow row in dtKontakty.Rows)
             {
                 var status = row["Status"]?.ToString() ?? "Do zadzwonienia";
-                if (status == "Nowy" || string.IsNullOrWhiteSpace(status))
-                    status = "Do zadzwonienia";
+                if (status == "Nowy" || string.IsNullOrWhiteSpace(status)) status = "Do zadzwonienia";
 
                 if (!statusyDoPokazania.Contains(status)) continue;
 
@@ -224,15 +254,24 @@ namespace Kalendarz1.CRM
                 var czyPriorytetowa = Convert.ToInt32(row["CzyPriorytetowa"] ?? 0) == 1;
                 if (tylkoPriorytetowe && !czyPriorytetowa) continue;
 
-                // Sprawdź współrzędne z JOIN
-                var latVal = row["Latitude"];
-                var lngVal = row["Longitude"];
+                if (!string.IsNullOrEmpty(szukanaFraza))
+                {
+                    string nazwa = row["NAZWA"]?.ToString()?.ToLower() ?? "";
+                    string miasto = row["MIASTO"]?.ToString()?.ToLower() ?? "";
+                    string telefon = row["TELEFON_K"]?.ToString()?.ToLower() ?? "";
+                    string ulica = row["ULICA"]?.ToString()?.ToLower() ?? "";
 
-                if (latVal == DBNull.Value || lngVal == DBNull.Value) continue;
+                    if (!nazwa.Contains(szukanaFraza) &&
+                        !miasto.Contains(szukanaFraza) &&
+                        !telefon.Contains(szukanaFraza) &&
+                        !ulica.Contains(szukanaFraza))
+                        continue;
+                }
 
-                if (!double.TryParse(latVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lat) ||
-                    !double.TryParse(lngVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lng))
-                    continue;
+                if (row["Latitude"] == DBNull.Value || row["Longitude"] == DBNull.Value) continue;
+
+                double lat = Convert.ToDouble(row["Latitude"]);
+                double lng = Convert.ToDouble(row["Longitude"]);
 
                 if (Math.Abs(lat) < 0.001 || Math.Abs(lng) < 0.001) continue;
 
@@ -249,7 +288,9 @@ namespace Kalendarz1.CRM
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
-                    Lng = lng
+                    Lng = lng,
+                    // Wyliczenie dystansu
+                    DystansKm = ObliczDystans(BazaLat, BazaLng, lat, lng)
                 };
 
                 UstawKoloryStatusu(kontakt);
@@ -281,9 +322,9 @@ namespace Kalendarz1.CRM
             else
             {
                 kontakt.KolorHex = "#9CA3AF";
-                kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF"));
-                kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
-                kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4B5563"));
+                kontakt.KolorStatusu = Brushes.Gray;
+                kontakt.TloStatusu = Brushes.LightGray;
+                kontakt.KolorStatusuTekst = Brushes.DarkGray;
             }
         }
 
@@ -297,325 +338,283 @@ namespace Kalendarz1.CRM
 
         private string GenerujHtmlMapy(List<MapKontakt> kontakty)
         {
-            // Pobierz klucz API z pola tekstowego
             string apiKey = "";
             Dispatcher.Invoke(() => apiKey = txtApiKey.Text?.Trim() ?? "");
 
             var dataJson = JsonSerializer.Serialize(kontakty.Select(k => new
             {
-                k.ID, k.Nazwa, k.Miasto, k.Ulica, k.Telefon, k.Email,
-                k.Status, k.Branza, k.CzyPriorytetowa, k.KolorHex, k.Lat, k.Lng
-            }), new JsonSerializerOptions
-            {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            });
+                k.ID,
+                k.Nazwa,
+                k.Miasto,
+                k.Ulica,
+                k.Telefon,
+                k.Email,
+                k.Status,
+                k.Branza,
+                k.CzyPriorytetowa,
+                k.KolorHex,
+                k.Lat,
+                k.Lng,
+                k.DystansKm // Dodano dystans do JSON
+            }), new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
-            return $@"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'/>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        html, body, #map {{ height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; }}
-        .gm-style-iw {{ max-width: 280px !important; }}
-        .p-title {{ font-weight: 700; font-size: 13px; color: #111; margin-bottom: 6px; }}
-        .p-info {{ font-size: 11px; color: #666; margin: 3px 0; }}
-        .p-status {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 6px; }}
-        .p-btn {{ display: inline-block; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; margin-top: 8px; margin-right: 4px; }}
-        .p-btn-green {{ background: #16A34A; color: white; }}
-        .p-btn-gray {{ background: #E5E7EB; color: #374151; }}
-        .error-msg {{ display: flex; justify-content: center; align-items: center; height: 100%; font-size: 16px; color: #DC2626; text-align: center; padding: 20px; }}
-    </style>
-</head>
-<body>
-<div id='map'></div>
-<script>
-var data = {dataJson};
-var map, markers = [], infoWindow;
+            var sb = new StringBuilder();
 
-var statusBg = {{'Do zadzwonienia':'#F1F5F9','Próba kontaktu':'#FFEDD5','Nawiązano kontakt':'#DCFCE7','Zgoda na dalszy kontakt':'#CCFBF1','Do wysłania oferta':'#CFFAFE','Nie zainteresowany':'#FEE2E2'}};
-var statusTxt = {{'Do zadzwonienia':'#475569','Próba kontaktu':'#9A3412','Nawiązano kontakt':'#166534','Zgoda na dalszy kontakt':'#0D9488','Do wysłania oferta':'#155E75','Nie zainteresowany':'#991B1B'}};
+            sb.AppendLine("<!DOCTYPE html>");
+            sb.AppendLine("<html>");
+            sb.AppendLine("<head>");
+            sb.AppendLine("<meta charset='utf-8'/>");
+            sb.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'/>");
+            sb.AppendLine("<style>");
+            sb.AppendLine("html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }");
+            sb.AppendLine(".gm-style-iw { max-width: 300px !important; font-family: 'Segoe UI', sans-serif; }");
+            sb.AppendLine(".p-title { font-weight: 700; font-size: 14px; margin-bottom: 5px; }");
+            sb.AppendLine(".p-info { font-size: 12px; margin: 2px 0; }");
+            sb.AppendLine(".btn-row { display:flex; gap:5px; margin-top:8px; }");
+            sb.AppendLine(".p-btn { flex:1; text-align:center; padding: 6px 4px; color: white; text-decoration: none; border-radius: 4px; margin-top: 4px; font-size: 11px; border:none; cursor:pointer; }");
+            sb.AppendLine(".btn-add { background: #0F172A; } .btn-add:hover { background: #1E293B; }");
+            sb.AppendLine("#route-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
+            sb.AppendLine("#route-panel.open { transform: translateX(0); }");
+            sb.AppendLine(".rp-header { background: #16A34A; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
+            sb.AppendLine(".rp-content { flex: 1; overflow-y: auto; padding: 10px; }");
+            sb.AppendLine(".rp-item { background: #F1F5F9; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 12px; position: relative; border-left: 4px solid #16A34A; }");
+            sb.AppendLine(".rp-remove { position: absolute; top: 5px; right: 5px; color: #EF4444; cursor: pointer; font-weight: bold; padding: 4px; }");
+            sb.AppendLine(".rp-footer { padding: 15px; border-top: 1px solid #E2E8F0; background: #F8FAF8; }");
+            sb.AppendLine(".btn-calc { width: 100%; background: #2563EB; color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }");
+            sb.AppendLine(".btn-calc:hover { background: #1D4ED8; }");
+            sb.AppendLine("#toggle-panel { position: absolute; right: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #16A34A; }");
+            sb.AppendLine("#route-summary { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16A34A; text-align: center; display: none; }");
+            sb.AppendLine("</style>");
+            sb.AppendLine("</head>");
+            sb.AppendLine("<body>");
+            sb.AppendLine("<div id='map'></div>");
+            sb.AppendLine("<div id='toggle-panel' onclick='togglePanel()'>📋 Twoja trasa (<span id='count-badge'>0</span>)</div>");
+            sb.AppendLine("<div id='route-panel'>");
+            sb.AppendLine("  <div class='rp-header'><span>PLANOWANIE TRASY</span><span style='cursor:pointer' onclick='togglePanel()'>✕</span></div>");
+            sb.AppendLine("  <div class='rp-content' id='route-list'><div style='text-align:center;color:#999;margin-top:20px;'>Brak punktów.<br>Kliknij na mapie klienta i wybierz<br><b>+ Dodaj do trasy</b></div></div>");
+            sb.AppendLine("  <div class='rp-footer'>");
+            sb.AppendLine("    <button class='btn-calc' onclick='calculateRoute()'>🚀 Wyznacz optymalną trasę</button>");
+            sb.AppendLine("    <div id='route-summary'></div>");
+            sb.AppendLine("    <div style='text-align:center; margin-top:10px;'><a href='#' onclick='clearRoute()' style='color:#666;font-size:11px;'>Wyczyść trasę</a></div>");
+            sb.AppendLine("  </div>");
+            sb.AppendLine("</div>");
+            sb.AppendLine("<script>");
+            sb.Append("var data = ");
+            sb.Append(dataJson);
+            sb.AppendLine(";");
+            sb.AppendLine("var map, markers = [], infoWindow, directionsService, directionsRenderer;");
+            sb.AppendLine("var routePoints = [];");
+            // BAZA: KOZIOŁKI 40, DMOSIN
+            sb.AppendLine("var startPos = { lat: 51.907335, lng: 19.678605 };");
 
-function initMap() {{
-    map = new google.maps.Map(document.getElementById('map'), {{
-        center: {{ lat: 52.0, lng: 19.0 }},
-        zoom: 6,
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true
-    }});
+            sb.AppendLine("function initMap() {");
+            sb.AppendLine("  var centerPos = data.length > 0 ? { lat: data[0].Lat, lng: data[0].Lng } : startPos;");
+            sb.AppendLine("  map = new google.maps.Map(document.getElementById('map'), { center: centerPos, zoom: 6, fullscreenControl: true, streetViewControl: false, mapTypeControl: false });");
+            sb.AppendLine("  infoWindow = new google.maps.InfoWindow();");
+            sb.AppendLine("  directionsService = new google.maps.DirectionsService();");
+            sb.AppendLine("  directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });");
+            sb.AppendLine("  new google.maps.Marker({ position: startPos, map: map, label: '🏠', title: 'BAZA: Koziołki 40' });");
+            sb.AppendLine("  var bounds = new google.maps.LatLngBounds();");
+            sb.AppendLine("  bounds.extend(startPos);");
+            sb.AppendLine("  for (var i = 0; i < data.length; i++) {");
+            sb.AppendLine("    var p = data[i];");
+            sb.AppendLine("    var pos = { lat: p.Lat, lng: p.Lng };");
+            sb.AppendLine("    bounds.extend(pos);");
+            sb.AppendLine("    var sz = p.CzyPriorytetowa ? 14 : 10;");
+            sb.Append("    var svgIcon = { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"' + sz + '\" height=\"' + sz + '\"><circle cx=\"' + (sz/2) + '\" cy=\"' + (sz/2) + '\" r=\"' + ((sz/2)-1) + '\" fill=\"' + p.KolorHex + '\" stroke=\"#fff\" stroke-width=\"1\"/></svg>'), scaledSize: new google.maps.Size(sz, sz), anchor: new google.maps.Point(sz/2, sz/2) };");
+            sb.AppendLine("    var marker = new google.maps.Marker({ position: pos, map: map, icon: svgIcon, title: p.Nazwa });");
+            sb.AppendLine("    marker.kontakt = p;");
+            sb.AppendLine("    marker.addListener('click', function() {");
+            sb.AppendLine("      var k = this.kontakt;");
+            // WYŚWIETLANIE ODLEGŁOŚCI W DYMKU
+            sb.AppendLine("      var content = '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
+            sb.AppendLine("                    '<div class=\"p-info\">📍 ' + k.Miasto + ' (' + k.DystansKm + ' km)</div>' +");
+            sb.AppendLine("                    '<div class=\"p-info\">📞 ' + k.Telefon + '</div>' +");
+            sb.AppendLine("                    '<div class=\"btn-row\">' +");
+            sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Dodaj do trasy</button>' +");
+            sb.AppendLine("                    '<a class=\"p-btn\" style=\"background:#16A34A\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
+            sb.AppendLine("                    '</div>';");
+            sb.AppendLine("      infoWindow.setContent(content);");
+            sb.AppendLine("      infoWindow.open(map, this);");
+            sb.AppendLine("    });");
+            sb.AppendLine("  }");
+            sb.AppendLine("  if (data.length > 0) map.fitBounds(bounds);");
+            sb.AppendLine("  var script = document.createElement('script');");
+            sb.AppendLine("  script.src = 'https://unpkg.com/@googlemaps/markerclusterer@2.5.3/dist/index.min.js';");
+            sb.AppendLine("  script.onload = function() { try { new markerClusterer.MarkerClusterer({ map: map, markers: markerObjects }); } catch(e){} };");
+            sb.AppendLine("  document.head.appendChild(script);");
+            sb.AppendLine("}");
+            sb.AppendLine("function addToRoute(id) {");
+            sb.AppendLine("  var k = data.find(x => x.ID == id);");
+            sb.AppendLine("  if(!k) return;");
+            sb.AppendLine("  if(routePoints.find(x => x.ID == id)) { alert('Ten klient jest już na liście!'); return; }");
+            sb.AppendLine("  routePoints.push(k);");
+            sb.AppendLine("  renderRouteList();");
+            sb.AppendLine("  document.getElementById('route-panel').classList.add('open');");
+            sb.AppendLine("}");
+            sb.AppendLine("function removeFromRoute(id) {");
+            sb.AppendLine("  routePoints = routePoints.filter(x => x.ID != id);");
+            sb.AppendLine("  renderRouteList();");
+            sb.AppendLine("}");
+            sb.AppendLine("function renderRouteList() {");
+            sb.AppendLine("  var div = document.getElementById('route-list');");
+            sb.AppendLine("  document.getElementById('count-badge').innerText = routePoints.length;");
+            sb.AppendLine("  if(routePoints.length === 0) { div.innerHTML = '<div style=\"text-align:center;color:#999;margin-top:20px;\">Brak punktów.</div>'; return; }");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  for(var i=0; i<routePoints.length; i++) {");
+            sb.AppendLine("    var p = routePoints[i];");
+            sb.AppendLine("    html += '<div class=\"rp-item\">' +");
+            sb.AppendLine("            '<div class=\"rp-remove\" onclick=\"removeFromRoute(' + p.ID + ')\">✕</div>' +");
+            sb.AppendLine("            '<b>' + (i+1) + '. ' + p.Nazwa + '</b><br>' + p.Miasto + ' (' + p.DystansKm + ' km)</div>';");
+            sb.AppendLine("  }");
+            sb.AppendLine("  div.innerHTML = html;");
+            sb.AppendLine("}");
+            sb.AppendLine("function togglePanel() {");
+            sb.AppendLine("  document.getElementById('route-panel').classList.toggle('open');");
+            sb.AppendLine("}");
+            sb.AppendLine("function calculateRoute() {");
+            sb.AppendLine("  if(routePoints.length === 0) { alert('Dodaj najpierw punkty do listy!'); return; }");
+            sb.AppendLine("  if(routePoints.length > 23) { alert('Limit 23 punktów!'); return; }");
+            sb.AppendLine("  var waypts = [];");
+            sb.AppendLine("  for (var i = 0; i < routePoints.length; i++) {");
+            sb.AppendLine("    waypts.push({ location: { lat: routePoints[i].Lat, lng: routePoints[i].Lng }, stopover: true });");
+            sb.AppendLine("  }");
+            sb.AppendLine("  var request = {");
+            sb.AppendLine("    origin: startPos,");
+            sb.AppendLine("    destination: startPos,");
+            sb.AppendLine("    waypoints: waypts,");
+            sb.AppendLine("    optimizeWaypoints: true,");
+            sb.AppendLine("    travelMode: 'DRIVING'");
+            sb.AppendLine("  };");
+            sb.AppendLine("  directionsService.route(request, function(result, status) {");
+            sb.AppendLine("    if (status == 'OK') {");
+            sb.AppendLine("      directionsRenderer.setDirections(result);");
+            sb.AppendLine("      var dist = 0; var time = 0;");
+            sb.AppendLine("      var legs = result.routes[0].legs;");
+            sb.AppendLine("      for(var i=0; i<legs.length; i++) { dist += legs[i].distance.value; time += legs[i].duration.value; }");
+            sb.AppendLine("      var distKm = (dist/1000).toFixed(1) + ' km';");
+            sb.AppendLine("      var timeH = Math.floor(time/3600) + 'h ' + Math.floor((time%3600)/60) + 'm';");
+            sb.AppendLine("      var summary = document.getElementById('route-summary');");
+            sb.AppendLine("      summary.style.display = 'block';");
+            sb.AppendLine("      summary.innerHTML = '🏁 Cała trasa: ' + distKm + ' (' + timeH + ')';");
+            sb.AppendLine("    } else {");
+            sb.AppendLine("      alert('Błąd trasy: ' + status);");
+            sb.AppendLine("    }");
+            sb.AppendLine("  });");
+            sb.AppendLine("}");
+            sb.AppendLine("function clearRoute() {");
+            sb.AppendLine("  routePoints = [];");
+            sb.AppendLine("  renderRouteList();");
+            sb.AppendLine("  directionsRenderer.set('directions', null);");
+            sb.AppendLine("  document.getElementById('route-summary').style.display = 'none';");
+            sb.AppendLine("}");
+            sb.AppendLine("window.setView = function(lat, lng, z) { if(map) { map.setCenter({ lat: lat, lng: lng }); map.setZoom(z||15); } };");
+            sb.AppendLine("</script>");
 
-    infoWindow = new google.maps.InfoWindow();
+            sb.Append("<script async defer src=\"https://maps.googleapis.com/maps/api/js?key=");
+            sb.Append(apiKey);
+            sb.AppendLine("&callback=initMap\"></script>");
 
-    var bounds = new google.maps.LatLngBounds();
+            sb.AppendLine("</body>");
+            sb.AppendLine("</html>");
 
-    for (var i = 0; i < data.length; i++) {{
-        var p = data[i];
-        var pos = {{ lat: p.Lat, lng: p.Lng }};
-        bounds.extend(pos);
-
-        var sz = p.CzyPriorytetowa ? 16 : 12;
-        var bw = p.CzyPriorytetowa ? 3 : 2;
-        var bc = p.CzyPriorytetowa ? '%23DC2626' : '%23333';
-
-        var svgIcon = {{
-            url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns=""http://www.w3.org/2000/svg"" width=""'+sz+'"" height=""'+sz+'""><circle cx=""'+(sz/2)+'"" cy=""'+(sz/2)+'"" r=""'+((sz/2)-1)+'"" fill=""'+p.KolorHex+'"" stroke=""'+(p.CzyPriorytetowa?'#DC2626':'#333')+'"" stroke-width=""'+bw+'""/></svg>'),
-            scaledSize: new google.maps.Size(sz, sz),
-            anchor: new google.maps.Point(sz/2, sz/2)
-        }};
-
-        var marker = new google.maps.Marker({{
-            position: pos,
-            map: map,
-            icon: svgIcon,
-            title: p.Nazwa
-        }});
-
-        marker.kontakt = p;
-        markers.push(marker);
-
-        marker.addListener('click', function() {{
-            var k = this.kontakt;
-            var adr = [k.Ulica, k.Miasto].filter(Boolean).join(', ');
-            var content = '<div class=""p-title"">'+k.Nazwa+'</div>'+
-                '<div class=""p-info"">📍 '+adr+'</div>'+
-                '<div class=""p-info"">📞 <b>'+k.Telefon+'</b></div>'+
-                (k.Email ? '<div class=""p-info"">✉️ '+k.Email+'</div>' : '')+
-                '<div><span class=""p-status"" style=""background:'+(statusBg[k.Status]||'#eee')+';color:'+(statusTxt[k.Status]||'#333')+'"">'+k.Status+'</span></div>'+
-                '<div><a class=""p-btn p-btn-green"" href=""tel:'+k.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
-                '<a class=""p-btn p-btn-gray"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Trasa</a></div>';
-            infoWindow.setContent(content);
-            infoWindow.open(map, this);
-        }});
-    }}
-
-    if (data.length > 0) {{
-        map.fitBounds(bounds);
-        if (data.length === 1) map.setZoom(14);
-    }}
-
-    // Załaduj MarkerClusterer dynamicznie po zainicjowaniu mapy
-    var script = document.createElement('script');
-    script.src = 'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js';
-    script.onload = function() {{
-        if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
-            new markerClusterer.MarkerClusterer({{ map: map, markers: markers }});
-        }}
-    }};
-    document.head.appendChild(script);
-}}
-
-window.setView = function(lat, lng, z) {{
-    if (map) {{
-        map.setCenter({{ lat: lat, lng: lng }});
-        map.setZoom(z || 15);
-    }}
-}};
-
-window.gm_authFailure = function() {{
-    document.getElementById('map').innerHTML = '<div class=""error-msg"">Błąd autoryzacji Google Maps API.<br/>Sprawdź klucz API i upewnij się, że masz włączone:<br/>- Maps JavaScript API<br/>- Geocoding API</div>';
-}};
-</script>
-<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap""></script>
-</body>
-</html>";
+            return sb.ToString();
         }
 
-        // ===== GEOKODOWANIE TABELI KODYPOCZTOWE (jednorazowe) =====
         private async void BtnGeokoduj_Click(object sender, RoutedEventArgs e)
         {
             if (isLoading) return;
-
-            // Sprawdź klucz API
             var apiKey = txtApiKey.Text?.Trim();
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                MessageBox.Show("Wprowadź klucz Google API w polu 'API Key' w nagłówku.\n\n" +
-                    "Aby uzyskać klucz:\n" +
-                    "1. Wejdź na https://console.cloud.google.com/\n" +
-                    "2. Utwórz projekt\n" +
-                    "3. Włącz APIs: Geocoding API i Maps JavaScript API\n" +
-                    "4. Utwórz klucz w sekcji Credentials",
-                    "Brak klucza API", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Sprawdź ile kodów UŻYWANYCH PRZEZ ODBIORCÓW nie ma współrzędnych
-            int bezWspolrzednych = 0;
-            using (var conn = new SqlConnection(connectionString))
-            {
-                await conn.OpenAsync();
-                // Tylko kody które są faktycznie używane przez odbiorców!
-                var cmd = new SqlCommand(@"
-                    SELECT COUNT(DISTINCT kp.Kod)
-                    FROM KodyPocztowe kp
-                    INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
-                    WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL", conn);
-                bezWspolrzednych = (int)await cmd.ExecuteScalarAsync();
-            }
-
-            if (bezWspolrzednych == 0)
-            {
-                MessageBox.Show("Wszystkie kody pocztowe używane przez odbiorców mają już współrzędne!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var result = MessageBox.Show(
-                $"Znaleziono {bezWspolrzednych} kodów pocztowych (używanych przez odbiorców) bez współrzędnych.\n\n" +
-                $"Geokodowanie Google API (50 req/s) - będzie szybko!\n" +
-                $"Koszt: ~$5 za 1000 kodów (pierwsze $200 miesięcznie gratis).\n\n" +
-                $"Kontynuować?",
-                "Uzupełnij współrzędne (Google Geocoding API)", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result != MessageBoxResult.Yes) return;
+            if (string.IsNullOrEmpty(apiKey)) { MessageBox.Show("Wpisz klucz API!", "Info", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
 
             isLoading = true;
             loadingOverlay.Visibility = Visibility.Visible;
             btnGeokoduj.IsEnabled = false;
 
             int sukces = 0, bledy = 0;
-
             try
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
                     await conn.OpenAsync();
+                    await new SqlCommand("IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'KodyPocztowe') CREATE TABLE KodyPocztowe (Kod NVARCHAR(10) PRIMARY KEY, miej NVARCHAR(100), Latitude FLOAT, Longitude FLOAT)", conn).ExecuteNonQueryAsync();
 
-                    // Pobierz kody używane przez odbiorców, posortowane po liczbie odbiorców (najpopularniejsze najpierw)
-                    var cmdSelect = new SqlCommand(@"
-                        SELECT TOP 2000 kp.Kod, kp.miej, COUNT(*) as Ile
-                        FROM KodyPocztowe kp
-                        INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
-                        WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL
-                        GROUP BY kp.Kod, kp.miej
-                        ORDER BY COUNT(*) DESC", conn);
+                    await new SqlCommand(@"
+                        INSERT INTO KodyPocztowe (Kod, miej)
+                        SELECT DISTINCT o.KOD, MAX(o.MIASTO) FROM OdbiorcyCRM o
+                        WHERE o.KOD IS NOT NULL AND o.KOD <> '' AND NOT EXISTS (SELECT 1 FROM KodyPocztowe kp WHERE REPLACE(kp.Kod, '-', '') = REPLACE(o.KOD, '-', ''))
+                        GROUP BY o.KOD", conn).ExecuteNonQueryAsync();
 
-                    var kodyDoGeokodowania = new List<(string kod, string miasto)>();
-                    using (var reader = await cmdSelect.ExecuteReaderAsync())
+                    var cmdGet = new SqlCommand("SELECT TOP 50000 Kod, miej FROM KodyPocztowe WHERE Latitude IS NULL", conn);
+                    var lista = new List<(string k, string m)>();
+                    using (var r = await cmdGet.ExecuteReaderAsync()) while (await r.ReadAsync()) lista.Add((r.GetString(0), r.IsDBNull(1) ? "" : r.GetString(1)));
+
+                    if (lista.Count == 0)
                     {
-                        while (await reader.ReadAsync())
-                        {
-                            kodyDoGeokodowania.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1)));
-                        }
+                        MessageBox.Show("Wszystkie kody są już przeliczone!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
-
-                    for (int i = 0; i < kodyDoGeokodowania.Count; i++)
+                    else
                     {
-                        var (kod, miasto) = kodyDoGeokodowania[i];
-                        txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{kodyDoGeokodowania.Count}: {kod} {miasto}...";
-
-                        var coords = await GeokodujKodGoogleAsync(kod, miasto, apiKey);
-
-                        if (coords.HasValue)
+                        var delayMs = 15;
+                        foreach (var (kod, miasto) in lista)
                         {
-                            var cmdUpdate = new SqlCommand(
-                                "UPDATE KodyPocztowe SET Latitude = @lat, Longitude = @lng WHERE Kod = @kod", conn);
-                            cmdUpdate.Parameters.AddWithValue("@lat", coords.Value.lat);
-                            cmdUpdate.Parameters.AddWithValue("@lng", coords.Value.lng);
-                            cmdUpdate.Parameters.AddWithValue("@kod", kod);
-                            await cmdUpdate.ExecuteNonQueryAsync();
-                            sukces++;
-                        }
-                        else
-                        {
-                            bledy++;
-                        }
+                            txtLoadingStatus.Text = $"Geokodowanie bazy: {kod} ({sukces + 1}/{lista.Count})...";
+                            var coords = await GeokodujGoogle(kod, miasto, apiKey);
 
-                        // Google API pozwala na 50 req/s, ale dajmy 20ms dla bezpieczeństwa
-                        await Task.Delay(25);
+                            if (coords.HasValue)
+                            {
+                                var cmdUpd = new SqlCommand("UPDATE KodyPocztowe SET Latitude=@lat, Longitude=@lng WHERE Kod=@kod", conn);
+                                cmdUpd.Parameters.AddWithValue("@lat", coords.Value.lat);
+                                cmdUpd.Parameters.AddWithValue("@lng", coords.Value.lng);
+                                cmdUpd.Parameters.AddWithValue("@kod", kod);
+                                await cmdUpd.ExecuteNonQueryAsync();
+                                sukces++;
+                            }
+                            else bledy++;
+                            await Task.Delay(delayMs);
+                        }
+                        MessageBox.Show($"Zakończono geokodowanie!\nPrzeliczono: {sukces}\nBłędy: {bledy}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MessageBox.Show("Błąd: " + ex.Message); }
 
             loadingOverlay.Visibility = Visibility.Collapsed;
             btnGeokoduj.IsEnabled = true;
             isLoading = false;
-
-            MessageBox.Show($"Zakończono!\n\nZnalezione: {sukces}\nBłędy: {bledy}", "Geokodowanie Google", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            // Odśwież mapę
-            dtKontakty = null;
             await OdswiezMapeAsync();
         }
 
-        private async Task<(double lat, double lng)?> GeokodujKodGoogleAsync(string kod, string miasto, string apiKey)
+        private async Task<(double lat, double lng)?> GeokodujGoogle(string kod, string miasto, string apiKey)
         {
             try
             {
-                // Google Geocoding API - format: kod pocztowy, miasto, Polska
-                var address = !string.IsNullOrEmpty(miasto)
-                    ? $"{kod}, {miasto}, Poland"
-                    : $"{kod}, Poland";
-
-                var url = $"https://maps.googleapis.com/maps/api/geocode/json?address={HttpUtility.UrlEncode(address)}&components=country:PL&key={apiKey}";
-
+                string url = $"https://maps.googleapis.com/maps/api/geocode/json?address={HttpUtility.UrlEncode(kod + " " + miasto + " Poland")}&key={apiKey}";
                 using (var resp = await http.GetAsync(url))
                 {
-                    if (resp.IsSuccessStatusCode)
+                    if (!resp.IsSuccessStatusCode) return null;
+                    var json = await resp.Content.ReadAsStringAsync();
+                    using (var doc = JsonDocument.Parse(json))
                     {
-                        var json = await resp.Content.ReadAsStringAsync();
-                        using (var doc = JsonDocument.Parse(json))
+                        if (doc.RootElement.GetProperty("status").GetString() == "OK")
                         {
-                            var root = doc.RootElement;
-                            var status = root.GetProperty("status").GetString();
-
-                            if (status == "OK")
-                            {
-                                var results = root.GetProperty("results");
-                                if (results.GetArrayLength() > 0)
-                                {
-                                    var location = results[0].GetProperty("geometry").GetProperty("location");
-                                    var lat = location.GetProperty("lat").GetDouble();
-                                    var lng = location.GetProperty("lng").GetDouble();
-                                    return (lat, lng);
-                                }
-                            }
-                            else if (status == "OVER_QUERY_LIMIT" || status == "REQUEST_DENIED")
-                            {
-                                Debug.WriteLine($"Google API error: {status}");
-                                // Poczekaj chwilę przy przekroczeniu limitu
-                                await Task.Delay(1000);
-                            }
+                            var loc = doc.RootElement.GetProperty("results")[0].GetProperty("geometry").GetProperty("location");
+                            return (loc.GetProperty("lat").GetDouble(), loc.GetProperty("lng").GetDouble());
                         }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Google Geocode error for {kod}: {ex.Message}");
-            }
+            catch { }
             return null;
         }
 
-        private async void Filtr_Changed(object sender, RoutedEventArgs e)
-        {
-            if (!isLoading && dtKontakty != null && isWebViewReady)
-                await OdswiezMapeAsync();
-        }
-
-        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
-        {
-            dtKontakty = null;
-            await OdswiezMapeAsync();
-        }
-
+        private async void Filtr_Changed(object sender, RoutedEventArgs e) => await OdswiezMapeAsync();
+        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e) { dtKontakty = null; await OdswiezMapeAsync(); }
         private void BtnZamknij_Click(object sender, RoutedEventArgs e) => Close();
-
         private async void KontaktItem_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is FrameworkElement el && el.DataContext is MapKontakt k && isWebViewReady)
-            {
-                try
-                {
-                    await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
-                }
-                catch { }
-            }
+                await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
         }
     }
 
@@ -633,9 +632,10 @@ window.gm_authFailure = function() {{
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }
         public double Lng { get; set; }
+        public double DystansKm { get; set; } // Nowe pole
         public string KolorHex { get; set; } = "#9CA3AF";
-        public SolidColorBrush KolorStatusu { get; set; } = Brushes.Gray;
-        public SolidColorBrush TloStatusu { get; set; } = Brushes.LightGray;
-        public SolidColorBrush KolorStatusuTekst { get; set; } = Brushes.DarkGray;
+        public SolidColorBrush KolorStatusu { get; set; }
+        public SolidColorBrush TloStatusu { get; set; }
+        public SolidColorBrush KolorStatusuTekst { get; set; }
     }
 }
