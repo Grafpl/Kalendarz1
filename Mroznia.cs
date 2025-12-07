@@ -2809,13 +2809,25 @@ namespace Kalendarz1
             dt.Columns.Add("ID", typeof(string));
             dt.Columns.Add("Nazwa", typeof(string));
             dt.Columns.Add("Adres", typeof(string));
+            dt.Columns.Add("Kontakty", typeof(string));
             dt.Columns.Add("Stan (kg)", typeof(decimal));
 
             foreach (var m in mroznie)
             {
                 decimal stan = m.Wydania?.Where(w => w.Typ == "Przyjęcie").Sum(w => w.Ilosc) ?? 0;
                 stan -= m.Wydania?.Where(w => w.Typ == "Wydanie").Sum(w => w.Ilosc) ?? 0;
-                dt.Rows.Add(m.Id, m.Nazwa, m.Adres, stan);
+
+                // Formatuj kontakty - pokaż pierwszy kontakt + liczbę pozostałych
+                string kontaktyStr = "";
+                if (m.Kontakty != null && m.Kontakty.Count > 0)
+                {
+                    var pierwszy = m.Kontakty[0];
+                    kontaktyStr = $"{pierwszy.Imie}: {pierwszy.Telefon}";
+                    if (m.Kontakty.Count > 1)
+                        kontaktyStr += $" (+{m.Kontakty.Count - 1})";
+                }
+
+                dt.Rows.Add(m.Id, m.Nazwa, m.Adres, kontaktyStr, stan);
             }
 
             dgvMroznieZewnetrzne.DataSource = dt;
@@ -2841,6 +2853,7 @@ namespace Kalendarz1
             DataTable dt = new DataTable();
             dt.Columns.Add("Data", typeof(DateTime));
             dt.Columns.Add("Typ", typeof(string));
+            dt.Columns.Add("Kod", typeof(string));
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Ilość (kg)", typeof(decimal));
             dt.Columns.Add("Uwagi", typeof(string));
@@ -2849,7 +2862,7 @@ namespace Kalendarz1
             {
                 foreach (var w in mroznia.Wydania.OrderByDescending(x => x.Data))
                 {
-                    dt.Rows.Add(w.Data, w.Typ, w.Produkt, w.Ilosc, w.Uwagi);
+                    dt.Rows.Add(w.Data, w.Typ, w.KodProduktu ?? "", w.Produkt, w.Ilosc, w.Uwagi);
                 }
             }
 
@@ -2880,9 +2893,9 @@ namespace Kalendarz1
                         Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
                         Nazwa = dlg.NazwaMrozni,
                         Adres = dlg.Adres,
-                        Telefon = dlg.Telefon,
                         Email = dlg.Email,
                         Uwagi = dlg.Uwagi,
+                        Kontakty = dlg.Kontakty,
                         Wydania = new List<WydanieZewnetrzne>()
                     });
                     ZapiszMroznieZewnetrzne(mroznie);
@@ -2911,9 +2924,9 @@ namespace Kalendarz1
                 {
                     mroznia.Nazwa = dlg.NazwaMrozni;
                     mroznia.Adres = dlg.Adres;
-                    mroznia.Telefon = dlg.Telefon;
                     mroznia.Email = dlg.Email;
                     mroznia.Uwagi = dlg.Uwagi;
+                    mroznia.Kontakty = dlg.Kontakty;
                     ZapiszMroznieZewnetrzne(mroznie);
                     LoadMroznieZewnetrzneDoTabeli();
                     statusLabel.Text = $"Zaktualizowano mroźnię: {dlg.NazwaMrozni}";
@@ -2955,7 +2968,7 @@ namespace Kalendarz1
             string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
             string nazwa = dgvMroznieZewnetrzne.SelectedRows[0].Cells["Nazwa"].Value?.ToString();
 
-            using (var dlg = new WydanieZewnetrzneDialog(nazwa))
+            using (var dlg = new WydanieZewnetrzneDialog(nazwa, connectionString))
             {
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
@@ -2971,6 +2984,7 @@ namespace Kalendarz1
                             Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
                             Data = dlg.Data,
                             Typ = dlg.Typ,
+                            KodProduktu = dlg.KodProduktu,
                             Produkt = dlg.Produkt,
                             Ilosc = dlg.Ilosc,
                             Uwagi = dlg.Uwagi
@@ -3101,6 +3115,15 @@ namespace Kalendarz1
     }
 
     /// <summary>
+    /// Model kontaktu w mroźni zewnętrznej
+    /// </summary>
+    public class KontaktMrozni
+    {
+        public string Imie { get; set; } = "";
+        public string Telefon { get; set; } = "";
+    }
+
+    /// <summary>
     /// Model mroźni zewnętrznej
     /// </summary>
     public class MrozniaZewnetrzna
@@ -3108,9 +3131,9 @@ namespace Kalendarz1
         public string Id { get; set; } = "";
         public string Nazwa { get; set; } = "";
         public string Adres { get; set; } = "";
-        public string Telefon { get; set; } = "";
         public string Email { get; set; } = "";
         public string Uwagi { get; set; } = "";
+        public List<KontaktMrozni> Kontakty { get; set; } = new List<KontaktMrozni>();
         public List<WydanieZewnetrzne> Wydania { get; set; } = new List<WydanieZewnetrzne>();
     }
 
@@ -3122,6 +3145,7 @@ namespace Kalendarz1
         public string Id { get; set; } = "";
         public DateTime Data { get; set; }
         public string Typ { get; set; } = ""; // "Wydanie" lub "Przyjęcie"
+        public string KodProduktu { get; set; } = "";
         public string Produkt { get; set; } = "";
         public decimal Ilosc { get; set; }
         public string Uwagi { get; set; } = "";
@@ -3134,62 +3158,178 @@ namespace Kalendarz1
     {
         public string NazwaMrozni { get; private set; } = "";
         public string Adres { get; private set; } = "";
-        public string Telefon { get; private set; } = "";
         public string Email { get; private set; } = "";
         public string Uwagi { get; private set; } = "";
+        public List<KontaktMrozni> Kontakty { get; private set; } = new List<KontaktMrozni>();
 
-        private TextBox txtNazwa, txtAdres, txtTelefon, txtEmail, txtUwagi;
+        private TextBox txtNazwa, txtAdres, txtEmail, txtUwagi;
+        private DataGridView dgvKontakty;
 
         public MrozniaZewnetrznaDialog(MrozniaZewnetrzna mroznia = null)
         {
             this.Text = mroznia == null ? "Dodaj mroźnię zewnętrzną" : "Edytuj mroźnię zewnętrzną";
-            this.Size = new Size(400, 340);
+            this.Size = new Size(500, 520);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.White;
+            this.BackColor = Color.FromArgb(250, 250, 250);
             this.Font = new Font("Segoe UI", 10F);
 
-            int y = 15;
+            // === PANEL GŁÓWNY ===
+            Panel mainPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
 
-            Label lblNazwa = new Label { Text = "Nazwa mroźni:", Location = new Point(15, y), AutoSize = true };
-            txtNazwa = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 25) };
-            y += 55;
+            int y = 10;
 
-            Label lblAdres = new Label { Text = "Adres:", Location = new Point(15, y), AutoSize = true };
-            txtAdres = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 25) };
-            y += 55;
+            // Nagłówek
+            Label lblHeader = new Label
+            {
+                Text = mroznia == null ? "NOWA MROŹNIA ZEWNĘTRZNA" : "EDYCJA MROŹNI ZEWNĘTRZNEJ",
+                Location = new Point(0, y),
+                Size = new Size(440, 30),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69)
+            };
+            y += 40;
 
-            Label lblTelefon = new Label { Text = "Telefon:", Location = new Point(15, y), AutoSize = true };
-            txtTelefon = new TextBox { Location = new Point(15, y + 22), Size = new Size(170, 25) };
+            // Nazwa
+            Label lblNazwa = new Label { Text = "Nazwa mroźni *", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtNazwa = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(440, 28),
+                Font = new Font("Segoe UI", 11F)
+            };
+            y += 60;
 
-            Label lblEmail = new Label { Text = "Email:", Location = new Point(195, y), AutoSize = true };
-            txtEmail = new TextBox { Location = new Point(195, y + 22), Size = new Size(170, 25) };
-            y += 55;
+            // Adres
+            Label lblAdres = new Label { Text = "Adres", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtAdres = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(440, 28),
+                Font = new Font("Segoe UI", 11F)
+            };
+            y += 60;
 
-            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true };
-            txtUwagi = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 50), Multiline = true };
+            // Email
+            Label lblEmail = new Label { Text = "Email", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtEmail = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(440, 28),
+                Font = new Font("Segoe UI", 11F)
+            };
+            y += 60;
+
+            // Kontakty - nagłówek z przyciskami
+            Label lblKontakty = new Label { Text = "Kontakty (osoby + telefony)", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+
+            Button btnDodajKontakt = new Button
+            {
+                Text = "+",
+                Location = new Point(380, y - 5),
+                Size = new Size(28, 24),
+                BackColor = Color.FromArgb(40, 167, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
+            btnDodajKontakt.FlatAppearance.BorderSize = 0;
+            btnDodajKontakt.Click += (s, e) => {
+                var dt = (DataTable)dgvKontakty.DataSource;
+                dt.Rows.Add("", "");
+            };
+
+            Button btnUsunKontakt = new Button
+            {
+                Text = "−",
+                Location = new Point(412, y - 5),
+                Size = new Size(28, 24),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+            };
+            btnUsunKontakt.FlatAppearance.BorderSize = 0;
+            btnUsunKontakt.Click += (s, e) => {
+                if (dgvKontakty.SelectedRows.Count > 0)
+                {
+                    foreach (DataGridViewRow row in dgvKontakty.SelectedRows)
+                        if (!row.IsNewRow) dgvKontakty.Rows.Remove(row);
+                }
+                else if (dgvKontakty.CurrentRow != null && !dgvKontakty.CurrentRow.IsNewRow)
+                {
+                    dgvKontakty.Rows.Remove(dgvKontakty.CurrentRow);
+                }
+            };
+
+            y += 22;
+
+            // Tabela kontaktów
+            dgvKontakty = new DataGridView
+            {
+                Location = new Point(0, y),
+                Size = new Size(440, 100),
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                RowHeadersVisible = false,
+                AllowUserToAddRows = true,
+                AllowUserToDeleteRows = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                Font = new Font("Segoe UI", 10F)
+            };
+            dgvKontakty.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
+            dgvKontakty.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvKontakty.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvKontakty.EnableHeadersVisualStyles = false;
+            dgvKontakty.ColumnHeadersHeight = 30;
+            dgvKontakty.RowTemplate.Height = 28;
+
+            DataTable dtKontakty = new DataTable();
+            dtKontakty.Columns.Add("Imię / Nazwisko", typeof(string));
+            dtKontakty.Columns.Add("Telefon", typeof(string));
+
+            if (mroznia?.Kontakty != null)
+            {
+                foreach (var k in mroznia.Kontakty)
+                    dtKontakty.Rows.Add(k.Imie, k.Telefon);
+            }
+            dgvKontakty.DataSource = dtKontakty;
+
+            y += 110;
+
+            // Uwagi
+            Label lblUwagi = new Label { Text = "Uwagi", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtUwagi = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(440, 50),
+                Multiline = true,
+                Font = new Font("Segoe UI", 10F)
+            };
             y += 85;
 
             if (mroznia != null)
             {
                 txtNazwa.Text = mroznia.Nazwa;
                 txtAdres.Text = mroznia.Adres;
-                txtTelefon.Text = mroznia.Telefon;
                 txtEmail.Text = mroznia.Email;
                 txtUwagi.Text = mroznia.Uwagi;
             }
 
+            // Przyciski
             Button btnOK = new Button
             {
                 Text = "Zapisz",
-                Location = new Point(190, y),
-                Size = new Size(80, 32),
+                Location = new Point(260, y),
+                Size = new Size(85, 36),
                 DialogResult = DialogResult.OK,
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += (s, e) => {
@@ -3201,24 +3341,43 @@ namespace Kalendarz1
                 }
                 NazwaMrozni = txtNazwa.Text.Trim();
                 Adres = txtAdres.Text.Trim();
-                Telefon = txtTelefon.Text.Trim();
                 Email = txtEmail.Text.Trim();
                 Uwagi = txtUwagi.Text.Trim();
+
+                // Pobierz kontakty z tabeli
+                Kontakty = new List<KontaktMrozni>();
+                var dt = (DataTable)dgvKontakty.DataSource;
+                foreach (DataRow row in dt.Rows)
+                {
+                    string imie = row["Imię / Nazwisko"]?.ToString()?.Trim() ?? "";
+                    string tel = row["Telefon"]?.ToString()?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(imie) || !string.IsNullOrEmpty(tel))
+                    {
+                        Kontakty.Add(new KontaktMrozni { Imie = imie, Telefon = tel });
+                    }
+                }
             };
 
             Button btnCancel = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(280, y),
-                Size = new Size(80, 32),
-                DialogResult = DialogResult.Cancel
+                Location = new Point(355, y),
+                Size = new Size(85, 36),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F)
             };
+            btnCancel.FlatAppearance.BorderSize = 0;
 
-            this.Controls.AddRange(new Control[] {
-                lblNazwa, txtNazwa, lblAdres, txtAdres,
-                lblTelefon, txtTelefon, lblEmail, txtEmail,
-                lblUwagi, txtUwagi, btnOK, btnCancel
+            mainPanel.Controls.AddRange(new Control[] {
+                lblHeader, lblNazwa, txtNazwa, lblAdres, txtAdres,
+                lblEmail, txtEmail, lblKontakty, btnDodajKontakt, btnUsunKontakt,
+                dgvKontakty, lblUwagi, txtUwagi, btnOK, btnCancel
             });
+
+            this.Controls.Add(mainPanel);
             this.AcceptButton = btnOK;
             this.CancelButton = btnCancel;
         }
@@ -3231,89 +3390,230 @@ namespace Kalendarz1
     {
         public DateTime Data { get; private set; }
         public string Typ { get; private set; } = "";
+        public string KodProduktu { get; private set; } = "";
         public string Produkt { get; private set; } = "";
         public decimal Ilosc { get; private set; }
         public string Uwagi { get; private set; } = "";
 
         private DateTimePicker dtpData;
-        private ComboBox cmbTyp;
-        private TextBox txtProdukt, txtUwagi;
+        private RadioButton rbPrzyjecie, rbWydanie;
+        private ComboBox cmbProdukt;
+        private TextBox txtSzukaj, txtUwagi;
         private NumericUpDown nudIlosc;
+        private ListBox lstProdukty;
+        private List<ProduktMrozony> produkty = new List<ProduktMrozony>();
+        private Panel panelWybrany;
+        private Label lblWybranyProdukt;
 
-        public WydanieZewnetrzneDialog(string nazwaMrozni)
+        public WydanieZewnetrzneDialog(string nazwaMrozni, string connectionString)
         {
-            this.Text = $"Wydanie/Przyjęcie - {nazwaMrozni}";
-            this.Size = new Size(380, 320);
+            this.Text = $"Operacja magazynowa - {nazwaMrozni}";
+            this.Size = new Size(550, 520);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.White;
+            this.BackColor = Color.FromArgb(250, 250, 250);
             this.Font = new Font("Segoe UI", 10F);
 
-            int y = 15;
+            // Załaduj produkty z bazy
+            LoadProdukty(connectionString);
 
-            Label lblTyp = new Label { Text = "Typ operacji:", Location = new Point(15, y), AutoSize = true };
-            cmbTyp = new ComboBox
+            Panel mainPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+
+            int y = 10;
+
+            // === NAGŁÓWEK ===
+            Label lblHeader = new Label
             {
-                Location = new Point(15, y + 22),
-                Size = new Size(150, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Text = "WYDANIE / PRZYJĘCIE TOWARU",
+                Location = new Point(0, y),
+                Size = new Size(490, 30),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(41, 128, 185)
             };
-            cmbTyp.Items.AddRange(new[] { "Przyjęcie", "Wydanie" });
-            cmbTyp.SelectedIndex = 0;
+            y += 40;
 
-            Label lblData = new Label { Text = "Data:", Location = new Point(180, y), AutoSize = true };
+            // === TYP OPERACJI (radio buttons) ===
+            Panel panelTyp = new Panel
+            {
+                Location = new Point(0, y),
+                Size = new Size(490, 50),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            rbPrzyjecie = new RadioButton
+            {
+                Text = "PRZYJĘCIE do mroźni",
+                Location = new Point(20, 12),
+                Size = new Size(200, 26),
+                Checked = true,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69)
+            };
+
+            rbWydanie = new RadioButton
+            {
+                Text = "WYDANIE z mroźni",
+                Location = new Point(260, 12),
+                Size = new Size(200, 26),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 53, 69)
+            };
+
+            panelTyp.Controls.AddRange(new Control[] { rbPrzyjecie, rbWydanie });
+            y += 60;
+
+            // === DATA ===
+            Label lblData = new Label { Text = "Data operacji", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
             dtpData = new DateTimePicker
             {
-                Location = new Point(180, y + 22),
-                Size = new Size(160, 25),
+                Location = new Point(0, y + 22),
+                Size = new Size(180, 28),
                 Format = DateTimePickerFormat.Short,
-                Value = DateTime.Today
+                Value = DateTime.Today,
+                Font = new Font("Segoe UI", 11F)
             };
             y += 60;
 
-            Label lblProdukt = new Label { Text = "Produkt:", Location = new Point(15, y), AutoSize = true };
-            txtProdukt = new TextBox { Location = new Point(15, y + 22), Size = new Size(325, 25) };
+            // === WYSZUKIWANIE PRODUKTU ===
+            Label lblProdukt = new Label { Text = "Produkt (wyszukaj lub wybierz z listy)", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtSzukaj = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(490, 28),
+                Font = new Font("Segoe UI", 11F)
+            };
+            txtSzukaj.TextChanged += TxtSzukaj_TextChanged;
+            txtSzukaj.GotFocus += (s, e) => lstProdukty.Visible = true;
             y += 55;
 
-            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(15, y), AutoSize = true };
+            // Lista produktów (dropdown)
+            lstProdukty = new ListBox
+            {
+                Location = new Point(0, y),
+                Size = new Size(490, 120),
+                Font = new Font("Segoe UI", 10F),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = true
+            };
+            lstProdukty.DoubleClick += LstProdukty_DoubleClick;
+            lstProdukty.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) LstProdukty_DoubleClick(s, e); };
+            PopulateProdukty("");
+            y += 130;
+
+            // Panel wybranego produktu
+            panelWybrany = new Panel
+            {
+                Location = new Point(0, y),
+                Size = new Size(490, 35),
+                BackColor = Color.FromArgb(40, 167, 69),
+                Visible = false
+            };
+            lblWybranyProdukt = new Label
+            {
+                Text = "",
+                Dock = DockStyle.Fill,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(10, 0, 0, 0)
+            };
+            Button btnClearProdukt = new Button
+            {
+                Text = "×",
+                Size = new Size(35, 35),
+                Dock = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold)
+            };
+            btnClearProdukt.FlatAppearance.BorderSize = 0;
+            btnClearProdukt.Click += (s, e) => {
+                panelWybrany.Visible = false;
+                lstProdukty.Visible = true;
+                txtSzukaj.Text = "";
+                KodProduktu = "";
+                Produkt = "";
+            };
+            panelWybrany.Controls.Add(lblWybranyProdukt);
+            panelWybrany.Controls.Add(btnClearProdukt);
+            y += 45;
+
+            // === ILOŚĆ ===
+            Label lblIlosc = new Label { Text = "Ilość (kg)", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
             nudIlosc = new NumericUpDown
             {
-                Location = new Point(15, y + 22),
-                Size = new Size(120, 25),
+                Location = new Point(0, y + 22),
+                Size = new Size(150, 30),
                 Minimum = 1,
                 Maximum = 999999,
                 Value = 100,
-                DecimalPlaces = 0
+                DecimalPlaces = 0,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                TextAlign = HorizontalAlignment.Center
             };
-            y += 55;
 
-            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true };
-            txtUwagi = new TextBox { Location = new Point(15, y + 22), Size = new Size(325, 40), Multiline = true };
+            // Szybkie przyciski ilości
+            int btnX = 170;
+            foreach (int ilosc in new[] { 50, 100, 200, 500 })
+            {
+                Button btnQuick = new Button
+                {
+                    Text = $"+{ilosc}",
+                    Location = new Point(btnX, y + 22),
+                    Size = new Size(55, 30),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = Color.FromArgb(52, 73, 94),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 9F)
+                };
+                btnQuick.FlatAppearance.BorderSize = 0;
+                int val = ilosc;
+                btnQuick.Click += (s, e) => nudIlosc.Value = val;
+                mainPanel.Controls.Add(btnQuick);
+                btnX += 60;
+            }
+            y += 65;
+
+            // === UWAGI ===
+            Label lblUwagi = new Label { Text = "Uwagi (opcjonalnie)", Location = new Point(0, y), AutoSize = true, ForeColor = Color.FromArgb(80, 80, 80) };
+            txtUwagi = new TextBox
+            {
+                Location = new Point(0, y + 22),
+                Size = new Size(490, 40),
+                Multiline = true,
+                Font = new Font("Segoe UI", 10F)
+            };
             y += 75;
 
+            // === PRZYCISKI ===
             Button btnOK = new Button
             {
-                Text = "Zapisz",
-                Location = new Point(170, y),
-                Size = new Size(80, 32),
+                Text = "ZAPISZ",
+                Location = new Point(300, y),
+                Size = new Size(90, 40),
                 DialogResult = DialogResult.OK,
-                BackColor = Color.FromArgb(41, 128, 185),
+                BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtProdukt.Text))
+                if (string.IsNullOrWhiteSpace(Produkt) && string.IsNullOrWhiteSpace(txtSzukaj.Text))
                 {
-                    MessageBox.Show("Podaj nazwę produktu.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Wybierz produkt z listy lub wpisz nazwę.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     this.DialogResult = DialogResult.None;
                     return;
                 }
                 Data = dtpData.Value.Date;
-                Typ = cmbTyp.SelectedItem?.ToString() ?? "Przyjęcie";
-                Produkt = txtProdukt.Text.Trim();
+                Typ = rbPrzyjecie.Checked ? "Przyjęcie" : "Wydanie";
+                if (string.IsNullOrEmpty(Produkt))
+                {
+                    Produkt = txtSzukaj.Text.Trim();
+                }
                 Ilosc = nudIlosc.Value;
                 Uwagi = txtUwagi.Text.Trim();
             };
@@ -3321,18 +3621,118 @@ namespace Kalendarz1
             Button btnCancel = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(260, y),
-                Size = new Size(80, 32),
-                DialogResult = DialogResult.Cancel
+                Location = new Point(400, y),
+                Size = new Size(90, 40),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F)
             };
+            btnCancel.FlatAppearance.BorderSize = 0;
 
-            this.Controls.AddRange(new Control[] {
-                lblTyp, cmbTyp, lblData, dtpData,
-                lblProdukt, txtProdukt, lblIlosc, nudIlosc,
-                lblUwagi, txtUwagi, btnOK, btnCancel
+            mainPanel.Controls.AddRange(new Control[] {
+                lblHeader, panelTyp, lblData, dtpData,
+                lblProdukt, txtSzukaj, lstProdukty, panelWybrany,
+                lblIlosc, nudIlosc, lblUwagi, txtUwagi, btnOK, btnCancel
             });
+
+            this.Controls.Add(mainPanel);
             this.AcceptButton = btnOK;
             this.CancelButton = btnCancel;
         }
+
+        private void LoadProdukty(string connectionString)
+        {
+            try
+            {
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = @"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW]
+                                    WHERE katalog = '67153' ORDER BY Nazwa ASC";
+
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(query, conn))
+                    using (var rd = cmd.ExecuteReader())
+                    {
+                        while (rd.Read())
+                        {
+                            produkty.Add(new ProduktMrozony
+                            {
+                                Id = rd.GetInt32(0),
+                                Kod = rd["Kod"]?.ToString() ?? "",
+                                Nazwa = rd["Nazwa"]?.ToString() ?? ""
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania produktów: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void PopulateProdukty(string filtr)
+        {
+            lstProdukty.Items.Clear();
+            var filtered = string.IsNullOrWhiteSpace(filtr)
+                ? produkty.Take(50)
+                : produkty.Where(p =>
+                    p.Nazwa.IndexOf(filtr, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    p.Kod.IndexOf(filtr, StringComparison.OrdinalIgnoreCase) >= 0).Take(50);
+
+            foreach (var p in filtered)
+            {
+                lstProdukty.Items.Add($"[{p.Kod}] {p.Nazwa}");
+            }
+
+            if (lstProdukty.Items.Count == 0 && !string.IsNullOrWhiteSpace(filtr))
+            {
+                lstProdukty.Items.Add("(brak wyników - możesz wpisać własną nazwę)");
+            }
+        }
+
+        private void TxtSzukaj_TextChanged(object sender, EventArgs e)
+        {
+            PopulateProdukty(txtSzukaj.Text);
+            lstProdukty.Visible = true;
+            panelWybrany.Visible = false;
+        }
+
+        private void LstProdukty_DoubleClick(object sender, EventArgs e)
+        {
+            if (lstProdukty.SelectedItem == null) return;
+            string selected = lstProdukty.SelectedItem.ToString();
+
+            if (selected.StartsWith("(brak")) return;
+
+            // Parsuj [KOD] Nazwa
+            int endBracket = selected.IndexOf(']');
+            if (endBracket > 1)
+            {
+                KodProduktu = selected.Substring(1, endBracket - 1);
+                Produkt = selected.Substring(endBracket + 2);
+            }
+            else
+            {
+                KodProduktu = "";
+                Produkt = selected;
+            }
+
+            lblWybranyProdukt.Text = $"  {selected}";
+            panelWybrany.Visible = true;
+            lstProdukty.Visible = false;
+        }
+    }
+
+    /// <summary>
+    /// Model produktu mrożonego (do wyboru w dialogu)
+    /// </summary>
+    public class ProduktMrozony
+    {
+        public int Id { get; set; }
+        public string Kod { get; set; } = "";
+        public string Nazwa { get; set; } = "";
     }
 }
