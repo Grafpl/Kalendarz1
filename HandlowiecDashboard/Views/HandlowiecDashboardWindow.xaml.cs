@@ -293,7 +293,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    var wartosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    var wartosc = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
                     suma += wartosc;
                     dane.Add((reader.GetString(0), wartosc));
                 }
@@ -367,7 +367,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    var ilosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    var ilosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
                     suma += ilosc;
                     dane.Add((reader.GetString(0), reader.GetString(1), ilosc));
                 }
@@ -436,7 +436,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    var wartosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    var wartosc = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
                     suma += wartosc;
                     dane.Add((reader.GetString(0), wartosc));
                 }
@@ -508,7 +508,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 while (await reader.ReadAsync())
                 {
                     labels.Add(reader.GetString(0));
-                    wartosci.Add(reader.IsDBNull(1) ? 0 : reader.GetDecimal(1));
+                    wartosci.Add(reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1)));
                 }
 
                 series.Add(new ColumnSeries
@@ -577,8 +577,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    var kg = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                    var wartosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    var kg = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                    var wartosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
                     sumaKg += kg;
                     dane.Add((reader.GetString(0), kg, wartosc));
                 }
