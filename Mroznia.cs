@@ -116,22 +116,38 @@ namespace Kalendarz1
             };
             controlPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, controlPanel);
 
+            // Logo w lewym górnym rogu
+            PictureBox logoBox = new PictureBox
+            {
+                Location = new Point(10, 5),
+                Size = new Size(50, 50),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent
+            };
+            try
+            {
+                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo-2-green.png");
+                if (File.Exists(logoPath))
+                    logoBox.Image = Image.FromFile(logoPath);
+            }
+            catch { }
+
             // Data początkowa
-            Label lblOd = CreateLabel("Data od:", 15, 18, true);
+            Label lblOd = CreateLabel("Data od:", 70, 18, true);
             dtpOd = new DateTimePicker
             {
-                Location = new Point(75, 15),
-                Width = 140,
+                Location = new Point(130, 15),
+                Width = 130,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddDays(-30)
             };
 
             // Data końcowa
-            Label lblDo = CreateLabel("do:", 230, 18, true);
+            Label lblDo = CreateLabel("do:", 270, 18, true);
             dtpDo = new DateTimePicker
             {
-                Location = new Point(265, 15),
-                Width = 140,
+                Location = new Point(295, 15),
+                Width = 130,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now
             };
@@ -139,8 +155,8 @@ namespace Kalendarz1
             // Szybki wybór okresu
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(420, 15),
-                Width = 140,
+                Location = new Point(435, 15),
+                Width = 130,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbPredkosc.Items.AddRange(new object[] {
@@ -151,11 +167,11 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
             // Przyciski akcji
-            btnAnalizuj = CreateModernButton("Analizuj", 575, 12, 110, PrimaryColor);
-            btnWykres = CreateModernButton("Wykresy", 695, 12, 100, SuccessColor);
-            btnStanMagazynu = CreateModernButton("Stan", 805, 12, 90, WarningColor);
-            btnSzybkiRaport = CreateModernButton("Raport", 905, 12, 100, InfoColor);
-            btnEksport = CreateModernButton("Eksport", 1015, 12, 100, DangerColor);
+            btnAnalizuj = CreateModernButton("Analizuj", 580, 12, 100, PrimaryColor);
+            btnWykres = CreateModernButton("Wykresy", 690, 12, 90, SuccessColor);
+            btnStanMagazynu = CreateModernButton("Stan", 790, 12, 80, WarningColor);
+            btnSzybkiRaport = CreateModernButton("Raport", 880, 12, 90, InfoColor);
+            btnEksport = CreateModernButton("Eksport", 980, 12, 90, DangerColor);
 
             toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu");
             toolTip.SetToolTip(btnWykres, "Otwórz zaawansowane wykresy");
@@ -164,7 +180,7 @@ namespace Kalendarz1
             toolTip.SetToolTip(btnEksport, "Eksportuj dane do Excel");
 
             controlPanel.Controls.AddRange(new Control[] {
-                lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
+                logoBox, lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
                 btnAnalizuj, btnWykres, btnStanMagazynu, btnSzybkiRaport, btnEksport
             });
 
@@ -752,8 +768,8 @@ namespace Kalendarz1
             zewnRightHeader.Controls.Add(lblZewnRight);
 
             // Panel filtra mroźni
-            Panel filterPanel = new Panel { Dock = DockStyle.Top, Height = 45, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(10, 8, 10, 8) };
-            Label lblFiltr = new Label
+            Panel filterPanelMroznia = new Panel { Dock = DockStyle.Top, Height = 45, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(10, 8, 10, 8) };
+            Label lblFiltrMroznia = new Label
             {
                 Text = "Filtruj ruchy:",
                 Location = new Point(10, 12),
@@ -780,7 +796,7 @@ namespace Kalendarz1
                 ForeColor = Color.Gray
             };
 
-            filterPanel.Controls.AddRange(new Control[] { lblFiltr, cmbFiltrMroznia, lblFiltrInfo });
+            filterPanelMroznia.Controls.AddRange(new Control[] { lblFiltrMroznia, cmbFiltrMroznia, lblFiltrInfo });
 
             dgvWydaniaZewnetrzne = CreateStyledDataGridView();
             dgvWydaniaZewnetrzne.ColumnHeadersDefaultCellStyle.BackColor = PrimaryColor;
@@ -788,7 +804,7 @@ namespace Kalendarz1
             Panel zewnRightGrid = new Panel { Dock = DockStyle.Fill };
             zewnRightGrid.Controls.Add(dgvWydaniaZewnetrzne);
             zewnRightPanel.Controls.Add(zewnRightGrid);
-            zewnRightPanel.Controls.Add(filterPanel);
+            zewnRightPanel.Controls.Add(filterPanelMroznia);
             zewnRightPanel.Controls.Add(zewnRightHeader);
 
             splitZewn.Panel1.Controls.Add(zewnLeftPanel);
