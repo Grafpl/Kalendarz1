@@ -2944,34 +2944,35 @@ namespace Kalendarz1
             }
 
             dgvWydaniaZewnetrzne.DataSource = dt;
+            dgvWydaniaZewnetrzne.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            // Formatowanie kolumn - z try-catch dla bezpieczeństwa
-            try
+            // Formatowanie kolumn - opóźnione przez BeginInvoke
+            dgvWydaniaZewnetrzne.BeginInvoke(new Action(() =>
             {
-                if (dgvWydaniaZewnetrzne.Columns.Count > 0)
+                try
                 {
-                    if (dgvWydaniaZewnetrzne.Columns["Data"] != null)
-                        dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
-                    if (dgvWydaniaZewnetrzne.Columns["Ilość (kg)"] != null)
-                        dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
-                    if (dgvWydaniaZewnetrzne.Columns["Trasa"] != null)
-                        dgvWydaniaZewnetrzne.Columns["Trasa"].Width = 180;
-                    if (dgvWydaniaZewnetrzne.Columns["Klient"] != null)
-                        dgvWydaniaZewnetrzne.Columns["Klient"].Width = 120;
+                    foreach (DataGridViewColumn col in dgvWydaniaZewnetrzne.Columns)
+                    {
+                        if (col.Name == "Data")
+                            col.DefaultCellStyle.Format = "dd.MM.yyyy";
+                        else if (col.Name == "Ilość (kg)")
+                            col.DefaultCellStyle.Format = "N0";
+                    }
 
-                    // Koloruj wydania/przyjęcia
                     foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
                     {
                         if (row.IsNewRow) continue;
-                        string typ = row.Cells["Typ"]?.Value?.ToString();
+                        var typCell = row.Cells["Typ"];
+                        if (typCell == null) continue;
+                        string typ = typCell.Value?.ToString();
                         if (typ == "Przyjęcie")
                             row.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
                         else if (typ == "Wydanie")
                             row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
                     }
                 }
-            }
-            catch { }
+                catch { }
+            }));
         }
 
         private void UpdateFiltrMrozniComboBox()
