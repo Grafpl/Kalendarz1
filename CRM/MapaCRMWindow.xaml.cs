@@ -395,10 +395,15 @@ function initMap() {{
         if (data.length === 1) map.setZoom(14);
     }}
 
-    // MarkerClusterer
-    if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
-        new markerClusterer.MarkerClusterer({{ map: map, markers: markers }});
-    }}
+    // Załaduj MarkerClusterer dynamicznie po zainicjowaniu mapy
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js';
+    script.onload = function() {{
+        if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
+            new markerClusterer.MarkerClusterer({{ map: map, markers: markers }});
+        }}
+    }};
+    document.head.appendChild(script);
 }}
 
 window.setView = function(lat, lng, z) {{
@@ -412,8 +417,7 @@ window.gm_authFailure = function() {{
     document.getElementById('map').innerHTML = '<div class=""error-msg"">Błąd autoryzacji Google Maps API.<br/>Sprawdź klucz API i upewnij się, że masz włączone:<br/>- Maps JavaScript API<br/>- Geocoding API</div>';
 }};
 </script>
-<script src=""https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js""></script>
-<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap&loading=async""></script>
+<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap""></script>
 </body>
 </html>";
         }
