@@ -109,7 +109,7 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Grupuj po miesiącach - ostatnie 12 miesięcy, TYLKO zmiany statusów
+                    // Grupuj po miesiącach - ostatnie 12 miesięcy, wszystko oprócz 'Do zadzwonienia'
                     var cmd = new SqlCommand(@"
                         SELECT FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL') as Okres,
                                YEAR(h.DataZmiany) as Rok, MONTH(h.DataZmiany) as Miesiac,
@@ -118,7 +118,7 @@ namespace Kalendarz1.CRM
                         WHERE h.KtoWykonal = @opId
                           AND h.DataZmiany > DATEADD(month, -12, GETDATE())
                           AND h.TypZmiany = 'Zmiana statusu'
-                          AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')
+                          AND h.WartoscNowa <> 'Do zadzwonienia'
                         GROUP BY YEAR(h.DataZmiany), MONTH(h.DataZmiany), FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL')
                         ORDER BY Rok, Miesiac", conn);
 
@@ -165,7 +165,7 @@ namespace Kalendarz1.CRM
 
                     string whereDate = wszystkieDni ? "" : "AND h.DataZmiany > DATEADD(day, -30, GETDATE())";
 
-                    // TYLKO zmiany statusów (5 kategorii)
+                    // Wszystko oprócz 'Do zadzwonienia'
                     var cmd = new SqlCommand($@"
                         SELECT h.DataZmiany, h.WartoscNowa, h.TypZmiany,
                                o.Nazwa as NazwaKlienta, o.MIASTO as Miasto, o.Telefon_K as Telefon
@@ -173,7 +173,7 @@ namespace Kalendarz1.CRM
                         LEFT JOIN OdbiorcyCRM o ON h.IDOdbiorcy = o.ID
                         WHERE h.KtoWykonal = @opId {whereDate}
                           AND h.TypZmiany = 'Zmiana statusu'
-                          AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')
+                          AND h.WartoscNowa <> 'Do zadzwonienia'
                         ORDER BY h.DataZmiany DESC", conn);
 
                     cmd.Parameters.AddWithValue("@opId", operatorId);
@@ -258,11 +258,27 @@ namespace Kalendarz1.CRM
         public string NazwaKlienta { get; set; }
         public string Miasto { get; set; }
         public string Telefon { get; set; }
+        public string TelefonFormatowany => FormatujTelefon(Telefon);
         public string StatusIkona { get; set; }
         public SolidColorBrush StatusKolor { get; set; }
         public SolidColorBrush StatusTekstKolor { get; set; }
         public string TypIkona { get; set; }
         public string TypOpis { get; set; }
+
+        private static string FormatujTelefon(string telefon)
+        {
+            if (string.IsNullOrEmpty(telefon)) return "-";
+            var cyfry = new string(telefon.Where(char.IsDigit).ToArray());
+            if (cyfry.Length == 0) return telefon;
+
+            var result = "";
+            for (int i = 0; i < cyfry.Length; i++)
+            {
+                if (i > 0 && i % 3 == 0) result += " ";
+                result += cyfry[i];
+            }
+            return result;
+        }
     }
 
     public class WykresSlupek

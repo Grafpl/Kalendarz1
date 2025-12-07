@@ -289,12 +289,18 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Telefon" Binding="{Binding Telefon}" Width="120">
+                                <DataGridTextColumn Header="Telefon" Binding="{Binding TelefonFormatowany}" Width="140">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                            <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                                    <Setter Property="FontSize" Value="16"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
