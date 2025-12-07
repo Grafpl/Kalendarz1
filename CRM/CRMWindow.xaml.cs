@@ -168,10 +168,10 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Liczymy wszystko oprócz 'Do zadzwonienia'
+                    // Liczymy wszystko oprócz statusów administracyjnych
                     string whereDate = wszystkieDni
-                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'"
-                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'";
+                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')"
+                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')";
 
                     var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,

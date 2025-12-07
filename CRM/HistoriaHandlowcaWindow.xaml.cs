@@ -109,7 +109,7 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Grupuj po miesiącach - ostatnie 12 miesięcy, wszystko oprócz 'Do zadzwonienia'
+                    // Grupuj po miesiącach - ostatnie 12 miesięcy, bez statusów administracyjnych
                     var cmd = new SqlCommand(@"
                         SELECT FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL') as Okres,
                                YEAR(h.DataZmiany) as Rok, MONTH(h.DataZmiany) as Miesiac,
@@ -118,7 +118,7 @@ namespace Kalendarz1.CRM
                         WHERE h.KtoWykonal = @opId
                           AND h.DataZmiany > DATEADD(month, -12, GETDATE())
                           AND h.TypZmiany = 'Zmiana statusu'
-                          AND h.WartoscNowa <> 'Do zadzwonienia'
+                          AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')
                         GROUP BY YEAR(h.DataZmiany), MONTH(h.DataZmiany), FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL')
                         ORDER BY Rok, Miesiac", conn);
 
@@ -165,7 +165,7 @@ namespace Kalendarz1.CRM
 
                     string whereDate = wszystkieDni ? "" : "AND h.DataZmiany > DATEADD(day, -30, GETDATE())";
 
-                    // Wszystko oprócz 'Do zadzwonienia'
+                    // Bez statusów administracyjnych
                     var cmd = new SqlCommand($@"
                         SELECT h.DataZmiany, h.WartoscNowa, h.TypZmiany,
                                o.Nazwa as NazwaKlienta, o.MIASTO as Miasto, o.Telefon_K as Telefon
@@ -173,7 +173,7 @@ namespace Kalendarz1.CRM
                         LEFT JOIN OdbiorcyCRM o ON h.IDOdbiorcy = o.ID
                         WHERE h.KtoWykonal = @opId {whereDate}
                           AND h.TypZmiany = 'Zmiana statusu'
-                          AND h.WartoscNowa <> 'Do zadzwonienia'
+                          AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')
                         ORDER BY h.DataZmiany DESC", conn);
 
                     cmd.Parameters.AddWithValue("@opId", operatorId);
