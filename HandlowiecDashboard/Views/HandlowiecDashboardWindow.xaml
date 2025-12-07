@@ -6,19 +6,14 @@
         WindowStartupLocation="CenterScreen" Background="#1A1D21">
 
     <Window.Resources>
-        <!-- Kolory ciemnego motywu -->
         <SolidColorBrush x:Key="BackgroundDarkBrush" Color="#1A1D21"/>
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#252A31"/>
         <SolidColorBrush x:Key="CardBackgroundLightBrush" Color="#2D333B"/>
         <SolidColorBrush x:Key="AccentOrangeBrush" Color="#F4A261"/>
-        <SolidColorBrush x:Key="AccentBlueBrush" Color="#4EA8DE"/>
-        <SolidColorBrush x:Key="AccentGreenBrush" Color="#27AE60"/>
-        <SolidColorBrush x:Key="AccentRedBrush" Color="#E74C3C"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#8B949E"/>
         <SolidColorBrush x:Key="BorderColorBrush" Color="#30363D"/>
 
-        <!-- TabControl Style -->
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -53,7 +48,6 @@
             </Setter>
         </Style>
 
-        <!-- ComboBox Style - CZARNY z BIALA czcionka -->
         <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="#000000"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -66,13 +60,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton x:Name="ToggleButton"
-                                Background="#000000"
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Focusable="false"
-                                IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                ClickMode="Press">
+                            <ToggleButton x:Name="ToggleButton" Background="#000000" BorderBrush="#555555" BorderThickness="1"
+                                Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" ClickMode="Press">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
                                         <Border Background="#000000" BorderBrush="#555555" BorderThickness="1" CornerRadius="3">
@@ -82,32 +71,21 @@
                                                     <ColumnDefinition Width="20"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Border Grid.Column="1" Background="#222222" CornerRadius="0,3,3,0">
-                                                    <Path Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                          Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                    <Path Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0 Z"/>
                                                 </Border>
                                             </Grid>
                                         </Border>
                                     </ControlTemplate>
                                 </ToggleButton.Template>
                             </ToggleButton>
-                            <ContentPresenter x:Name="ContentSite"
-                                IsHitTestVisible="False"
-                                Content="{TemplateBinding SelectionBoxItem}"
-                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                Margin="10,3,23,3"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Left">
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="10,3,23,3" VerticalAlignment="Center" HorizontalAlignment="Left">
                                 <ContentPresenter.Resources>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#FFFFFF"/>
-                                    </Style>
+                                    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#FFFFFF"/></Style>
                                 </ContentPresenter.Resources>
                             </ContentPresenter>
-                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
-                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                     <Border x:Name="DropDownBorder" Background="#000000" BorderBrush="#555555" BorderThickness="1"/>
                                     <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
@@ -131,7 +109,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Button Style -->
         <Style x:Key="DarkButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
             <Setter Property="Foreground" Value="#1A1D21"/>
@@ -150,7 +127,6 @@
             </Setter>
         </Style>
 
-        <!-- Label Style -->
         <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             <Setter Property="FontSize" Value="12"/>
@@ -158,31 +134,12 @@
             <Setter Property="Margin" Value="0,0,8,0"/>
         </Style>
 
-        <!-- DataGrid Style -->
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="#1A1D21"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#30363D"/>
-            <Setter Property="RowBackground" Value="#252A31"/>
-            <Setter Property="AlternatingRowBackground" Value="#2D333B"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#30363D"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-        </Style>
-
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#1A1D21"/>
-            <Setter Property="Foreground" Value="#F4A261"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="BorderBrush" Value="#30363D"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
-        </Style>
-
-        <Style TargetType="DataGridCell">
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderThickness" Value="0"/>
+        <Style x:Key="DescriptionStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="Margin" Value="20,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
 
@@ -201,97 +158,70 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <Border Width="40" Height="40" CornerRadius="8" Background="{StaticResource AccentOrangeBrush}" Margin="0,0,12,0">
-                        <TextBlock Text="H" FontSize="20" FontWeight="Bold" Foreground="#1A1D21"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="H" FontSize="20" FontWeight="Bold" Foreground="#1A1D21" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Dashboard Handlowca" FontSize="18" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Analiza sprzedazy z faktur" FontSize="11"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="Dashboard Handlowca" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Analiza sprzedazy z faktur" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
-
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="btnOdswiez" Content="Odswiez" Margin="12,0,0,0"
-                            Style="{StaticResource DarkButtonStyle}" Click="BtnOdswiez_Click"/>
+                    <Button x:Name="btnOdswiez" Content="Odswiez" Margin="12,0,0,0" Style="{StaticResource DarkButtonStyle}" Click="BtnOdswiez_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- TabControl z zakladkami -->
         <TabControl Grid.Row="1" x:Name="tabControl" Margin="10" SelectionChanged="TabControl_SelectionChanged">
 
-            <!-- Tab: Sprzedaz miesieczna per handlowiec -->
+            <!-- Tab: Sprzedaz miesieczna -->
             <TabItem Header="Sprzedaz miesieczna">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Rok:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokSprzedaz" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbRokSprzedaz_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokSprzedaz" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbRokSprzedaz_SelectionChanged"/>
                                 <TextBlock Text="Miesiac:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbMiesiacSprzedaz" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="120" SelectionChanged="CmbMiesiacSprzedaz_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacSprzedaz" Style="{StaticResource DarkComboBoxStyle}" Width="120" SelectionChanged="CmbMiesiacSprzedaz_SelectionChanged"/>
+                                <TextBlock Text="Sprzedaz per handlowiec w wybranym miesiacu. Rozwin handlowca aby zobaczyc jego klientow." Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Suma -->
                         <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="15,10" Margin="0,1,0,0">
-                            <TextBlock x:Name="txtSumaSprzedaz" Text="" FontSize="14" FontWeight="Bold"
-                                       Foreground="{StaticResource AccentOrangeBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtSumaSprzedaz" Text="" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" HorizontalAlignment="Center"/>
                         </Border>
-
-                        <!-- Grid z wykresem i tabelą -->
-                        <Grid Grid.Row="2" Margin="10">
+                        <Grid Grid.Row="3" Margin="10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="400"/>
                             </Grid.ColumnDefinitions>
-
-                            <!-- Wykres slupkowy per handlowiec -->
                             <lvc:CartesianChart Grid.Column="0" x:Name="chartSprzedaz" Margin="10">
                                 <lvc:CartesianChart.AxisX>
-                                    <lvc:Axis x:Name="axisXSprzedaz" ShowLabels="True" FontSize="11"
-                                              Foreground="#FFFFFF" LabelsRotation="0">
-                                        <lvc:Axis.Separator>
-                                            <lvc:Separator StrokeThickness="0"/>
-                                        </lvc:Axis.Separator>
+                                    <lvc:Axis x:Name="axisXSprzedaz" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="0">
+                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                     </lvc:Axis>
                                 </lvc:CartesianChart.AxisX>
                                 <lvc:CartesianChart.AxisY>
-                                    <lvc:Axis Title="Wartosc (zl)" MinValue="0"
-                                              Foreground="#FFFFFF" FontSize="10">
-                                        <lvc:Axis.Separator>
-                                            <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                        </lvc:Axis.Separator>
+                                    <lvc:Axis x:Name="axisYSprzedaz" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                     </lvc:Axis>
                                 </lvc:CartesianChart.AxisY>
                             </lvc:CartesianChart>
-
-                            <!-- Tabela z rozwinieciem klientow per handlowiec -->
                             <Border Grid.Column="1" Background="#1A1D21" CornerRadius="8" Margin="10">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="Szczegoly per handlowiec"
-                                               FontWeight="Bold" Foreground="#F4A261" Margin="10,10,10,5"/>
-                                    <TreeView Grid.Row="1" x:Name="treeSprzedaz"
-                                              Background="Transparent" BorderThickness="0"
-                                              Foreground="#FFFFFF"/>
+                                    <TextBlock Grid.Row="0" Text="Szczegoly per handlowiec (kliknij aby rozwinac)" FontWeight="Bold" Foreground="#F4A261" Margin="10,10,10,5"/>
+                                    <TreeView Grid.Row="1" x:Name="treeSprzedaz" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -305,40 +235,31 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Rok:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokTop10" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbTop10_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokTop10" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbTop10_SelectionChanged"/>
                                 <TextBlock Text="Miesiac:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbMiesiacTop10" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="120" SelectionChanged="CmbTop10_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacTop10" Style="{StaticResource DarkComboBoxStyle}" Width="120" SelectionChanged="CmbTop10_SelectionChanged"/>
                                 <TextBlock Text="Towar:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbTowarTop10" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="200" SelectionChanged="CmbTop10_SelectionChanged"/>
+                                <ComboBox x:Name="cmbTowarTop10" Style="{StaticResource DarkComboBoxStyle}" Width="250" SelectionChanged="CmbTop10_SelectionChanged"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres slupkowy poziomy -->
-                        <lvc:CartesianChart Grid.Row="1" x:Name="chartTop10" Margin="20">
+                        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
+                            <TextBlock x:Name="txtTop10Info" Text="" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Center"/>
+                        </Border>
+                        <lvc:CartesianChart Grid.Row="2" x:Name="chartTop10" Margin="20">
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis Title="Ilosc (kg)" MinValue="0"
-                                          Foreground="#FFFFFF" FontSize="10">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisXTop10" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis x:Name="axisYTop10" ShowLabels="True" FontSize="10"
-                                          Foreground="#FFFFFF">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator StrokeThickness="0"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYTop10" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
+                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -346,7 +267,7 @@
                 </Border>
             </TabItem>
 
-            <!-- Tab: Udzial handlowcow - WYKRES LINIOWY -->
+            <!-- Tab: Udzial handlowcow -->
             <TabItem Header="Udzial handlowcow">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
                     <Grid>
@@ -354,43 +275,26 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry - zakres dat -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Od:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokUdzialOd" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbUdzial_SelectionChanged"/>
-                                <ComboBox x:Name="cmbMiesiacUdzialOd" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="110" Margin="5,0,0,0" SelectionChanged="CmbUdzial_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokUdzialOd" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbUdzial_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacUdzialOd" Style="{StaticResource DarkComboBoxStyle}" Width="110" Margin="5,0,0,0" SelectionChanged="CmbUdzial_SelectionChanged"/>
                                 <TextBlock Text="Do:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbRokUdzialDo" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbUdzial_SelectionChanged"/>
-                                <ComboBox x:Name="cmbMiesiacUdzialDo" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="110" Margin="5,0,0,0" SelectionChanged="CmbUdzial_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokUdzialDo" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbUdzial_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacUdzialDo" Style="{StaticResource DarkComboBoxStyle}" Width="110" Margin="5,0,0,0" SelectionChanged="CmbUdzial_SelectionChanged"/>
+                                <TextBlock Text="Procentowy udzial kazdego handlowca w sprzedazy w czasie" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres liniowy z % udzialu -->
-                        <lvc:CartesianChart Grid.Row="1" x:Name="chartUdzial" Margin="20" LegendLocation="Right">
-                            <lvc:CartesianChart.ChartLegend>
-                                <lvc:DefaultLegend BulletSize="12" Foreground="#FFFFFF"/>
-                            </lvc:CartesianChart.ChartLegend>
+                        <lvc:CartesianChart Grid.Row="1" x:Name="chartUdzial" Margin="20" LegendLocation="None">
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis x:Name="axisXUdzial" ShowLabels="True" FontSize="10"
-                                          Foreground="#FFFFFF" LabelsRotation="45">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisXUdzial" ShowLabels="True" FontSize="10" Foreground="#FFFFFF" LabelsRotation="45">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Udzial (%)" MinValue="0" MaxValue="100"
-                                          Foreground="#FFFFFF" FontSize="10"
-                                          LabelFormatter="{Binding PercentFormatter}">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYUdzial" Title="Udzial (%)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -406,38 +310,47 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Rok:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokCeny" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbCeny_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokCeny" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbCeny_SelectionChanged"/>
                                 <TextBlock Text="Miesiac:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbMiesiacCeny" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="120" SelectionChanged="CmbCeny_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacCeny" Style="{StaticResource DarkComboBoxStyle}" Width="120" SelectionChanged="CmbCeny_SelectionChanged"/>
+                                <TextBlock Text="Towar:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                <ComboBox x:Name="cmbTowarCeny" Style="{StaticResource DarkComboBoxStyle}" Width="250" SelectionChanged="CmbCeny_SelectionChanged"/>
+                                <TextBlock Text="Srednia cena i ilosc kg per handlowiec" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres slupkowy cen -->
-                        <lvc:CartesianChart Grid.Row="1" x:Name="chartCeny" Margin="20">
-                            <lvc:CartesianChart.AxisX>
-                                <lvc:Axis x:Name="axisXCeny" ShowLabels="True" FontSize="11"
-                                          Foreground="#FFFFFF" LabelsRotation="30">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator StrokeThickness="0"/>
-                                    </lvc:Axis.Separator>
-                                </lvc:Axis>
-                            </lvc:CartesianChart.AxisX>
-                            <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Cena (zl/kg)" MinValue="0"
-                                          Foreground="#FFFFFF" FontSize="10">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
-                                </lvc:Axis>
-                            </lvc:CartesianChart.AxisY>
-                        </lvc:CartesianChart>
+                        <Grid Grid.Row="1" Margin="20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <lvc:CartesianChart Grid.Column="0" x:Name="chartCeny" Margin="0,0,10,0">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="axisXCeny" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
+                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                    </lvc:Axis>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="axisYCeny" Title="Cena (zl/kg)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                    </lvc:Axis>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                            <lvc:CartesianChart Grid.Column="1" x:Name="chartCenyKg" Margin="10,0,0,0">
+                                <lvc:CartesianChart.AxisX>
+                                    <lvc:Axis x:Name="axisXCenyKg" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
+                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                    </lvc:Axis>
+                                </lvc:CartesianChart.AxisX>
+                                <lvc:CartesianChart.AxisY>
+                                    <lvc:Axis x:Name="axisYCenyKg" Title="Ilosc (kg)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                    </lvc:Axis>
+                                </lvc:CartesianChart.AxisY>
+                            </lvc:CartesianChart>
+                        </Grid>
                     </Grid>
                 </Border>
             </TabItem>
@@ -450,35 +363,24 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Rok:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokSM" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbSM_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokSM" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbSM_SelectionChanged"/>
                                 <TextBlock Text="Miesiac:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbMiesiacSM" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="120" SelectionChanged="CmbSM_SelectionChanged"/>
+                                <ComboBox x:Name="cmbMiesiacSM" Style="{StaticResource DarkComboBoxStyle}" Width="120" SelectionChanged="CmbSM_SelectionChanged"/>
+                                <TextBlock Text="Porownanie sprzedazy produktow swiezych i mrozonych" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres slupkowy -->
                         <lvc:CartesianChart Grid.Row="1" x:Name="chartSwiezeMrozone" Margin="20">
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis x:Name="axisXSM" ShowLabels="True" FontSize="14"
-                                          Foreground="#FFFFFF">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator StrokeThickness="0"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisXSM" ShowLabels="True" FontSize="14" Foreground="#FFFFFF">
+                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Ilosc (kg)" MinValue="0"
-                                          Foreground="#FFFFFF" FontSize="10">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYSM" Title="Ilosc (kg)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -494,38 +396,27 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Rok 1:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbRokPorown1" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbPorown_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokPorown1" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbPorown_SelectionChanged"/>
                                 <TextBlock Text="Rok 2:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbRokPorown2" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbPorown_SelectionChanged"/>
+                                <ComboBox x:Name="cmbRokPorown2" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbPorown_SelectionChanged"/>
+                                <TextBlock Text="Porownanie sprzedazy rok do roku w poszczegolnych miesiacach" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres porownania -->
                         <lvc:CartesianChart Grid.Row="1" x:Name="chartPorownanie" Margin="20" LegendLocation="Top">
                             <lvc:CartesianChart.ChartLegend>
                                 <lvc:DefaultLegend BulletSize="12" Foreground="#FFFFFF"/>
                             </lvc:CartesianChart.ChartLegend>
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis x:Name="axisXPorown" ShowLabels="True" FontSize="11"
-                                          Foreground="#FFFFFF">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator StrokeThickness="0"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisXPorown" ShowLabels="True" FontSize="11" Foreground="#FFFFFF">
+                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Wartosc (zl)" MinValue="0"
-                                          Foreground="#FFFFFF" FontSize="10">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYPorown" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -541,32 +432,22 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-
-                        <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Ostatnie miesiecy:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbOkres" Style="{StaticResource DarkComboBoxStyle}"
-                                          Width="80" SelectionChanged="CmbTrend_SelectionChanged"/>
+                                <ComboBox x:Name="cmbOkres" Style="{StaticResource DarkComboBoxStyle}" Width="80" SelectionChanged="CmbTrend_SelectionChanged"/>
+                                <TextBlock Text="Trend wartosci sprzedazy w wybranym okresie - pokazuje jak zmienia sie sprzedaz miesiac do miesiaca" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-
-                        <!-- Wykres trendu -->
                         <lvc:CartesianChart Grid.Row="1" x:Name="chartTrend" Margin="20">
                             <lvc:CartesianChart.AxisX>
-                                <lvc:Axis x:Name="axisXTrend" ShowLabels="True" FontSize="10"
-                                          Foreground="#FFFFFF" LabelsRotation="30">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisXTrend" ShowLabels="True" FontSize="10" Foreground="#FFFFFF" LabelsRotation="30">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis Title="Wartosc (zl)" MinValue="0"
-                                          Foreground="#FFFFFF" FontSize="10">
-                                    <lvc:Axis.Separator>
-                                        <lvc:Separator Stroke="#30363D" StrokeThickness="1"/>
-                                    </lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYTrend" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
+                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -576,14 +457,10 @@
 
         </TabControl>
 
-        <!-- Loading overlay -->
         <Border Grid.RowSpan="2" Background="#CC1A1D21" x:Name="loadingOverlay" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="200" Height="4"
-                             Foreground="{StaticResource AccentOrangeBrush}"/>
-                <TextBlock Text="Ladowanie danych..." FontSize="14"
-                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,15,0,0"
-                           HorizontalAlignment="Center"/>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{StaticResource AccentOrangeBrush}"/>
+                <TextBlock Text="Ladowanie danych..." FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,15,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
     </Grid>

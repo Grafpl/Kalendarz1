@@ -22,26 +22,33 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             "Lip", "Sie", "Wrz", "Paz", "Lis", "Gru"
         };
 
-        // Kontrastowe kolory dla wykresow
         private readonly Color[] _kolory = {
-            (Color)ColorConverter.ConvertFromString("#FF6B6B"),  // Czerwony
-            (Color)ColorConverter.ConvertFromString("#4ECDC4"),  // Turkusowy
-            (Color)ColorConverter.ConvertFromString("#FFE66D"),  // Zolty
-            (Color)ColorConverter.ConvertFromString("#95E1D3"),  // Mieta
-            (Color)ColorConverter.ConvertFromString("#F38181"),  // Rozowy
-            (Color)ColorConverter.ConvertFromString("#AA96DA"),  // Fioletowy
-            (Color)ColorConverter.ConvertFromString("#FCBAD3"),  // Jasny roz
-            (Color)ColorConverter.ConvertFromString("#A8D8EA"),  // Jasny niebieski
-            (Color)ColorConverter.ConvertFromString("#F4A261"),  // Pomaranczowy
-            (Color)ColorConverter.ConvertFromString("#2EC4B6")   // Zielony morski
+            (Color)ColorConverter.ConvertFromString("#FF6B6B"),
+            (Color)ColorConverter.ConvertFromString("#4ECDC4"),
+            (Color)ColorConverter.ConvertFromString("#FFE66D"),
+            (Color)ColorConverter.ConvertFromString("#95E1D3"),
+            (Color)ColorConverter.ConvertFromString("#F38181"),
+            (Color)ColorConverter.ConvertFromString("#AA96DA"),
+            (Color)ColorConverter.ConvertFromString("#FCBAD3"),
+            (Color)ColorConverter.ConvertFromString("#A8D8EA"),
+            (Color)ColorConverter.ConvertFromString("#F4A261"),
+            (Color)ColorConverter.ConvertFromString("#2EC4B6")
         };
 
+        // Formatery dla osi
+        public Func<double, string> ZlFormatter { get; set; }
+        public Func<double, string> KgFormatter { get; set; }
         public Func<double, string> PercentFormatter { get; set; }
 
         public HandlowiecDashboardWindow()
         {
             InitializeComponent();
+
+            // Formatery z separatorem tysiecy
+            ZlFormatter = val => $"{val:N0} zl";
+            KgFormatter = val => $"{val:N0} kg";
             PercentFormatter = val => $"{val:F1}%";
+
             DataContext = this;
             Loaded += Window_Loaded;
         }
@@ -51,6 +58,16 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
+
+                // Ustaw formatery osi
+                axisYSprzedaz.LabelFormatter = ZlFormatter;
+                axisXTop10.LabelFormatter = ZlFormatter;
+                axisYUdzial.LabelFormatter = PercentFormatter;
+                axisYCenyKg.LabelFormatter = KgFormatter;
+                axisYSM.LabelFormatter = KgFormatter;
+                axisYPorown.LabelFormatter = ZlFormatter;
+                axisYTrend.LabelFormatter = ZlFormatter;
+
                 WypelnijLataIMiesiace();
                 _isInitialized = true;
                 await OdswiezSprzedazMiesiecznaAsync();
@@ -85,16 +102,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacTop10.DisplayMemberPath = "Text";
             cmbMiesiacTop10.SelectedValuePath = "Value";
             cmbMiesiacTop10.SelectedValue = DateTime.Now.Month;
-            WypelnijTowary();
+            WypelnijTowary(cmbTowarTop10);
 
-            // Udzial handlowcow - zakres dat
+            // Udzial handlowcow
             cmbRokUdzialOd.ItemsSource = lata;
             cmbRokUdzialOd.SelectedItem = DateTime.Now.Year;
             cmbMiesiacUdzialOd.ItemsSource = miesiace;
             cmbMiesiacUdzialOd.DisplayMemberPath = "Text";
             cmbMiesiacUdzialOd.SelectedValuePath = "Value";
             cmbMiesiacUdzialOd.SelectedValue = 1;
-
             cmbRokUdzialDo.ItemsSource = lata;
             cmbRokUdzialDo.SelectedItem = DateTime.Now.Year;
             cmbMiesiacUdzialDo.ItemsSource = miesiace;
@@ -109,6 +125,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbMiesiacCeny.DisplayMemberPath = "Text";
             cmbMiesiacCeny.SelectedValuePath = "Value";
             cmbMiesiacCeny.SelectedValue = DateTime.Now.Month;
+            WypelnijTowary(cmbTowarCeny);
 
             // Swieze vs Mrozone
             cmbRokSM.ItemsSource = lata;
@@ -129,14 +146,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbOkres.SelectedItem = 12;
         }
 
-        private void WypelnijTowary()
+        private void WypelnijTowary(ComboBox cmb)
         {
             var towary = new List<dynamic> { new { Value = 0, Text = "Wszystkie towary" } };
             try
             {
                 using var cn = new SqlConnection(_connectionStringHandel);
                 cn.Open();
-                var sql = @"SELECT DISTINCT TW.ID, TW.kod FROM [HANDEL].[HM].[TW] TW
+                var sql = @"SELECT DISTINCT TW.ID, TW.kod + ' - ' + ISNULL(TW.nazwa, '') as Nazwa
+                           FROM [HANDEL].[HM].[TW] TW
                            WHERE TW.katalog IN ('67095', '67153') ORDER BY TW.kod";
                 using var cmd = new SqlCommand(sql, cn);
                 using var reader = cmd.ExecuteReader();
@@ -147,10 +165,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             {
                 MessageBox.Show($"Blad pobierania towarow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            cmbTowarTop10.ItemsSource = towary;
-            cmbTowarTop10.DisplayMemberPath = "Text";
-            cmbTowarTop10.SelectedValuePath = "Value";
-            cmbTowarTop10.SelectedIndex = 0;
+            cmb.ItemsSource = towary;
+            cmb.DisplayMemberPath = "Text";
+            cmb.SelectedValuePath = "Value";
+            cmb.SelectedIndex = 0;
         }
 
         #region Event Handlers
@@ -207,7 +225,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #endregion
 
-        #region Sprzedaz Miesieczna per Handlowiec
+        #region Sprzedaz Miesieczna
 
         private async System.Threading.Tasks.Task OdswiezSprzedazMiesiecznaAsync()
         {
@@ -226,19 +244,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
-                // Pobierz dane per handlowiec
                 var sql = @"
-                    SELECT
-                        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                        C.shortcut AS Kontrahent,
-                        SUM(DP.wartNetto) AS WartoscSprzedazy
+                    SELECT ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                           C.shortcut AS Kontrahent, SUM(DP.wartNetto) AS WartoscSprzedazy
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
                     GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), C.shortcut
                     ORDER BY Handlowiec, WartoscSprzedazy DESC";
 
@@ -260,7 +274,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     suma += wartosc;
                 }
 
-                // Utworz wykres slupkowy
                 var wartosciHandlowcow = new ChartValues<decimal>();
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
                 {
@@ -274,10 +287,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosciHandlowcow,
                     Fill = new SolidColorBrush(_kolory[0]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}"
+                    LabelPoint = p => $"{p.Y:N0} zl"
                 });
 
-                // Utworz TreeView z klientami per handlowiec
                 treeSprzedaz.Items.Clear();
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Sum(v => v.Wartosc)))
                 {
@@ -320,7 +332,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             chartSprzedaz.Series = series;
             axisXSprzedaz.Labels = labels;
-            txtSumaSprzedaz.Text = $"CALKOWITA WARTOSC SPRZEDAZY: {suma:N2} zl";
+            txtSumaSprzedaz.Text = $"CALKOWITA WARTOSC SPRZEDAZY: {suma:N0} zl";
         }
 
         #endregion
@@ -338,6 +350,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             var series = new SeriesCollection();
             var labels = new List<string>();
+            decimal sumaKg = 0;
+            decimal sumaWartosc = 0;
 
             try
             {
@@ -345,10 +359,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT TOP 10
-                        C.shortcut AS Kontrahent,
-                        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                        SUM(DP.ilosc) AS SumaIlosci
+                    SELECT TOP 10 C.shortcut AS Kontrahent,
+                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                           SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS SumaWartosc
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
@@ -356,7 +369,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
                       AND (@TowarID IS NULL OR DP.idtw = @TowarID)
                     GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
-                    ORDER BY SumaIlosci DESC";
+                    ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Rok", rok);
@@ -369,20 +382,27 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 {
                     var kontrahent = reader.GetString(0);
                     var handlowiec = reader.GetString(1);
-                    var ilosc = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                    var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                    var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
 
                     labels.Add($"{kontrahent} ({handlowiec})");
-                    wartosci.Add(ilosc);
+                    wartosci.Add(wartosc);
+                    sumaKg += kg;
+                    sumaWartosc += wartosc;
                 }
 
                 series.Add(new RowSeries
                 {
-                    Title = "Ilosc (kg)",
+                    Title = "Wartosc",
                     Values = wartosci,
                     Fill = new SolidColorBrush(_kolory[1]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.X:N0} kg"
+                    LabelPoint = p => $"{p.X:N0} zl"
                 });
+
+                // Oblicz srednia cene
+                decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
+                txtTop10Info.Text = $"Suma: {sumaWartosc:N0} zl  |  Suma kg: {sumaKg:N0}  |  Srednia cena: {sredniaCena:F2} zl/kg";
             }
             catch (Exception ex)
             {
@@ -395,7 +415,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #endregion
 
-        #region Udzial Handlowcow - Wykres Liniowy
+        #region Udzial Handlowcow
 
         private async System.Threading.Tasks.Task OdswiezUdzialHandlowcowAsync()
         {
@@ -417,18 +437,14 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT
-                        WYM.CDim_Handlowiec_Val AS Handlowiec,
-                        YEAR(DK.data) AS Rok,
-                        MONTH(DK.data) AS Miesiac,
-                        SUM(DP.wartNetto) AS WartoscSprzedazy
+                    SELECT WYM.CDim_Handlowiec_Val AS Handlowiec, YEAR(DK.data) AS Rok, MONTH(DK.data) AS Miesiac,
+                           SUM(DP.wartNetto) AS WartoscSprzedazy
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE (YEAR(DK.data) * 100 + MONTH(DK.data)) >= @OdData
                       AND (YEAR(DK.data) * 100 + MONTH(DK.data)) <= @DoData
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
                     GROUP BY WYM.CDim_Handlowiec_Val, YEAR(DK.data), MONTH(DK.data)
                     ORDER BY Rok, Miesiac, Handlowiec";
 
@@ -436,7 +452,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 cmd.Parameters.AddWithValue("@OdData", rokOd * 100 + miesiacOd);
                 cmd.Parameters.AddWithValue("@DoData", rokDo * 100 + miesiacDo);
 
-                // Suma per miesiac
                 var sumyMiesieczne = new Dictionary<string, decimal>();
 
                 await using var reader = await cmd.ExecuteReaderAsync();
@@ -447,7 +462,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     var miesiac = reader.GetInt32(2);
                     var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
 
-                    var klucz = $"{rok}/{miesiac:D2}";
+                    var klucz = $"{_nazwyMiesiecy[miesiac]} {rok}";
 
                     if (!labels.Contains(klucz))
                         labels.Add(klucz);
@@ -462,7 +477,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     sumyMiesieczne[klucz] += wartosc;
                 }
 
-                // Utworz serie liniowe dla kazdego handlowca z procentami
+                // Znajdz maksymalny procent dla osi Y
+                double maxProcent = 0;
+
                 int idx = 0;
                 foreach (var h in daneHandlowcow.OrderByDescending(x => x.Value.Values.Sum()))
                 {
@@ -473,7 +490,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         var suma = sumyMiesieczne.ContainsKey(klucz) ? sumyMiesieczne[klucz] : 1m;
                         var procent = suma > 0 ? (double)(wartosc / suma * 100) : 0;
                         wartosci.Add(procent);
+                        if (procent > maxProcent) maxProcent = procent;
                     }
+
+                    // Dodaj nazwe handlowca na koncu ostatniego punktu
+                    var lastValue = wartosci.LastOrDefault();
 
                     series.Add(new LineSeries
                     {
@@ -484,9 +505,47 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         PointGeometry = DefaultGeometries.Circle,
                         PointGeometrySize = 8,
                         LineSmoothness = 0.3,
-                        DataLabels = true,
-                        LabelPoint = p => $"{p.Y:F1}%"
+                        DataLabels = false
                     });
+                    idx++;
+                }
+
+                // Dodaj etykiety na koncu linii - dodajemy dodatkowa kolumne z nazwami
+                if (labels.Count > 0)
+                {
+                    // Dodajemy pusta etykiete na koncu dla miejsca na nazwy
+                    labels.Add("");
+
+                    // Rozszerz wartosci o ostatni punkt (taki sam jak poprzedni) + tekst
+                    foreach (LineSeries ls in series)
+                    {
+                        if (ls.Values.Count > 0)
+                        {
+                            var lastVal = (double)ls.Values[ls.Values.Count - 1];
+                            ls.Values.Add(lastVal);
+                        }
+                    }
+                }
+
+                // Ustaw os Y do maksymalnego punktu + 10%
+                axisYUdzial.MaxValue = maxProcent * 1.1;
+
+                // Dodaj adnotacje tekstowe z nazwami handlowcow na koncu
+                // Zamiast tego uzyj DataLabels tylko na ostatnim punkcie
+                idx = 0;
+                foreach (LineSeries ls in series)
+                {
+                    var handlowiecNazwa = ls.Title;
+                    var color = _kolory[idx % _kolory.Length];
+
+                    // Ustaw etykiete tylko na ostatnim punkcie
+                    ls.LabelPoint = p =>
+                    {
+                        if (p.Key == ls.Values.Count - 1)
+                            return $" {handlowiecNazwa}";
+                        return "";
+                    };
+                    ls.DataLabels = true;
                     idx++;
                 }
             }
@@ -509,8 +568,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             int rok = (int)cmbRokCeny.SelectedItem;
             int miesiac = (int)cmbMiesiacCeny.SelectedValue;
+            int? towarId = cmbTowarCeny.SelectedValue as int?;
+            if (towarId == 0) towarId = null;
 
-            var series = new SeriesCollection();
+            var seriesCeny = new SeriesCollection();
+            var seriesKg = new SeriesCollection();
             var labels = new List<string>();
 
             try
@@ -519,39 +581,52 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT
-                        WYM.CDim_Handlowiec_Val AS Handlowiec,
-                        AVG(DP.cena) AS SredniaCena
+                    SELECT WYM.CDim_Handlowiec_Val AS Handlowiec,
+                           AVG(DP.cena) AS SredniaCena,
+                           SUM(DP.ilosc) AS SumaKg
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
                       AND TW.katalog IN ('67095', '67153')
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
-                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND (@TowarID IS NULL OR DP.idtw = @TowarID)
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
                     GROUP BY WYM.CDim_Handlowiec_Val
                     ORDER BY SredniaCena DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Rok", rok);
                 cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+                cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
 
-                var wartosci = new ChartValues<decimal>();
+                var wartosciCeny = new ChartValues<decimal>();
+                var wartosciKg = new ChartValues<decimal>();
+
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     labels.Add(reader.GetString(0));
-                    wartosci.Add(reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1)));
+                    wartosciCeny.Add(reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1)));
+                    wartosciKg.Add(reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2)));
                 }
 
-                series.Add(new ColumnSeries
+                seriesCeny.Add(new ColumnSeries
                 {
                     Title = "Srednia cena",
-                    Values = wartosci,
+                    Values = wartosciCeny,
                     Fill = new SolidColorBrush(_kolory[3]),
                     DataLabels = true,
                     LabelPoint = p => $"{p.Y:F2} zl"
+                });
+
+                seriesKg.Add(new ColumnSeries
+                {
+                    Title = "Ilosc kg",
+                    Values = wartosciKg,
+                    Fill = new SolidColorBrush(_kolory[1]),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0}"
                 });
             }
             catch (Exception ex)
@@ -559,8 +634,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 MessageBox.Show($"Blad analizy cen:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            chartCeny.Series = series;
+            chartCeny.Series = seriesCeny;
             axisXCeny.Labels = labels;
+            chartCenyKg.Series = seriesKg;
+            axisXCenyKg.Labels = labels;
         }
 
         #endregion
@@ -575,7 +652,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             int miesiac = (int)cmbMiesiacSM.SelectedValue;
 
             var series = new SeriesCollection();
-            var labels = new List<string> { "Swieze", "Mrozone" };
 
             try
             {
@@ -583,10 +659,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT
-                        CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
-                        SUM(DP.ilosc) AS SumaKg,
-                        SUM(DP.wartNetto) AS WartoscNetto
+                    SELECT CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
+                           SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS WartoscNetto
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
@@ -692,7 +766,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Stroke = new SolidColorBrush(_kolory[0]),
                     Fill = Brushes.Transparent,
                     PointGeometry = DefaultGeometries.Circle,
-                    PointGeometrySize = 8
+                    PointGeometrySize = 8,
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0}"
                 });
 
                 series.Add(new LineSeries
@@ -702,7 +778,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Stroke = new SolidColorBrush(_kolory[1]),
                     Fill = Brushes.Transparent,
                     PointGeometry = DefaultGeometries.Square,
-                    PointGeometrySize = 8
+                    PointGeometrySize = 8,
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0}"
                 });
             }
             catch (Exception ex)
@@ -765,7 +843,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Fill = new SolidColorBrush(Color.FromArgb(50, _kolory[4].R, _kolory[4].G, _kolory[4].B)),
                     PointGeometry = DefaultGeometries.Circle,
                     PointGeometrySize = 10,
-                    LineSmoothness = 0.5
+                    LineSmoothness = 0.5,
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:N0}"
                 });
             }
             catch (Exception ex)
