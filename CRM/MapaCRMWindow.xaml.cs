@@ -310,6 +310,41 @@ namespace Kalendarz1.CRM
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
 
+            // Jeśli brak danych - pokaż komunikat pomocniczy
+            if (kontakty.Count == 0)
+            {
+                return @"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'/>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #F8FAF8; }
+        .msg { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 500px; }
+        h2 { color: #DC2626; margin-bottom: 16px; }
+        p { color: #666; line-height: 1.6; margin: 8px 0; }
+        .steps { text-align: left; background: #F1F5F9; padding: 16px; border-radius: 8px; margin-top: 16px; }
+        .steps li { margin: 8px 0; color: #374151; }
+        code { background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class='msg'>
+    <h2>Brak kontaktów do wyświetlenia na mapie</h2>
+    <p>Żaden kontakt nie ma przypisanych współrzędnych geograficznych.</p>
+    <div class='steps'>
+        <strong>Co zrobić:</strong>
+        <ol>
+            <li>Kliknij przycisk <b>📍 Geokoduj</b> w nagłówku</li>
+            <li>Poczekaj aż system pobierze współrzędne dla kodów pocztowych</li>
+            <li>Kliknij <b>🔄 Odśwież</b> aby zobaczyć mapę</li>
+        </ol>
+        <p style='margin-top:12px;font-size:12px;color:#666;'>Jeśli problem się powtarza, sprawdź czy tabela <code>KodyPocztowe</code> istnieje w bazie danych.</p>
+    </div>
+</div>
+</body>
+</html>";
+            }
+
             return $@"<!DOCTYPE html>
 <html>
 <head>
@@ -318,90 +353,127 @@ namespace Kalendarz1.CRM
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         html, body, #map {{ height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; }}
-        .gm-style-iw {{ max-width: 280px !important; }}
-        .p-title {{ font-weight: 700; font-size: 13px; color: #111; margin-bottom: 6px; }}
-        .p-info {{ font-size: 11px; color: #666; margin: 3px 0; }}
-        .p-status {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 6px; }}
-        .p-btn {{ display: inline-block; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; margin-top: 8px; margin-right: 4px; }}
+        .gm-style-iw {{ max-width: 300px !important; }}
+        .p-title {{ font-weight: 700; font-size: 14px; color: #111; margin-bottom: 8px; }}
+        .p-info {{ font-size: 12px; color: #666; margin: 4px 0; }}
+        .p-status {{ display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }}
+        .p-priority {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; background: #FEE2E2; color: #DC2626; margin-left: 6px; }}
+        .p-branza {{ font-size: 10px; color: #9CA3AF; margin-top: 4px; }}
+        .p-btn {{ display: inline-block; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; margin-top: 10px; margin-right: 6px; }}
         .p-btn-green {{ background: #16A34A; color: white; }}
+        .p-btn-green:hover {{ background: #15803D; }}
+        .p-btn-blue {{ background: #0891B2; color: white; }}
+        .p-btn-blue:hover {{ background: #0E7490; }}
         .p-btn-gray {{ background: #E5E7EB; color: #374151; }}
-        .error-msg {{ display: flex; justify-content: center; align-items: center; height: 100%; font-size: 16px; color: #DC2626; text-align: center; padding: 20px; }}
+        .p-btn-gray:hover {{ background: #D1D5DB; }}
+        .error-msg {{ display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; font-size: 16px; color: #DC2626; text-align: center; padding: 40px; }}
+        .error-msg h2 {{ margin-bottom: 16px; }}
+        .error-msg p {{ color: #666; margin: 8px 0; }}
     </style>
 </head>
 <body>
 <div id='map'></div>
 <script>
 var data = {dataJson};
-var map, markers = [], infoWindow;
+var map, markers = [], markerObjects = [], infoWindow, clusterer = null;
 
 var statusBg = {{'Do zadzwonienia':'#F1F5F9','Próba kontaktu':'#FFEDD5','Nawiązano kontakt':'#DCFCE7','Zgoda na dalszy kontakt':'#CCFBF1','Do wysłania oferta':'#CFFAFE','Nie zainteresowany':'#FEE2E2'}};
 var statusTxt = {{'Do zadzwonienia':'#475569','Próba kontaktu':'#9A3412','Nawiązano kontakt':'#166534','Zgoda na dalszy kontakt':'#0D9488','Do wysłania oferta':'#155E75','Nie zainteresowany':'#991B1B'}};
 
 function initMap() {{
-    map = new google.maps.Map(document.getElementById('map'), {{
-        center: {{ lat: 52.0, lng: 19.0 }},
-        zoom: 6,
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true
-    }});
-
-    infoWindow = new google.maps.InfoWindow();
-
-    var bounds = new google.maps.LatLngBounds();
-
-    for (var i = 0; i < data.length; i++) {{
-        var p = data[i];
-        var pos = {{ lat: p.Lat, lng: p.Lng }};
-        bounds.extend(pos);
-
-        var sz = p.CzyPriorytetowa ? 16 : 12;
-        var bw = p.CzyPriorytetowa ? 3 : 2;
-        var bc = p.CzyPriorytetowa ? '%23DC2626' : '%23333';
-
-        var svgIcon = {{
-            url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns=""http://www.w3.org/2000/svg"" width=""'+sz+'"" height=""'+sz+'""><circle cx=""'+(sz/2)+'"" cy=""'+(sz/2)+'"" r=""'+((sz/2)-1)+'"" fill=""'+p.KolorHex+'"" stroke=""'+(p.CzyPriorytetowa?'#DC2626':'#333')+'"" stroke-width=""'+bw+'""/></svg>'),
-            scaledSize: new google.maps.Size(sz, sz),
-            anchor: new google.maps.Point(sz/2, sz/2)
-        }};
-
-        var marker = new google.maps.Marker({{
-            position: pos,
-            map: map,
-            icon: svgIcon,
-            title: p.Nazwa
+    try {{
+        map = new google.maps.Map(document.getElementById('map'), {{
+            center: {{ lat: 52.0, lng: 19.0 }},
+            zoom: 6,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+            styles: [
+                {{ featureType: 'poi', elementType: 'labels', stylers: [{{ visibility: 'off' }}] }},
+                {{ featureType: 'transit', stylers: [{{ visibility: 'off' }}] }}
+            ]
         }});
 
-        marker.kontakt = p;
-        markers.push(marker);
+        infoWindow = new google.maps.InfoWindow();
+        var bounds = new google.maps.LatLngBounds();
 
-        marker.addListener('click', function() {{
-            var k = this.kontakt;
-            var adr = [k.Ulica, k.Miasto].filter(Boolean).join(', ');
-            var content = '<div class=""p-title"">'+k.Nazwa+'</div>'+
-                '<div class=""p-info"">📍 '+adr+'</div>'+
-                '<div class=""p-info"">📞 <b>'+k.Telefon+'</b></div>'+
-                (k.Email ? '<div class=""p-info"">✉️ '+k.Email+'</div>' : '')+
-                '<div><span class=""p-status"" style=""background:'+(statusBg[k.Status]||'#eee')+';color:'+(statusTxt[k.Status]||'#333')+'"">'+k.Status+'</span></div>'+
-                '<div><a class=""p-btn p-btn-green"" href=""tel:'+k.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
-                '<a class=""p-btn p-btn-gray"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Trasa</a></div>';
-            infoWindow.setContent(content);
-            infoWindow.open(map, this);
-        }});
-    }}
+        for (var i = 0; i < data.length; i++) {{
+            var p = data[i];
+            var pos = {{ lat: p.Lat, lng: p.Lng }};
+            bounds.extend(pos);
 
-    if (data.length > 0) {{
-        map.fitBounds(bounds);
-        if (data.length === 1) map.setZoom(14);
-    }}
+            var sz = p.CzyPriorytetowa ? 18 : 14;
+            var bw = p.CzyPriorytetowa ? 3 : 2;
 
-    // Załaduj MarkerClusterer dynamicznie po zainicjowaniu mapy
-    var script = document.createElement('script');
-    script.src = 'https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js';
-    script.onload = function() {{
-        if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
-            new markerClusterer.MarkerClusterer({{ map: map, markers: markers }});
+            var svgIcon = {{
+                url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns=""http://www.w3.org/2000/svg"" width=""'+sz+'"" height=""'+sz+'""><circle cx=""'+(sz/2)+'"" cy=""'+(sz/2)+'"" r=""'+((sz/2)-1)+'"" fill=""'+p.KolorHex+'"" stroke=""'+(p.CzyPriorytetowa?'#DC2626':'#333')+'"" stroke-width=""'+bw+'""/></svg>'),
+                scaledSize: new google.maps.Size(sz, sz),
+                anchor: new google.maps.Point(sz/2, sz/2)
+            }};
+
+            var marker = new google.maps.Marker({{
+                position: pos,
+                map: map,
+                icon: svgIcon,
+                title: p.Nazwa,
+                zIndex: p.CzyPriorytetowa ? 1000 : 1
+            }});
+
+            marker.kontakt = p;
+            markerObjects.push(marker);
+
+            marker.addListener('click', function() {{
+                var k = this.kontakt;
+                var adr = [k.Ulica, k.Miasto].filter(Boolean).join(', ');
+                var content = '<div class=""p-title"">'+k.Nazwa+(k.CzyPriorytetowa?'<span class=""p-priority"">PRIORYTET</span>':'')+'</div>'+
+                    '<div class=""p-info"">📍 '+adr+'</div>'+
+                    '<div class=""p-info"">📞 <b>'+k.Telefon+'</b></div>'+
+                    (k.Email ? '<div class=""p-info"">✉️ '+k.Email+'</div>' : '')+
+                    (k.Branza ? '<div class=""p-branza"">🏭 '+k.Branza+'</div>' : '')+
+                    '<div><span class=""p-status"" style=""background:'+(statusBg[k.Status]||'#eee')+';color:'+(statusTxt[k.Status]||'#333')+'"">'+k.Status+'</span></div>'+
+                    '<div style=""margin-top:12px;"">'+
+                    '<a class=""p-btn p-btn-green"" href=""tel:'+k.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
+                    '<a class=""p-btn p-btn-blue"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Nawiguj</a>'+
+                    '</div>';
+                infoWindow.setContent(content);
+                infoWindow.open(map, this);
+            }});
         }}
+
+        if (data.length > 0) {{
+            map.fitBounds(bounds);
+            if (data.length === 1) map.setZoom(14);
+        }}
+
+        // Załaduj MarkerClusterer
+        loadMarkerClusterer();
+
+        console.log('Mapa załadowana pomyślnie. Punktów: ' + data.length);
+    }} catch (e) {{
+        console.error('Błąd inicjalizacji mapy:', e);
+        document.getElementById('map').innerHTML = '<div class=""error-msg""><h2>Błąd ładowania mapy</h2><p>'+e.message+'</p></div>';
+    }}
+}}
+
+function loadMarkerClusterer() {{
+    var script = document.createElement('script');
+    script.src = 'https://unpkg.com/@googlemaps/markerclusterer@2.5.3/dist/index.min.js';
+    script.onload = function() {{
+        try {{
+            if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
+                clusterer = new markerClusterer.MarkerClusterer({{
+                    map: map,
+                    markers: markerObjects,
+                    algorithmOptions: {{ maxZoom: 14 }}
+                }});
+                console.log('MarkerClusterer załadowany');
+            }}
+        }} catch(e) {{
+            console.warn('MarkerClusterer niedostępny:', e);
+        }}
+    }};
+    script.onerror = function() {{
+        console.warn('Nie udało się załadować MarkerClusterer - markery bez grupowania');
     }};
     document.head.appendChild(script);
 }}
@@ -410,14 +482,22 @@ window.setView = function(lat, lng, z) {{
     if (map) {{
         map.setCenter({{ lat: lat, lng: lng }});
         map.setZoom(z || 15);
+        // Znajdź i otwórz marker w tym miejscu
+        for (var i = 0; i < markerObjects.length; i++) {{
+            var pos = markerObjects[i].getPosition();
+            if (Math.abs(pos.lat() - lat) < 0.0001 && Math.abs(pos.lng() - lng) < 0.0001) {{
+                google.maps.event.trigger(markerObjects[i], 'click');
+                break;
+            }}
+        }}
     }}
 }};
 
 window.gm_authFailure = function() {{
-    document.getElementById('map').innerHTML = '<div class=""error-msg"">Błąd autoryzacji Google Maps API.<br/>Sprawdź klucz API i upewnij się, że masz włączone:<br/>- Maps JavaScript API<br/>- Geocoding API</div>';
+    document.getElementById('map').innerHTML = '<div class=""error-msg""><h2>Błąd autoryzacji Google Maps API</h2><p>Klucz API jest nieprawidłowy lub wygasł.</p><p>Sprawdź czy masz włączone w Google Cloud Console:</p><p><b>Maps JavaScript API</b> oraz <b>Geocoding API</b></p></div>';
 }};
 </script>
-<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap""></script>
+<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap"" onerror=""document.getElementById('map').innerHTML='<div class=error-msg><h2>Nie można połączyć z Google Maps</h2><p>Sprawdź połączenie internetowe i klucz API</p></div>';""></script>
 </body>
 </html>";
         }
@@ -427,26 +507,39 @@ window.gm_authFailure = function() {{
         {
             if (isLoading) return;
 
-            // Sprawdź klucz API
             var apiKey = txtApiKey.Text?.Trim();
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                MessageBox.Show("Wprowadź klucz Google API w polu 'API Key' w nagłówku.\n\n" +
-                    "Aby uzyskać klucz:\n" +
-                    "1. Wejdź na https://console.cloud.google.com/\n" +
-                    "2. Utwórz projekt\n" +
-                    "3. Włącz APIs: Geocoding API i Maps JavaScript API\n" +
-                    "4. Utwórz klucz w sekcji Credentials",
-                    "Brak klucza API", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            bool uzywanieGoogleApi = !string.IsNullOrEmpty(apiKey);
 
             // Sprawdź ile kodów UŻYWANYCH PRZEZ ODBIORCÓW nie ma współrzędnych
             int bezWspolrzednych = 0;
+            int brakWTabeli = 0;
             using (var conn = new SqlConnection(connectionString))
             {
                 await conn.OpenAsync();
-                // Tylko kody które są faktycznie używane przez odbiorców!
+
+                // Sprawdź czy tabela KodyPocztowe istnieje
+                var cmdCheck = new SqlCommand(@"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'KodyPocztowe')
+                    BEGIN
+                        CREATE TABLE KodyPocztowe (
+                            Kod NVARCHAR(10) PRIMARY KEY,
+                            miej NVARCHAR(100),
+                            Latitude FLOAT,
+                            Longitude FLOAT
+                        );
+                    END", conn);
+                await cmdCheck.ExecuteNonQueryAsync();
+
+                // Dodaj brakujące kody z OdbiorcyCRM do tabeli KodyPocztowe
+                var cmdInsert = new SqlCommand(@"
+                    INSERT INTO KodyPocztowe (Kod, miej)
+                    SELECT DISTINCT o.KOD, o.MIASTO
+                    FROM OdbiorcyCRM o
+                    WHERE o.KOD IS NOT NULL AND o.KOD <> ''
+                      AND NOT EXISTS (SELECT 1 FROM KodyPocztowe kp WHERE kp.Kod = o.KOD)", conn);
+                brakWTabeli = await cmdInsert.ExecuteNonQueryAsync();
+
+                // Policz ile kodów nie ma współrzędnych
                 var cmd = new SqlCommand(@"
                     SELECT COUNT(DISTINCT kp.Kod)
                     FROM KodyPocztowe kp
@@ -457,17 +550,30 @@ window.gm_authFailure = function() {{
 
             if (bezWspolrzednych == 0)
             {
-                MessageBox.Show("Wszystkie kody pocztowe używane przez odbiorców mają już współrzędne!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Wszystkie kody pocztowe używane przez odbiorców mają już współrzędne!\n\nKliknij 'Odśwież' aby zobaczyć mapę.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var result = MessageBox.Show(
-                $"Znaleziono {bezWspolrzednych} kodów pocztowych (używanych przez odbiorców) bez współrzędnych.\n\n" +
-                $"Geokodowanie Google API (50 req/s) - będzie szybko!\n" +
-                $"Koszt: ~$5 za 1000 kodów (pierwsze $200 miesięcznie gratis).\n\n" +
-                $"Kontynuować?",
-                "Uzupełnij współrzędne (Google Geocoding API)", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            string msg;
+            if (uzywanieGoogleApi)
+            {
+                msg = $"Znaleziono {bezWspolrzednych} kodów pocztowych bez współrzędnych.\n";
+                if (brakWTabeli > 0) msg += $"(Dodano {brakWTabeli} nowych kodów do tabeli)\n\n";
+                msg += "Wybrany sposób: Google Geocoding API (szybko, ~50 req/s)\n";
+                msg += "Koszt: ~$5 za 1000 kodów (pierwsze $200/mies. gratis)\n\n";
+                msg += "Kontynuować?";
+            }
+            else
+            {
+                msg = $"Znaleziono {bezWspolrzednych} kodów pocztowych bez współrzędnych.\n";
+                if (brakWTabeli > 0) msg += $"(Dodano {brakWTabeli} nowych kodów do tabeli)\n\n";
+                msg += "Wybrany sposób: Nominatim (DARMOWE, ale wolniej ~1 req/s)\n";
+                msg += "Brak klucza Google API - używam darmowej usługi OpenStreetMap.\n\n";
+                msg += $"Szacowany czas: ~{bezWspolrzednych} sekund ({bezWspolrzednych / 60} min)\n\n";
+                msg += "Kontynuować?";
+            }
 
+            var result = MessageBox.Show(msg, "Uzupełnij współrzędne kodów pocztowych", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result != MessageBoxResult.Yes) return;
 
             isLoading = true;
@@ -503,9 +609,13 @@ window.gm_authFailure = function() {{
                     for (int i = 0; i < kodyDoGeokodowania.Count; i++)
                     {
                         var (kod, miasto) = kodyDoGeokodowania[i];
-                        txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{kodyDoGeokodowania.Count}: {kod} {miasto}...";
+                        txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{kodyDoGeokodowania.Count}: {kod} {miasto}..." +
+                            (uzywanieGoogleApi ? "" : " (darmowe API)");
 
-                        var coords = await GeokodujKodGoogleAsync(kod, miasto, apiKey);
+                        // Użyj Google API lub darmowego Nominatim
+                        var coords = uzywanieGoogleApi
+                            ? await GeokodujKodGoogleAsync(kod, miasto, apiKey)
+                            : await GeokodujKodNominatimAsync(kod, miasto);
 
                         if (coords.HasValue)
                         {
@@ -522,8 +632,8 @@ window.gm_authFailure = function() {{
                             bledy++;
                         }
 
-                        // Google API pozwala na 50 req/s, ale dajmy 20ms dla bezpieczeństwa
-                        await Task.Delay(25);
+                        // Google: 50 req/s (25ms), Nominatim: 1 req/s (1100ms)
+                        await Task.Delay(uzywanieGoogleApi ? 25 : 1100);
                     }
                 }
             }
@@ -536,7 +646,8 @@ window.gm_authFailure = function() {{
             btnGeokoduj.IsEnabled = true;
             isLoading = false;
 
-            MessageBox.Show($"Zakończono!\n\nZnalezione: {sukces}\nBłędy: {bledy}", "Geokodowanie Google", MessageBoxButton.OK, MessageBoxImage.Information);
+            var metodaNazwa = uzywanieGoogleApi ? "Google" : "Nominatim (darmowe)";
+            MessageBox.Show($"Zakończono geokodowanie ({metodaNazwa})!\n\nZnalezione: {sukces}\nBłędy: {bledy}\n\nKliknij 'Odśwież' aby zobaczyć mapę.", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // Odśwież mapę
             dtKontakty = null;
@@ -588,6 +699,55 @@ window.gm_authFailure = function() {{
             catch (Exception ex)
             {
                 Debug.WriteLine($"Google Geocode error for {kod}: {ex.Message}");
+            }
+            return null;
+        }
+
+        // DARMOWE geokodowanie przez Nominatim (OpenStreetMap)
+        private async Task<(double lat, double lng)?> GeokodujKodNominatimAsync(string kod, string miasto)
+        {
+            try
+            {
+                // Nominatim wymaga User-Agent
+                if (!http.DefaultRequestHeaders.Contains("User-Agent"))
+                {
+                    http.DefaultRequestHeaders.Add("User-Agent", "CRMMapaKontaktow/1.0");
+                }
+
+                // Format zapytania dla Nominatim
+                var query = !string.IsNullOrEmpty(miasto)
+                    ? $"{kod}, {miasto}, Poland"
+                    : $"{kod}, Poland";
+
+                var url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(query)}&format=json&countrycodes=pl&limit=1";
+
+                using (var resp = await http.GetAsync(url))
+                {
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var json = await resp.Content.ReadAsStringAsync();
+                        using (var doc = JsonDocument.Parse(json))
+                        {
+                            var root = doc.RootElement;
+                            if (root.GetArrayLength() > 0)
+                            {
+                                var first = root[0];
+                                if (first.TryGetProperty("lat", out var latProp) && first.TryGetProperty("lon", out var lonProp))
+                                {
+                                    if (double.TryParse(latProp.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lat) &&
+                                        double.TryParse(lonProp.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lng))
+                                    {
+                                        return (lat, lng);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Nominatim Geocode error for {kod}: {ex.Message}");
             }
             return null;
         }
