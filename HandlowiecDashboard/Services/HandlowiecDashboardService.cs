@@ -48,10 +48,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     SELECT
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataOd AND z.DataOdbioru < @DataDo
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -125,10 +125,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         MONTH(z.DataOdbioru) as Miesiac,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -190,9 +190,9 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         z.Odbiorca as Nazwa,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -258,15 +258,15 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 var sql = @"
                     SELECT
                         CASE
-                            WHEN zp.Katalog = '67153' THEN 'Mrożonki'
+                            WHEN zp.KodTowaru = '67153' THEN 'Mrożonki'
                             ELSE 'Świeże'
                         END as Kategoria,
-                        zp.Katalog,
+                        zp.KodTowaru,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc
                     FROM ZamowieniaMieso z
-                    INNER JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    INNER JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)
                         AND zp.Ilosc > 0";
@@ -276,8 +276,8 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 sql += @"
                     GROUP BY
-                        CASE WHEN zp.Katalog = '67153' THEN 'Mrożonki' ELSE 'Świeże' END,
-                        zp.Katalog
+                        CASE WHEN zp.KodTowaru = '67153' THEN 'Mrożonki' ELSE 'Świeże' END,
+                        zp.KodTowaru
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -331,11 +331,11 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         z.DataOdbioru,
                         z.Odbiorca,
                         ISNULL(SUM(zp.Ilosc), 0) as Kg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as Wartosc,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as Wartosc,
                         CASE WHEN z.Anulowane = 1 THEN 'Anulowane' ELSE 'Aktywne' END as Status,
                         ISNULL(z.TransportStatus, 'Firma') as TransportStatus
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
@@ -430,10 +430,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         SELECT
                             COUNT(DISTINCT z.ID) as LiczbaZamowien,
                             ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                            ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                            ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                             COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                         FROM ZamowieniaMieso z
-                        LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                        LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                         WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru < @DataKoniec
                             AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -488,10 +488,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         CAST(z.DataOdbioru AS DATE) as Dzien,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -565,10 +565,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         ISNULL(z.Handlowiec, 'Nieznany') as Handlowiec,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
                         COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -630,12 +630,12 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 var sql = @"
                     SELECT
-                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaSprzedazy,
+                        ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaSprzedazy,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         COUNT(DISTINCT CASE WHEN z.Anulowane = 1 THEN z.ID END) as ZwrotyAnulowane,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                     WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
@@ -765,9 +765,9 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         FROM (
                             SELECT
                                 z.ID,
-                                ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as wartosc_zam
+                                ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as wartosc_zam
                             FROM ZamowieniaMieso z
-                            LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                            LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
                             WHERE CAST(z.DataOdbioru AS DATE) = @Dzien
                                 AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -1121,12 +1121,12 @@ ORDER BY SumaWartosc DESC";
 SELECT
     SUM(CASE WHEN z.DataOdbioru = @Dzis THEN 1 ELSE 0 END) as ZamDzis,
     SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgDzis,
-    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc * zp.Cena, 0) ELSE 0 END) as WartoscDzis,
+    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscDzis,
     SUM(CASE WHEN z.DataOdbioru = @Jutro THEN 1 ELSE 0 END) as ZamJutro,
     SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgJutro,
-    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc * zp.Cena, 0) ELSE 0 END) as WartoscJutro
+    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscJutro
 FROM ZamowieniaMieso z
-LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
 WHERE z.DataOdbioru IN (@Dzis, @Jutro)
   AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
