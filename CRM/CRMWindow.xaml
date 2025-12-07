@@ -325,9 +325,28 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="120" Foreground="{StaticResource TextGray}"/>
+                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100" Foreground="{StaticResource TextGray}"/>
 
-                            <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="130" FontWeight="Bold" FontSize="14" Foreground="{StaticResource PrimaryColor}">
+                            <DataGridTextColumn Header="Woj." Binding="{Binding Wojewodztwo}" Width="90" Foreground="{StaticResource TextGray}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="Branża" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding PKD_Opis}" FontSize="10" Foreground="#6B7280"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   ToolTip="{Binding PKD_Opis}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="120" FontWeight="Bold" FontSize="13" Foreground="{StaticResource PrimaryColor}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -448,35 +467,101 @@
 
                         <Border Style="{StaticResource CardStyle}" Padding="20">
                             <StackPanel>
-                                <TextBlock Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,15"/>
+                                <TextBlock Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,8"/>
+
+                                <!-- Legenda -->
+                                <Border Background="#F9FAFB" CornerRadius="6" Padding="8,6" Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="📞" FontSize="9" ToolTip="Do zadzwonienia" Margin="0,0,3,0"/>
+                                        <TextBlock Text="⏳" FontSize="9" ToolTip="Próba kontaktu" Margin="6,0,3,0"/>
+                                        <TextBlock Text="✅" FontSize="9" ToolTip="Nawiązano kontakt" Margin="6,0,3,0"/>
+                                        <TextBlock Text="🤝" FontSize="9" ToolTip="Zgoda na dalszy kontakt" Margin="6,0,3,0"/>
+                                        <TextBlock Text="📄" FontSize="9" ToolTip="Do wysłania oferta" Margin="6,0,3,0"/>
+                                        <TextBlock Text="❌" FontSize="9" ToolTip="Nie zainteresowany" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <ItemsControl x:Name="listaRanking">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="0,0,0,12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="26"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Background="{StaticResource PrimaryLight}" Width="24" Height="24" CornerRadius="12">
-                                                    <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
-                                                </Border>
-                                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" Foreground="{StaticResource TextDark}"/>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="📞 " FontSize="10" Foreground="#666"/>
-                                                        <TextBlock Text="{Binding Proby}" FontSize="10" FontWeight="Bold" Foreground="#333"/>
-                                                        <TextBlock Text=" | 📄 " FontSize="10" Foreground="#666"/>
-                                                        <TextBlock Text="{Binding Oferty}" FontSize="10" FontWeight="Bold" Foreground="#2563EB"/>
-                                                        <TextBlock Text=" | ✅ " FontSize="10" Foreground="#666"/>
-                                                        <TextBlock Text="{Binding Sukcesy}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                            <Border Background="#FAFAFA" CornerRadius="8" Padding="10" Margin="0,0,0,8" BorderBrush="#E5E7EB" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Pozycja -->
+                                                    <Border Grid.RowSpan="2" Background="{StaticResource PrimaryLight}" Width="24" Height="24" CornerRadius="12" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                                    </Border>
+
+                                                    <!-- Nazwa handlowca -->
+                                                    <TextBlock Grid.Column="1" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextDark}" Margin="6,0,0,4"/>
+
+                                                    <!-- Suma -->
+                                                    <StackPanel Grid.Column="2" Grid.RowSpan="2" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding Suma}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="SUMA" FontSize="8" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
                                                     </StackPanel>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Suma}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Right"/>
-                                                    <TextBlock Text="akcji" FontSize="9" Foreground="{StaticResource TextGray}" HorizontalAlignment="Right"/>
-                                                </StackPanel>
-                                            </Grid>
+
+                                                    <!-- Statystyki statusów -->
+                                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="6,2,0,0">
+                                                        <!-- Do zadzwonienia -->
+                                                        <Border Background="#F1F5F9" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do zadzwonienia">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="📞" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding DoZadzwonienia}" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Próba kontaktu -->
+                                                        <Border Background="#FFEDD5" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Próba kontaktu">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="⏳" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Proby}" FontSize="10" FontWeight="Bold" Foreground="#9A3412" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Nawiązano kontakt -->
+                                                        <Border Background="#DCFCE7" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Nawiązano kontakt">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="✅" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Nawiazano}" FontSize="10" FontWeight="Bold" Foreground="#166534" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Zgoda na dalszy kontakt -->
+                                                        <Border Background="#CCFBF1" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Zgoda na dalszy kontakt">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="🤝" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Zgoda}" FontSize="10" FontWeight="Bold" Foreground="#0D9488" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Do wysłania oferta -->
+                                                        <Border Background="#DBEAFE" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do wysłania oferta">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="📄" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Oferty}" FontSize="10" FontWeight="Bold" Foreground="#1E40AF" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Nie zainteresowany -->
+                                                        <Border Background="#FEE2E2" CornerRadius="4" Padding="5,2" ToolTip="Nie zainteresowany">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="❌" FontSize="9" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding NieZainteresowany}" FontSize="10" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

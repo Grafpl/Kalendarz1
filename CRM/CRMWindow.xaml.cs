@@ -171,11 +171,14 @@ namespace Kalendarz1.CRM
                     conn.Open();
                     var cmd = new SqlCommand(@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
-                            ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator, 
+                            ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
                             COUNT(*) as Suma,
+                            SUM(CASE WHEN WartoscNowa = 'Do zadzwonienia' OR WartoscNowa = 'Nowy' THEN 1 ELSE 0 END) as DoZadzwonienia,
                             SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
-                            SUM(CASE WHEN WartoscNowa LIKE '%oferta%' THEN 1 ELSE 0 END) as Oferty,
-                            SUM(CASE WHEN WartoscNowa LIKE '%Zgoda%' THEN 1 ELSE 0 END) as Sukcesy
+                            SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
+                            SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
+                            SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty,
+                            SUM(CASE WHEN WartoscNowa = 'Nie zainteresowany' THEN 1 ELSE 0 END) as NieZainteresowany
                         FROM HistoriaZmianCRM h LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
                         WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL
                         GROUP BY h.KtoWykonal, o.Name ORDER BY Suma DESC", conn);
