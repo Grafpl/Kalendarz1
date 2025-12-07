@@ -33,6 +33,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private static readonly SolidColorBrush PurpleBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182));
         private static readonly SolidColorBrush GrayBrush = new SolidColorBrush(Color.FromRgb(139, 148, 158));
 
+        // Zakres dat
+        private DateTime _dataOd = DateTime.Today.AddDays(-30);
+        private DateTime _dataDo = DateTime.Today.AddDays(1);
+        private Button _activeFilterButton;
+
         public HandlowiecDashboardWindow()
         {
             InitializeComponent();
@@ -458,6 +463,87 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private void ShowLoading(bool show)
         {
             loadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Obsluga klikniecia przycisku filtra okresu
+        /// </summary>
+        private async void FilterButton_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button == null) return;
+
+            string period = button.Tag?.ToString() ?? "";
+            if (string.IsNullOrEmpty(period)) return;
+
+            // Resetuj wygląd poprzedniego aktywnego przycisku
+            if (_activeFilterButton != null)
+            {
+                _activeFilterButton.Background = new SolidColorBrush(Color.FromRgb(45, 51, 59)); // #2D333B
+                _activeFilterButton.Foreground = new SolidColorBrush(Colors.White);
+            }
+
+            // Ustaw wygląd aktywnego przycisku
+            button.Background = OrangeBrush;
+            button.Foreground = new SolidColorBrush(Color.FromRgb(26, 29, 33)); // #1A1D21
+            _activeFilterButton = button;
+
+            // Parsuj okres
+            var (dataOd, dataDo) = ParsePeriod(period);
+            _dataOd = dataOd;
+            _dataDo = dataDo;
+
+            // Odswież dane
+            await LoadDashboardDataAsync();
+        }
+
+        /// <summary>
+        /// Parsuje okres z tagu przycisku i zwraca zakres dat
+        /// </summary>
+        private (DateTime dataOd, DateTime dataDo) ParsePeriod(string tag)
+        {
+            var today = DateTime.Today;
+
+            switch (tag)
+            {
+                case "Today":
+                    return (today, today.AddDays(1));
+
+                case "Yesterday":
+                    return (today.AddDays(-1), today);
+
+                case "Week":
+                    DateTime startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
+                    if (today.DayOfWeek == DayOfWeek.Sunday)
+                        startOfWeek = startOfWeek.AddDays(-7);
+                    return (startOfWeek, today.AddDays(1));
+
+                case "LastWeek":
+                    DateTime thisWeekStart = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
+                    if (today.DayOfWeek == DayOfWeek.Sunday)
+                        thisWeekStart = thisWeekStart.AddDays(-7);
+                    DateTime lastWeekStart = thisWeekStart.AddDays(-7);
+                    return (lastWeekStart, thisWeekStart);
+
+                case "Month":
+                    DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
+                    return (startOfMonth, today.AddDays(1));
+
+                case "LastMonth":
+                    DateTime lastMonthStart = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+                    DateTime lastMonthEnd = new DateTime(today.Year, today.Month, 1);
+                    return (lastMonthStart, lastMonthEnd);
+
+                case "Year":
+                    return (new DateTime(2025, 1, 1), new DateTime(2026, 1, 1));
+
+                case "LastYear":
+                    return (new DateTime(2024, 1, 1), new DateTime(2025, 1, 1));
+
+                default:
+                    // Domyślnie ostatnie 30 dni
+                    return (today.AddDays(-30), today.AddDays(1));
+            }
         }
     }
 }

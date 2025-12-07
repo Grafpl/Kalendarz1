@@ -164,10 +164,41 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Filter Button Style -->
+        <Style x:Key="FilterButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2D333B"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColorBrush}"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3D444D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -202,8 +233,25 @@
             </Grid>
         </Border>
 
+        <!-- Panel wyboru okresu -->
+        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="15,10" Margin="10,8,10,0" CornerRadius="8" BorderBrush="{StaticResource BorderColorBrush}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Wybor okresu" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                <WrapPanel>
+                    <Button x:Name="btnDzis" Content="Dzis" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="Today"/>
+                    <Button x:Name="btnWczoraj" Content="Wczoraj" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="Yesterday"/>
+                    <Button x:Name="btnTydzien" Content="Ten tydzien" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="Week"/>
+                    <Button x:Name="btnPoprzedniTydzien" Content="Poprz. tydzien" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="LastWeek"/>
+                    <Button x:Name="btnMiesiac" Content="Ten miesiac" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="Month"/>
+                    <Button x:Name="btnPoprzedniMiesiac" Content="Poprz. miesiac" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="LastMonth"/>
+                    <Button x:Name="btnRok" Content="2025" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="Year"/>
+                    <Button x:Name="btnPoprzedniRok" Content="2024" Style="{StaticResource FilterButtonStyle}" Click="FilterButton_Click" Tag="LastYear"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
         <!-- Gorny panel: Sprzedaz dzienna + 30 Day Summary -->
-        <Grid Grid.Row="1" Margin="10,10,10,5">
+        <Grid Grid.Row="2" Margin="10,10,10,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2.5*"/>
                 <ColumnDefinition Width="*"/>
@@ -265,7 +313,7 @@
         </Grid>
 
         <!-- 30 Day Summary -->
-        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" Margin="10,5" Padding="15,10" CornerRadius="8" BorderBrush="{StaticResource BorderColorBrush}" BorderThickness="1">
+        <Border Grid.Row="3" Background="{StaticResource CardBackgroundBrush}" Margin="10,5" Padding="15,10" CornerRadius="8" BorderBrush="{StaticResource BorderColorBrush}" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -319,7 +367,7 @@
         </Border>
 
         <!-- Srodkowy panel: Trend miesieczny + Typ dostawy + Top Odbiorcy -->
-        <Grid Grid.Row="3" Margin="10,5">
+        <Grid Grid.Row="4" Margin="10,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
@@ -401,7 +449,7 @@
         </Grid>
 
         <!-- Dolny panel: CRM + Statystyki + Porownanie + Srednia dzienna -->
-        <Grid Grid.Row="4" Margin="10,5,10,10">
+        <Grid Grid.Row="5" Margin="10,5,10,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
