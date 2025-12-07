@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.HandlowiecDashboard.Models;
@@ -469,6 +470,472 @@ namespace Kalendarz1.HandlowiecDashboard.Services
             }
 
             return porownanie;
+        }
+
+        /// <summary>
+        /// Pobiera dane dzienne (sprzedaż dzień po dniu - ostatnie 14 dni)
+        /// </summary>
+        public async Task<List<DaneDzienne>> PobierzDaneDzienneAsync(string handlowiec = null, int liczbaDni = 14)
+        {
+            var dane = new List<DaneDzienne>();
+            var dzis = DateTime.Today;
+            var dataStart = dzis.AddDays(-liczbaDni + 1);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        CAST(z.DataOdbioru AS DATE) as Dzien,
+                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
+                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                    FROM ZamowieniaMieso z
+                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec
+                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND z.Handlowiec = @Handlowiec";
+
+                sql += @"
+                    GROUP BY CAST(z.DataOdbioru AS DATE)
+                    ORDER BY Dzien";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataStart", dataStart);
+                cmd.Parameters.AddWithValue("@DataKoniec", dzis);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                // Inicjalizuj wszystkie dni (nawet te bez danych)
+                var dniDict = new Dictionary<DateTime, DaneDzienne>();
+                for (var d = dataStart; d <= dzis; d = d.AddDays(1))
+                {
+                    dniDict[d] = new DaneDzienne
+                    {
+                        Data = d,
+                        LiczbaZamowien = 0,
+                        SumaKg = 0,
+                        SumaWartosc = 0,
+                        LiczbaOdbiorcow = 0
+                    };
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var dzien = reader.GetDateTime(0);
+                    if (dniDict.ContainsKey(dzien))
+                    {
+                        dniDict[dzien].LiczbaZamowien = reader.GetInt32(1);
+                        dniDict[dzien].SumaKg = reader.GetDecimal(2);
+                        dniDict[dzien].SumaWartosc = reader.GetDecimal(3);
+                        dniDict[dzien].LiczbaOdbiorcow = reader.GetInt32(4);
+                    }
+                }
+
+                dane = dniDict.Values.OrderBy(d => d.Data).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dziennych: {ex.Message}");
+            }
+
+            return dane;
+        }
+
+        /// <summary>
+        /// Pobiera sprzedaż według województw (top 10)
+        /// </summary>
+        public async Task<List<SprzedazRegionalna>> PobierzSprzedazRegionalnąAsync(string handlowiec = null, int miesiecy = 3)
+        {
+            var regiony = new List<SprzedazRegionalna>();
+            var dataStart = DateTime.Today.AddMonths(-miesiecy);
+            decimal sumaCalkowita = 0;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT TOP 10
+                        ISNULL(k.Wojewodztwo, 'Nieznane') as Wojewodztwo,
+                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
+                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
+                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                    FROM ZamowieniaMieso z
+                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN Kontrahenci k ON z.OdbiorcaId = k.id
+                    WHERE z.DataOdbioru >= @DataStart
+                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND z.Handlowiec = @Handlowiec";
+
+                sql += @"
+                    GROUP BY ISNULL(k.Wojewodztwo, 'Nieznane')
+                    ORDER BY SumaWartosc DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataStart", dataStart);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                int pozycja = 1;
+                while (await reader.ReadAsync())
+                {
+                    var region = new SprzedazRegionalna
+                    {
+                        Pozycja = pozycja++,
+                        Wojewodztwo = reader.GetString(0),
+                        LiczbaZamowien = reader.GetInt32(1),
+                        SumaKg = reader.GetDecimal(2),
+                        SumaWartosc = reader.GetDecimal(3),
+                        LiczbaOdbiorcow = reader.GetInt32(4)
+                    };
+                    sumaCalkowita += region.SumaWartosc;
+                    regiony.Add(region);
+                }
+
+                foreach (var r in regiony)
+                {
+                    r.UdzialProcent = sumaCalkowita > 0 ? (r.SumaWartosc / sumaCalkowita) * 100 : 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania sprzedaży regionalnej: {ex.Message}");
+            }
+
+            return regiony;
+        }
+
+        /// <summary>
+        /// Pobiera podsumowanie 30-dniowe (jak na dashboardzie Amazon)
+        /// </summary>
+        public async Task<Podsumowanie30Dni> PobierzPodsumowanie30DniAsync(string handlowiec = null)
+        {
+            var podsumowanie = new Podsumowanie30Dni();
+            var dzis = DateTime.Today;
+            var dataStart = dzis.AddDays(-30);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaSprzedazy,
+                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        COUNT(DISTINCT CASE WHEN z.Anulowane = 1 THEN z.ID END) as ZwrotyAnulowane,
+                        ISNULL(SUM(zp.Ilosc), 0) as SumaKg
+                    FROM ZamowieniaMieso z
+                    LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                    WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND z.Handlowiec = @Handlowiec";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataStart", dataStart);
+                cmd.Parameters.AddWithValue("@DataKoniec", dzis);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    podsumowanie.SumaSprzedazy = reader.IsDBNull(0) ? 0 : reader.GetDecimal(0);
+                    podsumowanie.LiczbaZamowien = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                    podsumowanie.ZwrotyAnulowane = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                    var sumaKg = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
+
+                    podsumowanie.SredniaWartoscZamowienia = podsumowanie.LiczbaZamowien > 0
+                        ? podsumowanie.SumaSprzedazy / podsumowanie.LiczbaZamowien
+                        : 0;
+
+                    podsumowanie.SredniaCenaKg = sumaKg > 0
+                        ? podsumowanie.SumaSprzedazy / sumaKg
+                        : 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania podsumowania 30 dni: {ex.Message}");
+            }
+
+            return podsumowanie;
+        }
+
+        /// <summary>
+        /// Pobiera statystyki typów dostawy (Firma/Własny)
+        /// </summary>
+        public async Task<List<StatystykiDostawy>> PobierzStatystykiDostawyAsync(string handlowiec = null, int miesiecy = 1)
+        {
+            var statystyki = new List<StatystykiDostawy>();
+            var dataStart = DateTime.Today.AddMonths(-miesiecy);
+            int suma = 0;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        ISNULL(z.TransportStatus, 'Firma') as TypDostawy,
+                        COUNT(*) as Liczba
+                    FROM ZamowieniaMieso z
+                    WHERE z.DataOdbioru >= @DataStart
+                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND z.Handlowiec = @Handlowiec";
+
+                sql += " GROUP BY ISNULL(z.TransportStatus, 'Firma')";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataStart", dataStart);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                var kolory = new Dictionary<string, string>
+                {
+                    { "Firma", "#3498DB" },
+                    { "Wlasny", "#E67E22" },
+                    { "Odbiór własny", "#27AE60" },
+                    { "Kurier", "#9B59B6" }
+                };
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var typ = reader.GetString(0);
+                    var liczba = reader.GetInt32(1);
+                    suma += liczba;
+
+                    statystyki.Add(new StatystykiDostawy
+                    {
+                        TypDostawy = typ == "Wlasny" ? "Odbiór własny" : typ == "Firma" ? "Dostawa firmowa" : typ,
+                        Liczba = liczba,
+                        Kolor = kolory.ContainsKey(typ) ? kolory[typ] : "#95A5A6"
+                    });
+                }
+
+                foreach (var s in statystyki)
+                {
+                    s.Procent = suma > 0 ? (decimal)s.Liczba / suma * 100 : 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania statystyk dostawy: {ex.Message}");
+            }
+
+            return statystyki;
+        }
+
+        /// <summary>
+        /// Pobiera średnią wartość zamówień dziennie z porównaniem tygodniowym
+        /// </summary>
+        public async Task<List<SredniaZamowieniaDziennie>> PobierzSredniaZamowieniaDziennieAsync(string handlowiec = null)
+        {
+            var dane = new List<SredniaZamowieniaDziennie>();
+            var dzis = DateTime.Today;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                // Pobierz dane dla ostatnich 7 dni i poprzednich 7 dni do porównania
+                for (int i = 6; i >= 0; i--)
+                {
+                    var dzien = dzis.AddDays(-i);
+                    var dzienPoprzedni = dzien.AddDays(-7);
+
+                    var sqlTenTydzien = @"
+                        SELECT
+                            ISNULL(AVG(wartosc_zam), 0) as SredniaTenTydzien
+                        FROM (
+                            SELECT
+                                z.ID,
+                                ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as wartosc_zam
+                            FROM ZamowieniaMieso z
+                            LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+                            WHERE CAST(z.DataOdbioru AS DATE) = @Dzien
+                                AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                    if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                        sqlTenTydzien += " AND z.Handlowiec = @Handlowiec";
+
+                    sqlTenTydzien += " GROUP BY z.ID) sub";
+
+                    decimal sredniaTen = 0;
+                    await using (var cmd = new SqlCommand(sqlTenTydzien, cn))
+                    {
+                        cmd.Parameters.AddWithValue("@Dzien", dzien);
+                        if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                            cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                        var result = await cmd.ExecuteScalarAsync();
+                        if (result != null && result != DBNull.Value)
+                            sredniaTen = Convert.ToDecimal(result);
+                    }
+
+                    // Poprzedni tydzień
+                    decimal sredniaPoprzedni = 0;
+                    var sqlPoprzedni = sqlTenTydzien.Replace("@Dzien", "@DzienPoprzedni");
+                    await using (var cmd = new SqlCommand(sqlPoprzedni, cn))
+                    {
+                        cmd.Parameters.AddWithValue("@DzienPoprzedni", dzienPoprzedni);
+                        if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                            cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                        var result = await cmd.ExecuteScalarAsync();
+                        if (result != null && result != DBNull.Value)
+                            sredniaPoprzedni = Convert.ToDecimal(result);
+                    }
+
+                    dane.Add(new SredniaZamowieniaDziennie
+                    {
+                        Data = dzien,
+                        SredniaTenTydzien = sredniaTen,
+                        SredniaPoprzedniTydzien = sredniaPoprzedni,
+                        CelTygodniowy = 200 // Przykładowy cel - można skonfigurować
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania średniej dziennej: {ex.Message}");
+            }
+
+            return dane;
+        }
+
+        /// <summary>
+        /// Pobiera statystyki CRM dla handlowca (wymaga powiązania z operatorem)
+        /// </summary>
+        public async Task<CRMStatystyki> PobierzCRMStatystykiAsync(string operatorId = null)
+        {
+            var crm = new CRMStatystyki();
+            var dzis = DateTime.Today;
+            var poczatekTygodnia = dzis.AddDays(-(int)dzis.DayOfWeek + 1);
+            var poczatekMiesiaca = new DateTime(dzis.Year, dzis.Month, 1);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        ISNULL(SUM(CASE
+                            WHEN o.DataNastepnegoKontaktu IS NOT NULL
+                                AND CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE)
+                            THEN 1 ELSE 0 END), 0) as KontaktyDzisiaj,
+                        ISNULL(SUM(CASE
+                            WHEN o.DataNastepnegoKontaktu IS NOT NULL
+                                AND CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE)
+                            THEN 1 ELSE 0 END), 0) as KontaktyZalegle,
+                        ISNULL(SUM(CASE WHEN o.Status = 'Próba kontaktu' THEN 1 ELSE 0 END), 0) as ProbyKontaktu,
+                        ISNULL(SUM(CASE WHEN o.Status = 'Nawiązano kontakt' THEN 1 ELSE 0 END), 0) as NawiazaneKontakty,
+                        ISNULL(SUM(CASE WHEN o.Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as ZgodyNaKontakt,
+                        ISNULL(SUM(CASE WHEN o.Status = 'Do wysłania oferta' THEN 1 ELSE 0 END), 0) as DoWyslaniOferty,
+                        COUNT(*) as RazemAktywnych
+                    FROM OdbiorcyCRM o
+                    LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                    WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)', 'Nie zainteresowany')";
+
+                if (!string.IsNullOrEmpty(operatorId))
+                    sql += " AND (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                if (!string.IsNullOrEmpty(operatorId))
+                    cmd.Parameters.AddWithValue("@OperatorID", operatorId);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    crm.KontaktyDzisiaj = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                    crm.KontaktyZalegle = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                    crm.ProbyKontaktu = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                    crm.NawiazaneKontakty = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                    crm.ZgodyNaKontakt = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
+                    crm.DoWyslaniOferty = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+                    crm.RazemAktywnych = reader.IsDBNull(6) ? 0 : reader.GetInt32(6);
+                }
+
+                // Pobierz priorytetowe branże
+                await using (var cmdPrior = new SqlCommand(@"
+                    SELECT COUNT(*) FROM OdbiorcyCRM o
+                    INNER JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
+                    LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                    WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)', 'Nie zainteresowany')" +
+                    (!string.IsNullOrEmpty(operatorId) ? " AND (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)" : ""), cn))
+                {
+                    if (!string.IsNullOrEmpty(operatorId))
+                        cmdPrior.Parameters.AddWithValue("@OperatorID", operatorId);
+
+                    var result = await cmdPrior.ExecuteScalarAsync();
+                    crm.PriorytetoweBranze = result != null ? Convert.ToInt32(result) : 0;
+                }
+
+                // Notatki i zmiany statusu
+                await using (var cmdNotatki = new SqlCommand(@"
+                    SELECT
+                        ISNULL(SUM(CASE WHEN CAST(DataUtworzenia AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END), 0),
+                        ISNULL(SUM(CASE WHEN DataUtworzenia >= @PoczatekTygodnia THEN 1 ELSE 0 END), 0)
+                    FROM NotatkiCRM" +
+                    (!string.IsNullOrEmpty(operatorId) ? " WHERE KtoDodal = @OperatorID" : ""), cn))
+                {
+                    cmdNotatki.Parameters.AddWithValue("@PoczatekTygodnia", poczatekTygodnia);
+                    if (!string.IsNullOrEmpty(operatorId))
+                        cmdNotatki.Parameters.AddWithValue("@OperatorID", operatorId);
+
+                    await using var readerN = await cmdNotatki.ExecuteReaderAsync();
+                    if (await readerN.ReadAsync())
+                    {
+                        crm.NotatekDzisiaj = readerN.IsDBNull(0) ? 0 : readerN.GetInt32(0);
+                        crm.NotatekTenTydzien = readerN.IsDBNull(1) ? 0 : readerN.GetInt32(1);
+                    }
+                }
+
+                await using (var cmdZmiany = new SqlCommand(@"
+                    SELECT
+                        ISNULL(SUM(CASE WHEN CAST(DataZmiany AS DATE) = CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END), 0),
+                        ISNULL(SUM(CASE WHEN DataZmiany >= @PoczatekMiesiaca THEN 1 ELSE 0 END), 0)
+                    FROM HistoriaZmianCRM
+                    WHERE TypZmiany = 'Zmiana statusu'" +
+                    (!string.IsNullOrEmpty(operatorId) ? " AND KtoWykonal = @OperatorID" : ""), cn))
+                {
+                    cmdZmiany.Parameters.AddWithValue("@PoczatekMiesiaca", poczatekMiesiaca);
+                    if (!string.IsNullOrEmpty(operatorId))
+                        cmdZmiany.Parameters.AddWithValue("@OperatorID", operatorId);
+
+                    await using var readerZ = await cmdZmiany.ExecuteReaderAsync();
+                    if (await readerZ.ReadAsync())
+                    {
+                        crm.ZmianStatusuDzisiaj = readerZ.IsDBNull(0) ? 0 : readerZ.GetInt32(0);
+                        crm.ZmianStatusuTenMiesiac = readerZ.IsDBNull(1) ? 0 : readerZ.GetInt32(1);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania CRM: {ex.Message}");
+            }
+
+            return crm;
         }
     }
 }

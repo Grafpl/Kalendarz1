@@ -233,4 +233,128 @@ namespace Kalendarz1.HandlowiecDashboard.Models
         public List<double> Wartosci { get; set; } = new List<double>();
         public string Kolor { get; set; }
     }
+
+    /// <summary>
+    /// Dane dzienne dla wykresów (sprzedaż dzień po dniu)
+    /// </summary>
+    public class DaneDzienne
+    {
+        public DateTime Data { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public int LiczbaOdbiorcow { get; set; }
+
+        public string DataTekst => Data.ToString("dd.MM");
+        public string DzienTygodnia => Data.ToString("ddd", new System.Globalization.CultureInfo("pl-PL"));
+        public string WartoscTekst => $"{SumaWartosc:N0}";
+    }
+
+    /// <summary>
+    /// Sprzedaż według regionu (województwa)
+    /// </summary>
+    public class SprzedazRegionalna
+    {
+        public int Pozycja { get; set; }
+        public string Wojewodztwo { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public int LiczbaOdbiorcow { get; set; }
+        public decimal UdzialProcent { get; set; }
+
+        public string WartoscTekst => $"{SumaWartosc:N0} zł";
+        public string KgTekst => $"{SumaKg:N0} kg";
+        public string UdzialTekst => $"{UdzialProcent:N1}%";
+    }
+
+    /// <summary>
+    /// Statystyki CRM dla handlowca
+    /// </summary>
+    public class CRMStatystyki
+    {
+        // Dzisiejsze zadania
+        public int KontaktyDzisiaj { get; set; }
+        public int KontaktyZalegle { get; set; }
+        public int ProbyKontaktu { get; set; }
+        public int NawiazaneKontakty { get; set; }
+        public int ZgodyNaKontakt { get; set; }
+        public int DoWyslaniOferty { get; set; }
+        public int PriorytetoweBranze { get; set; }
+        public int RazemAktywnych { get; set; }
+
+        // Notatki i aktywność
+        public int NotatekDzisiaj { get; set; }
+        public int NotatekTenTydzien { get; set; }
+        public int ZmianStatusuDzisiaj { get; set; }
+        public int ZmianStatusuTenMiesiac { get; set; }
+
+        // Teksty formatowane
+        public string KontaktyDzisiajTekst => KontaktyDzisiaj.ToString("N0");
+        public string KontaktyZalegleTekst => KontaktyZalegle.ToString("N0");
+        public string AktywnoscTekst => $"{NotatekTenTydzien} notatek / {ZmianStatusuTenMiesiac} zmian";
+    }
+
+    /// <summary>
+    /// Podsumowanie 30-dniowe (jak na screenshocie Amazon)
+    /// </summary>
+    public class Podsumowanie30Dni
+    {
+        public decimal SumaSprzedazy { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public int ZwrotyAnulowane { get; set; }
+        public decimal SredniaWartoscZamowienia { get; set; }
+        public decimal SredniaCenaKg { get; set; }
+
+        public string SumaSprzedazyTekst => $"{SumaSprzedazy:N0} zł";
+        public string ZamowieniaTekst => LiczbaZamowien.ToString("N0");
+        public string ZwrotyTekst => ZwrotyAnulowane.ToString("N0");
+        public string SredniaTekst => $"{SredniaWartoscZamowienia:N0} zł";
+        public string SredniaCenaTekst => $"{SredniaCenaKg:N2} zł/kg";
+    }
+
+    /// <summary>
+    /// Średnia wartość zamówienia dziennie z porównaniem tygodniowym
+    /// </summary>
+    public class SredniaZamowieniaDziennie
+    {
+        public DateTime Data { get; set; }
+        public decimal SredniaTenTydzien { get; set; }
+        public decimal SredniaPoprzedniTydzien { get; set; }
+        public decimal CelTygodniowy { get; set; }
+
+        public string DataTekst => Data.ToString("dd.MM");
+        public string DzienTekst => Data.ToString("ddd", new System.Globalization.CultureInfo("pl-PL"));
+    }
+
+    /// <summary>
+    /// Statystyki transportu / dostawy
+    /// </summary>
+    public class StatystykiDostawy
+    {
+        public string TypDostawy { get; set; }
+        public int Liczba { get; set; }
+        public decimal Procent { get; set; }
+        public string Kolor { get; set; }
+
+        public string ProcentTekst => $"{Procent:N1}%";
+    }
+
+    /// <summary>
+    /// Ranking handlowców (dla managera)
+    /// </summary>
+    public class RankingHandlowca
+    {
+        public int Pozycja { get; set; }
+        public string Handlowiec { get; set; }
+        public int LiczbaZamowien { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public int LiczbaOdbiorcow { get; set; }
+        public decimal ZmianaProcent { get; set; }
+
+        public string WartoscTekst => $"{SumaWartosc:N0} zł";
+        public string ZmianaTekst => $"{(ZmianaProcent >= 0 ? "+" : "")}{ZmianaProcent:N1}%";
+        public bool ZmianaPozytywna => ZmianaProcent >= 0;
+    }
 }
