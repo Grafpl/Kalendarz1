@@ -14,8 +14,8 @@
         <SolidColorBrush x:Key="ColorPrimaryLight" Color="#DCFCE7"/>
         <SolidColorBrush x:Key="ColorSuccess" Color="#16A34A"/>
         <SolidColorBrush x:Key="ColorSuccessLight" Color="#DCFCE7"/>
-        <SolidColorBrush x:Key="ColorWarning" Color="#EA580C"/>
-        <SolidColorBrush x:Key="ColorWarningLight" Color="#FED7AA"/>
+        <SolidColorBrush x:Key="ColorWarning" Color="#0891B2"/>
+        <SolidColorBrush x:Key="ColorWarningLight" Color="#CFFAFE"/>
         <SolidColorBrush x:Key="ColorDanger" Color="#DC2626"/>
         <SolidColorBrush x:Key="ColorDangerLight" Color="#FEE2E2"/>
         <SolidColorBrush x:Key="ColorInfo" Color="#0891B2"/>
@@ -107,12 +107,12 @@
                                 CornerRadius="10" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#EA580C" Opacity="0.25" BlurRadius="8"/>
+                                <DropShadowEffect ShadowDepth="2" Color="#0891B2" Opacity="0.25" BlurRadius="8"/>
                             </Border.Effect>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C2410C"/>
+                                <Setter TargetName="border" Property="Background" Value="#0E7490"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -681,37 +681,6 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- Data kontaktu -->
-                                <DataGridTemplateColumn Header="KONTAKT" Width="80">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border x:Name="dataBorder" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                                <TextBlock x:Name="dataText" Text="{Binding DataNastepnegoKontaktu, StringFormat=dd.MM}" FontSize="10" FontWeight="Bold"/>
-                                            </Border>
-                                            <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="1">
-                                                    <Setter TargetName="dataBorder" Property="Background" Value="#FEE2E2"/>
-                                                    <Setter TargetName="dataText" Property="Foreground" Value="#DC2626"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="2">
-                                                    <Setter TargetName="dataBorder" Property="Background" Value="#DCFCE7"/>
-                                                    <Setter TargetName="dataText" Property="Foreground" Value="#16A34A"/>
-                                                    <Setter TargetName="dataText" Property="Text" Value="DZIŚ"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="3">
-                                                    <Setter TargetName="dataBorder" Property="Background" Value="#F1F5F9"/>
-                                                    <Setter TargetName="dataText" Property="Foreground" Value="#64748B"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding PriorytetKontaktu}" Value="0">
-                                                    <Setter TargetName="dataBorder" Property="Background" Value="Transparent"/>
-                                                    <Setter TargetName="dataText" Property="Text" Value="-"/>
-                                                    <Setter TargetName="dataText" Property="Foreground" Value="#CBD5E1"/>
-                                                </DataTrigger>
-                                            </DataTemplate.Triggers>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
                                 <!-- Firma -->
                                 <DataGridTextColumn Header="FIRMA" Binding="{Binding NAZWA}" Width="*" MinWidth="150">
                                     <DataGridTextColumn.ElementStyle>
@@ -788,13 +757,38 @@
                                 </DataGridTemplateColumn>
 
                                 <!-- Próby -->
-                                <DataGridTextColumn Header="PRÓBY" Binding="{Binding LiczbaProbKontaktu}" Width="50">
+                                <DataGridTextColumn Header="PRÓBY" Binding="{Binding LiczbaProbKontaktu}" Width="45">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Foreground" Value="#9CA3AF"/>
                                             <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Ostatnia notatka -->
+                                <DataGridTextColumn Header="NOTATKA" Binding="{Binding OstatniaNotatka}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#6B7280"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Ostatnia zmiana statusu -->
+                                <DataGridTextColumn Header="OST. ZMIANA" Binding="{Binding OstatniaZmianaStatusu}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#0891B2"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -886,6 +880,96 @@
                             </ScrollViewer>
                         </TabItem>
 
+                        <!-- Zakładka Ranking - druga pozycja -->
+                        <TabItem Header="🏆 Ranking" Style="{StaticResource ModernTabItem}">
+                            <Grid Margin="0,10,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="TOP HANDLOWCY" FontSize="10" Foreground="{StaticResource ColorTextMuted}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                                <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <DataGrid x:Name="dgRanking"
+                                              Style="{StaticResource ModernDataGrid}"
+                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                              CellStyle="{StaticResource DataGridCellStyle}"
+                                              RowHeight="40" FontSize="11">
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow">
+                                                <Setter Property="Background" Value="White"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="AlternationIndex" Value="0">
+                                                        <Setter Property="Background" Value="#F0FDF4"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="#" Width="30">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#DCFCE7" CornerRadius="4" Width="22" Height="22" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding Pozycja}" FontSize="10" FontWeight="Bold" Foreground="#166534" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Operator}" Width="*">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="Foreground" Value="#111827"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Próby" Binding="{Binding Proby}" Width="45">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="Foreground" Value="#6B7280"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Kont." Binding="{Binding Kontakt}" Width="45">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="Foreground" Value="#0891B2"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Zgoda" Binding="{Binding Zgoda}" Width="45">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="Foreground" Value="#16A34A"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Suma" Binding="{Binding Suma}" Width="50">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="Foreground" Value="#16A34A"/>
+                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        <Setter Property="FontSize" Value="12"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
                         <!-- Zakładka Notatki -->
                         <TabItem Header="📝 Notatki" Style="{StaticResource ModernTabItem}">
                             <Grid Margin="0,10,0,0">
@@ -958,40 +1042,6 @@
                                     </ItemsControl>
                                 </ScrollViewer>
                             </Border>
-                        </TabItem>
-
-                        <!-- Zakładka Ranking -->
-                        <TabItem Header="🏆 Ranking" Style="{StaticResource ModernTabItem}">
-                            <Grid Margin="0,10,0,0">
-                                <DataGrid x:Name="dgRanking"
-                                          Style="{StaticResource ModernDataGrid}"
-                                          ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                          CellStyle="{StaticResource DataGridCellStyle}"
-                                          RowHeight="36" FontSize="11">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Handlowiec" Binding="{Binding Operator}" Width="*">
-                                            <DataGridTextColumn.ElementStyle>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                                </Style>
-                                            </DataGridTextColumn.ElementStyle>
-                                        </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Próby" Binding="{Binding Proby}" Width="45"/>
-                                        <DataGridTextColumn Header="Kont." Binding="{Binding Kontakt}" Width="45"/>
-                                        <DataGridTextColumn Header="Zgoda" Binding="{Binding Zgoda}" Width="45"/>
-                                        <DataGridTextColumn Header="Suma" Binding="{Binding Suma}" Width="45">
-                                            <DataGridTextColumn.ElementStyle>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                    <Setter Property="Foreground" Value="#16A34A"/>
-                                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                                </Style>
-                                            </DataGridTextColumn.ElementStyle>
-                                        </DataGridTextColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
                         </TabItem>
                     </TabControl>
                 </Grid>

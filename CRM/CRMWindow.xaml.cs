@@ -196,6 +196,12 @@ namespace Kalendarz1.CRM
                             o.DataNastepnegoKontaktu,
                             ISNULL(o.LiczbaProbKontaktu, 0) as LiczbaProbKontaktu,
                             (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
+                            -- Ostatnia notatka
+                            (SELECT TOP 1 LEFT(Tresc, 50) FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataUtworzenia DESC) as OstatniaNotatka,
+                            -- Ostatnia zmiana statusu
+                            (SELECT TOP 1 CONCAT(WartoscNowa, ' (', FORMAT(DataZmiany, 'dd.MM'), ')')
+                             FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID AND TypZmiany = 'Zmiana statusu'
+                             ORDER BY DataZmiany DESC) as OstatniaZmianaStatusu,
                             CASE
                                 WHEN o.DataNastepnegoKontaktu IS NULL THEN 0
                                 WHEN CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE) THEN 1
@@ -315,7 +321,8 @@ namespace Kalendarz1.CRM
                     conn.Open();
 
                     var cmd = new SqlCommand(@"
-                        SELECT TOP 10
+                        SELECT
+                            ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
                             ISNULL(
                                 CASE
                                     WHEN CHARINDEX(' ', o.Name) > 0
