@@ -2974,7 +2974,7 @@ namespace Kalendarz1
 
             using (var dlg = new WydanieZewnetrzneDialog(nazwa, connectionString))
             {
-                if (dlg.ShowDialog() == DialogResult.OK)
+                if (dlg.ShowDialog() == DialogResult.OK && dlg.Pozycje.Count > 0)
                 {
                     var mroznie = WczytajMroznieZewnetrzne();
                     var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
@@ -2983,21 +2983,27 @@ namespace Kalendarz1
                         if (mroznia.Wydania == null)
                             mroznia.Wydania = new List<WydanieZewnetrzne>();
 
-                        mroznia.Wydania.Add(new WydanieZewnetrzne
+                        // Dodaj wszystkie pozycje z dokumentu
+                        decimal sumaIlosc = 0;
+                        foreach (var poz in dlg.Pozycje)
                         {
-                            Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
-                            Data = dlg.Data,
-                            Typ = dlg.Typ,
-                            KodProduktu = dlg.KodProduktu,
-                            Produkt = dlg.Produkt,
-                            Ilosc = dlg.Ilosc,
-                            Uwagi = dlg.Uwagi
-                        });
+                            mroznia.Wydania.Add(new WydanieZewnetrzne
+                            {
+                                Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                                Data = dlg.Data,
+                                Typ = dlg.Typ,
+                                KodProduktu = poz.KodProduktu,
+                                Produkt = poz.Nazwa,
+                                Ilosc = poz.Ilosc,
+                                Uwagi = dlg.Uwagi
+                            });
+                            sumaIlosc += poz.Ilosc;
+                        }
 
                         ZapiszMroznieZewnetrzne(mroznie);
                         LoadMroznieZewnetrzneDoTabeli();
                         DgvMroznieZewnetrzne_SelectionChanged(null, null);
-                        statusLabel.Text = $"{dlg.Typ}: {dlg.Ilosc:N0} kg {dlg.Produkt} ({nazwa})";
+                        statusLabel.Text = $"{dlg.Typ}: {dlg.Pozycje.Count} pozycji, razem {sumaIlosc:N0} kg ({nazwa})";
                     }
                 }
             }
@@ -3530,18 +3536,22 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// Dialog wydania/przyjęcia - Z KARTAMI, WALIDACJĄ, ANIMACJAMI I PANELEM PODSUMOWANIA
+    /// Dialog wydania/przyjęcia - WIELOPRODUKTOWY Z KOSZYKIEM
     /// </summary>
     public class WydanieZewnetrzneDialog : Form
     {
+        // Wyniki - lista pozycji do zapisania
+        public List<PozycjaDokumentu> Pozycje { get; private set; } = new List<PozycjaDokumentu>();
         public DateTime Data { get; private set; }
         public string Typ { get; private set; } = "";
-        public string KodProduktu { get; private set; } = "";
-        public string Produkt { get; private set; } = "";
-        public decimal Ilosc { get; private set; }
         public string Uwagi { get; private set; } = "";
 
-        // Kontrolki główne
+        // Dla kompatybilności wstecznej (pierwszy produkt)
+        public string KodProduktu => Pozycje.Count > 0 ? Pozycje[0].KodProduktu : "";
+        public string Produkt => Pozycje.Count > 0 ? Pozycje[0].Nazwa : "";
+        public decimal Ilosc => Pozycje.Count > 0 ? Pozycje[0].Ilosc : 0;
+
+        // Kontrolki
         private Panel headerPanel;
         private Label lblHeader;
         private RadioButton rbPrzyjecie, rbWydanie;
@@ -3551,16 +3561,9 @@ namespace Kalendarz1
         private Label lblProduktyInfo;
         private NumericUpDown nudIlosc;
         private TextBox txtUwagi;
-        private Button btnZapisz;
-
-        // Panel podsumowania
-        private Panel summaryPanel;
-        private Label lblSummaryTyp, lblSummaryProdukt, lblSummaryIlosc, lblSummaryData;
-        private Panel summaryProductPanel;
-
-        // Walidacja
-        private Label lblValidTyp, lblValidProdukt, lblValidIlosc;
-        private Panel borderSearch;
+        private Button btnZapisz, btnDodajDoKoszyka;
+        private DataGridView dgvKoszyk;
+        private Label lblKoszykSuma, lblKoszykPozycje;
 
         // Animacje
         private System.Windows.Forms.Timer animTimer;
@@ -3574,21 +3577,19 @@ namespace Kalendarz1
 
         private readonly Color colorPrzyjecie = Color.FromArgb(40, 167, 69);
         private readonly Color colorWydanie = Color.FromArgb(220, 53, 69);
-        private readonly Color colorValid = Color.FromArgb(40, 167, 69);
-        private readonly Color colorInvalid = Color.FromArgb(220, 53, 69);
         private readonly Color[] cardColors = new[] {
-            Color.FromArgb(52, 152, 219),   // niebieski
-            Color.FromArgb(155, 89, 182),   // fioletowy
-            Color.FromArgb(230, 126, 34),   // pomarańczowy
-            Color.FromArgb(26, 188, 156),   // turkusowy
-            Color.FromArgb(241, 196, 15),   // żółty
-            Color.FromArgb(231, 76, 60)     // czerwony
+            Color.FromArgb(52, 152, 219),
+            Color.FromArgb(155, 89, 182),
+            Color.FromArgb(230, 126, 34),
+            Color.FromArgb(26, 188, 156),
+            Color.FromArgb(241, 196, 15),
+            Color.FromArgb(231, 76, 60)
         };
 
         public WydanieZewnetrzneDialog(string nazwaMrozni, string connectionString)
         {
-            this.Text = $"Operacja - {nazwaMrozni}";
-            this.Size = new Size(750, 620);
+            this.Text = $"Dokument - {nazwaMrozni}";
+            this.Size = new Size(1150, 750);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -3600,11 +3601,10 @@ namespace Kalendarz1
             currentHeaderColor = colorPrzyjecie;
             targetHeaderColor = colorPrzyjecie;
 
-            // Timer animacji
             animTimer = new System.Windows.Forms.Timer { Interval = 30 };
             animTimer.Tick += AnimTimer_Tick;
 
-            // === HEADER DYNAMICZNY ===
+            // === HEADER ===
             headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -3613,7 +3613,7 @@ namespace Kalendarz1
             };
             lblHeader = new Label
             {
-                Text = "📥  PRZYJĘCIE DO MROŹNI",
+                Text = "📥  PRZYJĘCIE DO MROŹNI - NOWY DOKUMENT",
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
@@ -3623,35 +3623,40 @@ namespace Kalendarz1
             headerPanel.Controls.Add(lblHeader);
             this.Controls.Add(headerPanel);
 
-            // === PANEL GŁÓWNY (LEWY) ===
-            Panel mainPanel = new Panel
+            // === PANEL LEWY - WYBÓR PRODUKTÓW ===
+            Panel leftPanel = new Panel
             {
                 Location = new Point(15, 75),
-                Size = new Size(500, 490),
+                Size = new Size(520, 580),
                 BackColor = Color.White
             };
-            mainPanel.Paint += (s, e) => {
+            leftPanel.Paint += (s, e) => {
                 using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
-                    e.Graphics.DrawRectangle(pen, 0, 0, mainPanel.Width - 1, mainPanel.Height - 1);
+                    e.Graphics.DrawRectangle(pen, 0, 0, leftPanel.Width - 1, leftPanel.Height - 1);
             };
-            this.Controls.Add(mainPanel);
-
-            // === PANEL PODSUMOWANIA (PRAWY) ===
-            CreateSummaryPanel();
+            this.Controls.Add(leftPanel);
 
             int y = 15;
 
-            // === TYP OPERACJI ===
-            Panel typPanel = new Panel { Location = new Point(15, y), Size = new Size(470, 55), BackColor = Color.Transparent };
-            Label lblTyp = new Label { Text = "Typ operacji:", Location = new Point(0, 0), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            lblValidTyp = new Label { Text = "✓", Location = new Point(85, 0), AutoSize = true, ForeColor = colorValid, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            // Nagłówek sekcji
+            Label lblTytulProdukty = new Label
+            {
+                Text = "📦 WYBIERZ PRODUKTY",
+                Location = new Point(15, y),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 60, 60)
+            };
+            leftPanel.Controls.Add(lblTytulProdukty);
+            y += 35;
 
+            // Typ operacji i data w jednym wierszu
             rbPrzyjecie = new RadioButton
             {
                 Text = "📥 Przyjęcie",
-                Location = new Point(0, 22),
-                Size = new Size(140, 28),
-                Font = new Font("Segoe UI", 11F),
+                Location = new Point(15, y),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
                 Checked = true
             };
             rbPrzyjecie.CheckedChanged += TypOperacji_Changed;
@@ -3659,66 +3664,52 @@ namespace Kalendarz1
             rbWydanie = new RadioButton
             {
                 Text = "📤 Wydanie",
-                Location = new Point(150, 22),
-                Size = new Size(130, 28),
-                Font = new Font("Segoe UI", 11F)
+                Location = new Point(130, y),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F)
             };
             rbWydanie.CheckedChanged += TypOperacji_Changed;
 
-            typPanel.Controls.AddRange(new Control[] { lblTyp, lblValidTyp, rbPrzyjecie, rbWydanie });
-            mainPanel.Controls.Add(typPanel);
-            y += 55;
-
-            // === DATA ===
-            Label lblData = new Label { Text = "Data:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            Label lblData = new Label { Text = "Data:", Location = new Point(260, y + 2), AutoSize = true };
             dtpData = new DateTimePicker
             {
-                Location = new Point(15, y + 22),
-                Size = new Size(150, 28),
+                Location = new Point(300, y - 2),
+                Size = new Size(120, 28),
                 Format = DateTimePickerFormat.Short,
-                Font = new Font("Segoe UI", 11F)
+                Font = new Font("Segoe UI", 10F)
             };
-            dtpData.ValueChanged += (s, e) => UpdateSummary();
-            mainPanel.Controls.AddRange(new Control[] { lblData, dtpData });
-            y += 58;
+            leftPanel.Controls.AddRange(new Control[] { rbPrzyjecie, rbWydanie, lblData, dtpData });
+            y += 35;
 
-            // === WYSZUKIWANIE PRODUKTU ===
-            Label lblProdukt = new Label { Text = "Produkt:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            lblValidProdukt = new Label { Text = "○", Location = new Point(70, y), AutoSize = true, ForeColor = colorInvalid, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            mainPanel.Controls.AddRange(new Control[] { lblProdukt, lblValidProdukt });
+            // Wyszukiwanie
+            Label lblSzukaj = new Label { Text = "Szukaj produktu:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            leftPanel.Controls.Add(lblSzukaj);
             y += 22;
 
-            // Border dla walidacji pola wyszukiwania
-            borderSearch = new Panel
-            {
-                Location = new Point(14, y - 1),
-                Size = new Size(457, 32),
-                BackColor = Color.FromArgb(200, 200, 200)
-            };
             txtSearch = new TextBox
             {
-                Location = new Point(1, 1),
-                Size = new Size(455, 28),
-                Font = new Font("Segoe UI", 11F),
-                BorderStyle = BorderStyle.None
+                Location = new Point(15, y),
+                Size = new Size(490, 28),
+                Font = new Font("Segoe UI", 11F)
             };
             txtSearch.TextChanged += TxtSearch_TextChanged;
-            borderSearch.Controls.Add(txtSearch);
-            mainPanel.Controls.Add(borderSearch);
-            y += 38;
+            txtSearch.GotFocus += (s, e) => txtSearch.BackColor = Color.FromArgb(255, 255, 230);
+            txtSearch.LostFocus += (s, e) => txtSearch.BackColor = Color.White;
+            leftPanel.Controls.Add(txtSearch);
+            y += 35;
 
-            // === KARTY PRODUKTÓW ===
+            // Karty produktów
             flowProdukty = new FlowLayoutPanel
             {
                 Location = new Point(15, y),
-                Size = new Size(470, 180),
+                Size = new Size(490, 250),
                 AutoScroll = true,
                 BackColor = Color.FromArgb(250, 250, 250),
                 BorderStyle = BorderStyle.FixedSingle,
                 Padding = new Padding(5)
             };
-            mainPanel.Controls.Add(flowProdukty);
-            y += 185;
+            leftPanel.Controls.Add(flowProdukty);
+            y += 255;
 
             lblProduktyInfo = new Label
             {
@@ -3727,76 +3718,212 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 8F, FontStyle.Italic),
                 ForeColor = Color.Gray
             };
-            mainPanel.Controls.Add(lblProduktyInfo);
-            y += 22;
+            leftPanel.Controls.Add(lblProduktyInfo);
+            y += 25;
 
-            // === ILOŚĆ ===
-            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            lblValidIlosc = new Label { Text = "✓", Location = new Point(85, y), AutoSize = true, ForeColor = colorValid, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            mainPanel.Controls.AddRange(new Control[] { lblIlosc, lblValidIlosc });
-            y += 22;
-
-            nudIlosc = new NumericUpDown
+            // Sekcja dodawania do koszyka
+            Panel addPanel = new Panel
             {
                 Location = new Point(15, y),
-                Size = new Size(100, 32),
+                Size = new Size(490, 100),
+                BackColor = Color.FromArgb(240, 248, 255)
+            };
+            addPanel.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(52, 152, 219), 2))
+                    e.Graphics.DrawRectangle(pen, 0, 0, addPanel.Width - 1, addPanel.Height - 1);
+            };
+
+            Label lblWybrany = new Label
+            {
+                Text = "Wybrany produkt: (kliknij na kartę powyżej)",
+                Location = new Point(10, 10),
+                Size = new Size(470, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.Gray,
+                Tag = "wybrany"
+            };
+            addPanel.Controls.Add(lblWybrany);
+
+            Label lblIloscAdd = new Label { Text = "Ilość (kg):", Location = new Point(10, 45), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            nudIlosc = new NumericUpDown
+            {
+                Location = new Point(85, 42),
+                Size = new Size(100, 28),
                 Minimum = 1,
                 Maximum = 999999,
                 Value = 100,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 TextAlign = HorizontalAlignment.Center
             };
-            nudIlosc.ValueChanged += (s, e) => UpdateSummary();
-            mainPanel.Controls.Add(nudIlosc);
 
-            // Przyciski szybkiego dodawania
-            int btnX = 125;
-            foreach (var val in new[] { -50, -10, +10, +50, +100 })
+            // Szybkie przyciski
+            int qx = 195;
+            foreach (var val in new[] { +10, +50, +100, +500 })
             {
-                Button btn = new Button
+                Button qbtn = new Button
                 {
-                    Text = val > 0 ? $"+{val}" : val.ToString(),
-                    Location = new Point(btnX, y),
-                    Size = new Size(55, 32),
+                    Text = $"+{val}",
+                    Location = new Point(qx, 42),
+                    Size = new Size(50, 28),
                     FlatStyle = FlatStyle.Flat,
-                    BackColor = val > 0 ? Color.FromArgb(200, 230, 200) : Color.FromArgb(255, 220, 220),
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    BackColor = Color.FromArgb(200, 230, 200),
+                    Font = new Font("Segoe UI", 8F, FontStyle.Bold),
                     Cursor = Cursors.Hand
                 };
-                btn.FlatAppearance.BorderColor = val > 0 ? Color.FromArgb(100, 180, 100) : Color.FromArgb(200, 100, 100);
+                qbtn.FlatAppearance.BorderColor = Color.FromArgb(100, 180, 100);
                 int addVal = val;
-                btn.Click += (s, e) => {
+                qbtn.Click += (s, e) => {
                     decimal newVal = nudIlosc.Value + addVal;
-                    if (newVal >= nudIlosc.Minimum && newVal <= nudIlosc.Maximum)
-                        nudIlosc.Value = newVal;
+                    if (newVal <= nudIlosc.Maximum) nudIlosc.Value = newVal;
                 };
-                mainPanel.Controls.Add(btn);
-                btnX += 60;
+                addPanel.Controls.Add(qbtn);
+                qx += 55;
             }
-            y += 45;
 
-            // === UWAGI ===
-            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            btnDodajDoKoszyka = new Button
+            {
+                Text = "➕ DODAJ DO DOKUMENTU",
+                Location = new Point(10, 75),
+                Size = new Size(470, 35),
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Enabled = false
+            };
+            btnDodajDoKoszyka.FlatAppearance.BorderSize = 0;
+            btnDodajDoKoszyka.Click += BtnDodajDoKoszyka_Click;
+
+            addPanel.Controls.AddRange(new Control[] { lblIloscAdd, nudIlosc, btnDodajDoKoszyka });
+            leftPanel.Controls.Add(addPanel);
+            y += 105;
+
+            // Uwagi
+            Label lblUwagi = new Label { Text = "Uwagi do dokumentu:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             txtUwagi = new TextBox
             {
                 Location = new Point(15, y + 22),
-                Size = new Size(455, 28),
+                Size = new Size(490, 28),
                 Font = new Font("Segoe UI", 10F)
             };
-            mainPanel.Controls.AddRange(new Control[] { lblUwagi, txtUwagi });
+            leftPanel.Controls.AddRange(new Control[] { lblUwagi, txtUwagi });
+
+            // === PANEL PRAWY - KOSZYK ===
+            Panel rightPanel = new Panel
+            {
+                Location = new Point(550, 75),
+                Size = new Size(580, 580),
+                BackColor = Color.White
+            };
+            rightPanel.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                    e.Graphics.DrawRectangle(pen, 0, 0, rightPanel.Width - 1, rightPanel.Height - 1);
+            };
+            this.Controls.Add(rightPanel);
+
+            // Nagłówek koszyka
+            Label lblTytulKoszyk = new Label
+            {
+                Text = "🛒 POZYCJE DOKUMENTU",
+                Location = new Point(15, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 60, 60)
+            };
+            rightPanel.Controls.Add(lblTytulKoszyk);
+
+            // Grid koszyka
+            dgvKoszyk = new DataGridView
+            {
+                Location = new Point(15, 50),
+                Size = new Size(550, 420),
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
+                EnableHeadersVisualStyles = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                Font = new Font("Segoe UI", 10F)
+            };
+            dgvKoszyk.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 152, 219);
+            dgvKoszyk.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvKoszyk.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dgvKoszyk.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 250, 255);
+
+            dgvKoszyk.Columns.Add("Lp", "Lp");
+            dgvKoszyk.Columns.Add("Kod", "Kod");
+            dgvKoszyk.Columns.Add("Nazwa", "Nazwa produktu");
+            dgvKoszyk.Columns.Add("Ilosc", "Ilość (kg)");
+
+            dgvKoszyk.Columns["Lp"].Width = 40;
+            dgvKoszyk.Columns["Kod"].Width = 100;
+            dgvKoszyk.Columns["Nazwa"].Width = 290;
+            dgvKoszyk.Columns["Ilosc"].Width = 100;
+
+            // Przycisk usuń
+            DataGridViewButtonColumn btnCol = new DataGridViewButtonColumn
+            {
+                Name = "Usun",
+                HeaderText = "",
+                Text = "🗑",
+                UseColumnTextForButtonValue = true,
+                Width = 40
+            };
+            dgvKoszyk.Columns.Add(btnCol);
+            dgvKoszyk.CellClick += DgvKoszyk_CellClick;
+
+            rightPanel.Controls.Add(dgvKoszyk);
+
+            // Podsumowanie koszyka
+            Panel sumPanel = new Panel
+            {
+                Location = new Point(15, 480),
+                Size = new Size(550, 85),
+                BackColor = Color.FromArgb(245, 250, 255)
+            };
+            sumPanel.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(52, 152, 219), 2))
+                    e.Graphics.DrawRectangle(pen, 0, 0, sumPanel.Width - 1, sumPanel.Height - 1);
+            };
+
+            lblKoszykPozycje = new Label
+            {
+                Text = "Pozycji: 0",
+                Location = new Point(15, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F)
+            };
+
+            lblKoszykSuma = new Label
+            {
+                Text = "RAZEM: 0 kg",
+                Location = new Point(15, 45),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 152, 219)
+            };
+
+            sumPanel.Controls.AddRange(new Control[] { lblKoszykPozycje, lblKoszykSuma });
+            rightPanel.Controls.Add(sumPanel);
 
             // === PRZYCISKI NA DOLE ===
             btnZapisz = new Button
             {
-                Text = "✓ ZAPISZ",
-                Location = new Point(520, 570),
-                Size = new Size(120, 40),
+                Text = "✓ ZAPISZ DOKUMENT",
+                Location = new Point(880, 665),
+                Size = new Size(160, 45),
                 BackColor = colorPrzyjecie,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 DialogResult = DialogResult.OK,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Enabled = false
             };
             btnZapisz.FlatAppearance.BorderSize = 0;
             btnZapisz.Click += BtnZapisz_Click;
@@ -3804,8 +3931,8 @@ namespace Kalendarz1
             Button btnAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(650, 570),
-                Size = new Size(80, 40),
+                Location = new Point(1050, 665),
+                Size = new Size(80, 45),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -3815,140 +3942,31 @@ namespace Kalendarz1
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
 
-            this.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
+            Button btnWyczysc = new Button
+            {
+                Text = "🗑 Wyczyść",
+                Location = new Point(550, 665),
+                Size = new Size(110, 45),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand
+            };
+            btnWyczysc.FlatAppearance.BorderSize = 0;
+            btnWyczysc.Click += (s, e) => {
+                if (Pozycje.Count > 0 && MessageBox.Show("Usunąć wszystkie pozycje?", "Potwierdź", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    Pozycje.Clear();
+                    RefreshKoszyk();
+                }
+            };
+
+            this.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj, btnWyczysc });
             this.AcceptButton = btnZapisz;
             this.CancelButton = btnAnuluj;
 
             RefreshProductCards();
-            UpdateSummary();
-        }
-
-        private void CreateSummaryPanel()
-        {
-            summaryPanel = new Panel
-            {
-                Location = new Point(520, 75),
-                Size = new Size(210, 490),
-                BackColor = Color.White
-            };
-            summaryPanel.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(200, 200, 200), 1))
-                    e.Graphics.DrawRectangle(pen, 0, 0, summaryPanel.Width - 1, summaryPanel.Height - 1);
-            };
-
-            Label lblSummaryTitle = new Label
-            {
-                Text = "PODSUMOWANIE",
-                Location = new Point(10, 10),
-                Size = new Size(190, 25),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(60, 60, 60),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            // Separator
-            Panel sep1 = new Panel { Location = new Point(10, 40), Size = new Size(190, 1), BackColor = Color.FromArgb(220, 220, 220) };
-
-            // Typ operacji
-            Label lblTypTitle = new Label { Text = "Operacja:", Location = new Point(10, 50), AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray };
-            lblSummaryTyp = new Label
-            {
-                Text = "📥 Przyjęcie",
-                Location = new Point(10, 68),
-                Size = new Size(190, 28),
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = colorPrzyjecie
-            };
-
-            // Data
-            Label lblDataTitle = new Label { Text = "Data:", Location = new Point(10, 100), AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray };
-            lblSummaryData = new Label
-            {
-                Text = DateTime.Now.ToString("dd.MM.yyyy"),
-                Location = new Point(10, 118),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 11F)
-            };
-
-            // Separator
-            Panel sep2 = new Panel { Location = new Point(10, 150), Size = new Size(190, 1), BackColor = Color.FromArgb(220, 220, 220) };
-
-            // Produkt
-            Label lblProdTitle = new Label { Text = "Wybrany produkt:", Location = new Point(10, 160), AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray };
-
-            summaryProductPanel = new Panel
-            {
-                Location = new Point(10, 180),
-                Size = new Size(190, 80),
-                BackColor = Color.FromArgb(245, 245, 245)
-            };
-            summaryProductPanel.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(200, 200, 200), 1))
-                    e.Graphics.DrawRectangle(pen, 0, 0, summaryProductPanel.Width - 1, summaryProductPanel.Height - 1);
-            };
-
-            lblSummaryProdukt = new Label
-            {
-                Text = "Nie wybrano",
-                Location = new Point(5, 5),
-                Size = new Size(180, 70),
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
-                ForeColor = Color.Gray
-            };
-            summaryProductPanel.Controls.Add(lblSummaryProdukt);
-
-            // Separator
-            Panel sep3 = new Panel { Location = new Point(10, 270), Size = new Size(190, 1), BackColor = Color.FromArgb(220, 220, 220) };
-
-            // Ilość
-            Label lblIloscTitle = new Label { Text = "Ilość:", Location = new Point(10, 280), AutoSize = true, Font = new Font("Segoe UI", 8F), ForeColor = Color.Gray };
-            lblSummaryIlosc = new Label
-            {
-                Text = "100 kg",
-                Location = new Point(10, 300),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(50, 50, 50)
-            };
-
-            // Status walidacji
-            Panel statusPanel = new Panel
-            {
-                Location = new Point(10, 380),
-                Size = new Size(190, 100),
-                BackColor = Color.FromArgb(255, 250, 240)
-            };
-            statusPanel.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(255, 200, 150), 1))
-                    e.Graphics.DrawRectangle(pen, 0, 0, statusPanel.Width - 1, statusPanel.Height - 1);
-            };
-
-            Label lblStatus = new Label
-            {
-                Text = "Status formularza",
-                Location = new Point(5, 5),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(200, 150, 50)
-            };
-
-            Label lblStatusInfo = new Label
-            {
-                Text = "○ Typ operacji: OK\n○ Produkt: wybierz\n○ Ilość: OK",
-                Location = new Point(5, 28),
-                Size = new Size(180, 65),
-                Font = new Font("Segoe UI", 9F)
-            };
-            statusPanel.Tag = lblStatusInfo;
-            statusPanel.Controls.AddRange(new Control[] { lblStatus, lblStatusInfo });
-
-            summaryPanel.Controls.AddRange(new Control[] {
-                lblSummaryTitle, sep1, lblTypTitle, lblSummaryTyp,
-                lblDataTitle, lblSummaryData, sep2, lblProdTitle, summaryProductPanel,
-                sep3, lblIloscTitle, lblSummaryIlosc, statusPanel
-            });
-
-            this.Controls.Add(summaryPanel);
         }
 
         private void TypOperacji_Changed(object sender, EventArgs e)
@@ -3956,278 +3974,160 @@ namespace Kalendarz1
             if (rbPrzyjecie.Checked)
             {
                 targetHeaderColor = colorPrzyjecie;
-                lblHeader.Text = "📥  PRZYJĘCIE DO MROŹNI";
+                lblHeader.Text = "📥  PRZYJĘCIE DO MROŹNI - NOWY DOKUMENT";
                 btnZapisz.BackColor = colorPrzyjecie;
             }
             else
             {
                 targetHeaderColor = colorWydanie;
-                lblHeader.Text = "📤  WYDANIE Z MROŹNI";
+                lblHeader.Text = "📤  WYDANIE Z MROŹNI - NOWY DOKUMENT";
                 btnZapisz.BackColor = colorWydanie;
             }
-
-            // Rozpocznij animację
             animStep = 0;
             animTimer.Start();
-
-            UpdateSummary();
         }
 
         private void AnimTimer_Tick(object sender, EventArgs e)
         {
             animStep++;
             float t = Math.Min(1f, animStep / 10f);
-
             int r = (int)(currentHeaderColor.R + (targetHeaderColor.R - currentHeaderColor.R) * t);
             int g = (int)(currentHeaderColor.G + (targetHeaderColor.G - currentHeaderColor.G) * t);
             int b = (int)(currentHeaderColor.B + (targetHeaderColor.B - currentHeaderColor.B) * t);
-
             headerPanel.BackColor = Color.FromArgb(r, g, b);
-
-            if (t >= 1f)
-            {
-                animTimer.Stop();
-                currentHeaderColor = targetHeaderColor;
-                headerPanel.BackColor = targetHeaderColor;
-            }
+            if (t >= 1f) { animTimer.Stop(); currentHeaderColor = targetHeaderColor; }
         }
 
-        private void TxtSearch_TextChanged(object sender, EventArgs e)
-        {
-            RefreshProductCards();
-        }
+        private void TxtSearch_TextChanged(object sender, EventArgs e) => RefreshProductCards();
 
         private void RefreshProductCards()
         {
             flowProdukty.SuspendLayout();
             flowProdukty.Controls.Clear();
-
             string filter = txtSearch.Text.Trim().ToLower();
-            int count = 0;
-            int colorIndex = 0;
+            int count = 0, colorIndex = 0;
 
             foreach (var p in produkty)
             {
-                if (!string.IsNullOrEmpty(filter) &&
-                    !p.Nazwa.ToLower().Contains(filter) &&
-                    !p.Kod.ToLower().Contains(filter))
+                if (!string.IsNullOrEmpty(filter) && !p.Nazwa.ToLower().Contains(filter) && !p.Kod.ToLower().Contains(filter))
                     continue;
-
                 count++;
-                var card = CreateProductCard(p, cardColors[colorIndex % cardColors.Length]);
-                flowProdukty.Controls.Add(card);
-                colorIndex++;
-
-                // Limit do 50 kart dla wydajności
-                if (count >= 50) break;
+                flowProdukty.Controls.Add(CreateProductCard(p, cardColors[colorIndex++ % cardColors.Length]));
+                if (count >= 60) break;
             }
-
             flowProdukty.ResumeLayout();
             lblProduktyInfo.Text = $"Wyświetlono: {count} z {produkty.Count} produktów";
-
-            // Animacja fade-in
-            foreach (Control c in flowProdukty.Controls)
-            {
-                c.Visible = false;
-            }
-
-            var fadeTimer = new System.Windows.Forms.Timer { Interval = 30 };
-            int fadeIndex = 0;
-            fadeTimer.Tick += (s, e) => {
-                if (fadeIndex < flowProdukty.Controls.Count)
-                {
-                    flowProdukty.Controls[fadeIndex].Visible = true;
-                    fadeIndex++;
-                }
-                else
-                {
-                    fadeTimer.Stop();
-                    fadeTimer.Dispose();
-                }
-            };
-            fadeTimer.Start();
         }
 
         private Panel CreateProductCard(ProduktMrozony produkt, Color tagColor)
         {
-            Panel card = new Panel
-            {
-                Size = new Size(140, 70),
-                BackColor = Color.White,
-                Margin = new Padding(5),
-                Cursor = Cursors.Hand,
-                Tag = produkt
-            };
-
-            // Tag kolorowy
-            Panel tag = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(5, 70),
-                BackColor = tagColor
-            };
-
-            // Kod produktu
-            Label lblKod = new Label
-            {
-                Text = produkt.Kod,
-                Location = new Point(10, 5),
-                Size = new Size(125, 18),
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = tagColor
-            };
-
-            // Nazwa produktu
-            Label lblNazwa = new Label
-            {
-                Text = produkt.Nazwa.Length > 30 ? produkt.Nazwa.Substring(0, 27) + "..." : produkt.Nazwa,
-                Location = new Point(10, 25),
-                Size = new Size(125, 40),
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.FromArgb(60, 60, 60)
-            };
-
+            Panel card = new Panel { Size = new Size(145, 60), BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand, Tag = produkt };
+            Panel tag = new Panel { Location = new Point(0, 0), Size = new Size(4, 60), BackColor = tagColor };
+            Label lblKod = new Label { Text = produkt.Kod, Location = new Point(8, 4), Size = new Size(130, 16), Font = new Font("Segoe UI", 8F, FontStyle.Bold), ForeColor = tagColor };
+            Label lblNazwa = new Label { Text = produkt.Nazwa.Length > 28 ? produkt.Nazwa.Substring(0, 25) + "..." : produkt.Nazwa, Location = new Point(8, 22), Size = new Size(130, 34), Font = new Font("Segoe UI", 8F), ForeColor = Color.FromArgb(60, 60, 60) };
             card.Controls.AddRange(new Control[] { tag, lblKod, lblNazwa });
 
-            // Efekty hover i kliknięcie
             card.Paint += (s, e) => {
-                Color borderColor = card == selectedCard ? colorPrzyjecie : Color.FromArgb(220, 220, 220);
-                int borderWidth = card == selectedCard ? 2 : 1;
-                using (var pen = new Pen(borderColor, borderWidth))
+                Color bc = card == selectedCard ? Color.FromArgb(52, 152, 219) : Color.FromArgb(220, 220, 220);
+                using (var pen = new Pen(bc, card == selectedCard ? 2 : 1))
                     e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
             };
 
-            EventHandler enterHandler = (s, e) => {
-                if (card != selectedCard)
-                    card.BackColor = Color.FromArgb(245, 250, 255);
-            };
-            EventHandler leaveHandler = (s, e) => {
-                if (card != selectedCard)
-                    card.BackColor = Color.White;
-            };
-            EventHandler clickHandler = (s, e) => SelectCard(card, produkt);
-
-            card.MouseEnter += enterHandler;
-            card.MouseLeave += leaveHandler;
-            card.Click += clickHandler;
-
-            foreach (Control c in card.Controls)
-            {
-                c.MouseEnter += enterHandler;
-                c.MouseLeave += leaveHandler;
-                c.Click += clickHandler;
-            }
-
+            EventHandler click = (s, e) => SelectCard(card, produkt);
+            card.Click += click;
+            foreach (Control c in card.Controls) c.Click += click;
+            card.MouseEnter += (s, e) => { if (card != selectedCard) card.BackColor = Color.FromArgb(245, 250, 255); };
+            card.MouseLeave += (s, e) => { if (card != selectedCard) card.BackColor = Color.White; };
             return card;
         }
 
         private void SelectCard(Panel card, ProduktMrozony produkt)
         {
-            // Odznacz poprzednią
-            if (selectedCard != null)
-            {
-                selectedCard.BackColor = Color.White;
-                selectedCard.Invalidate();
-            }
-
-            // Zaznacz nową
+            if (selectedCard != null) { selectedCard.BackColor = Color.White; selectedCard.Invalidate(); }
             selectedCard = card;
             selectedProdukt = produkt;
-            card.BackColor = Color.FromArgb(230, 255, 230);
+            card.BackColor = Color.FromArgb(230, 245, 255);
             card.Invalidate();
 
-            // Pulsowanie zaznaczonej karty
-            var pulseTimer = new System.Windows.Forms.Timer { Interval = 100 };
-            int pulseStep = 0;
-            Color originalColor = card.BackColor;
-            pulseTimer.Tick += (s, e) => {
-                pulseStep++;
-                if (pulseStep <= 3)
-                    card.BackColor = pulseStep % 2 == 0 ? originalColor : Color.FromArgb(200, 255, 200);
-                else
-                {
-                    card.BackColor = originalColor;
-                    pulseTimer.Stop();
-                    pulseTimer.Dispose();
-                }
-            };
-            pulseTimer.Start();
-
-            // Aktualizuj pole wyszukiwania
-            txtSearch.TextChanged -= TxtSearch_TextChanged;
-            txtSearch.Text = $"{produkt.Kod} - {produkt.Nazwa}";
-            txtSearch.TextChanged += TxtSearch_TextChanged;
-
-            UpdateValidation();
-            UpdateSummary();
-        }
-
-        private void UpdateValidation()
-        {
-            // Walidacja produktu
-            bool produktValid = selectedProdukt != null;
-            lblValidProdukt.Text = produktValid ? "✓" : "○";
-            lblValidProdukt.ForeColor = produktValid ? colorValid : colorInvalid;
-            borderSearch.BackColor = produktValid ? colorValid : Color.FromArgb(200, 200, 200);
-
-            // Aktualizuj panel statusu
-            var statusPanel = summaryPanel.Controls.OfType<Panel>().LastOrDefault();
-            if (statusPanel?.Tag is Label lblStatusInfo)
+            // Aktualizuj etykietę
+            var addPanel = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Location.X == 15 && p.Size.Width == 520);
+            if (addPanel != null)
             {
-                string typStatus = "✓ Typ operacji: OK";
-                string produktStatus = produktValid ? "✓ Produkt: OK" : "○ Produkt: wybierz";
-                string iloscStatus = "✓ Ilość: OK";
-
-                lblStatusInfo.Text = $"{typStatus}\n{produktStatus}\n{iloscStatus}";
-
-                if (produktValid)
+                var lbl = addPanel.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
+                if (lbl != null)
                 {
-                    statusPanel.BackColor = Color.FromArgb(240, 255, 240);
-                    lblStatusInfo.ForeColor = colorValid;
-                }
-                else
-                {
-                    statusPanel.BackColor = Color.FromArgb(255, 250, 240);
-                    lblStatusInfo.ForeColor = Color.FromArgb(150, 100, 50);
+                    lbl.Text = $"✓ {produkt.Kod} - {produkt.Nazwa}";
+                    lbl.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    lbl.ForeColor = Color.FromArgb(52, 152, 219);
                 }
             }
+            btnDodajDoKoszyka.Enabled = true;
         }
 
-        private void UpdateSummary()
+        private void BtnDodajDoKoszyka_Click(object sender, EventArgs e)
         {
-            // Typ operacji
-            if (rbPrzyjecie.Checked)
+            if (selectedProdukt == null) return;
+
+            // Sprawdź czy produkt już jest w koszyku
+            var existing = Pozycje.FirstOrDefault(p => p.KodProduktu == selectedProdukt.Kod);
+            if (existing != null)
             {
-                lblSummaryTyp.Text = "📥 Przyjęcie";
-                lblSummaryTyp.ForeColor = colorPrzyjecie;
+                existing.Ilosc += nudIlosc.Value;
             }
             else
             {
-                lblSummaryTyp.Text = "📤 Wydanie";
-                lblSummaryTyp.ForeColor = colorWydanie;
+                Pozycje.Add(new PozycjaDokumentu
+                {
+                    KodProduktu = selectedProdukt.Kod,
+                    Nazwa = selectedProdukt.Nazwa,
+                    Ilosc = nudIlosc.Value
+                });
             }
 
-            // Data
-            lblSummaryData.Text = dtpData.Value.ToString("dd.MM.yyyy");
+            RefreshKoszyk();
 
-            // Produkt
-            if (selectedProdukt != null)
+            // Reset wyboru
+            if (selectedCard != null) { selectedCard.BackColor = Color.White; selectedCard.Invalidate(); }
+            selectedCard = null;
+            selectedProdukt = null;
+            btnDodajDoKoszyka.Enabled = false;
+
+            var addPanel = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Location.X == 15 && p.Size.Width == 520);
+            if (addPanel != null)
             {
-                lblSummaryProdukt.Text = $"{selectedProdukt.Kod}\n\n{selectedProdukt.Nazwa}";
-                lblSummaryProdukt.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                lblSummaryProdukt.ForeColor = Color.FromArgb(50, 50, 50);
+                var lbl = addPanel.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
+                if (lbl != null)
+                {
+                    lbl.Text = "Wybrany produkt: (kliknij na kartę powyżej)";
+                    lbl.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+                    lbl.ForeColor = Color.Gray;
+                }
             }
-            else
+        }
+
+        private void RefreshKoszyk()
+        {
+            dgvKoszyk.Rows.Clear();
+            int lp = 1;
+            decimal suma = 0;
+            foreach (var poz in Pozycje)
             {
-                lblSummaryProdukt.Text = "Nie wybrano\n\nKliknij kartę produktu";
-                lblSummaryProdukt.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-                lblSummaryProdukt.ForeColor = Color.Gray;
+                dgvKoszyk.Rows.Add(lp++, poz.KodProduktu, poz.Nazwa, poz.Ilosc.ToString("N0"));
+                suma += poz.Ilosc;
             }
+            lblKoszykPozycje.Text = $"Pozycji: {Pozycje.Count}";
+            lblKoszykSuma.Text = $"RAZEM: {suma:N0} kg";
+            btnZapisz.Enabled = Pozycje.Count > 0;
+        }
 
-            // Ilość
-            lblSummaryIlosc.Text = $"{nudIlosc.Value} kg";
-
-            UpdateValidation();
+        private void DgvKoszyk_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex == dgvKoszyk.Columns["Usun"].Index)
+            {
+                string kod = dgvKoszyk.Rows[e.RowIndex].Cells["Kod"].Value?.ToString() ?? "";
+                Pozycje.RemoveAll(p => p.KodProduktu == kod);
+                RefreshKoszyk();
+            }
         }
 
         private void LoadProdukty(string connectionString)
@@ -4237,21 +4137,12 @@ namespace Kalendarz1
                 using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW]
-                                    WHERE katalog = '67153' ORDER BY Nazwa ASC";
-
+                    string query = @"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '67153' ORDER BY Nazwa ASC";
                     using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(query, conn))
                     using (var rd = cmd.ExecuteReader())
                     {
                         while (rd.Read())
-                        {
-                            produkty.Add(new ProduktMrozony
-                            {
-                                Id = rd.GetInt32(0),
-                                Kod = rd["Kod"]?.ToString() ?? "",
-                                Nazwa = rd["Nazwa"]?.ToString() ?? ""
-                            });
-                        }
+                            produkty.Add(new ProduktMrozony { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
                     }
                 }
             }
@@ -4260,20 +4151,26 @@ namespace Kalendarz1
 
         private void BtnZapisz_Click(object sender, EventArgs e)
         {
-            if (selectedProdukt == null)
+            if (Pozycje.Count == 0)
             {
-                MessageBox.Show("Wybierz produkt klikając na kartę.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Dodaj przynajmniej jeden produkt do dokumentu.", "Brak pozycji", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 this.DialogResult = DialogResult.None;
                 return;
             }
-
             Data = dtpData.Value.Date;
             Typ = rbPrzyjecie.Checked ? "Przyjęcie" : "Wydanie";
-            KodProduktu = selectedProdukt.Kod;
-            Produkt = selectedProdukt.Nazwa;
-            Ilosc = nudIlosc.Value;
             Uwagi = txtUwagi.Text.Trim();
         }
+    }
+
+    /// <summary>
+    /// Pozycja dokumentu wydania/przyjęcia
+    /// </summary>
+    public class PozycjaDokumentu
+    {
+        public string KodProduktu { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public decimal Ilosc { get; set; }
     }
 
     /// <summary>
