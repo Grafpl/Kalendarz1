@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -7,7 +8,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -15,7 +15,6 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms.Integration;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -25,10 +24,10 @@ namespace Kalendarz1.CRM
     {
         private readonly string connectionString;
         private readonly string operatorID;
-        private System.Windows.Forms.WebBrowser webBrowser;
-        private DataTable dtKontakty;
+        private DataTable? dtKontakty;
         private List<MapKontakt> kontaktyNaMapie = new List<MapKontakt>();
         private bool isLoading = false;
+        private bool isWebViewReady = false;
 
         // HTTP dla geokodowania
         private static readonly HttpClient http = new HttpClient(new HttpClientHandler
@@ -47,31 +46,30 @@ namespace Kalendarz1.CRM
             connectionString = connString;
             operatorID = opID;
 
-            // Ustaw User-Agent dla Nominatim
-            http.DefaultRequestHeaders.UserAgent.Clear();
-            http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("CRMMap", "1.0"));
-
             Loaded += MapaCRMWindow_Loaded;
         }
 
         private async void MapaCRMWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Inicjalizuj WebBrowser
-            webBrowser = new System.Windows.Forms.WebBrowser
-            {
-                ScriptErrorsSuppressed = true,
-                AllowNavigation = true
-            };
-            mapHost.Child = webBrowser;
-
-            // Wczytaj filtry
+            // Inicjalizuj filtry
             InicjalizujFiltry();
 
-            // Pokaż pustą mapę
-            PokazPustaMape();
+            // Inicjalizuj WebView2
+            try
+            {
+                txtLoadingStatus.Text = "Inicjalizacja WebView2...";
+                await webView.EnsureCoreWebView2Async();
+                isWebViewReady = true;
 
-            // Wczytaj dane
-            await OdswiezMapeAsync();
+                // Wczytaj dane i pokaż mapę
+                await OdswiezMapeAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd inicjalizacji WebView2: {ex.Message}\n\nUpewnij się, że masz zainstalowany WebView2 Runtime.",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                loadingOverlay.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void InicjalizujFiltry()
@@ -94,23 +92,15 @@ namespace Kalendarz1.CRM
             cmbBranza.SelectedIndex = 0;
         }
 
-        private void PokazPustaMape()
-        {
-            var html = GenerujHtmlMapy(new List<MapKontakt>());
-            string tempPath = Path.Combine(Path.GetTempPath(), "mapa_crm_wpf.html");
-            File.WriteAllText(tempPath, html, Encoding.UTF8);
-            webBrowser.Navigate(tempPath);
-        }
-
         private async Task OdswiezMapeAsync()
         {
-            if (isLoading) return;
+            if (isLoading || !isWebViewReady) return;
             isLoading = true;
 
             try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
-                txtLoadingStatus.Text = "Pobieranie danych...";
+                txtLoadingStatus.Text = "Pobieranie danych z bazy...";
 
                 // Pobierz dane z bazy
                 await Task.Run(() => WczytajDaneZBazy());
@@ -118,34 +108,34 @@ namespace Kalendarz1.CRM
                 // Wypełnij filtry branż
                 WypelnijFiltrBranz();
 
-                txtLoadingStatus.Text = "Geokodowanie adresów...";
+                txtLoadingStatus.Text = "Przetwarzanie kontaktów...";
 
-                // Filtruj i geokoduj
-                var przefiltrowane = await FiltrujIGeokodujAsync();
+                // Filtruj kontakty
+                var przefiltrowane = await FiltrujKontaktyAsync();
 
-                txtLoadingStatus.Text = "Renderowanie mapy...";
+                txtLoadingStatus.Text = $"Renderowanie mapy ({przefiltrowane.Count} punktów)...";
 
-                // Generuj mapę
+                // Generuj i załaduj mapę
                 var html = GenerujHtmlMapy(przefiltrowane);
-                string tempPath = Path.Combine(Path.GetTempPath(), "mapa_crm_wpf.html");
-                File.WriteAllText(tempPath, html, Encoding.UTF8);
-                webBrowser.Navigate(tempPath);
+                webView.NavigateToString(html);
 
                 // Aktualizuj listę boczną
                 kontaktyNaMapie = przefiltrowane;
-                listaKontaktow.ItemsSource = kontaktyNaMapie.Take(100).ToList(); // Max 100 w liście
+                listaKontaktow.ItemsSource = kontaktyNaMapie.Take(100).ToList();
                 txtLiczbaKontaktow.Text = $"{kontaktyNaMapie.Count} kontaktów";
 
                 // Aktualizuj statystyki
                 AktualizujStatystyki(przefiltrowane);
+
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd wczytywania mapy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
             finally
             {
-                loadingOverlay.Visibility = Visibility.Collapsed;
                 isLoading = false;
             }
         }
@@ -155,6 +145,18 @@ namespace Kalendarz1.CRM
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
+
+                // Sprawdź czy kolumny Latitude/Longitude istnieją
+                var cmdCheck = new SqlCommand(@"
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Latitude')
+                    BEGIN
+                        ALTER TABLE OdbiorcyCRM ADD Latitude FLOAT NULL
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Longitude')
+                    BEGIN
+                        ALTER TABLE OdbiorcyCRM ADD Longitude FLOAT NULL
+                    END", conn);
+                cmdCheck.ExecuteNonQuery();
 
                 var sql = @"
                     SELECT
@@ -200,17 +202,18 @@ namespace Kalendarz1.CRM
                     .OrderBy(b => b)
                     .ToList();
 
+                var currentIndex = cmbBranza.SelectedIndex;
                 cmbBranza.Items.Clear();
                 cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże" });
                 foreach (var branza in branze)
                 {
                     cmbBranza.Items.Add(new ComboBoxItem { Content = branza, Tag = branza });
                 }
-                cmbBranza.SelectedIndex = 0;
+                cmbBranza.SelectedIndex = currentIndex >= 0 && currentIndex < cmbBranza.Items.Count ? currentIndex : 0;
             });
         }
 
-        private async Task<List<MapKontakt>> FiltrujIGeokodujAsync()
+        private async Task<List<MapKontakt>> FiltrujKontaktyAsync()
         {
             if (dtKontakty == null) return new List<MapKontakt>();
 
@@ -228,7 +231,10 @@ namespace Kalendarz1.CRM
                     filtrWoj = (cmbWojewodztwo.SelectedItem as ComboBoxItem)?.Content?.ToString()?.ToLower() ?? "";
 
                 if (cmbBranza.SelectedIndex > 0)
-                    filtrBranza = (cmbBranza.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+                {
+                    var item = cmbBranza.SelectedItem as ComboBoxItem;
+                    filtrBranza = item?.Tag?.ToString() ?? item?.Content?.ToString() ?? "";
+                }
 
                 tylkoPriorytetowe = chkTylkoPriorytetowe.IsChecked == true;
 
@@ -261,7 +267,7 @@ namespace Kalendarz1.CRM
                     continue;
 
                 // Filtr priorytetowe
-                var czyPriorytetowa = Convert.ToInt32(row["CzyPriorytetowa"]) == 1;
+                var czyPriorytetowa = Convert.ToInt32(row["CzyPriorytetowa"] ?? 0) == 1;
                 if (tylkoPriorytetowe && !czyPriorytetowa)
                     continue;
 
@@ -269,45 +275,31 @@ namespace Kalendarz1.CRM
                 double lat = 0, lng = 0;
                 bool hasCoords = false;
 
-                if (double.TryParse(row["Latitude"]?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lat) &&
-                    double.TryParse(row["Longitude"]?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lng) &&
-                    Math.Abs(lat) > 0.0001 && Math.Abs(lng) > 0.0001)
+                var latVal = row["Latitude"];
+                var lngVal = row["Longitude"];
+
+                if (latVal != DBNull.Value && lngVal != DBNull.Value)
                 {
-                    hasCoords = true;
+                    if (double.TryParse(latVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lat) &&
+                        double.TryParse(lngVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lng) &&
+                        Math.Abs(lat) > 0.0001 && Math.Abs(lng) > 0.0001)
+                    {
+                        hasCoords = true;
+                    }
                 }
 
-                // Jeśli brak współrzędnych, spróbuj geokodować
-                if (!hasCoords)
+                // Jeśli brak współrzędnych, spróbuj geokodować (tylko pierwsze 50)
+                if (!hasCoords && wynik.Count(k => k.Lat == 0) < 50)
                 {
                     var adres = ZbudujAdres(row);
                     if (!string.IsNullOrEmpty(adres))
                     {
-                        // Sprawdź cache
-                        var cached = await SprawdzCacheAsync(adres);
-                        if (cached.HasValue)
+                        var geo = await GeokodujZCacheAsync(adres, Convert.ToInt32(row["ID"]));
+                        if (geo.HasValue)
                         {
-                            lat = cached.Value.lat;
-                            lng = cached.Value.lng;
+                            lat = geo.Value.lat;
+                            lng = geo.Value.lng;
                             hasCoords = true;
-                        }
-                        else
-                        {
-                            // Geokoduj (z opóźnieniem)
-                            var wait = GeocodeDelay - (DateTime.UtcNow - lastGeocode);
-                            if (wait > TimeSpan.Zero) await Task.Delay(wait);
-                            lastGeocode = DateTime.UtcNow;
-
-                            var geo = await GeokodujAsync(adres);
-                            if (geo.HasValue)
-                            {
-                                lat = geo.Value.lat;
-                                lng = geo.Value.lng;
-                                hasCoords = true;
-                                await ZapiszDoCache(adres, lat, lng);
-
-                                // Aktualizuj w bazie
-                                await ZapiszWspolrzedneDobazyAsync(Convert.ToInt32(row["ID"]), lat, lng);
-                            }
                         }
                     }
                 }
@@ -337,6 +329,124 @@ namespace Kalendarz1.CRM
             }
 
             return wynik;
+        }
+
+        private async Task<(double lat, double lng)?> GeokodujZCacheAsync(string adres, int idOdbiorcy)
+        {
+            try
+            {
+                // Sprawdź cache w bazie
+                string hash = Sha1(adres);
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // Sprawdź czy tabela cache istnieje
+                    var cmdCreate = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'GeoCache')
+                        BEGIN
+                            CREATE TABLE GeoCache (
+                                AddressHash NVARCHAR(50) PRIMARY KEY,
+                                AddressText NVARCHAR(500),
+                                Latitude FLOAT,
+                                Longitude FLOAT,
+                                LastUpdate DATETIME2 DEFAULT SYSUTCDATETIME()
+                            )
+                        END", conn);
+                    await cmdCreate.ExecuteNonQueryAsync();
+
+                    // Sprawdź cache
+                    var cmdCache = new SqlCommand("SELECT Latitude, Longitude FROM GeoCache WHERE AddressHash = @h", conn);
+                    cmdCache.Parameters.AddWithValue("@h", hash);
+                    using (var rdr = await cmdCache.ExecuteReaderAsync())
+                    {
+                        if (await rdr.ReadAsync() && !rdr.IsDBNull(0) && !rdr.IsDBNull(1))
+                        {
+                            var lat = rdr.GetDouble(0);
+                            var lng = rdr.GetDouble(1);
+
+                            // Zapisz też do OdbiorcyCRM
+                            rdr.Close();
+                            var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Latitude = @lat, Longitude = @lng WHERE ID = @id", conn);
+                            cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
+                            cmdUpdate.Parameters.AddWithValue("@lat", lat);
+                            cmdUpdate.Parameters.AddWithValue("@lng", lng);
+                            await cmdUpdate.ExecuteNonQueryAsync();
+
+                            return (lat, lng);
+                        }
+                    }
+
+                    // Geokoduj z API (z opóźnieniem)
+                    var wait = GeocodeDelay - (DateTime.UtcNow - lastGeocode);
+                    if (wait > TimeSpan.Zero) await Task.Delay(wait);
+                    lastGeocode = DateTime.UtcNow;
+
+                    var geo = await GeokodujAsync(adres);
+                    if (geo.HasValue)
+                    {
+                        // Zapisz do cache
+                        var cmdInsert = new SqlCommand(@"
+                            MERGE GeoCache AS tgt
+                            USING (SELECT @h AS AddressHash) AS src ON tgt.AddressHash = src.AddressHash
+                            WHEN MATCHED THEN UPDATE SET Latitude=@lat, Longitude=@lng, LastUpdate=SYSUTCDATETIME()
+                            WHEN NOT MATCHED THEN INSERT (AddressHash, AddressText, Latitude, Longitude) VALUES (@h, @a, @lat, @lng);", conn);
+                        cmdInsert.Parameters.AddWithValue("@h", hash);
+                        cmdInsert.Parameters.AddWithValue("@a", adres);
+                        cmdInsert.Parameters.AddWithValue("@lat", geo.Value.lat);
+                        cmdInsert.Parameters.AddWithValue("@lng", geo.Value.lng);
+                        await cmdInsert.ExecuteNonQueryAsync();
+
+                        // Zapisz do OdbiorcyCRM
+                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Latitude = @lat, Longitude = @lng WHERE ID = @id", conn);
+                        cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
+                        cmdUpdate.Parameters.AddWithValue("@lat", geo.Value.lat);
+                        cmdUpdate.Parameters.AddWithValue("@lng", geo.Value.lng);
+                        await cmdUpdate.ExecuteNonQueryAsync();
+
+                        return geo;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Geocode error: {ex.Message}");
+            }
+            return null;
+        }
+
+        private async Task<(double lat, double lng)?> GeokodujAsync(string address)
+        {
+            try
+            {
+                string url = "https://nominatim.openstreetmap.org/search?" +
+                             $"q={HttpUtility.UrlEncode(address)}&format=json&limit=1&countrycodes=pl";
+
+                http.DefaultRequestHeaders.UserAgent.Clear();
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("CRMMapApp/1.0");
+
+                using (var resp = await http.GetAsync(url))
+                {
+                    resp.EnsureSuccessStatusCode();
+                    var json = await resp.Content.ReadAsStringAsync();
+                    using (var doc = JsonDocument.Parse(json))
+                    {
+                        var arr = doc.RootElement;
+                        if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
+                        {
+                            var first = arr[0];
+                            double lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
+                            double lon = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
+                            return (lat, lon);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Geocode API error: " + ex.Message);
+            }
+            return null;
         }
 
         private void UstawKoloryStatusu(MapKontakt kontakt)
@@ -405,146 +515,6 @@ namespace Kalendarz1.CRM
             return string.Join(", ", parts);
         }
 
-        private async Task<(double lat, double lng)?> SprawdzCacheAsync(string address)
-        {
-            try
-            {
-                string hash = Sha1(address);
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    await conn.OpenAsync();
-                    var sql = @"IF OBJECT_ID('dbo.GeoCache','U') IS NULL
-                        SELECT CAST(NULL AS float) AS Latitude, CAST(NULL AS float) AS Longitude
-                    ELSE
-                        SELECT Latitude, Longitude FROM dbo.GeoCache WHERE AddressHash = @h";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@h", hash);
-                        using (var rdr = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await rdr.ReadAsync() && !rdr.IsDBNull(0) && !rdr.IsDBNull(1))
-                            {
-                                return (Convert.ToDouble(rdr.GetValue(0)), Convert.ToDouble(rdr.GetValue(1)));
-                            }
-                        }
-                    }
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        private async Task ZapiszDoCache(string address, double lat, double lng)
-        {
-            try
-            {
-                string hash = Sha1(address);
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    await conn.OpenAsync();
-
-                    // Sprawdź czy tabela istnieje, jeśli nie - utwórz
-                    var cmdCreate = new SqlCommand(@"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'GeoCache')
-                        BEGIN
-                            CREATE TABLE GeoCache (
-                                AddressHash NVARCHAR(50) PRIMARY KEY,
-                                AddressText NVARCHAR(500),
-                                Latitude FLOAT,
-                                Longitude FLOAT,
-                                LastUpdate DATETIME2 DEFAULT SYSUTCDATETIME()
-                            )
-                        END", conn);
-                    cmdCreate.ExecuteNonQuery();
-
-                    var sql = @"
-                        MERGE dbo.GeoCache AS tgt
-                        USING (SELECT @h AS AddressHash) AS src
-                        ON (tgt.AddressHash = src.AddressHash)
-                        WHEN MATCHED THEN
-                            UPDATE SET AddressText=@a, Latitude=@lat, Longitude=@lng, LastUpdate=SYSUTCDATETIME()
-                        WHEN NOT MATCHED THEN
-                            INSERT (AddressHash, AddressText, Latitude, Longitude, LastUpdate)
-                            VALUES (@h, @a, @lat, @lng, SYSUTCDATETIME());";
-
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@h", hash);
-                        cmd.Parameters.AddWithValue("@a", address);
-                        cmd.Parameters.AddWithValue("@lat", lat);
-                        cmd.Parameters.AddWithValue("@lng", lng);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private async Task ZapiszWspolrzedneDobazyAsync(int id, double lat, double lng)
-        {
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    await conn.OpenAsync();
-
-                    // Sprawdź czy kolumny istnieją
-                    var cmdCheck = new SqlCommand(@"
-                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Latitude')
-                        BEGIN
-                            ALTER TABLE OdbiorcyCRM ADD Latitude FLOAT NULL
-                        END
-                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Longitude')
-                        BEGIN
-                            ALTER TABLE OdbiorcyCRM ADD Longitude FLOAT NULL
-                        END", conn);
-                    cmdCheck.ExecuteNonQuery();
-
-                    var sql = "UPDATE OdbiorcyCRM SET Latitude = @lat, Longitude = @lng WHERE ID = @id";
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
-                        cmd.Parameters.AddWithValue("@lat", lat);
-                        cmd.Parameters.AddWithValue("@lng", lng);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private async Task<(double lat, double lng)?> GeokodujAsync(string address)
-        {
-            try
-            {
-                string url = "https://nominatim.openstreetmap.org/search?" +
-                             $"q={HttpUtility.UrlEncode(address)}&format=json&limit=1&addressdetails=0&countrycodes=pl";
-
-                using (var resp = await http.GetAsync(url))
-                {
-                    resp.EnsureSuccessStatusCode();
-                    var json = await resp.Content.ReadAsStringAsync();
-                    using (var doc = JsonDocument.Parse(json))
-                    {
-                        var arr = doc.RootElement;
-                        if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
-                        {
-                            var first = arr[0];
-                            double lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
-                            double lon = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
-                            return (lat, lon);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Geocode error: " + ex.Message);
-            }
-            return null;
-        }
-
         private static string Sha1(string text)
         {
             using (var sha1 = SHA1.Create())
@@ -565,7 +535,7 @@ namespace Kalendarz1.CRM
 
         private string GenerujHtmlMapy(List<MapKontakt> kontakty)
         {
-            var json = JsonSerializer.Serialize(kontakty.Select(k => new
+            var dataJson = JsonSerializer.Serialize(kontakty.Select(k => new
             {
                 k.ID,
                 k.Nazwa,
@@ -585,63 +555,64 @@ namespace Kalendarz1.CRM
                 WriteIndented = false
             });
 
-            var sb = new StringBuilder();
-            sb.AppendLine(@"<!DOCTYPE html>
+            return $@"<!DOCTYPE html>
 <html>
 <head>
-<meta charset='utf-8'/>
-<meta http-equiv='X-UA-Compatible' content='IE=edge'/>
-<meta name='viewport' content='width=device-width, initial-scale=1.0'/>
-<title>Mapa CRM</title>
-<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
-<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
-<link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
-<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
-<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
-<style>
-    html, body { margin:0; padding:0; height:100%; font-family:'Segoe UI', Arial, sans-serif; }
-    #map { height:100%; width:100%; }
-    .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; }
-    .leaflet-popup-content { margin: 0; min-width: 280px; }
-    .popup-container { padding: 16px; }
-    .popup-title { font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 8px; line-height: 1.3; }
-    .popup-info { font-size: 12px; color: #6B7280; margin-bottom: 4px; }
-    .popup-info strong { color: #374151; }
-    .popup-status { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }
-    .popup-priority { display: inline-block; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }
-    .popup-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; display: flex; gap: 8px; }
-    .popup-btn { flex: 1; padding: 8px 12px; border: none; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
-    .popup-btn-primary { background: #16A34A; color: white; }
-    .popup-btn-primary:hover { background: #15803D; }
-    .popup-btn-secondary { background: #F1F5F9; color: #475569; }
-    .popup-btn-secondary:hover { background: #E2E8F0; }
-</style>
+    <meta charset='utf-8'/>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
+    <title>Mapa CRM</title>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
+    <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+    <script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        html, body {{ height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }}
+        #map {{ height: 100%; width: 100%; }}
+        .leaflet-popup-content-wrapper {{ border-radius: 12px; padding: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }}
+        .leaflet-popup-content {{ margin: 0; min-width: 280px; }}
+        .popup-container {{ padding: 16px; }}
+        .popup-title {{ font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 8px; line-height: 1.3; }}
+        .popup-info {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }}
+        .popup-info strong {{ color: #374151; }}
+        .popup-status {{ display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }}
+        .popup-priority {{ display: inline-block; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }}
+        .popup-actions {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; display: flex; gap: 8px; }}
+        .popup-btn {{ flex: 1; padding: 10px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; transition: all 0.2s; }}
+        .popup-btn-primary {{ background: #16A34A; color: white; }}
+        .popup-btn-primary:hover {{ background: #15803D; }}
+        .popup-btn-secondary {{ background: #F1F5F9; color: #475569; }}
+        .popup-btn-secondary:hover {{ background: #E2E8F0; }}
+        .marker-cluster-small {{ background-color: rgba(22, 163, 74, 0.6); }}
+        .marker-cluster-small div {{ background-color: rgba(22, 163, 74, 0.8); }}
+        .marker-cluster-medium {{ background-color: rgba(245, 158, 11, 0.6); }}
+        .marker-cluster-medium div {{ background-color: rgba(245, 158, 11, 0.8); }}
+        .marker-cluster-large {{ background-color: rgba(239, 68, 68, 0.6); }}
+        .marker-cluster-large div {{ background-color: rgba(239, 68, 68, 0.8); }}
+    </style>
 </head>
 <body>
 <div id='map'></div>
-<script>");
+<script>
+var data = {dataJson};
 
-            sb.Append("var data = ");
-            sb.Append(json);
-            sb.AppendLine(";");
-
-            sb.AppendLine(@"
 var map = L.map('map').setView([52.0, 19.0], 6);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
+L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    attribution: '&copy; OpenStreetMap',
     maxZoom: 18
-}).addTo(map);
+}}).addTo(map);
 
-var markers = L.markerClusterGroup({
+var markers = L.markerClusterGroup({{
     showCoverageOnHover: false,
     maxClusterRadius: 50,
     spiderfyOnMaxZoom: true,
-    disableClusteringAtZoom: 16
-});
+    disableClusteringAtZoom: 15
+}});
 
-function getStatusBg(status) {
-    switch(status) {
+function getStatusBg(status) {{
+    switch(status) {{
         case 'Do zadzwonienia': return '#F1F5F9';
         case 'Próba kontaktu': return '#FFEDD5';
         case 'Nawiązano kontakt': return '#DCFCE7';
@@ -649,11 +620,11 @@ function getStatusBg(status) {
         case 'Do wysłania oferta': return '#CFFAFE';
         case 'Nie zainteresowany': return '#FEE2E2';
         default: return '#F3F4F6';
-    }
-}
+    }}
+}}
 
-function getStatusColor(status) {
-    switch(status) {
+function getStatusColor(status) {{
+    switch(status) {{
         case 'Do zadzwonienia': return '#475569';
         case 'Próba kontaktu': return '#9A3412';
         case 'Nawiązano kontakt': return '#166534';
@@ -661,23 +632,24 @@ function getStatusColor(status) {
         case 'Do wysłania oferta': return '#155E75';
         case 'Nie zainteresowany': return '#991B1B';
         default: return '#4B5563';
-    }
-}
+    }}
+}}
 
-for (var i = 0; i < data.length; i++) {
+for (var i = 0; i < data.length; i++) {{
     var p = data[i];
 
     var borderColor = p.CzyPriorytetowa ? '#DC2626' : '#374151';
     var borderWidth = p.CzyPriorytetowa ? 3 : 2;
 
-    var icon = L.divIcon({
-        html: '<div style=""width:18px;height:18px;border-radius:50%;background:' + p.KolorHex + ';border:' + borderWidth + 'px solid ' + borderColor + ';box-shadow:0 2px 6px rgba(0,0,0,0.3)""></div>',
+    var icon = L.divIcon({{
+        html: '<div style=""width:16px;height:16px;border-radius:50%;background:' + p.KolorHex + ';border:' + borderWidth + 'px solid ' + borderColor + ';box-shadow:0 2px 6px rgba(0,0,0,0.3)""></div>',
         className: '',
-        iconSize: [18, 18]
-    });
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    }});
 
-    var adres = [p.Ulica, p.Miasto].filter(x => x).join(', ');
-    var priorityBadge = p.CzyPriorytetowa ? '<span class=""popup-priority"">PRIORYTET</span>' : '';
+    var adres = [p.Ulica, p.Miasto].filter(function(x) {{ return x; }}).join(', ');
+    var priorityBadge = p.CzyPriorytetowa ? '<span class=""popup-priority"">🏭 PRIORYTET</span>' : '';
 
     var popup = [
         '<div class=""popup-container"">',
@@ -685,39 +657,37 @@ for (var i = 0; i < data.length; i++) {
         '  <div class=""popup-info"">📍 ' + (adres || 'Brak adresu') + '</div>',
         '  <div class=""popup-info"">📞 <strong>' + (p.Telefon || '-') + '</strong></div>',
         p.Email ? '  <div class=""popup-info"">✉️ ' + p.Email + '</div>' : '',
-        p.Branza ? '  <div class=""popup-info"">🏢 ' + p.Branza.substring(0, 60) + (p.Branza.length > 60 ? '...' : '') + '</div>' : '',
+        p.Branza ? '  <div class=""popup-info"" style=""font-size:10px;color:#9CA3AF"">🏢 ' + (p.Branza.length > 50 ? p.Branza.substring(0, 50) + '...' : p.Branza) + '</div>' : '',
         '  <div style=""margin-top:10px"">',
         '    <span class=""popup-status"" style=""background:' + getStatusBg(p.Status) + ';color:' + getStatusColor(p.Status) + '"">' + p.Status + '</span>',
         priorityBadge,
         '  </div>',
         '  <div class=""popup-actions"">',
-        '    <a class=""popup-btn popup-btn-primary"" href=""tel:' + (p.Telefon || '') + '"">📞 Zadzwoń</a>',
+        '    <a class=""popup-btn popup-btn-primary"" href=""tel:' + (p.Telefon || '').replace(/\s/g, '') + '"">📞 Zadzwoń</a>',
         '    <a class=""popup-btn popup-btn-secondary"" href=""https://www.google.com/maps/dir//' + encodeURIComponent(adres) + '"" target=""_blank"">🗺️ Trasa</a>',
         '  </div>',
         '</div>'
     ].join('');
 
-    var m = L.marker([p.Lat, p.Lng], { icon: icon });
-    m.bindPopup(popup, { maxWidth: 320 });
+    var m = L.marker([p.Lat, p.Lng], {{ icon: icon }});
+    m.bindPopup(popup, {{ maxWidth: 320 }});
     markers.addLayer(m);
-}
+}}
 
 map.addLayer(markers);
 
-if (data.length > 0) {
+if (data.length > 0) {{
     var group = new L.featureGroup(markers.getLayers());
     map.fitBounds(group.getBounds().pad(0.1));
-}
+}}
 </script>
 </body>
-</html>");
-
-            return sb.ToString();
+</html>";
         }
 
         private async void Filtr_Changed(object sender, RoutedEventArgs e)
         {
-            if (!isLoading && dtKontakty != null)
+            if (!isLoading && dtKontakty != null && isWebViewReady)
             {
                 await OdswiezMapeAsync();
             }
@@ -725,7 +695,7 @@ if (data.length > 0) {
 
         private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
-            dtKontakty = null; // Wymuś ponowne wczytanie
+            dtKontakty = null;
             await OdswiezMapeAsync();
         }
 
@@ -734,15 +704,15 @@ if (data.length > 0) {
             Close();
         }
 
-        private void KontaktItem_Click(object sender, MouseButtonEventArgs e)
+        private async void KontaktItem_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is MapKontakt kontakt)
+            if (sender is FrameworkElement element && element.DataContext is MapKontakt kontakt && isWebViewReady)
             {
-                // Wycentruj mapę na wybranym kontakcie
-                var js = $"map.setView([{kontakt.Lat.ToString(CultureInfo.InvariantCulture)}, {kontakt.Lng.ToString(CultureInfo.InvariantCulture)}], 15);";
                 try
                 {
-                    webBrowser.Document?.InvokeScript("eval", new object[] { js });
+                    var lat = kontakt.Lat.ToString(CultureInfo.InvariantCulture);
+                    var lng = kontakt.Lng.ToString(CultureInfo.InvariantCulture);
+                    await webView.ExecuteScriptAsync($"map.setView([{lat}, {lng}], 16);");
                 }
                 catch { }
             }
