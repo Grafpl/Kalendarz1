@@ -168,10 +168,10 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Liczymy wszystko oprócz statusów administracyjnych
+                    // Liczymy wszystko oprócz 'Do zadzwonienia'
                     string whereDate = wszystkieDni
-                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')"
-                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Błędny rekord (do raportu)', 'Poprosił o usunięcie', 'Nowy')";
+                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'"
+                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa <> 'Do zadzwonienia'";
 
                     var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
@@ -264,12 +264,31 @@ namespace Kalendarz1.CRM
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var cmd = new SqlCommand("SELECT Tresc, DataUtworzenia, KtoDodal as Operator FROM NotatkiCRM WHERE IDOdbiorcy = @id ORDER BY DataUtworzenia DESC", conn);
+                // Łączymy notatki i zmiany statusów
+                var cmd = new SqlCommand(@"
+                    SELECT Tresc, DataUtworzenia, Operator, Typ FROM (
+                        SELECT n.Tresc, n.DataUtworzenia, ISNULL(o.Name, n.KtoDodal) as Operator, '📝' as Typ
+                        FROM NotatkiCRM n
+                        LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                        WHERE n.IDOdbiorcy = @id
+                        UNION ALL
+                        SELECT CONCAT('Status: ', h.WartoscNowa) as Tresc, h.DataZmiany as DataUtworzenia,
+                               ISNULL(o.Name, h.KtoWykonal) as Operator, '🔄' as Typ
+                        FROM HistoriaZmianCRM h
+                        LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                        WHERE h.IDOdbiorcy = @id AND h.TypZmiany = 'Zmiana statusu'
+                    ) AS Historia
+                    ORDER BY DataUtworzenia DESC", conn);
                 cmd.Parameters.AddWithValue("@id", id);
                 var adapter = new SqlDataAdapter(cmd);
                 var dt = new DataTable(); adapter.Fill(dt);
                 var list = new ObservableCollection<NotatkaCRM>();
-                foreach (DataRow r in dt.Rows) list.Add(new NotatkaCRM { Tresc = r["Tresc"].ToString(), DataUtworzenia = (DateTime)r["DataUtworzenia"], Operator = r["Operator"].ToString() });
+                foreach (DataRow r in dt.Rows) list.Add(new NotatkaCRM {
+                    Tresc = r["Tresc"].ToString(),
+                    DataUtworzenia = (DateTime)r["DataUtworzenia"],
+                    Operator = r["Operator"].ToString(),
+                    Typ = r["Typ"].ToString()
+                });
                 listaNotatek.ItemsSource = list;
             }
         }
@@ -470,5 +489,6 @@ namespace Kalendarz1.CRM
         public string Tresc { get; set; }
         public DateTime DataUtworzenia { get; set; }
         public string Operator { get; set; }
+        public string Typ { get; set; } = "📝";
     }
 }
