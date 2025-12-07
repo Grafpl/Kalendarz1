@@ -50,6 +50,7 @@ namespace Kalendarz1
         // === DANE CACHE ===
         private DataTable cachedDzienneData;
         private DateTime lastAnalysisDate = DateTime.MinValue;
+        private bool isUpdatingFiltrMroznia = false;
 
         public Mroznia()
         {
@@ -78,7 +79,7 @@ namespace Kalendarz1
                 RowCount = 3,
                 Padding = new Padding(0)
             };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 150F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
 
@@ -110,17 +111,17 @@ namespace Kalendarz1
             // === PANEL KONTROLEK ===
             Panel controlPanel = new Panel
             {
-                Height = 60,
+                Height = 90,
                 Dock = DockStyle.Top,
                 BackColor = CardColor
             };
             controlPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, controlPanel);
 
-            // Logo w lewym górnym rogu
+            // Logo w lewym górnym rogu - duże
             PictureBox logoBox = new PictureBox
             {
                 Location = new Point(10, 5),
-                Size = new Size(50, 50),
+                Size = new Size(80, 80),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.Transparent
             };
@@ -133,21 +134,21 @@ namespace Kalendarz1
             catch { }
 
             // Data początkowa
-            Label lblOd = CreateLabel("Data od:", 70, 18, true);
+            Label lblOd = CreateLabel("Data od:", 100, 10, true);
             dtpOd = new DateTimePicker
             {
-                Location = new Point(130, 15),
-                Width = 130,
+                Location = new Point(165, 6),
+                Width = 120,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddDays(-30)
             };
 
             // Data końcowa
-            Label lblDo = CreateLabel("do:", 270, 18, true);
+            Label lblDo = CreateLabel("do:", 295, 10, true);
             dtpDo = new DateTimePicker
             {
-                Location = new Point(295, 15),
-                Width = 130,
+                Location = new Point(320, 6),
+                Width = 120,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now
             };
@@ -155,8 +156,8 @@ namespace Kalendarz1
             // Szybki wybór okresu
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(435, 15),
-                Width = 130,
+                Location = new Point(100, 45),
+                Width = 160,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             cmbPredkosc.Items.AddRange(new object[] {
@@ -166,12 +167,13 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndex = 0;
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
-            // Przyciski akcji
-            btnAnalizuj = CreateModernButton("Analizuj", 580, 12, 100, PrimaryColor);
-            btnWykres = CreateModernButton("Wykresy", 690, 12, 90, SuccessColor);
-            btnStanMagazynu = CreateModernButton("Stan", 790, 12, 80, WarningColor);
-            btnSzybkiRaport = CreateModernButton("Raport", 880, 12, 90, InfoColor);
-            btnEksport = CreateModernButton("Eksport", 980, 12, 90, DangerColor);
+            // Przyciski akcji - górny rząd
+            btnAnalizuj = CreateModernButton("Analizuj", 460, 8, 100, PrimaryColor);
+            btnWykres = CreateModernButton("Wykresy", 570, 8, 90, SuccessColor);
+            btnStanMagazynu = CreateModernButton("Stan", 670, 8, 80, WarningColor);
+            // Przyciski akcji - dolny rząd
+            btnSzybkiRaport = CreateModernButton("Raport", 460, 48, 100, InfoColor);
+            btnEksport = CreateModernButton("Eksport", 570, 48, 90, DangerColor);
 
             toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu");
             toolTip.SetToolTip(btnWykres, "Otwórz zaawansowane wykresy");
@@ -2962,20 +2964,28 @@ namespace Kalendarz1
 
         private void UpdateFiltrMrozniComboBox()
         {
-            if (cmbFiltrMroznia == null) return;
+            if (cmbFiltrMroznia == null || isUpdatingFiltrMroznia) return;
 
-            string selected = cmbFiltrMroznia.SelectedItem?.ToString() ?? "Wszystkie";
-            cmbFiltrMroznia.Items.Clear();
-            cmbFiltrMroznia.Items.Add("Wszystkie");
-
-            var mroznie = WczytajMroznieZewnetrzne();
-            foreach (var m in mroznie)
+            isUpdatingFiltrMroznia = true;
+            try
             {
-                cmbFiltrMroznia.Items.Add(m.Nazwa);
-            }
+                string selected = cmbFiltrMroznia.SelectedItem?.ToString() ?? "Wszystkie";
+                cmbFiltrMroznia.Items.Clear();
+                cmbFiltrMroznia.Items.Add("Wszystkie");
 
-            int idx = cmbFiltrMroznia.Items.IndexOf(selected);
-            cmbFiltrMroznia.SelectedIndex = idx >= 0 ? idx : 0;
+                var mroznie = WczytajMroznieZewnetrzne();
+                foreach (var m in mroznie)
+                {
+                    cmbFiltrMroznia.Items.Add(m.Nazwa);
+                }
+
+                int idx = cmbFiltrMroznia.Items.IndexOf(selected);
+                cmbFiltrMroznia.SelectedIndex = idx >= 0 ? idx : 0;
+            }
+            finally
+            {
+                isUpdatingFiltrMroznia = false;
+            }
         }
 
         private void BtnDodajMroznieZewnetrzna_Click(object sender, EventArgs e)
