@@ -1152,7 +1152,9 @@ namespace Kalendarz1
             if (produkt == "SUMA") return;
 
             decimal stan = Convert.ToDecimal(row.Cells["Stan (kg)"].Value);
-            decimal wartosc = Convert.ToDecimal(row.Cells["Wartość (zł)"].Value);
+            decimal wartosc = dgvStanMagazynu.Columns.Contains("Wartość (zł)")
+                ? Convert.ToDecimal(row.Cells["Wartość (zł)"].Value ?? 0)
+                : 0;
 
             ShowHistoriaProduktuModal(produkt, stan, wartosc, dtpStanMagazynu.Value.Date);
         }
@@ -2740,7 +2742,9 @@ namespace Kalendarz1
             if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA") return;
 
             decimal stan = Convert.ToDecimal(row.Cells["Stan (kg)"].Value ?? 0);
-            decimal wartosc = Convert.ToDecimal(row.Cells["Wartość (zł)"].Value ?? 0);
+            decimal wartosc = dgvStanMagazynu.Columns.Contains("Wartość (zł)")
+                ? Convert.ToDecimal(row.Cells["Wartość (zł)"].Value ?? 0)
+                : 0;
 
             ShowHistoriaProduktuModal(kodProduktu, stan, wartosc, dtpStanMagazynu.Value.Date);
         }
