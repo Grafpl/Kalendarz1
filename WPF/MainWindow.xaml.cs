@@ -34,12 +34,14 @@ namespace Kalendarz1.WPF
         public string UserID { get; set; } = string.Empty;
         private DateTime _selectedDate;
         private int? _currentOrderId;
+        private string _originalNotesValue = ""; // Śledzenie oryginalnej wartości notatek do edycji
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private Button? btnToday; // Dodaj to pole na początku klasy
 
         private bool _showBySlaughterDate = true;
         private bool _slaughterDateColumnExists = true;
+        private bool _walutaColumnExists = false;
         private bool _isInitialized = false;
         private bool _showAnulowane = false;
         private bool _isRefreshing = false;
@@ -48,6 +50,8 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
+        private readonly DataTable _dtDashboard = new();
+        private GridLength _savedRightColumnWidth = new GridLength(40, GridUnitType.Star);
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
@@ -470,6 +474,9 @@ namespace Kalendarz1.WPF
             _autoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
             _autoRefreshTimer.Start();
+
+            // Obsługa edycji notatek - zapisz przy utracie fokusa
+            txtNotes.LostFocus += TxtNotes_LostFocus;
         }
 
         private async void AutoRefreshTimer_Tick(object sender, EventArgs e)
@@ -637,6 +644,7 @@ namespace Kalendarz1.WPF
             await CheckAndCreateTransportKursIDColumnAsync();
             await CheckAndCreateStatusColumnsAsync();
             await CheckAndCreateAnulowanieColumnsAsync();
+            await CheckAndCreateWalutaColumnAsync();
 
             _productCodeCache.Clear();
             _productCatalogCache.Clear();
@@ -762,6 +770,38 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 _slaughterDateColumnExists = false;
+            }
+        }
+
+        private async Task CheckAndCreateWalutaColumnAsync()
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                         WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'Waluta'";
+
+                await using var cmdCheck = new SqlCommand(checkSql, cn);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    const string alterSql = @"ALTER TABLE [dbo].[ZamowieniaMieso] ADD Waluta NVARCHAR(10) NULL DEFAULT 'PLN'";
+                    await using var cmdAlter = new SqlCommand(alterSql, cn);
+                    await cmdAlter.ExecuteNonQueryAsync();
+
+                    _walutaColumnExists = true;
+                }
+                else
+                {
+                    _walutaColumnExists = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _walutaColumnExists = false;
             }
         }
 
@@ -2183,6 +2223,7 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("Handlowiec", typeof(string));
                 _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
                 _dtOrders.Columns.Add("IloscFaktyczna", typeof(decimal));
+                _dtOrders.Columns.Add("Roznica", typeof(decimal));
                 _dtOrders.Columns.Add("Pojemniki", typeof(int));
                 _dtOrders.Columns.Add("Palety", typeof(decimal));
                 _dtOrders.Columns.Add("TrybE2", typeof(string));
@@ -2197,6 +2238,13 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add("MaHallal", typeof(bool));
                 _dtOrders.Columns.Add("Trans", typeof(string));
                 _dtOrders.Columns.Add("Prod", typeof(string));
+                _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
+                _dtOrders.Columns.Add("CenaInfo", typeof(string));
+                _dtOrders.Columns.Add("TerminInfo", typeof(string));
+                _dtOrders.Columns.Add("TransportInfo", typeof(string));
+                _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
+                _dtOrders.Columns.Add("WyprInfo", typeof(string));
+                _dtOrders.Columns.Add("WydanoInfo", typeof(string));
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2256,16 +2304,21 @@ namespace Kalendarz1.WPF
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
        zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1) 
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Folia = 1)
             THEN 1 ELSE 0 END AS BIT) AS MaFolie,
-       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1) 
-            THEN 1 ELSE 0 END AS BIT) AS MaHallal{slaughterDateSelect}
+       CAST(CASE WHEN EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND Hallal = 1)
+            THEN 1 ELSE 0 END AS BIT) AS MaHallal,
+       CAST(CASE WHEN NOT EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id AND (Cena IS NULL OR Cena = '' OR Cena = '0'))
+            AND EXISTS(SELECT 1 FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = zm.Id)
+            THEN 1 ELSE 0 END AS BIT) AS CzyMaCeny,
+       ISNULL(zm.CzyZrealizowane, 0) AS CzyZrealizowane,
+       zm.DataWydania{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
 WHERE {dateColumn} = @Day " +
                                 (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
                                 $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
-     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID{slaughterDateGroupBy}
+     zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
                     await using var cmd = new SqlCommand(sql, cnLibra);
@@ -2279,13 +2332,13 @@ ORDER BY zm.Id";
             }
 
             // Load transport departure times from dbo.Kurs
-            var transportTimes = new Dictionary<int, TimeSpan?>();
-            var transportKursIds = new List<int>();
+            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
+            var transportKursIds = new List<long>();
             foreach (DataRow r in temp.Rows)
             {
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
                 {
-                    int kursId = Convert.ToInt32(r["TransportKursID"]);
+                    long kursId = Convert.ToInt64(r["TransportKursID"]);
                     if (!transportKursIds.Contains(kursId))
                         transportKursIds.Add(kursId);
                 }
@@ -2298,14 +2351,15 @@ ORDER BY zm.Id";
                     await using var cnTransport = new SqlConnection(_connTransport);
                     await cnTransport.OpenAsync();
                     var kursIdsList = string.Join(",", transportKursIds);
-                    var sqlKurs = $"SELECT KursID, GodzWyjazdu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
+                    var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
                     await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
                     await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
                     while (await rdKurs.ReadAsync())
                     {
-                        int kursId = rdKurs.GetInt32(0);
+                        long kursId = rdKurs.GetInt64(0);
                         TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
-                        transportTimes[kursId] = godzWyjazdu;
+                        DateTime? dataKursu = rdKurs.IsDBNull(2) ? null : rdKurs.GetDateTime(2);
+                        transportTimes[kursId] = (godzWyjazdu, dataKursu);
                     }
                 }
                 catch { /* Ignore transport errors - show just checkmark */ }
@@ -2320,6 +2374,7 @@ ORDER BY zm.Id";
             decimal totalPallets = 0m;
             int totalOrdersCount = 0;
             int actualOrdersCount = 0;
+            var clientsReleasedCounted = new HashSet<int>(); // Śledzenie klientów, których wydania już policzono
 
             foreach (DataRow r in temp.Rows)
             {
@@ -2423,29 +2478,71 @@ ORDER BY zm.Id";
                 string transColumn = transportKursId.HasValue ? "✓" : "";
                 string prodColumn = status == "Zrealizowane" ? "✓" : "";
 
-                // Warehouse column - show shipping time if available
+                // TerminInfo - godzina + skrócony dzień tygodnia odbioru
+                string terminInfo = "";
+                if (arrivalDate.HasValue)
+                {
+                    string dzienSkrot = arrivalDate.Value.ToString("ddd", cultureInfo);
+                    terminInfo = $"{arrivalDate.Value:HH:mm} {dzienSkrot}";
+                }
+
+                // TransportInfo - godzina:minuta + skrócony dzień wyjazdu z firmy
+                string transportInfoStr = "";
+                if (transportKursId.HasValue && transportTimes.TryGetValue(transportKursId.Value, out var kursInfo))
+                {
+                    if (kursInfo.GodzWyjazdu.HasValue)
+                    {
+                        string dzienKursu = kursInfo.DataKursu.HasValue ? kursInfo.DataKursu.Value.ToString("ddd", cultureInfo) : "";
+                        transportInfoStr = $"{kursInfo.GodzWyjazdu.Value:hh\\:mm} {dzienKursu}";
+                    }
+                    else if (kursInfo.DataKursu.HasValue)
+                    {
+                        // Jeśli nie ma godziny wyjazdu, pokaż tylko dzień
+                        string dzienKursu = kursInfo.DataKursu.Value.ToString("ddd", cultureInfo);
+                        transportInfoStr = dzienKursu;
+                    }
+                }
+
+                // WyprInfo - czy wyprodukowane
+                string wyprInfo = czyZrealizowane || status == "Zrealizowane" ? "✓" : "✗";
+
+                // WydanoInfo - godzina:minuta + skrócony dzień wydania
                 DateTime? dataWydania = null;
                 if (temp.Columns.Contains("DataWydania") && !(r["DataWydania"] is DBNull))
                 {
                     dataWydania = Convert.ToDateTime(r["DataWydania"]);
                 }
-                string wydaneColumn = dataWydania.HasValue ? dataWydania.Value.ToString("HH:mm") : "";
+                string wydanoInfo = "";
+                if (dataWydania.HasValue)
+                {
+                    string dzienWyd = dataWydania.Value.ToString("ddd", cultureInfo);
+                    wydanoInfo = $"{dataWydania.Value:HH:mm} {dzienWyd}";
+                }
 
                 totalOrdersCount++;
                 if (status != "Anulowane")
                 {
                     totalOrdered += quantity;
-                    totalReleased += released;
+                    // Wydania liczone raz na klienta, nie na każde zamówienie
+                    if (!clientsReleasedCounted.Contains(clientId))
+                    {
+                        totalReleased += released;
+                        clientsReleasedCounted.Add(clientId);
+                    }
                     totalPallets += pallets;
                     actualOrdersCount++;
                 }
 
+                // Różnica = Zamówiono - Wydano
+                decimal roznica = quantity - released;
+
                 // Dodanie wiersza z kolumnami Cena, Termin, Transport, Wyprodukowano, Wydano
                 _dtOrders.Rows.Add(
-                    id, clientId, name, salesman, quantity, released, containers, pallets, modeText,
+                    id, clientId, name, salesman, quantity, released, roznica, containers, pallets, modeText,
                     arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
                     pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn
+                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
+                    czyMaCeny, cenaInfo, terminInfo, transportInfoStr, czyZrealizowane, wyprInfo, wydanoInfo
                 );
             }
 
@@ -2469,6 +2566,7 @@ ORDER BY zm.Id";
                 row["Handlowiec"] = salesman;
                 row["IloscZamowiona"] = 0m;
                 row["IloscFaktyczna"] = released;
+                row["Roznica"] = -released; // 0 - released
                 row["Pojemniki"] = 0;
                 row["Palety"] = 0m;
                 row["TrybE2"] = "";
@@ -2486,9 +2584,21 @@ ORDER BY zm.Id";
                 row["MaHallal"] = false;
                 row["Trans"] = "";
                 row["Prod"] = "";
+                row["CzyMaCeny"] = false;
+                row["CenaInfo"] = "";
+                row["TerminInfo"] = "";
+                row["TransportInfo"] = "";
+                row["CzyZrealizowane"] = false;
+                row["WyprInfo"] = "";
+                row["WydanoInfo"] = "";
                 releasesWithoutOrders.Add(row);
 
-                totalReleased += released;
+                // Wydania bez zamówień - każdy klient tutaj jest unikalny (już sprawdzono clientsWithOrders)
+                if (!clientsReleasedCounted.Contains(clientId))
+                {
+                    totalReleased += released;
+                    clientsReleasedCounted.Add(clientId);
+                }
             }
 
             foreach (var row in releasesWithoutOrders.OrderByDescending(r => (decimal)r["IloscFaktyczna"]))
@@ -2526,6 +2636,7 @@ ORDER BY zm.Id";
 
                 summaryRow["IloscZamowiona"] = totalOrdered;
                 summaryRow["IloscFaktyczna"] = totalReleased;
+                summaryRow["Roznica"] = totalOrdered - totalReleased;
                 summaryRow["Pojemniki"] = 0;
                 summaryRow["Palety"] = totalPallets;
                 summaryRow["TrybE2"] = "";
@@ -2540,6 +2651,13 @@ ORDER BY zm.Id";
                 summaryRow["MaHallal"] = false;
                 summaryRow["Trans"] = "";
                 summaryRow["Prod"] = "";
+                summaryRow["CzyMaCeny"] = false;
+                summaryRow["CenaInfo"] = "";
+                summaryRow["TerminInfo"] = "";
+                summaryRow["TransportInfo"] = "";
+                summaryRow["CzyZrealizowane"] = false;
+                summaryRow["WyprInfo"] = "";
+                summaryRow["WydanoInfo"] = "";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -2547,6 +2665,246 @@ ORDER BY zm.Id";
             SetupOrdersDataGrid();
             ApplyFilters();
         }
+
+        private async Task LoadTransportForDayAsync(DateTime day)
+        {
+            day = ValidateSqlDate(day);
+
+            _dtTransport.Rows.Clear();
+
+            if (_dtTransport.Columns.Count == 0)
+            {
+                _dtTransport.Columns.Add("Id", typeof(int));
+                _dtTransport.Columns.Add("KlientId", typeof(int));
+                _dtTransport.Columns.Add("Odbiorca", typeof(string));
+                _dtTransport.Columns.Add("Handlowiec", typeof(string));
+                _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
+                _dtTransport.Columns.Add("IloscWydana", typeof(decimal));
+                _dtTransport.Columns.Add("Palety", typeof(decimal));
+                _dtTransport.Columns.Add("Kierowca", typeof(string));
+                _dtTransport.Columns.Add("Pojazd", typeof(string));
+                _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
+                _dtTransport.Columns.Add("Trasa", typeof(string));
+                _dtTransport.Columns.Add("Status", typeof(string));
+                _dtTransport.Columns.Add("Uwagi", typeof(string));
+            }
+
+            // Pobierz pełne dane transportu z bazy
+            var transportDetails = new Dictionary<long, (string Kierowca, string Pojazd, string Trasa, TimeSpan? GodzWyjazdu)>();
+
+            // Pobierz listę KursID z zamówień
+            var kursIds = new HashSet<long>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT DISTINCT TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day AND TransportKursID IS NOT NULL";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    kursIds.Add(rd.GetInt64(0));
+                }
+            }
+
+            // Pobierz szczegóły transportu
+            if (kursIds.Any())
+            {
+                try
+                {
+                    await using var cnTransport = new SqlConnection(_connTransport);
+                    await cnTransport.OpenAsync();
+                    var kursIdsList = string.Join(",", kursIds);
+                    var sqlKurs = $@"SELECT k.KursID, k.Trasa, k.GodzWyjazdu,
+                                    CONCAT(ki.Imie, ' ', ki.Nazwisko) as Kierowca,
+                                    p.Rejestracja
+                                    FROM dbo.Kurs k
+                                    LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+                                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                                    WHERE k.KursID IN ({kursIdsList})";
+                    await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
+                    await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
+                    while (await rdKurs.ReadAsync())
+                    {
+                        long kursId = rdKurs.GetInt64(0);
+                        string trasa = rdKurs.IsDBNull(1) ? "" : rdKurs.GetString(1);
+                        TimeSpan? godzWyjazdu = rdKurs.IsDBNull(2) ? null : rdKurs.GetTimeSpan(2);
+                        string kierowca = rdKurs.IsDBNull(3) ? "" : rdKurs.GetString(3);
+                        string pojazd = rdKurs.IsDBNull(4) ? "" : rdKurs.GetString(4);
+                        transportDetails[kursId] = (kierowca, pojazd, trasa, godzWyjazdu);
+                    }
+                }
+                catch { /* Ignoruj błędy transportu */ }
+            }
+
+            // Pobierz uwagi i TransportKursID dla każdego zamówienia
+            var orderNotes = new Dictionary<int, (string Uwagi, long? KursId)>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT Id, Uwagi, TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day AND TransportKursID IS NOT NULL";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string uwagi = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    long? kursId = rd.IsDBNull(2) ? null : rd.GetInt64(2);
+                    orderNotes[id] = (uwagi, kursId);
+                }
+            }
+
+            foreach (DataRow row in _dtOrders.Rows)
+            {
+                string trans = row["Trans"]?.ToString() ?? "";
+                if (trans != "✓") continue;
+
+                int id = Convert.ToInt32(row["Id"]);
+                if (id == -1) continue;
+
+                int clientId = Convert.ToInt32(row["KlientId"]);
+                string odbiorca = row["Odbiorca"]?.ToString() ?? "";
+                string handlowiec = row["Handlowiec"]?.ToString() ?? "";
+                decimal iloscZam = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
+                decimal iloscWyd = row["IloscFaktyczna"] is DBNull ? 0m : Convert.ToDecimal(row["IloscFaktyczna"]);
+                decimal palety = row["Palety"] is DBNull ? 0m : Convert.ToDecimal(row["Palety"]);
+                string status = row["Status"]?.ToString() ?? "";
+
+                string kierowca = "";
+                string pojazd = "";
+                string trasa = "";
+                string godzWyjazdu = "";
+                string uwagi = "";
+
+                if (orderNotes.TryGetValue(id, out var noteInfo))
+                {
+                    uwagi = noteInfo.Uwagi;
+                    if (noteInfo.KursId.HasValue && transportDetails.TryGetValue(noteInfo.KursId.Value, out var td))
+                    {
+                        kierowca = td.Kierowca;
+                        pojazd = td.Pojazd;
+                        trasa = td.Trasa;
+                        godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                    }
+                }
+
+                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, uwagi);
+            }
+
+            SetupTransportDataGrid();
+        }
+
+        private void SetupTransportDataGrid()
+        {
+            dgTransport.ItemsSource = _dtTransport.DefaultView;
+            dgTransport.Columns.Clear();
+
+            dgTransport.LoadingRow -= DgTransport_LoadingRow;
+            dgTransport.LoadingRow += DgTransport_LoadingRow;
+
+            // 1. Odbiorca
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Odbiorca",
+                Binding = new System.Windows.Data.Binding("Odbiorca"),
+                Width = new DataGridLength(180)
+            });
+
+            // 2. Handlowiec
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Hand",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("BoldCellStyle")
+            });
+
+            // 3. Zamówiono
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zam.",
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 4. Wydano
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wyd.",
+                Binding = new System.Windows.Data.Binding("IloscWydana") { StringFormat = "N0" },
+                Width = new DataGridLength(55),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 5. Kierowca
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kierowca",
+                Binding = new System.Windows.Data.Binding("Kierowca"),
+                Width = new DataGridLength(150)
+            });
+
+            // 6. Pojazd
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pojazd",
+                Binding = new System.Windows.Data.Binding("Pojazd"),
+                Width = new DataGridLength(85),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 7. Godzina wyjazdu
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Godz",
+                Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
+                Width = new DataGridLength(50),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // 8. Trasa
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Trasa",
+                Binding = new System.Windows.Data.Binding("Trasa"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+            });
+
+            // 9. Status
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Status",
+                Binding = new System.Windows.Data.Binding("Status"),
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+        }
+
+        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var status = rowView.Row.Field<string>("Status") ?? "";
+                var handlowiec = rowView.Row.Field<string>("Handlowiec") ?? "";
+
+                if (status == "Anulowane")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230));
+                    e.Row.Foreground = new SolidColorBrush(Colors.Gray);
+                    e.Row.FontStyle = FontStyles.Italic;
+                }
+                else if (!string.IsNullOrEmpty(handlowiec))
+                {
+                    var color = GetColorForSalesman(handlowiec);
+                    e.Row.Background = new SolidColorBrush(color);
+                }
+            }
+        }
+
         private void SetupOrdersDataGrid()
         {
             dgOrders.ItemsSource = _dtOrders.DefaultView;
@@ -2560,8 +2918,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                Width = new DataGridLength(150)
             });
 
             // 2. Handlowiec
@@ -2569,7 +2926,7 @@ ORDER BY zm.Id";
             {
                 Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(50),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -2578,7 +2935,7 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -2587,17 +2944,30 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(65),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 5. Utworzone przez - węższa kolumna
+            // 5. +/- (Różnica: Zam - Wyd)
+            var roznicaStyle = new Style(typeof(TextBlock));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "+/-",
+                Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
+                Width = new DataGridLength(50),
+                ElementStyle = roznicaStyle
+            });
+
+            // 6. Utworzone przez - węższa kolumna
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(0.7, DataGridLengthUnitType.Star),
-                MinWidth = 90
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 80
             });
 
             // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
@@ -2622,7 +2992,7 @@ ORDER BY zm.Id";
                 ElementStyle = cenaStyle
             });
 
-            // 7. Termin - godzina przyjazdu + dzień tygodnia
+            // 7. Termin - godzina + skrócony dzień tygodnia odbioru
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
@@ -2631,7 +3001,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 8. Transport - godzina wyjazdu + dzień tygodnia (jeśli przypisany)
+            // 8. Transport - godzina:minuta + skrócony dzień wyjazdu z firmy
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Transport",
@@ -2640,23 +3010,61 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
-            // 8. Trans
+            // 9. Wypr. - czy wyprodukowane (zielone V / czerwone X)
+            var wyprStyle = new Style(typeof(TextBlock));
+            wyprStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            wyprStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            var wyprGreenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = true };
+            wyprGreenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
+
+            var wyprRedTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = false };
+            wyprRedTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
+
+            wyprStyle.Triggers.Add(wyprGreenTrigger);
+            wyprStyle.Triggers.Add(wyprRedTrigger);
+
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "T",
-                Binding = new System.Windows.Data.Binding("Trans"),
-                Width = new DataGridLength(35),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+                Header = "Wypr.",
+                Binding = new System.Windows.Data.Binding("WyprInfo"),
+                Width = new DataGridLength(45),
+                ElementStyle = wyprStyle
             });
 
-            // 9. Prod
+            // 10. Wydano - godzina:minuta + skrócony dzień wydania
             dgOrders.Columns.Add(new DataGridTextColumn
             {
-                Header = "P",
-                Binding = new System.Windows.Data.Binding("Prod"),
-                Width = new DataGridLength(35),
+                Header = "Wydano",
+                Binding = new System.Windows.Data.Binding("WydanoInfo"),
+                Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
+        }
+
+        private void TabOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source != tabOrders) return;
+
+            var selectedTab = tabOrders.SelectedItem as TabItem;
+            if (selectedTab == tabDashboard)
+            {
+                // Ukryj prawy panel i rozszerz lewy
+                _savedRightColumnWidth = rightColumnDef.Width;
+                rightPanel.Visibility = Visibility.Collapsed;
+                rightColumnDef.Width = new GridLength(0);
+                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+
+                // Załaduj dane Dashboard
+                _ = LoadDashboardDataAsync(_selectedDate);
+            }
+            else
+            {
+                // Przywróć prawy panel
+                rightPanel.Visibility = Visibility.Visible;
+                rightColumnDef.Width = _savedRightColumnWidth;
+                leftColumnDef.Width = new GridLength(60, GridUnitType.Star);
+            }
         }
 
         private void DgTransport_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -2725,31 +3133,6 @@ ORDER BY zm.Id";
                 _colorIndex++;
             }
             return _salesmanColors[salesman];
-        }
-
-        private void DgTransport_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.Item is DataRowView rowView)
-            {
-                var salesman = rowView.Row.Field<string>("Handlowiec") ?? "";
-                var statusTrans = rowView.Row.Field<string>("StatusTransportu") ?? "";
-
-                // Kolorowanie według statusu transportu
-                if (statusTrans == "Wydany")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 255, 200)); // Jasny zielony
-                }
-                else if (statusTrans == "W drodze")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 255, 200)); // Jasny żółty
-                }
-                else if (!string.IsNullOrEmpty(salesman))
-                {
-                    // Kolorowanie według handlowca (tak samo jak w zakładce Zamówienia)
-                    var color = GetColorForSalesman(salesman);
-                    e.Row.Background = new SolidColorBrush(color);
-                }
-            }
         }
 
         private void SetupHistoriaZmianDataGrid()
@@ -3011,9 +3394,12 @@ ORDER BY zm.Id";
             {
                 dgDetails.ItemsSource = null;
                 txtNotes.Clear();
+                if (txtOrderInfo != null) txtOrderInfo.Text = "";
+                if (txtOrderClient != null) txtOrderClient.Text = "";
 
                 int clientId = 0;
                 string notes = "";
+                string waluta = "PLN";
                 var orderItems = new List<(int ProductCode, decimal Quantity, bool Foil, bool Hallal, string Cena)>(); // STRING!
                 DateTime dateForReleases = ValidateSqlDate(_selectedDate.Date);
 
@@ -3022,9 +3408,10 @@ ORDER BY zm.Id";
                     await cn.OpenAsync();
 
                     string slaughterDateSelect = _slaughterDateColumnExists ? ", DataUboju" : "";
+                    string walutaSelect = _walutaColumnExists ? ", ISNULL(Waluta, 'PLN') as Waluta" : "";
                     using (var cmdInfo = new SqlCommand($@"
-                SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect} 
-                FROM dbo.ZamowieniaMieso 
+                SELECT KlientId, Uwagi, DataZamowienia{slaughterDateSelect}{walutaSelect}
+                FROM dbo.ZamowieniaMieso
                 WHERE Id = @Id", cn))
                     {
                         cmdInfo.Parameters.AddWithValue("@Id", orderId);
@@ -3041,6 +3428,16 @@ ORDER BY zm.Id";
                             if (_slaughterDateColumnExists && !readerInfo.IsDBNull(3))
                             {
                                 slaughterDate = readerInfo.GetDateTime(3);
+                            }
+
+                            // Odczytaj walutę
+                            if (_walutaColumnExists)
+                            {
+                                int walutaIndex = _slaughterDateColumnExists ? 4 : 3;
+                                if (readerInfo.FieldCount > walutaIndex && !readerInfo.IsDBNull(walutaIndex))
+                                {
+                                    waluta = readerInfo.GetString(walutaIndex);
+                                }
                             }
 
                             dateForReleases = (_showBySlaughterDate && slaughterDate.HasValue)
@@ -3101,13 +3498,14 @@ ORDER BY zm.Id";
                 }
 
                 var dt = new DataTable();
+                dt.Columns.Add("KodTowaru", typeof(int));  // Hidden - do identyfikacji
                 dt.Columns.Add("Produkt", typeof(string));
                 dt.Columns.Add("Zamówiono", typeof(decimal));
                 dt.Columns.Add("Wydano", typeof(decimal));
                 dt.Columns.Add("Różnica", typeof(decimal));
-                dt.Columns.Add("Folia", typeof(string));
-                dt.Columns.Add("Hallal", typeof(string));
-                dt.Columns.Add("Cena", typeof(string)); // STRING w DataTable
+                dt.Columns.Add("Folia", typeof(bool));
+                dt.Columns.Add("Hallal", typeof(bool));
+                dt.Columns.Add("Cena", typeof(decimal));
 
                 var cultureInfo = new CultureInfo("pl-PL");
 
@@ -3122,19 +3520,14 @@ ORDER BY zm.Id";
                     decimal released = releases.TryGetValue(item.ProductCode, out var w) ? w : 0m;
                     decimal difference = released - ordered;
 
-                    string foliaText = item.Foil ? "TAK" : "";
-                    string hallalText = item.Hallal ? "🔪" : "";
-
-                    // Konwertuj string na decimal dla wyświetlenia
-                    string cenaText = "";
-                    if (!string.IsNullOrWhiteSpace(item.Cena) &&
-                        decimal.TryParse(item.Cena, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cenaValue) &&
-                        cenaValue > 0)
+                    // Konwertuj string na decimal dla ceny
+                    decimal cenaValue = 0m;
+                    if (!string.IsNullOrWhiteSpace(item.Cena))
                     {
-                        cenaText = $"{cenaValue.ToString("N2", cultureInfo)} zł";
+                        decimal.TryParse(item.Cena, NumberStyles.Any, CultureInfo.InvariantCulture, out cenaValue);
                     }
 
-                    dt.Rows.Add(product, ordered, released, difference, foliaText, hallalText, cenaText);
+                    dt.Rows.Add(item.ProductCode, product, ordered, released, difference, item.Foil, item.Hallal, cenaValue);
                     releases.Remove(item.ProductCode);
                 }
 
@@ -3145,11 +3538,49 @@ ORDER BY zm.Id";
 
                     string product = _productCatalogCache.TryGetValue(kv.Key, out var code) ?
                         code : $"Nieznany ({kv.Key})";
-                    dt.Rows.Add(product, 0m, kv.Value, kv.Value, "", "", "");
+                    dt.Rows.Add(kv.Key, product, 0m, kv.Value, kv.Value, false, false, 0m);
                 }
 
                 txtNotes.Text = notes;
+                _originalNotesValue = notes; // Zapisz oryginalną wartość do porównania przy edycji
 
+                // Wyświetl informacje o zamówieniu
+                string clientName = "";
+                if (clientId > 0)
+                {
+                    await using var cnHandel = new SqlConnection(_connHandel);
+                    await cnHandel.OpenAsync();
+                    using var cmdClient = new SqlCommand("SELECT Shortcut FROM [HANDEL].[SSCommon].[STContractors] WHERE Id = @Id", cnHandel);
+                    cmdClient.Parameters.AddWithValue("@Id", clientId);
+                    var result = await cmdClient.ExecuteScalarAsync();
+                    clientName = result?.ToString() ?? "";
+                }
+
+                // Oblicz sumy
+                decimal sumaZam = orderItems.Sum(x => x.Quantity);
+                int iloscPozycji = orderItems.Count;
+
+                if (txtOrderInfo != null)
+                {
+                    txtOrderInfo.Text = $"(ID: {orderId} | Pozycji: {iloscPozycji} | Suma: {sumaZam:#,##0} kg)";
+                }
+                if (txtOrderClient != null)
+                {
+                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? $"👤 {clientName}" : "";
+                }
+
+                // Ustaw walutę w panelu
+                if (cbWalutaPanel != null)
+                {
+                    foreach (ComboBoxItem item in cbWalutaPanel.Items)
+                    {
+                        if (item.Content?.ToString() == waluta)
+                        {
+                            cbWalutaPanel.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
                 if (dt.Rows.Count > 0)
                 {
                     dgDetails.ItemsSource = dt.DefaultView;
@@ -3169,67 +3600,119 @@ ORDER BY zm.Id";
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 dgDetails.ItemsSource = null;
                 txtNotes.Clear();
+                _originalNotesValue = "";
             }
         }
         private void SetupDetailsDataGrid()
         {
             dgDetails.Columns.Clear();
+            dgDetails.CanUserAddRows = false;
+            dgDetails.CanUserDeleteRows = false;
+
+            // Ukryta kolumna KodTowaru
+            dgDetails.Columns.Add(new DataGridTextColumn
+            {
+                Header = "KodTowaru",
+                Binding = new System.Windows.Data.Binding("KodTowaru"),
+                Visibility = Visibility.Collapsed
+            });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star), // elastyczna
-                MinWidth = 80
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 80,
+                IsReadOnly = true
             });
 
+            // Edytowalna kolumna ilości - z separatorem tysięcy
+            var zamowioneBinding = new System.Windows.Data.Binding("Zamówiono")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
+                StringFormat = "#,##0"
+            };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zam.",
-                Binding = new System.Windows.Data.Binding("Zamówiono") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Binding = zamowioneBinding,
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                IsReadOnly = false
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wyd.",
-                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Binding = new System.Windows.Data.Binding("Wydano") { StringFormat = "#,##0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                IsReadOnly = true
             });
 
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Róż.",
-                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Binding = new System.Windows.Data.Binding("Różnica") { StringFormat = "#,##0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                IsReadOnly = true
             });
 
-            dgDetails.Columns.Add(new DataGridTextColumn
+            // Checkbox Folia
+            var foliaBinding = new System.Windows.Data.Binding("Folia")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+            };
+            dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "Folia",
-                Binding = new System.Windows.Data.Binding("Folia"),
-                Width = new DataGridLength(45),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+                Binding = foliaBinding,
+                Width = new DataGridLength(40),
+                IsReadOnly = false
             });
 
-            dgDetails.Columns.Add(new DataGridTextColumn
+            // Checkbox Hallal
+            var hallalBinding = new System.Windows.Data.Binding("Hallal")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+            };
+            dgDetails.Columns.Add(new DataGridCheckBoxColumn
             {
                 Header = "Hallal",
-                Binding = new System.Windows.Data.Binding("Hallal"),
+                Binding = hallalBinding,
                 Width = new DataGridLength(45),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+                IsReadOnly = false
             });
 
+            // Edytowalna kolumna ceny
+            var cenaBinding = new System.Windows.Data.Binding("Cena")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus,
+                StringFormat = "N2"
+            };
             dgDetails.Columns.Add(new DataGridTextColumn
             {
                 Header = "Cena",
-                Binding = new System.Windows.Data.Binding("Cena"),
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Binding = cenaBinding,
+                Width = new DataGridLength(60),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle"),
+                IsReadOnly = false
             });
+
+            // Podpinanie eventów
+            dgDetails.CellEditEnding -= DgDetails_CellEditEnding;
+            dgDetails.CellEditEnding += DgDetails_CellEditEnding;
+            dgDetails.PreviewKeyDown -= DgDetails_PreviewKeyDown;
+            dgDetails.PreviewKeyDown += DgDetails_PreviewKeyDown;
+
+            // Obsługa kliknięć w checkboxy (Folia/Hallal)
+            dgDetails.BeginningEdit -= DgDetails_BeginningEdit;
+            dgDetails.BeginningEdit += DgDetails_BeginningEdit;
         }
         private async Task DisplayReleaseWithoutOrderDetailsAsync(int clientId, DateTime day)
         {
@@ -3284,10 +3767,12 @@ ORDER BY zm.Id";
                 }
             }
 
-            txtNotes.Text = $"📦 Wydanie bez zamówienia\n\n" +
+            string notesContent = $"📦 Wydanie bez zamówienia\n\n" +
                            $"Odbiorca: {recipientName} (ID: {clientId})\n" +
                            $"Data: {day:yyyy-MM-dd dddd}\n\n" +
                            $"Poniżej lista wydanych produktów (tylko towary z katalogów 67095 i 67153)";
+            txtNotes.Text = notesContent;
+            _originalNotesValue = notesContent; // Wydanie bez zamówienia - notatki generowane, nie edytowalne
 
             dgDetails.ItemsSource = dt.DefaultView;
             dgDetails.Columns.Clear();
@@ -3849,6 +4334,7 @@ ORDER BY zm.Id";
         {
             dgDetails.ItemsSource = null;
             txtNotes.Clear();
+            _originalNotesValue = "";
             _currentOrderId = null;
         }
 
@@ -3992,6 +4478,673 @@ ORDER BY zm.Id";
         }
 
         #endregion
+
+        #region Dashboard
+
+        private async Task LoadDashboardDataAsync(DateTime day)
+        {
+            day = ValidateSqlDate(day);
+
+            _dtDashboard.Rows.Clear();
+
+            if (_dtDashboard.Columns.Count == 0)
+            {
+                _dtDashboard.Columns.Add("Produkt", typeof(string));
+                _dtDashboard.Columns.Add("Plan", typeof(decimal));
+                _dtDashboard.Columns.Add("Fakt", typeof(decimal));
+                _dtDashboard.Columns.Add("Stan", typeof(decimal));
+                _dtDashboard.Columns.Add("Zamowienia", typeof(decimal));
+                _dtDashboard.Columns.Add("Bilans", typeof(decimal));
+                _dtDashboard.Columns.Add("Status", typeof(string));
+            }
+
+            // Pobierz dane konfiguracji wydajności
+            var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
+
+            // Pobierz konfigurację produktów (TowarID -> ProcentUdzialu z TuszkiB)
+            var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
+
+            // Pobierz masę deklaracji z HarmonogramDostaw
+            decimal totalMassDek = 0m;
+            await using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
+                                     WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var weight = rdr.IsDBNull(0) ? 0m : Convert.ToDecimal(rdr.GetValue(0));
+                    var quantity = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                    totalMassDek += (weight * quantity);
+                }
+            }
+
+            // Oblicz pulę tuszki na podstawie wydajności
+            decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
+            decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
+            decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
+
+            // Pobierz faktyczne przychody (produkcja)
+            var actualIncome = new Dictionary<int, decimal>();
+            await using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                                     FROM [HANDEL].[HM].[MZ] MZ
+                                     JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                     WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                                     GROUP BY MZ.idtw";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int productId = rdr.GetInt32(0);
+                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                    actualIncome[productId] = qty;
+                }
+            }
+
+            // Pobierz zamówienia
+            var orderSum = new Dictionary<int, decimal>();
+            var orderIds = _dtOrders.AsEnumerable()
+                .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
+                .Where(r => r.Field<string>("Status") != "SUMA")
+                .Select(r => r.Field<int>("Id"))
+                .Where(id => id > 0)
+                .ToList();
+
+            if (orderIds.Any())
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                         $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+            }
+
+            // Pobierz stany magazynowe
+            var stanyMagazynowe = new Dictionary<int, decimal>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                const string sqlStany = @"SELECT ProduktId, Stan FROM dbo.StanyMagazynowe WHERE Data = @Data";
+                await using var cmd = new SqlCommand(sqlStany, cn);
+                cmd.Parameters.AddWithValue("@Data", day.Date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int produktId = reader.GetInt32(0);
+                    decimal stan = reader.GetDecimal(1);
+                    stanyMagazynowe[produktId] = stan;
+                }
+            }
+            catch { }
+
+            // Dodaj produkty do tabeli
+            decimal totalZamowienia = 0m;
+            decimal totalWydania = 0m;
+            decimal totalPlan = 0m;
+
+            foreach (var product in _productCatalogCache)
+            {
+                int productId = product.Key;
+                string productName = product.Value;
+
+                // Oblicz plan na podstawie konfiguracji wydajności
+                decimal plan = 0m;
+
+                // Sprawdź czy produkt ma skonfigurowany procent udziału
+                if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
+                {
+                    // Produkty z konfiguracji są liczone jako % z TuszkiB
+                    plan = pulaTuszkiB * (procentUdzialu / 100m);
+                }
+                // Fallback na nazwy produktów dla tuszek
+                else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                         productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan = pulaTuszkiA;
+                }
+                else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                         productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                {
+                    plan = pulaTuszkiB;
+                }
+
+                decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
+                decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
+                decimal zamowienia = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+
+                // Pokaż produkt jeśli ma jakiekolwiek dane lub ma plan
+                if (zamowienia == 0 && fakt == 0 && stan == 0 && plan == 0) continue;
+
+                // Bilans = dostępne (fakt lub plan) + stan - zamówienia
+                decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
+
+                string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
+
+                _dtDashboard.Rows.Add(productName, plan, fakt, stan, zamowienia, bilans, status);
+
+                totalZamowienia += zamowienia;
+                totalWydania += fakt;
+                totalPlan += plan;
+            }
+
+            // Aktualizuj KPI
+            int klientowCount = _dtOrders.AsEnumerable()
+                .Where(r => r.Field<string>("Status") != "SUMA" && r.Field<int>("Id") > 0)
+                .Select(r => r.Field<int>("KlientId"))
+                .Distinct().Count();
+
+            int wydanychCount = _dtOrders.AsEnumerable()
+                .Where(r => r.Field<string>("Status") != "SUMA" && r.Field<int>("Id") > 0)
+                .Where(r => r.Field<decimal>("IloscFaktyczna") > 0)
+                .Count();
+
+            decimal realizacja = totalZamowienia > 0 ? (totalWydania / totalZamowienia) * 100m : 0m;
+            decimal roznica = totalZamowienia - totalWydania;
+
+            // KPI 1: Plan produkcji
+            txtKpiPlan.Text = $"{totalPlan:N0} kg";
+            txtKpiSurowiec.Text = $"{totalMassDek:N0} kg";
+            txtKpiWydajnosc.Text = $"{wspolczynnikTuszki:N0}%";
+
+            // KPI 2: Faktyczna produkcja
+            txtKpiWydania.Text = $"{totalWydania:N0} kg";
+            decimal wydaniaVsPlan = totalPlan > 0 ? (totalWydania / totalPlan) * 100m : 0m;
+            txtKpiWydaniaVsPlan.Text = $"{wydaniaVsPlan:N1}%";
+            txtKpiWydaniaVsPlan.Foreground = wydaniaVsPlan >= 100 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+            txtKpiWydaniaKlienci.Text = $"{wydanychCount}";
+
+            // KPI 3: Zamówienia
+            txtKpiZamowienia.Text = $"{totalZamowienia:N0} kg";
+            txtKpiZamowieniaKlienci.Text = $"{klientowCount}";
+            txtKpiRoznica.Text = $"{roznica:N0} kg";
+            txtKpiRoznica.Foreground = roznica <= 0 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+
+            // KPI 4: Realizacja
+            txtKpiRealizacja.Text = $"{realizacja:N1}%";
+            string statusText = realizacja >= 100 ? "Zrealizowane" : (realizacja > 50 ? "W trakcie" : "Oczekuje");
+            txtKpiRealizacjaStatus.Text = statusText;
+            txtKpiRealizacjaStatus.Foreground = realizacja >= 100 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                (realizacja > 50 ? new SolidColorBrush(Color.FromRgb(243, 156, 18)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60)));
+
+            decimal bilansTotal = (totalWydania > 0 ? totalWydania : totalPlan) - totalZamowienia;
+            txtKpiRealizacjaInfo.Text = $"{bilansTotal:N0} kg";
+            txtKpiRealizacjaInfo.Foreground = bilansTotal >= 0 ?
+                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
+                new SolidColorBrush(Color.FromRgb(231, 76, 60));
+
+            // Zlicz statusy bilansu
+            int okCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "✅");
+            int uwagaCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "⚠️");
+            int brakCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "❌");
+
+            txtBilansOk.Text = okCount.ToString();
+            txtBilansUwaga.Text = uwagaCount.ToString();
+            txtBilansBrak.Text = brakCount.ToString();
+
+            // Wydajność główna
+            txtWydajnoscGlowna.Text = $"{wspolczynnikTuszki:N0}%";
+            txtTuszkaA.Text = $"{procentA:N0}%";
+            txtTuszkaB.Text = $"{procentB:N0}%";
+
+            // Aktualizuj pasek postępu wydajności (max 100%, skala 0-250px)
+            double progressWidth = (double)(wspolczynnikTuszki / 100m) * 250;
+            progressWydajnosc.Width = Math.Min(progressWidth, 250);
+
+            SetupDashboardDataGrid();
+            SetupTopProduktyDataGrid();
+        }
+
+        private void SetupTopProduktyDataGrid()
+        {
+            // Pobierz top 5 produktów wg zamówień
+            var topProdukty = _dtDashboard.AsEnumerable()
+                .Where(r => r.Field<decimal>("Zamowienia") > 0)
+                .OrderByDescending(r => r.Field<decimal>("Zamowienia"))
+                .Take(5)
+                .Select(r => new
+                {
+                    Produkt = r.Field<string>("Produkt"),
+                    Zamowienia = r.Field<decimal>("Zamowienia"),
+                    Bilans = r.Field<decimal>("Bilans"),
+                    Status = r.Field<string>("Status")
+                })
+                .ToList();
+
+            dgTopProdukty.ItemsSource = topProdukty;
+            dgTopProdukty.Columns.Clear();
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Produkt",
+                Binding = new System.Windows.Data.Binding("Produkt"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zamów.",
+                Binding = new System.Windows.Data.Binding("Zamowienia") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Bilans",
+                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
+                Width = new DataGridLength(70),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            dgTopProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "",
+                Binding = new System.Windows.Data.Binding("Status"),
+                Width = new DataGridLength(30),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+        }
+
+        private void SetupDashboardDataGrid()
+        {
+            dgDashboardProdukty.ItemsSource = _dtDashboard.DefaultView;
+            dgDashboardProdukty.Columns.Clear();
+
+            // 1. Produkt
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Produkt",
+                Binding = new System.Windows.Data.Binding("Produkt"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 150
+            });
+
+            // 2. Plan
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Plan",
+                Binding = new System.Windows.Data.Binding("Plan") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 3. Fakt
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Fakt",
+                Binding = new System.Windows.Data.Binding("Fakt") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 4. Stan
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Stan",
+                Binding = new System.Windows.Data.Binding("Stan") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 5. Zamówienia
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zamów.",
+                Binding = new System.Windows.Data.Binding("Zamowienia") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 6. Bilans
+            var bilansStyle = new Style(typeof(TextBlock));
+            bilansStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            bilansStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Bilans",
+                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                ElementStyle = bilansStyle
+            });
+
+            // 7. Status
+            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Status",
+                Binding = new System.Windows.Data.Binding("Status"),
+                Width = new DataGridLength(60),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            // Kolorowanie wierszy
+            dgDashboardProdukty.LoadingRow -= DgDashboardProdukty_LoadingRow;
+            dgDashboardProdukty.LoadingRow += DgDashboardProdukty_LoadingRow;
+        }
+
+        private void DgDashboardProdukty_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var bilans = rowView.Row.Field<decimal>("Bilans");
+                var status = rowView.Row.Field<string>("Status") ?? "";
+
+                if (status == "❌" || bilans < 0)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230)); // Czerwony
+                }
+                else if (status == "⚠️" || bilans == 0)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 250, 205)); // Żółty
+                }
+                else
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(230, 255, 230)); // Zielony
+                }
+            }
+        }
+
+        #endregion
+
+        #region Currency Panel Events
+
+        private async void CbWalutaPanel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized || !_currentOrderId.HasValue || _currentOrderId.Value <= 0)
+                return;
+
+            if (cbWalutaPanel.SelectedItem is ComboBoxItem selectedItem)
+            {
+                string waluta = selectedItem.Content?.ToString() ?? "PLN";
+
+                // Zapisz walutę w bazie
+                if (_walutaColumnExists)
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+
+                        await using var cmd = new SqlCommand(
+                            "UPDATE dbo.ZamowieniaMieso SET Waluta = @waluta WHERE Id = @id", cn);
+                        cmd.Parameters.AddWithValue("@waluta", waluta);
+                        cmd.Parameters.AddWithValue("@id", _currentOrderId.Value);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas zapisywania waluty:\n{ex.Message}",
+                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Details Grid Edit Events
+
+        private object? _editOldValue = null;
+        private string _editColumnName = "";
+        private int _editKodTowaru = 0;
+        private string _editProduktNazwa = "";
+
+        private void DgDetails_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                // Zatwierdzenie edycji przy Enter
+                dgDetails.CommitEdit(DataGridEditingUnit.Cell, true);
+                dgDetails.CommitEdit(DataGridEditingUnit.Row, true);
+                e.Handled = true;
+            }
+        }
+
+        private void DgDetails_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            if (e.Row.Item is not DataRowView rowView)
+                return;
+
+            var row = rowView.Row;
+            _editKodTowaru = row.Field<int>("KodTowaru");
+            _editProduktNazwa = row.Field<string>("Produkt") ?? "";
+            _editColumnName = e.Column.Header?.ToString() ?? "";
+
+            // Zapisz starą wartość przed edycją
+            _editOldValue = _editColumnName switch
+            {
+                "Zam." => row.Field<decimal>("Zamówiono"),
+                "Cena" => row.Field<decimal>("Cena"),
+                "Folia" => row.Field<bool>("Folia"),
+                "Hallal" => row.Field<bool>("Hallal"),
+                _ => null
+            };
+        }
+
+        private async void DgDetails_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Cancel)
+            {
+                _editOldValue = null;
+                return;
+            }
+
+            if (!_currentOrderId.HasValue || _currentOrderId.Value <= 0)
+                return;
+
+            if (e.Row.Item is not DataRowView rowView)
+                return;
+
+            string columnName = e.Column.Header?.ToString() ?? "";
+            object? newValue = null;
+
+            if (e.EditingElement is TextBox textBox)
+            {
+                string newText = textBox.Text;
+
+                if (columnName == "Zam.")
+                {
+                    if (decimal.TryParse(newText, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal newQty))
+                    {
+                        newValue = newQty;
+                    }
+                }
+                else if (columnName == "Cena")
+                {
+                    if (decimal.TryParse(newText, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal newPrice))
+                    {
+                        newValue = newPrice;
+                    }
+                }
+            }
+            else if (e.EditingElement is CheckBox checkBox)
+            {
+                newValue = checkBox.IsChecked ?? false;
+            }
+
+            if (newValue == null || (_editOldValue != null && _editOldValue.Equals(newValue)))
+            {
+                _editOldValue = null;
+                return;
+            }
+
+            // Zapisz zmianę w bazie
+            await SaveOrderItemChangeAsync(_editKodTowaru, columnName, _editOldValue, newValue, _editProduktNazwa);
+            _editOldValue = null;
+        }
+
+        private async Task SaveOrderItemChangeAsync(int kodTowaru, string columnName, object? oldValue, object? newValue, string produktNazwa)
+        {
+            if (!_currentOrderId.HasValue) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                string dbColumn = columnName switch
+                {
+                    "Zam." => "Ilosc",
+                    "Cena" => "Cena",
+                    "Folia" => "Folia",
+                    "Hallal" => "Hallal",
+                    _ => ""
+                };
+
+                if (string.IsNullOrEmpty(dbColumn)) return;
+
+                // Aktualizuj wartość w bazie
+                string updateSql = dbColumn == "Cena"
+                    ? "UPDATE dbo.ZamowieniaMiesoTowar SET Cena = @value WHERE ZamowienieId = @orderId AND KodTowaru = @kodTowaru"
+                    : $"UPDATE dbo.ZamowieniaMiesoTowar SET {dbColumn} = @value WHERE ZamowienieId = @orderId AND KodTowaru = @kodTowaru";
+
+                await using var cmdUpdate = new SqlCommand(updateSql, cn);
+
+                if (dbColumn == "Cena")
+                {
+                    cmdUpdate.Parameters.AddWithValue("@value", newValue != null ? ((decimal)newValue).ToString("F2", CultureInfo.InvariantCulture) : DBNull.Value);
+                }
+                else if (dbColumn == "Ilosc")
+                {
+                    cmdUpdate.Parameters.AddWithValue("@value", newValue ?? DBNull.Value);
+                }
+                else
+                {
+                    cmdUpdate.Parameters.AddWithValue("@value", newValue ?? false);
+                }
+
+                cmdUpdate.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                cmdUpdate.Parameters.AddWithValue("@kodTowaru", kodTowaru);
+
+                await cmdUpdate.ExecuteNonQueryAsync();
+
+                // Zapisz w historii zmian
+                string staraWartosc = FormatValueForHistory(oldValue, columnName);
+                string nowaWartosc = FormatValueForHistory(newValue, columnName);
+
+                string opisZmiany = $"{produktNazwa}: {columnName} {staraWartosc} → {nowaWartosc}";
+
+                await using var cmdHistory = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
+                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
+                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                cmdHistory.Parameters.AddWithValue("@user", UserID);
+                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja pozycji");
+                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
+
+                try
+                {
+                    await cmdHistory.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // Tabela historii może nie istnieć - ignoruj
+                }
+
+                // Odśwież dane po zmianie ilości (aby przeliczyć różnicę)
+                if (columnName == "Zam.")
+                {
+                    await RefreshAllDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania zmiany:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string FormatValueForHistory(object? value, string columnName)
+        {
+            if (value == null) return "brak";
+
+            return columnName switch
+            {
+                "Zam." => $"{value:N0} kg",
+                "Cena" => $"{value:N2} zł",
+                "Folia" => (bool)value ? "TAK" : "NIE",
+                "Hallal" => (bool)value ? "TAK" : "NIE",
+                _ => value.ToString() ?? "brak"
+            };
+        }
+
+        private async void TxtNotes_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!_currentOrderId.HasValue) return;
+
+            string newNotes = txtNotes.Text ?? "";
+            string oldNotes = _originalNotesValue ?? "";
+
+            // Sprawdź czy notatki się zmieniły
+            if (newNotes == oldNotes) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Aktualizuj notatki w bazie
+                await using var cmdUpdate = new SqlCommand(
+                    "UPDATE dbo.ZamowieniaMieso SET Uwagi = @uwagi WHERE Id = @orderId", cn);
+                cmdUpdate.Parameters.AddWithValue("@uwagi", newNotes);
+                cmdUpdate.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                await cmdUpdate.ExecuteNonQueryAsync();
+
+                // Zapisz zmianę w historii
+                string staraWartosc = string.IsNullOrEmpty(oldNotes) ? "(puste)" :
+                    (oldNotes.Length > 50 ? oldNotes.Substring(0, 50) + "..." : oldNotes);
+                string nowaWartosc = string.IsNullOrEmpty(newNotes) ? "(puste)" :
+                    (newNotes.Length > 50 ? newNotes.Substring(0, 50) + "..." : newNotes);
+
+                string opisZmiany = $"Notatki: \"{staraWartosc}\" → \"{nowaWartosc}\"";
+
+                await using var cmdHistory = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
+                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
+                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                cmdHistory.Parameters.AddWithValue("@user", UserID);
+                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja notatek");
+                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
+
+                try
+                {
+                    await cmdHistory.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // Tabela historii może nie istnieć - ignoruj
+                }
+
+                // Zaktualizuj oryginalną wartość
+                _originalNotesValue = newNotes;
+
+                // Krótkie potwierdzenie
+                System.Diagnostics.Debug.WriteLine($"Notatki zapisane dla zamówienia {_currentOrderId.Value}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania notatek:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
     }
-   
 }

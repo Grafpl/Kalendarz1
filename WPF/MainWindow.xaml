@@ -123,11 +123,17 @@
                 <Setter Property="Padding" Value="10"/>
                 <Setter Property="BorderBrush" Value="#E0E0E0"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Background" Value="White"/>
+                <Setter Property="Background" Value="#FEFEFE"/>
                 <Setter Property="TextWrapping" Value="Wrap"/>
                 <Setter Property="AcceptsReturn" Value="True"/>
                 <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-                <Setter Property="IsReadOnly" Value="True"/>
+                <Setter Property="IsReadOnly" Value="False"/>
+                <Style.Triggers>
+                    <Trigger Property="IsFocused" Value="True">
+                        <Setter Property="BorderBrush" Value="#4CAF50"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                    </Trigger>
+                </Style.Triggers>
             </Style>
 
             <Style x:Key="RightAlignedCellStyle" TargetType="TextBlock">
@@ -216,66 +222,70 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="60*"/>
-                <ColumnDefinition Width="40*"/>
-            </Grid.ColumnDefinitions>
+        <Grid x:Name="mainContentGrid" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <Grid Grid.Column="0" Margin="10,10,5,10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <!-- PASEK FILTRÓW I PRODUKTÓW - na całą szerokość -->
+            <Border Grid.Row="0" Background="#ECEFF1"
+                    Padding="8,6" CornerRadius="5" Margin="10,10,10,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <Border Grid.Row="0" Background="#ECEFF1"
-                        Padding="8,6" CornerRadius="5" Margin="0,0,0,5">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
+                             Style="{StaticResource FilterTextBoxStyle}"
+                             Tag="Odbiorca..." Margin="0,0,5,0"
+                             TextChanged="TxtFilterRecipient_TextChanged"/>
 
-                        <TextBox x:Name="txtFilterRecipient" Grid.Column="0"
-                                 Style="{StaticResource FilterTextBoxStyle}"
-                                 Tag="Odbiorca..." Margin="0,0,5,0"
-                                 TextChanged="TxtFilterRecipient_TextChanged"/>
+                    <ComboBox x:Name="cbFilterSalesman" Grid.Column="1"
+                              Style="{StaticResource FilterComboBoxStyle}" Margin="0,0,5,0"
+                              SelectionChanged="CbFilter_SelectionChanged"/>
 
-                        <ComboBox x:Name="cbFilterSalesman" Grid.Column="1"
-                                  Style="{StaticResource FilterComboBoxStyle}" Margin="0,0,5,0"
-                                  SelectionChanged="CbFilter_SelectionChanged"/>
+                    <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
+                        <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
+                                     VerticalAlignment="Center" Margin="0,0,0,2" IsChecked="True"
+                                     Checked="RbProductCatalog_Checked"/>
+                        <RadioButton x:Name="rbMrozone" Content="Mr" GroupName="ProductCatalog"
+                                     VerticalAlignment="Center"
+                                     Checked="RbProductCatalog_Checked"/>
+                    </StackPanel>
 
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="5,0">
-                            <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
-                                         VerticalAlignment="Center" Margin="0,0,8,0" IsChecked="True"
-                                         Checked="RbProductCatalog_Checked"/>
-                            <RadioButton x:Name="rbMrozone" Content="Mr" GroupName="ProductCatalog"
-                                         VerticalAlignment="Center"
-                                         Checked="RbProductCatalog_Checked"/>
-                        </StackPanel>
+                    <ScrollViewer Grid.Column="3" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
+                        <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
+                    </ScrollViewer>
 
-                        <ScrollViewer Grid.Column="3" HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
-                            <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
-                        </ScrollViewer>
+                    <!-- Hidden elements for compatibility -->
+                    <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
+                              DisplayMemberPath="Value" SelectedValuePath="Key"/>
+                    <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
+                              Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
+                    <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
+                              Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
+                    <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
+                                 Checked="RbDateFilter_Checked"/>
+                    <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
+                                 Checked="RbDateFilter_Checked" IsChecked="True"/>
+                </Grid>
+            </Border>
 
-                        <!-- Hidden elements for compatibility -->
-                        <ComboBox x:Name="cbFilterProduct" Visibility="Collapsed"
-                                  DisplayMemberPath="Value" SelectedValuePath="Key"/>
-                        <CheckBox x:Name="chkShowReleasesWithoutOrders" Visibility="Collapsed"
-                                  Checked="ChkShowReleases_Changed" Unchecked="ChkShowReleases_Changed"/>
-                        <CheckBox x:Name="chkShowAnulowane" Visibility="Collapsed" IsChecked="False"
-                                  Checked="ChkShowAnulowane_Changed" Unchecked="ChkShowAnulowane_Changed"/>
-                        <RadioButton x:Name="rbPickupDate" Visibility="Collapsed" GroupName="DateFilter"
-                                     Checked="RbDateFilter_Checked"/>
-                        <RadioButton x:Name="rbSlaughterDate" Visibility="Collapsed" GroupName="DateFilter"
-                                     Checked="RbDateFilter_Checked" IsChecked="True"/>
-                    </Grid>
-                </Border>
+            <!-- ZAWARTOŚĆ - dwie kolumny -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="leftColumnDef" Width="60*"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="40*"/>
+                </Grid.ColumnDefinitions>
 
-                <TabControl x:Name="tabOrders" Grid.Row="1" Background="Transparent" BorderThickness="0">
+                <!-- Lewa kolumna - zakładki -->
+                <TabControl x:Name="tabOrders" Grid.Column="0" Background="Transparent" BorderThickness="0"
+                            Margin="10,0,5,10" SelectionChanged="TabOrders_SelectionChanged">
                     <TabItem Header="Zamówienia" FontSize="12" FontWeight="SemiBold">
                         <DataGrid x:Name="dgOrders"
                                   Style="{StaticResource ModernDataGridStyle}"
@@ -321,14 +331,325 @@
                                   AutoGenerateColumns="False"
                                   CanUserSortColumns="True"/>
                     </TabItem>
-                </TabControl>
-            </Grid>
+                    <TabItem x:Name="tabDashboard" Header="📊 Dashboard" FontSize="12" FontWeight="SemiBold">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <Grid Margin="10" Background="#F0F2F5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
 
-            <Grid Grid.Column="1" Margin="5,10,10,10">
+                                <!-- SEKCJA 1: KARTY KPI Z GRADIENTAMI -->
+                                <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="0,0,0,15">
+
+                                    <!-- KPI 1: PLAN PRODUKCJI - Niebieski gradient -->
+                                    <Border Margin="5" CornerRadius="12">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#667eea" Offset="0"/>
+                                                <GradientStop Color="#764ba2" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Grid Margin="20,15">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="📦 PLAN PRODUKCJI" FontSize="11" Foreground="#E8E8FF" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiPlan" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Surowiec: " FontSize="10" Foreground="#E0E0FF"/>
+                                                        <TextBlock x:Name="txtKpiSurowiec" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock Text="Wydajność: " FontSize="10" Foreground="#D0D0FF"/>
+                                                <TextBlock x:Name="txtKpiWydajnosc" Text="78%" FontSize="10" Foreground="#90EE90" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- KPI 2: FAKTYCZNA PRODUKCJA - Zielony gradient -->
+                                    <Border Margin="5" CornerRadius="12">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#11998e" Offset="0"/>
+                                                <GradientStop Color="#38ef7d" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Grid Margin="20,15">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="🏭 PRODUKCJA" FontSize="11" Foreground="#E8FFE8" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiWydania" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="vs Plan: " FontSize="10" Foreground="#E0FFE0"/>
+                                                        <TextBlock x:Name="txtKpiWydaniaVsPlan" Text="0%" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock Text="Wydanych: " FontSize="10" Foreground="#D0FFD0"/>
+                                                <TextBlock x:Name="txtKpiWydaniaKlienci" Text="0" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- KPI 3: ZAMÓWIENIA - Pomarańczowy gradient -->
+                                    <Border Margin="5" CornerRadius="12">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#f2994a" Offset="0"/>
+                                                <GradientStop Color="#f2c94c" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Grid Margin="20,15">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="📋 ZAMÓWIENIA" FontSize="11" Foreground="#FFF8E8" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiZamowienia" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Klientów: " FontSize="10" Foreground="#FFF0D0"/>
+                                                        <TextBlock x:Name="txtKpiZamowieniaKlienci" Text="0" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock Text="Różnica: " FontSize="10" Foreground="#FFE8C0"/>
+                                                <TextBlock x:Name="txtKpiRoznica" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- KPI 4: REALIZACJA - Czerwony/Różowy gradient -->
+                                    <Border Margin="5" CornerRadius="12">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#eb3349" Offset="0"/>
+                                                <GradientStop Color="#f45c43" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Grid Margin="20,15">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="📈 REALIZACJA" FontSize="11" Foreground="#FFE8E8" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtKpiRealizacja" Grid.Row="1" Text="0%" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Status: " FontSize="10" Foreground="#FFD0D0"/>
+                                                        <TextBlock x:Name="txtKpiRealizacjaStatus" Text="Oczekuje" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
+                                                <TextBlock Text="Bilans: " FontSize="10" Foreground="#FFD0D0"/>
+                                                <TextBlock x:Name="txtKpiRealizacjaInfo" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </UniformGrid>
+
+                                <!-- SEKCJA 2: BILANS I WYDAJNOŚĆ -->
+                                <Grid Grid.Row="1" Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Lewa strona: Bilans produktów -->
+                                    <Border Grid.Column="0" Margin="5,0,10,0" CornerRadius="12" Background="White">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Nagłówek -->
+                                            <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,12">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#2c3e50" Offset="0"/>
+                                                        <GradientStop Color="#3498db" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <Grid>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="📊 BILANS PRODUKTÓW" FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                        <Border Background="#27AE60" CornerRadius="12" Padding="12,5" Margin="5,0">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="✓ " FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                                <TextBlock x:Name="txtBilansOk" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <Border Background="#F39C12" CornerRadius="12" Padding="12,5" Margin="5,0">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="⚠ " FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                                <TextBlock x:Name="txtBilansUwaga" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <Border Background="#E74C3C" CornerRadius="12" Padding="12,5" Margin="5,0">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="✗ " FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                                <TextBlock x:Name="txtBilansBrak" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Tabela -->
+                                            <DataGrid x:Name="dgDashboardProdukty" Grid.Row="1"
+                                                      Style="{StaticResource ModernDataGridStyle}"
+                                                      AutoGenerateColumns="False"
+                                                      CanUserSortColumns="True"
+                                                      MaxHeight="280"
+                                                      Margin="5"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Prawa strona: Wydajność -->
+                                    <Border Grid.Column="1" Margin="0,0,5,0" CornerRadius="12" Background="White">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                        </Border.Effect>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Nagłówek -->
+                                            <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="15,12">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#8e44ad" Offset="0"/>
+                                                        <GradientStop Color="#3498db" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                                <TextBlock Text="⚙️ WYDAJNOŚĆ" FontSize="14" Foreground="White" FontWeight="Bold"/>
+                                            </Border>
+
+                                            <!-- Zawartość -->
+                                            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="15">
+                                                <TextBlock x:Name="txtWydajnoscGlowna" Text="78%" FontSize="56" Foreground="#2c3e50" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Wydajność tuszki" FontSize="12" Foreground="#7f8c8d" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+                                                <!-- Pasek postępu -->
+                                                <Grid Margin="0,0,0,20">
+                                                    <Border Background="#E0E0E0" CornerRadius="5" Height="10"/>
+                                                    <Border x:Name="progressWydajnosc" Background="#27AE60" CornerRadius="5" Height="10" HorizontalAlignment="Left" Width="200"/>
+                                                </Grid>
+
+                                                <!-- Tuszka A i B -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Border Grid.Column="0" Background="#E8F8E8" CornerRadius="8" Padding="15,10" Margin="0,0,5,0">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="TUSZKA A" FontSize="10" Foreground="#27AE60" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                            <TextBlock x:Name="txtTuszkaA" Text="85%" FontSize="22" Foreground="#27AE60" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <Border Grid.Column="1" Background="#E8F0F8" CornerRadius="8" Padding="15,10" Margin="5,0,0,0">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="TUSZKA B" FontSize="10" Foreground="#3498DB" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                            <TextBlock x:Name="txtTuszkaB" Text="15%" FontSize="22" Foreground="#3498DB" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- SEKCJA 3: TOP PRODUKTY -->
+                                <Border Grid.Row="2" Margin="5,0,5,15" CornerRadius="12" Background="White">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Nagłówek -->
+                                        <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,12">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#1a2a6c" Offset="0"/>
+                                                    <GradientStop Color="#b21f1f" Offset="0.5"/>
+                                                    <GradientStop Color="#fdbb2d" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <TextBlock Text="🏆 TOP 5 PRODUKTÓW WG ZAMÓWIEŃ" FontSize="14" Foreground="White" FontWeight="Bold"/>
+                                        </Border>
+
+                                        <!-- Tabela -->
+                                        <DataGrid x:Name="dgTopProdukty" Grid.Row="1"
+                                                  Style="{StaticResource ModernDataGridStyle}"
+                                                  AutoGenerateColumns="False"
+                                                  HeadersVisibility="Column"
+                                                  MaxHeight="180"
+                                                  Margin="5"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
+
+                <!-- Prawa kolumna - szczegóły i podsumowanie -->
+                <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,0,10,10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="45*"/>
+                    <RowDefinition Height="60*"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="55*"/>
+                    <RowDefinition Height="40*"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Style="{StaticResource PanelBorderStyle}">
@@ -336,29 +657,63 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="50"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Text="Szczegóły / Notatki zamówienia:"
-                                   Style="{StaticResource SectionHeaderStyle}"/>
+                        <Grid Grid.Row="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <DataGrid x:Name="dgDetails" Grid.Row="1" 
+                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Szczegóły zamówienia"
+                                           Style="{StaticResource SectionHeaderStyle}"/>
+                                <TextBlock x:Name="txtOrderInfo" Text=""
+                                           FontSize="11" Foreground="#666"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
+                                <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                                <ComboBox x:Name="cbWalutaPanel" Width="60" Height="22" FontSize="11"
+                                          SelectionChanged="CbWalutaPanel_SelectionChanged">
+                                    <ComboBoxItem Content="PLN" IsSelected="True"/>
+                                    <ComboBoxItem Content="EUR"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <TextBlock x:Name="txtOrderClient" Grid.Row="1" Grid.ColumnSpan="2"
+                                       Text="" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#2C3E50" Margin="0,2,0,0"/>
+                        </Grid>
+
+                        <DataGrid x:Name="dgDetails" Grid.Row="1"
                                   Style="{StaticResource ModernDataGridStyle}"
-                                  AutoGenerateColumns="False" Margin="0,5,0,0"/>
+                                  AutoGenerateColumns="False" Margin="0,5,0,0"
+                                  IsReadOnly="False"
+                                  SelectionUnit="Cell"
+                                  SelectionMode="Single"/>
 
-                        <TextBox x:Name="txtNotes" Grid.Row="2" 
-                                 Style="{StaticResource NotesTextBoxStyle}" Margin="0,5,0,0"/>
+                        <TextBox x:Name="txtNotes" Grid.Row="2"
+                                 Style="{StaticResource NotesTextBoxStyle}" Margin="0,5,0,0"
+                                 ToolTip="Notatki do zamówienia"/>
                     </Grid>
                 </Border>
 
-                <TextBlock Grid.Row="1" Text="Podsumowanie produktów dla wybranego dnia"
-                           Style="{StaticResource SectionHeaderStyle}" Margin="0,10,0,5"/>
+                <TextBlock Grid.Row="1" Text="Podsumowanie dnia"
+                           Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,3"/>
 
                 <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}">
                     <DataGrid x:Name="dgAggregation"
                               Style="{StaticResource ModernDataGridStyle}"
                               AutoGenerateColumns="False"/>
                 </Border>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>

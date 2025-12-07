@@ -83,6 +83,9 @@ namespace Kalendarz1
         private DateTimePicker? dateTimePickerProdukcji;
         private Label? lblGodzinaLabel;
 
+        // Waluta zamówienia
+        private ComboBox? cbWaluta;
+
         // Klasy wagowe dla tuszki (Kurczak A)
         private RozkladKlasWagowych? _rozkladKlasKurczakA;
 
@@ -1061,21 +1064,35 @@ namespace Kalendarz1
             await cn.OpenAsync();
 
             bool dataProdukcjiExists = false;
+            bool walutaExists = false;
             try
             {
                 await using var cmdCheck = new SqlCommand(@"
-            SELECT COUNT(*) 
-            FROM sys.columns 
-            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]') 
+            SELECT COUNT(*)
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]')
             AND name = 'DataProdukcji'", cn);
                 int count = (int)await cmdCheck.ExecuteScalarAsync();
                 dataProdukcjiExists = count > 0;
             }
             catch { }
 
+            try
+            {
+                await using var cmdCheckWaluta = new SqlCommand(@"
+            SELECT COUNT(*)
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'[dbo].[ZamowieniaMieso]')
+            AND name = 'Waluta'", cn);
+                int countWaluta = (int)await cmdCheckWaluta.ExecuteScalarAsync();
+                walutaExists = countWaluta > 0;
+            }
+            catch { }
+
+            string walutaSelect = walutaExists ? ", ISNULL(Waluta, 'PLN') as Waluta" : "";
             string sqlQuery = dataProdukcjiExists
-                ? "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
-                : "SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
+                ? $"SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, DataProdukcji, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus{walutaSelect} FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id"
+                : $"SELECT DataZamowienia, KlientId, Uwagi, DataPrzyjazdu, ISNULL(TransportStatus, 'Oczekuje') as TransportStatus{walutaSelect} FROM [dbo].[ZamowieniaMieso] WHERE Id=@Id";
 
             // Inicjalizacja śledzenia zmian
             _oryginalneWartosci = new OryginalneWartosciZamowienia();
@@ -1123,6 +1140,21 @@ namespace Kalendarz1
                         else
                         {
                             chkWlasnyOdbior.Checked = false;
+                        }
+                    }
+
+                    // Wczytanie waluty
+                    if (cbWaluta != null && walutaExists)
+                    {
+                        int walutaIndex = dataProdukcjiExists ? 6 : 5;
+                        if (rd.FieldCount > walutaIndex && !await rd.IsDBNullAsync(walutaIndex))
+                        {
+                            string waluta = rd.GetString(walutaIndex);
+                            cbWaluta.SelectedItem = waluta;
+                        }
+                        else
+                        {
+                            cbWaluta.SelectedIndex = 0; // PLN
                         }
                     }
 
@@ -1273,41 +1305,6 @@ namespace Kalendarz1
                 return;
             }
 
-            // Sprawdź czy Tuszka A ma rozkład klas
-            decimal iloscTuszkiA = 0;
-            foreach (DataRow r in _dt.Rows)
-            {
-                string kod = r.Field<string>("Kod") ?? "";
-                if (kod.ToUpper().Contains("KURCZAK A") || kod.ToUpper().Contains("TUSZKA"))
-                {
-                    iloscTuszkiA = r.Field<decimal?>("Ilosc") ?? 0;
-                    break;
-                }
-            }
-
-            if (iloscTuszkiA > 0 && (_rozkladKlasKurczakA == null || _rozkladKlasKurczakA.SumaProcent == 0))
-            {
-                var wynik = MessageBox.Show(this,
-                    $"🐔 Zamówiłeś {iloscTuszkiA:N0} kg Tuszki A, ale nie rozdzieliłeś jej na klasy wagowe!\n\n" +
-                    "Czy chcesz teraz rozdzielić?\n\n" +
-                    "• TAK - otwórz okno rozdzielania\n" +
-                    "• NIE - zapisz bez rozdzielenia",
-                    "Brak rozkładu klas wagowych",
-                    MessageBoxButtons.YesNoCancel,
-                    MessageBoxIcon.Warning);
-
-                if (wynik == DialogResult.Yes)
-                {
-                    PokazDialogKlasWagowych(iloscTuszkiA);
-                    return; // Wróć - user może anulować dialog
-                }
-                else if (wynik == DialogResult.Cancel)
-                {
-                    return; // Anuluj zapis
-                }
-                // DialogResult.No - kontynuuj zapis bez rozkładu
-            }
-
             decimal sumaPaletCalkowita = 0m;
             foreach (DataRow r in _dt.Rows)
             {
@@ -1416,6 +1413,7 @@ namespace Kalendarz1
 
             bool dataProdukcjiExists = await CheckIfColumnExists(cn, "DataProdukcji");
             bool dataUbojuExists = await CheckIfColumnExists(cn, "DataUboju");
+            bool walutaExists = await CheckIfColumnExists(cn, "Waluta");
 
             await using var tr = (SqlTransaction)await cn.BeginTransactionAsync();
 
@@ -1448,6 +1446,7 @@ namespace Kalendarz1
 
                 if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
                 if (dataUbojuExists) updateSql += ", DataUboju = @duboj";
+                if (walutaExists) updateSql += ", Waluta = @waluta";
 
                 updateSql += " WHERE Id = @id";
 
@@ -1467,6 +1466,7 @@ namespace Kalendarz1
                 cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdUpdate.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
                 cmdUpdate.Parameters.AddWithValue("@ts", transportStatus);
+                if (walutaExists) cmdUpdate.Parameters.AddWithValue("@waluta", cbWaluta?.SelectedItem?.ToString() ?? "PLN");
 
                 await cmdUpdate.ExecuteNonQueryAsync();
 
@@ -1484,6 +1484,7 @@ namespace Kalendarz1
 
                 if (dataProdukcjiExists) { insertColumns += ", DataProdukcji"; insertValues += ", @dprod"; }
                 if (dataUbojuExists) { insertColumns += ", DataUboju"; insertValues += ", @duboj"; }
+                if (walutaExists) { insertColumns += ", Waluta"; insertValues += ", @waluta"; }
 
                 string insertSql = $@"INSERT INTO [dbo].[ZamowieniaMieso] ({insertColumns}) VALUES ({insertValues})";
 
@@ -1503,6 +1504,7 @@ namespace Kalendarz1
                 cmdInsert.Parameters.AddWithValue("@pal", sumaPalet);
                 cmdInsert.Parameters.AddWithValue("@e2", czyJakikolwiekE2);
                 cmdInsert.Parameters.AddWithValue("@ts", transportStatus);
+                if (walutaExists) cmdInsert.Parameters.AddWithValue("@waluta", cbWaluta?.SelectedItem?.ToString() ?? "PLN");
 
                 await cmdInsert.ExecuteNonQueryAsync();
             }
@@ -2473,6 +2475,33 @@ namespace Kalendarz1
             {
                 btnAnuluj.Text = "Anuluj";
                 StyleButton(btnAnuluj, Color.FromArgb(243, 244, 246), Color.FromArgb(75, 85, 99));
+            }
+
+            // Waluta zamówienia - przy przyciskach
+            if (panelAkcji != null)
+            {
+                var lblWaluta = new Label
+                {
+                    Text = "Waluta:",
+                    Font = new Font("Segoe UI", 9f),
+                    ForeColor = Color.FromArgb(75, 85, 99),
+                    AutoSize = true,
+                    Location = new Point(15, 24)
+                };
+
+                cbWaluta = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Font = new Font("Segoe UI", 9f),
+                    Width = 65,
+                    Location = new Point(65, 20)
+                };
+                cbWaluta.Items.AddRange(new object[] { "PLN", "EUR" });
+                cbWaluta.SelectedIndex = 0;
+                StyleComboBox(cbWaluta);
+
+                panelAkcji.Controls.Add(lblWaluta);
+                panelAkcji.Controls.Add(cbWaluta);
             }
 
             if (panelMaster != null)
