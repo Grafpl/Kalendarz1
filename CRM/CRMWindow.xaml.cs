@@ -683,8 +683,9 @@ namespace Kalendarz1.CRM
 
         private void BtnMapa_Click(object sender, RoutedEventArgs e)
         {
-            var form = new FormMapaWojewodztwa(connectionString, operatorID);
-            form.ShowDialog();
+            var mapaWindow = new MapaCRMWindow(connectionString, operatorID);
+            mapaWindow.Owner = this;
+            mapaWindow.ShowDialog();
         }
 
         private void BtnZadania_Click(object sender, RoutedEventArgs e)
