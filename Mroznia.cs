@@ -33,6 +33,7 @@ namespace Kalendarz1
         private DateTimePicker dtpOd, dtpDo, dtpStanMagazynu;
         private Button btnAnalizuj, btnWykres, btnStanMagazynu, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
         private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu, dgvZamowienia;
+        private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne;
         private TabControl tabControl;
         private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp;
         private TextBox txtSzukaj;
@@ -593,6 +594,11 @@ namespace Kalendarz1
                 SplitterWidth = 5,
                 BackColor = BackgroundColor
             };
+            // Ustaw podział 50/50 po załadowaniu
+            splitStan.SizeChanged += (s, e) => {
+                if (splitStan.Width > 0)
+                    splitStan.SplitterDistance = splitStan.Width / 2;
+            };
 
             // --- LEWA STRONA: STAN MAGAZYNU ---
             Panel leftPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
@@ -669,8 +675,99 @@ namespace Kalendarz1
 
             tab4.Controls.Add(stanMainPanel);
 
+            // === ZAKŁADKA 5: MROŹNIE ZEWNĘTRZNE ===
+            TabPage tab5 = new TabPage("  Mroźnie zewnętrzne  ");
+            tab5.BackColor = BackgroundColor;
+            tab5.Padding = new Padding(8);
+
+            Panel zewnMainPanel = new Panel { Dock = DockStyle.Fill };
+
+            // Toolbar
+            Panel zewnToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+            zewnToolbar.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                    e.Graphics.DrawLine(pen, 0, zewnToolbar.Height - 1, zewnToolbar.Width, zewnToolbar.Height - 1);
+            };
+
+            Button btnDodajMroznieZewn = CreateModernButton("+ Dodaj mroźnię", 15, 10, 120, SuccessColor);
+            btnDodajMroznieZewn.Click += BtnDodajMroznieZewnetrzna_Click;
+
+            Button btnEdytujMroznieZewn = CreateModernButton("Edytuj", 145, 10, 70, InfoColor);
+            btnEdytujMroznieZewn.Click += BtnEdytujMroznieZewnetrzna_Click;
+
+            Button btnUsunMroznieZewn = CreateModernButton("Usuń", 225, 10, 60, DangerColor);
+            btnUsunMroznieZewn.Click += BtnUsunMroznieZewnetrzna_Click;
+
+            Button btnDodajWydanieZewn = CreateModernButton("+ Wydanie/Przyjęcie", 310, 10, 140, PrimaryColor);
+            btnDodajWydanieZewn.Click += BtnDodajWydanieZewnetrzne_Click;
+
+            zewnToolbar.Controls.AddRange(new Control[] { btnDodajMroznieZewn, btnEdytujMroznieZewn, btnUsunMroznieZewn, btnDodajWydanieZewn });
+
+            // Split: Lista mroźni | Szczegóły/Wydania
+            SplitContainer splitZewn = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                SplitterWidth = 5,
+                BackColor = BackgroundColor
+            };
+            splitZewn.SizeChanged += (s, e) => {
+                if (splitZewn.Width > 0)
+                    splitZewn.SplitterDistance = splitZewn.Width / 3;
+            };
+
+            // Lewa: Lista mroźni
+            Panel zewnLeftPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            Panel zewnLeftHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = SuccessColor };
+            Label lblZewnLeft = new Label
+            {
+                Text = "LISTA MROŹNI ZEWNĘTRZNYCH",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            zewnLeftHeader.Controls.Add(lblZewnLeft);
+
+            dgvMroznieZewnetrzne = CreateStyledDataGridView();
+            dgvMroznieZewnetrzne.ColumnHeadersDefaultCellStyle.BackColor = SuccessColor;
+            dgvMroznieZewnetrzne.SelectionChanged += DgvMroznieZewnetrzne_SelectionChanged;
+
+            Panel zewnLeftGrid = new Panel { Dock = DockStyle.Fill };
+            zewnLeftGrid.Controls.Add(dgvMroznieZewnetrzne);
+            zewnLeftPanel.Controls.Add(zewnLeftGrid);
+            zewnLeftPanel.Controls.Add(zewnLeftHeader);
+
+            // Prawa: Szczegóły i wydania
+            Panel zewnRightPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            Panel zewnRightHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = PrimaryColor };
+            Label lblZewnRight = new Label
+            {
+                Text = "STAN I WYDANIA MROŹNI",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            zewnRightHeader.Controls.Add(lblZewnRight);
+
+            dgvWydaniaZewnetrzne = CreateStyledDataGridView();
+            dgvWydaniaZewnetrzne.ColumnHeadersDefaultCellStyle.BackColor = PrimaryColor;
+
+            Panel zewnRightGrid = new Panel { Dock = DockStyle.Fill };
+            zewnRightGrid.Controls.Add(dgvWydaniaZewnetrzne);
+            zewnRightPanel.Controls.Add(zewnRightGrid);
+            zewnRightPanel.Controls.Add(zewnRightHeader);
+
+            splitZewn.Panel1.Controls.Add(zewnLeftPanel);
+            splitZewn.Panel2.Controls.Add(zewnRightPanel);
+
+            zewnMainPanel.Controls.Add(splitZewn);
+            zewnMainPanel.Controls.Add(zewnToolbar);
+            tab5.Controls.Add(zewnMainPanel);
+
             // Stan magazynu jako pierwsza zakładka
-            tc.TabPages.AddRange(new TabPage[] { tab4, tab1, tab2, tab3 });
+            tc.TabPages.AddRange(new TabPage[] { tab4, tab5, tab1, tab2, tab3 });
             return tc;
         }
 
@@ -900,6 +997,9 @@ namespace Kalendarz1
 
             // Automatycznie oblicz stan magazynu przy starcie (pierwsza zakładka)
             BtnStanMagazynu_Click(null, null);
+
+            // Załaduj mroźnie zewnętrzne
+            LoadMroznieZewnetrzneDoTabeli();
         }
 
         private void LoadInitialData()
@@ -2675,6 +2775,217 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region Mroźnie zewnętrzne
+
+        private string GetMroznieZewnetrzneFilePath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string folder = Path.Combine(appData, "OfertaHandlowa");
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            return Path.Combine(folder, "mroznie_zewnetrzne.json");
+        }
+
+        private List<MrozniaZewnetrzna> WczytajMroznieZewnetrzne()
+        {
+            string path = GetMroznieZewnetrzneFilePath();
+            if (!File.Exists(path)) return new List<MrozniaZewnetrzna>();
+            string json = File.ReadAllText(path);
+            return JsonSerializer.Deserialize<List<MrozniaZewnetrzna>>(json) ?? new List<MrozniaZewnetrzna>();
+        }
+
+        private void ZapiszMroznieZewnetrzne(List<MrozniaZewnetrzna> lista)
+        {
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(lista, options);
+            File.WriteAllText(GetMroznieZewnetrzneFilePath(), json);
+        }
+
+        private void LoadMroznieZewnetrzneDoTabeli()
+        {
+            var mroznie = WczytajMroznieZewnetrzne();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("ID", typeof(string));
+            dt.Columns.Add("Nazwa", typeof(string));
+            dt.Columns.Add("Adres", typeof(string));
+            dt.Columns.Add("Stan (kg)", typeof(decimal));
+
+            foreach (var m in mroznie)
+            {
+                decimal stan = m.Wydania?.Where(w => w.Typ == "Przyjęcie").Sum(w => w.Ilosc) ?? 0;
+                stan -= m.Wydania?.Where(w => w.Typ == "Wydanie").Sum(w => w.Ilosc) ?? 0;
+                dt.Rows.Add(m.Id, m.Nazwa, m.Adres, stan);
+            }
+
+            dgvMroznieZewnetrzne.DataSource = dt;
+            dgvMroznieZewnetrzne.Columns["ID"].Visible = false;
+            dgvMroznieZewnetrzne.Columns["Stan (kg)"].DefaultCellStyle.Format = "N0";
+        }
+
+        private void DgvMroznieZewnetrzne_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
+            {
+                dgvWydaniaZewnetrzne.DataSource = null;
+                return;
+            }
+
+            string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
+            if (string.IsNullOrEmpty(id)) return;
+
+            var mroznie = WczytajMroznieZewnetrzne();
+            var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
+            if (mroznia == null) return;
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Data", typeof(DateTime));
+            dt.Columns.Add("Typ", typeof(string));
+            dt.Columns.Add("Produkt", typeof(string));
+            dt.Columns.Add("Ilość (kg)", typeof(decimal));
+            dt.Columns.Add("Uwagi", typeof(string));
+
+            if (mroznia.Wydania != null)
+            {
+                foreach (var w in mroznia.Wydania.OrderByDescending(x => x.Data))
+                {
+                    dt.Rows.Add(w.Data, w.Typ, w.Produkt, w.Ilosc, w.Uwagi);
+                }
+            }
+
+            dgvWydaniaZewnetrzne.DataSource = dt;
+            dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
+            dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
+
+            // Koloruj wydania/przyjęcia
+            foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
+            {
+                string typ = row.Cells["Typ"].Value?.ToString();
+                if (typ == "Przyjęcie")
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
+                else if (typ == "Wydanie")
+                    row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
+            }
+        }
+
+        private void BtnDodajMroznieZewnetrzna_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new MrozniaZewnetrznaDialog())
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    var mroznie = WczytajMroznieZewnetrzne();
+                    mroznie.Add(new MrozniaZewnetrzna
+                    {
+                        Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                        Nazwa = dlg.NazwaMrozni,
+                        Adres = dlg.Adres,
+                        Telefon = dlg.Telefon,
+                        Email = dlg.Email,
+                        Uwagi = dlg.Uwagi,
+                        Wydania = new List<WydanieZewnetrzne>()
+                    });
+                    ZapiszMroznieZewnetrzne(mroznie);
+                    LoadMroznieZewnetrzneDoTabeli();
+                    statusLabel.Text = $"Dodano mroźnię: {dlg.NazwaMrozni}";
+                }
+            }
+        }
+
+        private void BtnEdytujMroznieZewnetrzna_Click(object sender, EventArgs e)
+        {
+            if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Wybierz mroźnię do edycji.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
+            var mroznie = WczytajMroznieZewnetrzne();
+            var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
+            if (mroznia == null) return;
+
+            using (var dlg = new MrozniaZewnetrznaDialog(mroznia))
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    mroznia.Nazwa = dlg.NazwaMrozni;
+                    mroznia.Adres = dlg.Adres;
+                    mroznia.Telefon = dlg.Telefon;
+                    mroznia.Email = dlg.Email;
+                    mroznia.Uwagi = dlg.Uwagi;
+                    ZapiszMroznieZewnetrzne(mroznie);
+                    LoadMroznieZewnetrzneDoTabeli();
+                    statusLabel.Text = $"Zaktualizowano mroźnię: {dlg.NazwaMrozni}";
+                }
+            }
+        }
+
+        private void BtnUsunMroznieZewnetrzna_Click(object sender, EventArgs e)
+        {
+            if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Wybierz mroźnię do usunięcia.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string nazwa = dgvMroznieZewnetrzne.SelectedRows[0].Cells["Nazwa"].Value?.ToString();
+            var result = MessageBox.Show($"Czy na pewno chcesz usunąć mroźnię \"{nazwa}\"?\n\nWszystkie dane o wydaniach zostaną utracone!",
+                "Potwierdź usunięcie", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+            {
+                string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
+                var mroznie = WczytajMroznieZewnetrzne();
+                mroznie.RemoveAll(m => m.Id == id);
+                ZapiszMroznieZewnetrzne(mroznie);
+                LoadMroznieZewnetrzneDoTabeli();
+                statusLabel.Text = $"Usunięto mroźnię: {nazwa}";
+            }
+        }
+
+        private void BtnDodajWydanieZewnetrzne_Click(object sender, EventArgs e)
+        {
+            if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Najpierw wybierz mroźnię z listy.", "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string id = dgvMroznieZewnetrzne.SelectedRows[0].Cells["ID"].Value?.ToString();
+            string nazwa = dgvMroznieZewnetrzne.SelectedRows[0].Cells["Nazwa"].Value?.ToString();
+
+            using (var dlg = new WydanieZewnetrzneDialog(nazwa))
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    var mroznie = WczytajMroznieZewnetrzne();
+                    var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
+                    if (mroznia != null)
+                    {
+                        if (mroznia.Wydania == null)
+                            mroznia.Wydania = new List<WydanieZewnetrzne>();
+
+                        mroznia.Wydania.Add(new WydanieZewnetrzne
+                        {
+                            Id = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                            Data = dlg.Data,
+                            Typ = dlg.Typ,
+                            Produkt = dlg.Produkt,
+                            Ilosc = dlg.Ilosc,
+                            Uwagi = dlg.Uwagi
+                        });
+
+                        ZapiszMroznieZewnetrzne(mroznie);
+                        LoadMroznieZewnetrzneDoTabeli();
+                        DgvMroznieZewnetrzne_SelectionChanged(null, null);
+                        statusLabel.Text = $"{dlg.Typ}: {dlg.Ilosc:N0} kg {dlg.Produkt} ({nazwa})";
+                    }
+                }
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -2784,6 +3095,242 @@ namespace Kalendarz1
             };
 
             this.Controls.AddRange(new Control[] { lblInfo, lblIlosc, nudIlosc, lblWaznosc, dtpWaznosc, btnOK, btnCancel });
+            this.AcceptButton = btnOK;
+            this.CancelButton = btnCancel;
+        }
+    }
+
+    /// <summary>
+    /// Model mroźni zewnętrznej
+    /// </summary>
+    public class MrozniaZewnetrzna
+    {
+        public string Id { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public string Adres { get; set; } = "";
+        public string Telefon { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Uwagi { get; set; } = "";
+        public List<WydanieZewnetrzne> Wydania { get; set; } = new List<WydanieZewnetrzne>();
+    }
+
+    /// <summary>
+    /// Model wydania/przyjęcia w mroźni zewnętrznej
+    /// </summary>
+    public class WydanieZewnetrzne
+    {
+        public string Id { get; set; } = "";
+        public DateTime Data { get; set; }
+        public string Typ { get; set; } = ""; // "Wydanie" lub "Przyjęcie"
+        public string Produkt { get; set; } = "";
+        public decimal Ilosc { get; set; }
+        public string Uwagi { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Dialog dodawania/edycji mroźni zewnętrznej
+    /// </summary>
+    public class MrozniaZewnetrznaDialog : Form
+    {
+        public string NazwaMrozni { get; private set; } = "";
+        public string Adres { get; private set; } = "";
+        public string Telefon { get; private set; } = "";
+        public string Email { get; private set; } = "";
+        public string Uwagi { get; private set; } = "";
+
+        private TextBox txtNazwa, txtAdres, txtTelefon, txtEmail, txtUwagi;
+
+        public MrozniaZewnetrznaDialog(MrozniaZewnetrzna mroznia = null)
+        {
+            this.Text = mroznia == null ? "Dodaj mroźnię zewnętrzną" : "Edytuj mroźnię zewnętrzną";
+            this.Size = new Size(400, 340);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.White;
+            this.Font = new Font("Segoe UI", 10F);
+
+            int y = 15;
+
+            Label lblNazwa = new Label { Text = "Nazwa mroźni:", Location = new Point(15, y), AutoSize = true };
+            txtNazwa = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 25) };
+            y += 55;
+
+            Label lblAdres = new Label { Text = "Adres:", Location = new Point(15, y), AutoSize = true };
+            txtAdres = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 25) };
+            y += 55;
+
+            Label lblTelefon = new Label { Text = "Telefon:", Location = new Point(15, y), AutoSize = true };
+            txtTelefon = new TextBox { Location = new Point(15, y + 22), Size = new Size(170, 25) };
+
+            Label lblEmail = new Label { Text = "Email:", Location = new Point(195, y), AutoSize = true };
+            txtEmail = new TextBox { Location = new Point(195, y + 22), Size = new Size(170, 25) };
+            y += 55;
+
+            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true };
+            txtUwagi = new TextBox { Location = new Point(15, y + 22), Size = new Size(350, 50), Multiline = true };
+            y += 85;
+
+            if (mroznia != null)
+            {
+                txtNazwa.Text = mroznia.Nazwa;
+                txtAdres.Text = mroznia.Adres;
+                txtTelefon.Text = mroznia.Telefon;
+                txtEmail.Text = mroznia.Email;
+                txtUwagi.Text = mroznia.Uwagi;
+            }
+
+            Button btnOK = new Button
+            {
+                Text = "Zapisz",
+                Location = new Point(190, y),
+                Size = new Size(80, 32),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(40, 167, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.Click += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtNazwa.Text))
+                {
+                    MessageBox.Show("Podaj nazwę mroźni.", "Brak nazwy", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    this.DialogResult = DialogResult.None;
+                    return;
+                }
+                NazwaMrozni = txtNazwa.Text.Trim();
+                Adres = txtAdres.Text.Trim();
+                Telefon = txtTelefon.Text.Trim();
+                Email = txtEmail.Text.Trim();
+                Uwagi = txtUwagi.Text.Trim();
+            };
+
+            Button btnCancel = new Button
+            {
+                Text = "Anuluj",
+                Location = new Point(280, y),
+                Size = new Size(80, 32),
+                DialogResult = DialogResult.Cancel
+            };
+
+            this.Controls.AddRange(new Control[] {
+                lblNazwa, txtNazwa, lblAdres, txtAdres,
+                lblTelefon, txtTelefon, lblEmail, txtEmail,
+                lblUwagi, txtUwagi, btnOK, btnCancel
+            });
+            this.AcceptButton = btnOK;
+            this.CancelButton = btnCancel;
+        }
+    }
+
+    /// <summary>
+    /// Dialog dodawania wydania/przyjęcia do mroźni zewnętrznej
+    /// </summary>
+    public class WydanieZewnetrzneDialog : Form
+    {
+        public DateTime Data { get; private set; }
+        public string Typ { get; private set; } = "";
+        public string Produkt { get; private set; } = "";
+        public decimal Ilosc { get; private set; }
+        public string Uwagi { get; private set; } = "";
+
+        private DateTimePicker dtpData;
+        private ComboBox cmbTyp;
+        private TextBox txtProdukt, txtUwagi;
+        private NumericUpDown nudIlosc;
+
+        public WydanieZewnetrzneDialog(string nazwaMrozni)
+        {
+            this.Text = $"Wydanie/Przyjęcie - {nazwaMrozni}";
+            this.Size = new Size(380, 320);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.White;
+            this.Font = new Font("Segoe UI", 10F);
+
+            int y = 15;
+
+            Label lblTyp = new Label { Text = "Typ operacji:", Location = new Point(15, y), AutoSize = true };
+            cmbTyp = new ComboBox
+            {
+                Location = new Point(15, y + 22),
+                Size = new Size(150, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbTyp.Items.AddRange(new[] { "Przyjęcie", "Wydanie" });
+            cmbTyp.SelectedIndex = 0;
+
+            Label lblData = new Label { Text = "Data:", Location = new Point(180, y), AutoSize = true };
+            dtpData = new DateTimePicker
+            {
+                Location = new Point(180, y + 22),
+                Size = new Size(160, 25),
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today
+            };
+            y += 60;
+
+            Label lblProdukt = new Label { Text = "Produkt:", Location = new Point(15, y), AutoSize = true };
+            txtProdukt = new TextBox { Location = new Point(15, y + 22), Size = new Size(325, 25) };
+            y += 55;
+
+            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(15, y), AutoSize = true };
+            nudIlosc = new NumericUpDown
+            {
+                Location = new Point(15, y + 22),
+                Size = new Size(120, 25),
+                Minimum = 1,
+                Maximum = 999999,
+                Value = 100,
+                DecimalPlaces = 0
+            };
+            y += 55;
+
+            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true };
+            txtUwagi = new TextBox { Location = new Point(15, y + 22), Size = new Size(325, 40), Multiline = true };
+            y += 75;
+
+            Button btnOK = new Button
+            {
+                Text = "Zapisz",
+                Location = new Point(170, y),
+                Size = new Size(80, 32),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(41, 128, 185),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.Click += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtProdukt.Text))
+                {
+                    MessageBox.Show("Podaj nazwę produktu.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    this.DialogResult = DialogResult.None;
+                    return;
+                }
+                Data = dtpData.Value.Date;
+                Typ = cmbTyp.SelectedItem?.ToString() ?? "Przyjęcie";
+                Produkt = txtProdukt.Text.Trim();
+                Ilosc = nudIlosc.Value;
+                Uwagi = txtUwagi.Text.Trim();
+            };
+
+            Button btnCancel = new Button
+            {
+                Text = "Anuluj",
+                Location = new Point(260, y),
+                Size = new Size(80, 32),
+                DialogResult = DialogResult.Cancel
+            };
+
+            this.Controls.AddRange(new Control[] {
+                lblTyp, cmbTyp, lblData, dtpData,
+                lblProdukt, txtProdukt, lblIlosc, nudIlosc,
+                lblUwagi, txtUwagi, btnOK, btnCancel
+            });
             this.AcceptButton = btnOK;
             this.CancelButton = btnCancel;
         }
