@@ -147,8 +147,8 @@ namespace Kalendarz1.CRM
                     conn.Open();
 
                     string whereDate = wszystkieDni
-                        ? "AND h.DataZmiany > DATEADD(month, -12, GETDATE())"
-                        : "AND h.DataZmiany > DATEADD(day, -30, GETDATE())";
+                        ? "AND h.DataZmiany > DATEADD(month, -12, GETDATE()) AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')"
+                        : "AND h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')";
 
                     // Grupuj po dniach lub tygodniach
                     string groupBy = wszystkieDni
@@ -175,7 +175,7 @@ namespace Kalendarz1.CRM
                     if (dt.Rows.Count == 0) return;
 
                     int maxWartosc = dt.AsEnumerable().Max(r => Convert.ToInt32(r["Liczba"]));
-                    double maxWysokosc = 200;
+                    double maxWysokosc = 280;
 
                     var dane = new ObservableCollection<WykresSlupek>();
                     foreach (DataRow row in dt.Rows)

@@ -34,8 +34,8 @@
 
     <Grid Margin="25">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="500"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="400"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -256,10 +256,10 @@
         </Border>
 
         <!-- PANEL PRAWY - Wykres i dodatkowe info -->
-        <Grid Grid.Row="2" Grid.Column="1" Margin="10,0,0,0">
+        <Grid Grid.Row="2" Grid.Column="1" Margin="15,0,0,0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="2*"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- WYKRES AKTYWNOŚCI -->
@@ -314,23 +314,23 @@
                     <ItemsControl x:Name="listaStatusow">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,0,0,10">
+                                <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="150"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="50"/>
+                                        <ColumnDefinition Width="60"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="{Binding Ikona}" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Nazwa}" FontSize="12" VerticalAlignment="Center" Foreground="{StaticResource TextDark}"/>
+                                    <TextBlock Text="{Binding Ikona}" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Nazwa}" FontSize="13" VerticalAlignment="Center" Foreground="{StaticResource TextDark}"/>
 
                                     <!-- Progress bar -->
-                                    <Border Grid.Column="2" Width="100" Height="8" Background="#E5E7EB" CornerRadius="4" Margin="10,0">
-                                        <Border Background="{Binding Kolor}" CornerRadius="4" HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
+                                    <Border Grid.Column="2" Height="12" Background="#E5E7EB" CornerRadius="6" Margin="15,0">
+                                        <Border Background="{Binding Kolor}" CornerRadius="6" HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
                                     </Border>
 
-                                    <TextBlock Grid.Column="3" Text="{Binding Wartosc}" FontSize="12" FontWeight="Bold"
+                                    <TextBlock Grid.Column="3" Text="{Binding Wartosc}" FontSize="16" FontWeight="Bold"
                                                Foreground="{Binding KolorTekst}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                             </DataTemplate>
