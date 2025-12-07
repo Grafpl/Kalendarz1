@@ -1,6 +1,5 @@
 using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
@@ -48,7 +47,6 @@ namespace Kalendarz1.CRM
             UstawDane();
             WczytajHistorie();
             WczytajWykres();
-            UstawRozkladStatusow();
         }
 
         private string PobierzIdOperatora(string nazwa)
@@ -95,48 +93,12 @@ namespace Kalendarz1.CRM
                 txtSkutecznosc.Text = $"{skutecznosc:0}%";
             }
 
-            // Statystyki (bez Do zadzwonienia!)
+            // Statystyki
             txtStatProby.Text = proby.ToString();
             txtStatNawiazano.Text = nawiazano.ToString();
             txtStatZgoda.Text = zgoda.ToString();
             txtStatOferty.Text = oferty.ToString();
             txtStatNieZaint.Text = nieZainteresowany.ToString();
-        }
-
-        private void UstawRozkladStatusow()
-        {
-            int max = Math.Max(1, new[] { proby, nawiazano, zgoda, oferty, nieZainteresowany }.Max());
-            double maxSzerokosc = 180; // Max szerokość paska w pikselach
-
-            var statusy = new ObservableCollection<StatusRozklad>
-            {
-                new StatusRozklad { Ikona = "⏳", Wartosc = proby.ToString(),
-                    Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")),
-                    KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B45309")),
-                    SzerokoscPaska = (double)proby / max * maxSzerokosc },
-
-                new StatusRozklad { Ikona = "✅", Wartosc = nawiazano.ToString(),
-                    Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E")),
-                    KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#166534")),
-                    SzerokoscPaska = (double)nawiazano / max * maxSzerokosc },
-
-                new StatusRozklad { Ikona = "🤝", Wartosc = zgoda.ToString(),
-                    Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#14B8A6")),
-                    KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D9488")),
-                    SzerokoscPaska = (double)zgoda / max * maxSzerokosc },
-
-                new StatusRozklad { Ikona = "📄", Wartosc = oferty.ToString(),
-                    Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B82F6")),
-                    KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E40AF")),
-                    SzerokoscPaska = (double)oferty / max * maxSzerokosc },
-
-                new StatusRozklad { Ikona = "❌", Wartosc = nieZainteresowany.ToString(),
-                    Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")),
-                    KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#991B1B")),
-                    SzerokoscPaska = (double)nieZainteresowany / max * maxSzerokosc }
-            };
-
-            listaStatusow.ItemsSource = statusy;
         }
 
         private void WczytajWykres()
@@ -147,7 +109,7 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Zawsze grupuj po miesiącach - ostatnie 12 miesięcy
+                    // Grupuj po miesiącach - ostatnie 12 miesięcy
                     var cmd = new SqlCommand(@"
                         SELECT FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL') as Okres,
                                YEAR(h.DataZmiany) as Rok, MONTH(h.DataZmiany) as Miesiac,
@@ -168,18 +130,19 @@ namespace Kalendarz1.CRM
                     if (dt.Rows.Count == 0) return;
 
                     int maxWartosc = dt.AsEnumerable().Max(r => Convert.ToInt32(r["Liczba"]));
-                    double maxWysokosc = 120;
+                    double maxWysokosc = 300; // Duży wykres
 
                     var dane = new ObservableCollection<WykresSlupek>();
                     foreach (DataRow row in dt.Rows)
                     {
                         int liczba = Convert.ToInt32(row["Liczba"]);
-                        double wysokosc = maxWartosc > 0 ? (double)liczba / maxWartosc * maxWysokosc : 5;
+                        double wysokosc = maxWartosc > 0 ? (double)liczba / maxWartosc * maxWysokosc : 8;
 
                         dane.Add(new WykresSlupek
                         {
                             Etykieta = row["Okres"].ToString(),
-                            Wysokosc = Math.Max(5, wysokosc),
+                            Wartosc = liczba.ToString(),
+                            Wysokosc = Math.Max(8, wysokosc),
                             Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16A34A")),
                             Tooltip = $"{row["Okres"]}: {liczba} akcji"
                         });
@@ -233,7 +196,7 @@ namespace Kalendarz1.CRM
                     }
 
                     dgHistoria.ItemsSource = lista;
-                    txtLiczbaAkcji.Text = $" ({lista.Count} rekordów)";
+                    txtLiczbaAkcji.Text = $"{lista.Count} rekordów";
                 }
             }
             catch (Exception ex)
@@ -244,6 +207,11 @@ namespace Kalendarz1.CRM
 
         private void UstawKoloryStatusu(HistoriaAkcji akcja)
         {
+            // Określ typ akcji (telefon/mail)
+            bool jestOferta = akcja.WartoscNowa == "Do wysłania oferta";
+            akcja.TypIkona = jestOferta ? "📧" : "📞";
+            akcja.TypOpis = jestOferta ? "Mail / Oferta" : "Telefon";
+
             switch (akcja.WartoscNowa)
             {
                 case "Próba kontaktu":
@@ -290,22 +258,16 @@ namespace Kalendarz1.CRM
         public string StatusIkona { get; set; }
         public SolidColorBrush StatusKolor { get; set; }
         public SolidColorBrush StatusTekstKolor { get; set; }
+        public string TypIkona { get; set; }
+        public string TypOpis { get; set; }
     }
 
     public class WykresSlupek
     {
         public string Etykieta { get; set; }
+        public string Wartosc { get; set; }
         public double Wysokosc { get; set; }
         public SolidColorBrush Kolor { get; set; }
         public string Tooltip { get; set; }
-    }
-
-    public class StatusRozklad
-    {
-        public string Ikona { get; set; }
-        public string Wartosc { get; set; }
-        public SolidColorBrush Kolor { get; set; }
-        public SolidColorBrush KolorTekst { get; set; }
-        public double SzerokoscPaska { get; set; }
     }
 }
