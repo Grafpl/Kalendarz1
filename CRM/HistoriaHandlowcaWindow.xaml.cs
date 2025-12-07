@@ -109,7 +109,7 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Grupuj po miesiącach - ostatnie 12 miesięcy
+                    // Grupuj po miesiącach - ostatnie 12 miesięcy, TYLKO zmiany statusów
                     var cmd = new SqlCommand(@"
                         SELECT FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL') as Okres,
                                YEAR(h.DataZmiany) as Rok, MONTH(h.DataZmiany) as Miesiac,
@@ -117,7 +117,8 @@ namespace Kalendarz1.CRM
                         FROM HistoriaZmianCRM h
                         WHERE h.KtoWykonal = @opId
                           AND h.DataZmiany > DATEADD(month, -12, GETDATE())
-                          AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')
+                          AND h.TypZmiany = 'Zmiana statusu'
+                          AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')
                         GROUP BY YEAR(h.DataZmiany), MONTH(h.DataZmiany), FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL')
                         ORDER BY Rok, Miesiac", conn);
 
@@ -164,13 +165,15 @@ namespace Kalendarz1.CRM
 
                     string whereDate = wszystkieDni ? "" : "AND h.DataZmiany > DATEADD(day, -30, GETDATE())";
 
+                    // TYLKO zmiany statusów (5 kategorii)
                     var cmd = new SqlCommand($@"
                         SELECT h.DataZmiany, h.WartoscNowa, h.TypZmiany,
                                o.Nazwa as NazwaKlienta, o.MIASTO as Miasto, o.Telefon_K as Telefon
                         FROM HistoriaZmianCRM h
                         LEFT JOIN OdbiorcyCRM o ON h.IDOdbiorcy = o.ID
                         WHERE h.KtoWykonal = @opId {whereDate}
-                          AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')
+                          AND h.TypZmiany = 'Zmiana statusu'
+                          AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')
                         ORDER BY h.DataZmiany DESC", conn);
 
                     cmd.Parameters.AddWithValue("@opId", operatorId);

@@ -168,16 +168,15 @@ namespace Kalendarz1.CRM
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Liczymy tylko prawdziwe akcje handlowca (bez "Do zadzwonienia" i "Nowy")
+                    // Liczymy TYLKO zmiany statusów (5 kategorii)
                     string whereDate = wszystkieDni
-                        ? "WHERE h.TypZmiany IS NOT NULL AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')"
-                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')";
+                        ? "WHERE h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')"
+                        : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany = 'Zmiana statusu' AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta', 'Nie zainteresowany')";
 
                     var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
                             ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
                             COUNT(*) as Suma,
-                            0 as DoZadzwonienia,
                             SUM(CASE WHEN WartoscNowa = 'Próba kontaktu' THEN 1 ELSE 0 END) as Proby,
                             SUM(CASE WHEN WartoscNowa = 'Nawiązano kontakt' THEN 1 ELSE 0 END) as Nawiazano,
                             SUM(CASE WHEN WartoscNowa = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END) as Zgoda,
