@@ -483,25 +483,57 @@
                 </Grid>
             </Border>
 
-            <!-- Ostatnie zamowienia -->
+            <!-- Zamowienia dzis/jutro + Top Produkty -->
             <Border Grid.Column="1" Style="{StaticResource SectionCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Ostatnie zamowienia" Style="{StaticResource SectionHeaderStyle}"/>
+                    <!-- Zamowienia dzis/jutro -->
+                    <TextBlock Grid.Row="0" Text="Zamowienia dzis/jutro" Style="{StaticResource SectionHeaderStyle}"/>
 
-                    <DataGrid Grid.Row="1" x:Name="dgOstatnie" Style="{StaticResource DarkDataGridStyle}"
-                              ColumnHeaderStyle="{StaticResource DarkDataGridHeaderStyle}"
-                              CellStyle="{StaticResource DarkDataGridCellStyle}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Data" Binding="{Binding DataOdbioruTekst}" Width="55"/>
-                            <DataGridTextColumn Header="Odbiorca" Binding="{Binding Odbiorca}" Width="*" MinWidth="80"/>
-                            <DataGridTextColumn Header="Wartosc" Binding="{Binding WartoscTekst}" Width="60"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- DZIS -->
+                        <Border Grid.Column="0" Background="#1F2428" CornerRadius="5" Padding="8" Margin="0,0,3,0">
+                            <StackPanel>
+                                <TextBlock Text="DZIS" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtZamDzisLiczba" Text="0 zam." FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="txtZamDzisKg" Text="0 kg" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- JUTRO -->
+                        <Border Grid.Column="1" Background="#1F2428" CornerRadius="5" Padding="8" Margin="3,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="JUTRO" FontSize="10" Foreground="{StaticResource AccentBlueBrush}" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtZamJutroLiczba" Text="0 zam." FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="txtZamJutroKg" Text="0 kg" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Top Produkty -->
+                    <StackPanel Grid.Row="2">
+                        <TextBlock Text="Top 5 produktow (30 dni)" Style="{StaticResource SectionHeaderStyle}" Margin="0,5,0,5"/>
+                        <DataGrid x:Name="dgTopProdukty" Style="{StaticResource DarkDataGridStyle}"
+                                  ColumnHeaderStyle="{StaticResource DarkDataGridHeaderStyle}"
+                                  CellStyle="{StaticResource DarkDataGridCellStyle}"
+                                  MaxHeight="130">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="20"/>
+                                <DataGridTextColumn Header="Produkt" Binding="{Binding NazwaProduktu}" Width="*" MinWidth="80"/>
+                                <DataGridTextColumn Header="Wartosc" Binding="{Binding WartoscTekst}" Width="60"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
                 </Grid>
             </Border>
 

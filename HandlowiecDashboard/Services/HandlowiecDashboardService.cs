@@ -937,5 +937,290 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             return crm;
         }
+
+        /// <summary>
+        /// Pobiera analizę cen produktu dla handlowca (z Faktur Sprzedaży)
+        /// Używa bazy HANDEL i tabel HM.DK, HM.DP, SSCommon.ContractorClassification
+        /// </summary>
+        public async Task<List<AnalizaCenHandlowca>> PobierzAnalizeCenAsync(string handlowiec = null, int dni = 30)
+        {
+            var wyniki = new List<AnalizaCenHandlowca>();
+            var dzis = DateTime.Today;
+            var wczoraj = dzis.AddDays(-1);
+            // Pomijamy weekendy dla wczorajszego dnia
+            while (wczoraj.DayOfWeek == DayOfWeek.Saturday || wczoraj.DayOfWeek == DayOfWeek.Sunday)
+                wczoraj = wczoraj.AddDays(-1);
+            var dataOd = dzis.AddDays(-dni);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+WITH CenyHandlowcow AS (
+    SELECT
+        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+        TW.kod AS Produkt,
+        DP.cena AS Cena,
+        DK.data AS Data
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DK.data >= @DataOd AND DK.data <= @DataDo
+      AND TW.katalog IN ('67095', '67153')
+      AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
+),
+CenyWczoraj AS (
+    SELECT Handlowiec, AVG(Cena) AS CenaWczoraj
+    FROM CenyHandlowcow WHERE CONVERT(date, Data) = @Wczoraj
+    GROUP BY Handlowiec
+),
+CenyDzisiaj AS (
+    SELECT Handlowiec, AVG(Cena) AS CenaDzisiaj
+    FROM CenyHandlowcow WHERE CONVERT(date, Data) = @Dzisiaj
+    GROUP BY Handlowiec
+)
+SELECT
+    CH.Handlowiec,
+    CAST(AVG(CH.Cena) AS DECIMAL(18,2)) AS SredniaCena,
+    CAST(CW.CenaWczoraj AS DECIMAL(18,2)) AS CenaWczoraj,
+    CAST(CD.CenaDzisiaj AS DECIMAL(18,2)) AS CenaDzisiaj,
+    CAST(MIN(CH.Cena) AS DECIMAL(18,2)) AS MinCena,
+    CAST(MAX(CH.Cena) AS DECIMAL(18,2)) AS MaxCena,
+    COUNT(*) AS LiczbaTransakcji
+FROM CenyHandlowcow CH
+LEFT JOIN CenyWczoraj CW ON CH.Handlowiec = CW.Handlowiec
+LEFT JOIN CenyDzisiaj CD ON CH.Handlowiec = CD.Handlowiec
+WHERE 1=1";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND CH.Handlowiec = @Handlowiec";
+
+                sql += @"
+GROUP BY CH.Handlowiec, CW.CenaWczoraj, CD.CenaDzisiaj
+ORDER BY SredniaCena DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                cmd.Parameters.AddWithValue("@DataDo", dzis);
+                cmd.Parameters.AddWithValue("@Wczoraj", wczoraj);
+                cmd.Parameters.AddWithValue("@Dzisiaj", dzis);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var analiza = new AnalizaCenHandlowca
+                    {
+                        Handlowiec = reader.GetString(0),
+                        SredniaCena = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1),
+                        CenaWczoraj = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
+                        CenaDzisiaj = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
+                        MinCena = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
+                        MaxCena = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                        LiczbaTransakcji = reader.IsDBNull(6) ? 0 : reader.GetInt32(6)
+                    };
+
+                    // Oblicz zmianę
+                    if (analiza.CenaWczoraj > 0 && analiza.CenaDzisiaj > 0)
+                    {
+                        analiza.ZmianaZl = analiza.CenaDzisiaj - analiza.CenaWczoraj;
+                        analiza.ZmianaProcent = (analiza.ZmianaZl / analiza.CenaWczoraj) * 100;
+                    }
+
+                    wyniki.Add(analiza);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania analizy cen: {ex.Message}");
+            }
+
+            return wyniki;
+        }
+
+        /// <summary>
+        /// Pobiera udział handlowców w sprzedaży (z Faktur)
+        /// </summary>
+        public async Task<List<UdzialHandlowcaWSprzedazy>> PobierzUdzialHandlowcowAsync(int rok, int miesiac)
+        {
+            var wyniki = new List<UdzialHandlowcaWSprzedazy>();
+            decimal sumaCalkowita = 0;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+SELECT
+    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+    CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg,
+    CAST(SUM(DP.ilosc * DP.cena) AS DECIMAL(18,2)) AS SumaWartosc,
+    COUNT(DISTINCT DK.id) AS LiczbaFaktur,
+    COUNT(DISTINCT DK.khid) AS LiczbaOdbiorcow
+FROM [HANDEL].[HM].[DK] DK
+INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+  AND TW.katalog IN ('67095', '67153')
+  AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
+GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+ORDER BY SumaWartosc DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                int pozycja = 1;
+                while (await reader.ReadAsync())
+                {
+                    var udzial = new UdzialHandlowcaWSprzedazy
+                    {
+                        Pozycja = pozycja++,
+                        Handlowiec = reader.GetString(0),
+                        SumaKg = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1),
+                        SumaWartosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
+                        LiczbaFaktur = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                        LiczbaOdbiorcow = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                    };
+                    sumaCalkowita += udzial.SumaWartosc;
+                    wyniki.Add(udzial);
+                }
+
+                foreach (var u in wyniki)
+                {
+                    u.UdzialProcent = sumaCalkowita > 0 ? (u.SumaWartosc / sumaCalkowita) * 100 : 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania udziału handlowców: {ex.Message}");
+            }
+
+            return wyniki;
+        }
+
+        /// <summary>
+        /// Pobiera zamówienia na dziś i jutro (z Zamówień Klientów)
+        /// </summary>
+        public async Task<ZamowieniaNaDzien> PobierzZamowieniaNaDzienAsync(string handlowiec = null)
+        {
+            var wynik = new ZamowieniaNaDzien();
+            var dzis = DateTime.Today;
+            var jutro = dzis.AddDays(1);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
+                await cn.OpenAsync();
+
+                var sql = @"
+SELECT
+    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN 1 ELSE 0 END) as ZamDzis,
+    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgDzis,
+    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc * zp.Cena, 0) ELSE 0 END) as WartoscDzis,
+    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN 1 ELSE 0 END) as ZamJutro,
+    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgJutro,
+    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc * zp.Cena, 0) ELSE 0 END) as WartoscJutro
+FROM ZamowieniaMieso z
+LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
+WHERE z.DataOdbioru IN (@Dzis, @Jutro)
+  AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND z.Handlowiec = @Handlowiec";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Dzis", dzis);
+                cmd.Parameters.AddWithValue("@Jutro", jutro);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    wynik.LiczbaZamowienDzis = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                    wynik.SumaKgDzis = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    wynik.SumaWartoscDzis = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    wynik.LiczbaZamowienJutro = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                    wynik.SumaKgJutro = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4);
+                    wynik.SumaWartoscJutro = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania zamówień na dzień: {ex.Message}");
+            }
+
+            return wynik;
+        }
+
+        /// <summary>
+        /// Pobiera top produkty handlowca (z Faktur)
+        /// </summary>
+        public async Task<List<TopProduktHandlowca>> PobierzTopProduktyAsync(string handlowiec = null, int top = 5, int dni = 30)
+        {
+            var wyniki = new List<TopProduktHandlowca>();
+            var dataOd = DateTime.Today.AddDays(-dni);
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = $@"
+SELECT TOP {top}
+    TW.kod AS NazwaProduktu,
+    CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg,
+    CAST(SUM(DP.ilosc * DP.cena) AS DECIMAL(18,2)) AS SumaWartosc,
+    CAST(AVG(DP.cena) AS DECIMAL(18,2)) AS SredniaCena,
+    COUNT(*) AS LiczbaTransakcji
+FROM [HANDEL].[HM].[DK] DK
+INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+WHERE DK.data >= @DataOd
+  AND TW.katalog IN ('67095', '67153')";
+
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    sql += " AND WYM.CDim_Handlowiec_Val = @Handlowiec";
+
+                sql += @"
+GROUP BY TW.kod
+ORDER BY SumaWartosc DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                int pozycja = 1;
+                while (await reader.ReadAsync())
+                {
+                    wyniki.Add(new TopProduktHandlowca
+                    {
+                        Pozycja = pozycja++,
+                        NazwaProduktu = reader.GetString(0),
+                        SumaKg = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1),
+                        SumaWartosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
+                        SredniaCena = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
+                        LiczbaTransakcji = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania top produktów: {ex.Message}");
+            }
+
+            return wyniki;
+        }
     }
 }

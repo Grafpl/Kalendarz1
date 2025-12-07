@@ -357,4 +357,96 @@ namespace Kalendarz1.HandlowiecDashboard.Models
         public string ZmianaTekst => $"{(ZmianaProcent >= 0 ? "+" : "")}{ZmianaProcent:N1}%";
         public bool ZmianaPozytywna => ZmianaProcent >= 0;
     }
+
+    /// <summary>
+    /// Analiza cen produktu dla handlowca (z Faktur Sprzedaży)
+    /// </summary>
+    public class AnalizaCenHandlowca
+    {
+        public string Handlowiec { get; set; }
+        public string Produkt { get; set; }
+        public decimal SredniaCena { get; set; }
+        public decimal CenaWczoraj { get; set; }
+        public decimal CenaDzisiaj { get; set; }
+        public decimal ZmianaZl { get; set; }
+        public decimal ZmianaProcent { get; set; }
+        public decimal MinCena { get; set; }
+        public decimal MaxCena { get; set; }
+        public int LiczbaTransakcji { get; set; }
+        public decimal TrendProcentowy { get; set; }
+
+        public string SredniaCenaTekst => $"{SredniaCena:N2} zł/kg";
+        public string ZmianaTekst => $"{(ZmianaZl >= 0 ? "+" : "")}{ZmianaZl:N2} zł";
+        public string TrendTekst => $"{(TrendProcentowy >= 0 ? "+" : "")}{TrendProcentowy:N1}%";
+        public bool ZmianaPozytywna => ZmianaZl >= 0;
+        public bool TrendPozytywny => TrendProcentowy >= 0;
+    }
+
+    /// <summary>
+    /// Udział handlowca w sprzedaży (z Faktur)
+    /// </summary>
+    public class UdzialHandlowcaWSprzedazy
+    {
+        public string Handlowiec { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public decimal UdzialProcent { get; set; }
+        public int LiczbaFaktur { get; set; }
+        public int LiczbaOdbiorcow { get; set; }
+        public int Pozycja { get; set; }
+
+        public string WartoscTekst => $"{SumaWartosc:N0} zł";
+        public string KgTekst => $"{SumaKg:N0} kg";
+        public string UdzialTekst => $"{UdzialProcent:N1}%";
+    }
+
+    /// <summary>
+    /// Zamówienia na dziś/jutro (z Zamówień Klientów)
+    /// </summary>
+    public class ZamowieniaNaDzien
+    {
+        public int LiczbaZamowienDzis { get; set; }
+        public decimal SumaKgDzis { get; set; }
+        public decimal SumaWartoscDzis { get; set; }
+        public int LiczbaZamowienJutro { get; set; }
+        public decimal SumaKgJutro { get; set; }
+        public decimal SumaWartoscJutro { get; set; }
+        public int ZamowieniaNieprzypisane { get; set; }
+        public int ZamowieniaWRealizacji { get; set; }
+
+        public string DzisTekst => $"{LiczbaZamowienDzis} zam. / {SumaKgDzis:N0} kg";
+        public string JutroTekst => $"{LiczbaZamowienJutro} zam. / {SumaKgJutro:N0} kg";
+    }
+
+    /// <summary>
+    /// Płatności i zaległości odbiorców (z Faktur)
+    /// </summary>
+    public class StatystykiPlatnosci
+    {
+        public int LiczbaOdbiorcowZZalegloscia { get; set; }
+        public decimal SumaZaleglosci { get; set; }
+        public decimal NajwiekszaZaleglosc { get; set; }
+        public string NajwiekszyDluznik { get; set; }
+        public int FakturyPoPlatnosciDoTygodnia { get; set; }
+        public int FakturyPoPlatnosciPonadTydzien { get; set; }
+
+        public string SumaZalegosciTekst => $"{SumaZaleglosci:N0} zł";
+    }
+
+    /// <summary>
+    /// Top produkt handlowca (z Faktur)
+    /// </summary>
+    public class TopProduktHandlowca
+    {
+        public int Pozycja { get; set; }
+        public string NazwaProduktu { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public decimal SredniaCena { get; set; }
+        public int LiczbaTransakcji { get; set; }
+
+        public string WartoscTekst => $"{SumaWartosc:N0} zł";
+        public string KgTekst => $"{SumaKg:N0} kg";
+        public string CenaTekst => $"{SredniaCena:N2} zł/kg";
+    }
 }

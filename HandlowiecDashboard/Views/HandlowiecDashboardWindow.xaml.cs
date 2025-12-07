@@ -95,12 +95,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 var taskDostawa = _service.PobierzStatystykiDostawyAsync(_wybranyHandlowiec, 1);
                 var taskTopOdbiorcy = _service.PobierzTopOdbiorcowAsync(_wybranyHandlowiec, 10, 3);
                 var taskCRM = _service.PobierzCRMStatystykiAsync(App.UserID);
-                var taskOstatnie = _service.PobierzOstatnieZamowieniaAsync(_wybranyHandlowiec, 10);
                 var taskPorownanie = _service.PobierzPorownanieOkresowAsync(_wybranyHandlowiec);
                 var taskSrednia = _service.PobierzSredniaZamowieniaDziennieAsync(_wybranyHandlowiec);
+                // Nowe dane z Faktur i Zamowien
+                var taskZamDzien = _service.PobierzZamowieniaNaDzienAsync(_wybranyHandlowiec);
+                var taskTopProdukty = _service.PobierzTopProduktyAsync(_wybranyHandlowiec, 5, 30);
 
                 await Task.WhenAll(taskDzienne, taskRegiony, task30Dni, taskMiesieczne,
-                    taskDostawa, taskTopOdbiorcy, taskCRM, taskOstatnie, taskPorownanie, taskSrednia);
+                    taskDostawa, taskTopOdbiorcy, taskCRM, taskPorownanie, taskSrednia,
+                    taskZamDzien, taskTopProdukty);
 
                 // Aktualizuj sprzedaz dzienna
                 UpdateDzienneChart(taskDzienne.Result);
@@ -123,14 +126,17 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 // Aktualizuj CRM
                 UpdateCRM(taskCRM.Result);
 
-                // Aktualizuj ostatnie zamowienia
-                dgOstatnie.ItemsSource = taskOstatnie.Result;
-
                 // Aktualizuj porownanie miesiecy
                 dgPorownanie.ItemsSource = taskPorownanie.Result;
 
                 // Aktualizuj srednia dzienna
                 UpdateSredniaDziennaChart(taskSrednia.Result);
+
+                // Aktualizuj zamowienia dzis/jutro
+                UpdateZamowieniaNaDzien(taskZamDzien.Result);
+
+                // Aktualizuj top produkty
+                dgTopProdukty.ItemsSource = taskTopProdukty.Result;
             }
             catch (Exception ex)
             {
@@ -341,6 +347,17 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     MaxColumnWidth = 15
                 }
             };
+        }
+
+        /// <summary>
+        /// Aktualizuje zamowienia na dzis/jutro
+        /// </summary>
+        private void UpdateZamowieniaNaDzien(ZamowieniaNaDzien zam)
+        {
+            txtZamDzisLiczba.Text = $"{zam.LiczbaZamowienDzis} zam.";
+            txtZamDzisKg.Text = $"{zam.SumaKgDzis:N0} kg";
+            txtZamJutroLiczba.Text = $"{zam.LiczbaZamowienJutro} zam.";
+            txtZamJutroKg.Text = $"{zam.SumaKgJutro:N0} kg";
         }
 
         /// <summary>
