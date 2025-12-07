@@ -35,7 +35,7 @@ namespace Kalendarz1
         private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu, dgvZamowienia;
         private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne;
         private TabControl tabControl;
-        private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp;
+        private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp, cmbFiltrMroznia;
         private TextBox txtSzukaj;
         private Label lblPodsumowanie, lblWydano, lblPrzyjeto, lblSrednia, lblTrendInfo;
         private Label lblStanSuma, lblStanWartosc, lblStanProdukty, lblStanRezerwacje;
@@ -751,12 +751,44 @@ namespace Kalendarz1
             };
             zewnRightHeader.Controls.Add(lblZewnRight);
 
+            // Panel filtra mroźni
+            Panel filterPanel = new Panel { Dock = DockStyle.Top, Height = 45, BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(10, 8, 10, 8) };
+            Label lblFiltr = new Label
+            {
+                Text = "Filtruj ruchy:",
+                Location = new Point(10, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            cmbFiltrMroznia = new ComboBox
+            {
+                Location = new Point(95, 8),
+                Size = new Size(200, 28),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F)
+            };
+            cmbFiltrMroznia.Items.Add("Wszystkie");
+            cmbFiltrMroznia.SelectedIndex = 0;
+            cmbFiltrMroznia.SelectedIndexChanged += (s, e) => DgvMroznieZewnetrzne_SelectionChanged(null, null);
+
+            Label lblFiltrInfo = new Label
+            {
+                Text = "← wybierz mroźnię aby zobaczyć tylko jej ruchy",
+                Location = new Point(305, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+
+            filterPanel.Controls.AddRange(new Control[] { lblFiltr, cmbFiltrMroznia, lblFiltrInfo });
+
             dgvWydaniaZewnetrzne = CreateStyledDataGridView();
             dgvWydaniaZewnetrzne.ColumnHeadersDefaultCellStyle.BackColor = PrimaryColor;
 
             Panel zewnRightGrid = new Panel { Dock = DockStyle.Fill };
             zewnRightGrid.Controls.Add(dgvWydaniaZewnetrzne);
             zewnRightPanel.Controls.Add(zewnRightGrid);
+            zewnRightPanel.Controls.Add(filterPanel);
             zewnRightPanel.Controls.Add(zewnRightHeader);
 
             splitZewn.Panel1.Controls.Add(zewnLeftPanel);
@@ -2844,6 +2876,7 @@ namespace Kalendarz1
             if (dgvMroznieZewnetrzne.SelectedRows.Count == 0)
             {
                 dgvWydaniaZewnetrzne.DataSource = null;
+                UpdateFiltrMrozniComboBox();
                 return;
             }
 
@@ -2854,25 +2887,51 @@ namespace Kalendarz1
             var mroznia = mroznie.FirstOrDefault(m => m.Id == id);
             if (mroznia == null) return;
 
+            // Aktualizuj ComboBox filtra
+            UpdateFiltrMrozniComboBox();
+
+            // Pobierz filtr
+            string filtrMroznia = cmbFiltrMroznia?.SelectedItem?.ToString() ?? "Wszystkie";
+
             DataTable dt = new DataTable();
             dt.Columns.Add("Data", typeof(DateTime));
             dt.Columns.Add("Typ", typeof(string));
+            dt.Columns.Add("Trasa", typeof(string));
             dt.Columns.Add("Kod", typeof(string));
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Ilość (kg)", typeof(decimal));
-            dt.Columns.Add("Uwagi", typeof(string));
+            dt.Columns.Add("Klient", typeof(string));
 
             if (mroznia.Wydania != null)
             {
                 foreach (var w in mroznia.Wydania.OrderByDescending(x => x.Data))
                 {
-                    dt.Rows.Add(w.Data, w.Typ, w.KodProduktu ?? "", w.Produkt, w.Ilosc, w.Uwagi);
+                    // Filtruj po mroźni jeśli wybrano konkretną
+                    if (filtrMroznia != "Wszystkie")
+                    {
+                        bool pasuje = w.ZrodloNazwa?.Contains(filtrMroznia) == true ||
+                                      w.CelNazwa?.Contains(filtrMroznia) == true ||
+                                      mroznia.Nazwa == filtrMroznia;
+                        if (!pasuje) continue;
+                    }
+
+                    string trasa = w.Trasa;
+                    if (string.IsNullOrEmpty(trasa))
+                        trasa = w.Typ == "Przyjęcie" ? "Ubojnia → Mroźnia" : "Mroźnia → Ubojnia";
+
+                    string klient = !string.IsNullOrEmpty(w.KlientId) ? w.CelNazwa : "";
+
+                    dt.Rows.Add(w.Data, w.Typ, trasa, w.KodProduktu ?? "", w.Produkt, w.Ilosc, klient);
                 }
             }
 
             dgvWydaniaZewnetrzne.DataSource = dt;
             dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
             dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
+            if (dgvWydaniaZewnetrzne.Columns.Contains("Trasa"))
+                dgvWydaniaZewnetrzne.Columns["Trasa"].Width = 180;
+            if (dgvWydaniaZewnetrzne.Columns.Contains("Klient"))
+                dgvWydaniaZewnetrzne.Columns["Klient"].Width = 120;
 
             // Koloruj wydania/przyjęcia
             foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
@@ -2883,6 +2942,24 @@ namespace Kalendarz1
                 else if (typ == "Wydanie")
                     row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
             }
+        }
+
+        private void UpdateFiltrMrozniComboBox()
+        {
+            if (cmbFiltrMroznia == null) return;
+
+            string selected = cmbFiltrMroznia.SelectedItem?.ToString() ?? "Wszystkie";
+            cmbFiltrMroznia.Items.Clear();
+            cmbFiltrMroznia.Items.Add("Wszystkie");
+
+            var mroznie = WczytajMroznieZewnetrzne();
+            foreach (var m in mroznie)
+            {
+                cmbFiltrMroznia.Items.Add(m.Nazwa);
+            }
+
+            int idx = cmbFiltrMroznia.Items.IndexOf(selected);
+            cmbFiltrMroznia.SelectedIndex = idx >= 0 ? idx : 0;
         }
 
         private void BtnDodajMroznieZewnetrzna_Click(object sender, EventArgs e)
@@ -2995,7 +3072,13 @@ namespace Kalendarz1
                                 KodProduktu = poz.KodProduktu,
                                 Produkt = poz.Nazwa,
                                 Ilosc = poz.Ilosc,
-                                Uwagi = dlg.Uwagi
+                                Uwagi = dlg.Uwagi,
+                                // Trasa
+                                ZrodloTyp = dlg.ZrodloTyp,
+                                ZrodloNazwa = dlg.ZrodloNazwa,
+                                CelTyp = dlg.CelTyp,
+                                CelNazwa = dlg.CelNazwa,
+                                KlientId = dlg.KlientId
                             });
                             sumaIlosc += poz.Ilosc;
                         }
@@ -3159,6 +3242,18 @@ namespace Kalendarz1
         public string Produkt { get; set; } = "";
         public decimal Ilosc { get; set; }
         public string Uwagi { get; set; } = "";
+
+        // Trasa - od kogo do kogo
+        public string ZrodloTyp { get; set; } = "";
+        public string ZrodloNazwa { get; set; } = "";
+        public string CelTyp { get; set; } = "";
+        public string CelNazwa { get; set; } = "";
+        public string KlientId { get; set; } = "";
+
+        // Helper do wyświetlania trasy
+        public string Trasa => !string.IsNullOrEmpty(ZrodloNazwa) && !string.IsNullOrEmpty(CelNazwa)
+            ? $"{ZrodloNazwa} → {CelNazwa}"
+            : "";
     }
 
     /// <summary>
