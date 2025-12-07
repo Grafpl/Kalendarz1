@@ -127,12 +127,13 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="AKTYWNY:" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtHeaderKlient" Text="Wybierz z listy..." FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="txtHeaderKlient" Text="Wybierz z listy..." FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                 <TextBlock x:Name="txtHeaderMiasto" Text="" FontSize="12" Foreground="{StaticResource TextGray}" Margin="0,0,15,0"/>
@@ -140,7 +141,19 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <!-- Planowany kontakt -->
+                        <Border x:Name="panelNastepnyKontakt" Grid.Column="1" Background="#F3F4F6" CornerRadius="6" Padding="10,6" Margin="15,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <StackPanel>
+                                    <TextBlock Text="KONTAKT" FontSize="8" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
+                                    <TextBlock x:Name="txtKlientNastepnyKontakt" Text="Brak" FontWeight="Bold" FontSize="11" Foreground="{StaticResource TextDark}"/>
+                                </StackPanel>
+                                <Button Content="📅" Style="{StaticResource BtnIcon}" ToolTip="Zmień datę kontaktu" Click="MenuUstawDate_Click" Padding="4" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
                             <Button x:Name="btnHeaderCall" Content="📞" Style="{StaticResource BtnIcon}" ToolTip="Zadzwoń" Click="BtnKlientZadzwon_Click"/>
                             <Button x:Name="btnHeaderEdit" Content="✏️" Style="{StaticResource BtnIcon}" ToolTip="Edytuj" Click="BtnKlientEdytuj_Click"/>
                         </StackPanel>
@@ -269,38 +282,91 @@
                         </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Status" Width="140">
+                            <DataGridTemplateColumn Header="Status" Width="155">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <Border CornerRadius="4" Padding="6,4" HorizontalAlignment="Left" VerticalAlignment="Center">
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#F3F4F6"/>
+                                                    <Setter Property="Background" Value="#F1F5F9"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
-                                                            <Setter Property="Background" Value="#E0F2FE"/>
-                                                            <Setter Property="TextBlock.Foreground" Value="#0369A1"/>
+                                                            <Setter Property="Background" Value="#F1F5F9"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
                                                             <Setter Property="Background" Value="#FFEDD5"/>
-                                                            <Setter Property="TextBlock.Foreground" Value="#9A3412"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
                                                             <Setter Property="Background" Value="#DCFCE7"/>
-                                                            <Setter Property="TextBlock.Foreground" Value="#166534"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
-                                                            <Setter Property="Background" Value="#FEE2E2"/>
-                                                            <Setter Property="TextBlock.Foreground" Value="#991B1B"/>
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
                                                             <Setter Property="Background" Value="#CCFBF1"/>
-                                                            <Setter Property="TextBlock.Foreground" Value="#115E59"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
+                                                            <Setter Property="Background" Value="#DBEAFE"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
+                                                            <Setter Property="Background" Value="#FEE2E2"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="📋"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
+                                                                    <Setter Property="Text" Value="📞"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
+                                                                    <Setter Property="Text" Value="⏳"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
+                                                                    <Setter Property="Text" Value="✅"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
+                                                                    <Setter Property="Text" Value="🤝"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
+                                                                    <Setter Property="Text" Value="📄"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
+                                                                    <Setter Property="Text" Value="❌"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#64748B"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
+                                                                    <Setter Property="Foreground" Value="#64748B"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Próba kontaktu">
+                                                                    <Setter Property="Foreground" Value="#9A3412"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Nawiązano kontakt">
+                                                                    <Setter Property="Foreground" Value="#166534"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Zgoda na dalszy kontakt">
+                                                                    <Setter Property="Foreground" Value="#0D9488"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Do wysłania oferta">
+                                                                    <Setter Property="Foreground" Value="#1E40AF"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Nie zainteresowany">
+                                                                    <Setter Property="Foreground" Value="#991B1B"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -314,6 +380,16 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="Handlowiec" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding OstatniHandlowiec}" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   ToolTip="{Binding OstatniHandlowiec}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
                             <DataGridTemplateColumn Header="Tagi" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -370,16 +446,28 @@
                             <ContextMenu>
                                 <MenuItem Header="📞 Zadzwoń" Click="MenuZadzwon_Click"/>
                                 <MenuItem Header="✏️ Edytuj" Click="MenuEdytuj_Click"/>
-                                <MenuItem Header="📅 Ustaw datę" Click="MenuUstawDate_Click"/>
+                                <MenuItem Header="📅 Ustaw datę kontaktu" Click="MenuUstawDate_Click"/>
                                 <Separator/>
-                                <MenuItem Header="🏷️ Otaguj">
-                                    <MenuItem Header="VIP" Click="MenuTag_Click" Tag="VIP"/>
-                                    <MenuItem Header="Pilne" Click="MenuTag_Click" Tag="Pilne"/>
+                                <MenuItem Header="🔄 Zmień status">
+                                    <MenuItem Header="📞 Do zadzwonienia" Click="MenuZmienStatus_Click" Tag="Do zadzwonienia"/>
+                                    <MenuItem Header="⏳ Próba kontaktu" Click="MenuZmienStatus_Click" Tag="Próba kontaktu"/>
+                                    <MenuItem Header="✅ Nawiązano kontakt" Click="MenuZmienStatus_Click" Tag="Nawiązano kontakt"/>
+                                    <MenuItem Header="🤝 Zgoda na dalszy kontakt" Click="MenuZmienStatus_Click" Tag="Zgoda na dalszy kontakt"/>
+                                    <MenuItem Header="📄 Do wysłania oferta" Click="MenuZmienStatus_Click" Tag="Do wysłania oferta"/>
                                     <Separator/>
-                                    <MenuItem Header="Wyczyść tagi" Click="MenuTag_Click" Tag="CLEAR"/>
+                                    <MenuItem Header="❌ Nie zainteresowany" Click="MenuZmienStatus_Click" Tag="Nie zainteresowany"/>
                                 </MenuItem>
                                 <Separator/>
-                                <MenuItem Header="Zmień status" Click="MenuStatus_Click"/>
+                                <MenuItem Header="🏷️ Otaguj">
+                                    <MenuItem Header="⭐ VIP" Click="MenuTag_Click" Tag="VIP"/>
+                                    <MenuItem Header="🔥 Pilne" Click="MenuTag_Click" Tag="Pilne"/>
+                                    <MenuItem Header="💎 Premium" Click="MenuTag_Click" Tag="Premium"/>
+                                    <Separator/>
+                                    <MenuItem Header="🗑️ Wyczyść tagi" Click="MenuTag_Click" Tag="CLEAR"/>
+                                </MenuItem>
+                                <Separator/>
+                                <MenuItem Header="🔍 Szukaj w Google" Click="MenuGoogle_Click"/>
+                                <MenuItem Header="🗺️ Pokaż trasę" Click="MenuTrasa_Click"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                     </DataGrid>
@@ -389,47 +477,6 @@
             <Border Grid.Column="1" Background="Transparent">
                 <ScrollViewer VerticalScrollBarVisibility="Hidden">
                     <StackPanel>
-
-                        <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16">
-                            <StackPanel>
-                                <TextBlock Text="DANE KLIENTA" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,12"/>
-
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Adres:" Foreground="{StaticResource TextGray}"/>
-                                    <TextBlock x:Name="txtSzczegolyAdres" Grid.Column="1" Text="-" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                                </Grid>
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Email:" Foreground="{StaticResource TextGray}"/>
-                                    <TextBlock x:Name="txtSzczegolyEmail" Grid.Column="1" Text="-" TextWrapping="Wrap" Foreground="{StaticResource PrimaryColor}"/>
-                                </Grid>
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Branża:" Foreground="{StaticResource TextGray}"/>
-                                    <TextBlock x:Name="txtSzczegolyBranza" Grid.Column="1" Text="-" TextWrapping="Wrap" FontStyle="Italic"/>
-                                </Grid>
-
-                                <Separator Margin="0,15" Background="{StaticResource BorderColor}"/>
-
-                                <TextBlock Text="PLANOWANY KONTAKT" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,8"/>
-                                <Border x:Name="panelNastepnyKontakt" Background="#F3F4F6" CornerRadius="6" Padding="12">
-                                    <Grid>
-                                        <TextBlock x:Name="txtKlientNastepnyKontakt" Text="Brak zaplanowanego kontaktu" FontWeight="Bold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center"/>
-                                        <Button Content="📅 Zmień" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" Cursor="Hand" Click="MenuUstawDate_Click"/>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
 
                         <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
@@ -467,7 +514,13 @@
 
                         <Border Style="{StaticResource CardStyle}" Padding="20">
                             <StackPanel>
-                                <TextBlock Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,8">
+                                    <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <RadioButton x:Name="rb30Dni" Content="30 dni" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,10,0" FontSize="10" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rbWszystkie" Content="Wszystkie" GroupName="OkresRankingu" FontSize="10" Checked="RbOkresRankingu_Checked"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Legenda -->
                                 <Border Background="#F9FAFB" CornerRadius="6" Padding="8,6" Margin="0,0,0,12">

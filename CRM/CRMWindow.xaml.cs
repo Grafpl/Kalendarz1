@@ -83,12 +83,11 @@ namespace Kalendarz1.CRM
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                // Dodajemy NIP (jeśli istnieje) lub pomijamy
-                // Bezpieczne zapytanie z kolumnami zdefiniowanymi w DataGrid
                 var cmd = new SqlCommand(@"
-                    SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email, 
+                    SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
-                        (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana
+                        (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoDodal) FROM NotatkiCRM h LEFT JOIN operators op ON h.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataUtworzenia DESC) as OstatniHandlowiec
                     FROM OdbiorcyCRM o LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                     ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
@@ -162,14 +161,17 @@ namespace Kalendarz1.CRM
             catch { }
         }
 
-        private void WczytajRanking()
+        private void WczytajRanking(bool wszystkieDni = false)
         {
             try
             {
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    var cmd = new SqlCommand(@"
+                    string whereDate = wszystkieDni ? "" : "WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL";
+                    if (wszystkieDni) whereDate = "WHERE h.TypZmiany IS NOT NULL";
+
+                    var cmd = new SqlCommand($@"
                         SELECT TOP 10 ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as Pozycja,
                             ISNULL(o.Name, 'ID: ' + h.KtoWykonal) as Operator,
                             COUNT(*) as Suma,
@@ -180,16 +182,26 @@ namespace Kalendarz1.CRM
                             SUM(CASE WHEN WartoscNowa = 'Do wysłania oferta' THEN 1 ELSE 0 END) as Oferty,
                             SUM(CASE WHEN WartoscNowa = 'Nie zainteresowany' THEN 1 ELSE 0 END) as NieZainteresowany
                         FROM HistoriaZmianCRM h LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                        WHERE h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.TypZmiany IS NOT NULL
+                        {whereDate}
                         GROUP BY h.KtoWykonal, o.Name ORDER BY Suma DESC", conn);
 
                     var adapter = new SqlDataAdapter(cmd);
                     var dt = new DataTable();
                     adapter.Fill(dt);
                     if (listaRanking != null) listaRanking.ItemsSource = dt.DefaultView;
+
+                    // Aktualizuj tytuł
+                    if (txtRankingTytul != null)
+                        txtRankingTytul.Text = wszystkieDni ? "RANKING AKTYWNOŚCI (Wszystkie dni)" : "RANKING AKTYWNOŚCI (Ostatnie 30 dni)";
                 }
             }
             catch { }
+        }
+
+        private void RbOkresRankingu_Checked(object sender, RoutedEventArgs e)
+        {
+            if (rb30Dni == null || rbWszystkie == null) return;
+            WczytajRanking(rbWszystkie.IsChecked == true);
         }
 
         private void WypelnijFiltryDynamiczne()
@@ -214,26 +226,21 @@ namespace Kalendarz1.CRM
                 if (txtHeaderTelefon != null) txtHeaderTelefon.Text = row["TELEFON_K"].ToString();
                 if (txtHeaderMiasto != null) txtHeaderMiasto.Text = row["MIASTO"].ToString();
 
-                // SZCZEGÓŁY - TERAZ BEZPIECZNIE
-                if (txtSzczegolyAdres != null) txtSzczegolyAdres.Text = $"{row["ULICA"]}, {row["MIASTO"]}";
-                if (txtSzczegolyEmail != null) txtSzczegolyEmail.Text = row["Email"].ToString();
-                if (txtSzczegolyBranza != null) txtSzczegolyBranza.Text = row["PKD_Opis"].ToString();
-
-                // PLANOWANY KONTAKT
+                // PLANOWANY KONTAKT W HEADERZE
                 if (row["DataNastepnegoKontaktu"] != DBNull.Value && txtKlientNastepnyKontakt != null)
                 {
                     DateTime data = (DateTime)row["DataNastepnegoKontaktu"];
-                    txtKlientNastepnyKontakt.Text = data.ToString("dd.MM.yyyy (dddd)");
+                    txtKlientNastepnyKontakt.Text = data.ToString("dd.MM");
                     if (panelNastepnyKontakt != null)
                     {
                         if (data < DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#FEE2E2");
                         else if (data == DateTime.Today) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#DBEAFE");
-                        else panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#F3F4F6");
+                        else panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#DCFCE7");
                     }
                 }
                 else if (txtKlientNastepnyKontakt != null)
                 {
-                    txtKlientNastepnyKontakt.Text = "Brak zaplanowanego kontaktu";
+                    txtKlientNastepnyKontakt.Text = "Brak";
                     if (panelNastepnyKontakt != null) panelNastepnyKontakt.Background = (Brush)new BrushConverter().ConvertFrom("#F3F4F6");
                 }
                 WczytajNotatki(aktualnyOdbiorcaID);
@@ -390,6 +397,58 @@ namespace Kalendarz1.CRM
                     WczytajDane();
                     ShowToast("Zmieniono status na: " + nowyStatus);
                 }
+            }
+        }
+
+        private void MenuZmienStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag != null)
+            {
+                string nowyStatus = mi.Tag.ToString();
+                int id = 0;
+                if (dgKontakty.SelectedItem is DataRowView row) id = (int)row["ID"];
+                if (id > 0)
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn);
+                        cmdUpdate.Parameters.AddWithValue("@status", nowyStatus);
+                        cmdUpdate.Parameters.AddWithValue("@id", id);
+                        cmdUpdate.ExecuteNonQuery();
+
+                        var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) VALUES (@id, 'Zmiana statusu', @val, @op, GETDATE())", conn);
+                        cmdLog.Parameters.AddWithValue("@id", id);
+                        cmdLog.Parameters.AddWithValue("@val", nowyStatus);
+                        cmdLog.Parameters.AddWithValue("@op", operatorID);
+                        cmdLog.ExecuteNonQuery();
+                    }
+                    WczytajDane();
+                    ShowToast($"Status zmieniony na: {nowyStatus}");
+                }
+            }
+        }
+
+        private void MenuGoogle_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgKontakty.SelectedItem is DataRowView row)
+            {
+                string nazwa = row["NAZWA"].ToString();
+                string miasto = row["MIASTO"].ToString();
+                string query = System.Net.WebUtility.UrlEncode($"{nazwa} {miasto}");
+                Process.Start(new ProcessStartInfo($"https://www.google.com/search?q={query}") { UseShellExecute = true });
+            }
+        }
+
+        private void MenuTrasa_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgKontakty.SelectedItem is DataRowView row)
+            {
+                string adres = $"{row["ULICA"]}, {row["KOD"]} {row["MIASTO"]}";
+                string query = System.Net.WebUtility.UrlEncode(adres);
+                // Koziołki 40, 95-061 Dmosin jako punkt startowy (baza firmy)
+                string origin = System.Net.WebUtility.UrlEncode("Koziołki 40, 95-061 Dmosin");
+                Process.Start(new ProcessStartInfo($"https://www.google.com/maps/dir/{origin}/{query}") { UseShellExecute = true });
             }
         }
         #endregion
