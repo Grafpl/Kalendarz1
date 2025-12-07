@@ -828,11 +828,117 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
+                    <!-- RANKING HANDLOWCÓW - NA GÓRZE -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="12" Margin="0,0,0,12">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="0" Color="#16A34A" Opacity="0.1" BlurRadius="10"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Nagłówek rankingu -->
+                            <Border Grid.Row="0" Background="{StaticResource HeaderGradient}" CornerRadius="12,12,0,0" Padding="14,10">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🏆" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="RANKING HANDLOWCÓW" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Lista rankingowa -->
+                            <ItemsControl x:Name="listaRanking" Grid.Row="1" Margin="0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="12,8" BorderBrush="#F1F5F9" BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="32"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="50"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Pozycja z medalem -->
+                                                <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" HorizontalAlignment="Left">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#E5E7EB"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Pozycja}" Value="1">
+                                                                    <Setter Property="Background" Value="#FCD34D"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Pozycja}" Value="2">
+                                                                    <Setter Property="Background" Value="#D1D5DB"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Pozycja}" Value="3">
+                                                                    <Setter Property="Background" Value="#FDBA74"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Pozycja}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="#6B7280"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Pozycja}" Value="1">
+                                                                        <Setter Property="Foreground" Value="#92400E"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Pozycja}" Value="2">
+                                                                        <Setter Property="Foreground" Value="#374151"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Pozycja}" Value="3">
+                                                                        <Setter Property="Foreground" Value="#9A3412"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+
+                                                <!-- Nazwa handlowca -->
+                                                <TextBlock Grid.Column="1" Text="{Binding Operator}" FontSize="12" FontWeight="SemiBold" Foreground="#111827" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                                                <!-- Próby -->
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="6,0">
+                                                    <TextBlock Text="{Binding Proby}" FontSize="11" Foreground="#F97316" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" prób" FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <!-- Kontakty -->
+                                                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="6,0">
+                                                    <TextBlock Text="{Binding Kontakt}" FontSize="11" Foreground="#0891B2" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" kont." FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <!-- Zgody -->
+                                                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="6,0">
+                                                    <TextBlock Text="{Binding Zgoda}" FontSize="11" Foreground="#16A34A" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" zgód" FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <!-- Suma punktów -->
+                                                <Border Grid.Column="5" Background="#DCFCE7" CornerRadius="6" Padding="8,4" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding Suma}" FontSize="12" FontWeight="Bold" Foreground="#166534" HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
                     <!-- Nagłówek klienta -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="1" Margin="0,0,0,10">
                         <TextBlock x:Name="txtKlientNazwa" Text="Wybierz kontakt" FontSize="14" FontWeight="Bold" Foreground="{StaticResource ColorText}" TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                             <Border x:Name="badgeKlientStatus" Background="#F1F5F9" CornerRadius="4" Padding="8,4" Margin="0,0,8,0">
@@ -844,7 +950,7 @@
                     </StackPanel>
 
                     <!-- TabControl -->
-                    <TabControl Grid.Row="1" Style="{StaticResource ModernTabControl}">
+                    <TabControl Grid.Row="2" Style="{StaticResource ModernTabControl}">
                         <!-- Zakładka Szczegóły -->
                         <TabItem Header="📋 Info" Style="{StaticResource ModernTabItem}">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
@@ -928,96 +1034,6 @@
                                     </Border>
                                 </StackPanel>
                             </ScrollViewer>
-                        </TabItem>
-
-                        <!-- Zakładka Ranking - druga pozycja -->
-                        <TabItem Header="🏆 Ranking" Style="{StaticResource ModernTabItem}">
-                            <Grid Margin="0,10,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Grid.Row="0" Text="TOP HANDLOWCY" FontSize="10" Foreground="{StaticResource ColorTextMuted}" FontWeight="SemiBold" Margin="0,0,0,8"/>
-
-                                <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
-                                    <DataGrid x:Name="dgRanking"
-                                              Style="{StaticResource ModernDataGrid}"
-                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                              CellStyle="{StaticResource DataGridCellStyle}"
-                                              RowHeight="40" FontSize="11">
-                                        <DataGrid.RowStyle>
-                                            <Style TargetType="DataGridRow">
-                                                <Setter Property="Background" Value="White"/>
-                                                <Style.Triggers>
-                                                    <Trigger Property="AlternationIndex" Value="0">
-                                                        <Setter Property="Background" Value="#F0FDF4"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGrid.RowStyle>
-                                        <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="#" Width="30">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Border Background="#DCFCE7" CornerRadius="4" Width="22" Height="22" HorizontalAlignment="Center">
-                                                            <TextBlock Text="{Binding Pozycja}" FontSize="10" FontWeight="Bold" Foreground="#166534" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Operator}" Width="*">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                        <Setter Property="Foreground" Value="#111827"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                            <DataGridTextColumn Header="Próby" Binding="{Binding Proby}" Width="45">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                        <Setter Property="Foreground" Value="#6B7280"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                            <DataGridTextColumn Header="Kont." Binding="{Binding Kontakt}" Width="45">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                        <Setter Property="Foreground" Value="#0891B2"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                            <DataGridTextColumn Header="Zgoda" Binding="{Binding Zgoda}" Width="45">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                        <Setter Property="Foreground" Value="#16A34A"/>
-                                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                            <DataGridTextColumn Header="Suma" Binding="{Binding Suma}" Width="50">
-                                                <DataGridTextColumn.ElementStyle>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                        <Setter Property="Foreground" Value="#16A34A"/>
-                                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                                        <Setter Property="FontSize" Value="12"/>
-                                                    </Style>
-                                                </DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
-                            </Grid>
                         </TabItem>
 
                         <!-- Zakładka Notatki -->

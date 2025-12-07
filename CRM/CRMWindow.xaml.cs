@@ -347,7 +347,7 @@ namespace Kalendarz1.CRM
                     var dt = new DataTable();
                     adapter.Fill(dt);
 
-                    dgRanking.ItemsSource = dt.DefaultView;
+                    listaRanking.ItemsSource = dt.DefaultView;
                 }
             }
             catch (Exception ex)
