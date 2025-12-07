@@ -591,9 +591,7 @@ namespace Kalendarz1
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
                 SplitterWidth = 5,
-                BackColor = BackgroundColor,
-                Panel1MinSize = 200,
-                Panel2MinSize = 200
+                BackColor = BackgroundColor
             };
 
             // --- LEWA STRONA: STAN MAGAZYNU ---
