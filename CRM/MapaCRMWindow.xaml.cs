@@ -388,24 +388,29 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
         {
             if (isLoading) return;
 
-            // Sprawdź ile kodów nie ma współrzędnych
+            // Sprawdź ile kodów UŻYWANYCH PRZEZ ODBIORCÓW nie ma współrzędnych
             int bezWspolrzednych = 0;
             using (var conn = new SqlConnection(connectionString))
             {
                 await conn.OpenAsync();
-                var cmd = new SqlCommand("SELECT COUNT(*) FROM KodyPocztowe WHERE Latitude IS NULL OR Longitude IS NULL", conn);
+                // Tylko kody które są faktycznie używane przez odbiorców!
+                var cmd = new SqlCommand(@"
+                    SELECT COUNT(DISTINCT kp.Kod)
+                    FROM KodyPocztowe kp
+                    INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
+                    WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL", conn);
                 bezWspolrzednych = (int)await cmd.ExecuteScalarAsync();
             }
 
             if (bezWspolrzednych == 0)
             {
-                MessageBox.Show("Wszystkie kody pocztowe mają już współrzędne!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Wszystkie kody pocztowe używane przez odbiorców mają już współrzędne!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             var result = MessageBox.Show(
-                $"Znaleziono {bezWspolrzednych} kodów pocztowych bez współrzędnych.\n\n" +
-                $"Pobieranie współrzędnych zajmie około {bezWspolrzednych / 2} sekund.\n" +
+                $"Znaleziono {bezWspolrzednych} kodów pocztowych (używanych przez odbiorców) bez współrzędnych.\n\n" +
+                $"Pobieranie współrzędnych zajmie około {Math.Min(bezWspolrzednych, 500) / 2} sekund.\n" +
                 $"(To operacja jednorazowa - potem mapa będzie działać błyskawicznie)\n\n" +
                 $"Kontynuować?",
                 "Uzupełnij współrzędne", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -424,9 +429,14 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
                 {
                     await conn.OpenAsync();
 
-                    // Pobierz kody bez współrzędnych
-                    var cmdSelect = new SqlCommand(
-                        "SELECT TOP 500 Kod, miej FROM KodyPocztowe WHERE Latitude IS NULL OR Longitude IS NULL", conn);
+                    // Pobierz kody używane przez odbiorców, posortowane po liczbie odbiorców (najpopularniejsze najpierw)
+                    var cmdSelect = new SqlCommand(@"
+                        SELECT TOP 500 kp.Kod, kp.miej, COUNT(*) as Ile
+                        FROM KodyPocztowe kp
+                        INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
+                        WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL
+                        GROUP BY kp.Kod, kp.miej
+                        ORDER BY COUNT(*) DESC", conn);
 
                     var kodyDoGeokodowania = new List<(string kod, string miasto)>();
                     using (var reader = await cmdSelect.ExecuteReaderAsync())
