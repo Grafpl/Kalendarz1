@@ -79,7 +79,7 @@ namespace Kalendarz1
                 RowCount = 3,
                 Padding = new Padding(0)
             };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 175F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
 
@@ -105,25 +105,50 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 BackColor = BackgroundColor,
-                Padding = new Padding(15, 10, 15, 10)
+                Padding = new Padding(0)
             };
 
-            // === PANEL KONTROLEK ===
-            Panel controlPanel = new Panel
+            // === NAGŁÓWEK Z LOGO I TYTUŁEM ===
+            Panel headerPanel = new Panel
             {
-                Height = 90,
+                Height = 100,
                 Dock = DockStyle.Top,
-                BackColor = CardColor
+                BackColor = Color.White
             };
-            controlPanel.Paint += (s, e) => DrawCardBorder(e.Graphics, controlPanel);
+            headerPanel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Logo w lewym górnym rogu - duże
+                // Gradient tła nagłówka
+                using (var brush = new LinearGradientBrush(
+                    headerPanel.ClientRectangle,
+                    Color.FromArgb(255, 255, 255),
+                    Color.FromArgb(248, 250, 252),
+                    LinearGradientMode.Vertical))
+                {
+                    g.FillRectangle(brush, headerPanel.ClientRectangle);
+                }
+
+                // Dolna linia gradientowa
+                using (var brush = new LinearGradientBrush(
+                    new Rectangle(0, headerPanel.Height - 3, headerPanel.Width, 3),
+                    Color.FromArgb(0, 120, 212),
+                    Color.FromArgb(16, 124, 16),
+                    LinearGradientMode.Horizontal))
+                {
+                    g.FillRectangle(brush, 0, headerPanel.Height - 3, headerPanel.Width, 3);
+                }
+            };
+
+            // Logo - duże i wyraźne
             PictureBox logoBox = new PictureBox
             {
-                Location = new Point(10, 5),
+                Location = new Point(20, 10),
                 Size = new Size(80, 80),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
             };
             try
             {
@@ -132,33 +157,98 @@ namespace Kalendarz1
                     logoBox.Image = Image.FromFile(logoPath);
             }
             catch { }
+            toolTip.SetToolTip(logoBox, "Mroźnia - System Analityczny PRO");
 
-            // Data początkowa
-            Label lblOd = CreateLabel("Data od:", 100, 10, true);
+            // Tytuł aplikacji
+            Label lblAppTitle = new Label
+            {
+                Text = "MROŹNIA",
+                Location = new Point(110, 18),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 120, 212),
+                BackColor = Color.Transparent
+            };
+
+            Label lblAppSubtitle = new Label
+            {
+                Text = "System Analityczny PRO",
+                Location = new Point(112, 55),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(100, 100, 100),
+                BackColor = Color.Transparent
+            };
+
+            // Panel dat i okresu
+            Panel datePanel = new Panel
+            {
+                Location = new Point(320, 15),
+                Size = new Size(380, 70),
+                BackColor = Color.FromArgb(248, 250, 252)
+            };
+            datePanel.Paint += (s, e) =>
+            {
+                using (var path = GetRoundedRectangle(new Rectangle(0, 0, datePanel.Width - 1, datePanel.Height - 1), 8))
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.DrawPath(pen, path);
+                }
+            };
+
+            Label lblOd = new Label
+            {
+                Text = "Od:",
+                Location = new Point(15, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
+            };
             dtpOd = new DateTimePicker
             {
-                Location = new Point(165, 6),
-                Width = 120,
+                Location = new Point(45, 8),
+                Width = 115,
                 Format = DateTimePickerFormat.Short,
-                Value = DateTime.Now.AddDays(-30)
+                Value = DateTime.Now.AddDays(-30),
+                Font = new Font("Segoe UI", 9F)
             };
 
-            // Data końcowa
-            Label lblDo = CreateLabel("do:", 295, 10, true);
+            Label lblDo = new Label
+            {
+                Text = "Do:",
+                Location = new Point(170, 12),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
+            };
             dtpDo = new DateTimePicker
             {
-                Location = new Point(320, 6),
-                Width = 120,
+                Location = new Point(200, 8),
+                Width = 115,
                 Format = DateTimePickerFormat.Short,
-                Value = DateTime.Now
+                Value = DateTime.Now,
+                Font = new Font("Segoe UI", 9F)
             };
 
-            // Szybki wybór okresu
+            Label lblOkres = new Label
+            {
+                Text = "Szybki wybór:",
+                Location = new Point(15, 42),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
+            };
             cmbPredkosc = new ComboBox
             {
-                Location = new Point(100, 45),
+                Location = new Point(95, 38),
                 Width = 160,
-                DropDownStyle = ComboBoxStyle.DropDownList
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                FlatStyle = FlatStyle.Flat
             };
             cmbPredkosc.Items.AddRange(new object[] {
                 "Dowolny", "Dziś", "Wczoraj", "Ostatnie 7 dni", "Ostatnie 30 dni",
@@ -167,60 +257,106 @@ namespace Kalendarz1
             cmbPredkosc.SelectedIndex = 0;
             cmbPredkosc.SelectedIndexChanged += CmbPredkosc_SelectedIndexChanged;
 
-            // Przyciski akcji - górny rząd
-            btnAnalizuj = CreateModernButton("Analizuj", 460, 8, 100, PrimaryColor);
-            btnWykres = CreateModernButton("Wykresy", 570, 8, 90, SuccessColor);
-            btnStanMagazynu = CreateModernButton("Stan", 670, 8, 80, WarningColor);
-            // Przyciski akcji - dolny rząd
-            btnSzybkiRaport = CreateModernButton("Raport", 460, 48, 100, InfoColor);
-            btnEksport = CreateModernButton("Eksport", 570, 48, 90, DangerColor);
+            datePanel.Controls.AddRange(new Control[] { lblOd, dtpOd, lblDo, dtpDo, lblOkres, cmbPredkosc });
 
-            toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu");
-            toolTip.SetToolTip(btnWykres, "Otwórz zaawansowane wykresy");
-            toolTip.SetToolTip(btnStanMagazynu, "Zobacz aktualny stan magazynu");
+            // Panel przycisków akcji
+            FlowLayoutPanel buttonPanel = new FlowLayoutPanel
+            {
+                Location = new Point(720, 12),
+                Size = new Size(600, 76),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                BackColor = Color.Transparent,
+                Padding = new Padding(0)
+            };
+
+            btnAnalizuj = CreateModernButtonNew("⚡ Analizuj", PrimaryColor, 110);
+            btnWykres = CreateModernButtonNew("📊 Wykresy", SuccessColor, 100);
+            btnStanMagazynu = CreateModernButtonNew("📦 Stan", WarningColor, 90);
+            btnSzybkiRaport = CreateModernButtonNew("📄 Raport", InfoColor, 100);
+            btnEksport = CreateModernButtonNew("💾 Eksport", DangerColor, 100);
+
+            toolTip.SetToolTip(btnAnalizuj, "Załaduj i analizuj dane dla wybranego okresu (F5)");
+            toolTip.SetToolTip(btnWykres, "Otwórz zaawansowane wykresy analityczne");
+            toolTip.SetToolTip(btnStanMagazynu, "Zobacz aktualny stan magazynu mroźni");
             toolTip.SetToolTip(btnSzybkiRaport, "Generuj szybki raport PDF");
-            toolTip.SetToolTip(btnEksport, "Eksportuj dane do Excel");
+            toolTip.SetToolTip(btnEksport, "Eksportuj dane do pliku Excel");
 
-            controlPanel.Controls.AddRange(new Control[] {
-                logoBox, lblOd, dtpOd, lblDo, dtpDo, cmbPredkosc,
+            buttonPanel.Controls.AddRange(new Control[] {
                 btnAnalizuj, btnWykres, btnStanMagazynu, btnSzybkiRaport, btnEksport
             });
 
+            headerPanel.Controls.AddRange(new Control[] { logoBox, lblAppTitle, lblAppSubtitle, datePanel, buttonPanel });
+
             // === PANEL KART STATYSTYK ===
             panelKarty = CreateKartyStatystyk();
-            panelKarty.Top = 70;
+            panelKarty.Location = new Point(0, 100);
 
             mainPanel.Controls.Add(panelKarty);
-            mainPanel.Controls.Add(controlPanel);
+            mainPanel.Controls.Add(headerPanel);
 
             return mainPanel;
+        }
+
+        private Button CreateModernButtonNew(string text, Color color, int width)
+        {
+            Button btn = new Button
+            {
+                Text = text,
+                Size = new Size(width, 34),
+                Margin = new Padding(3),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = color,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                TabStop = false
+            };
+
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color, 0.15f);
+            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color, 0.1f);
+
+            // Zaokrąglone rogi
+            btn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btn.Width, btn.Height, 8, 8));
+
+            // Efekt hover
+            btn.MouseEnter += (s, e) => {
+                btn.BackColor = ControlPaint.Light(color, 0.15f);
+            };
+            btn.MouseLeave += (s, e) => {
+                btn.BackColor = color;
+            };
+
+            return btn;
         }
 
         private Panel CreateKartyStatystyk()
         {
             Panel panel = new Panel
             {
-                Height = 70,
+                Height = 75,
                 Dock = DockStyle.Top,
-                BackColor = BackgroundColor
+                BackColor = BackgroundColor,
+                Padding = new Padding(15, 5, 15, 5)
             };
 
             // Karta 1 - Wydano
-            Panel card1 = CreateStatCard("WYDANO", "0 kg", PrimaryColor, 0);
+            Panel card1 = CreateStatCard("📤 WYDANO", "0 kg", PrimaryColor, 0);
             lblWydano = (Label)card1.Controls[1];
 
             // Karta 2 - Przyjęto
-            Panel card2 = CreateStatCard("PRZYJĘTO", "0 kg", SuccessColor, 1);
+            Panel card2 = CreateStatCard("📥 PRZYJĘTO", "0 kg", SuccessColor, 1);
             lblPrzyjeto = (Label)card2.Controls[1];
 
             // Karta 3 - Średnia dzienna
-            Panel card3 = CreateStatCard("ŚREDNIO/DZIEŃ", "0 kg", WarningColor, 2);
+            Panel card3 = CreateStatCard("📈 ŚREDNIO/DZIEŃ", "0 kg", WarningColor, 2);
             lblSrednia = (Label)card3.Controls[1];
 
             // Karta 4 - Podsumowanie
-            Panel card4 = CreateStatCard("STATUS", "Wybierz okres", InfoColor, 3);
+            Panel card4 = CreateStatCard("ℹ️ STATUS", "Wybierz okres", InfoColor, 3);
             lblPodsumowanie = (Label)card4.Controls[1];
-            lblPodsumowanie.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblPodsumowanie.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
 
             panel.Controls.AddRange(new Control[] { card1, card2, card3, card4 });
 
@@ -229,34 +365,66 @@ namespace Kalendarz1
 
         private Panel CreateStatCard(string title, string value, Color accentColor, int position)
         {
-            int cardWidth = 320;
-            int margin = 10;
+            int cardWidth = 300;
+            int margin = 15;
 
             Panel card = new Panel
             {
-                Location = new Point(position * (cardWidth + margin), 0),
-                Size = new Size(cardWidth, 65),
+                Location = new Point(15 + position * (cardWidth + margin), 5),
+                Size = new Size(cardWidth, 62),
                 BackColor = CardColor,
                 Cursor = Cursors.Hand
             };
-            card.Paint += (s, e) => DrawCardBorder(e.Graphics, card, accentColor);
+            card.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Tło z gradientem
+                using (var brush = new LinearGradientBrush(
+                    card.ClientRectangle,
+                    Color.White,
+                    Color.FromArgb(252, 253, 255),
+                    LinearGradientMode.Vertical))
+                {
+                    using (var path = GetRoundedRectangle(card.ClientRectangle, 10))
+                    {
+                        g.FillPath(brush, path);
+                    }
+                }
+
+                // Lewa krawędź kolorowa
+                using (var brush = new SolidBrush(accentColor))
+                {
+                    g.FillRectangle(brush, 0, 10, 4, card.Height - 20);
+                }
+
+                // Cień/border
+                using (var path = GetRoundedRectangle(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 10))
+                using (var pen = new Pen(Color.FromArgb(230, 232, 235), 1))
+                {
+                    g.DrawPath(pen, path);
+                }
+            };
 
             Label lblTitle = new Label
             {
                 Text = title,
                 Location = new Point(15, 8),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = SecondaryTextColor
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = SecondaryTextColor,
+                BackColor = Color.Transparent
             };
 
             Label lblValue = new Label
             {
                 Text = value,
-                Location = new Point(15, 28),
+                Location = new Point(15, 30),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = accentColor
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                ForeColor = accentColor,
+                BackColor = Color.Transparent
             };
 
             card.Controls.AddRange(new Control[] { lblTitle, lblValue });
