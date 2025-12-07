@@ -46,17 +46,17 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 // Bieżący miesiąc
                 var sqlBiezacy = @"
                     SELECT
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
-                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                        COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataOd AND z.DataOdbioru < @DataDo
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataOd AND z.DataZamowienia < @DataDo
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sqlBiezacy += " AND z.Handlowiec = @Handlowiec";
+                    sqlBiezacy += " AND z.IdUser = @Handlowiec";
 
                 await using (var cmd = new SqlCommand(sqlBiezacy, cn))
                 {
@@ -121,22 +121,22 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 var sql = @"
                     SELECT
-                        YEAR(z.DataOdbioru) as Rok,
-                        MONTH(z.DataOdbioru) as Miesiac,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        YEAR(z.DataZamowienia) as Rok,
+                        MONTH(z.DataZamowienia) as Miesiac,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
-                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                        COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
-                    GROUP BY YEAR(z.DataOdbioru), MONTH(z.DataOdbioru)
+                    GROUP BY YEAR(z.DataZamowienia), MONTH(z.DataZamowienia)
                     ORDER BY Rok, Miesiac";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -186,21 +186,21 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 var sql = @"
                     SELECT TOP (@Limit)
-                        z.OdbiorcaId,
-                        z.Odbiorca as Nazwa,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        z.KlientId,
+                        CAST(z.KlientId AS VARCHAR(50)) as Nazwa,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
-                    GROUP BY z.OdbiorcaId, z.Odbiorca
+                    GROUP BY z.KlientId
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -258,25 +258,25 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 var sql = @"
                     SELECT
                         CASE
-                            WHEN zp.KodTowaru = '67153' THEN 'Mrożonki'
+                            WHEN zp.KodTowaru = 67153 THEN 'Mrożonki'
                             ELSE 'Świeże'
                         END as Kategoria,
-                        zp.KodTowaru,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        CAST(zp.KodTowaru AS VARCHAR(50)) as KodTowaru,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc
                     FROM ZamowieniaMieso z
-                    INNER JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)
+                    INNER JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart
+                        AND z.AnulowanePrzez IS NULL
                         AND zp.Ilosc > 0";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
                     GROUP BY
-                        CASE WHEN zp.KodTowaru = '67153' THEN 'Mrożonki' ELSE 'Świeże' END,
+                        CASE WHEN zp.KodTowaru = 67153 THEN 'Mrożonki' ELSE 'Świeże' END,
                         zp.KodTowaru
                     ORDER BY SumaWartosc DESC";
 
@@ -327,23 +327,23 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 var sql = @"
                     SELECT TOP (@Limit)
-                        z.ID,
-                        z.DataOdbioru,
-                        z.Odbiorca,
+                        z.Id,
+                        z.DataZamowienia,
+                        CAST(z.KlientId AS VARCHAR(50)) as Odbiorca,
                         ISNULL(SUM(zp.Ilosc), 0) as Kg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as Wartosc,
-                        CASE WHEN z.Anulowane = 1 THEN 'Anulowane' ELSE 'Aktywne' END as Status,
+                        CASE WHEN z.AnulowanePrzez IS NOT NULL THEN 'Anulowane' ELSE z.Status END as Status,
                         ISNULL(z.TransportStatus, 'Firma') as TransportStatus
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
                     WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
-                    GROUP BY z.ID, z.DataOdbioru, z.Odbiorca, z.Anulowane, z.TransportStatus
-                    ORDER BY z.DataOdbioru DESC, z.ID DESC";
+                    GROUP BY z.Id, z.DataZamowienia, z.KlientId, z.AnulowanePrzez, z.Status, z.TransportStatus
+                    ORDER BY z.DataZamowienia DESC, z.Id DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Limit", limit);
@@ -386,10 +386,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT DISTINCT Handlowiec
+                    SELECT DISTINCT CAST(IdUser AS VARCHAR(50)) as IdUser
                     FROM ZamowieniaMieso
-                    WHERE Handlowiec IS NOT NULL AND Handlowiec != ''
-                    ORDER BY Handlowiec";
+                    WHERE IdUser IS NOT NULL
+                    ORDER BY IdUser";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
@@ -428,17 +428,17 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                     var sql = @"
                         SELECT
-                            COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                            COUNT(DISTINCT z.Id) as LiczbaZamowien,
                             ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                             ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
-                            COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                            COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
                         FROM ZamowieniaMieso z
-                        LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                        WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru < @DataKoniec
-                            AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                        LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                        WHERE z.DataZamowienia >= @DataStart AND z.DataZamowienia < @DataKoniec
+                            AND z.AnulowanePrzez IS NULL";
 
                     if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                        sql += " AND z.Handlowiec = @Handlowiec";
+                        sql += " AND z.IdUser = @Handlowiec";
 
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@DataStart", dataStart);
@@ -485,21 +485,21 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
                 var sql = @"
                     SELECT
-                        CAST(z.DataOdbioru AS DATE) as Dzien,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        z.DataZamowienia as Dzien,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
-                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                        COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart AND z.DataZamowienia <= @DataKoniec
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
-                    GROUP BY CAST(z.DataOdbioru AS DATE)
+                    GROUP BY z.DataZamowienia
                     ORDER BY Dzien";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -562,21 +562,21 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 // Grupujemy po handlowcach zamiast po województwach (brak danych geograficznych w LibraNet)
                 var sql = @"
                     SELECT TOP 10
-                        ISNULL(z.Handlowiec, 'Nieznany') as Handlowiec,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
+                        ISNULL(CAST(z.IdUser AS VARCHAR(50)), 'Nieznany') as Handlowiec,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaWartosc,
-                        COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
+                        COUNT(DISTINCT z.KlientId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += @"
-                    GROUP BY ISNULL(z.Handlowiec, 'Nieznany')
+                    GROUP BY ISNULL(CAST(z.IdUser AS VARCHAR(50)), 'Nieznany')
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -631,15 +631,15 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                 var sql = @"
                     SELECT
                         ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as SumaSprzedazy,
-                        COUNT(DISTINCT z.ID) as LiczbaZamowien,
-                        COUNT(DISTINCT CASE WHEN z.Anulowane = 1 THEN z.ID END) as ZwrotyAnulowane,
+                        COUNT(DISTINCT z.Id) as LiczbaZamowien,
+                        COUNT(DISTINCT CASE WHEN z.AnulowanePrzez IS NOT NULL THEN z.Id END) as ZwrotyAnulowane,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg
                     FROM ZamowieniaMieso z
-                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                    WHERE z.DataOdbioru >= @DataStart AND z.DataOdbioru <= @DataKoniec";
+                    LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                    WHERE z.DataZamowienia >= @DataStart AND z.DataZamowienia <= @DataKoniec";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@DataStart", dataStart);
@@ -691,11 +691,11 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         ISNULL(z.TransportStatus, 'Firma') as TypDostawy,
                         COUNT(*) as Liczba
                     FROM ZamowieniaMieso z
-                    WHERE z.DataOdbioru >= @DataStart
-                        AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                    WHERE z.DataZamowienia >= @DataStart
+                        AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 sql += " GROUP BY ISNULL(z.TransportStatus, 'Firma')";
 
@@ -764,17 +764,17 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                             ISNULL(AVG(wartosc_zam), 0) as SredniaTenTydzien
                         FROM (
                             SELECT
-                                z.ID,
+                                z.Id,
                                 ISNULL(SUM(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0)), 0) as wartosc_zam
                             FROM ZamowieniaMieso z
-                            LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-                            WHERE CAST(z.DataOdbioru AS DATE) = @Dzien
-                                AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+                            LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+                            WHERE z.DataZamowienia = @Dzien
+                                AND z.AnulowanePrzez IS NULL";
 
                     if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                        sqlTenTydzien += " AND z.Handlowiec = @Handlowiec";
+                        sqlTenTydzien += " AND z.IdUser = @Handlowiec";
 
-                    sqlTenTydzien += " GROUP BY z.ID) sub";
+                    sqlTenTydzien += " GROUP BY z.Id) sub";
 
                     decimal sredniaTen = 0;
                     await using (var cmd = new SqlCommand(sqlTenTydzien, cn))
@@ -1119,19 +1119,19 @@ ORDER BY SumaWartosc DESC";
 
                 var sql = @"
 SELECT
-    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN 1 ELSE 0 END) as ZamDzis,
-    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgDzis,
-    SUM(CASE WHEN z.DataOdbioru = @Dzis THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscDzis,
-    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN 1 ELSE 0 END) as ZamJutro,
-    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgJutro,
-    SUM(CASE WHEN z.DataOdbioru = @Jutro THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscJutro
+    SUM(CASE WHEN z.DataZamowienia = @Dzis THEN 1 ELSE 0 END) as ZamDzis,
+    SUM(CASE WHEN z.DataZamowienia = @Dzis THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgDzis,
+    SUM(CASE WHEN z.DataZamowienia = @Dzis THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscDzis,
+    SUM(CASE WHEN z.DataZamowienia = @Jutro THEN 1 ELSE 0 END) as ZamJutro,
+    SUM(CASE WHEN z.DataZamowienia = @Jutro THEN ISNULL(zp.Ilosc, 0) ELSE 0 END) as KgJutro,
+    SUM(CASE WHEN z.DataZamowienia = @Jutro THEN ISNULL(zp.Ilosc * ISNULL(TRY_CAST(NULLIF(zp.Cena, '') AS DECIMAL(18,2)), 0), 0) ELSE 0 END) as WartoscJutro
 FROM ZamowieniaMieso z
-LEFT JOIN ZamowieniaMiesoTowar zp ON z.ID = zp.ZamowienieId
-WHERE z.DataOdbioru IN (@Dzis, @Jutro)
-  AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
+LEFT JOIN ZamowieniaMiesoTowar zp ON z.Id = zp.ZamowienieId
+WHERE z.DataZamowienia IN (@Dzis, @Jutro)
+  AND z.AnulowanePrzez IS NULL";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
-                    sql += " AND z.Handlowiec = @Handlowiec";
+                    sql += " AND z.IdUser = @Handlowiec";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Dzis", dzis);
